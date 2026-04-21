@@ -1,137 +1,52 @@
-import Link from "next/link";
-
 import { MetricCard } from "@/components/admin/metric-card";
 import { PageHeader } from "@/components/admin/page-header";
-import { RolePreview } from "@/components/admin/role-preview";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { getDashboardPageData } from "@/lib/dashboard/data";
 import { formatInr } from "@/lib/helpers/currency";
-import { protectedNavigation } from "@/lib/config/navigation";
-import { createClient } from "@/lib/supabase/server";
-
-const workQueues = [
-  "Use Students to keep admissions, class assignment, and status clean.",
-  "Configure Fee Setup before staff begin posting live collections.",
-  "Record Payments and keep receipts append-only and auditable.",
-  "Use Ledger and Defaulters to review balances instead of editing history.",
-] as const;
-
-const auditNotes = [
-  "Historical payments should remain append-only even after correction flows are added.",
-  "Receipt numbers, payment modes, and staff identity need to stay visible in operational views.",
-  "This shell is intentionally simple so office staff can move fast without hunting for actions.",
-] as const;
-
-type RecentReceiptRow = {
-  receipt_number: string;
-  payment_date: string;
-  total_amount: number;
-};
+import { formatShortDate } from "@/lib/helpers/date";
 
 export default async function ProtectedPage() {
-  const supabase = await createClient();
-
-  const [
-    { count: activeStudentsCount, error: activeStudentsError },
-    { count: todayReceiptsCount, error: todayReceiptsCountError },
-    { data: todayReceiptsRaw, error: todayCollectionError },
-    { data: outstandingRaw, error: outstandingError },
-    { data: recentReceiptsRaw, error: recentReceiptsError },
-  ] = await Promise.all([
-    supabase
-      .from("students")
-      .select("id", { count: "exact", head: true })
-      .in("status", ["active", "inactive"]),
-    supabase
-      .from("receipts")
-      .select("id", { count: "exact", head: true })
-      .eq("payment_date", new Date().toISOString().slice(0, 10)),
-    supabase
-      .from("receipts")
-      .select("total_amount")
-      .eq("payment_date", new Date().toISOString().slice(0, 10)),
-    supabase
-      .from("v_outstanding_summary")
-      .select("outstanding_amount, students_with_dues"),
-    supabase
-      .from("receipts")
-      .select("receipt_number, payment_date, total_amount")
-      .order("payment_date", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(6),
-  ]);
-
-  if (
-    activeStudentsError ||
-    todayReceiptsCountError ||
-    todayCollectionError ||
-    outstandingError ||
-    recentReceiptsError
-  ) {
-    throw new Error(
-      activeStudentsError?.message ||
-        todayReceiptsCountError?.message ||
-        todayCollectionError?.message ||
-        outstandingError?.message ||
-        recentReceiptsError?.message ||
-        "Unable to load dashboard data.",
-    );
-  }
-
-  const activeStudents = activeStudentsCount ?? 0;
-  const todayReceipts = todayReceiptsCount ?? 0;
-  const todayCollection = ((todayReceiptsRaw ?? []) as Array<{ total_amount: number }>).reduce(
-    (sum, row) => sum + row.total_amount,
-    0,
-  );
-  const outstandingRows =
-    (outstandingRaw ?? []) as Array<{
-      outstanding_amount: number;
-      students_with_dues: number;
-    }>;
-  const outstandingAmount = outstandingRows.reduce(
-    (sum, row) => sum + row.outstanding_amount,
-    0,
-  );
-  const studentsWithDues = outstandingRows.reduce(
-    (sum, row) => sum + row.students_with_dues,
-    0,
-  );
-  const recentReceipts = (recentReceiptsRaw ?? []) as RecentReceiptRow[];
+  const data = await getDashboardPageData();
 
   const dashboardMetrics = [
     {
-      title: "Active students",
-      value: activeStudents,
-      hint: "Students currently active/inactive for office operations",
+      title: "Total students",
+      value: data.totalStudents,
+      hint: "Active and inactive student records in current office use",
     },
     {
-      title: "Today receipts",
-      value: todayReceipts,
-      hint: "Posted from payment entry desk",
+      title: "Total due",
+      value: formatInr(data.totalDue),
+      hint: "Scheduled installment amount excluding waived rows",
     },
     {
-      title: "Today collection",
-      value: formatInr(todayCollection),
-      hint: "Total of receipts dated today",
+      title: "Total collected",
+      value: formatInr(data.totalCollected),
+      hint: "Posted receipt amount across all collections",
     },
     {
-      title: "Outstanding",
-      value: formatInr(outstandingAmount),
-      hint: `${studentsWithDues} students with pending dues`,
+      title: "Total pending",
+      value: formatInr(data.totalPending),
+      hint: `${data.studentsWithPending} students still have open dues`,
     },
-  ] as const;
+    {
+      title: "Overdue installments",
+      value: data.overdueInstallmentCount,
+      hint: "Installments past due date and still unpaid",
+    },
+  ];
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Dashboard"
-        title="Admin shell overview"
-        description="This is the initial internal workspace for VPPS fee operations. Each section is scaffolded for a clear office workflow, with room to connect live data next."
-        actions={<StatusBadge label="Initial shell" tone="good" />}
+        title="Daily fee office overview"
+        description="Track current due position, recent collections, and class-wise follow-up from one operational dashboard."
+        actions={<StatusBadge label="Live snapshot" tone="good" />}
       />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {dashboardMetrics.map((metric) => (
           <MetricCard
             key={metric.title}
@@ -142,98 +57,148 @@ export default async function ProtectedPage() {
         ))}
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+      <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <SectionCard
-          title="Open sections"
-          description="The sidebar stays focused on the daily internal admin workflow."
+          title="Recent payments"
+          description="Latest receipt entries posted from the payment desk."
         >
-          <div className="grid gap-3 md:grid-cols-2">
-            {protectedNavigation.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 transition hover:border-slate-300 hover:bg-white"
-              >
-                <p className="text-sm font-semibold text-slate-950">
-                  {item.label}
-                </p>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
-                  {item.description}
-                </p>
-              </Link>
-            ))}
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full min-w-[760px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                <tr>
+                  <th className="px-4 py-3">Receipt no</th>
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Student</th>
+                  <th className="px-4 py-3">Class</th>
+                  <th className="px-4 py-3">Mode</th>
+                  <th className="px-4 py-3">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.recentPayments.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
+                      No payments posted yet.
+                    </td>
+                  </tr>
+                ) : (
+                  data.recentPayments.map((payment) => (
+                    <tr
+                      key={`${payment.receiptNumber}-${payment.paymentDate}`}
+                      className="border-t border-slate-100 text-slate-700"
+                    >
+                      <td className="px-4 py-3 font-medium text-slate-900">
+                        {payment.receiptNumber}
+                      </td>
+                      <td className="px-4 py-3">{formatShortDate(payment.paymentDate)}</td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-slate-900">{payment.studentName}</div>
+                        <div className="text-xs text-slate-500">{payment.admissionNo}</div>
+                      </td>
+                      <td className="px-4 py-3">{payment.classLabel}</td>
+                      <td className="px-4 py-3">{payment.paymentMode}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">
+                        {formatInr(payment.amount)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </SectionCard>
 
         <SectionCard
-          title="Current focus"
-          description="The shell is optimized for clarity before feature depth."
+          title="Due position"
+          description="Keep the numbers staff usually ask for in one quick reference."
         >
-          <ul className="space-y-3 text-sm leading-6 text-slate-700">
-            {workQueues.map((item) => (
-              <li
-                key={item}
-                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
-              >
-                {item}
-              </li>
-            ))}
-          </ul>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Collection coverage
+              </p>
+              <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+                {data.totalDue > 0
+                  ? `${Math.round((data.totalCollected / data.totalDue) * 100)}%`
+                  : "0%"}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Portion of scheduled due already collected through receipts.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Students with dues
+              </p>
+              <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+                {data.studentsWithPending}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Follow-up pool across pending, partial, and overdue installments.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 sm:col-span-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Pending vs collected
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <p className="text-sm text-slate-600">Collected</p>
+                  <p className="text-lg font-semibold text-slate-950">
+                    {formatInr(data.totalCollected)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-600">Pending</p>
+                  <p className="text-lg font-semibold text-slate-950">
+                    {formatInr(data.totalPending)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </SectionCard>
       </section>
 
       <SectionCard
-        title="Role placeholders"
-        description="Initial role names are available in the shell now, even before fine-grained permission enforcement is wired."
-      >
-        <RolePreview title={null} description={null} />
-      </SectionCard>
-
-      <SectionCard
-        title="Audit reminders"
-        description="Keep the shell aligned with the school’s correction-safe operating rules."
-      >
-        <ul className="space-y-3 text-sm leading-6 text-slate-700">
-          {auditNotes.map((note) => (
-            <li
-              key={note}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
-            >
-              {note}
-            </li>
-          ))}
-        </ul>
-      </SectionCard>
-
-      <SectionCard
-        title="Recent receipt activity"
-        description="Latest posted receipts from the payment entry desk."
+        title="Class-wise quick summary"
+        description="Simple class-level view of student count, pending amount, and overdue installment pressure."
       >
         <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className="w-full min-w-[840px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
               <tr>
-                <th className="px-4 py-3">Receipt no</th>
-                <th className="px-4 py-3">Payment date</th>
-                <th className="px-4 py-3">Amount</th>
+                <th className="px-4 py-3">Session</th>
+                <th className="px-4 py-3">Class</th>
+                <th className="px-4 py-3">Students</th>
+                <th className="px-4 py-3">Students with dues</th>
+                <th className="px-4 py-3">Overdue installments</th>
+                <th className="px-4 py-3">Pending amount</th>
               </tr>
             </thead>
             <tbody>
-              {recentReceipts.length === 0 ? (
+              {data.classSummary.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-4 py-6 text-center text-slate-500">
-                    No receipts posted yet.
+                  <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
+                    No class summary available yet.
                   </td>
                 </tr>
               ) : (
-                recentReceipts.map((receipt) => (
+                data.classSummary.map((row) => (
                   <tr
-                    key={`${receipt.receipt_number}-${receipt.payment_date}`}
+                    key={`${row.sessionLabel}-${row.classLabel}`}
                     className="border-t border-slate-100 text-slate-700"
                   >
-                    <td className="px-4 py-3 font-medium text-slate-900">{receipt.receipt_number}</td>
-                    <td className="px-4 py-3">{receipt.payment_date}</td>
-                    <td className="px-4 py-3">{formatInr(receipt.total_amount)}</td>
+                    <td className="px-4 py-3">{row.sessionLabel}</td>
+                    <td className="px-4 py-3 font-medium text-slate-900">{row.classLabel}</td>
+                    <td className="px-4 py-3">{row.totalStudents}</td>
+                    <td className="px-4 py-3">{row.studentsWithPending}</td>
+                    <td className="px-4 py-3">{row.overdueInstallments}</td>
+                    <td className="px-4 py-3 font-medium text-slate-900">
+                      {formatInr(row.pendingAmount)}
+                    </td>
                   </tr>
                 ))
               )}
