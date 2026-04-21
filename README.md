@@ -26,7 +26,7 @@ As documented on April 21, 2026, the repo already includes:
 - protected internal workspace under `app/protected`
 - Supabase SSR auth wiring with browser, server, admin, and proxy helpers
 - server-side session guard helper at `lib/supabase/session.ts`
-- starter Supabase schema at `supabase/schema.sql`
+- initial fee schema at `supabase/schema.sql`
 - dedicated migration folder at `supabase/migrations`
 - internal role model for `admin`, `accounts`, and `clerk`
 - settings page that surfaces environment and policy assumptions
@@ -218,37 +218,46 @@ Vercel note:
 Enums:
 
 - `staff_role`
+- `class_status`
 - `student_status`
-- `record_source`
-- `ledger_status`
+- `installment_status`
 - `payment_mode`
-- `import_batch_status`
+- `adjustment_type`
 - `audit_action`
 
 Tables:
 
-- `staff_profiles`
-- `import_batches`
+- `users`
+- `classes`
+- `transport_routes`
 - `students`
-- `fee_structures`
-- `fee_ledgers`
-- `fee_collections`
-- `audit_log`
+- `fee_settings`
+- `student_fee_overrides`
+- `installments`
+- `receipts`
+- `payments`
+- `payment_adjustments`
+- `audit_logs`
 
 Database behavior:
 
-- `created_at` and `updated_at` timestamps on core operational tables
-- `set_updated_at()` trigger function
-- audit triggers writing row history into `audit_log`
+- `created_at` / `updated_at` timestamps on master and due-schedule tables
+- audit triggers writing row history into `audit_logs`
 - RLS enabled on all exposed core tables
-- authenticated read/insert/update policies already present
-- no delete policies on core operational tables
-- view `public.v_outstanding_summary` for report-style aggregation
+- authenticated read/insert/update policies on mutable admin tables
+- append-only protection on `receipts`, `payments`, `payment_adjustments`, and
+  `audit_logs`
+- no delete policies on operational finance tables
+- views `public.v_installment_balances` and `public.v_outstanding_summary` for
+  due and outstanding reporting
 
 Operational implication:
 
 - prefer corrections and audit-safe updates over destructive delete flows
-- keep import batches traceable by source filename and row counts
+- use `payment_adjustments` for reversals/corrections instead of editing old
+  payment rows
+- spreadsheet import traceability should be added later when the staged import
+  workflow is built
 
 Schema and migration layout:
 

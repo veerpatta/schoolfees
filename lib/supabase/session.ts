@@ -21,7 +21,7 @@ export async function getAuthenticatedStaff() {
   return (data?.claims as StaffAuthClaims | null) ?? null;
 }
 
-// Placeholder for future role-aware checks against staff_profiles.
+// Placeholder for future role-aware checks against public.users.
 export async function requireAuthenticatedStaff(redirectTo = "/auth/login") {
   const staff = await getAuthenticatedStaff();
 

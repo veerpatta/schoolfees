@@ -129,10 +129,10 @@ App code should usually import from `lib/supabase/*`.
 
 Important nuance:
 
-- The current schema allows updates on some operational tables.
+- The current schema allows updates on master and due-schedule tables.
 - Do not interpret that as permission to build history-rewriting UI.
-- Future payment and ledger work should enforce append-only behavior at the
-  workflow level, and preferably at the data-model level when expanded.
+- Payments, receipts, and payment adjustments should stay append-only at the
+  workflow and data-model level.
 
 ## Active School Rules
 
@@ -158,27 +158,33 @@ policy wins unless the user explicitly asks for historical-rule handling.
 
 Current core tables in `supabase/schema.sql`:
 
-- `staff_profiles`
-- `import_batches`
+- `users`
+- `classes`
+- `transport_routes`
 - `students`
-- `fee_structures`
-- `fee_ledgers`
-- `fee_collections`
-- `audit_log`
+- `fee_settings`
+- `student_fee_overrides`
+- `installments`
+- `receipts`
+- `payments`
+- `payment_adjustments`
+- `audit_logs`
 
 Current operational posture:
 
 - RLS is enabled on core tables
 - audit triggers exist on core tables
+- payments, receipts, and payment adjustments are append-only
 - no delete policies exist for core operational tables
 - `public.v_outstanding_summary` exists for reporting
+- `public.v_installment_balances` exists for installment due tracking
 
 Preserve:
 
 - `created_at` / `updated_at`
 - `created_by` / `updated_by`
-- import batch traceability
 - auditable correction history
+- future import batch traceability when import workflows are added
 
 ## Change Control
 

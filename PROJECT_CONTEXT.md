@@ -130,29 +130,36 @@ Current site URL behavior:
 
 Important current tables:
 
+- `users`
+- `classes`
+- `transport_routes`
 - `students`
-- `fee_structures`
-- `fee_ledgers`
-- `fee_collections`
-- `import_batches`
-- `audit_log`
+- `fee_settings`
+- `student_fee_overrides`
+- `installments`
+- `receipts`
+- `payments`
+- `payment_adjustments`
+- `audit_logs`
 
 Important current enums:
 
 - `staff_role`
+- `class_status`
 - `student_status`
-- `record_source`
-- `ledger_status`
+- `installment_status`
 - `payment_mode`
-- `import_batch_status`
+- `adjustment_type`
 - `audit_action`
 
 Important current database behavior:
 
 - audit triggers capture inserts, updates, and deletes
-- `set_updated_at()` keeps operational timestamps fresh
+- append-only triggers block updates/deletes on receipts, payments, payment
+  adjustments, and audit logs
 - `v_outstanding_summary` supports outstanding reporting
-- no delete policies exist for core operational tables
+- `v_installment_balances` supports installment-level due tracking
+- no delete policies exist for operational finance tables
 
 ## Product And Data Constraints
 
@@ -162,7 +169,7 @@ Future agents should assume:
 - history matters more than convenience edits
 - simple UI is preferred over a clever UI
 - records should be easy to verify later
-- imports should be traceable and staged
+- imports should be traceable and staged when import tables are added
 
 Payment-history rule:
 

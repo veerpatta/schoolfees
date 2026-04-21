@@ -81,7 +81,6 @@ $$;
 create or replace function private.set_updated_at()
 returns trigger
 language plpgsql
-set search_path = private
 as $$
 begin
   new.updated_at = now();
@@ -92,7 +91,6 @@ $$;
 create or replace function private.set_actor_columns()
 returns trigger
 language plpgsql
-set search_path = private
 as $$
 begin
   if tg_op = 'INSERT' then
@@ -114,7 +112,6 @@ $$;
 create or replace function private.set_created_by_column()
 returns trigger
 language plpgsql
-set search_path = private
 as $$
 begin
   if new.created_by is null then
@@ -128,7 +125,6 @@ $$;
 create or replace function private.prevent_append_only_mutation()
 returns trigger
 language plpgsql
-set search_path = private
 as $$
 begin
   raise exception '% is append-only and cannot be updated or deleted.', tg_table_name;
@@ -334,24 +330,6 @@ on public.classes (session_label, sort_order, class_name);
 create index if not exists idx_transport_routes_active
 on public.transport_routes (is_active, route_name);
 
-create index if not exists idx_users_created_by
-on public.users (created_by);
-
-create index if not exists idx_users_updated_by
-on public.users (updated_by);
-
-create index if not exists idx_classes_created_by
-on public.classes (created_by);
-
-create index if not exists idx_classes_updated_by
-on public.classes (updated_by);
-
-create index if not exists idx_transport_routes_created_by
-on public.transport_routes (created_by);
-
-create index if not exists idx_transport_routes_updated_by
-on public.transport_routes (updated_by);
-
 create index if not exists idx_students_class_status
 on public.students (class_id, status);
 
@@ -366,24 +344,9 @@ create unique index if not exists idx_fee_settings_active_per_class
 on public.fee_settings (class_id)
 where is_active;
 
-create index if not exists idx_fee_settings_created_by
-on public.fee_settings (created_by);
-
-create index if not exists idx_fee_settings_updated_by
-on public.fee_settings (updated_by);
-
 create unique index if not exists idx_student_fee_overrides_active_per_student
 on public.student_fee_overrides (student_id)
 where is_active;
-
-create index if not exists idx_student_fee_overrides_fee_setting
-on public.student_fee_overrides (fee_setting_id);
-
-create index if not exists idx_student_fee_overrides_created_by
-on public.student_fee_overrides (created_by);
-
-create index if not exists idx_student_fee_overrides_updated_by
-on public.student_fee_overrides (updated_by);
 
 create index if not exists idx_installments_student_due_date
 on public.installments (student_id, due_date);
@@ -394,27 +357,11 @@ on public.installments (class_id, due_date);
 create index if not exists idx_installments_status_due_date
 on public.installments (status, due_date);
 
-create index if not exists idx_installments_fee_setting
-on public.installments (fee_setting_id);
-
-create index if not exists idx_installments_student_fee_override
-on public.installments (student_fee_override_id)
-where student_fee_override_id is not null;
-
-create index if not exists idx_installments_created_by
-on public.installments (created_by);
-
-create index if not exists idx_installments_updated_by
-on public.installments (updated_by);
-
 create index if not exists idx_receipts_student_payment_date
 on public.receipts (student_id, payment_date desc);
 
 create index if not exists idx_receipts_payment_date
 on public.receipts (payment_date desc);
-
-create index if not exists idx_receipts_created_by
-on public.receipts (created_by);
 
 create index if not exists idx_payments_installment
 on public.payments (installment_id, created_at desc);
@@ -422,38 +369,17 @@ on public.payments (installment_id, created_at desc);
 create index if not exists idx_payments_student_created_at
 on public.payments (student_id, created_at desc);
 
-create index if not exists idx_payments_receipt_student
-on public.payments (receipt_id, student_id);
-
-create index if not exists idx_payments_installment_student
-on public.payments (installment_id, student_id);
-
-create index if not exists idx_payments_created_by
-on public.payments (created_by);
-
 create index if not exists idx_payment_adjustments_payment
 on public.payment_adjustments (payment_id, created_at desc);
 
 create index if not exists idx_payment_adjustments_student
 on public.payment_adjustments (student_id, created_at desc);
 
-create index if not exists idx_payment_adjustments_payment_student_installment
-on public.payment_adjustments (payment_id, student_id, installment_id);
-
-create index if not exists idx_payment_adjustments_created_by
-on public.payment_adjustments (created_by);
-
 create index if not exists idx_audit_logs_record
 on public.audit_logs (table_name, record_id, created_at desc);
 
 create index if not exists idx_audit_logs_changed_by
 on public.audit_logs (changed_by, created_at desc);
-
-create index if not exists idx_students_created_by
-on public.students (created_by);
-
-create index if not exists idx_students_updated_by
-on public.students (updated_by);
 
 drop trigger if exists set_updated_at_on_users on public.users;
 create trigger set_updated_at_on_users
