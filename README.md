@@ -1,152 +1,317 @@
 # Shri Veer Patta Senior Secondary School Fee Admin
 
-Internal fee management web app for one school.
+Internal fee management web app for one school:
+Shri Veer Patta Senior Secondary School.
 
 This project is for school office and accounts staff only.
 It is not a parent portal.
 
-## What This App Covers
+## Project Intent
 
-- Student master records
-- Workbook CSV import batches
-- Fee structure and installment defaults
-- Collection desk workflow
-- Reports and audit-friendly outputs
-- Supabase auth + database setup
-- Vercel-ready deployment
+The app exists to replace workbook-driven fee operations gradually without
+losing auditability. The product scope should stay narrow and operational:
 
-## Active Fee Rule Defaults
+- maintain student master records
+- import workbook data in traceable batches
+- define fee structures and ledger defaults
+- record collections and receipts
+- prepare reports for reconciliation and audit
+
+## Current Repo State
+
+As documented on April 21, 2026, the repo already includes:
+
+- branded landing page at `app/page.tsx`
+- auth pages under `app/auth`
+- protected internal workspace under `app/protected`
+- Supabase SSR auth wiring with browser, server, admin, and proxy helpers
+- starter Supabase schema at `supabase/schema.sql`
+- internal role model for `admin`, `accounts`, and `clerk`
+- settings page that surfaces environment and policy assumptions
+
+Do not replace the landing page with a generic Supabase tutorial sample or a
+`todos` demo page. The current homepage is intentionally school-specific.
+
+## Active Domain Defaults
+
+These are current app-wide assumptions and should not be changed casually:
 
 - Late fee: flat Rs 1000
 - Installment due dates: 20 April, 20 July, 20 October, 20 January
+- Default installment count: 4
 - Class 12 Science annual fee default: Rs 38000
+- Accepted payment modes: Cash, UPI, Bank transfer, Cheque
+- Receipt prefix: `SVP`
+- App mode: `internal-admin`
 
-## Tech Stack
+If fee policy changes, update all of the following together:
 
-- Next.js App Router
-- TypeScript
-- Tailwind CSS
-- shadcn/ui primitives
-- Supabase
-- Vercel
+- `lib/config/fee-rules.ts`
+- relevant settings UI under `app/protected/settings`
+- this README
+- `AGENTS.md`
 
-## Project Structure
+## Tech Stack And Versions
+
+- Next.js App Router: `16.2.4`
+- React: `19.2.5`
+- TypeScript: `^5`
+- Tailwind CSS: `^3.4.1`
+- shadcn/ui primitives via Radix UI
+- Supabase JS: `2.104.0`
+- Supabase SSR: `0.10.2`
+- Node.js: `>=20.0.0`
+- Deployment target: Vercel
+
+## Route And Module Map
 
 ```text
 app/
-  auth/                      Auth pages for internal staff
-  protected/                 Main internal admin workspace
-    students/
-    imports/
-    fee-structure/
-    collections/
-    reports/
-    settings/
+  page.tsx                        Landing page for the internal admin app
+  auth/
+    login/                        Staff login
+    sign-up/                      Bootstrap signup flow if temporarily enabled
+    sign-up-success/              Signup confirmation screen
+    forgot-password/              Password reset request
+    update-password/              Password reset completion
+    confirm/route.ts              Auth confirmation route
+    error/                        Auth error screen
+  protected/
+    page.tsx                      Main internal operations dashboard
+    students/                     Student master workflow
+    imports/                      Workbook migration batches
+    fee-structure/                Class-wise fee planning
+    collections/                  Counter collection workflow
+    reports/                      Reporting and audit outputs
+    settings/                     Policy, roles, and env checklist
 components/
-  admin/                     Shared internal dashboard components
-  ui/                        Reusable shadcn/ui primitives
+  admin/                          Internal dashboard shell and cards
+  ui/                             Reusable UI primitives
 lib/
-  auth/                      Role definitions
-  config/                    School config, fee rules, navigation
-  db/                        Shared domain types
-  helpers/                   Formatting helpers
-  supabase/                  Browser, server, admin, and proxy clients
+  auth/                           Staff roles and permissions
+  config/                         School profile, nav, fee rules
+  db/                             Shared domain types
+  helpers/                        Formatting helpers
+  supabase/                       Stable import paths that re-export helpers
+utils/
+  supabase/                       Canonical Supabase SSR helper implementations
 supabase/
-  schema.sql                 Database schema to run in Supabase
+  schema.sql                      Starter database schema, RLS, audit, view
+proxy.ts                          Next.js proxy entry point for session refresh
 ```
 
-## Required Environment Variables
+## Current Navigation Model
 
-Create `.env.local` in the project root.
+Protected navigation currently includes:
 
-Required:
+- `/protected` for overview
+- `/protected/students`
+- `/protected/imports`
+- `/protected/fee-structure`
+- `/protected/collections`
+- `/protected/reports`
+- `/protected/settings`
+
+## Supabase Project Context
+
+The local workspace is currently wired to this Supabase project:
+
+- Project ref: `lsdrvovwybzspcvbdcir`
+- Project URL: `https://lsdrvovwybzspcvbdcir.supabase.co`
+
+Current local public environment values in `.env.local`:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxxxxxxxxxxxxxxxx
+NEXT_PUBLIC_SUPABASE_URL=https://lsdrvovwybzspcvbdcir.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_-4FNHET8cCZIOgzLp-PBGQ_2va4MTWm
 ```
 
-Recommended:
+These values are public client-side values. Do not store server-only keys in
+`NEXT_PUBLIC_*` variables.
+
+## Supabase Client Wiring
+
+Current client/helper layout:
+
+- `utils/supabase/client.ts`
+  browser client via `createBrowserClient`
+- `utils/supabase/server.ts`
+  server client via `createServerClient` with cookie store support
+- `utils/supabase/middleware.ts`
+  session refresh logic for Next.js proxy
+- `lib/supabase/client.ts`
+  re-export for stable imports
+- `lib/supabase/server.ts`
+  re-export for stable imports
+- `lib/supabase/proxy.ts`
+  re-export for stable imports
+- `lib/supabase/admin.ts`
+  server-only admin client using `SUPABASE_SERVICE_ROLE_KEY`
+
+Session/auth handling notes:
+
+- `proxy.ts` calls `updateSession(request)`
+- the proxy refreshes auth cookies and redirects unauthenticated requests away
+  from protected pages
+- server-side auth checks currently use `supabase.auth.getClaims()`
+- keep `SUPABASE_SERVICE_ROLE_KEY` server-only
+- keep invite-oriented internal staff access as the default posture
+
+## Current Environment Variables
+
+Required public values:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://lsdrvovwybzspcvbdcir.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_-4FNHET8cCZIOgzLp-PBGQ_2va4MTWm
+```
+
+Recommended values:
 
 ```env
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
-Optional display values:
+Optional display and deployment metadata:
 
 ```env
 NEXT_PUBLIC_SCHOOL_NAME=Shri Veer Patta Senior Secondary School
 NEXT_PUBLIC_APP_MODE=internal-admin
 ```
 
+Reference files:
+
+- `.env.example`
+- `.env.local.example`
+- `lib/env.ts`
+- `app/protected/settings/page.tsx`
+
+## Current Database Schema Summary
+
+`supabase/schema.sql` currently defines:
+
+Enums:
+
+- `staff_role`
+- `student_status`
+- `record_source`
+- `ledger_status`
+- `payment_mode`
+- `import_batch_status`
+- `audit_action`
+
+Tables:
+
+- `staff_profiles`
+- `import_batches`
+- `students`
+- `fee_structures`
+- `fee_ledgers`
+- `fee_collections`
+- `audit_log`
+
+Database behavior:
+
+- `created_at` and `updated_at` timestamps on core operational tables
+- `set_updated_at()` trigger function
+- audit triggers writing row history into `audit_log`
+- RLS enabled on all exposed core tables
+- authenticated read/insert/update policies already present
+- no delete policies on core operational tables
+- view `public.v_outstanding_summary` for report-style aggregation
+
+Operational implication:
+
+- prefer corrections and audit-safe updates over destructive delete flows
+- keep import batches traceable by source filename and row counts
+
+## Role Model
+
+Current staff roles:
+
+- `admin`
+  policy, user access, correction workflows, staff management
+- `accounts`
+  fee plans, collections, reconciliation, reports
+- `clerk`
+  collections and dues review without policy-level control
+
+Role source of truth:
+
+- `lib/auth/roles.ts`
+
 ## Local Setup
 
 1. Install Node.js 20 or newer.
-2. Open this folder in VS Code.
-3. Create `.env.local`.
-4. Copy values from `.env.local.example`.
-5. Fill the real Supabase values.
-6. Run:
+2. Create `.env.local` from `.env.local.example`.
+3. Confirm the Supabase public values above.
+4. Add `SUPABASE_SERVICE_ROLE_KEY` only if admin/background jobs need it.
+5. Install dependencies:
 
 ```bash
 npm install
+```
+
+6. Run the app:
+
+```bash
 npm run dev
 ```
 
 7. Open `http://localhost:3000`.
 
-## Manual Browser Steps
-
-You must do these in the browser:
-
-1. Create a Supabase project.
-2. Open Supabase SQL Editor.
-3. Run `supabase/schema.sql`.
-4. Open Supabase Authentication settings.
-5. Set the site URL.
-   Local: `http://localhost:3000`
-   Production: your final Vercel domain
-6. Add redirect URLs for:
-   - `http://localhost:3000/auth/login`
-   - `http://localhost:3000/auth/update-password`
-   - your production `/auth/login`
-   - your production `/auth/update-password`
-7. Create or invite the first internal staff account.
-8. After the first admin account works, disable open signups if you want invite-only access.
-
-## First Usage Order
-
-1. Sign in with the internal staff account.
-2. Review fee defaults on the dashboard and settings pages.
-3. Prepare student master CSV files from the workbook.
-4. Import one class or one verified batch at a time.
-5. Configure class-wise fee structures.
-6. Start collections and reconcile totals daily while migration is in progress.
-
-## Deploy To Vercel
-
-1. Push the project to GitHub.
-2. Import the repository into Vercel.
-3. Add the same environment variables in Vercel Project Settings.
-4. Deploy.
-5. Open the deployed app and test:
-   - `/auth/login`
-   - `/protected`
-   - password reset flow
-
-## Security Notes
-
-- Keep `SUPABASE_SERVICE_ROLE_KEY` server-only.
-- Use invited staff accounts for production.
-- Do not expose this app to parents or the public.
-- Prefer audit-safe updates over destructive deletes.
-
-## Commands
+Helpful commands:
 
 ```bash
 npm run dev
 npm run lint
 npm run typecheck
+npm run check
 npm run build
 ```
+
+## Supabase Setup Checklist
+
+1. Create the Supabase project if starting from scratch.
+2. Open the SQL Editor.
+3. Run `supabase/schema.sql`.
+4. Set the site URL in Supabase Auth.
+   Local: `http://localhost:3000`
+   Production: final Vercel domain
+5. Add redirect URLs for:
+   `/auth/login`
+   `/auth/update-password`
+6. Create or invite the first internal staff account.
+7. If bootstrap signup is used, disable open signup afterward.
+
+## Deployment Checklist
+
+1. Push the repo to GitHub.
+2. Import the repository into Vercel.
+3. Add the same environment variables in Vercel Project Settings.
+4. Deploy.
+5. Verify:
+   `/auth/login`
+   `/protected`
+   password reset flow
+   authenticated redirects
+
+## Operating Rules
+
+- Keep the product internal-only for school staff.
+- Preserve audit trails on student, fee, collection, and import data.
+- Avoid delete-heavy operational flows.
+- Keep route contracts under `app/auth` and `app/protected` stable.
+- Use `NEXT_PUBLIC_*` only for values that may be client-visible.
+- Never expose `SUPABASE_SERVICE_ROLE_KEY` in browser code.
+- Prefer incremental migration tooling over hard cutovers.
+- Update docs when changing auth, env, routes, fee defaults, or schema intent.
+
+## Suggested Next Builds
+
+- Student master CSV import flow with verification
+- Fee ledger generation job per session
+- Receipt template and print export
+- Outstanding report filters by class and date
+- Role-based action restrictions backed by actual enforcement
