@@ -6,6 +6,7 @@ import { SectionCard } from "@/components/admin/section-card";
 import { StudentStatusBadge } from "@/components/students/student-status-badge";
 import { Button } from "@/components/ui/button";
 import { getStudentDetail } from "@/lib/students/data";
+import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 type StudentDetailPageProps = {
   params: Promise<{
@@ -49,12 +50,15 @@ function readValue(value: string | null) {
 }
 
 export default async function StudentDetailPage({ params }: StudentDetailPageProps) {
+  const staff = await requireStaffPermission("students:view", { onDenied: "redirect" });
   const resolvedParams = await params;
   const student = await getStudentDetail(resolvedParams.studentId);
 
   if (!student) {
     notFound();
   }
+
+  const canEditStudent = hasStaffPermission(staff, "students:write");
 
   return (
     <div className="space-y-6">
@@ -66,9 +70,11 @@ export default async function StudentDetailPage({ params }: StudentDetailPagePro
       />
 
       <div className="flex flex-wrap gap-2">
-        <Button asChild>
-          <Link href={`/protected/students/${student.id}/edit`}>Edit student</Link>
-        </Button>
+        {canEditStudent ? (
+          <Button asChild>
+            <Link href={`/protected/students/${student.id}/edit`}>Edit student</Link>
+          </Button>
+        ) : null}
         <Button variant="outline" asChild>
           <Link href="/protected/students">Back to list</Link>
         </Button>

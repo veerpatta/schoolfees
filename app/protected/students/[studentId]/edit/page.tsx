@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StudentForm } from "@/components/students/student-form";
 import { getStudentDetail, getStudentFormOptions } from "@/lib/students/data";
+import { requireStaffPermission } from "@/lib/supabase/session";
 
 import { updateStudentAction } from "../../actions";
 
@@ -14,6 +15,7 @@ type EditStudentPageProps = {
 };
 
 export default async function EditStudentPage({ params }: EditStudentPageProps) {
+  await requireStaffPermission("students:write", { onDenied: "redirect" });
   const resolvedParams = await params;
   const [{ classOptions, routeOptions }, student] = await Promise.all([
     getStudentFormOptions(),

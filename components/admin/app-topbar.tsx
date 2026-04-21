@@ -45,7 +45,7 @@ export function AppTopBar({ staffEmail, staffRole }: AppTopBarProps) {
             </div>
           </div>
 
-          <SidebarNav mode="topbar" className="lg:hidden" />
+          <SidebarNav staffRole={staffRole} mode="topbar" className="lg:hidden" />
         </div>
       </div>
     </header>

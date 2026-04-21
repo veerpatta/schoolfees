@@ -2,10 +2,12 @@ import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StudentForm } from "@/components/students/student-form";
 import { getStudentFormOptions } from "@/lib/students/data";
+import { requireStaffPermission } from "@/lib/supabase/session";
 
 import { createStudentAction } from "../actions";
 
 export default async function NewStudentPage() {
+  await requireStaffPermission("students:write", { onDenied: "redirect" });
   const { classOptions, routeOptions } = await getStudentFormOptions();
 
   return (

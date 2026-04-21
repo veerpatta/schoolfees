@@ -10,7 +10,7 @@ import {
 import {
   type FeeSetupActionState,
 } from "@/lib/fees/types";
-import { requireAuthenticatedStaff } from "@/lib/supabase/session";
+import { requireStaffPermission } from "@/lib/supabase/session";
 
 function parseRequiredNonNegativeInt(value: FormDataEntryValue | null, fieldLabel: string) {
   const numeric = Number((value ?? "").toString().trim());
@@ -146,11 +146,7 @@ function parseDueDates(formData: FormData) {
 }
 
 async function requireAdminForFeeWrite() {
-  const staff = await requireAuthenticatedStaff();
-
-  if (staff.appRole !== "admin") {
-    throw new Error("Only admin staff can update fee setup defaults.");
-  }
+  await requireStaffPermission("fees:write");
 }
 
 function toErrorState(error: unknown): FeeSetupActionState {

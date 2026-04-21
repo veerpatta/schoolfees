@@ -2,7 +2,14 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 
-import { resolveStaffRole, type StaffRole } from "@/lib/auth/roles";
+import {
+  hasAnyRolePermission,
+  hasRolePermission,
+  resolveStaffRole,
+  rolePermissions,
+  type StaffPermission,
+  type StaffRole,
+} from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
 
 export type StaffAuthClaims = Record<string, unknown> & {
@@ -13,20 +20,40 @@ export type StaffAuthClaims = Record<string, unknown> & {
 
 export type AuthenticatedStaffSession = StaffAuthClaims & {
   appRole: StaffRole;
+  permissions: readonly StaffPermission[];
+  isActive: boolean;
+};
+
+type StaffProfileRow = {
+  role: string | null;
+  is_active: boolean;
 };
 
 export async function getAuthenticatedStaff() {
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.getClaims();
+  const { data: authData, error: authError } = await supabase.auth.getUser();
 
-  if (error) {
+  if (authError || !authData.user) {
     return null;
   }
 
-  return (data?.claims as StaffAuthClaims | null) ?? null;
+  const { data: profileData } = await supabase
+    .from("users")
+    .select("role, is_active")
+    .eq("id", authData.user.id)
+    .maybeSingle();
+
+  const profile = (profileData as StaffProfileRow | null) ?? null;
+  const appRole = resolveStaffRole(profile?.role);
+
+  return {
+    ...(authData.user as unknown as StaffAuthClaims),
+    appRole,
+    permissions: rolePermissions[appRole],
+    isActive: profile?.is_active ?? true,
+  } satisfies AuthenticatedStaffSession;
 }
 
-// Placeholder for future role-aware checks against public.users.
 export async function requireAuthenticatedStaff(redirectTo = "/auth/login") {
   const staff = await getAuthenticatedStaff();
 
@@ -34,8 +61,69 @@ export async function requireAuthenticatedStaff(redirectTo = "/auth/login") {
     redirect(redirectTo);
   }
 
-  return {
-    ...staff,
-    appRole: resolveStaffRole(staff.role),
-  } satisfies AuthenticatedStaffSession;
+  if (!staff.isActive) {
+    redirect(redirectTo);
+  }
+
+  return staff;
+}
+
+export function staffCan(
+  staff: Pick<AuthenticatedStaffSession, "appRole">,
+  permission: StaffPermission,
+) {
+  return hasRolePermission(staff.appRole, permission);
+}
+
+type PermissionGuardOptions = {
+  onDenied?: "throw" | "redirect";
+  redirectTo?: string;
+};
+
+export async function requireStaffPermission(
+  permission: StaffPermission,
+  options: PermissionGuardOptions = {},
+) {
+  const staff = await requireAuthenticatedStaff();
+
+  if (hasRolePermission(staff.appRole, permission)) {
+    return staff;
+  }
+
+  if (options.onDenied === "redirect") {
+    redirect(options.redirectTo ?? "/protected");
+  }
+
+  throw new Error(`You do not have permission: ${permission}`);
+}
+
+export async function requireAnyStaffPermission(
+  permissions: readonly StaffPermission[],
+  options: PermissionGuardOptions = {},
+) {
+  const staff = await requireAuthenticatedStaff();
+
+  if (hasAnyRolePermission(staff.appRole, permissions)) {
+    return staff;
+  }
+
+  if (options.onDenied === "redirect") {
+    redirect(options.redirectTo ?? "/protected");
+  }
+
+  throw new Error(`You do not have any required permissions: ${permissions.join(", ")}`);
+}
+
+export function hasStaffPermission(
+  staff: Pick<AuthenticatedStaffSession, "appRole">,
+  permission: StaffPermission,
+) {
+  return hasRolePermission(staff.appRole, permission);
+}
+
+export function hasAnyStaffPermission(
+  staff: Pick<AuthenticatedStaffSession, "appRole">,
+  permissions: readonly StaffPermission[],
+) {
+  return hasAnyRolePermission(staff.appRole, permissions);
 }

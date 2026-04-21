@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { postStudentPayment } from "@/lib/payments/data";
 import type { PaymentEntryActionState } from "@/lib/payments/types";
-import { requireAuthenticatedStaff } from "@/lib/supabase/session";
+import { requireStaffPermission } from "@/lib/supabase/session";
 
 function parseRequiredString(value: FormDataEntryValue | null, fieldLabel: string) {
   const normalized = (value ?? "").toString().trim();
@@ -80,7 +80,7 @@ export async function submitPaymentEntryAction(
   formData: FormData,
 ): Promise<PaymentEntryActionState> {
   try {
-    await requireAuthenticatedStaff();
+    await requireStaffPermission("payments:write");
 
     const receipt = await postStudentPayment({
       studentId: parseUuid(formData.get("studentId"), "Student"),

@@ -39,7 +39,7 @@ export function DashboardShell({
             </Link>
 
             <div className="mt-8">
-              <SidebarNav />
+              <SidebarNav staffRole={staffRole} />
             </div>
 
             <div className="mt-auto rounded-2xl border border-slate-200 bg-slate-50 p-4">

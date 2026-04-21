@@ -12,6 +12,7 @@ import {
   EMPTY_STUDENT_FILTERS,
   type StudentListFilters,
 } from "@/lib/students/types";
+import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 type StudentsPageProps = {
   searchParams?: Promise<{
@@ -48,12 +49,14 @@ function normalizeFilters(
 }
 
 export default async function StudentsPage({ searchParams }: StudentsPageProps) {
+  const staff = await requireStaffPermission("students:view", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const filters = normalizeFilters(resolvedSearchParams);
   const [{ classOptions, routeOptions }, students] = await Promise.all([
     getStudentFormOptions(),
     getStudents(filters),
   ]);
+  const canWriteStudents = hasStaffPermission(staff, "students:write");
 
   const hasFilters = Boolean(
     filters.query || filters.classId || filters.transportRouteId || filters.status,
@@ -65,11 +68,11 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
         eyebrow="Students"
         title="Student master"
         description="Search, filter, create, and maintain student records in an office-friendly workflow."
-        actions={
+        actions={canWriteStudents ? (
           <Button asChild>
             <Link href="/protected/students/new">Add student</Link>
           </Button>
-        }
+        ) : null}
       />
 
       <SectionCard

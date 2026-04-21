@@ -7,7 +7,7 @@ import {
   type StudentFormActionState,
 } from "@/lib/students/types";
 import { getStudentFormInput, validateStudentInput } from "@/lib/students/validation";
-import { requireAuthenticatedStaff } from "@/lib/supabase/session";
+import { requireStaffPermission } from "@/lib/supabase/session";
 
 function mapWriteErrorToState(message: string): StudentFormActionState {
   if (message.toLowerCase().includes("admission_no") || message.toLowerCase().includes("students_admission_no_key")) {
@@ -33,7 +33,7 @@ export async function createStudentAction(
   _previous: StudentFormActionState,
   formData: FormData,
 ): Promise<StudentFormActionState> {
-  await requireAuthenticatedStaff();
+  await requireStaffPermission("students:write");
   const input = getStudentFormInput(formData);
   const { classOptions, routeOptions } = await getStudentFormOptions();
 
@@ -75,7 +75,7 @@ export async function updateStudentAction(
   _previous: StudentFormActionState,
   formData: FormData,
 ): Promise<StudentFormActionState> {
-  await requireAuthenticatedStaff();
+  await requireStaffPermission("students:write");
   const input = getStudentFormInput(formData);
   const { classOptions, routeOptions } = await getStudentFormOptions();
 

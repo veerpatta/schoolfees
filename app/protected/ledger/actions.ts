@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { addPaymentAdjustment } from "@/lib/ledger/data";
 import type { LedgerAdjustmentActionState } from "@/lib/ledger/types";
-import { requireAuthenticatedStaff } from "@/lib/supabase/session";
+import { requireStaffPermission } from "@/lib/supabase/session";
 
 function parseRequiredString(value: FormDataEntryValue | null, label: string) {
   const normalized = (value ?? "").toString().trim();
@@ -78,7 +78,7 @@ export async function submitLedgerAdjustmentAction(
   formData: FormData,
 ): Promise<LedgerAdjustmentActionState> {
   try {
-    await requireAuthenticatedStaff();
+    await requireStaffPermission("payments:adjust");
 
     const amount = parseAmount(formData.get("amount"));
     const direction = parseDirection(formData.get("direction"));

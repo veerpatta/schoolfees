@@ -5,21 +5,25 @@ import { usePathname } from "next/navigation";
 
 import {
   getProtectedNavigationItem,
-  protectedNavigation,
+  getVisibleProtectedNavigation,
 } from "@/lib/config/navigation";
+import { type StaffRole } from "@/lib/auth/roles";
 import { cn } from "@/lib/utils";
 
 type SidebarNavProps = {
+  staffRole: StaffRole;
   mode?: "sidebar" | "topbar";
   className?: string;
 };
 
 export function SidebarNav({
+  staffRole,
   mode = "sidebar",
   className,
 }: SidebarNavProps) {
   const pathname = usePathname();
   const activeItem = getProtectedNavigationItem(pathname);
+  const navigationItems = getVisibleProtectedNavigation(staffRole);
   const isTopbar = mode === "topbar";
 
   return (
@@ -31,7 +35,7 @@ export function SidebarNav({
         className,
       )}
     >
-      {protectedNavigation.map((item) => {
+      {navigationItems.map((item) => {
         const active = activeItem?.href === item.href;
         const Icon = item.icon;
 

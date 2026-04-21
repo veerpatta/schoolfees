@@ -10,11 +10,14 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { hasRolePermission, type StaffPermission, type StaffRole } from "@/lib/auth/roles";
+
 export type ProtectedNavigationItem = {
   href: string;
   label: string;
   description: string;
   icon: LucideIcon;
+  requiredPermission: StaffPermission;
   aliases?: readonly string[];
 };
 
@@ -24,18 +27,21 @@ export const protectedNavigation: ProtectedNavigationItem[] = [
     label: "Dashboard",
     description: "Daily overview of collections, dues, and staff activity.",
     icon: LayoutDashboard,
+    requiredPermission: "dashboard:view",
   },
   {
     href: "/protected/students",
     label: "Students",
     description: "Student master records and enrollment status.",
     icon: UsersRound,
+    requiredPermission: "students:view",
   },
   {
     href: "/protected/fee-setup",
     label: "Fee Setup",
     description: "Class-wise fee plans, due dates, and defaults.",
     icon: ScrollText,
+    requiredPermission: "fees:view",
     aliases: ["/protected/fee-structure"],
   },
   {
@@ -43,6 +49,7 @@ export const protectedNavigation: ProtectedNavigationItem[] = [
     label: "Payments",
     description: "Counter entry, payment modes, and daily posting.",
     icon: BadgeIndianRupee,
+    requiredPermission: "payments:view",
     aliases: ["/protected/collections"],
   },
   {
@@ -50,24 +57,28 @@ export const protectedNavigation: ProtectedNavigationItem[] = [
     label: "Ledger",
     description: "Student-wise balances, history, and adjustments.",
     icon: BookText,
+    requiredPermission: "ledger:view",
   },
   {
     href: "/protected/receipts",
     label: "Receipts",
     description: "Receipt printing, reprints, and reference checks.",
     icon: ReceiptText,
+    requiredPermission: "receipts:view",
   },
   {
     href: "/protected/defaulters",
     label: "Defaulters",
     description: "Outstanding follow-up by class and due window.",
     icon: CircleAlert,
+    requiredPermission: "defaulters:view",
   },
   {
     href: "/protected/settings",
     label: "Settings",
     description: "Staff roles, policy defaults, and app configuration.",
     icon: Settings2,
+    requiredPermission: "settings:view",
   },
 ] as const;
 
@@ -105,6 +116,12 @@ export function getProtectedNavigationItem(pathname: string) {
         matchesRoute(pathname, href),
       ),
     ) ?? null
+  );
+}
+
+export function getVisibleProtectedNavigation(staffRole: StaffRole) {
+  return protectedNavigation.filter((item) =>
+    hasRolePermission(staffRole, item.requiredPermission),
   );
 }
 
