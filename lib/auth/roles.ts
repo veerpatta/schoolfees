@@ -37,7 +37,7 @@ export const roleLabels: Record<StaffRole, string> = {
 export const roleDescriptions: Record<StaffRole, string> = {
   admin: "Manages staff access, school settings, and correction-safe workflows.",
   accountant:
-    "Runs daily fee setup, payment entry, receipts, and follow-up reporting.",
+    "Reviews fee setup, runs daily payment entry, receipts, and follow-up reporting.",
   read_only_staff:
     "Can review dashboard, student, ledger, receipt, and defaulter information without making changes.",
 };
@@ -65,6 +65,7 @@ export const rolePermissions: Record<StaffRole, readonly StaffPermission[]> = {
   accountant: [
     "dashboard:view",
     "students:view",
+    "fees:view",
     "payments:view",
     "payments:write",
     "ledger:view",

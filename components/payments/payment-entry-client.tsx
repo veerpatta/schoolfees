@@ -219,141 +219,142 @@ export function PaymentEntryClient({
             ) : null}
             <form action={formAction} className="space-y-4">
               <ActionNotice state={state} />
+              <fieldset disabled={!canPost} className="space-y-4 disabled:opacity-70">
+                <input type="hidden" name="studentId" value={selectedStudent.id} />
 
-              <input type="hidden" name="studentId" value={selectedStudent.id} />
-
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                <div>
-                  <Label htmlFor="payment-date">Payment date</Label>
-                  <Input
-                    id="payment-date"
-                    name="paymentDate"
-                    type="date"
-                    defaultValue={new Date().toISOString().slice(0, 10)}
-                    className="mt-2"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="payment-amount">Payment amount</Label>
-                  <Input
-                    id="payment-amount"
-                    name="paymentAmount"
-                    type="number"
-                    min={1}
-                    max={selectedStudent.totalPending}
-                    className="mt-2"
-                    value={paymentAmountInput}
-                    onChange={(event) => setPaymentAmountInput(event.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="payment-mode">Payment mode</Label>
-                  <select
-                    id="payment-mode"
-                    name="paymentMode"
-                    className={`${selectClassName} mt-2`}
-                    defaultValue="cash"
-                    required
-                  >
-                    {modeOptions.map((modeOption) => (
-                      <option key={modeOption.value} value={modeOption.value}>
-                        {modeOption.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <Label htmlFor="payment-reference-number">Reference number</Label>
-                  <Input
-                    id="payment-reference-number"
-                    name="referenceNumber"
-                    className="mt-2"
-                    placeholder="UPI/cheque/txn ref"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="payment-received-by">Received by</Label>
-                  <Input
-                    id="payment-received-by"
-                    name="receivedBy"
-                    className="mt-2"
-                    defaultValue={defaultReceivedBy}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="payment-remarks">Remarks</Label>
-                <textarea
-                  id="payment-remarks"
-                  name="remarks"
-                  className={`${textAreaClassName} mt-2`}
-                  placeholder="Optional desk remarks"
-                />
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm font-semibold text-slate-900">Installment allocation preview</p>
-                <p className="mt-1 text-xs text-slate-600">
-                  Amount is auto-allocated from oldest pending installment to newest.
-                </p>
-
-                {allocationPreview.length === 0 ? (
-                  <p className="mt-3 text-sm text-slate-600">
-                    Enter a payment amount to preview allocation.
-                  </p>
-                ) : (
-                  <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white">
-                    <table className="w-full min-w-[600px] text-left text-sm">
-                      <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
-                        <tr>
-                          <th className="px-3 py-2">Installment</th>
-                          <th className="px-3 py-2">Due date</th>
-                          <th className="px-3 py-2">Outstanding before</th>
-                          <th className="px-3 py-2">Allocated</th>
-                          <th className="px-3 py-2">Outstanding after</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {allocationPreview.map((item) => (
-                          <tr key={item.installmentId} className="border-t border-slate-100">
-                            <td className="px-3 py-2">{item.installmentLabel}</td>
-                            <td className="px-3 py-2">{item.dueDate}</td>
-                            <td className="px-3 py-2">{formatInr(item.outstandingBefore)}</td>
-                            <td className="px-3 py-2 font-medium text-slate-900">
-                              {formatInr(item.allocatedAmount)}
-                            </td>
-                            <td className="px-3 py-2">{formatInr(item.outstandingAfter)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  <div>
+                    <Label htmlFor="payment-date">Payment date</Label>
+                    <Input
+                      id="payment-date"
+                      name="paymentDate"
+                      type="date"
+                      defaultValue={new Date().toISOString().slice(0, 10)}
+                      className="mt-2"
+                      required
+                    />
                   </div>
-                )}
-
-                <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-700">
-                  <span>Preview allocated: {formatInr(allocatedPreviewTotal)}</span>
-                  <span>Unallocated: {formatInr(unallocatedAmount)}</span>
+                  <div>
+                    <Label htmlFor="payment-amount">Payment amount</Label>
+                    <Input
+                      id="payment-amount"
+                      name="paymentAmount"
+                      type="number"
+                      min={1}
+                      max={selectedStudent.totalPending}
+                      className="mt-2"
+                      value={paymentAmountInput}
+                      onChange={(event) => setPaymentAmountInput(event.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="payment-mode">Payment mode</Label>
+                    <select
+                      id="payment-mode"
+                      name="paymentMode"
+                      className={`${selectClassName} mt-2`}
+                      defaultValue="cash"
+                      required
+                    >
+                      {modeOptions.map((modeOption) => (
+                        <option key={modeOption.value} value={modeOption.value}>
+                          {modeOption.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="payment-reference-number">Reference number</Label>
+                    <Input
+                      id="payment-reference-number"
+                      name="referenceNumber"
+                      className="mt-2"
+                      placeholder="UPI/cheque/txn ref"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="payment-received-by">Received by</Label>
+                    <Input
+                      id="payment-received-by"
+                      name="receivedBy"
+                      className="mt-2"
+                      defaultValue={defaultReceivedBy}
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-center justify-end">
-                <Button
-                  type="submit"
-                  disabled={
-                    !canPost ||
-                    pending ||
-                    selectedStudent.totalPending <= 0 ||
-                    paymentAmount <= 0 ||
-                    paymentAmount > selectedStudent.totalPending
-                  }
-                >
-                  {pending ? "Saving payment..." : "Save payment and generate receipt"}
-                </Button>
-              </div>
+                <div>
+                  <Label htmlFor="payment-remarks">Remarks</Label>
+                  <textarea
+                    id="payment-remarks"
+                    name="remarks"
+                    className={`${textAreaClassName} mt-2`}
+                    placeholder="Optional desk remarks"
+                  />
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-semibold text-slate-900">Installment allocation preview</p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    Amount is auto-allocated from oldest pending installment to newest.
+                  </p>
+
+                  {allocationPreview.length === 0 ? (
+                    <p className="mt-3 text-sm text-slate-600">
+                      Enter a payment amount to preview allocation.
+                    </p>
+                  ) : (
+                    <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                      <table className="w-full min-w-[600px] text-left text-sm">
+                        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                          <tr>
+                            <th className="px-3 py-2">Installment</th>
+                            <th className="px-3 py-2">Due date</th>
+                            <th className="px-3 py-2">Outstanding before</th>
+                            <th className="px-3 py-2">Allocated</th>
+                            <th className="px-3 py-2">Outstanding after</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {allocationPreview.map((item) => (
+                            <tr key={item.installmentId} className="border-t border-slate-100">
+                              <td className="px-3 py-2">{item.installmentLabel}</td>
+                              <td className="px-3 py-2">{item.dueDate}</td>
+                              <td className="px-3 py-2">{formatInr(item.outstandingBefore)}</td>
+                              <td className="px-3 py-2 font-medium text-slate-900">
+                                {formatInr(item.allocatedAmount)}
+                              </td>
+                              <td className="px-3 py-2">{formatInr(item.outstandingAfter)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-700">
+                    <span>Preview allocated: {formatInr(allocatedPreviewTotal)}</span>
+                    <span>Unallocated: {formatInr(unallocatedAmount)}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end">
+                  <Button
+                    type="submit"
+                    disabled={
+                      !canPost ||
+                      pending ||
+                      selectedStudent.totalPending <= 0 ||
+                      paymentAmount <= 0 ||
+                      paymentAmount > selectedStudent.totalPending
+                    }
+                  >
+                    {pending ? "Saving payment..." : "Save payment and generate receipt"}
+                  </Button>
+                </div>
+              </fieldset>
             </form>
           </SectionCard>
         </>

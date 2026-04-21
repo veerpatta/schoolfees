@@ -47,7 +47,12 @@ export default async function LedgerPage({ searchParams }: LedgerPageProps) {
         eyebrow="Ledger"
         title="Student ledger and adjustments"
         description="Review chronological payment history per student, keep newest entries visible first, and post linked adjustments without editing original payment rows."
-        actions={<StatusBadge label={`Signed in: ${staff.appRole}`} tone="good" />}
+        actions={
+          <StatusBadge
+            label={canAddAdjustments ? "Adjustment access" : "View-only access"}
+            tone={canAddAdjustments ? "good" : "warning"}
+          />
+        }
       />
 
       <LedgerClient

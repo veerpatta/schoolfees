@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
+import { StatusBadge } from "@/components/admin/status-badge";
 import { StudentFilters } from "@/components/students/student-filters";
 import { StudentListTable } from "@/components/students/student-list-table";
 import { Button } from "@/components/ui/button";
@@ -68,11 +69,15 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
         eyebrow="Students"
         title="Student master"
         description="Search, filter, create, and maintain student records in an office-friendly workflow."
-        actions={canWriteStudents ? (
-          <Button asChild>
-            <Link href="/protected/students/new">Add student</Link>
-          </Button>
-        ) : null}
+        actions={
+          canWriteStudents ? (
+            <Button asChild>
+              <Link href="/protected/students/new">Add student</Link>
+            </Button>
+          ) : (
+            <StatusBadge label="Read-only access" tone="warning" />
+          )
+        }
       />
 
       <SectionCard
@@ -90,7 +95,11 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
         title="Student list"
         description={`${students.length} record${students.length === 1 ? "" : "s"} found`}
       >
-        <StudentListTable students={students} hasFilters={hasFilters} />
+        <StudentListTable
+          students={students}
+          hasFilters={hasFilters}
+          canWrite={canWriteStudents}
+        />
       </SectionCard>
 
       <SectionCard

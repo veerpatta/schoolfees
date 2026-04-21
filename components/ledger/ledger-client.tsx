@@ -271,94 +271,98 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
             ) : null}
             <form action={formAction} className="space-y-4">
               <AdjustmentNotice state={state} />
+              <fieldset
+                disabled={!canAddAdjustments}
+                className="space-y-4 disabled:opacity-70"
+              >
+                <input type="hidden" name="studentId" value={selectedStudent.id} />
 
-              <input type="hidden" name="studentId" value={selectedStudent.id} />
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  <div>
+                    <Label htmlFor="ledger-payment-id">Linked payment row</Label>
+                    <select
+                      id="ledger-payment-id"
+                      name="paymentId"
+                      className={`${selectClassName} mt-2`}
+                      required
+                    >
+                      <option value="">Select payment row</option>
+                      {selectedStudent.paymentOptions.map((payment) => (
+                        <option key={payment.id} value={payment.id}>
+                          {payment.receiptNumber} | {payment.installmentLabel} | {formatInr(payment.paymentAmount)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="ledger-adjustment-type">Adjustment category</Label>
+                    <select
+                      id="ledger-adjustment-type"
+                      name="adjustmentType"
+                      className={`${selectClassName} mt-2`}
+                      defaultValue="correction"
+                      required
+                    >
+                      {adjustmentTypeOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="ledger-direction">Impact on due amount</Label>
+                    <select
+                      id="ledger-direction"
+                      name="direction"
+                      className={`${selectClassName} mt-2`}
+                      defaultValue="reduce_due"
+                      required
+                    >
+                      <option value="reduce_due">Positive (+): reduce due</option>
+                      <option value="increase_due">Negative (-): increase due</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="ledger-adjustment-amount">Amount</Label>
+                    <Input
+                      id="ledger-adjustment-amount"
+                      name="amount"
+                      type="number"
+                      min={1}
+                      className="mt-2"
+                      required
+                    />
+                  </div>
+                </div>
 
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <div>
-                  <Label htmlFor="ledger-payment-id">Linked payment row</Label>
-                  <select
-                    id="ledger-payment-id"
-                    name="paymentId"
-                    className={`${selectClassName} mt-2`}
-                    required
-                  >
-                    <option value="">Select payment row</option>
-                    {selectedStudent.paymentOptions.map((payment) => (
-                      <option key={payment.id} value={payment.id}>
-                        {payment.receiptNumber} | {payment.installmentLabel} | {formatInr(payment.paymentAmount)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <Label htmlFor="ledger-adjustment-type">Adjustment category</Label>
-                  <select
-                    id="ledger-adjustment-type"
-                    name="adjustmentType"
-                    className={`${selectClassName} mt-2`}
-                    defaultValue="correction"
-                    required
-                  >
-                    {adjustmentTypeOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <Label htmlFor="ledger-direction">Impact on due amount</Label>
-                  <select
-                    id="ledger-direction"
-                    name="direction"
-                    className={`${selectClassName} mt-2`}
-                    defaultValue="reduce_due"
-                    required
-                  >
-                    <option value="reduce_due">Positive (+): reduce due</option>
-                    <option value="increase_due">Negative (-): increase due</option>
-                  </select>
-                </div>
-                <div>
-                  <Label htmlFor="ledger-adjustment-amount">Amount</Label>
-                  <Input
-                    id="ledger-adjustment-amount"
-                    name="amount"
-                    type="number"
-                    min={1}
-                    className="mt-2"
+                  <Label htmlFor="ledger-adjustment-reason">Reason</Label>
+                  <textarea
+                    id="ledger-adjustment-reason"
+                    name="reason"
+                    className={`${textAreaClassName} mt-2`}
+                    placeholder="Why this correction is needed"
                     required
                   />
                 </div>
-              </div>
 
-              <div>
-                <Label htmlFor="ledger-adjustment-reason">Reason</Label>
-                <textarea
-                  id="ledger-adjustment-reason"
-                  name="reason"
-                  className={`${textAreaClassName} mt-2`}
-                  placeholder="Why this correction is needed"
-                  required
-                />
-              </div>
+                <div>
+                  <Label htmlFor="ledger-adjustment-notes">Notes (optional)</Label>
+                  <textarea
+                    id="ledger-adjustment-notes"
+                    name="notes"
+                    className={`${textAreaClassName} mt-2`}
+                    placeholder="Any desk note for future verification"
+                  />
+                </div>
 
-              <div>
-                <Label htmlFor="ledger-adjustment-notes">Notes (optional)</Label>
-                <textarea
-                  id="ledger-adjustment-notes"
-                  name="notes"
-                  className={`${textAreaClassName} mt-2`}
-                  placeholder="Any desk note for future verification"
-                />
-              </div>
-
-              <div className="flex items-center justify-end">
-                <Button type="submit" disabled={!canAddAdjustments || pending || selectedStudent.paymentOptions.length === 0}>
-                  {pending ? "Saving adjustment..." : "Save adjustment"}
-                </Button>
-              </div>
+                <div className="flex items-center justify-end">
+                  <Button type="submit" disabled={!canAddAdjustments || pending || selectedStudent.paymentOptions.length === 0}>
+                    {pending ? "Saving adjustment..." : "Save adjustment"}
+                  </Button>
+                </div>
+              </fieldset>
             </form>
           </SectionCard>
 

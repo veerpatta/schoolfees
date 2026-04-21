@@ -26,7 +26,7 @@ function toneForStatus(isHealthy: boolean) {
 }
 
 export default async function SettingsPage() {
-  await requireStaffPermission("settings:view", { onDenied: "redirect" });
+  const staff = await requireStaffPermission("settings:view", { onDenied: "redirect" });
   const serviceRoleConfigured = Boolean(
     getOptionalEnvVar("SUPABASE_SERVICE_ROLE_KEY"),
   );
@@ -87,11 +87,20 @@ export default async function SettingsPage() {
         description="Use this page to verify that the internal admin shell is configured safely before production deployment."
         actions={
           <StatusBadge
-            label={hasRequiredEnvVars ? "Core env ready" : "Env needs work"}
-            tone={hasRequiredEnvVars ? "good" : "warning"}
+            label={staff.appRole === "admin" ? "Admin access" : "Read-only access"}
+            tone={staff.appRole === "admin" ? "good" : "warning"}
           />
         }
       />
+
+      <section className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+          This page is restricted to roles with settings access. It shows deployment readiness and active policy notes only.
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+          Current defaults stay aligned to the active school policy: late fee Rs {activeFeeRules.lateFeeFlatRupees}, due dates {activeFeeRules.installmentDueDates.join(", ")}.
+        </div>
+      </section>
 
       <section className="grid gap-5 lg:grid-cols-2">
         <SectionCard

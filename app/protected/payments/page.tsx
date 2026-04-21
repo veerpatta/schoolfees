@@ -43,7 +43,12 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
         eyebrow="Payments"
         title="Payment entry desk"
         description="Search student, review dues, post append-only payment entries, and generate receipts in one office-friendly workflow."
-        actions={<StatusBadge label={`Signed in: ${staff.appRole}`} tone="good" />}
+        actions={
+          <StatusBadge
+            label={canPostPayments ? "Posting enabled" : "Read-only access"}
+            tone={canPostPayments ? "good" : "warning"}
+          />
+        }
       />
 
       <PaymentEntryClient

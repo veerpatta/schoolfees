@@ -6,7 +6,7 @@ import { SectionCard } from "@/components/admin/section-card";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
 import { getReceiptsList } from "@/lib/receipts/data";
-import { requireStaffPermission } from "@/lib/supabase/session";
+import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 type ReceiptsPageProps = {
   searchParams?: Promise<{
@@ -31,11 +31,12 @@ function paymentModeLabel(mode: "cash" | "upi" | "bank_transfer" | "cheque") {
 }
 
 export default async function ReceiptsPage({ searchParams }: ReceiptsPageProps) {
-  await requireStaffPermission("receipts:view", { onDenied: "redirect" });
+  const staff = await requireStaffPermission("receipts:view", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const query = (resolvedSearchParams?.query ?? "").trim();
   const receipts = await getReceiptsList(query);
   const totalAmount = receipts.reduce((sum, row) => sum + row.totalAmount, 0);
+  const canPrintReceipts = hasStaffPermission(staff, "receipts:print");
 
   return (
     <div className="space-y-6">
@@ -65,7 +66,14 @@ export default async function ReceiptsPage({ searchParams }: ReceiptsPageProps) 
         </form>
       </SectionCard>
 
-      <SectionCard title="Recent receipts" description="Linked directly to append-only payment entries.">
+      <SectionCard
+        title="Recent receipts"
+        description={
+          canPrintReceipts
+            ? "Linked directly to append-only payment entries."
+            : "Open receipt details for verification. Print controls stay hidden for your role."
+        }
+      >
         <div className="overflow-x-auto rounded-xl border border-slate-200">
           <table className="w-full min-w-[1100px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
@@ -104,7 +112,9 @@ export default async function ReceiptsPage({ searchParams }: ReceiptsPageProps) 
                       <td className="px-4 py-3">{receipt.receivedBy ?? "-"}</td>
                       <td className="px-4 py-3">
                         <Button asChild variant="outline" size="sm">
-                          <Link href={`/protected/receipts/${receipt.id}`}>Open / Print</Link>
+                          <Link href={`/protected/receipts/${receipt.id}`}>
+                            {canPrintReceipts ? "Open / Print" : "Open"}
+                          </Link>
                         </Button>
                       </td>
                     </tr>

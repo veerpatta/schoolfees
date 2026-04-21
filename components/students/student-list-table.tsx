@@ -8,9 +8,14 @@ import { StudentStatusBadge } from "./student-status-badge";
 type StudentListTableProps = {
   students: StudentListItem[];
   hasFilters: boolean;
+  canWrite: boolean;
 };
 
-export function StudentListTable({ students, hasFilters }: StudentListTableProps) {
+export function StudentListTable({
+  students,
+  hasFilters,
+  canWrite,
+}: StudentListTableProps) {
   if (students.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
@@ -20,7 +25,7 @@ export function StudentListTable({ students, hasFilters }: StudentListTableProps
             ? "No records match the selected filters. Try clearing filters or broadening the search."
             : "Start by adding the first student record for this session."}
         </p>
-        {!hasFilters ? (
+        {!hasFilters && canWrite ? (
           <Button className="mt-4" asChild>
             <Link href="/protected/students/new">Add first student</Link>
           </Button>
@@ -78,9 +83,11 @@ export function StudentListTable({ students, hasFilters }: StudentListTableProps
                   <Button variant="outline" size="sm" asChild>
                     <Link href={`/protected/students/${student.id}`}>View</Link>
                   </Button>
-                  <Button size="sm" asChild>
-                    <Link href={`/protected/students/${student.id}/edit`}>Edit</Link>
-                  </Button>
+                  {canWrite ? (
+                    <Button size="sm" asChild>
+                      <Link href={`/protected/students/${student.id}/edit`}>Edit</Link>
+                    </Button>
+                  ) : null}
                 </div>
               </td>
             </tr>

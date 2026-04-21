@@ -85,6 +85,12 @@ export function FeeSetupClient({
 
   return (
     <div className="space-y-6">
+      {!canEdit ? (
+        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          You can review fee defaults and overrides, but only admin staff can change school-wide fee policy, due dates, class defaults, or student override records.
+        </div>
+      ) : null}
+
       <SectionCard
         title="School-wide fee defaults"
         description="Set the base policy used for classes and future fee setup records."
@@ -92,7 +98,7 @@ export function FeeSetupClient({
           canEdit ? (
             <StatusBadge label="Admin editable" tone="good" />
           ) : (
-            <StatusBadge label="Read only" tone="warning" />
+            <StatusBadge label="Admin only" tone="warning" />
           )
         }
       >
@@ -235,6 +241,13 @@ export function FeeSetupClient({
       <SectionCard
         title="Per-class fee defaults"
         description="Create or update active fee defaults for each class."
+        actions={
+          canEdit ? (
+            <StatusBadge label="Admin editable" tone="good" />
+          ) : (
+            <StatusBadge label="Admin only" tone="warning" />
+          )
+        }
       >
         <form action={classFormAction} className="space-y-4">
           <ActionNotice state={classState} />
@@ -378,6 +391,13 @@ export function FeeSetupClient({
       <SectionCard
         title="Per-student fee overrides"
         description="Use optional override fields for exceptions and keep a clear reason for every change."
+        actions={
+          canEdit ? (
+            <StatusBadge label="Admin editable" tone="good" />
+          ) : (
+            <StatusBadge label="Admin only" tone="warning" />
+          )
+        }
       >
         <form action={studentFormAction} className="space-y-4">
           <ActionNotice state={studentState} />
