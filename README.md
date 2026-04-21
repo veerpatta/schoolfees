@@ -24,16 +24,23 @@ Current priority areas:
 
 ## Current Repo State
 
-As of April 21, 2026, the repo already includes:
+As of April 21, 2026, the repo implementation status is as follows:
 
-- branded landing page at `app/page.tsx`
-- auth flow under `app/auth`
-- protected admin workspace under `app/protected`
-- Supabase SSR client/server/proxy helpers
-- starter schema in `supabase/schema.sql`
-- migration folder in `supabase/migrations`
-- school config in `lib/config`
-- deployment readiness page at `app/protected/settings/page.tsx`
+**Fully Functional Core Modules:**
+- Branded landing page and auth flow (`app/page.tsx`, `app/auth/**`)
+- Protected admin workspace dashboard (`app/protected/page.tsx`) with real-time aggregates via `v_installment_balances`.
+- Student Master (`app/protected/students`)
+- Fee Setup & Structure (`app/protected/fee-setup`, `app/protected/fee-structure`)
+- Payment Entry (`app/protected/payments`) with append-only RPC (`post_student_payment`).
+- Ledger & Receipts (`app/protected/ledger`, `app/protected/receipts`)
+- Defaulters Reporting (`app/protected/defaulters`)
+- Deployment Settings Validator (`app/protected/settings`)
+- Database integrity measures (RLS enabled, append-only triggers, audit event triggers).
+
+**Scaffolded / Incomplete Modules (UI exists, logic incomplete):**
+- Spreadsheet Import (`app/protected/imports`): UI placeholder exists, but backend parsing, data mapping, and saving are not fully wired.
+- Advanced Reports (`app/protected/reports`): Static report catalog; actual generation of complex reports (CSV/PDF) is not implemented.
+- Role-Based Access Control (RBAC): `lib/auth/roles.ts` exists, but Supabase RLS currently allows operations for any `authenticated` user and does not strictly enforce specific staff roles (e.g., admin vs accountant) on the backend.
 
 ## Stack
 

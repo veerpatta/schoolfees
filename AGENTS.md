@@ -66,19 +66,20 @@ Unless a user explicitly asks otherwise, do not steer the app toward:
 
 This file reflects the repo state on April 21, 2026.
 
-The current implementation already includes:
-
+**Fully Implemented Core:**
 - branded landing page at `app/page.tsx`
-- auth flow under `app/auth`
-- bootstrap signup gated by env and disabled by default
+- auth flow under `app/auth` and bootstrap gated by `NEXT_PUBLIC_ENABLE_BOOTSTRAP_SIGNUP`
 - protected admin workspace under `app/protected`
-- Supabase SSR helpers under `utils/supabase`
-- stable Supabase re-exports under `lib/supabase`
-- server-side session helpers under `lib/supabase/session.ts`
-- `proxy.ts` for session refresh and protected-route redirects
-- starter schema in `supabase/schema.sql`
-- dedicated migration folder in `supabase/migrations`
-- school config and fee defaults under `lib/config`
+- real-time Dashboard and Defaulters modules based on `v_installment_balances`
+- Student Master, Fee Setup, and Payment Entry workflows
+- append-only Ledger behavior enforced by RPCs and DB triggers
+- starter schema, complete migration history, and config under `lib/config`
+
+**Scaffolded / Incomplete Areas (Proceed with caution):**
+- **Spreadsheet Imports (`app/protected/imports`)**: UI exists but mapping and saving to the DB is missing.
+- **RBAC (Role-Based Access Control)**: `lib/auth/roles.ts` exists, but Supabase RLS is wide open to any `authenticated` user. True role validation (`admin` vs `accountant`) needs backend enforcement.
+- **Advanced Reports (`app/protected/reports`)**: UI catalog exists, but no real CSV/PDF functionality is built yet.
+- **Testing**: No test suite (unit/integration/E2E) is set up.
 
 Do not replace the existing school-branded landing page with generic tutorial
 content or Supabase sample code unless the user explicitly requests that.
