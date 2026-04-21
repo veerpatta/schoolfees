@@ -10,6 +10,14 @@ export type AdjustmentType =
   | "discount"
   | "writeoff";
 export type AuditAction = "insert" | "update" | "delete";
+export type ImportBatchStatus = "uploaded" | "validated" | "importing" | "completed" | "failed";
+export type ImportRowStatus =
+  | "pending"
+  | "valid"
+  | "invalid"
+  | "duplicate"
+  | "imported"
+  | "skipped";
 
 export type UserRecord = {
   id: string;
@@ -208,4 +216,48 @@ export type AuditLogRecord = {
   afterData: Record<string, unknown> | null;
   changedBy: string | null;
   createdAt: string;
+};
+
+export type ImportBatchRecord = {
+  id: string;
+  filename: string;
+  sourceFormat: "csv" | "xlsx";
+  worksheetName: string | null;
+  fileSizeBytes: number;
+  status: ImportBatchStatus;
+  detectedHeaders: string[];
+  columnMapping: Record<string, string>;
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  duplicateRows: number;
+  importedRows: number;
+  skippedRows: number;
+  failedRows: number;
+  summary: Record<string, unknown>;
+  validationCompletedAt: string | null;
+  importCompletedAt: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+};
+
+export type ImportRowRecord = {
+  id: string;
+  batchId: string;
+  rowIndex: number;
+  rawPayload: Record<string, string | number | boolean | null>;
+  normalizedPayload: Record<string, unknown> | null;
+  status: ImportRowStatus;
+  errors: Array<Record<string, unknown>>;
+  warnings: string[];
+  duplicateStudentId: string | null;
+  importedStudentId: string | null;
+  importedOverrideId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
 };

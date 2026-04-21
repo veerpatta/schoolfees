@@ -71,12 +71,11 @@ This file reflects the repo state on April 21, 2026.
 - auth flow under `app/auth` and bootstrap gated by `NEXT_PUBLIC_ENABLE_BOOTSTRAP_SIGNUP`
 - protected admin workspace under `app/protected`
 - real-time Dashboard and Defaulters modules based on `v_installment_balances`
-- Student Master, Fee Setup, and Payment Entry workflows
+- Student Master, Fee Setup, Payment Entry, and Student Spreadsheet Import workflows
 - append-only Ledger behavior enforced by RPCs and DB triggers
 - starter schema, complete migration history, and config under `lib/config`
 
 **Scaffolded / Incomplete Areas (Proceed with caution):**
-- **Spreadsheet Imports (`app/protected/imports`)**: UI exists but mapping and saving to the DB is missing.
 - **RBAC (Role-Based Access Control)**: `lib/auth/roles.ts` exists, but Supabase RLS is wide open to any `authenticated` user. True role validation (`admin` vs `accountant`) needs backend enforcement.
 - **Advanced Reports (`app/protected/reports`)**: UI catalog exists, but no real CSV/PDF functionality is built yet.
 - **Testing**: No test suite (unit/integration/E2E) is set up.
@@ -166,6 +165,8 @@ Current core tables in `supabase/schema.sql`:
 - `classes`
 - `transport_routes`
 - `students`
+- `import_batches`
+- `import_rows`
 - `fee_settings`
 - `school_fee_defaults`
 - `student_fee_overrides`
@@ -179,6 +180,7 @@ Current operational posture:
 
 - RLS is enabled on core tables
 - audit triggers exist on core tables
+- spreadsheet imports are staged and traceable by batch and row
 - payments, receipts, and payment adjustments are append-only
 - no delete policies exist for core operational tables
 - `public.v_outstanding_summary` exists for reporting

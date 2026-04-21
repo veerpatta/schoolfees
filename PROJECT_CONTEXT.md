@@ -34,7 +34,7 @@ Current priority areas:
 - receipts
 - dashboard
 - defaulters/outstanding views
-- later spreadsheet import
+- staged spreadsheet import
 
 ## Current Repo Structure
 
@@ -139,6 +139,8 @@ Important current tables:
 - `classes`
 - `transport_routes`
 - `students`
+- `import_batches`
+- `import_rows`
 - `fee_settings`
 - `school_fee_defaults`
 - `student_fee_overrides`
@@ -163,6 +165,8 @@ Important current database behavior:
 - audit triggers capture inserts, updates, and deletes
 - append-only triggers block updates/deletes on receipts, payments, payment
   adjustments, and audit logs
+- import batches keep source filename, detected headers, row-level validation,
+  duplicate flags, and final imported-row traceability
 - `v_outstanding_summary` supports outstanding reporting
 - `v_installment_balances` supports installment-level due tracking
 - no delete policies exist for operational finance tables
@@ -175,7 +179,7 @@ Future agents should assume:
 - history matters more than convenience edits
 - simple UI is preferred over a clever UI
 - records should be easy to verify later
-- imports should be traceable and staged when import tables are added
+- imports should stay traceable and staged through `import_batches` / `import_rows`
 
 Payment-history rule:
 

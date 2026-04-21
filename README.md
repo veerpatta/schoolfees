@@ -20,7 +20,7 @@ Current priority areas:
 - printable receipts
 - dashboard
 - defaulters reporting
-- staged spreadsheet import later
+- staged spreadsheet import
 
 ## Current Repo State
 
@@ -30,6 +30,7 @@ As of April 21, 2026, the repo implementation status is as follows:
 - Branded landing page and auth flow (`app/page.tsx`, `app/auth/**`)
 - Protected admin workspace dashboard (`app/protected/page.tsx`) with real-time aggregates via `v_installment_balances`.
 - Student Master (`app/protected/students`)
+- Spreadsheet Import (`app/protected/imports`) with CSV/XLSX upload, column mapping, dry-run validation, duplicate detection, batch tracking, and valid-row-only save.
 - Fee Setup & Structure (`app/protected/fee-setup`, `app/protected/fee-structure`)
 - Payment Entry (`app/protected/payments`) with append-only RPC (`post_student_payment`).
 - Ledger & Receipts (`app/protected/ledger`, `app/protected/receipts`)
@@ -38,7 +39,6 @@ As of April 21, 2026, the repo implementation status is as follows:
 - Database integrity measures (RLS enabled, append-only triggers, audit event triggers).
 
 **Scaffolded / Incomplete Modules (UI exists, logic incomplete):**
-- Spreadsheet Import (`app/protected/imports`): UI placeholder exists, but backend parsing, data mapping, and saving are not fully wired.
 - Advanced Reports (`app/protected/reports`): Static report catalog; actual generation of complex reports (CSV/PDF) is not implemented.
 - Role-Based Access Control (RBAC): `lib/auth/roles.ts` exists, but Supabase RLS currently allows operations for any `authenticated` user and does not strictly enforce specific staff roles (e.g., admin vs accountant) on the backend.
 

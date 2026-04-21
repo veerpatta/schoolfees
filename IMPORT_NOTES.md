@@ -2,10 +2,18 @@
 
 ## Status
 
-Spreadsheet import is planned later. It is important, but it should come after
-the core manual workflows are dependable.
+Student spreadsheet import is now implemented as a staged migration workflow.
+It should still be treated as a migration aid, not the product center of
+gravity.
 
-Treat import as a migration aid, not the product center of gravity.
+Current import flow:
+
+1. upload CSV/XLSX
+2. review or adjust column mapping
+3. run dry-run validation
+4. review row-level duplicates and errors
+5. import valid rows only
+6. keep the full batch/row trail for later review
 
 ## Planned Import Use Case
 
@@ -14,7 +22,7 @@ from existing spreadsheets/workbooks into the app in staged, reviewable batches.
 
 ## Expected Student Import Fields
 
-At minimum, future import mapping should account for:
+Current student import mapping accounts for:
 
 - student name
 - class
@@ -22,10 +30,12 @@ At minimum, future import mapping should account for:
 - DOB
 - father name
 - mother name
-- phones
+- father phone
+- mother phone
 - transport route
 - fee overrides
 - status
+- notes
 
 These inputs may arrive with inconsistent column names or mixed formatting.
 Build the importer to support column mapping and validation instead of assuming
@@ -33,10 +43,11 @@ perfect spreadsheets.
 
 ## Import Design Rules
 
-When import is built, it should:
+The implemented importer now:
 
 - create an `import_batches` trail
-- keep source filename and row counts
+- create per-row traceability in `import_rows`
+- keep source filename, detected headers, and row counts
 - support preview before posting
 - show row-level validation failures clearly
 - separate accepted rows from rejected rows
@@ -61,7 +72,7 @@ If a row is ambiguous, prefer review/hold behavior over automatic merging.
 
 ## Fee Override Guidance
 
-Import may later need to support fee overrides.
+The current importer supports optional fee overrides.
 
 Practical expectation:
 
@@ -71,15 +82,13 @@ Practical expectation:
 
 ## Safe Import Workflow
 
-Recommended flow:
+Current save behavior:
 
-1. upload spreadsheet
-2. map columns
-3. validate rows
-4. preview results
-5. confirm posting
-6. create batch audit trail
-7. surface accepted/rejected counts
+- existing students are never overwritten
+- duplicate SR/admission numbers are held in the batch and reported
+- only valid rows are saved
+- imports create student master records and optional fee overrides only
+- payment history is outside import scope and remains append-only
 
 ## Import Anti-Patterns
 
