@@ -2,10 +2,10 @@ import { FeeSetupClient } from "@/components/fees/fee-setup-client";
 import { PageHeader } from "@/components/admin/page-header";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { getFeeSetupPageData } from "@/lib/fees/data";
+import { INITIAL_FEE_SETUP_ACTION_STATE } from "@/lib/fees/types";
 import { requireAuthenticatedStaff } from "@/lib/supabase/session";
 
 import {
-  initialFeeSetupActionState,
   saveClassDefaultsAction,
   saveSchoolDefaultsAction,
   saveStudentOverrideAction,
@@ -40,7 +40,7 @@ export default async function FeeSetupPage() {
         saveSchoolDefaultsAction={saveSchoolDefaultsAction}
         saveClassDefaultsAction={saveClassDefaultsAction}
         saveStudentOverrideAction={saveStudentOverrideAction}
-        initialState={initialFeeSetupActionState}
+        initialState={INITIAL_FEE_SETUP_ACTION_STATE}
       />
     </div>
   );

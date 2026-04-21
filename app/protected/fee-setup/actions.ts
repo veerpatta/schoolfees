@@ -8,7 +8,6 @@ import {
   upsertStudentFeeOverride,
 } from "@/lib/fees/data";
 import {
-  INITIAL_FEE_SETUP_ACTION_STATE,
   type FeeSetupActionState,
 } from "@/lib/fees/types";
 import { requireAuthenticatedStaff } from "@/lib/supabase/session";
@@ -311,4 +310,3 @@ export async function saveStudentOverrideAction(
   }
 }
 
-export const initialFeeSetupActionState = INITIAL_FEE_SETUP_ACTION_STATE;

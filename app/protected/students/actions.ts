@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 
 import { createStudent, getStudentFormOptions, updateStudent } from "@/lib/students/data";
 import {
-  INITIAL_STUDENT_FORM_ACTION_STATE,
   type StudentFormActionState,
 } from "@/lib/students/types";
 import { getStudentFormInput, validateStudentInput } from "@/lib/students/validation";
@@ -113,4 +112,3 @@ export async function updateStudentAction(
   }
 }
 
-export const initialStudentActionState = INITIAL_STUDENT_FORM_ACTION_STATE;
