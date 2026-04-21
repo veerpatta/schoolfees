@@ -1,155 +1,158 @@
 # AGENTS.md
 
-## Project Identity
+## Purpose
 
-This project is an internal fee management app for one school:
+This repo is the internal fee management admin app for one school:
 Shri Veer Patta Senior Secondary School.
 
-It is not a parent portal.
+Common school names used in conversation or docs:
+
+- Shri Veer Patta Senior Secondary School
+- Veer Patta School
+- VPPS
+
+This is an internal office/accounts tool. It is not a parent portal and it is
+not a multi-school SaaS product.
+
+## Read These First
+
+When starting work, read these root docs before making product decisions:
+
+1. `AGENTS.md`
+2. `PROJECT_CONTEXT.md`
+3. `MVP_SCOPE.md`
+4. `SCHOOL_RULES.md`
+5. `IMPORT_NOTES.md`
+
+Use them together:
+
+- `AGENTS.md` for fast repo and workflow guidance
+- `PROJECT_CONTEXT.md` for current architecture and real file locations
+- `MVP_SCOPE.md` for what belongs in the product now
+- `SCHOOL_RULES.md` for fee and audit rules
+- `IMPORT_NOTES.md` for later spreadsheet migration work
+
+## Product Identity
 
 Primary goals:
 
-- simplicity for office/accounts staff
-- auditability of fee records
-- gradual migration from workbook-based workflow
+- student master
+- fee settings
+- payment entry
+- append-only ledger behavior
+- printable receipts
+- dashboard
+- defaulters reporting
+- spreadsheet import later
 
-## Current Documented State
+Primary product qualities:
 
-This file reflects the repo state as documented on April 21, 2026.
+- simple office-friendly UI
+- reliable workflows over fancy visuals
+- clear auditability
+- gradual migration from workbook-based work
 
-Current implementation already includes:
+## Non-Goals
+
+Unless a user explicitly asks otherwise, do not steer the app toward:
+
+- parent-facing features
+- public self-service flows
+- generic SaaS multi-tenant architecture
+- tutorial/demo pages
+- complex abstractions with weak operational value
+
+## Current Repo Snapshot
+
+This file reflects the repo state on April 21, 2026.
+
+The current implementation already includes:
 
 - branded landing page at `app/page.tsx`
 - auth flow under `app/auth`
-- protected internal admin workspace under `app/protected`
-- Supabase SSR client wiring under `utils/supabase` and `lib/supabase`
-- Next.js `proxy.ts` for session refresh and protected-route redirects
-- starter database schema in `supabase/schema.sql`
-- settings page with env checklist and role model
+- protected admin workspace under `app/protected`
+- Supabase SSR helpers under `utils/supabase`
+- stable Supabase re-exports under `lib/supabase`
+- `proxy.ts` for session refresh and protected-route redirects
+- starter schema in `supabase/schema.sql`
+- school config and fee defaults under `lib/config`
 
-Do not overwrite the landing page with generic tutorial content, sample
-`todos` code, or a boilerplate Supabase demo. Preserve the school-specific
-internal-admin UX unless the user explicitly requests a redesign.
+Do not replace the existing school-branded landing page with generic tutorial
+content or Supabase sample code unless the user explicitly requests that.
 
-## Tech And Architecture
+## Key Real Paths
 
-- Framework: Next.js App Router
-- Language: TypeScript
-- Styling: Tailwind CSS + shadcn/ui primitives
-- Auth/DB: Supabase
-- Deployment: Vercel
-- Canonical Supabase helper location: `utils/supabase`
-- Stable app import paths: `lib/supabase/*`
+- landing page: `app/page.tsx`
+- auth routes: `app/auth/*`
+- protected dashboard: `app/protected/page.tsx`
+- students: `app/protected/students/page.tsx`
+- imports: `app/protected/imports/page.tsx`
+- fee settings: `app/protected/fee-structure/page.tsx`
+- collections: `app/protected/collections/page.tsx`
+- reports: `app/protected/reports/page.tsx`
+- settings: `app/protected/settings/page.tsx`
+- admin shell/components: `components/admin/*`
+- fee rules: `lib/config/fee-rules.ts`
+- school profile: `lib/config/school.ts`
+- navigation: `lib/config/navigation.ts`
+- roles: `lib/auth/roles.ts`
+- schema: `supabase/schema.sql`
 
-Current package versions worth preserving context for:
+## Tech Stack
 
-- `next`: `16.2.4`
-- `react`: `19.2.5`
-- `react-dom`: `19.2.5`
-- `@supabase/supabase-js`: `2.104.0`
-- `@supabase/ssr`: `0.10.2`
+- Next.js App Router
+- TypeScript
+- Tailwind CSS
+- shadcn/ui primitives
+- Supabase auth + database
+- Vercel deployment target
 
-## Current Public Environment Context
+Canonical Supabase helpers live in `utils/supabase`.
+App code should usually import from `lib/supabase/*`.
 
-The local workspace is currently configured against this Supabase project:
+## Operating Rules For Agents
 
-- Project ref: `lsdrvovwybzspcvbdcir`
-- `NEXT_PUBLIC_SUPABASE_URL=https://lsdrvovwybzspcvbdcir.supabase.co`
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_-4FNHET8cCZIOgzLp-PBGQ_2va4MTWm`
+1. Keep this app internal-admin first.
+2. Favor clear, dependable office workflows over flashy design.
+3. Preserve auditability on student, fee, collection, and import data.
+4. Never treat historical payments as editable facts.
+5. Use adjustment or reversal-style entries instead of rewriting history.
+6. Keep correction flows explicit and traceable.
+7. Avoid delete-heavy workflows for operational records.
+8. Keep route contracts under `app/auth` and `app/protected` stable.
+9. Keep `SUPABASE_SERVICE_ROLE_KEY` server-only.
+10. Preserve school-specific branding and terminology.
 
-These are client-visible values and are safe to appear in browser code.
+Important nuance:
 
-Server-only rules:
+- The current schema allows updates on some operational tables.
+- Do not interpret that as permission to build history-rewriting UI.
+- Future payment and ledger work should enforce append-only behavior at the
+  workflow level, and preferably at the data-model level when expanded.
 
-- `SUPABASE_SERVICE_ROLE_KEY` must stay server-only
-- never move service keys into `NEXT_PUBLIC_*`
-- if env variables change, update:
-  - `.env.example`
-  - `.env.local.example`
-  - `README.md`
-  - `app/protected/settings/page.tsx`
-  - this file when the operational context changes
+## Active School Rules
 
-## Domain Defaults (Do Not Change Without Approval)
+Current active fee-policy defaults:
 
-- Late fee: flat Rs 1000
-- Installment due dates: 20 April, 20 July, 20 October, 20 January
-- Default installment count: 4
-- Class 12 Science annual fee default: Rs 38000
-- Accepted payment modes: Cash, UPI, Bank transfer, Cheque
-- Receipt prefix: `SVP`
-- App mode: `internal-admin`
-- School display name default: `Shri Veer Patta Senior Secondary School`
+- late fee: flat Rs 1000
+- installment due dates: 20 April, 20 July, 20 October, 20 January
+- default installment count: 4
+- accepted payment modes: Cash, UPI, Bank transfer, Cheque
+- receipt prefix: `SVP`
+- app mode: `internal-admin`
 
-## Current App Structure Notes
+Historical SOP values that may appear in old notes or workbooks but are not
+active rules:
 
-- Landing page: `app/page.tsx`
-- Auth screens: `app/auth`
-- Internal workspace: `app/protected`
-- Workbook migration page: `app/protected/imports`
-- Student master page: `app/protected/students`
-- Fee structure page: `app/protected/fee-structure`
-- Collection desk page: `app/protected/collections`
-- Reports page: `app/protected/reports`
-- Settings page: `app/protected/settings`
-- Shared admin shell/components: `components/admin`
-- School and fee defaults: `lib/config`
-- Role model: `lib/auth/roles.ts`
-- Navigation model: `lib/config/navigation.ts`
-- Supabase schema: `supabase/schema.sql`
-- Proxy entry point: `proxy.ts`
+- due dates on the 10th
+- late fee at Rs 50 per day
 
-## Current Supabase Wiring
+If old workbook data or staff notes conflict with current policy, current
+policy wins unless the user explicitly asks for historical-rule handling.
 
-Canonical helpers:
+## Current Data And Audit Context
 
-- `utils/supabase/client.ts`
-  browser client via `createBrowserClient`
-- `utils/supabase/server.ts`
-  server client via `createServerClient`
-- `utils/supabase/middleware.ts`
-  session refresh and auth redirect behavior
-
-Stable re-export layer:
-
-- `lib/supabase/client.ts`
-- `lib/supabase/server.ts`
-- `lib/supabase/proxy.ts`
-
-Server-only admin access:
-
-- `lib/supabase/admin.ts`
-  requires `SUPABASE_SERVICE_ROLE_KEY`
-
-Auth/session expectations:
-
-- keep `proxy.ts` active for cookie refresh
-- use `supabase.auth.getClaims()` for server-side auth checks
-- keep protected pages behind internal staff authentication
-- prefer invite-oriented staff access
-- if bootstrap signup is temporarily used, disable open signup afterward
-
-If you change Supabase auth/session wiring, update:
-
-- `utils/supabase/*`
-- `lib/supabase/*`
-- `proxy.ts`
-- `README.md`
-- this file
-
-## Current Database And Audit Context
-
-The schema currently includes these enum types:
-
-- `staff_role`
-- `student_status`
-- `record_source`
-- `ledger_status`
-- `payment_mode`
-- `import_batch_status`
-- `audit_action`
-
-The schema currently includes these tables:
+Current core tables in `supabase/schema.sql`:
 
 - `staff_profiles`
 - `import_batches`
@@ -159,88 +162,59 @@ The schema currently includes these tables:
 - `fee_collections`
 - `audit_log`
 
-The schema also includes:
+Current operational posture:
 
-- `set_updated_at()` trigger function
-- `capture_audit_event()` trigger function
-- `public.v_outstanding_summary` view
+- RLS is enabled on core tables
+- audit triggers exist on core tables
+- no delete policies exist for core operational tables
+- `public.v_outstanding_summary` exists for reporting
 
-Security/data posture:
+Preserve:
 
-- RLS is enabled on all core exposed tables
-- authenticated users currently have read/insert/update policies
-- no delete policies are present for core operational tables
-- audit triggers are attached to core tables
-- operational records should favor correction flows over deletes
+- `created_at` / `updated_at`
+- `created_by` / `updated_by`
+- import batch traceability
+- auditable correction history
 
-## Data And Audit Expectations
+## Change Control
 
-- Preserve `created_at` / `updated_at` on student, fee, collection, and import data.
-- Keep `created_by` / `updated_by` usage intact where present.
-- Keep workbook import batches traceable to source files and row counts.
-- Avoid introducing delete-heavy workflows for ledgers or collections.
-- If a correction flow is added, keep it audit-safe and reversible where practical.
-
-## Role And Access Model
-
-Current roles:
-
-- `admin`
-  policy, user access, correction workflow, staff management
-- `accounts`
-  fee plans, collections, reconciliation, reports
-- `clerk`
-  collections and dues review without policy access
-
-If role behavior changes, update:
-
-- `lib/auth/roles.ts`
-- relevant UI copy under `app/protected/settings`
-- `README.md`
-- this file
-
-## Working Rules For Future Agents
-
-1. Keep this an internal admin app.
-2. Prioritize clear workflows over complex abstractions.
-3. Preserve audit fields and history whenever adding data writes.
-4. Avoid breaking existing route contracts under `app/auth` and `app/protected`.
-5. Keep env handling secure:
-   `NEXT_PUBLIC_*` values can be client-visible.
-   Service keys must stay server-only.
-6. Prefer incremental migration features such as import, reconcile, and verify over hard cutover.
-7. Do not replace branded school pages with generic framework or tutorial samples.
-8. Keep README and this file aligned with real repo behavior when architecture or operating rules change.
-9. Prefer stable import paths from `lib/supabase/*` in app code unless there is a deliberate reason to use `utils/supabase/*` directly.
-
-## Change Control Requirements
-
-Any fee-rule change must be reflected in:
+If fee rules change, update together:
 
 - `lib/config/fee-rules.ts`
-- relevant settings page UI
+- relevant UI under `app/protected/settings`
 - `README.md`
 - `AGENTS.md`
+- `SCHOOL_RULES.md`
 
-Any env/setup change must be reflected in:
+If env or auth wiring changes, update together:
 
 - `.env.example`
 - `.env.local.example`
 - `app/protected/settings/page.tsx`
+- `utils/supabase/*`
+- `lib/supabase/*`
+- `proxy.ts`
 - `README.md`
-- `AGENTS.md` if the operational context changes
+- `PROJECT_CONTEXT.md`
+- `AGENTS.md`
 
-Any schema intent change should be reflected in:
+If schema intent changes, update together:
 
 - `supabase/schema.sql`
-- relevant UI or workflow pages
+- affected UI/workflows
 - `README.md`
-- `AGENTS.md` when future agents need the context
+- `PROJECT_CONTEXT.md`
+- `AGENTS.md`
 
-## Suggested Next Builds
+## Delivery Guidance
 
-- Student master import from workbook CSV
-- Fee ledger generation job per session
-- Receipt template + print export
-- Outstanding report filters by class/date
-- Role-based action restrictions
+Prefer this order when adding product features:
+
+1. make the data rule explicit
+2. make the workflow safe
+3. make the UI clear
+4. make the reporting auditable
+5. add polish only after the workflow is reliable
+
+When in doubt, choose the option that reduces staff confusion and preserves an
+audit trail.
