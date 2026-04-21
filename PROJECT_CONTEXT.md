@@ -111,9 +111,11 @@ Auth/session expectations:
 
 - keep `proxy.ts` active
 - use server-side auth checks for protected pages
+- keep proxy redirects scoped to `/protected`
 - use `lib/supabase/session.ts` as the placeholder entry point for future
   role-aware session checks
 - keep internal staff access invite-oriented when possible
+- keep bootstrap signup disabled by default and enable it only temporarily
 - never expose `SUPABASE_SERVICE_ROLE_KEY` in browser code
 
 Current local public Supabase project context:
@@ -127,6 +129,7 @@ Current site URL behavior:
 - fall back to `VERCEL_PROJECT_PRODUCTION_URL`
 - then fall back to `VERCEL_URL`
 - use browser origin during client-side local flows when needed
+- production should still set `NEXT_PUBLIC_SITE_URL` explicitly
 
 ## Current Domain Model
 

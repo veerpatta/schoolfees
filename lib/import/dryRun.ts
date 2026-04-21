@@ -15,7 +15,7 @@ export async function executeDryRun(
   // 1. Initial mapping and row-level validation
   let processedRows: ProcessedRow[] = rawRows.map((raw, index) => {
     // Map raw spreadsheet row to our strong types
-    const parsed = mapRawRowToParsed(raw, studentColumnMapping) as any;
+    const parsed = mapRawRowToParsed(raw, studentColumnMapping);
     
     // Validate individual fields
     const errors = validateRow(parsed);

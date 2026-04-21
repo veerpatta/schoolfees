@@ -1,4 +1,4 @@
-import { ParsedStudentRow, ProcessedRow, RowError } from './types';
+import { ProcessedRow, RowError } from './types';
 
 // Represents an existing student record fetched from the database for comparison
 export interface ExistingRecord {

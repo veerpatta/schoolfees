@@ -70,6 +70,7 @@ The current implementation already includes:
 
 - branded landing page at `app/page.tsx`
 - auth flow under `app/auth`
+- bootstrap signup gated by env and disabled by default
 - protected admin workspace under `app/protected`
 - Supabase SSR helpers under `utils/supabase`
 - stable Supabase re-exports under `lib/supabase`
@@ -127,6 +128,7 @@ App code should usually import from `lib/supabase/*`.
 8. Keep route contracts under `app/auth` and `app/protected` stable.
 9. Keep `SUPABASE_SERVICE_ROLE_KEY` server-only.
 10. Preserve school-specific branding and terminology.
+11. Keep `NEXT_PUBLIC_ENABLE_BOOTSTRAP_SIGNUP` off outside first-admin bootstrap.
 
 Important nuance:
 
@@ -203,8 +205,11 @@ If env or auth wiring changes, update together:
 - `.env.example`
 - `.env.local.example`
 - `app/protected/settings/page.tsx`
+- `app/auth/sign-up/page.tsx`
+- `components/login-form.tsx`
 - `utils/supabase/*`
 - `lib/supabase/*`
+- `lib/env.ts`
 - `proxy.ts`
 - `README.md`
 - `PROJECT_CONTEXT.md`

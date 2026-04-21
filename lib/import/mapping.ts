@@ -1,9 +1,11 @@
 import { ParsedStudentRow, RawImportRow } from "./types";
 
+type ImportCellValue = RawImportRow[string];
+
 export interface ColumnMapping {
   targetField: keyof ParsedStudentRow;
   aliases: string[]; // Possible column headers in sheets (case-insensitive)
-  transform?: (value: any) => any; // Custom parsing logic, e.g. dates or numbers
+  transform?: (value: ImportCellValue) => ParsedStudentRow[keyof ParsedStudentRow] | undefined;
   required?: boolean;
 }
 
@@ -84,15 +86,19 @@ export const studentColumnMapping: ColumnMapping[] = [
 
 export function mapRawRowToParsed(rawRow: RawImportRow, mappings: ColumnMapping[] = studentColumnMapping): Partial<ParsedStudentRow> {
   const result: Partial<ParsedStudentRow> = {};
+  const mutableResult = result as Record<
+    keyof ParsedStudentRow,
+    ParsedStudentRow[keyof ParsedStudentRow] | undefined
+  >;
   
   // Normalize raw keys to lowercase for matching
-  const normalizedRawRow: Record<string, any> = {};
+  const normalizedRawRow: Record<string, ImportCellValue> = {};
   for (const [key, value] of Object.entries(rawRow)) {
     normalizedRawRow[key.toLowerCase().trim()] = value;
   }
 
   for (const mapping of mappings) {
-    let rawValue: any = undefined;
+    let rawValue: ImportCellValue = undefined;
     
     // Find matching aliased column
     for (const alias of mapping.aliases) {
@@ -103,7 +109,9 @@ export function mapRawRowToParsed(rawRow: RawImportRow, mappings: ColumnMapping[
     }
     
     if (rawValue !== undefined && rawValue !== null && rawValue !== '') {
-      result[mapping.targetField] = mapping.transform ? mapping.transform(rawValue) : rawValue;
+      mutableResult[mapping.targetField] = (
+        mapping.transform ? mapping.transform(rawValue) : rawValue
+      ) as ParsedStudentRow[keyof ParsedStudentRow];
     }
   }
   

@@ -52,7 +52,7 @@ export interface RowError {
 export interface ProcessedRow {
   index: number; // Original row number in sheet
   raw: RawImportRow;
-  parsed?: ParsedStudentRow;
+  parsed?: Partial<ParsedStudentRow>;
   status: RowStatus;
   errors: RowError[];
   warnings: string[];

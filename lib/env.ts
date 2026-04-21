@@ -3,6 +3,15 @@ const requiredEnvVars = [
   "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
 ] as const;
 
+const placeholderPatterns = [
+  "YOUR_PROJECT_ID",
+  "REPLACE_WITH_REAL",
+  "PASTE_",
+  "CHANGE_ME",
+] as const;
+
+const truthyEnvValues = new Set(["1", "true", "yes", "on"]);
+
 function normalizeUrl(value: string) {
   return value.trim().replace(/\/$/, "");
 }
@@ -20,6 +29,14 @@ function withHttpsIfNeeded(value: string) {
   return `https://${normalizedValue}`;
 }
 
+function isPlaceholderValue(value: string) {
+  const normalizedValue = value.trim();
+
+  return placeholderPatterns.some((pattern) =>
+    normalizedValue.toUpperCase().includes(pattern),
+  );
+}
+
 export function getRequiredEnvVar(
   name: (typeof requiredEnvVars)[number],
 ): string {
@@ -27,7 +44,13 @@ export function getRequiredEnvVar(
 
   if (!value) {
     throw new Error(
-      `Missing environment variable: ${name}. Copy .env.local.example and paste the real Supabase value.`,
+      `Missing environment variable: ${name}. Set a real value in .env.local or Vercel Project Settings.`,
+    );
+  }
+
+  if (isPlaceholderValue(value)) {
+    throw new Error(
+      `Unsafe placeholder detected for ${name}. Replace it with the real project value before deployment.`,
     );
   }
 
@@ -37,6 +60,34 @@ export function getRequiredEnvVar(
 export function getOptionalEnvVar(name: string): string | undefined {
   const value = process.env[name]?.trim();
   return value ? value : undefined;
+}
+
+export function hasExplicitSiteUrl() {
+  return Boolean(getOptionalEnvVar("NEXT_PUBLIC_SITE_URL"));
+}
+
+export function isConfiguredSiteUrlSecure() {
+  const configuredUrl = getOptionalEnvVar("NEXT_PUBLIC_SITE_URL");
+
+  if (!configuredUrl) {
+    return false;
+  }
+
+  return withHttpsIfNeeded(configuredUrl).startsWith("https://");
+}
+
+export function isBootstrapSignupEnabled() {
+  const value = getOptionalEnvVar("NEXT_PUBLIC_ENABLE_BOOTSTRAP_SIGNUP");
+
+  if (!value) {
+    return false;
+  }
+
+  return truthyEnvValues.has(value.toLowerCase());
+}
+
+export function isVercelProductionEnvironment() {
+  return getOptionalEnvVar("VERCEL_ENV") === "production";
 }
 
 export function getPublicSiteUrl() {
@@ -79,6 +130,19 @@ export function getSiteUrl() {
 
 export function createAbsoluteUrl(path: string, baseUrl = getPublicSiteUrl()) {
   return new URL(path, `${baseUrl}/`).toString();
+}
+
+export function sanitizeRedirectPath(
+  value: string | null | undefined,
+  fallback = "/protected",
+) {
+  const normalizedValue = (value ?? "").trim();
+
+  if (!normalizedValue.startsWith("/") || normalizedValue.startsWith("//")) {
+    return fallback;
+  }
+
+  return normalizedValue;
 }
 
 export const hasRequiredEnvVars = requiredEnvVars.every((name) =>

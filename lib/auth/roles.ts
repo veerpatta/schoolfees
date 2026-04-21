@@ -56,5 +56,5 @@ export function isStaffRole(value: unknown): value is StaffRole {
 }
 
 export function resolveStaffRole(value: unknown): StaffRole {
-  return isStaffRole(value) ? value : "admin";
+  return isStaffRole(value) ? value : "read_only_staff";
 }

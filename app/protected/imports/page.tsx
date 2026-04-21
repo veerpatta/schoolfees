@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
-import { UploadCloud, AlertCircle, FileSpreadsheet, CheckCircle2, XCircle } from "lucide-react";
+import { UploadCloud, AlertCircle, FileSpreadsheet, XCircle } from "lucide-react";
 
 export default function ImportsPage() {
   return (
@@ -67,21 +67,21 @@ export default function ImportsPage() {
                 <XCircle className="mt-0.5 size-5 shrink-0 text-rose-500" />
                 <div>
                   <p className="text-sm font-medium text-slate-900">Row 42: Missing required field</p>
-                  <p className="text-sm text-slate-500">Column 'SR No' is empty. Every student must have a valid Admission/SR Number.</p>
+                  <p className="text-sm text-slate-500">Column &apos;SR No&apos; is empty. Every student must have a valid Admission/SR Number.</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-4">
                 <XCircle className="mt-0.5 size-5 shrink-0 text-rose-500" />
                 <div>
                   <p className="text-sm font-medium text-slate-900">Row 88: Invalid Data Type</p>
-                  <p className="text-sm text-slate-500">Column 'Tuition Override' contains text ("Free") instead of a numeric value.</p>
+                  <p className="text-sm text-slate-500">Column &apos;Tuition Override&apos; contains text (&quot;Free&quot;) instead of a numeric value.</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-4">
                  <AlertCircle className="mt-0.5 size-5 shrink-0 text-amber-500" />
                 <div>
                   <p className="text-sm font-medium text-slate-900">Row 112: Duplicate DB Record</p>
-                  <p className="text-sm text-slate-500">Student with SR Number '1044' already exists in the master records.</p>
+                  <p className="text-sm text-slate-500">Student with SR Number &apos;1044&apos; already exists in the master records.</p>
                 </div>
               </div>
             </div>

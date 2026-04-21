@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { isBootstrapSignupEnabled, sanitizeRedirectPath } from "@/lib/env";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +26,7 @@ export function LoginForm({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const bootstrapSignupEnabled = isBootstrapSignupEnabled();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,12 +35,14 @@ export function LoginForm({
     setError(null);
 
     try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const next = sanitizeRedirectPath(searchParams.get("next"));
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       if (error) throw error;
-      router.push("/protected");
+      router.push(next);
       router.refresh();
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
@@ -101,15 +105,21 @@ export function LoginForm({
               <p className="text-sm text-slate-600">
                 No access yet? Ask an administrator to invite your account.
               </p>
-              <p className="text-xs text-slate-500">
-                First-time bootstrap only:{" "}
-                <Link
-                  href="/auth/sign-up"
-                  className="underline underline-offset-4"
-                >
-                  create the initial admin account
-                </Link>
-              </p>
+              {bootstrapSignupEnabled ? (
+                <p className="text-xs text-slate-500">
+                  Bootstrap mode is enabled temporarily:{" "}
+                  <Link
+                    href="/auth/sign-up"
+                    className="underline underline-offset-4"
+                  >
+                    create the initial admin account
+                  </Link>
+                </p>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  Bootstrap signup is disabled in this environment.
+                </p>
+              )}
             </div>
           </form>
         </CardContent>

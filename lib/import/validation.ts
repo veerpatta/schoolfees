@@ -1,8 +1,11 @@
-import { ParsedStudentRow, RowError, ProcessedRow } from './types';
+import { ParsedStudentRow, RowError } from './types';
 
 export interface ValidationRule {
   field: keyof ParsedStudentRow;
-  validate: (value: any, row: Partial<ParsedStudentRow>) => boolean;
+  validate: (
+    value: ParsedStudentRow[keyof ParsedStudentRow] | undefined,
+    row: Partial<ParsedStudentRow>,
+  ) => boolean;
   message: string;
   code: string;
 }
