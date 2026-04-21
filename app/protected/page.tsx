@@ -5,30 +5,9 @@ import { PageHeader } from "@/components/admin/page-header";
 import { RolePreview } from "@/components/admin/role-preview";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { formatInr } from "@/lib/helpers/currency";
 import { protectedNavigation } from "@/lib/config/navigation";
-
-const dashboardMetrics = [
-  {
-    title: "Students",
-    value: "Placeholder",
-    hint: "Student master summary cards will surface here.",
-  },
-  {
-    title: "Payments",
-    value: "Ready",
-    hint: "Counter entry workflow slot is scaffolded in the shell.",
-  },
-  {
-    title: "Receipts",
-    value: "Pending",
-    hint: "Receipt print and reprint views are set aside separately.",
-  },
-  {
-    title: "Defaulters",
-    value: "Pending",
-    hint: "Outstanding follow-up reports will plug into this layout.",
-  },
-] as const;
+import { createClient } from "@/lib/supabase/server";
 
 const workQueues = [
   "Use Students to keep admissions, class assignment, and status clean.",
@@ -43,7 +22,106 @@ const auditNotes = [
   "This shell is intentionally simple so office staff can move fast without hunting for actions.",
 ] as const;
 
-export default function ProtectedPage() {
+type RecentReceiptRow = {
+  receipt_number: string;
+  payment_date: string;
+  total_amount: number;
+};
+
+export default async function ProtectedPage() {
+  const supabase = await createClient();
+
+  const [
+    { count: activeStudentsCount, error: activeStudentsError },
+    { count: todayReceiptsCount, error: todayReceiptsCountError },
+    { data: todayReceiptsRaw, error: todayCollectionError },
+    { data: outstandingRaw, error: outstandingError },
+    { data: recentReceiptsRaw, error: recentReceiptsError },
+  ] = await Promise.all([
+    supabase
+      .from("students")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["active", "inactive"]),
+    supabase
+      .from("receipts")
+      .select("id", { count: "exact", head: true })
+      .eq("payment_date", new Date().toISOString().slice(0, 10)),
+    supabase
+      .from("receipts")
+      .select("total_amount")
+      .eq("payment_date", new Date().toISOString().slice(0, 10)),
+    supabase
+      .from("v_outstanding_summary")
+      .select("outstanding_amount, students_with_dues"),
+    supabase
+      .from("receipts")
+      .select("receipt_number, payment_date, total_amount")
+      .order("payment_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(6),
+  ]);
+
+  if (
+    activeStudentsError ||
+    todayReceiptsCountError ||
+    todayCollectionError ||
+    outstandingError ||
+    recentReceiptsError
+  ) {
+    throw new Error(
+      activeStudentsError?.message ||
+        todayReceiptsCountError?.message ||
+        todayCollectionError?.message ||
+        outstandingError?.message ||
+        recentReceiptsError?.message ||
+        "Unable to load dashboard data.",
+    );
+  }
+
+  const activeStudents = activeStudentsCount ?? 0;
+  const todayReceipts = todayReceiptsCount ?? 0;
+  const todayCollection = ((todayReceiptsRaw ?? []) as Array<{ total_amount: number }>).reduce(
+    (sum, row) => sum + row.total_amount,
+    0,
+  );
+  const outstandingRows =
+    (outstandingRaw ?? []) as Array<{
+      outstanding_amount: number;
+      students_with_dues: number;
+    }>;
+  const outstandingAmount = outstandingRows.reduce(
+    (sum, row) => sum + row.outstanding_amount,
+    0,
+  );
+  const studentsWithDues = outstandingRows.reduce(
+    (sum, row) => sum + row.students_with_dues,
+    0,
+  );
+  const recentReceipts = (recentReceiptsRaw ?? []) as RecentReceiptRow[];
+
+  const dashboardMetrics = [
+    {
+      title: "Active students",
+      value: activeStudents,
+      hint: "Students currently active/inactive for office operations",
+    },
+    {
+      title: "Today receipts",
+      value: todayReceipts,
+      hint: "Posted from payment entry desk",
+    },
+    {
+      title: "Today collection",
+      value: formatInr(todayCollection),
+      hint: "Total of receipts dated today",
+    },
+    {
+      title: "Outstanding",
+      value: formatInr(outstandingAmount),
+      hint: `${studentsWithDues} students with pending dues`,
+    },
+  ] as const;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -125,6 +203,43 @@ export default function ProtectedPage() {
             </li>
           ))}
         </ul>
+      </SectionCard>
+
+      <SectionCard
+        title="Recent receipt activity"
+        description="Latest posted receipts from the payment entry desk."
+      >
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+              <tr>
+                <th className="px-4 py-3">Receipt no</th>
+                <th className="px-4 py-3">Payment date</th>
+                <th className="px-4 py-3">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentReceipts.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="px-4 py-6 text-center text-slate-500">
+                    No receipts posted yet.
+                  </td>
+                </tr>
+              ) : (
+                recentReceipts.map((receipt) => (
+                  <tr
+                    key={`${receipt.receipt_number}-${receipt.payment_date}`}
+                    className="border-t border-slate-100 text-slate-700"
+                  >
+                    <td className="px-4 py-3 font-medium text-slate-900">{receipt.receipt_number}</td>
+                    <td className="px-4 py-3">{receipt.payment_date}</td>
+                    <td className="px-4 py-3">{formatInr(receipt.total_amount)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </SectionCard>
     </div>
   );

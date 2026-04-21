@@ -1,60 +1,56 @@
-import { PlaceholderPage } from "@/components/admin/placeholder-page";
-import { activeFeeRules } from "@/lib/config/fee-rules";
+import { PageHeader } from "@/components/admin/page-header";
+import { StatusBadge } from "@/components/admin/status-badge";
+import { PaymentEntryClient } from "@/components/payments/payment-entry-client";
+import {
+  getPaymentEntryPageData,
+  PAYMENT_MODE_OPTIONS,
+} from "@/lib/payments/data";
+import { INITIAL_PAYMENT_ENTRY_ACTION_STATE } from "@/lib/payments/types";
+import { requireAuthenticatedStaff } from "@/lib/supabase/session";
 
-const metrics = [
-  {
-    title: "Accepted modes",
-    value: `${activeFeeRules.acceptedPaymentModes.length} modes`,
-    hint: activeFeeRules.acceptedPaymentModes.join(", "),
-  },
-  {
-    title: "Entry model",
-    value: "Single desk",
-    hint: "One office-friendly flow for posting collections.",
-  },
-  {
-    title: "History rule",
-    value: "Append-only",
-    hint: "Corrections should be separate events, not rewrites.",
-  },
-] as const;
+import { submitPaymentEntryAction } from "./actions";
 
-const blocks = [
-  {
-    title: "Planned workflow",
-    description: "Payments should be fast to post and easy to trace later.",
-    items: [
-      "Find the student, confirm the dues, then record the amount and mode.",
-      "Attach the payment to the right ledger item before generating the receipt.",
-      "Use adjustment or reversal flows later instead of editing posted history.",
-    ],
-  },
-  {
-    title: "Operational notes",
-    description: "This placeholder reserves the collection desk view.",
-    items: [
-      "Receipt number, payment mode, and staff identity should all stay visible.",
-      "End-of-day totals will fit naturally into this page header and cards.",
-      "The UI is intentionally kept minimal for counter-speed data entry.",
-    ],
-  },
-] as const;
+type PaymentsPageProps = {
+  searchParams?: Promise<{
+    query?: string;
+    studentId?: string;
+  }>;
+};
 
-export default function PaymentsPage() {
+function normalizeStudentId(rawValue: string | undefined) {
+  const value = (rawValue ?? "").trim();
+  const uuidPattern =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  return uuidPattern.test(value) ? value : null;
+}
+
+export default async function PaymentsPage({ searchParams }: PaymentsPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const searchQuery = (resolvedSearchParams?.query ?? "").trim();
+  const studentId = normalizeStudentId(resolvedSearchParams?.studentId);
+
+  const [staff, data] = await Promise.all([
+    requireAuthenticatedStaff(),
+    getPaymentEntryPageData({ searchQuery, studentId }),
+  ]);
+
   return (
-    <PlaceholderPage
-      eyebrow="Payments"
-      title="Payment entry desk"
-      description="Use this section for day-to-day collection posting, with clean inputs and a correction-safe audit trail."
-      statusLabel="Workflow placeholder"
-      statusTone="good"
-      metrics={metrics}
-      blocks={blocks}
-      links={[
-        { href: "/protected/ledger", label: "Ledger" },
-        { href: "/protected/receipts", label: "Receipts" },
-        { href: "/protected/defaulters", label: "Defaulters" },
-      ]}
-    />
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Payments"
+        title="Payment entry desk"
+        description="Search student, review dues, post append-only payment entries, and generate receipts in one office-friendly workflow."
+        actions={<StatusBadge label={`Signed in: ${staff.appRole}`} tone="good" />}
+      />
+
+      <PaymentEntryClient
+        data={data}
+        modeOptions={PAYMENT_MODE_OPTIONS}
+        initialState={INITIAL_PAYMENT_ENTRY_ACTION_STATE}
+        defaultReceivedBy={staff.email ?? "Office desk"}
+        submitPaymentEntryAction={submitPaymentEntryAction}
+      />
+    </div>
   );
 }

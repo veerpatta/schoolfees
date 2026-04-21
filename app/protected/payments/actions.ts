@@ -1,0 +1,109 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+
+import { postStudentPayment } from "@/lib/payments/data";
+import type { PaymentEntryActionState } from "@/lib/payments/types";
+import { requireAuthenticatedStaff } from "@/lib/supabase/session";
+
+function parseRequiredString(value: FormDataEntryValue | null, fieldLabel: string) {
+  const normalized = (value ?? "").toString().trim();
+
+  if (!normalized) {
+    throw new Error(`${fieldLabel} is required.`);
+  }
+
+  return normalized;
+}
+
+function parseUuid(value: FormDataEntryValue | null, fieldLabel: string) {
+  const normalized = parseRequiredString(value, fieldLabel);
+  const uuidPattern =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  if (!uuidPattern.test(normalized)) {
+    throw new Error(`${fieldLabel} is invalid.`);
+  }
+
+  return normalized;
+}
+
+function parsePaymentAmount(value: FormDataEntryValue | null) {
+  const numeric = Number((value ?? "").toString().trim());
+
+  if (!Number.isInteger(numeric) || numeric <= 0) {
+    throw new Error("Payment amount must be a whole number greater than 0.");
+  }
+
+  return numeric;
+}
+
+function parsePaymentMode(value: FormDataEntryValue | null) {
+  const normalized = (value ?? "").toString().trim();
+
+  if (
+    normalized === "cash" ||
+    normalized === "upi" ||
+    normalized === "bank_transfer" ||
+    normalized === "cheque"
+  ) {
+    return normalized;
+  }
+
+  throw new Error("Payment mode is invalid.");
+}
+
+function parsePaymentDate(value: FormDataEntryValue | null) {
+  const normalized = parseRequiredString(value, "Payment date");
+  const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+
+  if (!isoDatePattern.test(normalized)) {
+    throw new Error("Payment date is invalid.");
+  }
+
+  return normalized;
+}
+
+function toActionStateError(error: unknown): PaymentEntryActionState {
+  return {
+    status: "error",
+    message:
+      error instanceof Error
+        ? error.message
+        : "Unable to save payment right now. Please try again.",
+    receiptNumber: null,
+  };
+}
+
+export async function submitPaymentEntryAction(
+  _previous: PaymentEntryActionState,
+  formData: FormData,
+): Promise<PaymentEntryActionState> {
+  try {
+    await requireAuthenticatedStaff();
+
+    const receipt = await postStudentPayment({
+      studentId: parseUuid(formData.get("studentId"), "Student"),
+      paymentDate: parsePaymentDate(formData.get("paymentDate")),
+      paymentMode: parsePaymentMode(formData.get("paymentMode")),
+      paymentAmount: parsePaymentAmount(formData.get("paymentAmount")),
+      referenceNumber: (formData.get("referenceNumber") ?? "").toString().trim() || null,
+      remarks: (formData.get("remarks") ?? "").toString().trim() || null,
+      receivedBy: parseRequiredString(formData.get("receivedBy"), "Received by"),
+    });
+
+    revalidatePath("/protected/payments");
+    revalidatePath("/protected/collections");
+    revalidatePath("/protected/receipts");
+    revalidatePath("/protected/defaulters");
+    revalidatePath("/protected");
+
+    return {
+      status: "success",
+      message: `Payment posted successfully. Receipt ${receipt.receiptNumber} generated.`,
+      receiptNumber: receipt.receiptNumber,
+    };
+  } catch (error) {
+    return toActionStateError(error);
+  }
+}

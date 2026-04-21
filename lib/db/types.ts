@@ -170,6 +170,7 @@ export type ReceiptRecord = {
   totalAmount: number;
   referenceNumber: string | null;
   notes: string | null;
+  receivedBy: string | null;
   createdAt: string;
   createdBy: string | null;
 };
