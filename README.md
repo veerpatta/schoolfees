@@ -1,46 +1,63 @@
-# Shri Veer Patta Senior Secondary School - Fee Admin App
+# Shri Veer Patta Senior Secondary School Fee Admin
 
-Internal fee management web application for a single school.
+Internal fee management web app for one school.
 
-## Purpose
+This project is for school office and accounts staff only.
+It is not a parent portal.
 
-This app is built to replace spreadsheet-heavy fee operations gradually.
+## What This App Covers
 
-- Internal admin app only (not a parent portal)
-- Simple staff workflows first
-- Auditability and clean records by default
-
-## Tech Stack
-
-- Next.js (App Router)
-- TypeScript
-- Tailwind CSS
-- Supabase Auth + Database
+- Student master records
+- Workbook CSV import batches
+- Fee structure and installment defaults
+- Collection desk workflow
+- Reports and audit-friendly outputs
+- Supabase auth + database setup
 - Vercel-ready deployment
 
 ## Active Fee Rule Defaults
 
 - Late fee: flat Rs 1000
 - Installment due dates: 20 April, 20 July, 20 October, 20 January
-- Class 12 Science annual fee (default setting): Rs 38000
+- Class 12 Science annual fee default: Rs 38000
 
-## Quick Start (Non-coder Friendly)
+## Tech Stack
 
-1. Install Node.js 20+ from the official Node website.
-2. Open this project folder in VS Code.
-3. Create a file named `.env.local` in the project root.
-4. Copy values from `.env.local.example` and fill your real Supabase values.
-5. In terminal, run:
+- Next.js App Router
+- TypeScript
+- Tailwind CSS
+- shadcn/ui primitives
+- Supabase
+- Vercel
 
-```bash
-npm install
-npm run dev
+## Project Structure
+
+```text
+app/
+  auth/                      Auth pages for internal staff
+  protected/                 Main internal admin workspace
+    students/
+    imports/
+    fee-structure/
+    collections/
+    reports/
+    settings/
+components/
+  admin/                     Shared internal dashboard components
+  ui/                        Reusable shadcn/ui primitives
+lib/
+  auth/                      Role definitions
+  config/                    School config, fee rules, navigation
+  db/                        Shared domain types
+  helpers/                   Formatting helpers
+  supabase/                  Browser, server, admin, and proxy clients
+supabase/
+  schema.sql                 Database schema to run in Supabase
 ```
 
-6. Open http://localhost:3000
-7. Use `/auth/login` for staff authentication.
+## Required Environment Variables
 
-## Environment Variables
+Create `.env.local` in the project root.
 
 Required:
 
@@ -49,65 +66,87 @@ NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxxxxxxxxxxxxxxxx
 ```
 
-Recommended (server-only):
+Recommended:
 
 ```env
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
-Metadata:
+Optional display values:
 
 ```env
 NEXT_PUBLIC_SCHOOL_NAME=Shri Veer Patta Senior Secondary School
 NEXT_PUBLIC_APP_MODE=internal-admin
 ```
 
-## Project Structure (High Level)
+## Local Setup
 
-```text
-app/
-  auth/                      # Supabase auth routes and forms
-  protected/                 # Internal staff dashboard and workflows
-    students/
-    fee-structure/
-    collections/
-    reports/
-    settings/
-components/
-  admin/                     # Reusable internal dashboard components
-  ui/                        # Shared shadcn/ui primitives
-lib/
-  auth/                      # Role and permission definitions
-  config/                    # Fee-rule defaults and school profile
-  db/                        # DB-facing TypeScript types
-  helpers/                   # Utility helpers (currency, etc.)
-  supabase/                  # Client/server/proxy setup
+1. Install Node.js 20 or newer.
+2. Open this folder in VS Code.
+3. Create `.env.local`.
+4. Copy values from `.env.local.example`.
+5. Fill the real Supabase values.
+6. Run:
+
+```bash
+npm install
+npm run dev
 ```
 
-## Supabase Setup (Manual)
+7. Open `http://localhost:3000`.
+
+## Manual Browser Steps
+
+You must do these in the browser:
 
 1. Create a Supabase project.
-2. Open SQL Editor and run the SQL file from `supabase/schema.sql`.
-3. In Authentication settings, disable open signups if only admins should be invited.
-4. Create staff users manually via Supabase Auth dashboard (or invite flow).
+2. Open Supabase SQL Editor.
+3. Run `supabase/schema.sql`.
+4. Open Supabase Authentication settings.
+5. Set the site URL.
+   Local: `http://localhost:3000`
+   Production: your final Vercel domain
+6. Add redirect URLs for:
+   - `http://localhost:3000/auth/login`
+   - `http://localhost:3000/auth/update-password`
+   - your production `/auth/login`
+   - your production `/auth/update-password`
+7. Create or invite the first internal staff account.
+8. After the first admin account works, disable open signups if you want invite-only access.
 
-## Deploy to Vercel
+## First Usage Order
 
-1. Push this project to GitHub.
-2. Import repo into Vercel.
-3. Add all environment variables in Vercel Project Settings -> Environment Variables.
+1. Sign in with the internal staff account.
+2. Review fee defaults on the dashboard and settings pages.
+3. Prepare student master CSV files from the workbook.
+4. Import one class or one verified batch at a time.
+5. Configure class-wise fee structures.
+6. Start collections and reconcile totals daily while migration is in progress.
+
+## Deploy To Vercel
+
+1. Push the project to GitHub.
+2. Import the repository into Vercel.
+3. Add the same environment variables in Vercel Project Settings.
 4. Deploy.
-5. Validate login and protected routes on the deployed URL.
+5. Open the deployed app and test:
+   - `/auth/login`
+   - `/protected`
+   - password reset flow
 
-## Daily Workflow Guideline
+## Security Notes
 
-1. Manage student records
-2. Confirm fee structure by class
-3. Record collections
-4. Review outstanding + daily reports
+- Keep `SUPABASE_SERVICE_ROLE_KEY` server-only.
+- Use invited staff accounts for production.
+- Do not expose this app to parents or the public.
+- Prefer audit-safe updates over destructive deletes.
 
-## Internal Security Notes
+## Commands
 
-- Never expose service-role key to client-side code.
-- Restrict staff access by role.
-- Keep audit fields (`created_at`, `updated_at`, `created_by`) in all key tables.
+```bash
+npm run dev
+npm run lint
+npm run typecheck
+npm run build
+```

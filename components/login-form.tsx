@@ -38,8 +38,8 @@ export function LoginForm({
         password,
       });
       if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
       router.push("/protected");
+      router.refresh();
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
@@ -49,11 +49,12 @@ export function LoginForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card>
+      <Card className="w-full max-w-md border-slate-200/80 bg-white/95 shadow-2xl shadow-slate-200/60">
         <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
+          <CardTitle className="text-2xl">Staff sign in</CardTitle>
           <CardDescription>
-            Enter your email below to login to your account
+            Use your invited school staff account to access the internal fee
+            dashboard.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -64,7 +65,7 @@ export function LoginForm({
                 <Input
                   id="email"
                   type="email"
-                  placeholder="m@example.com"
+                  placeholder="accounts@school.example"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -90,17 +91,23 @@ export function LoginForm({
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Logging in..." : "Login"}
+                {isLoading ? "Signing in..." : "Sign in to dashboard"}
               </Button>
             </div>
-            <div className="mt-4 text-center text-sm">
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/auth/sign-up"
-                className="underline underline-offset-4"
-              >
-                Sign up
-              </Link>
+            <div className="mt-5 space-y-2 text-center">
+              <p className="text-sm text-slate-600">
+                No access yet? Ask an administrator to create or invite your
+                account in Supabase Auth.
+              </p>
+              <p className="text-xs text-slate-500">
+                First-time bootstrap only:{" "}
+                <Link
+                  href="/auth/sign-up"
+                  className="underline underline-offset-4"
+                >
+                  create the initial admin account
+                </Link>
+              </p>
             </div>
           </form>
         </CardContent>

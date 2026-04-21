@@ -1,21 +1,32 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
-import { ThemeProvider } from "next-themes";
+import { Manrope } from "next/font/google";
+
+import { schoolProfile } from "@/lib/config/school";
+import { getSiteUrl } from "@/lib/env";
+
 import "./globals.css";
 
-const defaultUrl = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : "http://localhost:3000";
-
 export const metadata: Metadata = {
-  metadataBase: new URL(defaultUrl),
-  title: "Shri Veer Patta Senior Secondary School | Fee Admin",
+  metadataBase: new URL(getSiteUrl()),
+  title: {
+    default: `${schoolProfile.name} | Fee Admin`,
+    template: `%s | ${schoolProfile.shortName}`,
+  },
   description:
-    "Internal fee management system for Shri Veer Patta Senior Secondary School.",
+    "Internal fee management system for Shri Veer Patta Senior Secondary School, built for office and accounts staff.",
+  applicationName: `${schoolProfile.shortName} Fee Admin`,
+  category: "business",
+  keywords: [
+    "school fee management",
+    "internal admin app",
+    "next.js",
+    "supabase",
+    "school collections",
+  ],
 };
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const manrope = Manrope({
+  variable: "--font-manrope",
   display: "swap",
   subsets: ["latin"],
 });
@@ -26,16 +37,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.className} antialiased`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-        </ThemeProvider>
+    <html lang="en">
+      <body className={`${manrope.variable} font-sans antialiased`}>
+        {children}
       </body>
     </html>
   );

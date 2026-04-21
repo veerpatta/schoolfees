@@ -1,17 +1,43 @@
 import { ReactNode } from "react";
 
+import { cn } from "@/lib/utils";
+
 type SectionCardProps = {
   title: string;
-  description: string;
+  description?: string;
   children: ReactNode;
+  actions?: ReactNode;
+  className?: string;
 };
 
-export function SectionCard({ title, description, children }: SectionCardProps) {
+export function SectionCard({
+  title,
+  description,
+  children,
+  actions,
+  className,
+}: SectionCardProps) {
   return (
-    <section className="rounded-lg border border-slate-200 p-4">
-      <h2 className="text-base font-semibold">{title}</h2>
-      <p className="mt-1 text-sm text-slate-600">{description}</p>
-      <div className="mt-4">{children}</div>
+    <section
+      className={cn(
+        "rounded-[28px] border border-slate-200/80 bg-white/90 p-6 shadow-sm shadow-slate-200/60",
+        className,
+      )}
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight text-slate-950">
+            {title}
+          </h2>
+          {description ? (
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              {description}
+            </p>
+          ) : null}
+        </div>
+        {actions ? <div className="shrink-0">{actions}</div> : null}
+      </div>
+      <div className="mt-5">{children}</div>
     </section>
   );
 }

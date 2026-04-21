@@ -47,25 +47,27 @@ export function ForgotPasswordForm({
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       {success ? (
-        <Card>
+        <Card className="w-full max-w-md border-slate-200/80 bg-white/95 shadow-2xl shadow-slate-200/60">
           <CardHeader>
-            <CardTitle className="text-2xl">Check Your Email</CardTitle>
-            <CardDescription>Password reset instructions sent</CardDescription>
+            <CardTitle className="text-2xl">Check your email</CardTitle>
+            <CardDescription>
+              Password reset instructions were sent.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              If you registered using your email and password, you will receive
-              a password reset email.
+              If this staff account exists, a password reset link will arrive at
+              the email address you entered.
             </p>
           </CardContent>
         </Card>
       ) : (
-        <Card>
+        <Card className="w-full max-w-md border-slate-200/80 bg-white/95 shadow-2xl shadow-slate-200/60">
           <CardHeader>
-            <CardTitle className="text-2xl">Reset Your Password</CardTitle>
+            <CardTitle className="text-2xl">Reset staff password</CardTitle>
             <CardDescription>
-              Type in your email and we&apos;ll send you a link to reset your
-              password
+              Enter the invited staff email address and a reset link will be
+              sent there.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -73,14 +75,14 @@ export function ForgotPasswordForm({
               <div className="flex flex-col gap-6">
                 <div className="grid gap-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="m@example.com"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="accounts@school.example"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
                 </div>
                 {error && <p className="text-sm text-red-500">{error}</p>}
                 <Button type="submit" className="w-full" disabled={isLoading}>

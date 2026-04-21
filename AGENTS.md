@@ -41,6 +41,28 @@ Primary goals:
    - relevant settings page UI
    - README section for active defaults
 
+## Current App Structure Notes
+
+- Landing page at `app/page.tsx`
+- Auth screens under `app/auth`
+- Internal workspace under `app/protected`
+- Workbook migration page at `app/protected/imports`
+- Shared admin shell/components under `components/admin`
+- School and fee defaults under `lib/config`
+- Supabase schema at `supabase/schema.sql`
+
+## Auth Posture
+
+- Keep this invite-oriented for internal staff.
+- Prefer creating or inviting staff users from Supabase Auth.
+- If bootstrap signup is used for the first admin, disable open signup afterward.
+
+## Data and Audit Expectations
+
+- Student, fee, collection, and import tables should preserve `created_at` / `updated_at`.
+- Prefer correction flows and audit-safe history over delete-heavy logic.
+- Keep workbook import batches traceable to source files and row counts.
+
 ## Suggested Next Builds
 
 - Student master import from workbook CSV
