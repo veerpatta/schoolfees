@@ -14,6 +14,7 @@ losing auditability. The product scope should stay narrow and operational:
 - maintain student master records
 - import workbook data in traceable batches
 - define fee structures and ledger defaults
+- configure school-wide defaults, class defaults, and student overrides
 - record collections and receipts
 - prepare reports for reconciliation and audit
 
@@ -82,7 +83,8 @@ app/
     page.tsx                      Main internal operations dashboard
     students/                     Student master workflow
     imports/                      Workbook migration batches
-    fee-structure/                Class-wise fee planning
+    fee-setup/                    School defaults, class defaults, student overrides
+    fee-structure/                Alias route to fee-setup
     collections/                  Counter collection workflow
     reports/                      Reporting and audit outputs
     settings/                     Policy, roles, and env checklist
@@ -232,6 +234,7 @@ Tables:
 - `transport_routes`
 - `students`
 - `fee_settings`
+- `school_fee_defaults`
 - `student_fee_overrides`
 - `installments`
 - `receipts`

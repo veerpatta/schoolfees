@@ -51,7 +51,9 @@ Main routes and modules in the repo today:
 - `app/protected/imports/page.tsx`
   import/migration area
 - `app/protected/fee-structure/page.tsx`
-  fee settings area
+  alias route to fee setup area
+- `app/protected/fee-setup/page.tsx`
+  school-wide defaults, class defaults, and student overrides
 - `app/protected/collections/page.tsx`
   collection desk area
 - `app/protected/reports/page.tsx`
@@ -135,6 +137,7 @@ Important current tables:
 - `transport_routes`
 - `students`
 - `fee_settings`
+- `school_fee_defaults`
 - `student_fee_overrides`
 - `installments`
 - `receipts`

@@ -1,61 +1,47 @@
-import { PlaceholderPage } from "@/components/admin/placeholder-page";
-import { activeFeeRules } from "@/lib/config/fee-rules";
-import { formatInr } from "@/lib/helpers/currency";
+import { FeeSetupClient } from "@/components/fees/fee-setup-client";
+import { PageHeader } from "@/components/admin/page-header";
+import { StatusBadge } from "@/components/admin/status-badge";
+import { getFeeSetupPageData } from "@/lib/fees/data";
+import { requireAuthenticatedStaff } from "@/lib/supabase/session";
 
-const metrics = [
-  {
-    title: "Late fee",
-    value: formatInr(activeFeeRules.lateFeeFlatRupees),
-    hint: "Current school default is flat, not per-day.",
-  },
-  {
-    title: "Installments",
-    value: `${activeFeeRules.defaultInstallmentCount} parts`,
-    hint: activeFeeRules.installmentDueDates.join(", "),
-  },
-  {
-    title: "Class 12 Science",
-    value: formatInr(activeFeeRules.class12ScienceAnnualFeeRupees),
-    hint: "Starter annual fee default from current policy.",
-  },
-] as const;
+import {
+  initialFeeSetupActionState,
+  saveClassDefaultsAction,
+  saveSchoolDefaultsAction,
+  saveStudentOverrideAction,
+} from "./actions";
 
-const blocks = [
-  {
-    title: "Planned workflow",
-    description: "Fee setup should be explicit before collections begin.",
-    items: [
-      "Define class-wise annual amounts and installment structure first.",
-      "Keep concessions and overrides visible instead of burying them in notes.",
-      "Separate policy changes from payment entry so history stays clear.",
-    ],
-  },
-  {
-    title: "Operational notes",
-    description: "This placeholder reserves the main fee configuration surface.",
-    items: [
-      "Current due dates remain 20 April, 20 July, 20 October, and 20 January.",
-      "Changes to fee policy should update config, settings, and docs together.",
-      "Generated ledgers should follow these defaults rather than workbook habits.",
-    ],
-  },
-] as const;
+export default async function FeeSetupPage() {
+  const [staff, data] = await Promise.all([
+    requireAuthenticatedStaff(),
+    getFeeSetupPageData(),
+  ]);
 
-export default function FeeSetupPage() {
+  const canEdit = staff.appRole === "admin";
+
   return (
-    <PlaceholderPage
-      eyebrow="Fee Setup"
-      title="Fee policy and class defaults"
-      description="Set annual fee plans, installment timing, and fee defaults from one controlled admin area."
-      statusLabel="Policy placeholder"
-      statusTone="accent"
-      metrics={metrics}
-      blocks={blocks}
-      links={[
-        { href: "/protected/students", label: "Students" },
-        { href: "/protected/payments", label: "Payments" },
-        { href: "/protected/settings", label: "Settings" },
-      ]}
-    />
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Fee Setup"
+        title="School, class, and student fee defaults"
+        description="Manage school-wide defaults, per-class settings, and per-student overrides with clear, traceable save flows."
+        actions={
+          canEdit ? (
+            <StatusBadge label="Admin write access" tone="good" />
+          ) : (
+            <StatusBadge label="Read-only mode" tone="warning" />
+          )
+        }
+      />
+
+      <FeeSetupClient
+        data={data}
+        canEdit={canEdit}
+        saveSchoolDefaultsAction={saveSchoolDefaultsAction}
+        saveClassDefaultsAction={saveClassDefaultsAction}
+        saveStudentOverrideAction={saveStudentOverrideAction}
+        initialState={initialFeeSetupActionState}
+      />
+    </div>
   );
 }

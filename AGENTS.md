@@ -90,6 +90,7 @@ content or Supabase sample code unless the user explicitly requests that.
 - students: `app/protected/students/page.tsx`
 - imports: `app/protected/imports/page.tsx`
 - fee settings: `app/protected/fee-structure/page.tsx`
+- fee setup: `app/protected/fee-setup/page.tsx`
 - collections: `app/protected/collections/page.tsx`
 - reports: `app/protected/reports/page.tsx`
 - settings: `app/protected/settings/page.tsx`
@@ -163,6 +164,7 @@ Current core tables in `supabase/schema.sql`:
 - `transport_routes`
 - `students`
 - `fee_settings`
+- `school_fee_defaults`
 - `student_fee_overrides`
 - `installments`
 - `receipts`
