@@ -1,6 +1,9 @@
+import Link from "next/link";
+
 import { FeeSetupClient } from "@/components/fees/fee-setup-client";
 import { PageHeader } from "@/components/admin/page-header";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { Button } from "@/components/ui/button";
 import { getFeeSetupPageData } from "@/lib/fees/data";
 import { INITIAL_FEE_SETUP_ACTION_STATE } from "@/lib/fees/types";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
@@ -27,7 +30,12 @@ export default async function FeeSetupPage() {
         description="Manage school-wide defaults, per-class settings, and per-student overrides with clear, traceable save flows."
         actions={
           canEdit ? (
-            <StatusBadge label="Admin write access" tone="good" />
+            <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
+              <StatusBadge label="Admin write access" tone="good" />
+              <Button asChild size="sm">
+                <Link href="/protected/fee-setup/generate">Generate Ledgers</Link>
+              </Button>
+            </div>
           ) : (
             <StatusBadge label="Read-only mode" tone="warning" />
           )
