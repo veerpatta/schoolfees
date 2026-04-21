@@ -54,6 +54,8 @@ Main routes and modules in the repo today:
   alias route to fee setup area
 - `app/protected/fee-setup/page.tsx`
   school-wide defaults, class defaults, and student overrides
+- `app/protected/fee-setup/generate/page.tsx`
+  idempotent session ledger generation workflow
 - `app/protected/collections/page.tsx`
   collection desk area
 - `app/protected/reports/page.tsx`
@@ -112,8 +114,7 @@ Auth/session expectations:
 - keep `proxy.ts` active
 - use server-side auth checks for protected pages
 - keep proxy redirects scoped to `/protected`
-- use `lib/supabase/session.ts` as the placeholder entry point for future
-  role-aware session checks
+- use `lib/supabase/session.ts` for database-backed role-aware session checks
 - keep internal staff access invite-oriented when possible
 - keep bootstrap signup disabled by default and enable it only temporarily
 - never expose `SUPABASE_SERVICE_ROLE_KEY` in browser code

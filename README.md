@@ -31,16 +31,16 @@ As of April 21, 2026, the repo implementation status is as follows:
 - Protected admin workspace dashboard (`app/protected/page.tsx`) with real-time aggregates via `v_installment_balances`.
 - Student Master (`app/protected/students`)
 - Spreadsheet Import (`app/protected/imports`) with CSV/XLSX upload, column mapping, dry-run validation, duplicate detection, batch tracking, and valid-row-only save.
-- Fee Setup & Structure (`app/protected/fee-setup`, `app/protected/fee-structure`)
+- Fee Setup & Structure (`app/protected/fee-setup`, `app/protected/fee-structure`) with idempotent Session Ledger Generation.
 - Payment Entry (`app/protected/payments`) with append-only RPC (`post_student_payment`).
 - Ledger & Receipts (`app/protected/ledger`, `app/protected/receipts`)
 - Defaulters Reporting (`app/protected/defaulters`)
 - Deployment Settings Validator (`app/protected/settings`)
 - Database integrity measures (RLS enabled, append-only triggers, audit event triggers).
+- Role-Based Access Control (RBAC): `public.staff_role` enum and RLS policies enforce `admin`, `accountant`, and `read_only_staff` capabilities strictly at the database layer.
 
 **Scaffolded / Incomplete Modules (UI exists, logic incomplete):**
 - Advanced Reports (`app/protected/reports`): Static report catalog; actual generation of complex reports (CSV/PDF) is not implemented.
-- Role-Based Access Control (RBAC): `lib/auth/roles.ts` exists, but Supabase RLS currently allows operations for any `authenticated` user and does not strictly enforce specific staff roles (e.g., admin vs accountant) on the backend.
 
 ## Stack
 
@@ -239,16 +239,15 @@ NEXT_PUBLIC_APP_MODE=internal-admin
     protected-route redirect when logged out
     login redirect back into the protected area
 
-## Current Role Placeholders
+## Current Role Structure
 
-Current shell-level role placeholders in `lib/auth/roles.ts` are:
+Current staff roles defined in `lib/auth/roles.ts` and database `public.staff_role` enum are:
 
 - `admin`
 - `accountant`
 - `read_only_staff`
 
-These are still UI and workflow placeholders rather than a fully enforced
-database-backed staff authorization model.
+These are fully enforced at the database level via Supabase RLS and `public.has_permission()` function, restricting operation capabilities based on the active staff role.
 
 ## Current Operational Defaults
 

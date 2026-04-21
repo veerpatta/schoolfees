@@ -72,11 +72,12 @@ This file reflects the repo state on April 21, 2026.
 - protected admin workspace under `app/protected`
 - real-time Dashboard and Defaulters modules based on `v_installment_balances`
 - Student Master, Fee Setup, Payment Entry, and Student Spreadsheet Import workflows
+- idempotent Session Ledger Generation workflow for creating student installments safely
 - append-only Ledger behavior enforced by RPCs and DB triggers
 - starter schema, complete migration history, and config under `lib/config`
+- Role-Based Access Control (RBAC): `public.staff_role` enum and RLS policies enforce `admin`, `accountant`, and `read_only_staff` capabilities strictly at the database layer.
 
 **Scaffolded / Incomplete Areas (Proceed with caution):**
-- **RBAC (Role-Based Access Control)**: `lib/auth/roles.ts` exists, but Supabase RLS is wide open to any `authenticated` user. True role validation (`admin` vs `accountant`) needs backend enforcement.
 - **Advanced Reports (`app/protected/reports`)**: UI catalog exists, but no real CSV/PDF functionality is built yet.
 - **Testing**: No test suite (unit/integration/E2E) is set up.
 
@@ -92,6 +93,7 @@ content or Supabase sample code unless the user explicitly requests that.
 - imports: `app/protected/imports/page.tsx`
 - fee settings: `app/protected/fee-structure/page.tsx`
 - fee setup: `app/protected/fee-setup/page.tsx`
+- fee generation: `app/protected/fee-setup/generate/page.tsx`
 - collections: `app/protected/collections/page.tsx`
 - reports: `app/protected/reports/page.tsx`
 - settings: `app/protected/settings/page.tsx`
