@@ -10,6 +10,7 @@ import {
   type StaffPermission,
   type StaffRole,
 } from "@/lib/auth/roles";
+import { hasRequiredEnvVars } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 
 export type StaffAuthClaims = Record<string, unknown> & {
@@ -35,6 +36,10 @@ type StaffProfileRow = {
 };
 
 export async function getAuthenticatedStaff() {
+  if (!hasRequiredEnvVars) {
+    return null;
+  }
+
   const supabase = await createClient();
   const { data: authData, error: authError } = await supabase.auth.getUser();
 
