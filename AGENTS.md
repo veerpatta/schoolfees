@@ -68,7 +68,7 @@ This file reflects the repo state on April 21, 2026.
 
 **Fully Implemented Core:**
 - branded landing page at `app/page.tsx`
-- auth flow under `app/auth` and bootstrap gated by `NEXT_PUBLIC_ENABLE_BOOTSTRAP_SIGNUP`
+- auth flow under `app/auth` with server-action login/logout, no public signup, self password change, and admin staff management
 - protected admin workspace under `app/protected`
 - real-time Dashboard, Defaulters, and Ledger modules
 - Student Master with add/edit/view detail workflows
@@ -80,8 +80,9 @@ This file reflects the repo state on April 21, 2026.
 - Receipts: printable per-receipt view
 - Reports: on-page filterable tables for Outstanding, Daily Collection, Receipt Register, Student Ledger, and Import Verification; working CSV export at `/protected/reports/export`
 - Deployment Settings Validator showing env checks and policy notes
+- internal staff management under `app/protected/staff` with role assignment, activation toggles, and password resets
 - append-only behavior enforced by RPCs and DB triggers on receipts, payments, payment_adjustments, and audit_logs
-- 6 tracked migrations covering schema, RBAC alignment, and import workflow
+- 7 tracked migrations covering schema, RBAC alignment, auth/user sync, and import workflow
 - Role-Based Access Control (RBAC): `public.staff_role` enum and RLS policies enforce `admin`, `accountant`, and `read_only_staff` strictly at the database layer
 
 **Incomplete / Proceed with Caution:**
@@ -111,8 +112,11 @@ content or Supabase sample code unless the user explicitly requests that.
 - defaulters: `app/protected/defaulters/page.tsx`
 - reports: `app/protected/reports/page.tsx`
 - reports CSV export: `app/protected/reports/export/route.ts`
+- staff management: `app/protected/staff/page.tsx`
+- self password change: `app/protected/password/page.tsx`
 - settings: `app/protected/settings/page.tsx`
 - admin shell/components: `components/admin/*`
+- bootstrap seed script: `scripts/bootstrap-staff.mjs`
 - fee rules: `lib/config/fee-rules.ts`
 - school profile: `lib/config/school.ts`
 - navigation: `lib/config/navigation.ts`
@@ -147,7 +151,7 @@ App code should usually import from `lib/supabase/*`.
 8. Keep route contracts under `app/auth` and `app/protected` stable.
 9. Keep `SUPABASE_SERVICE_ROLE_KEY` server-only.
 10. Preserve school-specific branding and terminology.
-11. Keep `NEXT_PUBLIC_ENABLE_BOOTSTRAP_SIGNUP` off outside first-admin bootstrap.
+11. Keep public signup disabled; bootstrap staff accounts through a server-only flow.
 
 Important nuance:
 

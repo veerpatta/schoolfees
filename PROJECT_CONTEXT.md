@@ -43,7 +43,7 @@ Main routes and modules in the repo today:
 - `app/page.tsx`
   school-branded internal app landing page
 - `app/auth/*`
-  login, signup/bootstrap, password reset, auth confirmation, error screens
+  login, password reset/recovery, auth confirmation, and error screens
 - `app/protected/page.tsx`
   main dashboard with real-time aggregates
 - `app/protected/students/page.tsx`
@@ -78,12 +78,20 @@ Main routes and modules in the repo today:
   CSV download API endpoint for all report types
 - `app/protected/settings/page.tsx`
   deployment readiness checks and active policy notes
+- `app/protected/staff/page.tsx`
+  admin-only staff account creation, role updates, password resets, and account activation control
+- `app/protected/password/page.tsx`
+  logged-in staff password change
 - `components/admin/*`
   dashboard shell, cards, nav, page headers, loading and error boundaries
+- `components/staff/*`
+  staff management and password forms
 - `lib/config/*`
   school defaults, fee rules, navigation
 - `lib/auth/roles.ts`
   role model and permission map
+- `lib/staff-management/data.ts`
+  server-only staff bootstrap and admin account-management helpers
 - `lib/supabase/session.ts`
   server-side session, role resolution, and permission guards
 - `lib/env.ts`
@@ -93,7 +101,9 @@ Main routes and modules in the repo today:
 - `supabase/schema/*`
   reserved for future split schema/reference files
 - `supabase/migrations/*`
-  6 ordered SQL migration files for Supabase CLI workflows
+  7 ordered SQL migration files for Supabase CLI workflows
+- `scripts/bootstrap-staff.mjs`
+  one-time server-only seed script for initial staff accounts
 
 ## Tech Stack
 
@@ -136,8 +146,9 @@ Auth/session expectations:
 - use server-side auth checks for protected pages
 - keep proxy redirects scoped to `/protected`
 - use `lib/supabase/session.ts` for database-backed role-aware session checks
-- keep internal staff access invite-oriented when possible
-- keep bootstrap signup disabled by default and enable it only temporarily
+- keep public signup disabled
+- bootstrap initial staff accounts through a server-only script or admin flow
+- keep `public.users` synchronized from `auth.users` metadata for RBAC and audit visibility
 - never expose `SUPABASE_SERVICE_ROLE_KEY` in browser code
 
 Current local public Supabase project context:

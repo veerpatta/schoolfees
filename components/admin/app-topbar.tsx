@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { roleLabels, type StaffRole } from "@/lib/auth/roles";
@@ -7,6 +8,7 @@ import { getProtectedRouteMeta } from "@/lib/config/navigation";
 import { schoolProfile } from "@/lib/config/school";
 
 import { LogoutButton } from "../logout-button";
+import { Button } from "../ui/button";
 import { SidebarNav } from "./sidebar-nav";
 import { StatusBadge } from "./status-badge";
 
@@ -41,6 +43,9 @@ export function AppTopBar({ staffEmail, staffRole }: AppTopBarProps) {
               <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
                 {staffEmail}
               </div>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/protected/password">Change password</Link>
+              </Button>
               <LogoutButton />
             </div>
           </div>

@@ -39,8 +39,9 @@ export async function updateSession(request: NextRequest) {
   );
 
   // Revalidate the auth token on the server before protected routes render.
-  const { data } = await supabase.auth.getClaims();
-  const user = data?.claims;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (isProtectedPath && !user) {
     const url = request.nextUrl.clone();

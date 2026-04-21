@@ -6,6 +6,7 @@ import {
   ReceiptText,
   ScrollText,
   Settings2,
+  ShieldCheck,
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
@@ -74,6 +75,13 @@ export const protectedNavigation: ProtectedNavigationItem[] = [
     requiredPermission: "defaulters:view",
   },
   {
+    href: "/protected/staff",
+    label: "Staff",
+    description: "Internal staff accounts, roles, resets, and access control.",
+    icon: ShieldCheck,
+    requiredPermission: "staff:manage",
+  },
+  {
     href: "/protected/settings",
     label: "Settings",
     description: "Staff roles, policy defaults, and app configuration.",
@@ -89,6 +97,11 @@ export type ProtectedRouteMeta = {
 };
 
 const protectedSecondaryPages: ProtectedRouteMeta[] = [
+  {
+    href: "/protected/password",
+    label: "Change Password",
+    description: "Update the password for the current internal staff account.",
+  },
   {
     href: "/protected/imports",
     label: "Imports",

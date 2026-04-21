@@ -1,24 +1,26 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
+import { useFormStatus } from "react-dom";
+
+import { logoutAction } from "@/app/auth/login/actions";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
-import { useRouter } from "next/navigation";
 
-export function LogoutButton() {
-  const router = useRouter();
-
-  const logout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/auth/login");
-    router.refresh();
-  };
+function SubmitButton() {
+  const { pending } = useFormStatus();
 
   return (
-    <Button onClick={logout} size="sm" variant="outline">
+    <Button type="submit" size="sm" variant="outline" disabled={pending}>
       <LogOut className="size-4" />
-      Sign out
+      {pending ? "Signing out..." : "Sign out"}
     </Button>
+  );
+}
+
+export function LogoutButton() {
+  return (
+    <form action={logoutAction}>
+      <SubmitButton />
+    </form>
   );
 }

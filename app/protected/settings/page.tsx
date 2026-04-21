@@ -9,7 +9,6 @@ import {
   getSiteUrl,
   hasExplicitSiteUrl,
   hasRequiredEnvVars,
-  isBootstrapSignupEnabled,
   isConfiguredSiteUrlSecure,
   isVercelProductionEnvironment,
 } from "@/lib/env";
@@ -33,7 +32,6 @@ export default async function SettingsPage() {
   const deploymentEnvironment = getOptionalEnvVar("VERCEL_ENV") ?? "local";
   const resolvedSiteUrl = getSiteUrl();
   const explicitSiteUrlConfigured = hasExplicitSiteUrl();
-  const bootstrapSignupEnabled = isBootstrapSignupEnabled();
   const productionEnvironment = isVercelProductionEnvironment();
 
   const readinessChecks = [
@@ -64,18 +62,18 @@ export default async function SettingsPage() {
         (explicitSiteUrlConfigured && isConfiguredSiteUrlSecure()),
     },
     {
-      label: "Bootstrap sign-up",
-      value: bootstrapSignupEnabled ? "Enabled" : "Disabled",
+      label: "Public sign-up path",
+      value: "Disabled",
       detail:
-        "Keep NEXT_PUBLIC_ENABLE_BOOTSTRAP_SIGNUP off except for first-admin setup.",
-      healthy: !bootstrapSignupEnabled,
+        "Initial account provisioning should happen through the server-only bootstrap script, not a public signup page.",
+      healthy: true,
     },
     {
       label: "Service role key",
       value: serviceRoleConfigured ? "Configured" : "Not set",
       detail:
-        "SUPABASE_SERVICE_ROLE_KEY is optional today and must stay server-only if you add it later.",
-      healthy: true,
+        "SUPABASE_SERVICE_ROLE_KEY must stay server-only and is required for bootstrap provisioning, admin staff creation, and staff password resets.",
+      healthy: serviceRoleConfigured,
     },
   ] as const;
 
@@ -153,8 +151,8 @@ export default async function SettingsPage() {
       </section>
 
       <SectionCard
-        title="Role placeholders"
-        description="These are still shell-level placeholders. Unknown or missing role claims now resolve to the least-privileged shell role instead of admin."
+        title="Role model"
+        description="Unknown or missing role mappings still resolve to the least-privileged role instead of admin."
       >
         <RolePreview title={null} description={null} />
       </SectionCard>

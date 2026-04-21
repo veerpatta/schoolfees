@@ -163,7 +163,9 @@ export async function generateSessionLedgersAction() {
     let otherAmount = 0;
     const otherObj = override?.custom_other_fee_heads ?? parentSetting.other_fee_heads;
     if (otherObj && typeof otherObj === "object") {
-      otherAmount = Object.values(otherObj).reduce((sum: number, val: number) => sum + Number(val), 0);
+      otherAmount = Object.values(
+        otherObj as Record<string, number | string | null>,
+      ).reduce<number>((sum, val) => sum + Number(val ?? 0), 0);
     }
 
     const lateFee = override?.custom_late_fee_flat_amount ?? parentSetting.late_fee_flat_amount;

@@ -13,6 +13,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 
 export type StaffAuthClaims = Record<string, unknown> & {
+  id?: string;
   email?: string;
   role?: string;
   sub?: string;
@@ -22,11 +23,15 @@ export type AuthenticatedStaffSession = StaffAuthClaims & {
   appRole: StaffRole;
   permissions: readonly StaffPermission[];
   isActive: boolean;
+  fullName: string | null;
+  lastLoginAt: string | null;
 };
 
 type StaffProfileRow = {
+  full_name: string | null;
   role: string | null;
   is_active: boolean;
+  last_login_at: string | null;
 };
 
 export async function getAuthenticatedStaff() {
@@ -39,7 +44,7 @@ export async function getAuthenticatedStaff() {
 
   const { data: profileData } = await supabase
     .from("users")
-    .select("role, is_active")
+    .select("full_name, role, is_active, last_login_at")
     .eq("id", authData.user.id)
     .maybeSingle();
 
@@ -47,10 +52,13 @@ export async function getAuthenticatedStaff() {
   const appRole = resolveStaffRole(profile?.role);
 
   return {
+    id: authData.user.id,
     ...(authData.user as unknown as StaffAuthClaims),
     appRole,
     permissions: rolePermissions[appRole],
     isActive: profile?.is_active ?? true,
+    fullName: profile?.full_name ?? null,
+    lastLoginAt: profile?.last_login_at ?? null,
   } satisfies AuthenticatedStaffSession;
 }
 
