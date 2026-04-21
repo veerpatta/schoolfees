@@ -20,7 +20,7 @@ export function SectionCard({
   return (
     <section
       className={cn(
-        "rounded-[28px] border border-slate-200/80 bg-white/90 p-6 shadow-sm shadow-slate-200/60",
+        "rounded-2xl border border-slate-200 bg-white p-5",
         className,
       )}
     >

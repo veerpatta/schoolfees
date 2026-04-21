@@ -49,12 +49,15 @@ export function LoginForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card className="w-full max-w-md border-slate-200/80 bg-white/95 shadow-2xl shadow-slate-200/60">
-        <CardHeader>
-          <CardTitle className="text-2xl">Staff sign in</CardTitle>
+      <Card className="w-full max-w-md rounded-3xl border-slate-200 bg-white shadow-lg">
+        <CardHeader className="space-y-3">
+          <div className="inline-flex w-fit rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+            Internal access
+          </div>
+          <CardTitle className="text-2xl">Sign in</CardTitle>
           <CardDescription>
-            Use your invited school staff account to access the internal fee
-            dashboard.
+            Use your invited school staff account to open the fee admin
+            workspace.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -90,14 +93,13 @@ export function LoginForm({
                 />
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Signing in..." : "Sign in to dashboard"}
+              <Button type="submit" className="h-10 w-full" disabled={isLoading}>
+                {isLoading ? "Signing in..." : "Open admin shell"}
               </Button>
             </div>
             <div className="mt-5 space-y-2 text-center">
               <p className="text-sm text-slate-600">
-                No access yet? Ask an administrator to create or invite your
-                account in Supabase Auth.
+                No access yet? Ask an administrator to invite your account.
               </p>
               <p className="text-xs text-slate-500">
                 First-time bootstrap only:{" "}

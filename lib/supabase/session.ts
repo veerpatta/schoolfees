@@ -2,12 +2,17 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 
+import { resolveStaffRole, type StaffRole } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
 
 export type StaffAuthClaims = Record<string, unknown> & {
   email?: string;
   role?: string;
   sub?: string;
+};
+
+export type AuthenticatedStaffSession = StaffAuthClaims & {
+  appRole: StaffRole;
 };
 
 export async function getAuthenticatedStaff() {
@@ -29,5 +34,8 @@ export async function requireAuthenticatedStaff(redirectTo = "/auth/login") {
     redirect(redirectTo);
   }
 
-  return staff;
+  return {
+    ...staff,
+    appRole: resolveStaffRole(staff.role),
+  } satisfies AuthenticatedStaffSession;
 }
