@@ -1,59 +1,115 @@
-import { PlaceholderPage } from "@/components/admin/placeholder-page";
+import Link from "next/link";
 
-const metrics = [
-  {
-    title: "Master record",
-    value: "Ready",
-    hint: "Admission and identity fields will live here.",
-  },
-  {
-    title: "Status tracking",
-    value: "Planned",
-    hint: "Active, inactive, left, and graduated states.",
-  },
-  {
-    title: "Import fit",
-    value: "Later",
-    hint: "Import mapping will plug into the same student model.",
-  },
-] as const;
+import { PageHeader } from "@/components/admin/page-header";
+import { SectionCard } from "@/components/admin/section-card";
+import { StudentFilters } from "@/components/students/student-filters";
+import { StudentListTable } from "@/components/students/student-list-table";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { STUDENT_IMPORT_FIELDS, STUDENT_STATUSES } from "@/lib/students/constants";
+import { getStudentFormOptions, getStudents } from "@/lib/students/data";
+import {
+  EMPTY_STUDENT_FILTERS,
+  type StudentListFilters,
+} from "@/lib/students/types";
 
-const blocks = [
-  {
-    title: "Planned workflow",
-    description: "Keep student records office-friendly and traceable.",
-    items: [
-      "Search by admission number, student name, or class before adding a duplicate.",
-      "Capture core identity, class, guardian, and contact fields first.",
-      "Use explicit statuses instead of deleting students with financial history.",
-    ],
-  },
-  {
-    title: "Operational notes",
-    description: "This page is a shell placeholder for the student master area.",
-    items: [
-      "Changes should keep created_by and updated_by traceable.",
-      "Historical fee and receipt visibility must survive student corrections.",
-      "Source tracking should stay compatible with later workbook imports.",
-    ],
-  },
-] as const;
+type StudentsPageProps = {
+  searchParams?: Promise<{
+    query?: string;
+    classId?: string;
+    transportRouteId?: string;
+    status?: StudentListFilters["status"];
+  }>;
+};
 
-export default function StudentsPage() {
+function normalizeFilters(
+  params: Awaited<StudentsPageProps["searchParams"]>,
+): StudentListFilters {
+  const validStatuses = new Set<string>(
+    STUDENT_STATUSES.map((statusOption) => statusOption.value),
+  );
+  const uuidPattern =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  const rawClassId = params?.classId?.trim() ?? "";
+  const rawRouteId = params?.transportRouteId?.trim() ?? "";
+  const rawStatus = params?.status?.trim() ?? "";
+
+  return {
+    query: params?.query?.trim() ?? EMPTY_STUDENT_FILTERS.query,
+    classId: uuidPattern.test(rawClassId) ? rawClassId : EMPTY_STUDENT_FILTERS.classId,
+    transportRouteId: uuidPattern.test(rawRouteId)
+      ? rawRouteId
+      : EMPTY_STUDENT_FILTERS.transportRouteId,
+    status: validStatuses.has(rawStatus)
+      ? (rawStatus as StudentListFilters["status"])
+      : EMPTY_STUDENT_FILTERS.status,
+  };
+}
+
+export default async function StudentsPage({ searchParams }: StudentsPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const filters = normalizeFilters(resolvedSearchParams);
+  const [{ classOptions, routeOptions }, students] = await Promise.all([
+    getStudentFormOptions(),
+    getStudents(filters),
+  ]);
+
+  const hasFilters = Boolean(
+    filters.query || filters.classId || filters.transportRouteId || filters.status,
+  );
+
   return (
-    <PlaceholderPage
-      eyebrow="Students"
-      title="Student master"
-      description="Create, review, and maintain student records from a single internal screen without losing auditability."
-      statusLabel="Placeholder"
-      statusTone="warning"
-      metrics={metrics}
-      blocks={blocks}
-      links={[
-        { href: "/protected/fee-setup", label: "Go to Fee Setup" },
-        { href: "/protected/payments", label: "Go to Payments" },
-        { href: "/protected/ledger", label: "Go to Ledger" },
-      ]}
-    />
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Students"
+        title="Student master"
+        description="Search, filter, create, and maintain student records in an office-friendly workflow."
+        actions={
+          <Button asChild>
+            <Link href="/protected/students/new">Add student</Link>
+          </Button>
+        }
+      />
+
+      <SectionCard
+        title="Filters"
+        description="Use name search and dropdown filters to find student records quickly."
+      >
+        <StudentFilters
+          filters={filters}
+          classOptions={classOptions}
+          routeOptions={routeOptions}
+        />
+      </SectionCard>
+
+      <SectionCard
+        title="Student list"
+        description={`${students.length} record${students.length === 1 ? "" : "s"} found`}
+      >
+        <StudentListTable students={students} hasFilters={hasFilters} />
+      </SectionCard>
+
+      <SectionCard
+        title="Import-ready field map"
+        description="These normalized keys and aliases are already aligned with the future CSV/XLSX import flow."
+      >
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {STUDENT_IMPORT_FIELDS.map((field) => (
+            <div key={field.key} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <p className="text-sm font-semibold text-slate-900">{field.label}</p>
+              <p className="mt-1 text-xs text-slate-600">Key: {field.key}</p>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {field.aliases.map((alias) => (
+                  <Badge key={`${field.key}-${alias}`} variant="outline" className="text-[11px]">
+                    {alias}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </SectionCard>
+    </div>
   );
 }
