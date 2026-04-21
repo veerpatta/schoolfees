@@ -23,7 +23,7 @@ export function DashboardShell({
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8f5ee_0%,#f1f5f9_100%)] text-slate-900">
       <div className="grid min-h-screen lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="hidden border-r border-slate-200 bg-white/95 lg:block">
+        <aside className="hidden border-r border-slate-200 bg-white/95 print:hidden lg:block">
           <div className="sticky top-0 flex h-screen flex-col px-5 py-6">
             <Link href="/protected" className="block">
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
@@ -59,7 +59,7 @@ export function DashboardShell({
 
         <div className="min-w-0">
           <AppTopBar staffEmail={staffEmail} staffRole={staffRole} />
-          <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6 lg:px-8">
+          <main className="mx-auto max-w-6xl px-4 py-5 print:max-w-none print:px-0 print:py-0 sm:px-6 lg:px-8">
             {children}
           </main>
         </div>
