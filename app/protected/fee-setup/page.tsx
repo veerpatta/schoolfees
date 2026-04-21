@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { getFeeSetupPageData } from "@/lib/fees/data";
 import { INITIAL_FEE_SETUP_ACTION_STATE } from "@/lib/fees/types";
-import { requireAuthenticatedStaff } from "@/lib/supabase/session";
+import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 import {
   saveClassDefaultsAction,
@@ -13,11 +13,11 @@ import {
 
 export default async function FeeSetupPage() {
   const [staff, data] = await Promise.all([
-    requireAuthenticatedStaff(),
+    requireStaffPermission("fees:view", { onDenied: "redirect" }),
     getFeeSetupPageData(),
   ]);
 
-  const canEdit = staff.appRole === "admin";
+  const canEdit = hasStaffPermission(staff, "fees:write");
 
   return (
     <div className="space-y-6">

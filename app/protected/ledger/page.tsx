@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { LedgerClient } from "@/components/ledger/ledger-client";
 import { getLedgerPageData } from "@/lib/ledger/data";
-import { requireAuthenticatedStaff } from "@/lib/supabase/session";
+import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 import { submitLedgerAdjustmentAction } from "./actions";
 
@@ -30,7 +30,7 @@ export default async function LedgerPage({ searchParams }: LedgerPageProps) {
   const studentId = normalizeStudentId(resolvedSearchParams?.studentId);
 
   const [staff, data] = await Promise.all([
-    requireAuthenticatedStaff(),
+    requireStaffPermission("ledger:view", { onDenied: "redirect" }),
     getLedgerPageData({
       searchQuery,
       studentId,
@@ -38,6 +38,8 @@ export default async function LedgerPage({ searchParams }: LedgerPageProps) {
       entryFilter: resolvedSearchParams?.entryFilter,
     }),
   ]);
+
+  const canAddAdjustments = hasStaffPermission(staff, "payments:adjust");
 
   return (
     <div className="space-y-6">
@@ -50,6 +52,7 @@ export default async function LedgerPage({ searchParams }: LedgerPageProps) {
 
       <LedgerClient
         data={data}
+        canAddAdjustments={canAddAdjustments}
         submitLedgerAdjustmentAction={submitLedgerAdjustmentAction}
       />
     </div>

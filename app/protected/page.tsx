@@ -5,8 +5,10 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { getDashboardPageData } from "@/lib/dashboard/data";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
+import { requireStaffPermission } from "@/lib/supabase/session";
 
 export default async function ProtectedPage() {
+  await requireStaffPermission("dashboard:view", { onDenied: "redirect" });
   const data = await getDashboardPageData();
 
   const dashboardMetrics = [

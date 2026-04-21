@@ -6,6 +6,7 @@ import { SectionCard } from "@/components/admin/section-card";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
 import { getReceiptsList } from "@/lib/receipts/data";
+import { requireStaffPermission } from "@/lib/supabase/session";
 
 type ReceiptsPageProps = {
   searchParams?: Promise<{
@@ -30,6 +31,7 @@ function paymentModeLabel(mode: "cash" | "upi" | "bank_transfer" | "cheque") {
 }
 
 export default async function ReceiptsPage({ searchParams }: ReceiptsPageProps) {
+  await requireStaffPermission("receipts:view", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const query = (resolvedSearchParams?.query ?? "").trim();
   const receipts = await getReceiptsList(query);

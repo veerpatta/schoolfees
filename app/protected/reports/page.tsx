@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { requireStaffPermission } from "@/lib/supabase/session";
 
 const reports = [
   {
@@ -33,7 +34,9 @@ const filterExpectations = [
   "Collection status",
 ] as const;
 
-export default function ReportsPage() {
+export default async function ReportsPage() {
+  await requireStaffPermission("reports:view", { onDenied: "redirect" });
+
   return (
     <div className="space-y-6">
       <PageHeader

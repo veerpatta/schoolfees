@@ -61,13 +61,14 @@ function AdjustmentNotice({ state }: { state: LedgerAdjustmentActionState }) {
 
 type LedgerClientProps = {
   data: LedgerPageData;
+  canAddAdjustments: boolean;
   submitLedgerAdjustmentAction: (
     previous: LedgerAdjustmentActionState,
     formData: FormData,
   ) => Promise<LedgerAdjustmentActionState>;
 };
 
-export function LedgerClient({ data, submitLedgerAdjustmentAction }: LedgerClientProps) {
+export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAction }: LedgerClientProps) {
   const [state, formAction, pending] = useActionState(
     submitLedgerAdjustmentAction,
     INITIAL_LEDGER_ADJUSTMENT_ACTION_STATE,
@@ -263,6 +264,11 @@ export function LedgerClient({ data, submitLedgerAdjustmentAction }: LedgerClien
             description="Add a positive or negative correction linked to one payment row. A reason is mandatory for audit clarity."
             actions={<StatusBadge label="No payment edits" tone="warning" />}
           >
+            {!canAddAdjustments ? (
+              <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                You can view ledger history but cannot add adjustments with your current role.
+              </p>
+            ) : null}
             <form action={formAction} className="space-y-4">
               <AdjustmentNotice state={state} />
 
@@ -349,7 +355,7 @@ export function LedgerClient({ data, submitLedgerAdjustmentAction }: LedgerClien
               </div>
 
               <div className="flex items-center justify-end">
-                <Button type="submit" disabled={pending || selectedStudent.paymentOptions.length === 0}>
+                <Button type="submit" disabled={!canAddAdjustments || pending || selectedStudent.paymentOptions.length === 0}>
                   {pending ? "Saving adjustment..." : "Save adjustment"}
                 </Button>
               </div>

@@ -1,9 +1,12 @@
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { requireStaffPermission } from "@/lib/supabase/session";
 import { UploadCloud, AlertCircle, FileSpreadsheet, XCircle } from "lucide-react";
 
-export default function ImportsPage() {
+export default async function ImportsPage() {
+  await requireStaffPermission("imports:view", { onDenied: "redirect" });
+
   return (
     <div className="space-y-6">
       <PageHeader

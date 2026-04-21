@@ -9,6 +9,7 @@ import {
 } from "@/lib/defaulters/types";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
+import { requireStaffPermission } from "@/lib/supabase/session";
 
 type DefaultersPageProps = {
   searchParams?: Promise<{
@@ -45,6 +46,7 @@ function normalizeFilters(
 export default async function DefaultersPage({
   searchParams,
 }: DefaultersPageProps) {
+  await requireStaffPermission("defaulters:view", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const filters = normalizeFilters(resolvedSearchParams);
   const data = await getDefaultersPageData(filters);

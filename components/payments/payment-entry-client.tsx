@@ -18,6 +18,7 @@ import { formatInr } from "@/lib/helpers/currency";
 
 type PaymentEntryClientProps = {
   data: PaymentEntryPageData;
+  canPost: boolean;
   modeOptions: PaymentModeOption[];
   initialState: PaymentEntryActionState;
   defaultReceivedBy: string;
@@ -53,6 +54,7 @@ function ActionNotice({ state }: { state: PaymentEntryActionState }) {
 
 export function PaymentEntryClient({
   data,
+  canPost,
   modeOptions,
   initialState,
   defaultReceivedBy,
@@ -210,6 +212,11 @@ export function PaymentEntryClient({
             title="3. Enter and save payment"
             description="Payments are append-only. If correction is needed later, use adjustment entries instead of editing history."
           >
+            {!canPost ? (
+              <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                You have view-only access for payment entry. Contact admin staff for posting access.
+              </p>
+            ) : null}
             <form action={formAction} className="space-y-4">
               <ActionNotice state={state} />
 
@@ -337,6 +344,7 @@ export function PaymentEntryClient({
                 <Button
                   type="submit"
                   disabled={
+                    !canPost ||
                     pending ||
                     selectedStudent.totalPending <= 0 ||
                     paymentAmount <= 0 ||

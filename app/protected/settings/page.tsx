@@ -13,6 +13,7 @@ import {
   isConfiguredSiteUrlSecure,
   isVercelProductionEnvironment,
 } from "@/lib/env";
+import { requireStaffPermission } from "@/lib/supabase/session";
 
 const policyNotes = [
   `Receipt prefix remains ${schoolProfile.receiptPrefix}.`,
@@ -24,7 +25,8 @@ function toneForStatus(isHealthy: boolean) {
   return isHealthy ? "good" : "warning";
 }
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  await requireStaffPermission("settings:view", { onDenied: "redirect" });
   const serviceRoleConfigured = Boolean(
     getOptionalEnvVar("SUPABASE_SERVICE_ROLE_KEY"),
   );

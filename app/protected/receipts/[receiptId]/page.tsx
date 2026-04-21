@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { ReceiptDocument } from "@/components/receipts/receipt-document";
 import { ReceiptPrintActions } from "@/components/receipts/receipt-print-actions";
 import { getReceiptDetail } from "@/lib/receipts/data";
-import { requireAuthenticatedStaff } from "@/lib/supabase/session";
+import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 type ReceiptDetailPageProps = {
   params: Promise<{
@@ -20,7 +20,7 @@ function isUuid(value: string) {
 }
 
 export default async function ReceiptDetailPage({ params }: ReceiptDetailPageProps) {
-  await requireAuthenticatedStaff();
+  const staff = await requireStaffPermission("receipts:view", { onDenied: "redirect" });
 
   const resolvedParams = await params;
   const receiptId = resolvedParams.receiptId.trim();
@@ -35,13 +35,15 @@ export default async function ReceiptDetailPage({ params }: ReceiptDetailPagePro
     notFound();
   }
 
+  const canPrintReceipts = hasStaffPermission(staff, "receipts:print");
+
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Receipts"
         title={`Receipt ${receipt.receiptNumber}`}
         description="Formal receipt view with print-friendly layout for office records and reprints."
-        actions={<ReceiptPrintActions />}
+        actions={canPrintReceipts ? <ReceiptPrintActions /> : null}
         className="no-print"
       />
 

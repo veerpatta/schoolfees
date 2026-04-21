@@ -6,7 +6,7 @@ import {
   PAYMENT_MODE_OPTIONS,
 } from "@/lib/payments/data";
 import { INITIAL_PAYMENT_ENTRY_ACTION_STATE } from "@/lib/payments/types";
-import { requireAuthenticatedStaff } from "@/lib/supabase/session";
+import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 import { submitPaymentEntryAction } from "./actions";
 
@@ -31,9 +31,11 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
   const studentId = normalizeStudentId(resolvedSearchParams?.studentId);
 
   const [staff, data] = await Promise.all([
-    requireAuthenticatedStaff(),
+    requireStaffPermission("payments:view", { onDenied: "redirect" }),
     getPaymentEntryPageData({ searchQuery, studentId }),
   ]);
+
+  const canPostPayments = hasStaffPermission(staff, "payments:write");
 
   return (
     <div className="space-y-6">
@@ -46,6 +48,7 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
 
       <PaymentEntryClient
         data={data}
+        canPost={canPostPayments}
         modeOptions={PAYMENT_MODE_OPTIONS}
         initialState={INITIAL_PAYMENT_ENTRY_ACTION_STATE}
         defaultReceivedBy={staff.email ?? "Office desk"}
