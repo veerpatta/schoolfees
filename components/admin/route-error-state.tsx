@@ -8,6 +8,7 @@ type RouteErrorStateProps = {
   title: string;
   description: string;
   reset: () => void;
+  errorDigest?: string;
   homeHref?: string;
   homeLabel?: string;
 };
@@ -16,6 +17,7 @@ export function RouteErrorState({
   title,
   description,
   reset,
+  errorDigest,
   homeHref = "/",
   homeLabel = "Back to overview",
 }: RouteErrorStateProps) {
@@ -30,6 +32,12 @@ export function RouteErrorState({
       <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
         {description}
       </p>
+
+      {errorDigest ? (
+        <p className="mt-3 text-xs text-slate-400">
+          Error ref: <span className="font-mono">{errorDigest}</span>
+        </p>
+      ) : null}
 
       <div className="mt-6 flex flex-wrap gap-3">
         <Button type="button" onClick={reset}>

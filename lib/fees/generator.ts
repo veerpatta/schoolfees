@@ -163,7 +163,7 @@ export async function generateSessionLedgersAction() {
     let otherAmount = 0;
     const otherObj = override?.custom_other_fee_heads ?? parentSetting.other_fee_heads;
     if (otherObj && typeof otherObj === "object") {
-      otherAmount = Object.values(otherObj).reduce((sum: number, val: any) => sum + Number(val), 0);
+      otherAmount = Object.values(otherObj).reduce((sum: number, val: number) => sum + Number(val), 0);
     }
 
     const lateFee = override?.custom_late_fee_flat_amount ?? parentSetting.late_fee_flat_amount;
@@ -176,7 +176,7 @@ export async function generateSessionLedgersAction() {
       transport = override?.custom_transport_fee_amount ?? parentSetting.transport_fee_amount;
     }
     
-    let totalBase = tuition + books + misc + otherAmount;
+    const totalBase = tuition + books + misc + otherAmount;
     
     // Distribute totalBase and transport over installments
     // We assume an even split, remaining goes to first installment

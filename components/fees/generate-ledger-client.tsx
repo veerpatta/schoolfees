@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { CopyPlus, AlertCircle, Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -16,8 +15,7 @@ type GenerateLedgerClientProps = {
 };
 
 export function GenerateLedgerClient({ previewAction, submitAction }: GenerateLedgerClientProps) {
-  const router = useRouter();
-  
+
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [preview, setPreview] = useState<LedgerGenerationPreview | null>(null);
@@ -45,8 +43,9 @@ export function GenerateLedgerClient({ previewAction, submitAction }: GenerateLe
       } else {
         setError(result.message);
       }
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "An unexpected error occurred.";
+      setError(message);
     } finally {
       setGenerating(false);
     }

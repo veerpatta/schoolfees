@@ -43,7 +43,7 @@ Primary goals:
 - printable receipts
 - dashboard
 - defaulters reporting
-- spreadsheet import later
+- staged spreadsheet import (live)
 
 Primary product qualities:
 
@@ -70,16 +70,24 @@ This file reflects the repo state on April 21, 2026.
 - branded landing page at `app/page.tsx`
 - auth flow under `app/auth` and bootstrap gated by `NEXT_PUBLIC_ENABLE_BOOTSTRAP_SIGNUP`
 - protected admin workspace under `app/protected`
-- real-time Dashboard and Defaulters modules based on `v_installment_balances`
-- Student Master, Fee Setup, Payment Entry, and Student Spreadsheet Import workflows
+- real-time Dashboard, Defaulters, and Ledger modules
+- Student Master with add/edit/view detail workflows
+- Student Spreadsheet Import: CSV/XLSX upload, column mapping, dry-run validation, duplicate detection, batch tracking, valid-row-only save
+- Fee Setup: school-wide defaults, per-class settings, per-student overrides
 - idempotent Session Ledger Generation workflow for creating student installments safely
-- append-only Ledger behavior enforced by RPCs and DB triggers
-- starter schema, complete migration history, and config under `lib/config`
-- Role-Based Access Control (RBAC): `public.staff_role` enum and RLS policies enforce `admin`, `accountant`, and `read_only_staff` capabilities strictly at the database layer.
+- Payment Entry: append-only posting via RPC, receipt generation
+- Ledger: chronological per-student history with linked adjustment entries
+- Receipts: printable per-receipt view
+- Reports: on-page filterable tables for Outstanding, Daily Collection, Receipt Register, Student Ledger, and Import Verification; working CSV export at `/protected/reports/export`
+- Deployment Settings Validator showing env checks and policy notes
+- append-only behavior enforced by RPCs and DB triggers on receipts, payments, payment_adjustments, and audit_logs
+- 6 tracked migrations covering schema, RBAC alignment, and import workflow
+- Role-Based Access Control (RBAC): `public.staff_role` enum and RLS policies enforce `admin`, `accountant`, and `read_only_staff` strictly at the database layer
 
-**Scaffolded / Incomplete Areas (Proceed with caution):**
-- **Advanced Reports (`app/protected/reports`)**: UI catalog exists, but no real CSV/PDF functionality is built yet.
-- **Testing**: No test suite (unit/integration/E2E) is set up.
+**Incomplete / Proceed with Caution:**
+- **PDF receipts**: printable HTML view exists but no server-side PDF generation.
+- **Advanced report export — PDF**: CSV export is working; PDF is not implemented.
+- **Testing**: `tests/` directory and `vitest.config.ts` exist but no test files are written yet.
 
 Do not replace the existing school-branded landing page with generic tutorial
 content or Supabase sample code unless the user explicitly requests that.
@@ -89,19 +97,28 @@ content or Supabase sample code unless the user explicitly requests that.
 - landing page: `app/page.tsx`
 - auth routes: `app/auth/*`
 - protected dashboard: `app/protected/page.tsx`
-- students: `app/protected/students/page.tsx`
+- students list: `app/protected/students/page.tsx`
+- student add: `app/protected/students/new/page.tsx`
+- student detail/edit: `app/protected/students/[studentId]/page.tsx`
 - imports: `app/protected/imports/page.tsx`
-- fee settings: `app/protected/fee-structure/page.tsx`
+- fee settings (alias): `app/protected/fee-structure/page.tsx`
 - fee setup: `app/protected/fee-setup/page.tsx`
 - fee generation: `app/protected/fee-setup/generate/page.tsx`
-- collections: `app/protected/collections/page.tsx`
+- payment entry: `app/protected/payments/page.tsx`
+- collections (alias to payments): `app/protected/collections/page.tsx`
+- ledger: `app/protected/ledger/page.tsx`
+- receipts: `app/protected/receipts/page.tsx`
+- defaulters: `app/protected/defaulters/page.tsx`
 - reports: `app/protected/reports/page.tsx`
+- reports CSV export: `app/protected/reports/export/route.ts`
 - settings: `app/protected/settings/page.tsx`
 - admin shell/components: `components/admin/*`
 - fee rules: `lib/config/fee-rules.ts`
 - school profile: `lib/config/school.ts`
 - navigation: `lib/config/navigation.ts`
-- roles: `lib/auth/roles.ts`
+- roles + permissions: `lib/auth/roles.ts`
+- session/permission helpers: `lib/supabase/session.ts`
+- env helpers: `lib/env.ts`
 - schema: `supabase/schema.sql`
 - schema notes: `supabase/schema/*`
 - migrations: `supabase/migrations/*`

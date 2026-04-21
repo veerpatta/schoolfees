@@ -52,17 +52,17 @@ Unless explicitly requested, keep these out of MVP:
 - complex fee-rule engines for many custom schools
 - mobile-app-first redesign
 - BI-style analytics beyond practical admin reporting
-- full spreadsheet import automation before the main manual workflows are solid
+- PDF receipt generation (printable HTML view exists; server-side PDF is not built)
+- automated fee-payment reconciliation with bank statements
 
 ## Import Scope Position
 
-Spreadsheet import matters, but it is not the first product priority.
+Student spreadsheet import is now implemented as a staged workflow:
+upload, column mapping, dry-run validation, review row-level issues,
+import valid rows only, keep batch and row traceability.
 
-Approach:
-
-- build manual workflows first
-- add import as a staged migration feature
-- keep import reversible, reviewable, and batch-traceable
+This remains a migration aid, not the center of the product. Manual
+workflows always take priority over import automation.
 
 ## Delivery Priorities
 

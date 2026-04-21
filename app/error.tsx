@@ -3,6 +3,7 @@
 import { RouteErrorState } from "@/components/admin/route-error-state";
 
 export default function Error({
+  error,
   reset,
 }: {
   error: Error & { digest?: string };
@@ -14,6 +15,7 @@ export default function Error({
         <RouteErrorState
           title="The app could not finish loading"
           description="Check the deployment environment values and Supabase connection settings, then try the request again."
+          errorDigest={error.digest}
           reset={reset}
         />
       </div>

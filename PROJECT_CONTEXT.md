@@ -29,12 +29,12 @@ records auditable and office-friendly.
 Current priority areas:
 
 - student master
-- fee settings
-- collection entry
-- receipts
-- dashboard
-- defaulters/outstanding views
-- staged spreadsheet import
+- fee settings and session ledger generation
+- payment entry and receipts
+- ledger and adjustment entries
+- defaulters and outstanding reporting
+- filterable report tables with CSV export
+- staged spreadsheet import (implemented)
 
 ## Current Repo Structure
 
@@ -45,35 +45,55 @@ Main routes and modules in the repo today:
 - `app/auth/*`
   login, signup/bootstrap, password reset, auth confirmation, error screens
 - `app/protected/page.tsx`
-  main dashboard
+  main dashboard with real-time aggregates
 - `app/protected/students/page.tsx`
-  student master area
+  student master list
+- `app/protected/students/new/page.tsx`
+  add student form
+- `app/protected/students/[studentId]/page.tsx`
+  student detail and edit view
 - `app/protected/imports/page.tsx`
-  import/migration area
+  CSV/XLSX import workflow with dry-run, mapping, and batch tracking
 - `app/protected/fee-structure/page.tsx`
   alias route to fee setup area
 - `app/protected/fee-setup/page.tsx`
   school-wide defaults, class defaults, and student overrides
 - `app/protected/fee-setup/generate/page.tsx`
   idempotent session ledger generation workflow
+- `app/protected/payments/page.tsx`
+  payment entry desk (also served at /collections)
 - `app/protected/collections/page.tsx`
-  collection desk area
+  alias to payments page
+- `app/protected/ledger/page.tsx`
+  per-student chronological ledger with adjustment entry
+- `app/protected/receipts/page.tsx`
+  receipt list view
+- `app/protected/receipts/[receiptId]/page.tsx`
+  printable single-receipt view
+- `app/protected/defaulters/page.tsx`
+  defaulters and outstanding summary
 - `app/protected/reports/page.tsx`
-  reports area
+  five filterable on-page report tables
+- `app/protected/reports/export/route.ts`
+  CSV download API endpoint for all report types
 - `app/protected/settings/page.tsx`
-  environment and policy/settings area
+  deployment readiness checks and active policy notes
 - `components/admin/*`
-  dashboard shell, cards, nav, and page headers
+  dashboard shell, cards, nav, page headers, loading and error boundaries
 - `lib/config/*`
   school defaults, fee rules, navigation
 - `lib/auth/roles.ts`
-  role model
+  role model and permission map
+- `lib/supabase/session.ts`
+  server-side session, role resolution, and permission guards
+- `lib/env.ts`
+  environment variable helpers and placeholder guards
 - `supabase/schema.sql`
-  schema, audit triggers, RLS, reporting view
+  schema, audit triggers, RLS, reporting views
 - `supabase/schema/*`
   reserved for future split schema/reference files
 - `supabase/migrations/*`
-  ordered SQL migration history for Supabase CLI workflows
+  6 ordered SQL migration files for Supabase CLI workflows
 
 ## Tech Stack
 
@@ -92,6 +112,7 @@ Current package context worth preserving:
 - `react-dom`: `19.2.5`
 - `@supabase/supabase-js`: `2.104.0`
 - `@supabase/ssr`: `0.10.2`
+- `vitest`: present for test infrastructure; no test files written yet
 
 ## Supabase Wiring
 

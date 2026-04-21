@@ -29,18 +29,23 @@ As of April 21, 2026, the repo implementation status is as follows:
 **Fully Functional Core Modules:**
 - Branded landing page and auth flow (`app/page.tsx`, `app/auth/**`)
 - Protected admin workspace dashboard (`app/protected/page.tsx`) with real-time aggregates via `v_installment_balances`.
-- Student Master (`app/protected/students`)
+- Student Master (`app/protected/students`) with add, edit, and detail views.
 - Spreadsheet Import (`app/protected/imports`) with CSV/XLSX upload, column mapping, dry-run validation, duplicate detection, batch tracking, and valid-row-only save.
 - Fee Setup & Structure (`app/protected/fee-setup`, `app/protected/fee-structure`) with idempotent Session Ledger Generation.
-- Payment Entry (`app/protected/payments`) with append-only RPC (`post_student_payment`).
-- Ledger & Receipts (`app/protected/ledger`, `app/protected/receipts`)
-- Defaulters Reporting (`app/protected/defaulters`)
-- Deployment Settings Validator (`app/protected/settings`)
-- Database integrity measures (RLS enabled, append-only triggers, audit event triggers).
+- Payment Entry (`app/protected/payments`, also accessible at `app/protected/collections`) with append-only RPC (`post_student_payment`).
+- Ledger & Adjustments (`app/protected/ledger`) with chronological per-student history and linked adjustment entries.
+- Receipts (`app/protected/receipts`) with printable per-receipt view.
+- Defaulters Reporting (`app/protected/defaulters`) based on `v_installment_balances`.
+- Reports (`app/protected/reports`): five filterable on-page report tables (Outstanding, Daily Collection, Receipt Register, Student Ledger, Import Verification) with working CSV export at `/protected/reports/export`.
+- Deployment Settings Validator (`app/protected/settings`) showing env checks and active policy notes.
+- Database integrity: RLS enabled, append-only triggers, audit event triggers on all core finance tables.
 - Role-Based Access Control (RBAC): `public.staff_role` enum and RLS policies enforce `admin`, `accountant`, and `read_only_staff` capabilities strictly at the database layer.
+- 6 tracked migrations covering full schema, RBAC alignment, and import workflow.
 
-**Scaffolded / Incomplete Modules (UI exists, logic incomplete):**
-- Advanced Reports (`app/protected/reports`): Static report catalog; actual generation of complex reports (CSV/PDF) is not implemented.
+**Incomplete Areas (proceed with caution):**
+- **PDF receipts**: Printable HTML view exists; no server-side PDF generation.
+- **Report PDF export**: CSV export works. PDF generation is not implemented.
+- **Testing**: `tests/` directory and `vitest.config.ts` scaffold exists; no test files are written.
 
 ## Stack
 
@@ -68,15 +73,19 @@ app/
   protected/
     page.tsx
     students/
+      [studentId]/
     imports/
     fee-setup/
-    fee-structure/
-    collections/
+      generate/
+    fee-structure/         — alias to fee-setup
+    collections/           — alias to payments
     payments/
     ledger/
     receipts/
+      [receiptId]/
     defaulters/
     reports/
+      export/route.ts      — CSV download endpoint
     settings/
 proxy.ts
 ```
