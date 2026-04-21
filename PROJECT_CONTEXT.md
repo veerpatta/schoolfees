@@ -66,6 +66,10 @@ Main routes and modules in the repo today:
   role model
 - `supabase/schema.sql`
   schema, audit triggers, RLS, reporting view
+- `supabase/schema/*`
+  reserved for future split schema/reference files
+- `supabase/migrations/*`
+  ordered SQL migration history for Supabase CLI workflows
 
 ## Tech Stack
 
@@ -99,11 +103,14 @@ Stable app import paths:
 - `lib/supabase/server.ts`
 - `lib/supabase/proxy.ts`
 - `lib/supabase/admin.ts`
+- `lib/supabase/session.ts`
 
 Auth/session expectations:
 
 - keep `proxy.ts` active
 - use server-side auth checks for protected pages
+- use `lib/supabase/session.ts` as the placeholder entry point for future
+  role-aware session checks
 - keep internal staff access invite-oriented when possible
 - never expose `SUPABASE_SERVICE_ROLE_KEY` in browser code
 
@@ -111,6 +118,13 @@ Current local public Supabase project context:
 
 - project ref: `lsdrvovwybzspcvbdcir`
 - `NEXT_PUBLIC_SUPABASE_URL=https://lsdrvovwybzspcvbdcir.supabase.co`
+
+Current site URL behavior:
+
+- prefer explicit `NEXT_PUBLIC_SITE_URL`
+- fall back to `VERCEL_PROJECT_PRODUCTION_URL`
+- then fall back to `VERCEL_URL`
+- use browser origin during client-side local flows when needed
 
 ## Current Domain Model
 

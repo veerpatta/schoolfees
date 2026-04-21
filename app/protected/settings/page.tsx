@@ -11,18 +11,43 @@ import { activeFeeRules } from "@/lib/config/fee-rules";
 import { schoolProfile } from "@/lib/config/school";
 
 const envChecklist = [
-  { name: "NEXT_PUBLIC_SUPABASE_URL", note: "Required public project URL" },
+  {
+    name: "NEXT_PUBLIC_SUPABASE_URL",
+    note: "Paste the Project URL from Supabase Connect or Settings -> API.",
+  },
   {
     name: "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
-    note: "Required public key for auth and browser sessions",
+    note: "Paste the Publishable key from Supabase Connect or Settings -> API.",
   },
-  { name: "NEXT_PUBLIC_SITE_URL", note: "Recommended for metadata and auth redirects" },
+  {
+    name: "NEXT_PUBLIC_SITE_URL",
+    note: "Use http://localhost:3000 locally and your primary Vercel or custom domain in production.",
+  },
   {
     name: "SUPABASE_SERVICE_ROLE_KEY",
-    note: "Server-only key for future admin jobs and imports",
+    note: "Server-only. Add only for admin jobs or imports, never in NEXT_PUBLIC_*.",
   },
   { name: "NEXT_PUBLIC_SCHOOL_NAME", note: "Optional display override" },
   { name: "NEXT_PUBLIC_APP_MODE", note: "Keep this as internal-admin" },
+] as const;
+
+const authUrlChecklist = [
+  {
+    label: "Site URL",
+    note: "Set your app base URL in Supabase Auth. Use localhost locally and your Vercel production domain in production.",
+  },
+  {
+    label: "Redirect URL",
+    note: "Add /auth/login so signup confirmations return to the sign-in flow.",
+  },
+  {
+    label: "Redirect URL",
+    note: "Add /auth/update-password so password reset emails complete inside the app.",
+  },
+  {
+    label: "Confirmation route",
+    note: "Keep /auth/confirm reachable so token-hash email flows can exchange a session.",
+  },
 ] as const;
 
 const roleOrder: StaffRole[] = ["admin", "accounts", "clerk"];
@@ -82,6 +107,25 @@ export default function SettingsPage() {
           </div>
         </SectionCard>
       </div>
+
+      <SectionCard
+        title="Supabase auth URL checklist"
+        description="Configure these routes in Supabase Auth before testing signup or password reset emails."
+      >
+        <div className="grid gap-3 md:grid-cols-2">
+          {authUrlChecklist.map((entry, index) => (
+            <div
+              key={`${entry.label}-${index}`}
+              className="rounded-[24px] border border-slate-200/80 bg-white px-4 py-4"
+            >
+              <p className="font-semibold text-slate-950">{entry.label}</p>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                {entry.note}
+              </p>
+            </div>
+          ))}
+        </div>
+      </SectionCard>
 
       <SectionCard
         title="Role access model"

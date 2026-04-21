@@ -1,11 +1,14 @@
 import { AuthButton } from "@/components/auth-button";
 import { DashboardShell } from "@/components/admin/dashboard-shell";
+import { requireAuthenticatedStaff } from "@/lib/supabase/session";
 
-export default function ProtectedLayout({
+export default async function ProtectedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  await requireAuthenticatedStaff();
+
   return (
     <DashboardShell>
       <div className="space-y-6">

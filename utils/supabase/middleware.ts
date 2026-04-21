@@ -35,6 +35,7 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
+  // Revalidate the auth token on the server before protected routes render.
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
 

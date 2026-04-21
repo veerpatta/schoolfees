@@ -2,6 +2,7 @@ import { updateSession } from "@/lib/supabase/proxy";
 import { type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
+  // Keep Supabase auth cookies fresh for SSR and protected routes.
   return await updateSession(request);
 }
 

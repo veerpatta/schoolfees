@@ -6,7 +6,7 @@ import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { activeFeeRules } from "@/lib/config/fee-rules";
 import { formatInr } from "@/lib/helpers/currency";
-import { createClient } from "@/lib/supabase/server";
+import { requireAuthenticatedStaff } from "@/lib/supabase/session";
 
 const workstreams = [
   {
@@ -50,9 +50,8 @@ const controlPoints = [
 ] as const;
 
 export default async function ProtectedPage() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const staffName = data?.claims?.email ?? "Authorized staff";
+  const staff = await requireAuthenticatedStaff();
+  const staffName = staff.email ?? "Authorized staff";
 
   return (
     <div className="space-y-6">

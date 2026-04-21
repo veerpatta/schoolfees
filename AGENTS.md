@@ -73,8 +73,10 @@ The current implementation already includes:
 - protected admin workspace under `app/protected`
 - Supabase SSR helpers under `utils/supabase`
 - stable Supabase re-exports under `lib/supabase`
+- server-side session helpers under `lib/supabase/session.ts`
 - `proxy.ts` for session refresh and protected-route redirects
 - starter schema in `supabase/schema.sql`
+- dedicated migration folder in `supabase/migrations`
 - school config and fee defaults under `lib/config`
 
 Do not replace the existing school-branded landing page with generic tutorial
@@ -97,6 +99,8 @@ content or Supabase sample code unless the user explicitly requests that.
 - navigation: `lib/config/navigation.ts`
 - roles: `lib/auth/roles.ts`
 - schema: `supabase/schema.sql`
+- schema notes: `supabase/schema/*`
+- migrations: `supabase/migrations/*`
 
 ## Tech Stack
 

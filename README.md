@@ -25,7 +25,9 @@ As documented on April 21, 2026, the repo already includes:
 - auth pages under `app/auth`
 - protected internal workspace under `app/protected`
 - Supabase SSR auth wiring with browser, server, admin, and proxy helpers
+- server-side session guard helper at `lib/supabase/session.ts`
 - starter Supabase schema at `supabase/schema.sql`
+- dedicated migration folder at `supabase/migrations`
 - internal role model for `admin`, `accounts`, and `clerk`
 - settings page that surfaces environment and policy assumptions
 
@@ -93,10 +95,13 @@ lib/
   db/                             Shared domain types
   helpers/                        Formatting helpers
   supabase/                       Stable import paths that re-export helpers
+    session.ts                    Server-side session/auth placeholder helpers
 utils/
   supabase/                       Canonical Supabase SSR helper implementations
 supabase/
   schema.sql                      Starter database schema, RLS, audit, view
+  schema/                         Reserved folder for future split schema files
+  migrations/                     Ordered SQL migrations for Supabase CLI flow
 proxy.ts                          Next.js proxy entry point for session refresh
 ```
 
@@ -119,11 +124,11 @@ The local workspace is currently wired to this Supabase project:
 - Project ref: `lsdrvovwybzspcvbdcir`
 - Project URL: `https://lsdrvovwybzspcvbdcir.supabase.co`
 
-Current local public environment values in `.env.local`:
+Current local public environment values in `.env.local` should look like:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://lsdrvovwybzspcvbdcir.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_-4FNHET8cCZIOgzLp-PBGQ_2va4MTWm
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_REPLACE_WITH_REAL_KEY
 ```
 
 These values are public client-side values. Do not store server-only keys in
@@ -147,30 +152,42 @@ Current client/helper layout:
   re-export for stable imports
 - `lib/supabase/admin.ts`
   server-only admin client using `SUPABASE_SERVICE_ROLE_KEY`
+- `lib/supabase/session.ts`
+  placeholder helper for protected-route auth checks and future role gates
 
 Session/auth handling notes:
 
 - `proxy.ts` calls `updateSession(request)`
 - the proxy refreshes auth cookies and redirects unauthenticated requests away
   from protected pages
+- `app/protected/layout.tsx` also enforces a server-side auth check
 - server-side auth checks currently use `supabase.auth.getClaims()`
 - keep `SUPABASE_SERVICE_ROLE_KEY` server-only
 - keep invite-oriented internal staff access as the default posture
+- client auth email redirects use `NEXT_PUBLIC_SITE_URL` when set, with local
+  and browser-origin fallbacks for development
 
 ## Current Environment Variables
 
 Required public values:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://lsdrvovwybzspcvbdcir.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_-4FNHET8cCZIOgzLp-PBGQ_2va4MTWm
+# Supabase Dashboard -> Connect or Settings -> API -> Project URL
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
+
+# Supabase Dashboard -> Connect or Settings -> API -> Publishable key
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_REPLACE_WITH_REAL_KEY
 ```
 
 Recommended values:
 
 ```env
+# Local: http://localhost:3000
+# Production: https://your-domain.vercel.app or your custom domain
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Server-only. Keep out of NEXT_PUBLIC_* variables.
+SUPABASE_SERVICE_ROLE_KEY=PASTE_SERVER_ONLY_KEY_IF_NEEDED
 ```
 
 Optional display and deployment metadata:
@@ -186,6 +203,13 @@ Reference files:
 - `.env.local.example`
 - `lib/env.ts`
 - `app/protected/settings/page.tsx`
+
+Vercel note:
+
+- if `NEXT_PUBLIC_SITE_URL` is missing, metadata falls back to
+  `VERCEL_PROJECT_PRODUCTION_URL` and then `VERCEL_URL`
+- still set `NEXT_PUBLIC_SITE_URL` yourself so Supabase email redirects use the
+  exact domain you expect
 
 ## Current Database Schema Summary
 
@@ -226,6 +250,14 @@ Operational implication:
 - prefer corrections and audit-safe updates over destructive delete flows
 - keep import batches traceable by source filename and row counts
 
+Schema and migration layout:
+
+- `supabase/schema.sql` is the full snapshot for quick setup and review
+- `supabase/migrations/*.sql` is the ordered migration history for CLI-based
+  deployment
+- once migration history is in use, avoid making remote schema edits directly in
+  the Supabase dashboard
+
 ## Role Model
 
 Current staff roles:
@@ -245,7 +277,7 @@ Role source of truth:
 
 1. Install Node.js 20 or newer.
 2. Create `.env.local` from `.env.local.example`.
-3. Confirm the Supabase public values above.
+3. Paste the real Project URL and Publishable key from the Supabase dashboard.
 4. Add `SUPABASE_SERVICE_ROLE_KEY` only if admin/background jobs need it.
 5. Install dependencies:
 
@@ -282,6 +314,7 @@ npm run build
 5. Add redirect URLs for:
    `/auth/login`
    `/auth/update-password`
+   `/auth/confirm`
 6. Create or invite the first internal staff account.
 7. If bootstrap signup is used, disable open signup afterward.
 

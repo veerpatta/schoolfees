@@ -8,6 +8,7 @@ type CookieStore = Awaited<ReturnType<typeof cookies>>;
 export async function createClient(cookieStore?: CookieStore) {
   const resolvedCookieStore = cookieStore ?? (await cookies());
 
+  // Server client for Server Components, Route Handlers, and Server Actions.
   return createServerClient(
     getRequiredEnvVar("NEXT_PUBLIC_SUPABASE_URL"),
     getRequiredEnvVar("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"),

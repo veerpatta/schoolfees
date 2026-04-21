@@ -1,5 +1,6 @@
 "use client";
 
+import { createAbsoluteUrl } from "@/lib/env";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -48,7 +49,7 @@ export function SignUpForm({
           data: {
             full_name: fullName,
           },
-          emailRedirectTo: `${window.location.origin}/auth/login`,
+          emailRedirectTo: createAbsoluteUrl("/auth/login"),
         },
       });
       if (error) throw error;
