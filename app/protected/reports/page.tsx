@@ -4,6 +4,7 @@ import { MetricCard } from "@/components/admin/metric-card";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { WorkflowGuard } from "@/components/office/office-ui";
 import { PrintReportButton } from "@/components/reports/print-report-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,8 @@ import {
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { getFeePolicySummary } from "@/lib/fees/data";
+import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
+import { getSetupWizardData } from "@/lib/setup/data";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 type ReportsPageProps = {
@@ -1081,12 +1084,14 @@ function ReportTables({ report }: { report: ReportData }) {
 }
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
-  await requireStaffPermission("reports:view", { onDenied: "redirect" });
+  const staff = await requireStaffPermission("reports:view", { onDenied: "redirect" });
   const filters = normalizeReportFilters(searchParams ? await searchParams : undefined);
-  const [data, policy] = await Promise.all([
+  const [data, policy, setup] = await Promise.all([
     getReportsPageData(filters),
     getFeePolicySummary(),
+    getSetupWizardData(),
   ]);
+  const readiness = getOfficeWorkflowReadiness(setup, staff.appRole);
   const activeDefinition = reportDefinitions[data.report.key];
   const exportHref = `/protected/reports/export${buildReportHref(filters).replace("/protected/reports", "")}`;
   const printHref = data.report.key === "student-ledger" && data.report.selectedStudent
@@ -1105,6 +1110,15 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           </div>
         }
       />
+
+      {!readiness.reports.isReady ? (
+        <WorkflowGuard
+          title={readiness.reports.title}
+          detail={readiness.reports.detail}
+          actionLabel={readiness.reports.actionLabel}
+          actionHref={readiness.reports.actionHref}
+        />
+      ) : null}
 
       <ReportCatalog filters={filters} />
 

@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { resolveStaffRole } from "@/lib/auth/roles";
+import { getDefaultProtectedHref } from "@/lib/config/navigation";
 import { sanitizeRedirectPath } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 
@@ -45,7 +47,7 @@ export async function loginAction(
 
     const { data: profileData } = await supabase
       .from("users")
-      .select("is_active")
+      .select("is_active, role")
       .eq("id", data.user.id)
       .maybeSingle();
 
@@ -61,8 +63,13 @@ export async function loginAction(
       };
     }
 
+    const appRole = resolveStaffRole(
+      (profileData as { role?: string | null } | null)?.role ?? null,
+    );
+    const targetHref = next === "/protected" ? getDefaultProtectedHref(appRole) : next;
+
     revalidatePath("/", "layout");
-    redirect(next);
+    redirect(targetHref);
   } catch (error) {
     return {
       status: "error",

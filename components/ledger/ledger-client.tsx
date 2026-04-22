@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { MetricCard } from "@/components/admin/metric-card";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { ValueStatePill } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -78,6 +79,17 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
 
   return (
     <div className="space-y-6">
+      <SectionCard
+        title="Field guide"
+        description="Ledger rows stay append-only. Payment history is locked, adjustments are explicit review items, and values here are calculated from posted records."
+      >
+        <div className="flex flex-wrap gap-2">
+          <ValueStatePill tone="locked">Locked payment history</ValueStatePill>
+          <ValueStatePill tone="review">Adjustment review</ValueStatePill>
+          <ValueStatePill tone="calculated">Calculated totals</ValueStatePill>
+        </div>
+      </SectionCard>
+
       <SectionCard
         title="1. Search and open student ledger"
         description="Use name or SR no to open one student's payment and adjustment timeline."

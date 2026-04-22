@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { type StaffRole } from "@/lib/auth/roles";
 import { schoolProfile } from "@/lib/config/school";
+import { getDefaultProtectedHref } from "@/lib/config/navigation";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { formatInr } from "@/lib/helpers/currency";
 
@@ -21,13 +22,14 @@ export async function DashboardShell({
   staffRole,
 }: DashboardShellProps) {
   const policy = await getFeePolicySummary();
+  const homeHref = getDefaultProtectedHref(staffRole);
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8f5ee_0%,#f1f5f9_100%)] text-slate-900">
       <div className="grid min-h-screen lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="hidden border-r border-slate-200 bg-white/95 print:hidden lg:block">
           <div className="sticky top-0 flex h-screen flex-col px-5 py-6">
-            <Link href="/protected" className="block">
+            <Link href={homeHref} className="block">
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
                 {schoolProfile.shortName}
               </p>
@@ -35,8 +37,8 @@ export async function DashboardShell({
                 Fee Admin
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Internal school workspace for fee setup, payment entry, and
-                daily follow-up.
+                Office Simple Mode for fee setup, payment entry, dues follow-up,
+                and daily counter work.
               </p>
             </Link>
 

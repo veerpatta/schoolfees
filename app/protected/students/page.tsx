@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { ClassTabs } from "@/components/office/office-ui";
 import { StudentFilters } from "@/components/students/student-filters";
 import { StudentListTable } from "@/components/students/student-list-table";
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,22 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
           )
         }
       />
+
+      <SectionCard
+        title="Class shortcuts"
+        description="Open one class at a time when the office is working class-wise."
+      >
+        <ClassTabs
+          basePath="/protected/students"
+          classOptions={classOptions}
+          activeClassId={filters.classId}
+          query={{
+            query: filters.query || null,
+            transportRouteId: filters.transportRouteId || null,
+            status: filters.status || null,
+          }}
+        />
+      </SectionCard>
 
       <SectionCard
         title="Filters"

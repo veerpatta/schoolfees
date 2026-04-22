@@ -4,6 +4,7 @@ import { useActionState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { ValueStatePill } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -78,6 +79,11 @@ export function StudentForm({
 
   return (
     <form action={formAction} className="space-y-5">
+      <div className="flex flex-wrap gap-2">
+        <ValueStatePill tone="editable">Editable</ValueStatePill>
+        <ValueStatePill tone="policy">Class-driven selection</ValueStatePill>
+      </div>
+
       {state.message ? (
         <div
           className={

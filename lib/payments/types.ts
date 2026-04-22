@@ -4,12 +4,16 @@ export type PaymentEntryActionState = {
   status: "idle" | "error" | "success";
   message: string | null;
   receiptNumber: string | null;
+  receiptId: string | null;
+  studentId: string | null;
 };
 
 export const INITIAL_PAYMENT_ENTRY_ACTION_STATE: PaymentEntryActionState = {
   status: "idle",
   message: null,
   receiptNumber: null,
+  receiptId: null,
+  studentId: null,
 };
 
 export type PaymentStudentOption = {
@@ -17,6 +21,8 @@ export type PaymentStudentOption = {
   fullName: string;
   admissionNo: string;
   classLabel: string;
+  fatherPhone: string | null;
+  motherPhone: string | null;
 };
 
 export type InstallmentBalanceItem = {
@@ -59,8 +65,20 @@ export type PaymentEntryPageData = {
   studentOptions: PaymentStudentOption[];
   selectedStudent: SelectedStudentSummary | null;
   searchQuery: string;
+  classId: string;
   modeOptions: PaymentModeOption[];
   policyNote: string;
+  recentReceipts: Array<{
+    id: string;
+    receiptNumber: string;
+    studentId: string;
+    studentLabel: string;
+    totalAmount: number;
+  }>;
+  todayCollection: {
+    receiptCount: number;
+    totalAmount: number;
+  };
 };
 
 export type PaymentModeOption = {

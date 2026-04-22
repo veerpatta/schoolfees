@@ -1,10 +1,12 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
+import Link from "next/link";
 
 import { MetricCard } from "@/components/admin/metric-card";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { ClassTabs, OfficeRecentActions, OfficeRecentTracker, ValueStatePill, WorkflowGuard } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +20,13 @@ import { formatInr } from "@/lib/helpers/currency";
 type PaymentEntryClientProps = {
   data: PaymentEntryPageData;
   canPost: boolean;
+  classOptions: Array<{ id: string; label: string }>;
+  workflowGuard: {
+    title: string;
+    detail: string;
+    actionLabel: string | null;
+    actionHref: string | null;
+  } | null;
   initialState: PaymentEntryActionState;
   defaultReceivedBy: string;
   submitPaymentEntryAction: (
@@ -53,6 +62,8 @@ function ActionNotice({ state }: { state: PaymentEntryActionState }) {
 export function PaymentEntryClient({
   data,
   canPost,
+  classOptions,
+  workflowGuard,
   initialState,
   defaultReceivedBy,
   submitPaymentEntryAction,
@@ -79,22 +90,141 @@ export function PaymentEntryClient({
     0,
   );
   const unallocatedAmount = Math.max(paymentAmount - allocatedPreviewTotal, 0);
+  const receiptHref = state.receiptId ? `/protected/receipts/${state.receiptId}` : null;
+  const paymentSearchHref = data.classId
+    ? `/protected/payments?classId=${data.classId}`
+    : "/protected/payments";
 
   return (
     <div className="space-y-6">
+      <OfficeRecentTracker
+        student={
+          selectedStudent
+            ? {
+                id: selectedStudent.id,
+                fullName: selectedStudent.fullName,
+                admissionNo: selectedStudent.admissionNo,
+              }
+            : undefined
+        }
+        receipt={
+          state.status === "success" && state.receiptId && state.receiptNumber && state.studentId
+            ? {
+                id: state.receiptId,
+                receiptNumber: state.receiptNumber,
+                studentId: state.studentId,
+              }
+            : undefined
+        }
+      />
+
+      <SectionCard
+        title="Class shortcuts"
+        description="Open the desk already narrowed to one class when the counter work is class-wise."
+      >
+        <ClassTabs
+          basePath="/protected/payments"
+          classOptions={classOptions}
+          activeClassId={data.classId}
+        />
+      </SectionCard>
+
+      <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+        <SectionCard
+          title="Today at the desk"
+          description="Keep the current counter total and recent receipt shortcuts close to the posting form."
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Today&apos;s collection
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">
+                {formatInr(data.todayCollection.totalAmount)}
+              </p>
+              <p className="mt-2 text-sm text-slate-600">
+                {data.todayCollection.receiptCount} receipt
+                {data.todayCollection.receiptCount === 1 ? "" : "s"} posted today.
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Quick actions
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/protected/dues?view=receipts_today">Today&apos;s receipts</Link>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/protected/dues?view=collection_today">Today&apos;s summary</Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                <tr>
+                  <th className="px-4 py-3">Receipt</th>
+                  <th className="px-4 py-3">Student</th>
+                  <th className="px-4 py-3">Amount</th>
+                  <th className="px-4 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.recentReceipts.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-5 text-center text-slate-500">
+                      No recent receipts yet.
+                    </td>
+                  </tr>
+                ) : (
+                  data.recentReceipts.map((receipt) => (
+                    <tr key={receipt.id} className="border-t border-slate-100">
+                      <td className="px-4 py-3 font-medium text-slate-900">{receipt.receiptNumber}</td>
+                      <td className="px-4 py-3">{receipt.studentLabel}</td>
+                      <td className="px-4 py-3">{formatInr(receipt.totalAmount)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`/protected/receipts/${receipt.id}`}>Print</Link>
+                          </Button>
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`/protected/students/${receipt.studentId}`}>Student</Link>
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          title="Continue task"
+          description="Resume the last student or receipt without searching again."
+        >
+          <OfficeRecentActions />
+        </SectionCard>
+      </section>
+
       <SectionCard
         title="1. Search and select student"
-        description="Use student name or SR no to locate the right ledger quickly before posting a payment."
+        description="Use SR no, student name, phone number, or receipt number to reach the right student quickly."
       >
         <form action="/protected/payments" method="get" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto]">
+            {data.classId ? <input type="hidden" name="classId" value={data.classId} /> : null}
             <div>
               <Label htmlFor="payment-student-query">Search</Label>
               <Input
                 id="payment-student-query"
                 name="query"
                 defaultValue={data.searchQuery}
-                placeholder="Student name or SR no"
+                placeholder="SR no, student, phone, or receipt no"
                 className="mt-2"
               />
             </div>
@@ -124,13 +254,22 @@ export function PaymentEntryClient({
         </form>
       </SectionCard>
 
+      {workflowGuard ? (
+        <WorkflowGuard
+          title={workflowGuard.title}
+          detail={workflowGuard.detail}
+          actionLabel={workflowGuard.actionLabel}
+          actionHref={workflowGuard.actionHref}
+        />
+      ) : null}
+
       {!selectedStudent ? (
         <SectionCard
           title="Select a student to continue"
           description="Fee summary, installment breakdown, and payment form will appear after selecting a student."
         >
           <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-            Search by student name or SR no, select a student, and open payment desk.
+            Search by SR no, student name, phone number, or receipt number, then open payment desk.
           </p>
         </SectionCard>
       ) : (
@@ -170,11 +309,14 @@ export function PaymentEntryClient({
             title="2. Current fee breakdown"
             description="Review installment-level dues and payment status before saving the next receipt."
             actions={
-              selectedStudent.totalPending > 0 ? (
-                <StatusBadge label="Pending dues" tone="warning" />
-              ) : (
-                <StatusBadge label="Fully paid" tone="good" />
-              )
+              <div className="flex flex-wrap items-center gap-2">
+                <ValueStatePill tone="policy">Policy-driven</ValueStatePill>
+                {selectedStudent.totalPending > 0 ? (
+                  <StatusBadge label="Pending dues" tone="warning" />
+                ) : (
+                  <StatusBadge label="Fully paid" tone="good" />
+                )}
+              </div>
             }
           >
             <div className="overflow-x-auto rounded-xl border border-slate-200">
@@ -201,7 +343,20 @@ export function PaymentEntryClient({
                       <td className="px-4 py-3 font-medium text-slate-900">
                         {formatInr(item.outstandingAmount)}
                       </td>
-                      <td className="px-4 py-3 capitalize">{item.balanceStatus}</td>
+                      <td className="px-4 py-3 capitalize">
+                        <ValueStatePill
+                          tone={
+                            item.balanceStatus === "paid"
+                              ? "locked"
+                              : item.balanceStatus === "partial" || item.balanceStatus === "overdue"
+                                ? "review"
+                                : "calculated"
+                          }
+                          className="normal-case tracking-normal"
+                        >
+                          {item.balanceStatus}
+                        </ValueStatePill>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -212,14 +367,36 @@ export function PaymentEntryClient({
           <SectionCard
             title="3. Enter and save payment"
             description="Payments are append-only. If correction is needed later, use adjustment entries instead of editing history."
+            actions={<ValueStatePill tone="locked">Locked history after posting</ValueStatePill>}
           >
             {!canPost ? (
               <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                You have view-only access for payment entry. Contact admin staff for posting access.
+                {workflowGuard
+                  ? workflowGuard.detail
+                  : "You have view-only access for payment entry. Contact admin staff for posting access."}
               </p>
             ) : null}
             <form action={formAction} className="space-y-4">
               <ActionNotice state={state} />
+              {state.status === "success" && receiptHref ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900">
+                  <p className="font-semibold">Counter entry saved.</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={receiptHref}>View receipt</Link>
+                    </Button>
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={receiptHref}>Print receipt</Link>
+                    </Button>
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/protected/students/${selectedStudent.id}`}>Student workspace</Link>
+                    </Button>
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={paymentSearchHref}>Post next payment</Link>
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
               <fieldset disabled={!canPost} className="space-y-4 disabled:opacity-70">
                 <input type="hidden" name="studentId" value={selectedStudent.id} />
 

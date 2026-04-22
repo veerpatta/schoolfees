@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { ValueStatePill } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -250,6 +251,18 @@ export function SetupWizardClient({
 
   return (
     <div className="space-y-6">
+      <SectionCard
+        title="Field guide"
+        description="Setup is for first-time go-live readiness. Editable fields are changed here once, calculated results confirm readiness, and live policy changes move to Fee Setup after go-live."
+      >
+        <div className="flex flex-wrap gap-2">
+          <ValueStatePill tone="editable">Editable now</ValueStatePill>
+          <ValueStatePill tone="calculated">Readiness result</ValueStatePill>
+          <ValueStatePill tone="locked">Locked after setup</ValueStatePill>
+          <ValueStatePill tone="review">Needs admin review</ValueStatePill>
+        </div>
+      </SectionCard>
+
       <SectionCard
         title="1. Session, installments, and collection rules"
         description="Set the active academic session, installment windows, late fee, accepted payment modes, and receipt prefix in the canonical policy service."

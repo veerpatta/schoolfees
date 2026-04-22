@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { ValueStatePill } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -586,6 +587,19 @@ export function FeeSetupClient({
 
   return (
     <div className="space-y-6">
+      <SectionCard
+        title="Field guide"
+        description="Use the same visual language everywhere: editable values can be changed here, policy-driven values flow into ledgers, and paid history stays locked."
+      >
+        <div className="flex flex-wrap gap-2">
+          <ValueStatePill tone="editable">Editable</ValueStatePill>
+          <ValueStatePill tone="policy">Policy-driven</ValueStatePill>
+          <ValueStatePill tone="calculated">Calculated impact</ValueStatePill>
+          <ValueStatePill tone="locked">Locked paid history</ValueStatePill>
+          <ValueStatePill tone="review">Review needed</ValueStatePill>
+        </div>
+      </SectionCard>
+
       {!canEdit ? (
         <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
           You can review policy, defaults, routes, and override records, but only admin

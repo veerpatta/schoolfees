@@ -70,6 +70,8 @@ function toActionStateError(error: unknown): PaymentEntryActionState {
         ? error.message
         : "Unable to save payment right now. Please try again.",
     receiptNumber: null,
+    receiptId: null,
+    studentId: null,
   };
 }
 
@@ -101,6 +103,8 @@ export async function submitPaymentEntryAction(
       status: "success",
       message: `Payment posted successfully. Receipt ${receipt.receiptNumber} generated.`,
       receiptNumber: receipt.receiptNumber,
+      receiptId: receipt.receiptId,
+      studentId: parseUuid(formData.get("studentId"), "Student"),
     };
   } catch (error) {
     return toActionStateError(error);

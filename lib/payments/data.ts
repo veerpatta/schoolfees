@@ -2,6 +2,7 @@ import "server-only";
 
 import type { PaymentMode } from "@/lib/db/types";
 import { getFeePolicySummary } from "@/lib/fees/data";
+import { looksLikeReceiptQuery, normalizePaymentDeskQuery } from "@/lib/payments/search";
 import { createClient } from "@/lib/supabase/server";
 import type {
   InstallmentBalanceItem,
@@ -20,6 +21,8 @@ type StudentRow = {
   id: string;
   full_name: string;
   admission_no: string;
+  primary_phone: string | null;
+  secondary_phone: string | null;
   class_ref: StudentClassRow | StudentClassRow[] | null;
 };
 
@@ -39,6 +42,23 @@ type PostStudentPaymentRow = {
   receipt_id: string;
   receipt_number: string;
   allocated_total: number;
+};
+
+type RecentReceiptRow = {
+  id: string;
+  receipt_number: string;
+  total_amount: number;
+  student_id: string;
+  student_ref:
+    | {
+        full_name: string;
+        admission_no: string;
+      }
+    | Array<{
+        full_name: string;
+        admission_no: string;
+      }>
+    | null;
 };
 
 function toSingleRecord<T>(value: T | T[] | null) {
@@ -76,6 +96,8 @@ function mapStudentOptions(rows: StudentRow[]): PaymentStudentOption[] {
       fullName: row.full_name,
       admissionNo: row.admission_no,
       classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
+      fatherPhone: row.primary_phone,
+      motherPhone: row.secondary_phone,
     };
   });
 }
@@ -122,23 +144,27 @@ function summarizeStudent(
 export async function getPaymentEntryPageData(payload: {
   studentId: string | null;
   searchQuery: string;
+  classId?: string;
 }): Promise<PaymentEntryPageData> {
   const supabase = await createClient();
   const policy = await getFeePolicySummary();
+  const normalizedQuery = normalizePaymentDeskQuery(payload.searchQuery);
   let studentsQuery = supabase
     .from("students")
     .select(
-      "id, full_name, admission_no, class_ref:classes(class_name, section, stream_name)",
+      "id, full_name, admission_no, primary_phone, secondary_phone, class_ref:classes(class_name, section, stream_name)",
     )
     .in("status", ["active", "inactive"])
     .order("full_name", { ascending: true })
     .limit(150);
 
-  const normalizedQuery = payload.searchQuery.trim();
+  if (payload.classId) {
+    studentsQuery = studentsQuery.eq("class_id", payload.classId);
+  }
 
   if (normalizedQuery) {
     studentsQuery = studentsQuery.or(
-      `full_name.ilike.%${normalizedQuery}%,admission_no.ilike.%${normalizedQuery}%`,
+      `full_name.ilike.%${normalizedQuery}%,admission_no.ilike.%${normalizedQuery}%,primary_phone.ilike.%${normalizedQuery}%,secondary_phone.ilike.%${normalizedQuery}%`,
     );
   }
 
@@ -148,15 +174,108 @@ export async function getPaymentEntryPageData(payload: {
     throw new Error(`Unable to load students for payment entry: ${studentsError.message}`);
   }
 
-  const studentOptions = mapStudentOptions((studentsRaw ?? []) as StudentRow[]);
+  let studentOptions = mapStudentOptions((studentsRaw ?? []) as StudentRow[]);
+
+  if (normalizedQuery && looksLikeReceiptQuery(normalizedQuery)) {
+    const { data: receiptMatchesRaw, error: receiptMatchesError } = await supabase
+      .from("receipts")
+      .select("id, receipt_number, total_amount, student_id, student_ref:students(full_name, admission_no)")
+      .or(`receipt_number.ilike.%${normalizedQuery}%,reference_number.ilike.%${normalizedQuery}%`)
+      .order("created_at", { ascending: false })
+      .limit(8);
+
+    if (receiptMatchesError) {
+      throw new Error(`Unable to load receipt search results: ${receiptMatchesError.message}`);
+    }
+
+    const receiptMatches = (receiptMatchesRaw ?? []) as RecentReceiptRow[];
+    const seenIds = new Set(studentOptions.map((item) => item.id));
+
+    receiptMatches.forEach((row) => {
+      if (seenIds.has(row.student_id)) {
+        return;
+      }
+
+      const studentRef = toSingleRecord(row.student_ref);
+
+      studentOptions = [
+        {
+          id: row.student_id,
+          fullName: studentRef?.full_name ?? `Receipt ${row.receipt_number}`,
+          admissionNo: studentRef?.admission_no ?? "-",
+          classLabel: "Open from receipt search",
+          fatherPhone: null,
+          motherPhone: null,
+        },
+        ...studentOptions,
+      ];
+      seenIds.add(row.student_id);
+    });
+  }
+
+  const [{ data: recentReceiptsRaw, error: recentReceiptsError }, { data: todayReceiptsRaw, error: todayReceiptsError }] =
+    await Promise.all([
+      supabase
+        .from("receipts")
+        .select("id, receipt_number, total_amount, student_id, student_ref:students(full_name, admission_no)")
+        .order("created_at", { ascending: false })
+        .limit(6),
+      supabase
+        .from("receipts")
+        .select("id, receipt_number, total_amount")
+        .eq(
+          "payment_date",
+          new Intl.DateTimeFormat("sv-SE", {
+            timeZone: "Asia/Kolkata",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          }).format(new Date()),
+        )
+        .order("created_at", { ascending: false })
+        .limit(50),
+    ]);
+
+  if (recentReceiptsError) {
+    throw new Error(`Unable to load recent receipts for payment desk: ${recentReceiptsError.message}`);
+  }
+
+  if (todayReceiptsError) {
+    throw new Error(`Unable to load today’s collection summary: ${todayReceiptsError.message}`);
+  }
+
+  const recentReceipts = ((recentReceiptsRaw ?? []) as RecentReceiptRow[]).map((row) => {
+    const studentRef = toSingleRecord(row.student_ref);
+
+    return {
+      id: row.id,
+      receiptNumber: row.receipt_number,
+      studentId: row.student_id,
+      studentLabel: studentRef
+        ? `${studentRef.full_name} (${studentRef.admission_no})`
+        : row.receipt_number,
+      totalAmount: row.total_amount,
+    };
+  });
+
+  const todayCollection = {
+    receiptCount: (todayReceiptsRaw ?? []).length,
+    totalAmount: ((todayReceiptsRaw ?? []) as Array<{ total_amount: number }>).reduce(
+      (sum, row) => sum + row.total_amount,
+      0,
+    ),
+  };
 
   if (!payload.studentId) {
     return {
       studentOptions,
       selectedStudent: null,
       searchQuery: normalizedQuery,
+      classId: payload.classId ?? "",
       modeOptions: policy.acceptedPaymentModes,
-      policyNote: `${policy.academicSessionLabel} policy uses receipt prefix ${policy.receiptPrefix} and ${policy.lateFeeLabel.toLowerCase()}.`,
+      policyNote: `${policy.academicSessionLabel} policy uses receipt prefix ${policy.receiptPrefix}, ${policy.lateFeeLabel.toLowerCase()}, and ${policy.acceptedPaymentModes.length} accepted payment modes.`,
+      recentReceipts,
+      todayCollection,
     };
   }
 
@@ -167,8 +286,11 @@ export async function getPaymentEntryPageData(payload: {
       studentOptions,
       selectedStudent: null,
       searchQuery: normalizedQuery,
+      classId: payload.classId ?? "",
       modeOptions: policy.acceptedPaymentModes,
-      policyNote: `${policy.academicSessionLabel} policy uses receipt prefix ${policy.receiptPrefix} and ${policy.lateFeeLabel.toLowerCase()}.`,
+      policyNote: `${policy.academicSessionLabel} policy uses receipt prefix ${policy.receiptPrefix}, ${policy.lateFeeLabel.toLowerCase()}, and ${policy.acceptedPaymentModes.length} accepted payment modes.`,
+      recentReceipts,
+      todayCollection,
     };
   }
 
@@ -191,8 +313,11 @@ export async function getPaymentEntryPageData(payload: {
     studentOptions,
     selectedStudent: summarizeStudent(selectedStudent, breakdown),
     searchQuery: normalizedQuery,
+    classId: payload.classId ?? "",
     modeOptions: policy.acceptedPaymentModes,
-    policyNote: `${policy.academicSessionLabel} policy uses receipt prefix ${policy.receiptPrefix} and ${policy.lateFeeLabel.toLowerCase()}.`,
+    policyNote: `${policy.academicSessionLabel} policy uses receipt prefix ${policy.receiptPrefix}, ${policy.lateFeeLabel.toLowerCase()}, and ${policy.acceptedPaymentModes.map((item) => item.label).join(", ")}.`,
+    recentReceipts,
+    todayCollection,
   };
 }
 
