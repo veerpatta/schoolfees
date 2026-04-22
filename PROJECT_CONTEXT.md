@@ -58,7 +58,8 @@ Main routes and modules in the repo today:
   alias route to fee setup area
 - `app/protected/fee-setup/page.tsx`
   canonical global fee policy, school defaults, class defaults, transport
-  defaults, and student overrides
+  defaults, and student overrides, with mandatory impact preview and
+  confirm-apply flow
 - `app/protected/fee-setup/generate/page.tsx`
   preview + safe sync workflow for unpaid session ledger installments
 - `app/protected/payments/page.tsx`
@@ -180,6 +181,8 @@ Important current tables:
 - `import_rows`
 - `fee_settings`
 - `fee_policy_configs`
+- `config_change_batches`
+- `config_change_blocked_installments`
 - `school_fee_defaults`
 - `student_fee_overrides`
 - `installments`

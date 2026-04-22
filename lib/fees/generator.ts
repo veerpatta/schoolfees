@@ -3,6 +3,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { getFeeSetupPageData } from "@/lib/fees/data";
 import { resolveStudentPolicyBreakdown } from "@/lib/fees/policy";
+import type { FeeSetupPageData } from "@/lib/fees/types";
 
 type GeneratorStudentRow = {
   id: string;
@@ -30,12 +31,19 @@ type ExistingInstallmentRow = {
   base_amount: number;
   transport_amount: number;
   discount_amount: number;
+  amount_due: number;
   late_fee_flat_amount: number;
   status: "scheduled" | "waived" | "cancelled";
 };
 
-type InstallmentRelationRow = {
+type InstallmentAmountRow = {
   installment_id: string;
+  amount: number;
+};
+
+type InstallmentAdjustmentRow = {
+  installment_id: string;
+  amount_delta: number;
 };
 
 type PlannedInstallment = {
@@ -61,30 +69,60 @@ type CancelPlan = {
   id: string;
 };
 
+export type LockedInstallmentReasonCode =
+  | "fully_paid"
+  | "partially_paid"
+  | "adjustment_posted";
+
+export type BlockedInstallmentForReview = {
+  installmentId: string;
+  studentId: string;
+  installmentNo: number;
+  installmentLabel: string;
+  dueDate: string;
+  amountDue: number;
+  paidAmount: number;
+  adjustmentAmount: number;
+  outstandingAmount: number;
+  reasonCode: LockedInstallmentReasonCode;
+  reasonLabel: string;
+  actionNeeded: "update" | "cancel";
+};
+
 type LedgerSyncPlan = {
   academicSessionLabel: string;
   totalActiveStudents: number;
   studentsInAcademicSession: number;
+  scopedStudents: number;
   studentsWithResolvedSettings: number;
   studentsMissingSettings: number;
   existingInstallments: number;
   installmentsToInsert: PlannedInstallment[];
   installmentsToUpdate: PlannedExistingUpdate[];
   installmentsToCancel: CancelPlan[];
-  lockedInstallments: number;
+  blockedInstallmentsForReview: BlockedInstallmentForReview[];
   expectedScheduledInstallments: number;
+  affectedStudents: number;
 };
 
 export type LedgerGenerationPreview = Omit<
   LedgerSyncPlan,
-  "installmentsToInsert" | "installmentsToUpdate" | "installmentsToCancel"
+  "installmentsToInsert" | "installmentsToUpdate" | "installmentsToCancel" | "blockedInstallmentsForReview"
 > & {
   installmentsToInsert: number;
   installmentsToUpdate: number;
   installmentsToCancel: number;
+  lockedInstallments: number;
 };
 
-type LedgerGenerationResult = LedgerGenerationPreview;
+export type LedgerGenerationResult = LedgerGenerationPreview & {
+  blockedInstallmentsForReview: BlockedInstallmentForReview[];
+};
+
+type LedgerPlanOptions = {
+  setupData?: FeeSetupPageData;
+  scopedStudentIds?: string[];
+};
 
 function toSingleRecord<T>(value: T | T[] | null) {
   if (Array.isArray(value)) {
@@ -110,21 +148,7 @@ function isMeaningfulResolvedConfig(payload: {
   return payload.annualTotal > 0 && Boolean(payload.feeSettingId);
 }
 
-function hasLockedActivity(
-  installmentId: string,
-  paymentInstallmentIds: Set<string>,
-  adjustmentInstallmentIds: Set<string>,
-) {
-  return (
-    paymentInstallmentIds.has(installmentId) ||
-    adjustmentInstallmentIds.has(installmentId)
-  );
-}
-
-function differs(
-  existing: ExistingInstallmentRow,
-  next: PlannedInstallment,
-) {
+function differs(existing: ExistingInstallmentRow, next: PlannedInstallment) {
   return (
     existing.fee_setting_id !== next.fee_setting_id ||
     existing.student_fee_override_id !== next.student_fee_override_id ||
@@ -138,9 +162,81 @@ function differs(
   );
 }
 
-async function buildLedgerSyncPlan(): Promise<LedgerSyncPlan> {
+function addToAmountMap(map: Map<string, number>, installmentId: string, amount: number) {
+  map.set(installmentId, (map.get(installmentId) ?? 0) + amount);
+}
+
+function classifyInstallmentLock(payload: {
+  existingInstallment: ExistingInstallmentRow;
+  paidAmount: number;
+  adjustmentAmount: number;
+}) {
+  const paidAmount = payload.paidAmount;
+  const adjustmentAmount = payload.adjustmentAmount;
+
+  if (paidAmount <= 0 && adjustmentAmount === 0) {
+    return {
+      isLocked: false as const,
+      reasonCode: null,
+      reasonLabel: null,
+      outstandingAmount: payload.existingInstallment.amount_due,
+    };
+  }
+
+  const appliedAmount = Math.max(paidAmount + adjustmentAmount, 0);
+  const outstandingAmount = Math.max(payload.existingInstallment.amount_due - appliedAmount, 0);
+
+  if (paidAmount > 0) {
+    if (appliedAmount >= payload.existingInstallment.amount_due) {
+      return {
+        isLocked: true as const,
+        reasonCode: "fully_paid" as const,
+        reasonLabel: "Fully paid installment",
+        outstandingAmount,
+      };
+    }
+
+    return {
+      isLocked: true as const,
+      reasonCode: "partially_paid" as const,
+      reasonLabel: "Partially paid installment",
+      outstandingAmount,
+    };
+  }
+
+  return {
+    isLocked: true as const,
+    reasonCode: "adjustment_posted" as const,
+    reasonLabel: "Installment has adjustment entries",
+    outstandingAmount,
+  };
+}
+
+function summarizePlan(plan: LedgerSyncPlan): LedgerGenerationPreview {
+  return {
+    academicSessionLabel: plan.academicSessionLabel,
+    totalActiveStudents: plan.totalActiveStudents,
+    studentsInAcademicSession: plan.studentsInAcademicSession,
+    scopedStudents: plan.scopedStudents,
+    studentsWithResolvedSettings: plan.studentsWithResolvedSettings,
+    studentsMissingSettings: plan.studentsMissingSettings,
+    existingInstallments: plan.existingInstallments,
+    installmentsToInsert: plan.installmentsToInsert.length,
+    installmentsToUpdate: plan.installmentsToUpdate.length,
+    installmentsToCancel: plan.installmentsToCancel.length,
+    lockedInstallments: plan.blockedInstallmentsForReview.length,
+    expectedScheduledInstallments: plan.expectedScheduledInstallments,
+    affectedStudents: plan.affectedStudents,
+  };
+}
+
+async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<LedgerSyncPlan> {
   const supabase = await createClient();
-  const setupData = await getFeeSetupPageData();
+  const setupData = options.setupData ?? (await getFeeSetupPageData());
+  const scopedStudentIdSet = options.scopedStudentIds
+    ? new Set(options.scopedStudentIds)
+    : null;
+
   const { data: activeStudentsRaw, error: studentsError } = await supabase
     .from("students")
     .select("id, class_id, transport_route_id, class_ref:classes(session_label)")
@@ -155,17 +251,20 @@ async function buildLedgerSyncPlan(): Promise<LedgerSyncPlan> {
     const classRef = toSingleRecord(student.class_ref);
     return classRef?.session_label === setupData.globalPolicy.academicSessionLabel;
   });
-  const studentIds = sessionStudents.map((student) => student.id);
+  const scopedStudents = scopedStudentIdSet
+    ? sessionStudents.filter((student) => scopedStudentIdSet.has(student.id))
+    : sessionStudents;
+  const studentIds = scopedStudents.map((student) => student.id);
 
   let existingInstallments: ExistingInstallmentRow[] = [];
-  let paymentRelationRows: InstallmentRelationRow[] = [];
-  let adjustmentRelationRows: InstallmentRelationRow[] = [];
+  const paymentTotalsByInstallment = new Map<string, number>();
+  const adjustmentTotalsByInstallment = new Map<string, number>();
 
   if (studentIds.length > 0) {
     const { data: installmentsRaw, error: installmentsError } = await supabase
       .from("installments")
       .select(
-        "id, student_id, class_id, fee_setting_id, student_fee_override_id, installment_no, installment_label, due_date, base_amount, transport_amount, discount_amount, late_fee_flat_amount, status",
+        "id, student_id, class_id, fee_setting_id, student_fee_override_id, installment_no, installment_label, due_date, base_amount, transport_amount, discount_amount, amount_due, late_fee_flat_amount, status",
       )
       .in("student_id", studentIds);
 
@@ -183,11 +282,11 @@ async function buildLedgerSyncPlan(): Promise<LedgerSyncPlan> {
       ] = await Promise.all([
         supabase
           .from("payments")
-          .select("installment_id")
+          .select("installment_id, amount")
           .in("installment_id", installmentIds),
         supabase
           .from("payment_adjustments")
-          .select("installment_id")
+          .select("installment_id, amount_delta")
           .in("installment_id", installmentIds),
       ]);
 
@@ -199,41 +298,32 @@ async function buildLedgerSyncPlan(): Promise<LedgerSyncPlan> {
         throw new Error(adjustmentsError.message);
       }
 
-      paymentRelationRows = (paymentsRaw ?? []) as InstallmentRelationRow[];
-      adjustmentRelationRows = (adjustmentsRaw ?? []) as InstallmentRelationRow[];
+      ((paymentsRaw ?? []) as InstallmentAmountRow[]).forEach((row) => {
+        addToAmountMap(paymentTotalsByInstallment, row.installment_id, row.amount);
+      });
+
+      ((adjustmentsRaw ?? []) as InstallmentAdjustmentRow[]).forEach((row) => {
+        addToAmountMap(adjustmentTotalsByInstallment, row.installment_id, row.amount_delta);
+      });
     }
   }
 
-  const classDefaultMap = new Map(
-    setupData.classDefaults.map((item) => [item.classId, item]),
-  );
-  const routeDefaultMap = new Map(
-    setupData.transportDefaults.map((item) => [item.id, item]),
-  );
-  const studentOverrideMap = new Map(
-    setupData.studentOverrides.map((item) => [item.studentId, item]),
-  );
+  const classDefaultMap = new Map(setupData.classDefaults.map((item) => [item.classId, item]));
+  const routeDefaultMap = new Map(setupData.transportDefaults.map((item) => [item.id, item]));
+  const studentOverrideMap = new Map(setupData.studentOverrides.map((item) => [item.studentId, item]));
   const existingInstallmentMap = new Map(
-    existingInstallments.map((item) => [
-      `${item.student_id}::${item.installment_no}`,
-      item,
-    ]),
-  );
-  const paymentInstallmentIds = new Set(
-    paymentRelationRows.map((row) => row.installment_id),
-  );
-  const adjustmentInstallmentIds = new Set(
-    adjustmentRelationRows.map((row) => row.installment_id),
+    existingInstallments.map((item) => [`${item.student_id}::${item.installment_no}`, item]),
   );
 
   const installmentsToInsert: PlannedInstallment[] = [];
   const installmentsToUpdate: PlannedExistingUpdate[] = [];
   const installmentsToCancel: CancelPlan[] = [];
-  let lockedInstallments = 0;
+  const blockedInstallmentsForReview: BlockedInstallmentForReview[] = [];
+  const affectedStudentIds = new Set<string>();
   let studentsWithResolvedSettings = 0;
   let expectedScheduledInstallments = 0;
 
-  for (const student of sessionStudents) {
+  for (const student of scopedStudents) {
     const classDefault = classDefaultMap.get(student.class_id) ?? null;
     const routeDefault = student.transport_route_id
       ? (routeDefaultMap.get(student.transport_route_id) ?? null)
@@ -306,42 +396,85 @@ async function buildLedgerSyncPlan(): Promise<LedgerSyncPlan> {
 
       if (!existingInstallment) {
         installmentsToInsert.push(plannedInstallment);
+        affectedStudentIds.add(student.id);
         return;
       }
 
-      if (
-        hasLockedActivity(
-          existingInstallment.id,
-          paymentInstallmentIds,
-          adjustmentInstallmentIds,
-        )
-      ) {
-        lockedInstallments += 1;
+      if (!differs(existingInstallment, plannedInstallment)) {
         return;
       }
 
-      if (differs(existingInstallment, plannedInstallment)) {
-        installmentsToUpdate.push({
-          id: existingInstallment.id,
-          ...plannedInstallment,
+      const paidAmount = paymentTotalsByInstallment.get(existingInstallment.id) ?? 0;
+      const adjustmentAmount = adjustmentTotalsByInstallment.get(existingInstallment.id) ?? 0;
+      const lock = classifyInstallmentLock({
+        existingInstallment,
+        paidAmount,
+        adjustmentAmount,
+      });
+
+      if (lock.isLocked && lock.reasonCode && lock.reasonLabel) {
+        blockedInstallmentsForReview.push({
+          installmentId: existingInstallment.id,
+          studentId: existingInstallment.student_id,
+          installmentNo: existingInstallment.installment_no,
+          installmentLabel: existingInstallment.installment_label,
+          dueDate: existingInstallment.due_date,
+          amountDue: existingInstallment.amount_due,
+          paidAmount,
+          adjustmentAmount,
+          outstandingAmount: lock.outstandingAmount,
+          reasonCode: lock.reasonCode,
+          reasonLabel: lock.reasonLabel,
+          actionNeeded: "update",
         });
+        affectedStudentIds.add(student.id);
+        return;
       }
+
+      installmentsToUpdate.push({
+        id: existingInstallment.id,
+        ...plannedInstallment,
+      });
+      affectedStudentIds.add(student.id);
     });
 
     existingInstallments
       .filter((row) => row.student_id === student.id)
       .filter((row) => row.installment_no > setupData.globalPolicy.installmentCount)
       .forEach((row) => {
-        if (
-          hasLockedActivity(row.id, paymentInstallmentIds, adjustmentInstallmentIds)
-        ) {
-          lockedInstallments += 1;
+        if (row.status === "cancelled") {
           return;
         }
 
-        if (row.status !== "cancelled") {
-          installmentsToCancel.push({ id: row.id });
+        const paidAmount = paymentTotalsByInstallment.get(row.id) ?? 0;
+        const adjustmentAmount = adjustmentTotalsByInstallment.get(row.id) ?? 0;
+        const lock = classifyInstallmentLock({
+          existingInstallment: row,
+          paidAmount,
+          adjustmentAmount,
+        });
+
+        if (lock.isLocked && lock.reasonCode && lock.reasonLabel) {
+          blockedInstallmentsForReview.push({
+            installmentId: row.id,
+            studentId: row.student_id,
+            installmentNo: row.installment_no,
+            installmentLabel: row.installment_label,
+            dueDate: row.due_date,
+            amountDue: row.amount_due,
+            paidAmount,
+            adjustmentAmount,
+            outstandingAmount: lock.outstandingAmount,
+            reasonCode: lock.reasonCode,
+            reasonLabel: lock.reasonLabel,
+            actionNeeded: "cancel",
+          });
+          affectedStudentIds.add(student.id);
+          return;
         }
+
+        installmentsToCancel.push({ id: row.id });
+        affectedStudentIds.add(student.id);
       });
   }
 
@@ -349,33 +482,16 @@ async function buildLedgerSyncPlan(): Promise<LedgerSyncPlan> {
     academicSessionLabel: setupData.globalPolicy.academicSessionLabel,
     totalActiveStudents: activeStudents.length,
     studentsInAcademicSession: sessionStudents.length,
+    scopedStudents: scopedStudents.length,
     studentsWithResolvedSettings,
-    studentsMissingSettings: Math.max(
-      sessionStudents.length - studentsWithResolvedSettings,
-      0,
-    ),
+    studentsMissingSettings: Math.max(scopedStudents.length - studentsWithResolvedSettings, 0),
     existingInstallments: existingInstallments.length,
     installmentsToInsert,
     installmentsToUpdate,
     installmentsToCancel,
-    lockedInstallments,
+    blockedInstallmentsForReview,
     expectedScheduledInstallments,
-  };
-}
-
-function summarizePlan(plan: LedgerSyncPlan): LedgerGenerationPreview {
-  return {
-    academicSessionLabel: plan.academicSessionLabel,
-    totalActiveStudents: plan.totalActiveStudents,
-    studentsInAcademicSession: plan.studentsInAcademicSession,
-    studentsWithResolvedSettings: plan.studentsWithResolvedSettings,
-    studentsMissingSettings: plan.studentsMissingSettings,
-    existingInstallments: plan.existingInstallments,
-    installmentsToInsert: plan.installmentsToInsert.length,
-    installmentsToUpdate: plan.installmentsToUpdate.length,
-    installmentsToCancel: plan.installmentsToCancel.length,
-    lockedInstallments: plan.lockedInstallments,
-    expectedScheduledInstallments: plan.expectedScheduledInstallments,
+    affectedStudents: affectedStudentIds.size,
   };
 }
 
@@ -390,13 +506,28 @@ async function applyBatchedUpdates<T>(
   }
 }
 
-export async function previewLedgerGeneration(): Promise<LedgerGenerationPreview> {
-  return summarizePlan(await buildLedgerSyncPlan());
+export async function previewLedgerGeneration(
+  options: LedgerPlanOptions = {},
+): Promise<LedgerGenerationPreview> {
+  return summarizePlan(await buildLedgerSyncPlan(options));
 }
 
-export async function generateSessionLedgersAction(): Promise<LedgerGenerationResult> {
+export async function previewLedgerGenerationDetailed(
+  options: LedgerPlanOptions = {},
+): Promise<LedgerGenerationResult> {
+  const plan = await buildLedgerSyncPlan(options);
+
+  return {
+    ...summarizePlan(plan),
+    blockedInstallmentsForReview: plan.blockedInstallmentsForReview,
+  };
+}
+
+export async function generateSessionLedgersAction(
+  options: LedgerPlanOptions = {},
+): Promise<LedgerGenerationResult> {
   const supabase = await createClient();
-  const plan = await buildLedgerSyncPlan();
+  const plan = await buildLedgerSyncPlan(options);
 
   if (plan.installmentsToInsert.length > 0) {
     const batchSize = 100;
@@ -431,5 +562,8 @@ export async function generateSessionLedgersAction(): Promise<LedgerGenerationRe
     }
   });
 
-  return summarizePlan(plan);
+  return {
+    ...summarizePlan(plan),
+    blockedInstallmentsForReview: plan.blockedInstallmentsForReview,
+  };
 }

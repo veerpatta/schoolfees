@@ -1,15 +1,51 @@
 import type { PaymentMode } from "@/lib/db/types";
 
-export type FeeSetupActionStatus = "idle" | "success" | "error";
+export type ConfigChangeScope =
+  | "global_policy"
+  | "school_defaults"
+  | "class_defaults"
+  | "transport_defaults"
+  | "student_override";
+
+export type ConfigChangeFieldDiff = {
+  field: string;
+  label: string;
+  beforeValue: string;
+  afterValue: string;
+};
+
+export type ConfigChangeImpactPreview = {
+  scope: ConfigChangeScope;
+  scopeLabel: string;
+  targetLabel: string;
+  changedFields: ConfigChangeFieldDiff[];
+  studentsInScope: number;
+  studentsAffected: number;
+  installmentsToInsert: number;
+  installmentsToUpdate: number;
+  installmentsToCancel: number;
+  blockedInstallments: number;
+  blockedFullyPaidInstallments: number;
+  blockedPartiallyPaidInstallments: number;
+  blockedAdjustedInstallments: number;
+  updatesLimitedToFutureUnpaid: boolean;
+  rowsMarkedForReview: number;
+};
+
+export type FeeSetupActionStatus = "idle" | "preview" | "success" | "error";
 
 export type FeeSetupActionState = {
   status: FeeSetupActionStatus;
   message: string | null;
+  changeBatchId: string | null;
+  preview: ConfigChangeImpactPreview | null;
 };
 
 export const INITIAL_FEE_SETUP_ACTION_STATE: FeeSetupActionState = {
   status: "idle",
   message: null,
+  changeBatchId: null,
+  preview: null,
 };
 
 export type InstallmentScheduleItem = {

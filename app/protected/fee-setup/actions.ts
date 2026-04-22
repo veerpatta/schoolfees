@@ -2,13 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 
+import { getFeeSetupPageData } from "@/lib/fees/data";
 import {
-  upsertClassFeeDefault,
-  upsertGlobalFeePolicy,
-  upsertSchoolFeeDefaults,
-  upsertStudentFeeOverride,
-  upsertTransportDefault,
-} from "@/lib/fees/data";
+  applyConfigChangeBatch,
+  createConfigChangePreview,
+} from "@/lib/fees/config-change";
 import type { FeeHeadDefinition, FeeSetupActionState } from "@/lib/fees/types";
 import type { PaymentMode } from "@/lib/db/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
@@ -226,6 +224,11 @@ function parseUuid(value: FormDataEntryValue | null, fieldLabel: string) {
   return normalized;
 }
 
+function parseIntent(formData: FormData) {
+  const intent = (formData.get("_intent") ?? "preview").toString().trim();
+  return intent === "apply" ? "apply" : "preview";
+}
+
 async function requireAdminForFeeWrite() {
   await requireStaffPermission("fees:write");
 }
@@ -237,7 +240,40 @@ function toErrorState(error: unknown): FeeSetupActionState {
       error instanceof Error
         ? error.message
         : "Unable to save fee setup right now. Please try again.",
+    changeBatchId: null,
+    preview: null,
   };
+}
+
+function toPreviewState(payload: {
+  batchId: string;
+  preview: NonNullable<FeeSetupActionState["preview"]>;
+  message: string;
+}): FeeSetupActionState {
+  return {
+    status: "preview",
+    message: payload.message,
+    changeBatchId: payload.batchId,
+    preview: payload.preview,
+  };
+}
+
+function toSuccessState(message: string): FeeSetupActionState {
+  return {
+    status: "success",
+    message,
+    changeBatchId: null,
+    preview: null,
+  };
+}
+
+function previewMessage(payload: {
+  target: string;
+  studentsAffected: number;
+  installmentsAffected: number;
+  blocked: number;
+}) {
+  return `Impact preview ready for ${payload.target}: ${payload.studentsAffected} students, ${payload.installmentsAffected} installment rows (${payload.blocked} blocked for review). Confirm apply to proceed.`;
 }
 
 function revalidateFeePolicySurface() {
@@ -261,29 +297,50 @@ export async function saveGlobalPolicyAction(
   try {
     await requireAdminForFeeWrite();
 
-    await upsertGlobalFeePolicy({
-      academicSessionLabel: (formData.get("academicSessionLabel") ?? "").toString().trim(),
-      installmentSchedule: parseInstallmentSchedule(formData),
-      lateFeeFlatAmount: parseRequiredNonNegativeInt(
-        formData.get("lateFeeFlatAmount"),
-        "Late fee",
-      ),
-      acceptedPaymentModes: parseAcceptedPaymentModes(formData),
-      receiptPrefix: (formData.get("receiptPrefix") ?? "").toString().trim().toUpperCase(),
-      customFeeHeads: parseCustomFeeHeads(
-        formData,
-        "globalCustomFeeHeadId",
-        "globalCustomFeeHeadLabel",
-      ),
-      notes: (formData.get("globalNotes") ?? "").toString().trim() || null,
+    if (parseIntent(formData) === "apply") {
+      const batchId = parseUuid(formData.get("changeBatchId"), "Preview batch");
+      const result = await applyConfigChangeBatch(batchId);
+      revalidateFeePolicySurface();
+      return toSuccessState(result.message);
+    }
+
+    const previewResult = await createConfigChangePreview({
+      scope: "global_policy",
+      proposedPayload: {
+        academicSessionLabel: (formData.get("academicSessionLabel") ?? "").toString().trim(),
+        installmentSchedule: parseInstallmentSchedule(formData),
+        lateFeeFlatAmount: parseRequiredNonNegativeInt(
+          formData.get("lateFeeFlatAmount"),
+          "Late fee",
+        ),
+        acceptedPaymentModes: parseAcceptedPaymentModes(formData),
+        receiptPrefix: (formData.get("receiptPrefix") ?? "").toString().trim().toUpperCase(),
+        customFeeHeads: parseCustomFeeHeads(
+          formData,
+          "globalCustomFeeHeadId",
+          "globalCustomFeeHeadLabel",
+        ),
+        notes: (formData.get("globalNotes") ?? "").toString().trim() || null,
+      },
     });
 
-    revalidateFeePolicySurface();
+    const preview = previewResult.preview;
+    const installmentsAffected =
+      preview.installmentsToInsert +
+      preview.installmentsToUpdate +
+      preview.installmentsToCancel +
+      preview.blockedInstallments;
 
-    return {
-      status: "success",
-      message: "Global fee policy saved. Future and unpaid-fee sync workflows will now use this policy.",
-    };
+    return toPreviewState({
+      batchId: previewResult.batchId,
+      preview,
+      message: previewMessage({
+        target: preview.targetLabel,
+        studentsAffected: preview.studentsAffected,
+        installmentsAffected,
+        blocked: preview.blockedInstallments,
+      }),
+    });
   } catch (error) {
     return toErrorState(error);
   }
@@ -296,43 +353,61 @@ export async function saveSchoolDefaultsAction(
   try {
     await requireAdminForFeeWrite();
 
-    const customFeeHeads = parseCustomFeeHeads(
-      formData,
-      "schoolCustomFeeHeadId",
-      "schoolCustomFeeHeadLabel",
-    );
+    if (parseIntent(formData) === "apply") {
+      const batchId = parseUuid(formData.get("changeBatchId"), "Preview batch");
+      const result = await applyConfigChangeBatch(batchId);
+      revalidateFeePolicySurface();
+      return toSuccessState(result.message);
+    }
 
-    await upsertSchoolFeeDefaults({
-      tuitionFee: parseRequiredNonNegativeInt(formData.get("tuitionFee"), "Tuition fee"),
-      transportFee: parseRequiredNonNegativeInt(formData.get("transportFee"), "Transport fee"),
-      booksFee: parseRequiredNonNegativeInt(formData.get("booksFee"), "Books fee"),
-      admissionActivityMiscFee: parseRequiredNonNegativeInt(
-        formData.get("admissionActivityMiscFee"),
-        "Admission/activity/misc fee",
-      ),
-      customFeeHeadAmounts: parseCustomFeeHeadAmounts(
-        formData,
-        "schoolCustomFeeHeadId",
-        "schoolCustomFeeHeadAmount",
-      ),
-      customFeeHeads,
-      studentTypeDefault: parseStudentType(
-        formData.get("studentTypeDefault"),
-        "Student type default",
-      ),
-      transportAppliesDefault: parseBooleanSelect(
-        formData.get("transportAppliesDefault"),
-        "Transport applies default",
-      ),
-      notes: (formData.get("notes") ?? "").toString().trim() || null,
+    const setupData = await getFeeSetupPageData();
+    const customFeeHeads = setupData.globalPolicy.customFeeHeads;
+
+    const previewResult = await createConfigChangePreview({
+      scope: "school_defaults",
+      proposedPayload: {
+        tuitionFee: parseRequiredNonNegativeInt(formData.get("tuitionFee"), "Tuition fee"),
+        transportFee: parseRequiredNonNegativeInt(formData.get("transportFee"), "Transport fee"),
+        booksFee: parseRequiredNonNegativeInt(formData.get("booksFee"), "Books fee"),
+        admissionActivityMiscFee: parseRequiredNonNegativeInt(
+          formData.get("admissionActivityMiscFee"),
+          "Admission/activity/misc fee",
+        ),
+        customFeeHeadAmounts: parseCustomFeeHeadAmounts(
+          formData,
+          "schoolCustomFeeHeadId",
+          "schoolCustomFeeHeadAmount",
+        ),
+        studentTypeDefault: parseStudentType(
+          formData.get("studentTypeDefault"),
+          "Student type default",
+        ),
+        transportAppliesDefault: parseBooleanSelect(
+          formData.get("transportAppliesDefault"),
+          "Transport applies default",
+        ),
+        notes: (formData.get("notes") ?? "").toString().trim() || null,
+        customFeeHeadsCatalog: customFeeHeads,
+      },
     });
 
-    revalidateFeePolicySurface();
+    const preview = previewResult.preview;
+    const installmentsAffected =
+      preview.installmentsToInsert +
+      preview.installmentsToUpdate +
+      preview.installmentsToCancel +
+      preview.blockedInstallments;
 
-    return {
-      status: "success",
-      message: "School-wide fee defaults saved.",
-    };
+    return toPreviewState({
+      batchId: previewResult.batchId,
+      preview,
+      message: previewMessage({
+        target: preview.targetLabel,
+        studentsAffected: preview.studentsAffected,
+        installmentsAffected,
+        blocked: preview.blockedInstallments,
+      }),
+    });
   } catch (error) {
     return toErrorState(error);
   }
@@ -345,44 +420,62 @@ export async function saveClassDefaultsAction(
   try {
     await requireAdminForFeeWrite();
 
-    const customFeeHeads = parseCustomFeeHeads(
-      formData,
-      "classCustomFeeHeadId",
-      "classCustomFeeHeadLabel",
-    );
+    if (parseIntent(formData) === "apply") {
+      const batchId = parseUuid(formData.get("changeBatchId"), "Preview batch");
+      const result = await applyConfigChangeBatch(batchId);
+      revalidateFeePolicySurface();
+      return toSuccessState(result.message);
+    }
 
-    await upsertClassFeeDefault({
-      classId: parseUuid(formData.get("classId"), "Class"),
-      tuitionFee: parseRequiredNonNegativeInt(formData.get("tuitionFee"), "Tuition fee"),
-      transportFee: parseRequiredNonNegativeInt(formData.get("transportFee"), "Transport fee"),
-      booksFee: parseRequiredNonNegativeInt(formData.get("booksFee"), "Books fee"),
-      admissionActivityMiscFee: parseRequiredNonNegativeInt(
-        formData.get("admissionActivityMiscFee"),
-        "Admission/activity/misc fee",
-      ),
-      customFeeHeadAmounts: parseCustomFeeHeadAmounts(
-        formData,
-        "classCustomFeeHeadId",
-        "classCustomFeeHeadAmount",
-      ),
-      customFeeHeads,
-      studentTypeDefault: parseStudentType(
-        formData.get("studentTypeDefault"),
-        "Student type default",
-      ),
-      transportAppliesDefault: parseBooleanSelect(
-        formData.get("transportAppliesDefault"),
-        "Transport applies default",
-      ),
-      notes: (formData.get("notes") ?? "").toString().trim() || null,
+    const setupData = await getFeeSetupPageData();
+    const customFeeHeads = setupData.globalPolicy.customFeeHeads;
+
+    const previewResult = await createConfigChangePreview({
+      scope: "class_defaults",
+      proposedPayload: {
+        classId: parseUuid(formData.get("classId"), "Class"),
+        tuitionFee: parseRequiredNonNegativeInt(formData.get("tuitionFee"), "Tuition fee"),
+        transportFee: parseRequiredNonNegativeInt(formData.get("transportFee"), "Transport fee"),
+        booksFee: parseRequiredNonNegativeInt(formData.get("booksFee"), "Books fee"),
+        admissionActivityMiscFee: parseRequiredNonNegativeInt(
+          formData.get("admissionActivityMiscFee"),
+          "Admission/activity/misc fee",
+        ),
+        customFeeHeadAmounts: parseCustomFeeHeadAmounts(
+          formData,
+          "classCustomFeeHeadId",
+          "classCustomFeeHeadAmount",
+        ),
+        studentTypeDefault: parseStudentType(
+          formData.get("studentTypeDefault"),
+          "Student type default",
+        ),
+        transportAppliesDefault: parseBooleanSelect(
+          formData.get("transportAppliesDefault"),
+          "Transport applies default",
+        ),
+        notes: (formData.get("notes") ?? "").toString().trim() || null,
+        customFeeHeadsCatalog: customFeeHeads,
+      },
     });
 
-    revalidateFeePolicySurface();
+    const preview = previewResult.preview;
+    const installmentsAffected =
+      preview.installmentsToInsert +
+      preview.installmentsToUpdate +
+      preview.installmentsToCancel +
+      preview.blockedInstallments;
 
-    return {
-      status: "success",
-      message: "Class fee defaults saved.",
-    };
+    return toPreviewState({
+      batchId: previewResult.batchId,
+      preview,
+      message: previewMessage({
+        target: preview.targetLabel,
+        studentsAffected: preview.studentsAffected,
+        installmentsAffected,
+        blocked: preview.blockedInstallments,
+      }),
+    });
   } catch (error) {
     return toErrorState(error);
   }
@@ -395,6 +488,13 @@ export async function saveTransportDefaultsAction(
   try {
     await requireAdminForFeeWrite();
 
+    if (parseIntent(formData) === "apply") {
+      const batchId = parseUuid(formData.get("changeBatchId"), "Preview batch");
+      const result = await applyConfigChangeBatch(batchId);
+      revalidateFeePolicySurface();
+      return toSuccessState(result.message);
+    }
+
     const routeId = (formData.get("routeId") ?? "").toString().trim();
     const routeCode = (formData.get("routeCode") ?? "").toString().trim();
     const routeName = (formData.get("routeName") ?? "").toString().trim();
@@ -403,24 +503,38 @@ export async function saveTransportDefaultsAction(
       throw new Error("Route name is required.");
     }
 
-    await upsertTransportDefault({
-      routeId: routeId || null,
-      routeCode: routeCode || null,
-      routeName,
-      defaultInstallmentAmount: parseRequiredNonNegativeInt(
-        formData.get("defaultInstallmentAmount"),
-        "Route default installment amount",
-      ),
-      isActive: parseBooleanSelect(formData.get("isActive"), "Route status"),
-      notes: (formData.get("notes") ?? "").toString().trim() || null,
+    const previewResult = await createConfigChangePreview({
+      scope: "transport_defaults",
+      proposedPayload: {
+        routeId: routeId || null,
+        routeCode: routeCode || null,
+        routeName,
+        defaultInstallmentAmount: parseRequiredNonNegativeInt(
+          formData.get("defaultInstallmentAmount"),
+          "Route default installment amount",
+        ),
+        isActive: parseBooleanSelect(formData.get("isActive"), "Route status"),
+        notes: (formData.get("notes") ?? "").toString().trim() || null,
+      },
     });
 
-    revalidateFeePolicySurface();
+    const preview = previewResult.preview;
+    const installmentsAffected =
+      preview.installmentsToInsert +
+      preview.installmentsToUpdate +
+      preview.installmentsToCancel +
+      preview.blockedInstallments;
 
-    return {
-      status: "success",
-      message: "Transport default saved.",
-    };
+    return toPreviewState({
+      batchId: previewResult.batchId,
+      preview,
+      message: previewMessage({
+        target: preview.targetLabel,
+        studentsAffected: preview.studentsAffected,
+        installmentsAffected,
+        blocked: preview.blockedInstallments,
+      }),
+    });
   } catch (error) {
     return toErrorState(error);
   }
@@ -433,59 +547,77 @@ export async function saveStudentOverrideAction(
   try {
     await requireAdminForFeeWrite();
 
+    if (parseIntent(formData) === "apply") {
+      const batchId = parseUuid(formData.get("changeBatchId"), "Preview batch");
+      const result = await applyConfigChangeBatch(batchId);
+      revalidateFeePolicySurface();
+      return toSuccessState(result.message);
+    }
+
     const reason = (formData.get("reason") ?? "").toString().trim();
 
     if (!reason) {
       throw new Error("Reason is required for student override entries.");
     }
 
-    const customFeeHeads = parseCustomFeeHeads(
-      formData,
-      "studentCustomFeeHeadId",
-      "studentCustomFeeHeadLabel",
-    );
+    const setupData = await getFeeSetupPageData();
+    const customFeeHeads = setupData.globalPolicy.customFeeHeads;
 
-    await upsertStudentFeeOverride({
-      studentId: parseUuid(formData.get("studentId"), "Student"),
-      customTuitionFeeAmount: parseOptionalNonNegativeInt(
-        formData.get("customTuitionFeeAmount"),
-        "Custom tuition fee",
-      ),
-      customTransportFeeAmount: parseOptionalNonNegativeInt(
-        formData.get("customTransportFeeAmount"),
-        "Custom transport fee",
-      ),
-      customBooksFeeAmount: parseOptionalNonNegativeInt(
-        formData.get("customBooksFeeAmount"),
-        "Custom books fee",
-      ),
-      customAdmissionActivityMiscFeeAmount: parseOptionalNonNegativeInt(
-        formData.get("customAdmissionActivityMiscFeeAmount"),
-        "Custom admission/activity/misc fee",
-      ),
-      customFeeHeadAmounts: parseCustomFeeHeadAmounts(
-        formData,
-        "studentCustomFeeHeadId",
-        "studentCustomFeeHeadAmount",
-      ),
-      customFeeHeads,
-      customLateFeeFlatAmount: parseOptionalNonNegativeInt(
-        formData.get("customLateFeeFlatAmount"),
-        "Custom late fee",
-      ),
-      discountAmount: parseRequiredNonNegativeInt(formData.get("discountAmount"), "Discount amount"),
-      studentTypeOverride: parseOptionalStudentType(formData.get("studentTypeOverride")),
-      transportAppliesOverride: parseOptionalBooleanSelect(formData.get("transportAppliesOverride")),
-      reason,
-      notes: (formData.get("notes") ?? "").toString().trim() || null,
+    const previewResult = await createConfigChangePreview({
+      scope: "student_override",
+      proposedPayload: {
+        studentId: parseUuid(formData.get("studentId"), "Student"),
+        customTuitionFeeAmount: parseOptionalNonNegativeInt(
+          formData.get("customTuitionFeeAmount"),
+          "Custom tuition fee",
+        ),
+        customTransportFeeAmount: parseOptionalNonNegativeInt(
+          formData.get("customTransportFeeAmount"),
+          "Custom transport fee",
+        ),
+        customBooksFeeAmount: parseOptionalNonNegativeInt(
+          formData.get("customBooksFeeAmount"),
+          "Custom books fee",
+        ),
+        customAdmissionActivityMiscFeeAmount: parseOptionalNonNegativeInt(
+          formData.get("customAdmissionActivityMiscFeeAmount"),
+          "Custom admission/activity/misc fee",
+        ),
+        customFeeHeadAmounts: parseCustomFeeHeadAmounts(
+          formData,
+          "studentCustomFeeHeadId",
+          "studentCustomFeeHeadAmount",
+        ),
+        customLateFeeFlatAmount: parseOptionalNonNegativeInt(
+          formData.get("customLateFeeFlatAmount"),
+          "Custom late fee",
+        ),
+        discountAmount: parseRequiredNonNegativeInt(formData.get("discountAmount"), "Discount amount"),
+        studentTypeOverride: parseOptionalStudentType(formData.get("studentTypeOverride")),
+        transportAppliesOverride: parseOptionalBooleanSelect(formData.get("transportAppliesOverride")),
+        reason,
+        notes: (formData.get("notes") ?? "").toString().trim() || null,
+        customFeeHeadsCatalog: customFeeHeads,
+      },
     });
 
-    revalidateFeePolicySurface();
+    const preview = previewResult.preview;
+    const installmentsAffected =
+      preview.installmentsToInsert +
+      preview.installmentsToUpdate +
+      preview.installmentsToCancel +
+      preview.blockedInstallments;
 
-    return {
-      status: "success",
-      message: "Student fee override saved.",
-    };
+    return toPreviewState({
+      batchId: previewResult.batchId,
+      preview,
+      message: previewMessage({
+        target: preview.targetLabel,
+        studentsAffected: preview.studentsAffected,
+        installmentsAffected,
+        blocked: preview.blockedInstallments,
+      }),
+    });
   } catch (error) {
     return toErrorState(error);
   }

@@ -18,6 +18,12 @@ export type ImportRowStatus =
   | "duplicate"
   | "imported"
   | "skipped";
+export type ConfigChangeBatchStatus =
+  | "preview_ready"
+  | "applied"
+  | "stale"
+  | "failed"
+  | "cancelled";
 
 export type UserRecord = {
   id: string;
@@ -278,6 +284,53 @@ export type ImportRowRecord = {
   duplicateStudentId: string | null;
   importedStudentId: string | null;
   importedOverrideId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+};
+
+export type ConfigChangeBatchRecord = {
+  id: string;
+  changeScope:
+    | "global_policy"
+    | "school_defaults"
+    | "class_defaults"
+    | "transport_defaults"
+    | "student_override";
+  targetRef: string | null;
+  targetLabel: string;
+  status: ConfigChangeBatchStatus;
+  beforePayload: Record<string, unknown>;
+  proposedPayload: Record<string, unknown>;
+  changedFields: Array<Record<string, string>>;
+  previewSummary: Record<string, unknown>;
+  applySummary: Record<string, unknown> | null;
+  applyNotes: string | null;
+  previewedAt: string;
+  appliedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+};
+
+export type ConfigChangeBlockedInstallmentRecord = {
+  id: string;
+  batchId: string;
+  studentId: string;
+  installmentId: string;
+  installmentLabel: string;
+  dueDate: string;
+  amountDue: number;
+  paidAmount: number;
+  adjustmentAmount: number;
+  outstandingAmount: number;
+  reasonCode: "fully_paid" | "partially_paid" | "adjustment_posted";
+  reasonLabel: string;
+  actionNeeded: "update" | "cancel";
+  reviewStatus: "pending" | "reviewed";
+  reviewNotes: string | null;
   createdAt: string;
   updatedAt: string;
   createdBy: string | null;

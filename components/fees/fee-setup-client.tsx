@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { formatInr } from "@/lib/helpers/currency";
 import type {
   ClassFeeDefault,
+  ConfigChangeImpactPreview,
   FeeHeadDefinition,
   FeeSetupActionState,
   FeeSetupPageData,
@@ -67,14 +68,15 @@ function ActionNotice({ state }: { state: FeeSetupActionState }) {
     return null;
   }
 
+  const toneClassName =
+    state.status === "error"
+      ? "border-red-200 bg-red-50 text-red-700"
+      : state.status === "preview"
+        ? "border-blue-200 bg-blue-50 text-blue-700"
+        : "border-emerald-200 bg-emerald-50 text-emerald-700";
+
   return (
-    <div
-      className={
-        state.status === "error"
-          ? "rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-          : "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
-      }
-    >
+    <div className={`rounded-md border px-3 py-2 text-sm ${toneClassName}`}>
       {state.message}
     </div>
   );
@@ -82,6 +84,129 @@ function ActionNotice({ state }: { state: FeeSetupActionState }) {
 
 function SectionHint({ children }: { children: ReactNode }) {
   return <p className="text-xs text-slate-500">{children}</p>;
+}
+
+function ImpactPreviewCard({ preview }: { preview: ConfigChangeImpactPreview | null }) {
+  if (!preview) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-4 rounded-lg border border-blue-200 bg-blue-50/60 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
+            Impact Preview
+          </p>
+          <p className="text-sm font-semibold text-slate-900">{preview.targetLabel}</p>
+          <p className="text-xs text-slate-600">
+            {preview.scopeLabel}: confirm apply to run this exact preview.
+          </p>
+        </div>
+        <div className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-medium text-blue-700">
+          Only future/unpaid rows update
+        </div>
+      </div>
+
+      <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div>
+          <dt className="text-xs text-slate-500">Students in scope</dt>
+          <dd className="text-lg font-semibold text-slate-900">{preview.studentsInScope}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-slate-500">Students affected</dt>
+          <dd className="text-lg font-semibold text-slate-900">{preview.studentsAffected}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-slate-500">Installments to update</dt>
+          <dd className="text-lg font-semibold text-slate-900">
+            {preview.installmentsToUpdate}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-slate-500">Rows blocked for review</dt>
+          <dd className="text-lg font-semibold text-amber-700">
+            {preview.blockedInstallments}
+          </dd>
+        </div>
+      </dl>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
+          Insert unpaid rows: <strong>{preview.installmentsToInsert}</strong>
+        </div>
+        <div className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
+          Cancel extra unpaid rows: <strong>{preview.installmentsToCancel}</strong>
+        </div>
+        <div className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
+          Adjusted rows blocked: <strong>{preview.blockedAdjustedInstallments}</strong>
+        </div>
+      </div>
+
+      {(preview.blockedFullyPaidInstallments > 0 ||
+        preview.blockedPartiallyPaidInstallments > 0) && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {preview.blockedFullyPaidInstallments} fully paid and{" "}
+          {preview.blockedPartiallyPaidInstallments} partially paid installments are locked
+          and will be marked for manual review.
+        </div>
+      )}
+
+      <div>
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-600">
+          Settings changed
+        </p>
+        <ul className="space-y-2 text-sm text-slate-700">
+          {preview.changedFields.map((item) => (
+            <li key={item.field} className="rounded-md border border-slate-200 bg-white px-3 py-2">
+              <p className="font-medium text-slate-900">{item.label}</p>
+              <p className="text-xs text-slate-600">
+                {item.beforeValue} {"->"} {item.afterValue}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function PreviewApplyActions({
+  state,
+  canEdit,
+  pending,
+  disablePreview,
+  previewLabel,
+  applyLabel,
+}: {
+  state: FeeSetupActionState;
+  canEdit: boolean;
+  pending: boolean;
+  disablePreview?: boolean;
+  previewLabel: string;
+  applyLabel: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      {state.changeBatchId ? (
+        <input type="hidden" name="changeBatchId" value={state.changeBatchId} />
+      ) : null}
+      <Button
+        type="submit"
+        variant="outline"
+        name="_intent"
+        value="preview"
+        disabled={!canEdit || pending || disablePreview}
+      >
+        {pending ? "Working..." : previewLabel}
+      </Button>
+      {state.preview && state.changeBatchId ? (
+        <Button type="submit" name="_intent" value="apply" disabled={!canEdit || pending}>
+          {pending ? "Applying..." : applyLabel}
+        </Button>
+      ) : null}
+    </div>
+  );
 }
 
 function formatUpdatedAt(value: string | null) {
@@ -481,6 +606,7 @@ export function FeeSetupClient({
       >
         <form action={globalFormAction} className="space-y-5">
           <ActionNotice state={globalState} />
+          <ImpactPreviewCard preview={globalState.preview} />
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div>
@@ -535,8 +661,8 @@ export function FeeSetupClient({
               <div>
                 <Label>Installment due schedule</Label>
                 <SectionHint>
-                  Save policy changes first, then use Session Ledger Sync to propagate only
-                  to future and unpaid installments.
+                  Preview first, then confirm apply. Paid and partially paid rows stay
+                  untouched and are marked for review when needed.
                 </SectionHint>
               </div>
               <Button
@@ -650,9 +776,13 @@ export function FeeSetupClient({
               Current policy: {data.globalPolicy.academicSessionLabel} | {data.globalPolicy.lateFeeLabel} |{" "}
               {data.globalPolicy.installmentSchedule.map((item) => item.dueDateLabel).join(", ")}
             </SectionHint>
-            <Button type="submit" disabled={!canEdit || globalPending}>
-              {globalPending ? "Saving policy..." : "Save canonical policy"}
-            </Button>
+            <PreviewApplyActions
+              state={globalState}
+              canEdit={canEdit}
+              pending={globalPending}
+              previewLabel="Preview policy impact"
+              applyLabel="Confirm and apply policy"
+            />
           </div>
         </form>
       </SectionCard>
@@ -670,6 +800,7 @@ export function FeeSetupClient({
       >
         <form action={schoolFormAction} className="space-y-5">
           <ActionNotice state={schoolState} />
+          <ImpactPreviewCard preview={schoolState.preview} />
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <div>
@@ -775,9 +906,13 @@ export function FeeSetupClient({
 
           <div className="flex items-center justify-between gap-4">
             <SectionHint>Last updated: {formatUpdatedAt(schoolDefault.updatedAt)}</SectionHint>
-            <Button type="submit" disabled={!canEdit || schoolPending}>
-              {schoolPending ? "Saving..." : "Save school defaults"}
-            </Button>
+            <PreviewApplyActions
+              state={schoolState}
+              canEdit={canEdit}
+              pending={schoolPending}
+              previewLabel="Preview school impact"
+              applyLabel="Confirm and apply school defaults"
+            />
           </div>
         </form>
       </SectionCard>
@@ -795,6 +930,7 @@ export function FeeSetupClient({
       >
         <form key={selectedClassId || "new-class"} action={classFormAction} className="space-y-5">
           <ActionNotice state={classState} />
+          <ImpactPreviewCard preview={classState.preview} />
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
@@ -945,12 +1081,14 @@ export function FeeSetupClient({
                 ? `Last updated: ${formatUpdatedAt(selectedClassDefault.updatedAt)}`
                 : "New class default will become the active record for the selected class."}
             </SectionHint>
-            <Button
-              type="submit"
-              disabled={!canEdit || classPending || !selectedClassId}
-            >
-              {classPending ? "Saving..." : "Save class defaults"}
-            </Button>
+            <PreviewApplyActions
+              state={classState}
+              canEdit={canEdit}
+              pending={classPending}
+              disablePreview={!selectedClassId}
+              previewLabel="Preview class impact"
+              applyLabel="Confirm and apply class defaults"
+            />
           </div>
         </form>
 
@@ -976,6 +1114,7 @@ export function FeeSetupClient({
           className="space-y-5"
         >
           <ActionNotice state={transportState} />
+          <ImpactPreviewCard preview={transportState.preview} />
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
@@ -1071,9 +1210,13 @@ export function FeeSetupClient({
                 ? `Last updated: ${formatUpdatedAt(selectedRouteDefault.updatedAt)}`
                 : "New routes can be added here without touching paid history."}
             </SectionHint>
-            <Button type="submit" disabled={!canEdit || transportPending}>
-              {transportPending ? "Saving..." : "Save transport default"}
-            </Button>
+            <PreviewApplyActions
+              state={transportState}
+              canEdit={canEdit}
+              pending={transportPending}
+              previewLabel="Preview route impact"
+              applyLabel="Confirm and apply route default"
+            />
           </div>
         </form>
 
@@ -1099,6 +1242,7 @@ export function FeeSetupClient({
           className="space-y-5"
         >
           <ActionNotice state={studentState} />
+          <ImpactPreviewCard preview={studentState.preview} />
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
@@ -1121,7 +1265,7 @@ export function FeeSetupClient({
               </select>
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              Save class defaults for the student’s class first. Overrides are layered on top of
+              Save class defaults for the student&apos;s class first. Overrides are layered on top of
               the active class or school defaults.
             </div>
           </div>
@@ -1279,12 +1423,14 @@ export function FeeSetupClient({
                 ? `Last updated: ${formatUpdatedAt(selectedStudentOverride.updatedAt)}`
                 : "Overrides never rewrite paid receipts, payments, or adjustments."}
             </SectionHint>
-            <Button
-              type="submit"
-              disabled={!canEdit || studentPending || !selectedStudentId}
-            >
-              {studentPending ? "Saving..." : "Save student override"}
-            </Button>
+            <PreviewApplyActions
+              state={studentState}
+              canEdit={canEdit}
+              pending={studentPending}
+              disablePreview={!selectedStudentId}
+              previewLabel="Preview override impact"
+              applyLabel="Confirm and apply override"
+            />
           </div>
         </form>
 

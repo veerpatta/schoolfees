@@ -29,7 +29,7 @@ export default async function FeeSetupPage() {
       <PageHeader
         eyebrow="Fee Setup"
         title="School, class, and student fee defaults"
-        description="Manage school-wide defaults, per-class settings, and per-student overrides with clear, traceable save flows."
+        description="Manage school-wide defaults, per-class settings, and per-student overrides with mandatory impact preview and confirm-apply safety checks."
         actions={
           canEdit ? (
             <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">

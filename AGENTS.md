@@ -83,7 +83,8 @@ Fully implemented core:
 - Student Spreadsheet Import: CSV/XLSX upload, column mapping, dry-run
   validation, duplicate detection, batch tracking, and valid-row-only save
 - Fee Setup: canonical global policy, school-wide defaults, class defaults,
-  transport defaults, and per-student overrides
+  transport defaults, and per-student overrides with impact preview and
+  confirm-apply workflow
 - Session Ledger Sync workflow for previewing and applying safe unpaid-installment
   inserts/updates/cancellations without touching paid history
 - Payment Entry: append-only posting via RPC, with receipts generated as linked
@@ -99,7 +100,7 @@ Fully implemented core:
 - self password change under `app/protected/password`
 - append-only behavior enforced by RPCs and DB triggers on receipts, payments,
   payment_adjustments, and audit_logs
-- 8 tracked migrations covering schema, fee setup, payments, RBAC alignment,
+- 9 tracked migrations covering schema, fee setup, payments, RBAC alignment,
   import workflow, and auth/user sync
 - Role-Based Access Control (RBAC): `public.staff_role` enum and RLS policies
   enforce `admin`, `accountant`, and `read_only_staff` at the database layer
@@ -251,6 +252,8 @@ Current core tables in `supabase/schema.sql`:
 - `import_rows`
 - `fee_settings`
 - `fee_policy_configs`
+- `config_change_batches`
+- `config_change_blocked_installments`
 - `school_fee_defaults`
 - `student_fee_overrides`
 - `installments`
