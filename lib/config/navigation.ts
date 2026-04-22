@@ -3,6 +3,7 @@ import {
   BookText,
   CircleAlert,
   LayoutDashboard,
+  ListChecks,
   ReceiptText,
   ScrollText,
   Settings2,
@@ -29,6 +30,13 @@ export const protectedNavigation: ProtectedNavigationItem[] = [
     description: "Daily overview of collections, dues, and staff activity.",
     icon: LayoutDashboard,
     requiredPermission: "dashboard:view",
+  },
+  {
+    href: "/protected/setup",
+    label: "Setup",
+    description: "First-time session setup, go-live checks, and collection readiness.",
+    icon: ListChecks,
+    requiredPermission: "settings:write",
   },
   {
     href: "/protected/students",

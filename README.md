@@ -43,6 +43,9 @@ Implemented core:
 - Student Master with list, add, detail, and edit flows
 - student spreadsheet import with CSV/XLSX upload, header mapping, dry-run
   validation, duplicate detection, batch tracking, and valid-row-only save
+- admin-only first-time setup wizard with academic-session selection, class and
+  route master-data setup, school/class defaults, readiness checklist, and
+  explicit go-live completion marker
 - fee setup with a canonical global policy, school defaults, class defaults,
   transport defaults, and student overrides, now with mandatory impact preview
   and explicit confirm-apply workflow
@@ -62,7 +65,7 @@ Implemented core:
 - audit triggers on core tables
 - append-only enforcement on receipts, payments, payment adjustments, and audit
   logs
-- 10 tracked SQL migrations covering schema, fee setup, payments, RBAC, import
+- 11 tracked SQL migrations covering schema, fee setup, payments, RBAC, import
   workflow, and auth/profile sync
 - database-level RBAC using `public.staff_role` plus permission-aware policies
 
@@ -101,6 +104,8 @@ Important current routes:
   student edit
 - `app/protected/imports/page.tsx`
   student import workflow
+- `app/protected/setup/page.tsx`
+  first-time setup wizard and go-live readiness checklist
 - `app/protected/fee-setup/page.tsx`
   fee defaults and overrides
 - `app/protected/fee-setup/generate/page.tsx`
@@ -136,6 +141,7 @@ Important supporting code:
 - `components/students/*`
 - `components/imports/*`
 - `components/fees/*`
+- `components/setup/*`
 - `components/payments/*`
 - `components/ledger/*`
 - `components/receipts/*`
@@ -149,6 +155,7 @@ Important supporting code:
 - `lib/students/*`
 - `lib/import/*`
 - `lib/fees/*`
+- `lib/setup/*`
 - `lib/payments/*`
 - `lib/ledger/*`
 - `lib/receipts/*`
@@ -172,6 +179,7 @@ Current core tables:
 - `fee_policy_configs`
 - `config_change_batches`
 - `config_change_blocked_installments`
+- `setup_progress`
 - `school_fee_defaults`
 - `student_fee_overrides`
 - `installments`

@@ -78,6 +78,9 @@ Fully implemented core:
   confirm route, error route, and a sign-up route that should remain disabled
   for public use
 - protected admin workspace under `app/protected`
+- admin-only first-time setup wizard with academic session selection, class and
+  route setup, school/class defaults, readiness checklist, and explicit setup
+  completion marker
 - real-time dashboard, defaulters, and ledger modules
 - Student Master with add, detail, and edit workflows
 - Student Spreadsheet Import: CSV/XLSX upload, column mapping, dry-run
@@ -100,7 +103,7 @@ Fully implemented core:
 - self password change under `app/protected/password`
 - append-only behavior enforced by RPCs and DB triggers on receipts, payments,
   payment_adjustments, and audit_logs
-- 10 tracked migrations covering schema, fee setup, payments, RBAC alignment,
+- 11 tracked migrations covering schema, fee setup, payments, RBAC alignment,
   import workflow, and auth/user sync
 - Role-Based Access Control (RBAC): `public.staff_role` enum and RLS policies
   enforce `admin`, `accountant`, and `read_only_staff` at the database layer
@@ -129,6 +132,8 @@ content or Supabase sample code unless the user explicitly requests that.
 - student actions: `app/protected/students/actions.ts`
 - imports: `app/protected/imports/page.tsx`
 - import actions: `app/protected/imports/actions.ts`
+- setup wizard: `app/protected/setup/page.tsx`
+- setup actions: `app/protected/setup/actions.ts`
 - fee settings alias: `app/protected/fee-structure/page.tsx`
 - fee setup: `app/protected/fee-setup/page.tsx`
 - fee setup actions: `app/protected/fee-setup/actions.ts`
@@ -153,6 +158,7 @@ content or Supabase sample code unless the user explicitly requests that.
 - student UI: `components/students/*`
 - import UI: `components/imports/*`
 - fee UI: `components/fees/*`
+- setup UI: `components/setup/*`
 - payment UI: `components/payments/*`
 - ledger UI: `components/ledger/*`
 - receipt UI: `components/receipts/*`
@@ -161,6 +167,7 @@ content or Supabase sample code unless the user explicitly requests that.
 - bootstrap seed script: `scripts/bootstrap-staff.mjs`
 - fee rules: `lib/config/fee-rules.ts`
 - canonical fee policy service: `lib/fees/policy.ts`
+- setup/readiness service: `lib/setup/data.ts`
 - school profile: `lib/config/school.ts`
 - navigation: `lib/config/navigation.ts`
 - roles + permissions: `lib/auth/roles.ts`
@@ -254,6 +261,7 @@ Current core tables in `supabase/schema.sql`:
 - `fee_policy_configs`
 - `config_change_batches`
 - `config_change_blocked_installments`
+- `setup_progress`
 - `school_fee_defaults`
 - `student_fee_overrides`
 - `installments`

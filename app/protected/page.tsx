@@ -1,18 +1,23 @@
+import Link from "next/link";
+
 import { MetricCard } from "@/components/admin/metric-card";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { Button } from "@/components/ui/button";
 import { getDashboardPageData } from "@/lib/dashboard/data";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
+import { getSetupWizardData } from "@/lib/setup/data";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 export default async function ProtectedPage() {
   await requireStaffPermission("dashboard:view", { onDenied: "redirect" });
-  const [data, policy] = await Promise.all([
+  const [data, policy, setup] = await Promise.all([
     getDashboardPageData(),
     getFeePolicySummary(),
+    getSetupWizardData(),
   ]);
 
   const dashboardMetrics = [
@@ -61,6 +66,100 @@ export default async function ProtectedPage() {
             hint={metric.hint}
           />
         ))}
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+        <SectionCard
+          title="Go-live readiness"
+          description="The office should finish the blocking setup items before starting fresh collections."
+          actions={
+            <Button asChild size="sm" variant="outline">
+              <Link href="/protected/setup">Open Setup Wizard</Link>
+            </Button>
+          }
+        >
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Checks complete
+              </p>
+              <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+                {setup.readiness.completedCount}/{setup.readiness.totalCount}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Current progress on setup and collection readiness.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Blocking items
+              </p>
+              <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+                {setup.readiness.missingBlockingItems.length}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Remaining items before the collection desk should be treated as ready.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Desk status
+              </p>
+              <div className="mt-3">
+                <StatusBadge
+                  label={setup.readiness.collectionDeskReady ? "Ready" : "Not ready"}
+                  tone={setup.readiness.collectionDeskReady ? "good" : "warning"}
+                />
+              </div>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                {setup.readiness.collectionDeskReady
+                  ? "Session setup, students, ledgers, and completion review are all in place."
+                  : "Use the setup wizard to clear the remaining gaps."}
+              </p>
+            </div>
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          title="What still needs attention"
+          description="These are the current missing or review-needed steps in operational order."
+        >
+          <ul className="space-y-3 text-sm leading-6 text-slate-700">
+            {setup.flow.map((item) => (
+              <li
+                key={item.key}
+                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-semibold text-slate-950">{item.label}</span>
+                  <StatusBadge
+                    label={
+                      item.status === "done"
+                        ? "Done"
+                        : item.status === "current"
+                          ? "Next"
+                          : item.status === "attention"
+                            ? "Needs review"
+                            : "Upcoming"
+                    }
+                    tone={
+                      item.status === "done"
+                        ? "good"
+                        : item.status === "attention"
+                          ? "warning"
+                          : item.status === "current"
+                            ? "accent"
+                            : "neutral"
+                    }
+                  />
+                </div>
+                <p className="mt-2">{item.detail}</p>
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">

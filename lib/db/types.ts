@@ -336,3 +336,14 @@ export type ConfigChangeBlockedInstallmentRecord = {
   createdBy: string | null;
   updatedBy: string | null;
 };
+
+export type SetupProgressRecord = {
+  id: string;
+  setupCompletedAt: string | null;
+  completionNotes: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+};

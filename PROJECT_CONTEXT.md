@@ -28,6 +28,7 @@ records auditable and office-friendly.
 
 Current priority areas:
 
+- first-time setup / onboarding with readiness checks
 - student master
 - fee settings and session ledger generation
 - payment entry and receipts
@@ -54,6 +55,9 @@ Main routes and modules in the repo today:
   student detail and edit view
 - `app/protected/imports/page.tsx`
   CSV/XLSX import workflow with dry-run, mapping, and batch tracking
+- `app/protected/setup/page.tsx`
+  admin-only first-time setup wizard for session selection, class and route
+  setup, school/class defaults, and go-live readiness
 - `app/protected/fee-structure/page.tsx`
   alias route to fee setup area
 - `app/protected/fee-setup/page.tsx`
@@ -93,6 +97,8 @@ Main routes and modules in the repo today:
 - `lib/fees/policy.ts`
   server-only canonical fee policy/config service used across fee setup,
   generation, payments, settings, and policy notes
+- `lib/setup/data.ts`
+  server-only first-time setup data, readiness, and completion-state service
 - `lib/auth/roles.ts`
   role model and permission map
 - `lib/staff-management/data.ts`
@@ -183,6 +189,7 @@ Important current tables:
 - `fee_policy_configs`
 - `config_change_batches`
 - `config_change_blocked_installments`
+- `setup_progress`
 - `school_fee_defaults`
 - `student_fee_overrides`
 - `installments`
