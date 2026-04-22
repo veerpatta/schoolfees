@@ -29,3 +29,12 @@ Current one-time repair note:
 supabase migration repair --status reverted 20260421113000 20260421114500 20260421123000
 supabase migration repair --status applied 20260421054019 20260421054148 20260421064517
 ```
+
+- some remote projects also retained the pre-final staff sync version
+  `20260421140354`; if it appears in remote history without a local file,
+  repair it as reverted so only `20260421203000` remains:
+
+```bash
+supabase migration repair --status reverted 20260421140354
+supabase migration repair --status applied 20260421203000
+```
