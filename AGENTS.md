@@ -11,8 +11,8 @@ Common school names used in conversation or docs:
 - Veer Patta School
 - VPPS
 
-This is an internal office/accounts tool. It is not a parent portal and it is
-not a multi-school SaaS product.
+This is an internal office/accounts/admin tool. It is not a parent portal and
+it is not a multi-school SaaS product.
 
 ## Read These First
 
@@ -27,10 +27,11 @@ When starting work, read these root docs before making product decisions:
 Use them together:
 
 - `AGENTS.md` for fast repo and workflow guidance
-- `PROJECT_CONTEXT.md` for current architecture and real file locations
+- `PROJECT_CONTEXT.md` for current architecture, modules, and real file
+  locations
 - `MVP_SCOPE.md` for what belongs in the product now
 - `SCHOOL_RULES.md` for fee and audit rules
-- `IMPORT_NOTES.md` for later spreadsheet migration work
+- `IMPORT_NOTES.md` for spreadsheet migration background and future import work
 
 ## Product Identity
 
@@ -38,19 +39,22 @@ Primary goals:
 
 - student master
 - fee settings
+- session ledger generation
 - payment entry
 - append-only ledger behavior
 - printable receipts
 - dashboard
 - defaulters reporting
-- staged spreadsheet import (live)
+- staged spreadsheet import
+- internal staff login and access control
 
 Primary product qualities:
 
 - simple office-friendly UI
-- reliable workflows over fancy visuals
+- reliable workflows over flashy design
 - clear auditability
 - gradual migration from workbook-based work
+- explicit, correction-safe financial history
 
 ## Non-Goals
 
@@ -59,36 +63,51 @@ Unless a user explicitly asks otherwise, do not steer the app toward:
 - parent-facing features
 - public self-service flows
 - generic SaaS multi-tenant architecture
-- tutorial/demo pages
+- tutorial/demo pages replacing the current school app
 - complex abstractions with weak operational value
+- history-rewriting finance workflows
 
 ## Current Repo Snapshot
 
-This file reflects the repo state on April 21, 2026.
+This file reflects the repo state on April 22, 2026.
 
-**Fully Implemented Core:**
+Fully implemented core:
+
 - branded landing page at `app/page.tsx`
-- auth flow under `app/auth` with server-action login/logout, no public signup, self password change, and admin staff management
+- auth flow under `app/auth` with login, forgot password, update password,
+  confirm route, error route, and a sign-up route that should remain disabled
+  for public use
 - protected admin workspace under `app/protected`
-- real-time Dashboard, Defaulters, and Ledger modules
-- Student Master with add/edit/view detail workflows
-- Student Spreadsheet Import: CSV/XLSX upload, column mapping, dry-run validation, duplicate detection, batch tracking, valid-row-only save
+- real-time dashboard, defaulters, and ledger modules
+- Student Master with add, detail, and edit workflows
+- Student Spreadsheet Import: CSV/XLSX upload, column mapping, dry-run
+  validation, duplicate detection, batch tracking, and valid-row-only save
 - Fee Setup: school-wide defaults, per-class settings, per-student overrides
-- idempotent Session Ledger Generation workflow for creating student installments safely
-- Payment Entry: append-only posting via RPC, receipt generation
+- idempotent Session Ledger Generation workflow for creating installments safely
+- Payment Entry: append-only posting via RPC, with receipts generated as linked
+  financial records
 - Ledger: chronological per-student history with linked adjustment entries
-- Receipts: printable per-receipt view
-- Reports: on-page filterable tables for Outstanding, Daily Collection, Receipt Register, Student Ledger, and Import Verification; working CSV export at `/protected/reports/export`
+- Receipts: receipt list plus printable per-receipt view
+- Reports: on-page filterable tables for Outstanding, Daily Collection, Receipt
+  Register, Student Ledger, and Import Verification, plus working CSV export at
+  `/protected/reports/export`
 - Deployment Settings Validator showing env checks and policy notes
-- internal staff management under `app/protected/staff` with role assignment, activation toggles, and password resets
-- append-only behavior enforced by RPCs and DB triggers on receipts, payments, payment_adjustments, and audit_logs
-- 7 tracked migrations covering schema, RBAC alignment, auth/user sync, and import workflow
-- Role-Based Access Control (RBAC): `public.staff_role` enum and RLS policies enforce `admin`, `accountant`, and `read_only_staff` strictly at the database layer
+- internal staff management under `app/protected/staff` with role assignment,
+  activation toggles, password resets, and initial password handling
+- self password change under `app/protected/password`
+- append-only behavior enforced by RPCs and DB triggers on receipts, payments,
+  payment_adjustments, and audit_logs
+- 7 tracked migrations covering schema, fee setup, payments, RBAC alignment,
+  import workflow, and auth/user sync
+- Role-Based Access Control (RBAC): `public.staff_role` enum and RLS policies
+  enforce `admin`, `accountant`, and `read_only_staff` at the database layer
 
-**Incomplete / Proceed with Caution:**
-- **PDF receipts**: printable HTML view exists but no server-side PDF generation.
-- **Advanced report export — PDF**: CSV export is working; PDF is not implemented.
-- **Testing**: `tests/` directory and `vitest.config.ts` exist but no test files are written yet.
+Incomplete or deferred:
+
+- PDF receipts: printable HTML view exists but no server-side PDF generation
+- advanced report export to PDF is not implemented
+- automated bank reconciliation is not implemented
+- testing infrastructure exists, but no actual test files have been written yet
 
 Do not replace the existing school-branded landing page with generic tutorial
 content or Supabase sample code unless the user explicitly requests that.
@@ -97,44 +116,76 @@ content or Supabase sample code unless the user explicitly requests that.
 
 - landing page: `app/page.tsx`
 - auth routes: `app/auth/*`
-- protected dashboard: `app/protected/page.tsx`
+- login action: `app/auth/login/actions.ts`
+- protected layout and dashboard: `app/protected/layout.tsx`,
+  `app/protected/page.tsx`
 - students list: `app/protected/students/page.tsx`
 - student add: `app/protected/students/new/page.tsx`
-- student detail/edit: `app/protected/students/[studentId]/page.tsx`
+- student detail: `app/protected/students/[studentId]/page.tsx`
+- student edit: `app/protected/students/[studentId]/edit/page.tsx`
+- student actions: `app/protected/students/actions.ts`
 - imports: `app/protected/imports/page.tsx`
-- fee settings (alias): `app/protected/fee-structure/page.tsx`
+- import actions: `app/protected/imports/actions.ts`
+- fee settings alias: `app/protected/fee-structure/page.tsx`
 - fee setup: `app/protected/fee-setup/page.tsx`
+- fee setup actions: `app/protected/fee-setup/actions.ts`
 - fee generation: `app/protected/fee-setup/generate/page.tsx`
+- fee generation actions: `app/protected/fee-setup/generate/actions.ts`
 - payment entry: `app/protected/payments/page.tsx`
-- collections (alias to payments): `app/protected/collections/page.tsx`
+- payment actions: `app/protected/payments/actions.ts`
+- collections alias to payments: `app/protected/collections/page.tsx`
 - ledger: `app/protected/ledger/page.tsx`
+- ledger actions: `app/protected/ledger/actions.ts`
 - receipts: `app/protected/receipts/page.tsx`
+- printable receipt: `app/protected/receipts/[receiptId]/page.tsx`
 - defaulters: `app/protected/defaulters/page.tsx`
 - reports: `app/protected/reports/page.tsx`
 - reports CSV export: `app/protected/reports/export/route.ts`
 - staff management: `app/protected/staff/page.tsx`
+- staff actions: `app/protected/staff/actions.ts`
 - self password change: `app/protected/password/page.tsx`
+- password actions: `app/protected/password/actions.ts`
 - settings: `app/protected/settings/page.tsx`
 - admin shell/components: `components/admin/*`
+- student UI: `components/students/*`
+- import UI: `components/imports/*`
+- fee UI: `components/fees/*`
+- payment UI: `components/payments/*`
+- ledger UI: `components/ledger/*`
+- receipt UI: `components/receipts/*`
+- report UI: `components/reports/*`
+- staff UI: `components/staff/*`
 - bootstrap seed script: `scripts/bootstrap-staff.mjs`
 - fee rules: `lib/config/fee-rules.ts`
 - school profile: `lib/config/school.ts`
 - navigation: `lib/config/navigation.ts`
 - roles + permissions: `lib/auth/roles.ts`
 - session/permission helpers: `lib/supabase/session.ts`
+- server-only admin helper: `lib/supabase/admin.ts`
 - env helpers: `lib/env.ts`
 - schema: `supabase/schema.sql`
 - schema notes: `supabase/schema/*`
 - migrations: `supabase/migrations/*`
+- tests setup only: `tests/setup.ts`
 
 ## Tech Stack
 
 - Next.js App Router
+- React 19
 - TypeScript
 - Tailwind CSS
 - shadcn/ui primitives
 - Supabase auth + database
 - Vercel deployment target
+
+Current package baseline worth preserving:
+
+- `next`: `16.2.4`
+- `react`: `19.2.5`
+- `react-dom`: `19.2.5`
+- `@supabase/supabase-js`: `2.104.0`
+- `@supabase/ssr`: `0.10.2`
+- `vitest`: `4.1.5`
 
 Canonical Supabase helpers live in `utils/supabase`.
 App code should usually import from `lib/supabase/*`.
@@ -151,14 +202,18 @@ App code should usually import from `lib/supabase/*`.
 8. Keep route contracts under `app/auth` and `app/protected` stable.
 9. Keep `SUPABASE_SERVICE_ROLE_KEY` server-only.
 10. Preserve school-specific branding and terminology.
-11. Keep public signup disabled; bootstrap staff accounts through a server-only flow.
+11. Keep public signup disabled; bootstrap staff accounts through a server-only
+    flow or admin-only management workflow.
+12. Preserve `public.users` sync with auth metadata for RBAC and audit
+    visibility.
+13. Prefer reporting and operational clarity over clever abstractions.
 
 Important nuance:
 
 - The current schema allows updates on master and due-schedule tables.
 - Do not interpret that as permission to build history-rewriting UI.
-- Payments, receipts, and payment adjustments should stay append-only at the
-  workflow and data-model level.
+- Payments, receipts, payment adjustments, and audit logs should stay
+  append-only at the workflow and data-model level.
 
 ## Active School Rules
 
@@ -167,6 +222,7 @@ Current active fee-policy defaults:
 - late fee: flat Rs 1000
 - installment due dates: 20 April, 20 July, 20 October, 20 January
 - default installment count: 4
+- Class 12 Science annual fee default: Rs 38000
 - accepted payment modes: Cash, UPI, Bank transfer, Cheque
 - receipt prefix: `SVP`
 - app mode: `internal-admin`
@@ -204,8 +260,8 @@ Current operational posture:
 - RLS is enabled on core tables
 - audit triggers exist on core tables
 - spreadsheet imports are staged and traceable by batch and row
-- payments, receipts, and payment adjustments are append-only
-- no delete policies exist for core operational tables
+- payments, receipts, payment adjustments, and audit logs are append-only
+- no delete policies exist for core operational finance tables
 - `public.v_outstanding_summary` exists for reporting
 - `public.v_installment_balances` exists for installment due tracking
 
@@ -214,7 +270,34 @@ Preserve:
 - `created_at` / `updated_at`
 - `created_by` / `updated_by`
 - auditable correction history
-- future import batch traceability when import workflows are added
+- imported-row and batch traceability
+- receipt and payment chronology
+
+## Auth And Env Context
+
+Current auth/environment expectations:
+
+- `proxy.ts` protects `/protected` routes and refreshes auth cookies for SSR
+- server actions handle login/logout and key account-management flows
+- keep `NEXT_PUBLIC_SITE_URL` explicitly set in production
+- keep the service role key out of browser code
+- `.env.example` and `.env.local.example` are part of the contract and must be
+  updated when env requirements change
+
+Required env variables today:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `NEXT_PUBLIC_SITE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXT_PUBLIC_SCHOOL_NAME`
+- `NEXT_PUBLIC_APP_MODE`
+
+Bootstrap/runtime-only password env vars used by `scripts/bootstrap-staff.mjs`:
+
+- `BOOTSTRAP_MAIN_ADMIN_PASSWORD`
+- `BOOTSTRAP_ACCOUNTS_PASSWORD`
+- `BOOTSTRAP_STAFF_PASSWORD`
 
 ## Change Control
 
@@ -225,14 +308,15 @@ If fee rules change, update together:
 - `README.md`
 - `AGENTS.md`
 - `SCHOOL_RULES.md`
+- `PROJECT_CONTEXT.md` if the default behavior summary changes
 
 If env or auth wiring changes, update together:
 
 - `.env.example`
 - `.env.local.example`
-- `app/protected/settings/page.tsx`
-- `app/auth/sign-up/page.tsx`
+- `app/auth/*`
 - `components/login-form.tsx`
+- `app/protected/settings/page.tsx`
 - `utils/supabase/*`
 - `lib/supabase/*`
 - `lib/env.ts`
@@ -244,14 +328,27 @@ If env or auth wiring changes, update together:
 If schema intent changes, update together:
 
 - `supabase/schema.sql`
+- relevant `supabase/migrations/*`
 - affected UI/workflows
+- `README.md`
+- `PROJECT_CONTEXT.md`
+- `AGENTS.md`
+
+If staff-management behavior changes, update together:
+
+- `scripts/bootstrap-staff.mjs`
+- `lib/staff-management/data.ts`
+- `app/protected/staff/*`
+- `app/protected/password/*`
+- `.env.example`
+- `.env.local.example`
 - `README.md`
 - `PROJECT_CONTEXT.md`
 - `AGENTS.md`
 
 ## Delivery Guidance
 
-Prefer this order when adding product features:
+Prefer this order when adding or changing product behavior:
 
 1. make the data rule explicit
 2. make the workflow safe
