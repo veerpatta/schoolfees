@@ -19,7 +19,7 @@ import {
   statusToneForCashDeposit,
   statusToneForClosure,
   statusToneForReconciliation,
-} from "@/lib/finance-controls/data";
+} from "@/lib/finance-controls/display";
 import type {
   FinanceControlsPageData,
   FinanceCorrectionReviewRow,
