@@ -139,7 +139,7 @@ Current package context worth preserving:
 - `react-dom`: `19.2.5`
 - `@supabase/supabase-js`: `2.104.0`
 - `@supabase/ssr`: `0.10.2`
-- `vitest`: present for test infrastructure; no test files written yet
+- `vitest`: present for test infrastructure; initial unit tests for fee rules have been written in `tests/fee-rules.test.ts`
 
 ## Supabase Wiring
 
@@ -274,4 +274,31 @@ Avoid:
 - SaaS-first abstractions
 - parent-facing assumptions
 - destructive cleanup flows
-- generic tutorial replacements for current branded pages
+## Roadmap
+
+### Phase 1: Stabilization & Hardening (Current)
+- [x] Master data CRUD for sessions, classes, routes, and fee heads.
+- [x] Role-based access control (RBAC) at database and UI levels.
+- [x] Staged spreadsheet import workflow.
+- [x] Fee generation and preview logic.
+- [x] Comprehensive error, loading, and empty states.
+- [x] Robust environment variable validation.
+
+### Phase 2: Operational Rollout (Next)
+- [ ] Initial server setup and migration application.
+- [ ] Bootstrap initial staff accounts.
+- [ ] Manual import of existing student workbooks.
+- [ ] Training for accounts staff on payment entry and receipt printing.
+
+### Phase 3: Enhanced Reporting & Print
+- [x] Print-optimized Student Ledger view.
+- [ ] Server-side PDF generation for receipts.
+- [ ] Bulk receipt printing for installment periods.
+- [ ] PDF export for reports (Defaulters, Daily Collection, Outstanding).
+- [ ] Monthly collection email/SMS notification integration (Future).
+
+### Phase 4: Financial Extensions
+- [ ] Integrated bank reconciliation module.
+- [ ] Expense tracking (petty cash, staff salary).
+- [ ] Inventory management (uniforms, books).
+- [ ] Multi-session history migration for older years.

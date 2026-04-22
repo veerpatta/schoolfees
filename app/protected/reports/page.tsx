@@ -148,10 +148,12 @@ function ReportCatalog({
 function ReportFiltersSection({
   report,
   exportHref,
+  printHref,
   children,
 }: {
   report: ReportKey;
   exportHref: string;
+  printHref?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -163,7 +165,13 @@ function ReportFiltersSection({
           <Button asChild variant="outline">
             <Link href={exportHref}>Export CSV</Link>
           </Button>
-          {reportDefinitions[report].printFriendly ? <PrintReportButton /> : null}
+          {printHref ? (
+            <Button asChild variant="outline">
+              <Link href={printHref} target="_blank">Print view</Link>
+            </Button>
+          ) : reportDefinitions[report].printFriendly ? (
+            <PrintReportButton />
+          ) : null}
           <ResetFiltersLink report={report} />
         </div>
       }
@@ -1019,6 +1027,9 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   ]);
   const activeDefinition = reportDefinitions[data.report.key];
   const exportHref = `/protected/reports/export${buildReportHref(filters).replace("/protected/reports", "")}`;
+  const printHref = data.report.key === "student-ledger" && data.report.selectedStudent
+    ? `/protected/reports/ledger/${data.report.selectedStudent.id}/print${buildReportHref(filters).replace("/protected/reports", "")}`
+    : undefined;
 
   return (
     <div className="space-y-6">
@@ -1038,6 +1049,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       <ReportFiltersSection
         report={data.report.key}
         exportHref={exportHref}
+        printHref={printHref}
       >
         {data.report.key === "outstanding" ? (
           <OutstandingFilters

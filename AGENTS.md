@@ -117,7 +117,7 @@ Incomplete or deferred:
 - PDF receipts: printable HTML view exists but no server-side PDF generation
 - advanced report export to PDF is not implemented
 - automated bank reconciliation is not implemented
-- testing infrastructure exists, but no actual test files have been written yet
+- testing infrastructure exists, and initial unit tests for fee rules have been written in `tests/fee-rules.test.ts`.
 
 Do not replace the existing school-branded landing page with generic tutorial
 content or Supabase sample code unless the user explicitly requests that.
@@ -182,6 +182,7 @@ content or Supabase sample code unless the user explicitly requests that.
 - session/permission helpers: `lib/supabase/session.ts`
 - server-only admin helper: `lib/supabase/admin.ts`
 - env helpers: `lib/env.ts`
+- tests/fee-rules.test.ts: unit tests for session labeling, fee normalization, and installment due-dates
 - schema: `supabase/schema.sql`
 - schema notes: `supabase/schema/*`
 - migrations: `supabase/migrations/*`
