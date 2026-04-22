@@ -92,6 +92,7 @@ export async function submitPaymentEntryAction(
 
     revalidatePath("/protected/payments");
     revalidatePath("/protected/collections");
+    revalidatePath("/protected/finance-controls");
     revalidatePath("/protected/receipts");
     revalidatePath("/protected/defaulters");
     revalidatePath("/protected");

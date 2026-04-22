@@ -95,6 +95,7 @@ export async function submitLedgerAdjustmentAction(
 
     revalidatePath("/protected/ledger");
     revalidatePath("/protected/payments");
+    revalidatePath("/protected/finance-controls");
     revalidatePath("/protected/defaulters");
     revalidatePath("/protected");
 

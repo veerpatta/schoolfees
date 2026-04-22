@@ -2,6 +2,7 @@ import {
   BadgeIndianRupee,
   BookText,
   CircleAlert,
+  ClipboardList,
   LayoutDashboard,
   ListChecks,
   ListTree,
@@ -68,6 +69,13 @@ export const protectedNavigation: ProtectedNavigationItem[] = [
     icon: BadgeIndianRupee,
     requiredPermission: "payments:view",
     aliases: ["/protected/collections"],
+  },
+  {
+    href: "/protected/finance-controls",
+    label: "Finance Controls",
+    description: "Day close, refunds, reconciliation, and day-book checks.",
+    icon: ClipboardList,
+    requiredPermission: "finance:view",
   },
   {
     href: "/protected/ledger",

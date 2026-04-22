@@ -125,6 +125,7 @@ function revalidateMasterDataSurface() {
   revalidatePath("/protected/imports");
   revalidatePath("/protected/payments");
   revalidatePath("/protected/collections");
+  revalidatePath("/protected/finance-controls");
   revalidatePath("/protected/defaulters");
   revalidatePath("/protected/reports");
   revalidatePath("/protected/settings");

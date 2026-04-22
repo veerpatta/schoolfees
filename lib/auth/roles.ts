@@ -15,6 +15,9 @@ export const staffPermissions = [
   "payments:view",
   "payments:write",
   "payments:adjust",
+  "finance:view",
+  "finance:write",
+  "finance:approve",
   "ledger:view",
   "receipts:view",
   "receipts:print",
@@ -37,7 +40,7 @@ export const roleLabels: Record<StaffRole, string> = {
 export const roleDescriptions: Record<StaffRole, string> = {
   admin: "Manages staff access, school settings, and correction-safe workflows.",
   accountant:
-    "Reviews fee setup, runs daily payment entry, receipts, and follow-up reporting.",
+    "Reviews fee setup, runs daily payment entry, day closing, refund requests, and follow-up reporting.",
   read_only_staff:
     "Can review dashboard, student, ledger, receipt, and defaulter information without making changes.",
 };
@@ -52,6 +55,9 @@ export const rolePermissions: Record<StaffRole, readonly StaffPermission[]> = {
     "payments:view",
     "payments:write",
     "payments:adjust",
+    "finance:view",
+    "finance:write",
+    "finance:approve",
     "ledger:view",
     "receipts:view",
     "receipts:print",
@@ -68,6 +74,8 @@ export const rolePermissions: Record<StaffRole, readonly StaffPermission[]> = {
     "fees:view",
     "payments:view",
     "payments:write",
+    "finance:view",
+    "finance:write",
     "ledger:view",
     "receipts:view",
     "receipts:print",

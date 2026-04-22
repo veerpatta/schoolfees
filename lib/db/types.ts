@@ -9,6 +9,11 @@ export type AdjustmentType =
   | "correction"
   | "discount"
   | "writeoff";
+export type CollectionCloseStatus = "draft" | "pending_approval" | "closed" | "reopened";
+export type CashDepositStatus = "pending" | "deposited" | "carried_forward" | "not_applicable";
+export type ReconciliationStatus = "pending" | "in_review" | "cleared" | "issue_found";
+export type RefundRequestStatus = "pending_approval" | "approved" | "processed" | "rejected";
+export type CorrectionReviewStatus = "reviewed" | "flagged" | "needs_followup";
 export type AuditAction = "insert" | "update" | "delete";
 export type ImportBatchStatus = "uploaded" | "validated" | "importing" | "completed" | "failed";
 export type ImportRowStatus =
