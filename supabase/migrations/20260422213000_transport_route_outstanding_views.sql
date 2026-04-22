@@ -18,9 +18,6 @@ adjustment_totals as (
 select
   installments.id as installment_id,
   installments.student_id,
-  students.transport_route_id,
-  routes.route_name as transport_route_name,
-  routes.route_code as transport_route_code,
   students.admission_no,
   students.full_name,
   classes.session_label,
@@ -53,7 +50,10 @@ select
     when coalesce(payment_totals.payments_total, 0) + coalesce(adjustment_totals.adjustments_total, 0) > 0 then 'partial'
     when current_date > installments.due_date then 'overdue'
     else 'pending'
-  end as balance_status
+  end as balance_status,
+  students.transport_route_id,
+  routes.route_name as transport_route_name,
+  routes.route_code as transport_route_code
 from public.installments
 join public.students on students.id = installments.student_id
 join public.classes on classes.id = installments.class_id
