@@ -88,6 +88,7 @@ export type SetupImportSummary = {
 export type SetupWizardData = {
   policy: FeePolicySummary;
   schoolDefault: SchoolFeeDefault;
+  setupLocked: boolean;
   sessionSuggestions: string[];
   activeSessionClasses: SetupClassRow[];
   routes: SetupRouteRow[];

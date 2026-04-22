@@ -64,6 +64,45 @@ type SetupProgressRow = {
   completion_notes: string | null;
 };
 
+async function getActiveSetupCompletionState() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("setup_progress")
+    .select("id, setup_completed_at, completion_notes")
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Unable to load setup completion state: ${error.message}`);
+  }
+
+  return (data as SetupProgressRow | null) ?? null;
+}
+
+async function assertSetupEditable(reason: "policy" | "master_data" | "defaults") {
+  const completion = await getActiveSetupCompletionState();
+
+  if (!completion?.setup_completed_at) {
+    return;
+  }
+
+  if (reason === "policy") {
+    throw new Error(
+      "Initial setup is already marked complete. Use Fee Setup for live policy and fee-default changes.",
+    );
+  }
+
+  if (reason === "defaults") {
+    throw new Error(
+      "Initial setup is already marked complete. Use Fee Setup for live default changes.",
+    );
+  }
+
+  throw new Error(
+    "Initial setup is already marked complete. Use Master Data for live class and route changes.",
+  );
+}
+
 function toSingleRecord<T>(value: T | T[] | null) {
   if (Array.isArray(value)) {
     return value[0] ?? null;
@@ -474,6 +513,7 @@ export async function getSetupWizardData(): Promise<SetupWizardData> {
   return {
     policy: setupData.globalPolicy,
     schoolDefault: setupData.schoolDefault,
+    setupLocked: Boolean(completionState.setupCompletedAt),
     sessionSuggestions: dedupeSessionSuggestions([
       activeSessionLabel,
       ...classRows.map((row) => row.session_label),
@@ -497,6 +537,7 @@ export async function getSetupWizardData(): Promise<SetupWizardData> {
 }
 
 export async function saveSetupPolicy(input: SaveSetupPolicyInput) {
+  await assertSetupEditable("policy");
   const setupData = await getFeeSetupPageData();
   const installmentSchedule = input.installmentDueDateLabels.map((dueDateLabel, index) => ({
     label: `Installment ${index + 1}`,
@@ -518,6 +559,7 @@ export async function saveSetupPolicy(input: SaveSetupPolicyInput) {
 }
 
 export async function saveSetupSchoolDefaults(input: SaveSetupSchoolDefaultsInput) {
+  await assertSetupEditable("defaults");
   const setupData = await getFeeSetupPageData();
 
   return upsertSchoolFeeDefaults({
@@ -537,6 +579,7 @@ export async function saveSetupClasses(
   academicSessionLabel: string,
   rows: SaveSetupClassRowInput[],
 ) {
+  await assertSetupEditable("master_data");
   if (!academicSessionLabel.trim()) {
     throw new Error("Save the academic session before adding classes.");
   }
@@ -632,6 +675,7 @@ export async function saveSetupClasses(
 }
 
 export async function saveSetupRoutes(rows: SaveSetupRouteRowInput[]) {
+  await assertSetupEditable("master_data");
   if (rows.length === 0) {
     return;
   }
@@ -698,6 +742,7 @@ export async function saveSetupRoutes(rows: SaveSetupRouteRowInput[]) {
 }
 
 export async function saveSetupClassDefaults(rows: SaveSetupClassDefaultInput[]) {
+  await assertSetupEditable("defaults");
   if (rows.length === 0) {
     throw new Error("Add classes before saving class-wise defaults.");
   }

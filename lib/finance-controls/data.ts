@@ -14,7 +14,6 @@ import type {
   FinanceModeTotal,
   FinanceReceiptOption,
   FinanceRefundRequestRow,
-  FinanceReceivedByTotal,
 } from "@/lib/finance-controls/types";
 
 type ClassRow = {
@@ -363,38 +362,6 @@ function statusLabelForCashDeposit(status: CollectionCloseRow["cash_deposit_stat
     case "not_applicable":
       return "Not applicable";
   }
-}
-
-function toStringOrNull(value: unknown) {
-  return typeof value === "string" ? value : null;
-}
-
-function mapReceipt(row: ReceiptRow): FinanceDayBookRow {
-  const student = toSingleRecord(row.student_ref);
-  const classRef = student ? toSingleRecord(student.class_ref) : null;
-  const classLabel = classRef ? buildClassLabel(classRef) : null;
-
-  return {
-    entryType: "collection",
-    entryId: row.id,
-    entryDate: row.payment_date,
-    postedAt: row.created_at,
-    studentId: student?.id ?? null,
-    studentName: student?.full_name ?? "Unknown student",
-    admissionNo: student?.admission_no ?? null,
-    classLabel,
-    receiptNumber: row.receipt_number,
-    referenceNumber: row.reference_number,
-    paymentMode: row.payment_mode,
-    receivedBy: row.received_by,
-    cashIn: row.total_amount,
-    cashOut: 0,
-    ledgerEffect: row.total_amount,
-    statusLabel: `Receipt ${row.receipt_number}`,
-    statusTone: "good",
-    createdByName: null,
-    note: row.notes,
-  };
 }
 
 function mapRefundRow(

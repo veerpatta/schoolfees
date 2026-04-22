@@ -15,17 +15,6 @@ import {
 } from "@/app/protected/imports/actions";
 import { Button } from "@/components/ui/button";
 
-const CATEGORY_LABELS: Record<ImportAnomalyCategory, string> = {
-  "missing-admission-no": "Missing SR / admission no",
-  "invalid-dob": "Invalid DOB",
-  "duplicate-admission-no": "Duplicate by SR no",
-  "duplicate-name-class-dob": "Duplicate by name + class + DOB",
-  "unmapped-class": "Unmapped class",
-  "unmapped-route": "Unmapped route",
-  "missing-parent-fields": "Missing parent fields",
-  "placeholder-values": "Placeholder values",
-};
-
 type AnomalyCategoryTabConfig = {
   key: string;
   label: string;

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -256,6 +257,16 @@ export function SetupWizardClient({
       >
         <form id="session-policy" action={policyFormAction} className="space-y-5">
           <ActionNotice state={policyState} />
+          {data.setupLocked ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950">
+              Initial setup is already marked complete. Use{" "}
+              <Link href="/protected/fee-setup" className="font-semibold underline">
+                Fee Setup
+              </Link>{" "}
+              for live policy and default changes so preview/apply logging remains in the loop.
+            </div>
+          ) : null}
+          <fieldset disabled={data.setupLocked} className="space-y-5">
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div className="xl:col-span-2">
@@ -406,6 +417,7 @@ export function SetupWizardClient({
               {policyPending ? "Saving..." : "Save session policy"}
             </Button>
           </div>
+          </fieldset>
         </form>
       </SectionCard>
 
@@ -416,6 +428,7 @@ export function SetupWizardClient({
       >
         <form id="classes" action={classesFormAction} className="space-y-5">
           <ActionNotice state={classesState} />
+          <fieldset disabled={data.setupLocked} className="space-y-5">
           <input type="hidden" name="sessionLabel" value={data.policy.academicSessionLabel} />
 
           <div className="overflow-x-auto rounded-xl border border-slate-200">
@@ -586,6 +599,7 @@ export function SetupWizardClient({
               </Button>
             </div>
           </div>
+          </fieldset>
         </form>
       </SectionCard>
 
@@ -596,6 +610,7 @@ export function SetupWizardClient({
       >
         <form id="routes" action={routesFormAction} className="space-y-5">
           <ActionNotice state={routesState} />
+          <fieldset disabled={data.setupLocked} className="space-y-5">
 
           <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="w-full min-w-[980px] text-left text-sm">
@@ -746,6 +761,7 @@ export function SetupWizardClient({
               </Button>
             </div>
           </div>
+          </fieldset>
         </form>
       </SectionCard>
 
@@ -756,6 +772,7 @@ export function SetupWizardClient({
       >
         <form id="school-defaults" action={schoolDefaultsFormAction} className="space-y-5">
           <ActionNotice state={schoolDefaultsState} />
+          <fieldset disabled={data.setupLocked} className="space-y-5">
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div>
@@ -837,6 +854,7 @@ export function SetupWizardClient({
               {schoolDefaultsPending ? "Saving..." : "Save school defaults"}
             </Button>
           </div>
+          </fieldset>
         </form>
       </SectionCard>
 
@@ -847,6 +865,7 @@ export function SetupWizardClient({
       >
         <form id="class-defaults" action={classDefaultsFormAction} className="space-y-5">
           <ActionNotice state={classDefaultsState} />
+          <fieldset disabled={data.setupLocked} className="space-y-5">
 
           {classDefaultRows.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
@@ -980,6 +999,7 @@ export function SetupWizardClient({
               {classDefaultsPending ? "Saving..." : "Save class defaults"}
             </Button>
           </div>
+          </fieldset>
         </form>
       </SectionCard>
 

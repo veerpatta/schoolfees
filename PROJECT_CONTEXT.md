@@ -57,7 +57,8 @@ Main routes and modules in the repo today:
   CSV/XLSX import workflow with dry-run, mapping, and batch tracking
 - `app/protected/setup/page.tsx`
   admin-only first-time setup wizard for session selection, class and route
-  setup, school/class defaults, and go-live readiness
+  setup, school/class defaults, and go-live readiness; once marked complete it
+  stays readable but is no longer a live-edit path for policy/default changes
 - `app/protected/fee-structure/page.tsx`
   alias route to fee setup area
 - `app/protected/fee-setup/page.tsx`
@@ -84,10 +85,14 @@ Main routes and modules in the repo today:
 - `app/protected/reports/export/route.ts`
   CSV download API endpoint for all report types
 - `app/protected/master-data/page.tsx`
-  admin CRUD for academic sessions, classes, transport routes, fee heads, and
-  payment mode activation, with safe disable/delete guards
+  admin CRUD for academic sessions, classes, and transport routes, with safe
+  disable/delete guards; current fee heads and payment modes are shown there
+  for reference and routed to fee setup for live edits
 - `app/protected/settings/page.tsx`
-  deployment readiness checks and active policy notes
+  deployment readiness checks, active policy notes, and recent config-change
+  batch history
+- `app/protected/access-denied/page.tsx`
+  explicit permission-denied screen inside the protected shell
 - `app/protected/staff/page.tsx`
   admin-only staff account creation, role updates, password resets, and account activation control
 - `app/protected/password/page.tsx`
@@ -101,6 +106,8 @@ Main routes and modules in the repo today:
 - `lib/fees/policy.ts`
   server-only canonical fee policy/config service used across fee setup,
   generation, payments, settings, and policy notes
+- `lib/fees/change-log.ts`
+  server-only config-change audit helper for recent preview/apply batch history
 - `lib/fees/regeneration.ts`
   server-only ledger recalculation service with preview/apply batch logging
 - `lib/master-data/data.ts`
@@ -121,7 +128,7 @@ Main routes and modules in the repo today:
 - `supabase/schema/*`
   reserved for future split schema/reference files
 - `supabase/migrations/*`
-  ordered SQL migration files for Supabase CLI workflows (currently 13)
+  ordered SQL migration files for Supabase CLI workflows (currently 16)
 - `scripts/bootstrap-staff.mjs`
   one-time server-only seed script for initial staff accounts
 
@@ -247,6 +254,37 @@ Payment-history rule:
 - use explicit adjustments/reversals instead
 - preserve the original receipt trail
 
+## Canonical Configuration Behavior
+
+Live fee configuration currently works like this:
+
+- `fee_policy_configs` is the canonical source for active session label,
+  installment schedule, late fee, receipt prefix, accepted payment modes, and
+  custom fee-head catalog
+- `school_fee_defaults`, `fee_settings`, `transport_routes`, and
+  `student_fee_overrides` are the editable default/override layers beneath the
+  canonical policy
+- live policy/default edits should run through `/protected/fee-setup`, which
+  creates a preview batch, records changed fields, applies only after explicit
+  confirmation, and then runs ledger-safe propagation
+- `/protected/setup` is first-time go-live preparation only; once setup is
+  marked complete, live edits move to fee setup or master data depending on the
+  change type
+- `/protected/master-data` remains the editable source for sessions, classes,
+  and routes; fee heads and payment modes are visible there but edited in fee
+  setup so policy audit behavior stays consistent
+
+Propagation expectations:
+
+- dashboard, payments, reports, defaulters, settings, setup readiness, and
+  landing/auth policy copy all consume the same canonical policy service
+- payment entry enforces the current accepted payment modes and current receipt
+  prefix
+- reports and receipts keep historical financial facts visible even after the
+  current policy changes
+- paid, partially paid, or adjusted installment rows are never silently
+  rewritten by config apply; blocked rows are logged for manual review
+
 ## Current Defaults
 
 Current defaults from config and project docs:
@@ -282,15 +320,28 @@ Avoid:
 - destructive cleanup flows
 ## Roadmap
 
-### Phase 1: Stabilization & Hardening (Current)
-- [x] Master data CRUD for sessions, classes, routes, and fee heads.
+### Phase 1: Stabilization & Hardening
+- [x] Master data CRUD for sessions, classes, and routes.
 - [x] Role-based access control (RBAC) at database and UI levels.
 - [x] Staged spreadsheet import workflow.
 - [x] Fee generation and preview logic.
 - [x] Comprehensive error, loading, and empty states.
 - [x] Robust environment variable validation.
 
-### Phase 2: Operational Rollout (Next)
+### Phase 2: Canonical Configuration & Safe Propagation
+- [x] Canonical live fee policy service used across fee setup, payments,
+  reports, dashboard, settings, and setup readiness.
+- [x] Preview/apply workflow for live policy/default changes.
+- [x] Ledger-safe propagation that only updates future or unpaid installment
+  rows.
+- [x] Blocked-row logging for paid, partial, or adjusted installment rows that
+  need manual review.
+- [x] Protected-shell access-denied screen and clearer permission-denied
+  behavior.
+- [x] Live config audit visibility in settings through recent config-change
+  batch history.
+
+### Operational Rollout (Manual / Deployment)
 - [ ] Initial server setup and migration application.
 - [ ] Bootstrap initial staff accounts.
 - [ ] Manual import of existing student workbooks.

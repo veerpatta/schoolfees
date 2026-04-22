@@ -80,7 +80,8 @@ Fully implemented core:
 - protected admin workspace under `app/protected`
 - admin-only first-time setup wizard with academic session selection, class and
   route setup, school/class defaults, readiness checklist, and explicit setup
-  completion marker
+  completion marker; once setup is marked complete, the wizard no longer serves
+  as a live-edit path for policy/default changes
 - real-time dashboard, defaulters, and ledger modules
 - Student Master with add, detail, and edit workflows
 - Student Spreadsheet Import: CSV/XLSX upload, column mapping, dry-run
@@ -98,18 +99,21 @@ Fully implemented core:
 - Reports: on-page filterable tables for Outstanding, Daily Collection, Receipt
   Register, Student Ledger, and Import Verification, plus working CSV export at
   `/protected/reports/export`
-- Master Data Management: admin CRUD for academic sessions, classes, transport
-  routes, fee heads, and payment-mode activation under
-  `/protected/master-data`, with in-use delete guards and active/current
-  session markers
-- Deployment Settings Validator showing env checks and policy notes
+- Master Data Management: admin CRUD for academic sessions, classes, and
+  transport routes under `/protected/master-data`, with in-use delete guards
+  and active/current session markers; fee heads and payment modes are shown
+  there for reference but edited through fee setup
+- Deployment Settings Validator showing env checks, policy notes, and recent
+  config-change batch history
+- explicit access-denied route under `app/protected/access-denied`
 - internal staff management under `app/protected/staff` with role assignment,
   activation toggles, password resets, and initial password handling
 - self password change under `app/protected/password`
 - append-only behavior enforced by RPCs and DB triggers on receipts, payments,
   payment_adjustments, and audit_logs
-- 13 tracked migrations covering schema, fee setup, payments, RBAC alignment,
-  import workflow, and auth/user sync
+- 16 tracked migrations covering schema, fee setup, config preview/apply,
+  payments, RBAC alignment, import workflow, setup progress, ledger
+  regeneration, and finance-office controls
 - Role-Based Access Control (RBAC): `public.staff_role` enum and RLS policies
   enforce `admin`, `accountant`, and `read_only_staff` at the database layer
 
@@ -157,6 +161,7 @@ content or Supabase sample code unless the user explicitly requests that.
 - reports CSV export: `app/protected/reports/export/route.ts`
 - master data: `app/protected/master-data/page.tsx`
 - master data actions: `app/protected/master-data/actions.ts`
+- access denied page: `app/protected/access-denied/page.tsx`
 - staff management: `app/protected/staff/page.tsx`
 - staff actions: `app/protected/staff/actions.ts`
 - self password change: `app/protected/password/page.tsx`
@@ -176,6 +181,7 @@ content or Supabase sample code unless the user explicitly requests that.
 - bootstrap seed script: `scripts/bootstrap-staff.mjs`
 - fee rules: `lib/config/fee-rules.ts`
 - canonical fee policy service: `lib/fees/policy.ts`
+- config-change audit helper: `lib/fees/change-log.ts`
 - setup/readiness service: `lib/setup/data.ts`
 - master-data service: `lib/master-data/data.ts`
 - school profile: `lib/config/school.ts`
@@ -236,6 +242,35 @@ Important nuance:
 - Do not interpret that as permission to build history-rewriting UI.
 - Payments, receipts, payment adjustments, and audit logs should stay
   append-only at the workflow and data-model level.
+
+## Canonical Configuration Truth
+
+Treat the live configuration model like this:
+
+- `fee_policy_configs` is the canonical source for active session label,
+  installment schedule, late fee, receipt prefix, accepted payment modes, and
+  custom fee-head catalog.
+- `school_fee_defaults`, `fee_settings`, `transport_routes`, and
+  `student_fee_overrides` are the editable default/override layers resolved
+  beneath the canonical policy.
+- live policy/default edits should go through `/protected/fee-setup`, not setup
+  or master-data shortcuts, because fee setup creates `config_change_batches`,
+  shows impact preview, applies only after confirmation, and then runs
+  ledger-safe propagation.
+- `/protected/setup` is first-time go-live preparation. After setup completion,
+  it becomes read-only for live policy/default edits.
+- `/protected/master-data` remains the editable source for sessions, classes,
+  and routes. Fee heads and payment modes are visible there for reference only.
+
+Propagation expectations:
+
+- dashboard, payments, reports, defaulters, settings, setup readiness, and
+  landing/auth policy copy should all read the active policy through the same
+  canonical service
+- payment entry must enforce the current accepted payment modes and receipt
+  prefix
+- receipts, payments, and payment adjustments remain historical facts after
+  posting even if the current policy later changes
 
 ## Active School Rules
 

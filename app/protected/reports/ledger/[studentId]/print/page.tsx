@@ -1,7 +1,4 @@
 import { notFound } from "next/navigation";
-import { PageHeader } from "@/components/admin/page-header";
-import { SectionCard } from "@/components/admin/section-card";
-import { StatusBadge } from "@/components/admin/status-badge";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { getReportsPageData, normalizeReportFilters } from "@/lib/reports/data";
@@ -25,8 +22,7 @@ export default async function PrintLedgerPage({ params, searchParams }: PrintLed
 
   const { studentId } = await params;
   const rawSearchParams = await searchParams;
-  
-  // Force report type and studentId
+
   const filters = normalizeReportFilters({
     ...rawSearchParams,
     report: "student-ledger",

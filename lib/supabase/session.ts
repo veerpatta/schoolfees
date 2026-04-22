@@ -93,6 +93,10 @@ type PermissionGuardOptions = {
   redirectTo?: string;
 };
 
+function getAccessDeniedHref(permission: string) {
+  return `/protected/access-denied?permission=${encodeURIComponent(permission)}`;
+}
+
 export async function requireStaffPermission(
   permission: StaffPermission,
   options: PermissionGuardOptions = {},
@@ -104,7 +108,7 @@ export async function requireStaffPermission(
   }
 
   if (options.onDenied === "redirect") {
-    redirect(options.redirectTo ?? "/protected");
+    redirect(options.redirectTo ?? getAccessDeniedHref(permission));
   }
 
   throw new Error(`You do not have permission: ${permission}`);
@@ -121,7 +125,9 @@ export async function requireAnyStaffPermission(
   }
 
   if (options.onDenied === "redirect") {
-    redirect(options.redirectTo ?? "/protected");
+    redirect(
+      options.redirectTo ?? getAccessDeniedHref(permissions.join(",")),
+    );
   }
 
   throw new Error(`You do not have any required permissions: ${permissions.join(", ")}`);

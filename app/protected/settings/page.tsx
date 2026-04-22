@@ -3,6 +3,7 @@ import { RolePreview } from "@/components/admin/role-preview";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { schoolProfile } from "@/lib/config/school";
+import { getRecentConfigChangeLog } from "@/lib/fees/change-log";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import {
   getOptionalEnvVar,
@@ -18,9 +19,35 @@ function toneForStatus(isHealthy: boolean) {
   return isHealthy ? "good" : "warning";
 }
 
+function toneForBatchStatus(status: string) {
+  if (status === "applied") {
+    return "good";
+  }
+
+  if (status === "preview_ready") {
+    return "accent";
+  }
+
+  return "warning";
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) {
+    return "Not applied";
+  }
+
+  return new Date(value).toLocaleString("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
 export default async function SettingsPage() {
   const staff = await requireStaffPermission("settings:view", { onDenied: "redirect" });
-  const policy = await getFeePolicySummary();
+  const [policy, recentConfigChanges] = await Promise.all([
+    getFeePolicySummary(),
+    getRecentConfigChangeLog(),
+  ]);
   const serviceRoleConfigured = Boolean(
     getOptionalEnvVar("SUPABASE_SERVICE_ROLE_KEY"),
   );
@@ -173,6 +200,76 @@ export default async function SettingsPage() {
             </li>
           ))}
         </ul>
+      </SectionCard>
+
+      <SectionCard
+        title="Recent Policy Change Log"
+        description="Live policy/default changes made through the fee-setup preview/apply workflow are recorded here with their apply result and blocked-row review counts."
+      >
+        {recentConfigChanges.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+            No config change batches recorded yet. Initial setup writes are still captured by
+            table-level audit logs.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {recentConfigChanges.map((batch) => (
+              <div
+                key={batch.id}
+                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-slate-950">
+                      {batch.scopeLabel}: {batch.targetLabel}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Created {formatDateTime(batch.createdAt)}
+                      {batch.createdByName ? ` by ${batch.createdByName}` : ""}. Applied{" "}
+                      {formatDateTime(batch.appliedAt)}.
+                    </p>
+                  </div>
+                  <StatusBadge label={batch.statusLabel} tone={toneForBatchStatus(batch.status)} />
+                </div>
+
+                <p className="mt-3 text-xs uppercase tracking-wide text-slate-500">
+                  Changed fields
+                </p>
+                <p className="mt-1">
+                  {batch.changedFieldLabels.length > 0
+                    ? batch.changedFieldLabels.join(", ")
+                    : "Field-level summary not available"}
+                </p>
+
+                {batch.summary ? (
+                  <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                      Students affected: <strong>{batch.summary.studentsAffected}</strong>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                      Inserts: <strong>{batch.summary.installmentsToInsert}</strong>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                      Updates: <strong>{batch.summary.installmentsToUpdate}</strong>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                      Cancels: <strong>{batch.summary.installmentsToCancel}</strong>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                      Blocked rows: <strong>{batch.blockedInstallmentCount}</strong>
+                    </div>
+                  </div>
+                ) : null}
+
+                {batch.applyNotes ? (
+                  <p className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-600">
+                    {batch.applyNotes}
+                  </p>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
       </SectionCard>
     </div>
   );

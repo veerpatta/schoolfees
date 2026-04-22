@@ -213,10 +213,14 @@ function parseSetupClassDefaultRows(formData: FormData) {
 }
 
 function revalidateSetupSurface() {
+  revalidatePath("/");
+  revalidatePath("/auth/login");
   revalidatePath("/protected");
+  revalidatePath("/protected/access-denied");
   revalidatePath("/protected/setup");
   revalidatePath("/protected/fee-setup");
   revalidatePath("/protected/fee-setup/generate");
+  revalidatePath("/protected/master-data");
   revalidatePath("/protected/imports");
   revalidatePath("/protected/collections");
   revalidatePath("/protected/payments");

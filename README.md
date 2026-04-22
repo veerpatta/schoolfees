@@ -29,6 +29,45 @@ Current primary working areas:
 - staged spreadsheet import
 - internal staff login and access control
 
+## Canonical Configuration Model
+
+Live fee configuration now follows one explicit model:
+
+- `fee_policy_configs` is the canonical source for the active academic session,
+  installment schedule, late fee, receipt prefix, accepted payment modes, and
+  custom fee-head catalog.
+- `school_fee_defaults`, `fee_settings`, `transport_routes`, and
+  `student_fee_overrides` are the editable default/override layers resolved
+  beneath that policy.
+- live policy/default changes should run through `/protected/fee-setup`, which
+  creates a preview batch, shows impact, and only applies future or unpaid
+  ledger changes after explicit confirmation.
+- `/protected/master-data` remains the editable source for academic sessions,
+  classes, and transport routes. Current fee heads and payment modes are shown
+  there for reference, but live edits now happen in fee setup so the
+  preview/apply audit trail stays intact.
+- `/protected/setup` is first-time go-live setup only. After setup is marked
+  complete, the wizard stays readable but no longer acts as a live-edit path
+  for policy/default changes.
+
+System-wide propagation:
+
+- fee setup, setup readiness, dashboard policy notes, payment entry, landing
+  and auth policy copy, defaulters, reports, and settings all read the active
+  policy from the same canonical service
+- payment entry enforces the current accepted payment modes and current receipt
+  prefix
+- transport annualisation resolves from route installment amount multiplied by
+  the active installment count
+
+Historically locked behavior:
+
+- receipts, payments, payment adjustments, and audit logs stay append-only
+- paid or partially paid installment rows are never silently rewritten by
+  policy/default changes
+- configuration apply only touches future or unpaid installment rows; blocked
+  paid, partial, or adjusted rows are logged for manual review
+
 ## Current Repo State
 
 This summary reflects the repo state on April 22, 2026.
@@ -45,7 +84,8 @@ Implemented core:
   validation, duplicate detection, batch tracking, and valid-row-only save
 - admin-only first-time setup wizard with academic-session selection, class and
   route master-data setup, school/class defaults, readiness checklist, and
-  explicit go-live completion marker
+  explicit go-live completion marker; once setup is marked complete, the wizard
+  stops acting as a live-edit path for fee policy/default changes
 - fee setup with a canonical global policy, school defaults, class defaults,
   transport defaults, and student overrides, now with mandatory impact preview
   and explicit confirm-apply workflow
@@ -58,10 +98,13 @@ Implemented core:
 - defaulters and outstanding reporting
 - reports module with filterable tables and CSV export at
   `/protected/reports/export`
-- dedicated master-data management for academic sessions, classes, transport
-  routes, fee heads, and payment-mode activation under
-  `/protected/master-data`
-- deployment/settings validator page with env checks and policy notes
+- dedicated master-data management for academic sessions, classes, and
+  transport routes under `/protected/master-data`, plus reference-only
+  visibility of current fee heads and payment modes
+- deployment/settings validator page with env checks, policy notes, and recent
+  configuration batch history
+- explicit `/protected/access-denied` page for permission-denied cases inside
+  the protected shell
 - admin-only staff management with role assignment, activation control, and
   password reset
 - self password change for logged-in staff
@@ -69,8 +112,9 @@ Implemented core:
 - audit triggers on core tables
 - append-only enforcement on receipts, payments, payment adjustments, and audit
   logs
-- 13 tracked SQL migrations covering schema, fee setup, payments, RBAC, import
-  workflow, and auth/profile sync
+- 16 tracked SQL migrations covering schema, fee setup, policy preview/apply,
+  payments, RBAC, import workflow, setup completion, ledger regeneration, and
+  finance-office controls
 - database-level RBAC using `public.staff_role` plus permission-aware policies
 
 Incomplete or intentionally deferred:
@@ -78,7 +122,8 @@ Incomplete or intentionally deferred:
 - PDF receipt generation is not implemented; printable HTML exists
 - PDF report export is not implemented; CSV export works
 - automated bank reconciliation is not implemented
-- test infrastructure exists, but there are still no actual test files
+- test infrastructure exists, and `tests/fee-rules.test.ts` covers fee-rule
+  normalization and installment due-date behavior
 
 ## Route And Module Map
 
@@ -138,6 +183,8 @@ Important current routes:
   self password change
 - `app/protected/settings/page.tsx`
   environment and policy validator
+- `app/protected/access-denied/page.tsx`
+  explicit protected-shell permission denied screen
 
 Important supporting code:
 
@@ -211,6 +258,29 @@ Current operating posture:
 Non-negotiable rule:
 
 - do not build UI that rewrites historical payment facts
+
+## Safe Live Policy Changes
+
+Admins should use this sequence for live fee changes:
+
+1. open `/protected/fee-setup`
+2. edit the canonical policy, school/class defaults, route default, or student
+   override
+3. run preview first and review the changed fields, affected students, and
+   blocked rows
+4. confirm apply only after reviewing the impact summary
+5. let the apply step run ledger-safe regeneration
+6. review blocked rows in settings if paid or partially paid installments were
+   protected from rewrite
+
+What the apply step does:
+
+- saves the requested configuration change
+- regenerates only future or unpaid installment rows in scope
+- never rewrites paid receipts, payments, or adjustment history
+- marks locked rows for manual review instead of mutating them
+- records the batch in `config_change_batches` and the blocked rows in
+  `config_change_blocked_installments`
 
 ## Current School Defaults
 
