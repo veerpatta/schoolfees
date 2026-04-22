@@ -1,5 +1,6 @@
 import "server-only";
 
+import { getMasterDataOptions } from "@/lib/master-data/data";
 import { createClient } from "@/lib/supabase/server";
 import { buildAutoColumnMapping, validateColumnMapping } from "@/lib/import/mapping";
 import { parseStudentImportFile } from "@/lib/import/parser";
@@ -55,20 +56,6 @@ type ImportRowRecord = {
   duplicate_student_id: string | null;
   imported_student_id: string | null;
   imported_override_id: string | null;
-};
-
-type ImportClassRow = {
-  id: string;
-  class_name: string;
-  section: string | null;
-  stream_name: string | null;
-};
-
-type ImportRouteRow = {
-  id: string;
-  route_name: string;
-  route_code: string | null;
-  is_active: boolean;
 };
 
 type ExistingStudentRow = {
@@ -278,20 +265,6 @@ function summarizeImportRows(rows: readonly Pick<ImportRowDetail, "status">[], f
   };
 }
 
-function buildClassLabel(value: ImportClassRow) {
-  const segments = [value.class_name];
-
-  if (value.section) {
-    segments.push(`Section ${value.section}`);
-  }
-
-  if (value.stream_name) {
-    segments.push(value.stream_name);
-  }
-
-  return segments.join(" - ");
-}
-
 function toImportBatchListItem(row: ImportBatchRow): ImportBatchListItem {
   return {
     id: row.id,
@@ -338,27 +311,6 @@ function toImportBatchDetail(batchRow: ImportBatchRow, rowRecords: ImportRowReco
     errorMessage: batchRow.error_message,
     rows,
   };
-}
-
-function buildClassAliases(row: ImportClassRow) {
-  const label = buildClassLabel(row);
-  const aliases = [
-    label,
-    row.class_name,
-    `${row.class_name}${row.section ? ` ${row.section}` : ""}`,
-  ];
-
-  return Array.from(new Set(aliases.map(normalizeLookupToken).filter(Boolean)));
-}
-
-function buildRouteAliases(row: ImportRouteRow) {
-  const aliases = [row.route_name];
-
-  if (row.route_code) {
-    aliases.push(row.route_code, `${row.route_name} ${row.route_code}`);
-  }
-
-  return Array.from(new Set(aliases.map(normalizeLookupToken).filter(Boolean)));
 }
 
 async function getImportBatchById(batchId: string) {
@@ -566,33 +518,12 @@ export async function runStudentImportDryRun(batchId: string, mapping: StudentIm
   }
 
   const supabase = await createClient();
-  const [
-    { data: classes, error: classError },
-    { data: routes, error: routeError },
-    { data: existingStudents, error: studentError },
-    { data: feeSettings, error: feeSettingError },
-  ] = await Promise.all([
-    supabase
-      .from("classes")
-      .select("id, class_name, section, stream_name")
-      .order("sort_order", { ascending: true })
-      .order("class_name", { ascending: true }),
-    supabase
-      .from("transport_routes")
-      .select("id, route_name, route_code, is_active")
-      .eq("is_active", true)
-      .order("route_name", { ascending: true }),
-    supabase.from("students").select("id, admission_no"),
-    supabase.from("fee_settings").select("class_id").eq("is_active", true),
-  ]);
-
-  if (classError) {
-    throw new Error(`Unable to load classes for import validation: ${classError.message}`);
-  }
-
-  if (routeError) {
-    throw new Error(`Unable to load transport routes for import validation: ${routeError.message}`);
-  }
+  const [masterOptions, { data: existingStudents, error: studentError }, { data: feeSettings, error: feeSettingError }] =
+    await Promise.all([
+      getMasterDataOptions(),
+      supabase.from("students").select("id, admission_no"),
+      supabase.from("fee_settings").select("class_id").eq("is_active", true),
+    ]);
 
   if (studentError) {
     throw new Error(`Unable to load students for duplicate detection: ${studentError.message}`);
@@ -609,15 +540,23 @@ export async function runStudentImportDryRun(batchId: string, mapping: StudentIm
       rawPayload: toRawPayload(row.raw_payload),
     })),
     mapping,
-    classes: ((classes ?? []) as ImportClassRow[]).map((row) => ({
+    classes: masterOptions.classOptions.map((row) => ({
       id: row.id,
-      label: buildClassLabel(row),
-      aliases: buildClassAliases(row),
+      label: row.label,
+      aliases: [normalizeLookupToken(row.label)],
     })),
-    routes: ((routes ?? []) as ImportRouteRow[]).map((row) => ({
-      id: row.id,
-      label: row.route_code ? `${row.route_name} (${row.route_code})` : row.route_name,
-      aliases: buildRouteAliases(row),
+    routes: masterOptions.routeOptions
+      .filter((row) => row.isActive)
+      .map((row) => ({
+        id: row.id,
+        label: row.routeCode ? `${row.label} (${row.routeCode})` : row.label,
+        aliases: [
+          normalizeLookupToken(row.label),
+          normalizeLookupToken(row.routeCode ?? ""),
+          normalizeLookupToken(
+            row.routeCode ? `${row.label} ${row.routeCode}` : row.label,
+          ),
+        ].filter(Boolean),
     })),
     existingStudents: ((existingStudents ?? []) as ExistingStudentRow[]).map((row) => ({
       id: row.id,

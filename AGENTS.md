@@ -97,13 +97,17 @@ Fully implemented core:
 - Reports: on-page filterable tables for Outstanding, Daily Collection, Receipt
   Register, Student Ledger, and Import Verification, plus working CSV export at
   `/protected/reports/export`
+- Master Data Management: admin CRUD for academic sessions, classes, transport
+  routes, fee heads, and payment-mode activation under
+  `/protected/master-data`, with in-use delete guards and active/current
+  session markers
 - Deployment Settings Validator showing env checks and policy notes
 - internal staff management under `app/protected/staff` with role assignment,
   activation toggles, password resets, and initial password handling
 - self password change under `app/protected/password`
 - append-only behavior enforced by RPCs and DB triggers on receipts, payments,
   payment_adjustments, and audit_logs
-- 11 tracked migrations covering schema, fee setup, payments, RBAC alignment,
+- 12 tracked migrations covering schema, fee setup, payments, RBAC alignment,
   import workflow, and auth/user sync
 - Role-Based Access Control (RBAC): `public.staff_role` enum and RLS policies
   enforce `admin`, `accountant`, and `read_only_staff` at the database layer
@@ -149,6 +153,8 @@ content or Supabase sample code unless the user explicitly requests that.
 - defaulters: `app/protected/defaulters/page.tsx`
 - reports: `app/protected/reports/page.tsx`
 - reports CSV export: `app/protected/reports/export/route.ts`
+- master data: `app/protected/master-data/page.tsx`
+- master data actions: `app/protected/master-data/actions.ts`
 - staff management: `app/protected/staff/page.tsx`
 - staff actions: `app/protected/staff/actions.ts`
 - self password change: `app/protected/password/page.tsx`
@@ -163,11 +169,13 @@ content or Supabase sample code unless the user explicitly requests that.
 - ledger UI: `components/ledger/*`
 - receipt UI: `components/receipts/*`
 - report UI: `components/reports/*`
+- master data UI: `components/master-data/*`
 - staff UI: `components/staff/*`
 - bootstrap seed script: `scripts/bootstrap-staff.mjs`
 - fee rules: `lib/config/fee-rules.ts`
 - canonical fee policy service: `lib/fees/policy.ts`
 - setup/readiness service: `lib/setup/data.ts`
+- master-data service: `lib/master-data/data.ts`
 - school profile: `lib/config/school.ts`
 - navigation: `lib/config/navigation.ts`
 - roles + permissions: `lib/auth/roles.ts`

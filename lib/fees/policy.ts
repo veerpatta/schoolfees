@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getMasterDataOptions } from "@/lib/master-data/data";
 import { createClient } from "@/lib/supabase/server";
 import { getOptionalEnvVar, hasRequiredEnvVars } from "@/lib/env";
 import type { PaymentMode } from "@/lib/db/types";
@@ -14,9 +15,7 @@ import type {
   ClassFeeDefault,
   FeeHeadDefinition,
   FeePolicySummary,
-  FeeSetupClassOption,
   FeeSetupPageData,
-  FeeSetupRouteOption,
   FeeSetupStudentOption,
   InstallmentScheduleItem,
   ResolvedFeeBreakdown,
@@ -194,6 +193,10 @@ function parseCatalog(value: unknown) {
       const label = typeof entry.label === "string" ? entry.label.trim() : "";
 
       if (!label) {
+        return null;
+      }
+
+      if (entry.isActive === false) {
         return null;
       }
 
@@ -486,14 +489,6 @@ async function loadFeeCollections() {
   };
 }
 
-function buildClassOptions(classRows: ClassRow[]): FeeSetupClassOption[] {
-  return classRows.map((row) => ({
-    id: row.id,
-    label: buildClassLabel(row),
-    sessionLabel: row.session_label,
-  }));
-}
-
 function buildStudentOptions(studentRows: StudentRow[]): FeeSetupStudentOption[] {
   return studentRows.map((row) => {
     const classRef = toSingleRecord(row.class_ref);
@@ -505,15 +500,6 @@ function buildStudentOptions(studentRows: StudentRow[]): FeeSetupStudentOption[]
       classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
     };
   });
-}
-
-function buildRouteOptions(routeRows: RouteRow[]): FeeSetupRouteOption[] {
-  return routeRows.map((row) => ({
-    id: row.id,
-    label: row.route_name,
-    routeCode: row.route_code,
-    isActive: row.is_active,
-  }));
 }
 
 function buildResolvedBreakdown(payload: {
@@ -563,9 +549,10 @@ export async function getFeePolicySummary(options: { useAdmin?: boolean } = {}) 
 }
 
 export async function getFeeSetupPageData(): Promise<FeeSetupPageData> {
-  const [globalPolicy, collections] = await Promise.all([
+  const [globalPolicy, collections, masterOptions] = await Promise.all([
     loadGlobalPolicy(false),
     loadFeeCollections(),
+    getMasterDataOptions(),
   ]);
 
   const discoveredFeeHeadIds = new Set<string>();
@@ -678,10 +665,53 @@ export async function getFeeSetupPageData(): Promise<FeeSetupPageData> {
     classDefaults,
     transportDefaults,
     studentOverrides,
-    classOptions: buildClassOptions(collections.classRows),
+    classOptions: masterOptions.classOptions,
     studentOptions: buildStudentOptions(collections.studentRows),
-    routeOptions: buildRouteOptions(collections.routeRows),
+    routeOptions: masterOptions.routeOptions,
   };
+}
+
+async function syncAcademicSessionFromPolicy(sessionLabel: string) {
+  const normalized = sessionLabel.trim();
+
+  if (!normalized) {
+    return;
+  }
+
+  const supabase = await createClient();
+  const { data: existing, error: existingError } = await supabase
+    .from("academic_sessions")
+    .select("id")
+    .eq("session_label", normalized)
+    .maybeSingle();
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+
+  if (existing?.id) {
+    const { error } = await supabase
+      .from("academic_sessions")
+      .update({ status: "active", is_current: true })
+      .eq("id", existing.id);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return;
+  }
+
+  const { error } = await supabase.from("academic_sessions").insert({
+    session_label: normalized,
+    status: "active",
+    is_current: true,
+    notes: "Auto-synced from fee policy",
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 function buildPolicyPayload(payload: {
@@ -770,6 +800,8 @@ export async function upsertGlobalFeePolicy(payload: {
       throw new Error(error.message);
     }
 
+    await syncAcademicSessionFromPolicy(values.academic_session_label);
+
     return existing.id as string;
   }
 
@@ -786,6 +818,8 @@ export async function upsertGlobalFeePolicy(payload: {
   if (!data?.id) {
     throw new Error("Unable to save global fee policy right now.");
   }
+
+  await syncAcademicSessionFromPolicy(values.academic_session_label);
 
   return data.id as string;
 }

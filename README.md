@@ -57,6 +57,9 @@ Implemented core:
 - defaulters and outstanding reporting
 - reports module with filterable tables and CSV export at
   `/protected/reports/export`
+- dedicated master-data management for academic sessions, classes, transport
+  routes, fee heads, and payment-mode activation under
+  `/protected/master-data`
 - deployment/settings validator page with env checks and policy notes
 - admin-only staff management with role assignment, activation control, and
   password reset
@@ -65,7 +68,7 @@ Implemented core:
 - audit triggers on core tables
 - append-only enforcement on receipts, payments, payment adjustments, and audit
   logs
-- 11 tracked SQL migrations covering schema, fee setup, payments, RBAC, import
+- 12 tracked SQL migrations covering schema, fee setup, payments, RBAC, import
   workflow, and auth/profile sync
 - database-level RBAC using `public.staff_role` plus permission-aware policies
 

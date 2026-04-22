@@ -1,5 +1,6 @@
 import "server-only";
 
+import { getMasterDataOptions } from "@/lib/master-data/data";
 import { createClient } from "@/lib/supabase/server";
 import type {
   StudentClassOption,
@@ -9,21 +10,6 @@ import type {
   StudentRouteOption,
   StudentValidatedInput,
 } from "@/lib/students/types";
-
-type StudentClassRow = {
-  id: string;
-  session_label: string;
-  class_name: string;
-  section: string | null;
-  stream_name: string | null;
-};
-
-type StudentRouteRow = {
-  id: string;
-  route_code: string | null;
-  route_name: string;
-  is_active: boolean;
-};
 
 type StudentJoinClass = {
   id: string;
@@ -98,51 +84,20 @@ function toSingleRecord<T>(value: T | T[] | null) {
 }
 
 export async function getStudentFormOptions() {
-  const supabase = await createClient();
+  const options = await getMasterDataOptions();
 
-  const [{ data: classRows, error: classError }, { data: routeRows, error: routeError }] =
-    await Promise.all([
-      supabase
-        .from("classes")
-        .select("id, session_label, class_name, section, stream_name")
-        .order("session_label", { ascending: false })
-        .order("sort_order", { ascending: true })
-        .order("class_name", { ascending: true }),
-      supabase
-        .from("transport_routes")
-        .select("id, route_code, route_name, is_active")
-        .order("is_active", { ascending: false })
-        .order("route_name", { ascending: true }),
-    ]);
+  const classOptions: StudentClassOption[] = options.classOptions.map((row) => ({
+    id: row.id,
+    label: row.label,
+    sessionLabel: row.sessionLabel,
+  }));
 
-  if (classError) {
-    throw new Error(`Unable to load classes: ${classError.message}`);
-  }
-
-  if (routeError) {
-    throw new Error(`Unable to load transport routes: ${routeError.message}`);
-  }
-
-  const classOptions: StudentClassOption[] = (classRows ?? []).map((row) => {
-    const classRow = row as StudentClassRow;
-
-    return {
-      id: classRow.id,
-      label: buildClassLabel(classRow),
-      sessionLabel: classRow.session_label,
-    };
-  });
-
-  const routeOptions: StudentRouteOption[] = (routeRows ?? []).map((row) => {
-    const routeRow = row as StudentRouteRow;
-
-    return {
-      id: routeRow.id,
-      label: routeRow.route_name,
-      routeCode: routeRow.route_code,
-      isActive: routeRow.is_active,
-    };
-  });
+  const routeOptions: StudentRouteOption[] = options.routeOptions.map((row) => ({
+    id: row.id,
+    label: row.label,
+    routeCode: row.routeCode,
+    isActive: row.isActive,
+  }));
 
   return {
     classOptions,

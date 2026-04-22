@@ -82,6 +82,9 @@ Main routes and modules in the repo today:
   five filterable on-page report tables
 - `app/protected/reports/export/route.ts`
   CSV download API endpoint for all report types
+- `app/protected/master-data/page.tsx`
+  admin CRUD for academic sessions, classes, transport routes, fee heads, and
+  payment mode activation, with safe disable/delete guards
 - `app/protected/settings/page.tsx`
   deployment readiness checks and active policy notes
 - `app/protected/staff/page.tsx`
@@ -97,6 +100,9 @@ Main routes and modules in the repo today:
 - `lib/fees/policy.ts`
   server-only canonical fee policy/config service used across fee setup,
   generation, payments, settings, and policy notes
+- `lib/master-data/data.ts`
+  server-only centralized source for session/class/route/fee-head/payment-mode
+  options and in-use guardrails for master CRUD flows
 - `lib/setup/data.ts`
   server-only first-time setup data, readiness, and completion-state service
 - `lib/auth/roles.ts`
@@ -112,7 +118,7 @@ Main routes and modules in the repo today:
 - `supabase/schema/*`
   reserved for future split schema/reference files
 - `supabase/migrations/*`
-  8 ordered SQL migration files for Supabase CLI workflows
+  ordered SQL migration files for Supabase CLI workflows (currently 12)
 - `scripts/bootstrap-staff.mjs`
   one-time server-only seed script for initial staff accounts
 

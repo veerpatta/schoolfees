@@ -4,6 +4,7 @@ import {
   CircleAlert,
   LayoutDashboard,
   ListChecks,
+  ListTree,
   ReceiptText,
   ScrollText,
   Settings2,
@@ -36,6 +37,13 @@ export const protectedNavigation: ProtectedNavigationItem[] = [
     label: "Setup",
     description: "First-time session setup, go-live checks, and collection readiness.",
     icon: ListChecks,
+    requiredPermission: "settings:write",
+  },
+  {
+    href: "/protected/master-data",
+    label: "Master Data",
+    description: "Manage sessions, classes, routes, fee heads, and payment modes.",
+    icon: ListTree,
     requiredPermission: "settings:write",
   },
   {
