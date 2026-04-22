@@ -57,9 +57,10 @@ Main routes and modules in the repo today:
 - `app/protected/fee-structure/page.tsx`
   alias route to fee setup area
 - `app/protected/fee-setup/page.tsx`
-  school-wide defaults, class defaults, and student overrides
+  canonical global fee policy, school defaults, class defaults, transport
+  defaults, and student overrides
 - `app/protected/fee-setup/generate/page.tsx`
-  idempotent session ledger generation workflow
+  preview + safe sync workflow for unpaid session ledger installments
 - `app/protected/payments/page.tsx`
   payment entry desk (also served at /collections)
 - `app/protected/collections/page.tsx`
@@ -87,7 +88,10 @@ Main routes and modules in the repo today:
 - `components/staff/*`
   staff management and password forms
 - `lib/config/*`
-  school defaults, fee rules, navigation
+  fallback school defaults, fee rules, navigation
+- `lib/fees/policy.ts`
+  server-only canonical fee policy/config service used across fee setup,
+  generation, payments, settings, and policy notes
 - `lib/auth/roles.ts`
   role model and permission map
 - `lib/staff-management/data.ts`
@@ -101,7 +105,7 @@ Main routes and modules in the repo today:
 - `supabase/schema/*`
   reserved for future split schema/reference files
 - `supabase/migrations/*`
-  7 ordered SQL migration files for Supabase CLI workflows
+  8 ordered SQL migration files for Supabase CLI workflows
 - `scripts/bootstrap-staff.mjs`
   one-time server-only seed script for initial staff accounts
 
@@ -175,6 +179,7 @@ Important current tables:
 - `import_batches`
 - `import_rows`
 - `fee_settings`
+- `fee_policy_configs`
 - `school_fee_defaults`
 - `student_fee_overrides`
 - `installments`

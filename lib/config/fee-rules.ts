@@ -1,20 +1,127 @@
-export const activeFeeRules = {
-  lateFeeFlatRupees: 1000,
-  installmentDueDates: ["20 April", "20 July", "20 October", "20 January"],
-  class12ScienceAnnualFeeRupees: 38000,
-  defaultInstallmentCount: 4,
-  schoolDefaultFeeHeadsRupees: {
-    tuitionFee: 0,
-    transportFee: 0,
-    booksFee: 0,
-    admissionActivityMiscFee: 0,
-  },
-  acceptedPaymentModes: ["Cash", "UPI", "Bank transfer", "Cheque"],
-} as const;
+import type { PaymentMode } from "@/lib/db/types";
+import type { FeeHeadDefinition } from "@/lib/fees/types";
 
-export const feePolicyNotes = [
-  "Late fee remains a flat Rs 1000 across the app unless management approves a rule change.",
-  "Use the four fixed installment due dates when generating annual ledgers.",
-  "Fee setup supports school defaults, class defaults, and student-level overrides.",
-  "Class 12 Science should preload at Rs 38000 when fee settings are initialized.",
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ] as const;
+
+export function getDefaultAcademicSessionLabel(referenceDate = new Date()) {
+  const month = referenceDate.getUTCMonth();
+  const year = referenceDate.getUTCFullYear();
+  const startYear = month >= 3 ? year : year - 1;
+
+  return `${startYear}-${startYear + 1}`;
+}
+
+export const DEFAULT_INSTALLMENT_SCHEDULE = [
+  { label: "Installment 1", dueDateLabel: "20 April" },
+  { label: "Installment 2", dueDateLabel: "20 July" },
+  { label: "Installment 3", dueDateLabel: "20 October" },
+  { label: "Installment 4", dueDateLabel: "20 January" },
+] as const;
+
+export const DEFAULT_CUSTOM_FEE_HEADS: FeeHeadDefinition[] = [];
+
+export const DEFAULT_ACCEPTED_PAYMENT_MODES: PaymentMode[] = [
+  "cash",
+  "upi",
+  "bank_transfer",
+  "cheque",
+];
+
+export const PAYMENT_MODE_LABELS: Record<PaymentMode, string> = {
+  cash: "Cash",
+  upi: "UPI",
+  bank_transfer: "Bank transfer",
+  cheque: "Cheque",
+};
+
+export function formatPaymentModeLabel(value: PaymentMode) {
+  return PAYMENT_MODE_LABELS[value];
+}
+
+export const CORE_FEE_HEADS = [
+  { id: "tuition_fee", label: "Tuition fee" },
+  { id: "transport_fee", label: "Transport fee" },
+  { id: "books_fee", label: "Books fee" },
+  { id: "admission_activity_misc_fee", label: "Admission / activity / misc fee" },
+] as const satisfies ReadonlyArray<FeeHeadDefinition>;
+
+export function normalizeFeeHeadId(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+export function buildInstallmentDueDate(
+  academicSessionLabel: string,
+  dueDateLabel: string,
+) {
+  const [startYearRaw] = academicSessionLabel.split("-");
+  const startYear = Number(startYearRaw);
+
+  if (!Number.isInteger(startYear)) {
+    throw new Error(`Academic session "${academicSessionLabel}" is invalid.`);
+  }
+
+  const [dayRaw, ...monthParts] = dueDateLabel.trim().split(/\s+/);
+  const day = Number(dayRaw);
+  const monthName = monthParts.join(" ");
+  const monthIndex = MONTH_NAMES.findIndex(
+    (candidate) => candidate.toLowerCase() === monthName.toLowerCase(),
+  );
+
+  if (!Number.isInteger(day) || day <= 0 || monthIndex === -1) {
+    throw new Error(`Due date "${dueDateLabel}" is invalid. Use format like "20 April".`);
+  }
+
+  const year = monthIndex < 3 ? startYear + 1 : startYear;
+  const isoDate = new Date(Date.UTC(year, monthIndex, day)).toISOString().slice(0, 10);
+
+  return isoDate;
+}
+
+export function buildDefaultInstallmentSchedule(referenceDate = new Date()) {
+  const academicSessionLabel = getDefaultAcademicSessionLabel(referenceDate);
+
+  return DEFAULT_INSTALLMENT_SCHEDULE.map((item) => ({
+    ...item,
+    dueDate: buildInstallmentDueDate(academicSessionLabel, item.dueDateLabel),
+  }));
+}
+
+export function buildDefaultFeePolicySummary(referenceDate = new Date()) {
+  const academicSessionLabel = getDefaultAcademicSessionLabel(referenceDate);
+  const installmentSchedule = DEFAULT_INSTALLMENT_SCHEDULE.map((item) => ({
+    ...item,
+    dueDate: buildInstallmentDueDate(academicSessionLabel, item.dueDateLabel),
+  }));
+
+  return {
+    academicSessionLabel,
+    installmentCount: installmentSchedule.length,
+    installmentSchedule,
+    lateFeeFlatAmount: 1000,
+    lateFeeLabel: "Flat Rs 1000",
+    acceptedPaymentModes: DEFAULT_ACCEPTED_PAYMENT_MODES.map((value) => ({
+      value,
+      label: formatPaymentModeLabel(value),
+    })),
+    receiptPrefix: "SVP",
+    customFeeHeads: DEFAULT_CUSTOM_FEE_HEADS,
+    notes: "Global school policy drives future fee setup, ledger generation, payment desk rules, and policy notes.",
+  };
+}

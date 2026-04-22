@@ -3,13 +3,17 @@ import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { getDashboardPageData } from "@/lib/dashboard/data";
+import { getFeePolicySummary } from "@/lib/fees/data";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 export default async function ProtectedPage() {
   await requireStaffPermission("dashboard:view", { onDenied: "redirect" });
-  const data = await getDashboardPageData();
+  const [data, policy] = await Promise.all([
+    getDashboardPageData(),
+    getFeePolicySummary(),
+  ]);
 
   const dashboardMetrics = [
     {
@@ -44,7 +48,7 @@ export default async function ProtectedPage() {
       <PageHeader
         eyebrow="Dashboard"
         title="Daily fee office overview"
-        description="Track current due position, recent collections, and class-wise follow-up from one operational dashboard."
+        description={`Track current due position, recent collections, and class-wise follow-up from one operational dashboard. Active policy session: ${policy.academicSessionLabel}.`}
         actions={<StatusBadge label="Live snapshot" tone="good" />}
       />
 

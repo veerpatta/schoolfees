@@ -43,8 +43,10 @@ Implemented core:
 - Student Master with list, add, detail, and edit flows
 - student spreadsheet import with CSV/XLSX upload, header mapping, dry-run
   validation, duplicate detection, batch tracking, and valid-row-only save
-- fee setup with school defaults, class defaults, and student overrides
-- idempotent session ledger generation workflow
+- fee setup with a canonical global policy, school defaults, class defaults,
+  transport defaults, and student overrides
+- session ledger sync workflow for previewing and applying safe unpaid-ledger
+  changes
 - payment entry with append-only posting through RPCs
 - student ledger with chronological history and linked adjustment trail
 - receipt list and printable single-receipt view
@@ -59,7 +61,7 @@ Implemented core:
 - audit triggers on core tables
 - append-only enforcement on receipts, payments, payment adjustments, and audit
   logs
-- 7 tracked SQL migrations covering schema, fee setup, payments, RBAC, import
+- 8 tracked SQL migrations covering schema, fee setup, payments, RBAC, import
   workflow, and auth/profile sync
 - database-level RBAC using `public.staff_role` plus permission-aware policies
 
@@ -166,6 +168,7 @@ Current core tables:
 - `import_batches`
 - `import_rows`
 - `fee_settings`
+- `fee_policy_configs`
 - `school_fee_defaults`
 - `student_fee_overrides`
 - `installments`

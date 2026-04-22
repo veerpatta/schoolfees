@@ -7,6 +7,7 @@ import {
   EMPTY_DEFAULTER_FILTERS,
   type DefaulterFilters as DefaulterFiltersType,
 } from "@/lib/defaulters/types";
+import { getFeePolicySummary } from "@/lib/fees/data";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { requireStaffPermission } from "@/lib/supabase/session";
@@ -49,14 +50,17 @@ export default async function DefaultersPage({
   await requireStaffPermission("defaulters:view", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const filters = normalizeFilters(resolvedSearchParams);
-  const data = await getDefaultersPageData(filters);
+  const [data, policy] = await Promise.all([
+    getDefaultersPageData(filters),
+    getFeePolicySummary(),
+  ]);
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Defaulters"
         title="Outstanding follow-up register"
-        description="Filter class-wise and route-wise defaulters, keep overdue follow-up visible, and use a flat table that is easy to export."
+        description={`Filter class-wise and route-wise defaulters, keep overdue follow-up visible, and use a flat table that is easy to export. Active session policy: ${policy.academicSessionLabel}.`}
         actions={
           <StatusBadge
             label={`${data.rows.length} row${data.rows.length === 1 ? "" : "s"} listed`}

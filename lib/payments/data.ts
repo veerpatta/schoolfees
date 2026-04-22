@@ -1,12 +1,11 @@
 import "server-only";
 
-import { schoolProfile } from "@/lib/config/school";
 import type { PaymentMode } from "@/lib/db/types";
+import { getFeePolicySummary } from "@/lib/fees/data";
 import { createClient } from "@/lib/supabase/server";
 import type {
   InstallmentBalanceItem,
   PaymentEntryPageData,
-  PaymentModeOption,
   PaymentStudentOption,
   SelectedStudentSummary,
 } from "@/lib/payments/types";
@@ -41,13 +40,6 @@ type PostStudentPaymentRow = {
   receipt_number: string;
   allocated_total: number;
 };
-
-export const PAYMENT_MODE_OPTIONS: PaymentModeOption[] = [
-  { value: "cash", label: "Cash" },
-  { value: "upi", label: "UPI" },
-  { value: "bank_transfer", label: "Bank transfer" },
-  { value: "cheque", label: "Cheque" },
-];
 
 function toSingleRecord<T>(value: T | T[] | null) {
   if (Array.isArray(value)) {
@@ -132,6 +124,7 @@ export async function getPaymentEntryPageData(payload: {
   searchQuery: string;
 }): Promise<PaymentEntryPageData> {
   const supabase = await createClient();
+  const policy = await getFeePolicySummary();
   let studentsQuery = supabase
     .from("students")
     .select(
@@ -162,6 +155,8 @@ export async function getPaymentEntryPageData(payload: {
       studentOptions,
       selectedStudent: null,
       searchQuery: normalizedQuery,
+      modeOptions: policy.acceptedPaymentModes,
+      policyNote: `${policy.academicSessionLabel} policy uses receipt prefix ${policy.receiptPrefix} and ${policy.lateFeeLabel.toLowerCase()}.`,
     };
   }
 
@@ -172,6 +167,8 @@ export async function getPaymentEntryPageData(payload: {
       studentOptions,
       selectedStudent: null,
       searchQuery: normalizedQuery,
+      modeOptions: policy.acceptedPaymentModes,
+      policyNote: `${policy.academicSessionLabel} policy uses receipt prefix ${policy.receiptPrefix} and ${policy.lateFeeLabel.toLowerCase()}.`,
     };
   }
 
@@ -194,6 +191,8 @@ export async function getPaymentEntryPageData(payload: {
     studentOptions,
     selectedStudent: summarizeStudent(selectedStudent, breakdown),
     searchQuery: normalizedQuery,
+    modeOptions: policy.acceptedPaymentModes,
+    policyNote: `${policy.academicSessionLabel} policy uses receipt prefix ${policy.receiptPrefix} and ${policy.lateFeeLabel.toLowerCase()}.`,
   };
 }
 
@@ -207,6 +206,7 @@ export async function postStudentPayment(payload: {
   receivedBy: string;
 }) {
   const supabase = await createClient();
+  const policy = await getFeePolicySummary();
   const { data, error } = await supabase.rpc("post_student_payment", {
     p_student_id: payload.studentId,
     p_payment_date: payload.paymentDate,
@@ -215,7 +215,7 @@ export async function postStudentPayment(payload: {
     p_reference_number: payload.referenceNumber,
     p_remarks: payload.remarks,
     p_received_by: payload.receivedBy,
-    p_receipt_prefix: schoolProfile.receiptPrefix,
+    p_receipt_prefix: policy.receiptPrefix,
   });
 
   if (error) {

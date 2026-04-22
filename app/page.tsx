@@ -4,8 +4,8 @@ import { MetricCard } from "@/components/admin/metric-card";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
-import { activeFeeRules } from "@/lib/config/fee-rules";
 import { schoolProfile } from "@/lib/config/school";
+import { getFeePolicySummary } from "@/lib/fees/data";
 import { hasRequiredEnvVars } from "@/lib/env";
 import { formatInr } from "@/lib/helpers/currency";
 
@@ -44,7 +44,9 @@ const rolloutSteps = [
   "Start collections in the app and reconcile totals daily during migration.",
 ] as const;
 
-export default function Home() {
+export default async function Home() {
+  const policy = await getFeePolicySummary({ useAdmin: true });
+
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(127,29,29,0.12),_transparent_28%),linear-gradient(180deg,_#f8f4ea_0%,_#f6f6f5_45%,_#eef2f7_100%)] text-slate-900">
       <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-5 px-4 py-6 md:px-6 md:py-8">
@@ -74,13 +76,13 @@ export default function Home() {
             <div className="mt-8 grid gap-3 md:grid-cols-3">
               <MetricCard
                 title="Late fee"
-                value={formatInr(activeFeeRules.lateFeeFlatRupees)}
+                value={formatInr(policy.lateFeeFlatAmount)}
                 hint="Flat default across collection and ledger workflows."
               />
               <MetricCard
                 title="Installments"
-                value={`${activeFeeRules.defaultInstallmentCount} windows`}
-                hint={activeFeeRules.installmentDueDates.join(", ")}
+                value={`${policy.installmentCount} windows`}
+                hint={policy.installmentSchedule.map((item) => item.dueDateLabel).join(", ")}
               />
               <MetricCard
                 title="Access model"
@@ -163,10 +165,7 @@ export default function Home() {
         </section>
 
         <div className="mt-auto rounded-[28px] border border-amber-200 bg-amber-50/95 px-5 py-4 text-sm leading-6 text-amber-900 shadow-sm">
-          School policy defaults are active in the scaffold now: flat late fee
-          of Rs 1000, installment due dates on 20 April / 20 July / 20 October
-          / 20 January, and Class 12 Science annual fee default of Rs 38000 in
-          fee settings.
+          Current school policy is loaded from the canonical config service for session {policy.academicSessionLabel}: late fee {policy.lateFeeLabel.toLowerCase()}, due dates {policy.installmentSchedule.map((item) => item.dueDateLabel).join(" / ")}, and receipt prefix {policy.receiptPrefix}.
         </div>
       </div>
     </main>

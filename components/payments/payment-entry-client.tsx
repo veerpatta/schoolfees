@@ -12,14 +12,12 @@ import { buildPaymentAllocation } from "@/lib/payments/allocation";
 import type {
   PaymentEntryActionState,
   PaymentEntryPageData,
-  PaymentModeOption,
 } from "@/lib/payments/types";
 import { formatInr } from "@/lib/helpers/currency";
 
 type PaymentEntryClientProps = {
   data: PaymentEntryPageData;
   canPost: boolean;
-  modeOptions: PaymentModeOption[];
   initialState: PaymentEntryActionState;
   defaultReceivedBy: string;
   submitPaymentEntryAction: (
@@ -55,7 +53,6 @@ function ActionNotice({ state }: { state: PaymentEntryActionState }) {
 export function PaymentEntryClient({
   data,
   canPost,
-  modeOptions,
   initialState,
   defaultReceivedBy,
   submitPaymentEntryAction,
@@ -138,6 +135,10 @@ export function PaymentEntryClient({
         </SectionCard>
       ) : (
         <>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            {data.policyNote}
+          </div>
+
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               title="Total due"
@@ -257,7 +258,7 @@ export function PaymentEntryClient({
                       defaultValue="cash"
                       required
                     >
-                      {modeOptions.map((modeOption) => (
+                      {data.modeOptions.map((modeOption) => (
                         <option key={modeOption.value} value={modeOption.value}>
                           {modeOption.label}
                         </option>

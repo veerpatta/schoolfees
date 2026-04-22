@@ -9,9 +9,11 @@ import { INITIAL_FEE_SETUP_ACTION_STATE } from "@/lib/fees/types";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 import {
+  saveGlobalPolicyAction,
   saveClassDefaultsAction,
   saveSchoolDefaultsAction,
   saveStudentOverrideAction,
+  saveTransportDefaultsAction,
 } from "./actions";
 
 export default async function FeeSetupPage() {
@@ -45,8 +47,10 @@ export default async function FeeSetupPage() {
       <FeeSetupClient
         data={data}
         canEdit={canEdit}
+        saveGlobalPolicyAction={saveGlobalPolicyAction}
         saveSchoolDefaultsAction={saveSchoolDefaultsAction}
         saveClassDefaultsAction={saveClassDefaultsAction}
+        saveTransportDefaultsAction={saveTransportDefaultsAction}
         saveStudentOverrideAction={saveStudentOverrideAction}
         initialState={INITIAL_FEE_SETUP_ACTION_STATE}
       />

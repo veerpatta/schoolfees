@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
+import type { PaymentMode } from "@/lib/db/types";
+import { getFeePolicySummary } from "@/lib/fees/data";
 import { postStudentPayment } from "@/lib/payments/data";
 import type { PaymentEntryActionState } from "@/lib/payments/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
@@ -38,19 +40,15 @@ function parsePaymentAmount(value: FormDataEntryValue | null) {
   return numeric;
 }
 
-function parsePaymentMode(value: FormDataEntryValue | null) {
+async function parsePaymentMode(value: FormDataEntryValue | null): Promise<PaymentMode> {
   const normalized = (value ?? "").toString().trim();
+  const policy = await getFeePolicySummary();
 
-  if (
-    normalized === "cash" ||
-    normalized === "upi" ||
-    normalized === "bank_transfer" ||
-    normalized === "cheque"
-  ) {
-    return normalized;
+  if (policy.acceptedPaymentModes.some((item) => item.value === normalized)) {
+    return normalized as PaymentMode;
   }
 
-  throw new Error("Payment mode is invalid.");
+  throw new Error("Payment mode is not allowed by the current fee policy.");
 }
 
 function parsePaymentDate(value: FormDataEntryValue | null) {
@@ -85,7 +83,7 @@ export async function submitPaymentEntryAction(
     const receipt = await postStudentPayment({
       studentId: parseUuid(formData.get("studentId"), "Student"),
       paymentDate: parsePaymentDate(formData.get("paymentDate")),
-      paymentMode: parsePaymentMode(formData.get("paymentMode")),
+      paymentMode: await parsePaymentMode(formData.get("paymentMode")),
       paymentAmount: parsePaymentAmount(formData.get("paymentAmount")),
       referenceNumber: (formData.get("referenceNumber") ?? "").toString().trim() || null,
       remarks: (formData.get("remarks") ?? "").toString().trim() || null,

@@ -73,16 +73,6 @@ export const reportDefinitions: Record<
   },
 };
 
-export const paymentModeFilterOptions: ReadonlyArray<{
-  value: PaymentMode;
-  label: string;
-}> = [
-  { value: "cash", label: "Cash" },
-  { value: "upi", label: "UPI" },
-  { value: "bank_transfer", label: "Bank transfer" },
-  { value: "cheque", label: "Cheque" },
-] as const;
-
 export type ReportFilters = {
   report: ReportKey;
   classId: string;

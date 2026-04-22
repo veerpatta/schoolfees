@@ -2,8 +2,8 @@ import { ReactNode } from "react";
 import Link from "next/link";
 
 import { type StaffRole } from "@/lib/auth/roles";
-import { activeFeeRules } from "@/lib/config/fee-rules";
 import { schoolProfile } from "@/lib/config/school";
+import { getFeePolicySummary } from "@/lib/fees/data";
 import { formatInr } from "@/lib/helpers/currency";
 
 import { AppTopBar } from "./app-topbar";
@@ -15,11 +15,13 @@ type DashboardShellProps = {
   staffRole: StaffRole;
 };
 
-export function DashboardShell({
+export async function DashboardShell({
   children,
   staffEmail,
   staffRole,
 }: DashboardShellProps) {
+  const policy = await getFeePolicySummary();
+
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8f5ee_0%,#f1f5f9_100%)] text-slate-900">
       <div className="grid min-h-screen lg:grid-cols-[280px_minmax(0,1fr)]">
@@ -47,9 +49,10 @@ export function DashboardShell({
                 Active Policy
               </p>
               <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-700">
-                <li>Late fee: {formatInr(activeFeeRules.lateFeeFlatRupees)}</li>
+                <li>Session: {policy.academicSessionLabel}</li>
+                <li>Late fee: {formatInr(policy.lateFeeFlatAmount)}</li>
                 <li>
-                  Due dates: {activeFeeRules.installmentDueDates.join(", ")}
+                  Due dates: {policy.installmentSchedule.map((item) => item.dueDateLabel).join(", ")}
                 </li>
                 <li>Mode: internal-admin</li>
               </ul>

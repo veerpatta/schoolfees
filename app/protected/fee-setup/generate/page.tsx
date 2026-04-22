@@ -10,8 +10,8 @@ export default async function GenerateLedgerPage() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Fee Setup"
-        title="Session Ledger Generation"
-        description="Convert fee settings into student ledger installments for a new academic session. You can preview the generation before running it."
+        title="Session Ledger Sync"
+        description="Preview how the canonical fee policy will insert, update, or cancel unpaid installments for the active academic session before you run the sync."
       />
 
       <GenerateLedgerClient 

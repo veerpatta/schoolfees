@@ -2,6 +2,8 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { getStudentFormOptions } from "@/lib/students/data";
+import { formatPaymentModeLabel } from "@/lib/config/fee-rules";
+import { getFeePolicySummary } from "@/lib/fees/data";
 
 import type {
   AdjustmentType,
@@ -13,7 +15,6 @@ import type { StudentClassOption } from "@/lib/students/types";
 
 import {
   EMPTY_REPORT_FILTERS,
-  paymentModeFilterOptions,
   reportDefinitions,
   reportKeys,
   type ReportBatchOption,
@@ -178,9 +179,12 @@ type NormalizedImportPayload = {
 };
 
 const REPORT_KEY_SET = new Set<ReportKey>(reportKeys);
-const PAYMENT_MODE_SET = new Set<PaymentMode>(
-  paymentModeFilterOptions.map((option) => option.value),
-);
+const PAYMENT_MODE_SET = new Set<PaymentMode>([
+  "cash",
+  "upi",
+  "bank_transfer",
+  "cheque",
+]);
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -208,19 +212,6 @@ function buildClassLabel(value: {
   }
 
   return parts.join(" - ");
-}
-
-export function formatPaymentModeLabel(value: PaymentMode) {
-  switch (value) {
-    case "upi":
-      return "UPI";
-    case "bank_transfer":
-      return "Bank transfer";
-    case "cheque":
-      return "Cheque";
-    default:
-      return "Cash";
-  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -1190,7 +1181,10 @@ async function getImportVerificationReportData(
 export async function getReportsPageData(
   filters: ReportFilters,
 ): Promise<ReportsPageData> {
-  const { classOptions } = await getStudentFormOptions();
+  const [{ classOptions }, policy] = await Promise.all([
+    getStudentFormOptions(),
+    getFeePolicySummary(),
+  ]);
   const sessionOptions = Array.from(
     new Set(classOptions.map((option) => option.sessionLabel)),
   ).sort((left, right) => right.localeCompare(left));
@@ -1229,7 +1223,7 @@ export async function getReportsPageData(
     options: {
       classOptions,
       sessionOptions,
-      paymentModes: paymentModeFilterOptions,
+      paymentModes: policy.acceptedPaymentModes,
       studentOptions,
       batchOptions,
     },
@@ -1436,6 +1430,8 @@ export function serializeCsv(payload: ReportCsvData) {
     )
     .join("\n");
 }
+
+export { formatPaymentModeLabel };
 
 export function getReportAuditNote(reportKey: ReportKey) {
   switch (reportKey) {

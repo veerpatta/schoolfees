@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 import { StatusBadge } from "@/components/admin/status-badge";
-import { activeFeeRules } from "@/lib/config/fee-rules";
 import { schoolProfile } from "@/lib/config/school";
+import { getFeePolicySummary } from "@/lib/fees/data";
 import { formatInr } from "@/lib/helpers/currency";
 
 const authNotes = [
@@ -11,11 +11,13 @@ const authNotes = [
   "Preserve auditability by pairing staff identity with every meaningful action.",
 ] as const;
 
-export default function AuthLayout({
+export default async function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const policy = await getFeePolicySummary({ useAdmin: true });
+
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8f5ee_0%,#f1f5f9_100%)]">
       <div className="mx-auto grid min-h-screen max-w-6xl items-center gap-6 px-4 py-8 lg:grid-cols-[1.05fr_0.95fr] lg:px-6">
@@ -48,7 +50,7 @@ export default function AuthLayout({
                 Late fee
               </p>
               <p className="mt-2 text-lg font-semibold text-slate-950">
-                {formatInr(activeFeeRules.lateFeeFlatRupees)}
+                {formatInr(policy.lateFeeFlatAmount)}
               </p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2">
@@ -56,7 +58,7 @@ export default function AuthLayout({
                 Installment due dates
               </p>
               <p className="mt-2 text-lg font-semibold text-slate-950">
-                {activeFeeRules.installmentDueDates.join(", ")}
+                {policy.installmentSchedule.map((item) => item.dueDateLabel).join(", ")}
               </p>
             </div>
           </div>

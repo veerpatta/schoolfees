@@ -2,8 +2,8 @@ import { PageHeader } from "@/components/admin/page-header";
 import { RolePreview } from "@/components/admin/role-preview";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
-import { activeFeeRules } from "@/lib/config/fee-rules";
 import { schoolProfile } from "@/lib/config/school";
+import { getFeePolicySummary } from "@/lib/fees/data";
 import {
   getOptionalEnvVar,
   getSiteUrl,
@@ -14,18 +14,13 @@ import {
 } from "@/lib/env";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
-const policyNotes = [
-  `Receipt prefix remains ${schoolProfile.receiptPrefix}.`,
-  `Late fee default remains Rs ${activeFeeRules.lateFeeFlatRupees}.`,
-  `Installment due dates remain ${activeFeeRules.installmentDueDates.join(", ")}.`,
-] as const;
-
 function toneForStatus(isHealthy: boolean) {
   return isHealthy ? "good" : "warning";
 }
 
 export default async function SettingsPage() {
   const staff = await requireStaffPermission("settings:view", { onDenied: "redirect" });
+  const policy = await getFeePolicySummary();
   const serviceRoleConfigured = Boolean(
     getOptionalEnvVar("SUPABASE_SERVICE_ROLE_KEY"),
   );
@@ -33,6 +28,13 @@ export default async function SettingsPage() {
   const resolvedSiteUrl = getSiteUrl();
   const explicitSiteUrlConfigured = hasExplicitSiteUrl();
   const productionEnvironment = isVercelProductionEnvironment();
+  const policyNotes = [
+    `Academic session is ${policy.academicSessionLabel}.`,
+    `Receipt prefix is ${policy.receiptPrefix}.`,
+    `Late fee default is Rs ${policy.lateFeeFlatAmount}.`,
+    `Installment due dates are ${policy.installmentSchedule.map((item) => item.dueDateLabel).join(", ")}.`,
+    `Accepted payment modes are ${policy.acceptedPaymentModes.map((item) => item.label).join(", ")}.`,
+  ] as const;
 
   const readinessChecks = [
     {
@@ -96,7 +98,7 @@ export default async function SettingsPage() {
           This page is restricted to roles with settings access. It shows deployment readiness and active policy notes only.
         </div>
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-          Current defaults stay aligned to the active school policy: late fee Rs {activeFeeRules.lateFeeFlatRupees}, due dates {activeFeeRules.installmentDueDates.join(", ")}.
+          Current defaults stay aligned to the canonical school policy: session {policy.academicSessionLabel}, late fee Rs {policy.lateFeeFlatAmount}, due dates {policy.installmentSchedule.map((item) => item.dueDateLabel).join(", ")}.
         </div>
       </section>
 

@@ -5,6 +5,9 @@ import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StudentStatusBadge } from "@/components/students/student-status-badge";
 import { Button } from "@/components/ui/button";
+import { formatInr } from "@/lib/helpers/currency";
+import { formatShortDate } from "@/lib/helpers/date";
+import { getStudentFinancialSnapshot } from "@/lib/fees/data";
 import { getStudentDetail } from "@/lib/students/data";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
@@ -52,7 +55,10 @@ function readValue(value: string | null) {
 export default async function StudentDetailPage({ params }: StudentDetailPageProps) {
   const staff = await requireStaffPermission("students:view", { onDenied: "redirect" });
   const resolvedParams = await params;
-  const student = await getStudentDetail(resolvedParams.studentId);
+  const [student, financialSnapshot] = await Promise.all([
+    getStudentDetail(resolvedParams.studentId),
+    getStudentFinancialSnapshot(resolvedParams.studentId),
+  ]);
 
   if (!student) {
     notFound();
@@ -147,6 +153,116 @@ export default async function StudentDetailPage({ params }: StudentDetailPagePro
           </p>
         </div>
       </SectionCard>
+
+      {financialSnapshot ? (
+        <SectionCard
+          title="Financial view"
+          description="Resolved fee policy, current outstanding position, and the next unpaid installment for this student."
+        >
+          <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
+            <div className="space-y-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Active policy
+                </p>
+                <p className="mt-2 font-medium text-slate-900">
+                  {financialSnapshot.policy.academicSessionLabel}
+                </p>
+                <p className="mt-2">
+                  Receipt prefix {financialSnapshot.policy.receiptPrefix}. Late fee {financialSnapshot.policy.lateFeeLabel.toLowerCase()}.
+                </p>
+                <p className="mt-2">
+                  Schedule: {financialSnapshot.policy.installmentSchedule.map((item) => item.dueDateLabel).join(", ")}
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Current outstanding
+                  </p>
+                  <p className="mt-2 text-xl font-semibold text-slate-950">
+                    {formatInr(financialSnapshot.currentOutstanding)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Open installments
+                  </p>
+                  <p className="mt-2 text-xl font-semibold text-slate-950">
+                    {financialSnapshot.openInstallments}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Overdue installments
+                  </p>
+                  <p className="mt-2 text-xl font-semibold text-slate-950">
+                    {financialSnapshot.overdueInstallments}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Next due
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-slate-900">
+                    {financialSnapshot.nextDueLabel ?? "No pending dues"}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {financialSnapshot.nextDueDate && financialSnapshot.nextDueAmount !== null
+                      ? `${formatShortDate(financialSnapshot.nextDueDate)} • ${formatInr(financialSnapshot.nextDueAmount)}`
+                      : "All installments are settled"}
+                  </p>
+                </div>
+              </div>
+
+              {financialSnapshot.activeOverrideReason ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  Active override reason: {financialSnapshot.activeOverrideReason}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Resolved fee breakdown</p>
+                <p className="text-xs text-slate-500">
+                  This uses school policy, class defaults, route defaults, and any active student override.
+                </p>
+              </div>
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full min-w-[420px] text-left text-sm">
+                  <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                    <tr>
+                      <th className="px-4 py-3">Fee head</th>
+                      <th className="px-4 py-3">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ...financialSnapshot.resolvedBreakdown.coreHeads,
+                      ...financialSnapshot.resolvedBreakdown.customHeads,
+                    ].map((item) => (
+                      <tr key={item.id} className="border-t border-slate-100 text-slate-700">
+                        <td className="px-4 py-3">{item.label}</td>
+                        <td className="px-4 py-3 font-medium text-slate-900">
+                          {formatInr(item.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="border-t border-slate-200 bg-slate-50 font-semibold text-slate-900">
+                      <td className="px-4 py-3">Resolved annual total</td>
+                      <td className="px-4 py-3">
+                        {formatInr(financialSnapshot.resolvedBreakdown.annualTotal)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </SectionCard>
+      ) : null}
     </div>
   );
 }

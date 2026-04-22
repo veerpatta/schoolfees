@@ -82,8 +82,10 @@ Fully implemented core:
 - Student Master with add, detail, and edit workflows
 - Student Spreadsheet Import: CSV/XLSX upload, column mapping, dry-run
   validation, duplicate detection, batch tracking, and valid-row-only save
-- Fee Setup: school-wide defaults, per-class settings, per-student overrides
-- idempotent Session Ledger Generation workflow for creating installments safely
+- Fee Setup: canonical global policy, school-wide defaults, class defaults,
+  transport defaults, and per-student overrides
+- Session Ledger Sync workflow for previewing and applying safe unpaid-installment
+  inserts/updates/cancellations without touching paid history
 - Payment Entry: append-only posting via RPC, with receipts generated as linked
   financial records
 - Ledger: chronological per-student history with linked adjustment entries
@@ -97,7 +99,7 @@ Fully implemented core:
 - self password change under `app/protected/password`
 - append-only behavior enforced by RPCs and DB triggers on receipts, payments,
   payment_adjustments, and audit_logs
-- 7 tracked migrations covering schema, fee setup, payments, RBAC alignment,
+- 8 tracked migrations covering schema, fee setup, payments, RBAC alignment,
   import workflow, and auth/user sync
 - Role-Based Access Control (RBAC): `public.staff_role` enum and RLS policies
   enforce `admin`, `accountant`, and `read_only_staff` at the database layer
@@ -157,6 +159,7 @@ content or Supabase sample code unless the user explicitly requests that.
 - staff UI: `components/staff/*`
 - bootstrap seed script: `scripts/bootstrap-staff.mjs`
 - fee rules: `lib/config/fee-rules.ts`
+- canonical fee policy service: `lib/fees/policy.ts`
 - school profile: `lib/config/school.ts`
 - navigation: `lib/config/navigation.ts`
 - roles + permissions: `lib/auth/roles.ts`
@@ -247,6 +250,7 @@ Current core tables in `supabase/schema.sql`:
 - `import_batches`
 - `import_rows`
 - `fee_settings`
+- `fee_policy_configs`
 - `school_fee_defaults`
 - `student_fee_overrides`
 - `installments`

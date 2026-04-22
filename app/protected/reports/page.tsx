@@ -23,6 +23,7 @@ import {
 } from "@/lib/reports/types";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
+import { getFeePolicySummary } from "@/lib/fees/data";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 type ReportsPageProps = {
@@ -1012,7 +1013,10 @@ function ReportTables({ report }: { report: ReportData }) {
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   await requireStaffPermission("reports:view", { onDenied: "redirect" });
   const filters = normalizeReportFilters(searchParams ? await searchParams : undefined);
-  const data = await getReportsPageData(filters);
+  const [data, policy] = await Promise.all([
+    getReportsPageData(filters),
+    getFeePolicySummary(),
+  ]);
   const activeDefinition = reportDefinitions[data.report.key];
   const exportHref = `/protected/reports/export${buildReportHref(filters).replace("/protected/reports", "")}`;
 
@@ -1086,7 +1090,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       </ReportFiltersSection>
 
       <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
-        Generated {formatDateTime(data.generatedAt)}. {getReportAuditNote(data.report.key)}
+        Generated {formatDateTime(data.generatedAt)}. {getReportAuditNote(data.report.key)} Active policy session: {policy.academicSessionLabel}.
       </div>
 
       <MetricsSection report={data.report} />

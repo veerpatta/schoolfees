@@ -7,7 +7,7 @@ import { requireStaffPermission } from "@/lib/supabase/session";
 
 export async function previewGenerationAction() {
   await requireStaffPermission("fees:write");
-  return await previewLedgerGeneration();
+  return previewLedgerGeneration();
 }
 
 export async function submitGenerationAction() {
@@ -15,10 +15,19 @@ export async function submitGenerationAction() {
   
   try {
     const result = await doGenerate();
+    revalidatePath("/protected");
     revalidatePath("/protected/ledger");
     revalidatePath("/protected/fee-setup");
-    revalidatePath("/protected/dashboard");
-    return { success: true, message: `Successfully generated ${result.count} new installments.` };
+    revalidatePath("/protected/fee-setup/generate");
+    revalidatePath("/protected/payments");
+    revalidatePath("/protected/collections");
+    revalidatePath("/protected/defaulters");
+    revalidatePath("/protected/reports");
+    revalidatePath("/protected/settings");
+    return {
+      success: true,
+      message: `Inserted ${result.installmentsToInsert}, updated ${result.installmentsToUpdate}, cancelled ${result.installmentsToCancel}, and left ${result.lockedInstallments} locked installments untouched.`,
+    };
   } catch (error) {
     return { success: false, message: error instanceof Error ? error.message : "Failed to generate ledgers." };
   }

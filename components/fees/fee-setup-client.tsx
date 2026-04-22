@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { type ReactNode, useActionState, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -8,16 +9,32 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatInr } from "@/lib/helpers/currency";
-import type { FeeSetupActionState, FeeSetupPageData } from "@/lib/fees/types";
+import type {
+  ClassFeeDefault,
+  FeeHeadDefinition,
+  FeeSetupActionState,
+  FeeSetupPageData,
+  StudentFeeOverride,
+  TransportDefault,
+} from "@/lib/fees/types";
+import type { PaymentMode } from "@/lib/db/types";
 
 type FeeSetupClientProps = {
   data: FeeSetupPageData;
   canEdit: boolean;
+  saveGlobalPolicyAction: (
+    previous: FeeSetupActionState,
+    formData: FormData,
+  ) => Promise<FeeSetupActionState>;
   saveSchoolDefaultsAction: (
     previous: FeeSetupActionState,
     formData: FormData,
   ) => Promise<FeeSetupActionState>;
   saveClassDefaultsAction: (
+    previous: FeeSetupActionState,
+    formData: FormData,
+  ) => Promise<FeeSetupActionState>;
+  saveTransportDefaultsAction: (
     previous: FeeSetupActionState,
     formData: FormData,
   ) => Promise<FeeSetupActionState>;
@@ -28,11 +45,22 @@ type FeeSetupClientProps = {
   initialState: FeeSetupActionState;
 };
 
+type EditableFeeHead = FeeHeadDefinition & {
+  key: string;
+};
+
 const selectClassName =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
 const textAreaClassName =
   "flex min-h-[88px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+
+const paymentModeOptions: Array<{ value: PaymentMode; label: string }> = [
+  { value: "cash", label: "Cash" },
+  { value: "upi", label: "UPI" },
+  { value: "bank_transfer", label: "Bank transfer" },
+  { value: "cheque", label: "Cheque" },
+];
 
 function ActionNotice({ state }: { state: FeeSetupActionState }) {
   if (!state.message) {
@@ -52,22 +80,330 @@ function ActionNotice({ state }: { state: FeeSetupActionState }) {
   );
 }
 
-function OtherFeeHeadsHint() {
+function SectionHint({ children }: { children: ReactNode }) {
+  return <p className="text-xs text-slate-500">{children}</p>;
+}
+
+function formatUpdatedAt(value: string | null) {
+  if (!value) {
+    return "Not saved yet";
+  }
+
+  const formatted = new Date(value).toLocaleString("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+
+  return Number.isNaN(new Date(value).getTime()) ? value : formatted;
+}
+
+function buildEditableFeeHeads(feeHeads: FeeHeadDefinition[]) {
+  return feeHeads.map((item, index) => ({
+    ...item,
+    key: `${item.id}-${index}`,
+  }));
+}
+
+function createScheduleRow(index: number) {
+  return {
+    key: `schedule-${index}-${Date.now()}`,
+    label: `Installment ${index + 1}`,
+    dueDateLabel: "",
+  };
+}
+
+function useRefreshOnSuccess(
+  globalState: FeeSetupActionState,
+  schoolState: FeeSetupActionState,
+  classState: FeeSetupActionState,
+  transportState: FeeSetupActionState,
+  studentState: FeeSetupActionState,
+) {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (
+      globalState.status === "success" ||
+      schoolState.status === "success" ||
+      classState.status === "success" ||
+      transportState.status === "success" ||
+      studentState.status === "success"
+    ) {
+      router.refresh();
+    }
+  }, [
+    router,
+    globalState.status,
+    schoolState.status,
+    classState.status,
+    transportState.status,
+    studentState.status,
+  ]);
+}
+
+function FeeHeadCatalogEditor({
+  feeHeads,
+  setFeeHeads,
+  canEdit,
+}: {
+  feeHeads: EditableFeeHead[];
+  setFeeHeads: React.Dispatch<React.SetStateAction<EditableFeeHead[]>>;
+  canEdit: boolean;
+}) {
   return (
-    <p className="mt-1 text-xs text-slate-500">
-      JSON format: {'{"smart class fee": 800, "lab fee": 500}'}
-    </p>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <Label>Fee heads</Label>
+          <SectionHint>
+            These become the canonical editable fee-head catalog for school, class, and
+            student default forms.
+          </SectionHint>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={!canEdit}
+          onClick={() =>
+            setFeeHeads((current) => [
+              ...current,
+              { key: `fee-head-${Date.now()}`, id: "", label: "" },
+            ])
+          }
+        >
+          Add fee head
+        </Button>
+      </div>
+
+      {feeHeads.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          No custom fee heads yet. Add rows only for heads beyond tuition, transport,
+          books, and admission/activity/misc.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {feeHeads.map((item, index) => (
+            <div key={item.key} className="grid gap-3 md:grid-cols-[1fr_1.2fr_auto]">
+              <div>
+                <Label htmlFor={`policy-fee-head-id-${item.key}`}>Head ID</Label>
+                <Input
+                  id={`policy-fee-head-id-${item.key}`}
+                  name="globalCustomFeeHeadId"
+                  defaultValue={item.id}
+                  placeholder="smart_class_fee"
+                  className="mt-2"
+                  disabled={!canEdit}
+                />
+              </div>
+              <div>
+                <Label htmlFor={`policy-fee-head-label-${item.key}`}>Head label</Label>
+                <Input
+                  id={`policy-fee-head-label-${item.key}`}
+                  name="globalCustomFeeHeadLabel"
+                  defaultValue={item.label}
+                  placeholder="Smart class fee"
+                  className="mt-2"
+                  disabled={!canEdit}
+                />
+              </div>
+              <div className="flex items-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={!canEdit}
+                  onClick={() =>
+                    setFeeHeads((current) => current.filter((_, rowIndex) => rowIndex !== index))
+                  }
+                >
+                  Remove
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FeeHeadAmountFields({
+  prefix,
+  feeHeads,
+  amounts,
+  canEdit,
+}: {
+  prefix: "school" | "class" | "student";
+  feeHeads: FeeHeadDefinition[];
+  amounts: Record<string, number>;
+  canEdit: boolean;
+}) {
+  if (feeHeads.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+        Save the global policy catalog first if you need extra fee-head amounts.
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {feeHeads.map((item) => (
+        <div key={`${prefix}-${item.id}`}>
+          <input type="hidden" name={`${prefix}CustomFeeHeadId`} value={item.id} />
+          <input type="hidden" name={`${prefix}CustomFeeHeadLabel`} value={item.label} />
+          <Label htmlFor={`${prefix}-${item.id}`}>{item.label}</Label>
+          <Input
+            id={`${prefix}-${item.id}`}
+            name={`${prefix}CustomFeeHeadAmount`}
+            type="number"
+            min={0}
+            defaultValue={amounts[item.id] ?? 0}
+            className="mt-2"
+            disabled={!canEdit}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ClassDefaultsTable({ items }: { items: ClassFeeDefault[] }) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-slate-200">
+      <table className="w-full min-w-[760px] text-left text-sm">
+        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+          <tr>
+            <th className="px-4 py-3">Class</th>
+            <th className="px-4 py-3">Session</th>
+            <th className="px-4 py-3">Annual total</th>
+            <th className="px-4 py-3">Student type</th>
+            <th className="px-4 py-3">Transport default</th>
+            <th className="px-4 py-3">Updated</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.length === 0 ? (
+            <tr>
+              <td colSpan={6} className="px-4 py-4 text-slate-500">
+                No class defaults saved yet.
+              </td>
+            </tr>
+          ) : (
+            items.map((item) => (
+              <tr key={item.id} className="border-t border-slate-100 text-slate-700">
+                <td className="px-4 py-3 font-medium text-slate-900">{item.classLabel}</td>
+                <td className="px-4 py-3">{item.sessionLabel}</td>
+                <td className="px-4 py-3">{formatInr(item.annualTotal)}</td>
+                <td className="px-4 py-3 capitalize">{item.studentTypeDefault}</td>
+                <td className="px-4 py-3">
+                  {item.transportAppliesDefault ? "Applies" : "Not applied"}
+                </td>
+                <td className="px-4 py-3">{formatUpdatedAt(item.updatedAt)}</td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TransportDefaultsTable({ items }: { items: TransportDefault[] }) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-slate-200">
+      <table className="w-full min-w-[700px] text-left text-sm">
+        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+          <tr>
+            <th className="px-4 py-3">Route</th>
+            <th className="px-4 py-3">Code</th>
+            <th className="px-4 py-3">Installment default</th>
+            <th className="px-4 py-3">Status</th>
+            <th className="px-4 py-3">Updated</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="px-4 py-4 text-slate-500">
+                No transport defaults saved yet.
+              </td>
+            </tr>
+          ) : (
+            items.map((item) => (
+              <tr key={item.id} className="border-t border-slate-100 text-slate-700">
+                <td className="px-4 py-3 font-medium text-slate-900">{item.routeName}</td>
+                <td className="px-4 py-3">{item.routeCode ?? "Not set"}</td>
+                <td className="px-4 py-3">{formatInr(item.defaultInstallmentAmount)}</td>
+                <td className="px-4 py-3">{item.isActive ? "Active" : "Inactive"}</td>
+                <td className="px-4 py-3">{formatUpdatedAt(item.updatedAt)}</td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function StudentOverridesTable({ items }: { items: StudentFeeOverride[] }) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-slate-200">
+      <table className="w-full min-w-[900px] text-left text-sm">
+        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+          <tr>
+            <th className="px-4 py-3">Student</th>
+            <th className="px-4 py-3">Class</th>
+            <th className="px-4 py-3">Reason</th>
+            <th className="px-4 py-3">Discount</th>
+            <th className="px-4 py-3">Late fee override</th>
+            <th className="px-4 py-3">Updated</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.length === 0 ? (
+            <tr>
+              <td colSpan={6} className="px-4 py-4 text-slate-500">
+                No active student overrides found.
+              </td>
+            </tr>
+          ) : (
+            items.map((item) => (
+              <tr key={item.id} className="border-t border-slate-100 text-slate-700">
+                <td className="px-4 py-3 font-medium text-slate-900">{item.studentLabel}</td>
+                <td className="px-4 py-3">{item.classLabel}</td>
+                <td className="px-4 py-3">{item.reason}</td>
+                <td className="px-4 py-3">{formatInr(item.discountAmount)}</td>
+                <td className="px-4 py-3">
+                  {item.customLateFeeFlatAmount === null
+                    ? "No override"
+                    : formatInr(item.customLateFeeFlatAmount)}
+                </td>
+                <td className="px-4 py-3">{formatUpdatedAt(item.updatedAt)}</td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
 export function FeeSetupClient({
   data,
   canEdit,
+  saveGlobalPolicyAction,
   saveSchoolDefaultsAction,
   saveClassDefaultsAction,
+  saveTransportDefaultsAction,
   saveStudentOverrideAction,
   initialState,
 }: FeeSetupClientProps) {
+  const [globalState, globalFormAction, globalPending] = useActionState(
+    saveGlobalPolicyAction,
+    initialState,
+  );
   const [schoolState, schoolFormAction, schoolPending] = useActionState(
     saveSchoolDefaultsAction,
     initialState,
@@ -76,24 +412,65 @@ export function FeeSetupClient({
     saveClassDefaultsAction,
     initialState,
   );
+  const [transportState, transportFormAction, transportPending] = useActionState(
+    saveTransportDefaultsAction,
+    initialState,
+  );
   const [studentState, studentFormAction, studentPending] = useActionState(
     saveStudentOverrideAction,
     initialState,
   );
 
+  useRefreshOnSuccess(
+    globalState,
+    schoolState,
+    classState,
+    transportState,
+    studentState,
+  );
+
+  const [feeHeads, setFeeHeads] = useState(() =>
+    buildEditableFeeHeads(data.globalPolicy.customFeeHeads),
+  );
+  const [scheduleRows, setScheduleRows] = useState(() =>
+    data.globalPolicy.installmentSchedule.map((item, index) => ({
+      key: `schedule-${index}`,
+      label: item.label,
+      dueDateLabel: item.dueDateLabel,
+    })),
+  );
+  const [selectedClassId, setSelectedClassId] = useState(
+    data.classDefaults[0]?.classId ?? "",
+  );
+  const [selectedRouteId, setSelectedRouteId] = useState(
+    data.transportDefaults[0]?.id ?? "",
+  );
+  const [selectedStudentId, setSelectedStudentId] = useState(
+    data.studentOverrides[0]?.studentId ?? "",
+  );
+
+  const selectedClassDefault =
+    data.classDefaults.find((item) => item.classId === selectedClassId) ?? null;
+  const selectedRouteDefault =
+    data.transportDefaults.find((item) => item.id === selectedRouteId) ?? null;
+  const selectedStudentOverride =
+    data.studentOverrides.find((item) => item.studentId === selectedStudentId) ?? null;
+
   const schoolDefault = data.schoolDefault;
+  const effectiveFeeHeads = data.globalPolicy.customFeeHeads;
 
   return (
     <div className="space-y-6">
       {!canEdit ? (
         <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-          You can review fee defaults and overrides, but only admin staff can change school-wide fee policy, due dates, class defaults, or student override records.
+          You can review policy, defaults, routes, and override records, but only admin
+          staff can change canonical fee policy or editable default tables.
         </div>
       ) : null}
 
       <SectionCard
-        title="School-wide fee defaults"
-        description="Set the base policy used for classes and future fee setup records."
+        title="Canonical fee policy"
+        description="This is the single editable fee-policy source used by ledger sync, payment desk mode validation, dashboard notes, defaulters, reports, and settings."
         actions={
           canEdit ? (
             <StatusBadge label="Admin editable" tone="good" />
@@ -102,67 +479,257 @@ export function FeeSetupClient({
           )
         }
       >
-        <form action={schoolFormAction} className="space-y-4">
+        <form action={globalFormAction} className="space-y-5">
+          <ActionNotice state={globalState} />
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div>
+              <Label htmlFor="policy-academic-session">Academic session</Label>
+              <Input
+                id="policy-academic-session"
+                name="academicSessionLabel"
+                defaultValue={data.globalPolicy.academicSessionLabel}
+                className="mt-2"
+                disabled={!canEdit}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="policy-installment-count">Installment count</Label>
+              <Input
+                id="policy-installment-count"
+                value={scheduleRows.length}
+                className="mt-2"
+                disabled
+                readOnly
+              />
+            </div>
+            <div>
+              <Label htmlFor="policy-late-fee">Late fee rule</Label>
+              <Input
+                id="policy-late-fee"
+                name="lateFeeFlatAmount"
+                type="number"
+                min={0}
+                defaultValue={data.globalPolicy.lateFeeFlatAmount}
+                className="mt-2"
+                disabled={!canEdit}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="policy-receipt-prefix">Receipt prefix</Label>
+              <Input
+                id="policy-receipt-prefix"
+                name="receiptPrefix"
+                defaultValue={data.globalPolicy.receiptPrefix}
+                className="mt-2 uppercase"
+                disabled={!canEdit}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Installment due schedule</Label>
+                <SectionHint>
+                  Save policy changes first, then use Session Ledger Sync to propagate only
+                  to future and unpaid installments.
+                </SectionHint>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!canEdit}
+                onClick={() =>
+                  setScheduleRows((current) => [...current, createScheduleRow(current.length)])
+                }
+              >
+                Add installment
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              {scheduleRows.map((item, index) => (
+                <div
+                  key={item.key}
+                  className="grid gap-3 md:grid-cols-[1fr_1fr_auto] xl:grid-cols-[1fr_1fr_auto]"
+                >
+                  <div>
+                    <Label htmlFor={`schedule-label-${item.key}`}>Label</Label>
+                    <Input
+                      id={`schedule-label-${item.key}`}
+                      name="scheduleLabel"
+                      defaultValue={item.label}
+                      className="mt-2"
+                      disabled={!canEdit}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor={`schedule-due-${item.key}`}>Due date label</Label>
+                    <Input
+                      id={`schedule-due-${item.key}`}
+                      name="scheduleDueDateLabel"
+                      defaultValue={item.dueDateLabel}
+                      placeholder="20 April"
+                      className="mt-2"
+                      disabled={!canEdit}
+                      required
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      disabled={!canEdit || scheduleRows.length <= 1}
+                      onClick={() =>
+                        setScheduleRows((current) =>
+                          current.filter((_, rowIndex) => rowIndex !== index),
+                        )
+                      }
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <Label>Accepted payment modes</Label>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {paymentModeOptions.map((option) => {
+                const defaultChecked = data.globalPolicy.acceptedPaymentModes.some(
+                  (item) => item.value === option.value,
+                );
+
+                return (
+                  <label
+                    key={option.value}
+                    className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                  >
+                    <input
+                      type="checkbox"
+                      name="acceptedPaymentModes"
+                      value={option.value}
+                      defaultChecked={defaultChecked}
+                      disabled={!canEdit}
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <FeeHeadCatalogEditor
+            feeHeads={feeHeads}
+            setFeeHeads={setFeeHeads}
+            canEdit={canEdit}
+          />
+
+          <div>
+            <Label htmlFor="policy-notes">Policy notes</Label>
+            <textarea
+              id="policy-notes"
+              name="globalNotes"
+              defaultValue={data.globalPolicy.notes ?? ""}
+              className={`${textAreaClassName} mt-2`}
+              disabled={!canEdit}
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <SectionHint>
+              Current policy: {data.globalPolicy.academicSessionLabel} | {data.globalPolicy.lateFeeLabel} |{" "}
+              {data.globalPolicy.installmentSchedule.map((item) => item.dueDateLabel).join(", ")}
+            </SectionHint>
+            <Button type="submit" disabled={!canEdit || globalPending}>
+              {globalPending ? "Saving policy..." : "Save canonical policy"}
+            </Button>
+          </div>
+        </form>
+      </SectionCard>
+
+      <SectionCard
+        title="School-wide fee defaults"
+        description="Set the default base amounts used when a class does not need a different active default."
+        actions={
+          canEdit ? (
+            <StatusBadge label="Editable master data" tone="good" />
+          ) : (
+            <StatusBadge label="Read-only" tone="warning" />
+          )
+        }
+      >
+        <form action={schoolFormAction} className="space-y-5">
           <ActionNotice state={schoolState} />
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <div>
-              <Label htmlFor="school-tuitionFee">Tuition fee</Label>
-              <Input id="school-tuitionFee" name="tuitionFee" type="number" min={0} defaultValue={schoolDefault?.tuitionFee ?? 0} className="mt-2" disabled={!canEdit} required />
-            </div>
-            <div>
-              <Label htmlFor="school-transportFee">Transport fee</Label>
-              <Input id="school-transportFee" name="transportFee" type="number" min={0} defaultValue={schoolDefault?.transportFee ?? 0} className="mt-2" disabled={!canEdit} required />
-            </div>
-            <div>
-              <Label htmlFor="school-booksFee">Books fee</Label>
-              <Input id="school-booksFee" name="booksFee" type="number" min={0} defaultValue={schoolDefault?.booksFee ?? 0} className="mt-2" disabled={!canEdit} required />
-            </div>
-            <div>
-              <Label htmlFor="school-admissionActivityMiscFee">Admission/activity/misc fee</Label>
+              <Label htmlFor="school-tuition-fee">Tuition fee</Label>
               <Input
-                id="school-admissionActivityMiscFee"
+                id="school-tuition-fee"
+                name="tuitionFee"
+                type="number"
+                min={0}
+                defaultValue={schoolDefault.tuitionFee}
+                className="mt-2"
+                disabled={!canEdit}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="school-transport-fee">Transport fee</Label>
+              <Input
+                id="school-transport-fee"
+                name="transportFee"
+                type="number"
+                min={0}
+                defaultValue={schoolDefault.transportFee}
+                className="mt-2"
+                disabled={!canEdit}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="school-books-fee">Books fee</Label>
+              <Input
+                id="school-books-fee"
+                name="booksFee"
+                type="number"
+                min={0}
+                defaultValue={schoolDefault.booksFee}
+                className="mt-2"
+                disabled={!canEdit}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="school-misc-fee">Admission/activity/misc fee</Label>
+              <Input
+                id="school-misc-fee"
                 name="admissionActivityMiscFee"
                 type="number"
                 min={0}
-                defaultValue={schoolDefault?.admissionActivityMiscFee ?? 0}
+                defaultValue={schoolDefault.admissionActivityMiscFee}
                 className="mt-2"
                 disabled={!canEdit}
                 required
               />
             </div>
             <div>
-              <Label htmlFor="school-lateFeeFlatAmount">Late fee (flat)</Label>
-              <Input
-                id="school-lateFeeFlatAmount"
-                name="lateFeeFlatAmount"
-                type="number"
-                min={0}
-                defaultValue={schoolDefault?.lateFeeFlatAmount ?? 1000}
-                className="mt-2"
-                disabled={!canEdit}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="school-installmentCount">Installment count</Label>
-              <Input
-                id="school-installmentCount"
-                name="installmentCount"
-                type="number"
-                min={1}
-                defaultValue={schoolDefault?.installmentCount ?? 4}
-                className="mt-2"
-                disabled={!canEdit}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="school-studentTypeDefault">Default student type</Label>
+              <Label htmlFor="school-student-type">Student type default</Label>
               <select
-                id="school-studentTypeDefault"
+                id="school-student-type"
                 name="studentTypeDefault"
-                defaultValue={schoolDefault?.studentTypeDefault ?? "existing"}
+                defaultValue={schoolDefault.studentTypeDefault}
                 className={`${selectClassName} mt-2`}
                 disabled={!canEdit}
               >
@@ -171,11 +738,11 @@ export function FeeSetupClient({
               </select>
             </div>
             <div>
-              <Label htmlFor="school-transportAppliesDefault">Transport applies by default</Label>
+              <Label htmlFor="school-transport-applies">Transport applies default</Label>
               <select
-                id="school-transportAppliesDefault"
+                id="school-transport-applies"
                 name="transportAppliesDefault"
-                defaultValue={schoolDefault?.transportAppliesDefault ? "yes" : "no"}
+                defaultValue={schoolDefault.transportAppliesDefault ? "yes" : "no"}
                 className={`${selectClassName} mt-2`}
                 disabled={!canEdit}
               >
@@ -185,35 +752,14 @@ export function FeeSetupClient({
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <Label htmlFor="school-dueDate1">Due date 1</Label>
-              <Input id="school-dueDate1" name="dueDate1" defaultValue={schoolDefault?.installmentDueDates[0] ?? "20 April"} className="mt-2" disabled={!canEdit} required />
-            </div>
-            <div>
-              <Label htmlFor="school-dueDate2">Due date 2</Label>
-              <Input id="school-dueDate2" name="dueDate2" defaultValue={schoolDefault?.installmentDueDates[1] ?? "20 July"} className="mt-2" disabled={!canEdit} required />
-            </div>
-            <div>
-              <Label htmlFor="school-dueDate3">Due date 3</Label>
-              <Input id="school-dueDate3" name="dueDate3" defaultValue={schoolDefault?.installmentDueDates[2] ?? "20 October"} className="mt-2" disabled={!canEdit} required />
-            </div>
-            <div>
-              <Label htmlFor="school-dueDate4">Due date 4</Label>
-              <Input id="school-dueDate4" name="dueDate4" defaultValue={schoolDefault?.installmentDueDates[3] ?? "20 January"} className="mt-2" disabled={!canEdit} required />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="school-otherFeeHeads">Other fee heads (optional)</Label>
-            <textarea
-              id="school-otherFeeHeads"
-              name="otherFeeHeads"
-              defaultValue={JSON.stringify(schoolDefault?.otherFeeHeads ?? {}, null, 2)}
-              className={`${textAreaClassName} mt-2`}
-              disabled={!canEdit}
+          <div className="space-y-3">
+            <Label>School custom fee-head amounts</Label>
+            <FeeHeadAmountFields
+              prefix="school"
+              feeHeads={effectiveFeeHeads}
+              amounts={schoolDefault.customFeeHeadAmounts}
+              canEdit={canEdit}
             />
-            <OtherFeeHeadsHint />
           </div>
 
           <div>
@@ -221,16 +767,14 @@ export function FeeSetupClient({
             <textarea
               id="school-notes"
               name="notes"
-              defaultValue={schoolDefault?.notes ?? ""}
+              defaultValue={schoolDefault.notes ?? ""}
               className={`${textAreaClassName} mt-2`}
               disabled={!canEdit}
             />
           </div>
 
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-slate-500">
-              Current default late fee: {formatInr(schoolDefault?.lateFeeFlatAmount ?? 1000)}
-            </p>
+          <div className="flex items-center justify-between gap-4">
+            <SectionHint>Last updated: {formatUpdatedAt(schoolDefault.updatedAt)}</SectionHint>
             <Button type="submit" disabled={!canEdit || schoolPending}>
               {schoolPending ? "Saving..." : "Save school defaults"}
             </Button>
@@ -239,78 +783,114 @@ export function FeeSetupClient({
       </SectionCard>
 
       <SectionCard
-        title="Per-class fee defaults"
-        description="Create or update active fee defaults for each class."
+        title="Class-wise fee defaults"
+        description="Each class keeps one active editable default record. Ledger sync resolves class defaults before school-level fallback."
         actions={
           canEdit ? (
-            <StatusBadge label="Admin editable" tone="good" />
+            <StatusBadge label="Editable master data" tone="good" />
           ) : (
-            <StatusBadge label="Admin only" tone="warning" />
+            <StatusBadge label="Read-only" tone="warning" />
           )
         }
       >
-        <form action={classFormAction} className="space-y-4">
+        <form key={selectedClassId || "new-class"} action={classFormAction} className="space-y-5">
           <ActionNotice state={classState} />
 
-          <div>
-            <Label htmlFor="class-classId">Class</Label>
-            <select
-              id="class-classId"
-              name="classId"
-              className={`${selectClassName} mt-2`}
-              defaultValue=""
-              disabled={!canEdit || data.classOptions.length === 0}
-              required
-            >
-              <option value="">Select class</option>
-              {data.classOptions.map((classOption) => (
-                <option key={classOption.id} value={classOption.id}>
-                  {classOption.label} ({classOption.sessionLabel})
-                </option>
-              ))}
-            </select>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <Label htmlFor="class-select">Class</Label>
+              <select
+                id="class-select"
+                name="classId"
+                value={selectedClassId}
+                onChange={(event) => setSelectedClassId(event.target.value)}
+                className={`${selectClassName} mt-2`}
+                disabled={!canEdit || data.classOptions.length === 0}
+                required
+              >
+                <option value="">Select class</option>
+                {data.classOptions.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label} ({item.sessionLabel})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              {selectedClassDefault ? (
+                <>
+                  Editing current active default for <strong>{selectedClassDefault.classLabel}</strong>.
+                </>
+              ) : (
+                <>Select a class to create or update its active default.</>
+              )}
+            </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <div>
-              <Label htmlFor="class-tuitionFee">Tuition fee</Label>
-              <Input id="class-tuitionFee" name="tuitionFee" type="number" min={0} className="mt-2" defaultValue={schoolDefault?.tuitionFee ?? 0} disabled={!canEdit} required />
-            </div>
-            <div>
-              <Label htmlFor="class-transportFee">Transport fee</Label>
-              <Input id="class-transportFee" name="transportFee" type="number" min={0} className="mt-2" defaultValue={schoolDefault?.transportFee ?? 0} disabled={!canEdit} required />
-            </div>
-            <div>
-              <Label htmlFor="class-booksFee">Books fee</Label>
-              <Input id="class-booksFee" name="booksFee" type="number" min={0} className="mt-2" defaultValue={schoolDefault?.booksFee ?? 0} disabled={!canEdit} required />
-            </div>
-            <div>
-              <Label htmlFor="class-admissionActivityMiscFee">Admission/activity/misc fee</Label>
+              <Label htmlFor="class-tuition-fee">Tuition fee</Label>
               <Input
-                id="class-admissionActivityMiscFee"
-                name="admissionActivityMiscFee"
+                id="class-tuition-fee"
+                name="tuitionFee"
                 type="number"
                 min={0}
+                defaultValue={selectedClassDefault?.tuitionFee ?? schoolDefault.tuitionFee}
                 className="mt-2"
-                defaultValue={schoolDefault?.admissionActivityMiscFee ?? 0}
                 disabled={!canEdit}
                 required
               />
             </div>
             <div>
-              <Label htmlFor="class-lateFeeFlatAmount">Late fee (flat)</Label>
-              <Input id="class-lateFeeFlatAmount" name="lateFeeFlatAmount" type="number" min={0} className="mt-2" defaultValue={schoolDefault?.lateFeeFlatAmount ?? 1000} disabled={!canEdit} required />
+              <Label htmlFor="class-transport-fee">Transport fee</Label>
+              <Input
+                id="class-transport-fee"
+                name="transportFee"
+                type="number"
+                min={0}
+                defaultValue={selectedClassDefault?.transportFee ?? schoolDefault.transportFee}
+                className="mt-2"
+                disabled={!canEdit}
+                required
+              />
             </div>
             <div>
-              <Label htmlFor="class-installmentCount">Installment count</Label>
-              <Input id="class-installmentCount" name="installmentCount" type="number" min={1} className="mt-2" defaultValue={schoolDefault?.installmentCount ?? 4} disabled={!canEdit} required />
+              <Label htmlFor="class-books-fee">Books fee</Label>
+              <Input
+                id="class-books-fee"
+                name="booksFee"
+                type="number"
+                min={0}
+                defaultValue={selectedClassDefault?.booksFee ?? schoolDefault.booksFee}
+                className="mt-2"
+                disabled={!canEdit}
+                required
+              />
             </div>
             <div>
-              <Label htmlFor="class-studentTypeDefault">Default student type</Label>
+              <Label htmlFor="class-misc-fee">Admission/activity/misc fee</Label>
+              <Input
+                id="class-misc-fee"
+                name="admissionActivityMiscFee"
+                type="number"
+                min={0}
+                defaultValue={
+                  selectedClassDefault?.admissionActivityMiscFee ??
+                  schoolDefault.admissionActivityMiscFee
+                }
+                className="mt-2"
+                disabled={!canEdit}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="class-student-type">Student type default</Label>
               <select
-                id="class-studentTypeDefault"
+                id="class-student-type"
                 name="studentTypeDefault"
-                defaultValue={schoolDefault?.studentTypeDefault ?? "existing"}
+                defaultValue={
+                  selectedClassDefault?.studentTypeDefault ?? schoolDefault.studentTypeDefault
+                }
                 className={`${selectClassName} mt-2`}
                 disabled={!canEdit}
               >
@@ -319,11 +899,16 @@ export function FeeSetupClient({
               </select>
             </div>
             <div>
-              <Label htmlFor="class-transportAppliesDefault">Transport applies by default</Label>
+              <Label htmlFor="class-transport-applies">Transport applies default</Label>
               <select
-                id="class-transportAppliesDefault"
+                id="class-transport-applies"
                 name="transportAppliesDefault"
-                defaultValue={schoolDefault?.transportAppliesDefault ? "yes" : "no"}
+                defaultValue={
+                  (selectedClassDefault?.transportAppliesDefault ??
+                  schoolDefault.transportAppliesDefault)
+                    ? "yes"
+                    : "no"
+                }
                 className={`${selectClassName} mt-2`}
                 disabled={!canEdit}
               >
@@ -333,132 +918,296 @@ export function FeeSetupClient({
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="class-otherFeeHeads">Other fee heads (optional)</Label>
-            <textarea id="class-otherFeeHeads" name="otherFeeHeads" defaultValue="{}" className={`${textAreaClassName} mt-2`} disabled={!canEdit} />
-            <OtherFeeHeadsHint />
+          <div className="space-y-3">
+            <Label>Class custom fee-head amounts</Label>
+            <FeeHeadAmountFields
+              prefix="class"
+              feeHeads={effectiveFeeHeads}
+              amounts={selectedClassDefault?.customFeeHeadAmounts ?? schoolDefault.customFeeHeadAmounts}
+              canEdit={canEdit}
+            />
           </div>
 
           <div>
             <Label htmlFor="class-notes">Notes</Label>
-            <textarea id="class-notes" name="notes" className={`${textAreaClassName} mt-2`} disabled={!canEdit} />
+            <textarea
+              id="class-notes"
+              name="notes"
+              defaultValue={selectedClassDefault?.notes ?? ""}
+              className={`${textAreaClassName} mt-2`}
+              disabled={!canEdit}
+            />
           </div>
 
-          <div className="flex items-center justify-end">
-            <Button type="submit" disabled={!canEdit || classPending || data.classOptions.length === 0}>
+          <div className="flex items-center justify-between gap-4">
+            <SectionHint>
+              {selectedClassDefault
+                ? `Last updated: ${formatUpdatedAt(selectedClassDefault.updatedAt)}`
+                : "New class default will become the active record for the selected class."}
+            </SectionHint>
+            <Button
+              type="submit"
+              disabled={!canEdit || classPending || !selectedClassId}
+            >
               {classPending ? "Saving..." : "Save class defaults"}
             </Button>
           </div>
         </form>
 
-        <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full min-w-[680px] text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
-              <tr>
-                <th className="px-4 py-3">Class</th>
-                <th className="px-4 py-3">Tuition</th>
-                <th className="px-4 py-3">Transport</th>
-                <th className="px-4 py-3">Late fee</th>
-                <th className="px-4 py-3">Type</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.classDefaults.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-4 text-slate-500">
-                    No class defaults saved yet.
-                  </td>
-                </tr>
-              ) : (
-                data.classDefaults.map((item) => (
-                  <tr key={item.id} className="border-t border-slate-100 text-slate-700">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-slate-900">{item.classLabel}</p>
-                      <p className="text-xs text-slate-500">{item.sessionLabel}</p>
-                    </td>
-                    <td className="px-4 py-3">{formatInr(item.tuitionFee)}</td>
-                    <td className="px-4 py-3">{formatInr(item.transportFee)}</td>
-                    <td className="px-4 py-3">{formatInr(item.lateFeeFlatAmount)}</td>
-                    <td className="px-4 py-3">{item.studentTypeDefault}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="mt-6">
+          <ClassDefaultsTable items={data.classDefaults} />
         </div>
       </SectionCard>
 
       <SectionCard
-        title="Per-student fee overrides"
-        description="Use optional override fields for exceptions and keep a clear reason for every change."
+        title="Transport defaults"
+        description="Transport route defaults stay editable as master data. Resolved route amounts feed future and unpaid installment calculations only."
         actions={
           canEdit ? (
-            <StatusBadge label="Admin editable" tone="good" />
+            <StatusBadge label="Editable master data" tone="good" />
           ) : (
-            <StatusBadge label="Admin only" tone="warning" />
+            <StatusBadge label="Read-only" tone="warning" />
           )
         }
       >
-        <form action={studentFormAction} className="space-y-4">
-          <ActionNotice state={studentState} />
+        <form
+          key={selectedRouteId || "new-route"}
+          action={transportFormAction}
+          className="space-y-5"
+        >
+          <ActionNotice state={transportState} />
 
-          <div>
-            <Label htmlFor="student-studentId">Student</Label>
-            <select
-              id="student-studentId"
-              name="studentId"
-              className={`${selectClassName} mt-2`}
-              defaultValue=""
-              disabled={!canEdit || data.studentOptions.length === 0}
-              required
-            >
-              <option value="">Select student</option>
-              {data.studentOptions.map((studentOption) => (
-                <option key={studentOption.id} value={studentOption.id}>
-                  {studentOption.label} - {studentOption.classLabel}
-                </option>
-              ))}
-            </select>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <Label htmlFor="route-select">Route</Label>
+              <select
+                id="route-select"
+                value={selectedRouteId}
+                onChange={(event) => setSelectedRouteId(event.target.value)}
+                className={`${selectClassName} mt-2`}
+                disabled={!canEdit}
+              >
+                <option value="">Create new route default</option>
+                {data.routeOptions.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label}
+                    {item.routeCode ? ` (${item.routeCode})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              Route defaults control transport annualisation through the active policy
+              installment count.
+            </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <input type="hidden" name="routeId" value={selectedRouteDefault?.id ?? ""} />
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div>
-              <Label htmlFor="student-customTuitionFeeAmount">Custom tuition fee</Label>
-              <Input id="student-customTuitionFeeAmount" name="customTuitionFeeAmount" type="number" min={0} className="mt-2" disabled={!canEdit} />
-            </div>
-            <div>
-              <Label htmlFor="student-customTransportFeeAmount">Custom transport fee</Label>
-              <Input id="student-customTransportFeeAmount" name="customTransportFeeAmount" type="number" min={0} className="mt-2" disabled={!canEdit} />
-            </div>
-            <div>
-              <Label htmlFor="student-customBooksFeeAmount">Custom books fee</Label>
-              <Input id="student-customBooksFeeAmount" name="customBooksFeeAmount" type="number" min={0} className="mt-2" disabled={!canEdit} />
-            </div>
-            <div>
-              <Label htmlFor="student-customAdmissionActivityMiscFeeAmount">Custom admission/activity/misc fee</Label>
+              <Label htmlFor="route-code">Route code</Label>
               <Input
-                id="student-customAdmissionActivityMiscFeeAmount"
-                name="customAdmissionActivityMiscFeeAmount"
-                type="number"
-                min={0}
+                id="route-code"
+                name="routeCode"
+                defaultValue={selectedRouteDefault?.routeCode ?? ""}
                 className="mt-2"
                 disabled={!canEdit}
               />
             </div>
             <div>
-              <Label htmlFor="student-customLateFeeFlatAmount">Custom late fee</Label>
-              <Input id="student-customLateFeeFlatAmount" name="customLateFeeFlatAmount" type="number" min={0} className="mt-2" disabled={!canEdit} />
+              <Label htmlFor="route-name">Route name</Label>
+              <Input
+                id="route-name"
+                name="routeName"
+                defaultValue={selectedRouteDefault?.routeName ?? ""}
+                className="mt-2"
+                disabled={!canEdit}
+                required
+              />
             </div>
             <div>
-              <Label htmlFor="student-discountAmount">Discount amount</Label>
-              <Input id="student-discountAmount" name="discountAmount" type="number" min={0} className="mt-2" defaultValue={0} disabled={!canEdit} required />
+              <Label htmlFor="route-default-amount">Default installment amount</Label>
+              <Input
+                id="route-default-amount"
+                name="defaultInstallmentAmount"
+                type="number"
+                min={0}
+                defaultValue={selectedRouteDefault?.defaultInstallmentAmount ?? 0}
+                className="mt-2"
+                disabled={!canEdit}
+                required
+              />
             </div>
             <div>
-              <Label htmlFor="student-studentTypeOverride">Student type override</Label>
+              <Label htmlFor="route-status">Route status</Label>
               <select
-                id="student-studentTypeOverride"
+                id="route-status"
+                name="isActive"
+                defaultValue={selectedRouteDefault?.isActive === false ? "no" : "yes"}
+                className={`${selectClassName} mt-2`}
+                disabled={!canEdit}
+              >
+                <option value="yes">Active</option>
+                <option value="no">Inactive</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="route-notes">Notes</Label>
+            <textarea
+              id="route-notes"
+              name="notes"
+              defaultValue={selectedRouteDefault?.notes ?? ""}
+              className={`${textAreaClassName} mt-2`}
+              disabled={!canEdit}
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <SectionHint>
+              {selectedRouteDefault
+                ? `Last updated: ${formatUpdatedAt(selectedRouteDefault.updatedAt)}`
+                : "New routes can be added here without touching paid history."}
+            </SectionHint>
+            <Button type="submit" disabled={!canEdit || transportPending}>
+              {transportPending ? "Saving..." : "Save transport default"}
+            </Button>
+          </div>
+        </form>
+
+        <div className="mt-6">
+          <TransportDefaultsTable items={data.transportDefaults} />
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Per-student overrides"
+        description="Overrides are explicit exception records. They affect only future and unpaid-fee calculations after policy-aware ledger sync."
+        actions={
+          canEdit ? (
+            <StatusBadge label="Editable default exception" tone="good" />
+          ) : (
+            <StatusBadge label="Read-only" tone="warning" />
+          )
+        }
+      >
+        <form
+          key={selectedStudentId || "new-student-override"}
+          action={studentFormAction}
+          className="space-y-5"
+        >
+          <ActionNotice state={studentState} />
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <Label htmlFor="student-select">Student</Label>
+              <select
+                id="student-select"
+                name="studentId"
+                value={selectedStudentId}
+                onChange={(event) => setSelectedStudentId(event.target.value)}
+                className={`${selectClassName} mt-2`}
+                disabled={!canEdit || data.studentOptions.length === 0}
+                required
+              >
+                <option value="">Select student</option>
+                {data.studentOptions.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label} - {item.classLabel}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              Save class defaults for the student’s class first. Overrides are layered on top of
+              the active class or school defaults.
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div>
+              <Label htmlFor="student-custom-tuition">Custom tuition fee</Label>
+              <Input
+                id="student-custom-tuition"
+                name="customTuitionFeeAmount"
+                type="number"
+                min={0}
+                defaultValue={selectedStudentOverride?.customTuitionFeeAmount ?? ""}
+                className="mt-2"
+                disabled={!canEdit}
+              />
+            </div>
+            <div>
+              <Label htmlFor="student-custom-transport">Custom transport fee</Label>
+              <Input
+                id="student-custom-transport"
+                name="customTransportFeeAmount"
+                type="number"
+                min={0}
+                defaultValue={selectedStudentOverride?.customTransportFeeAmount ?? ""}
+                className="mt-2"
+                disabled={!canEdit}
+              />
+            </div>
+            <div>
+              <Label htmlFor="student-custom-books">Custom books fee</Label>
+              <Input
+                id="student-custom-books"
+                name="customBooksFeeAmount"
+                type="number"
+                min={0}
+                defaultValue={selectedStudentOverride?.customBooksFeeAmount ?? ""}
+                className="mt-2"
+                disabled={!canEdit}
+              />
+            </div>
+            <div>
+              <Label htmlFor="student-custom-misc">Custom admission/activity/misc fee</Label>
+              <Input
+                id="student-custom-misc"
+                name="customAdmissionActivityMiscFeeAmount"
+                type="number"
+                min={0}
+                defaultValue={
+                  selectedStudentOverride?.customAdmissionActivityMiscFeeAmount ?? ""
+                }
+                className="mt-2"
+                disabled={!canEdit}
+              />
+            </div>
+            <div>
+              <Label htmlFor="student-custom-late-fee">Custom late fee</Label>
+              <Input
+                id="student-custom-late-fee"
+                name="customLateFeeFlatAmount"
+                type="number"
+                min={0}
+                defaultValue={selectedStudentOverride?.customLateFeeFlatAmount ?? ""}
+                className="mt-2"
+                disabled={!canEdit}
+              />
+            </div>
+            <div>
+              <Label htmlFor="student-discount-amount">Discount amount</Label>
+              <Input
+                id="student-discount-amount"
+                name="discountAmount"
+                type="number"
+                min={0}
+                defaultValue={selectedStudentOverride?.discountAmount ?? 0}
+                className="mt-2"
+                disabled={!canEdit}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="student-type-override">Student type override</Label>
+              <select
+                id="student-type-override"
                 name="studentTypeOverride"
-                defaultValue=""
+                defaultValue={selectedStudentOverride?.studentTypeOverride ?? ""}
                 className={`${selectClassName} mt-2`}
                 disabled={!canEdit}
               >
@@ -468,11 +1217,17 @@ export function FeeSetupClient({
               </select>
             </div>
             <div>
-              <Label htmlFor="student-transportAppliesOverride">Transport applies override</Label>
+              <Label htmlFor="student-transport-override">Transport applies override</Label>
               <select
-                id="student-transportAppliesOverride"
+                id="student-transport-override"
                 name="transportAppliesOverride"
-                defaultValue=""
+                defaultValue={
+                  selectedStudentOverride?.transportAppliesOverride == null
+                    ? ""
+                    : selectedStudentOverride.transportAppliesOverride
+                      ? "yes"
+                      : "no"
+                }
                 className={`${selectClassName} mt-2`}
                 disabled={!canEdit}
               >
@@ -483,65 +1238,58 @@ export function FeeSetupClient({
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="student-customOtherFeeHeads">Custom other fee heads (optional)</Label>
-            <textarea id="student-customOtherFeeHeads" name="customOtherFeeHeads" defaultValue="{}" className={`${textAreaClassName} mt-2`} disabled={!canEdit} />
-            <OtherFeeHeadsHint />
+          <div className="space-y-3">
+            <Label>Student custom fee-head amounts</Label>
+            <FeeHeadAmountFields
+              prefix="student"
+              feeHeads={effectiveFeeHeads}
+              amounts={selectedStudentOverride?.customFeeHeadAmounts ?? {}}
+              canEdit={canEdit}
+            />
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <Label htmlFor="student-reason">Reason</Label>
-              <Input id="student-reason" name="reason" className="mt-2" placeholder="Example: sibling concession approved" disabled={!canEdit} required />
+              <Input
+                id="student-reason"
+                name="reason"
+                defaultValue={selectedStudentOverride?.reason ?? ""}
+                placeholder="Example: management-approved concession"
+                className="mt-2"
+                disabled={!canEdit}
+                required
+              />
             </div>
             <div>
               <Label htmlFor="student-notes">Notes</Label>
-              <textarea id="student-notes" name="notes" className={`${textAreaClassName} mt-2`} disabled={!canEdit} />
+              <textarea
+                id="student-notes"
+                name="notes"
+                defaultValue={selectedStudentOverride?.notes ?? ""}
+                className={`${textAreaClassName} mt-2`}
+                disabled={!canEdit}
+              />
             </div>
           </div>
 
-          <div className="flex items-center justify-end">
-            <Button type="submit" disabled={!canEdit || studentPending || data.studentOptions.length === 0}>
+          <div className="flex items-center justify-between gap-4">
+            <SectionHint>
+              {selectedStudentOverride
+                ? `Last updated: ${formatUpdatedAt(selectedStudentOverride.updatedAt)}`
+                : "Overrides never rewrite paid receipts, payments, or adjustments."}
+            </SectionHint>
+            <Button
+              type="submit"
+              disabled={!canEdit || studentPending || !selectedStudentId}
+            >
               {studentPending ? "Saving..." : "Save student override"}
             </Button>
           </div>
         </form>
 
-        <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
-              <tr>
-                <th className="px-4 py-3">Student</th>
-                <th className="px-4 py-3">Class</th>
-                <th className="px-4 py-3">Reason</th>
-                <th className="px-4 py-3">Discount</th>
-                <th className="px-4 py-3">Late fee override</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.studentOverrides.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-4 text-slate-500">
-                    No active student overrides found.
-                  </td>
-                </tr>
-              ) : (
-                data.studentOverrides.map((override) => (
-                  <tr key={override.id} className="border-t border-slate-100 text-slate-700">
-                    <td className="px-4 py-3 font-medium text-slate-900">{override.studentLabel}</td>
-                    <td className="px-4 py-3">{override.classLabel}</td>
-                    <td className="px-4 py-3">{override.reason}</td>
-                    <td className="px-4 py-3">{formatInr(override.discountAmount)}</td>
-                    <td className="px-4 py-3">
-                      {override.customLateFeeFlatAmount === null
-                        ? "No override"
-                        : formatInr(override.customLateFeeFlatAmount)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="mt-6">
+          <StudentOverridesTable items={data.studentOverrides} />
         </div>
       </SectionCard>
     </div>

@@ -1,3 +1,5 @@
+import type { PaymentMode } from "@/lib/db/types";
+
 export type FeeSetupActionStatus = "idle" | "success" | "error";
 
 export type FeeSetupActionState = {
@@ -10,35 +12,79 @@ export const INITIAL_FEE_SETUP_ACTION_STATE: FeeSetupActionState = {
   message: null,
 };
 
-export type FeeHeadBreakdown = {
+export type InstallmentScheduleItem = {
+  label: string;
+  dueDateLabel: string;
+  dueDate: string;
+};
+
+export type FeeHeadDefinition = {
+  id: string;
+  label: string;
+};
+
+export type FeeHeadAmount = FeeHeadDefinition & {
+  amount: number;
+};
+
+export type ResolvedFeeBreakdown = {
+  coreHeads: FeeHeadAmount[];
+  customHeads: FeeHeadAmount[];
+  annualTotal: number;
+};
+
+export type FeePolicySummary = {
+  id: string | null;
+  academicSessionLabel: string;
+  installmentCount: number;
+  installmentSchedule: InstallmentScheduleItem[];
+  lateFeeFlatAmount: number;
+  lateFeeLabel: string;
+  acceptedPaymentModes: Array<{
+    value: PaymentMode;
+    label: string;
+  }>;
+  receiptPrefix: string;
+  customFeeHeads: FeeHeadDefinition[];
+  notes: string | null;
+};
+
+export type SchoolFeeDefault = {
+  id: string | null;
   tuitionFee: number;
   transportFee: number;
   booksFee: number;
   admissionActivityMiscFee: number;
-  otherFeeHeads: Record<string, number>;
+  customFeeHeadAmounts: Record<string, number>;
+  studentTypeDefault: "new" | "existing";
+  transportAppliesDefault: boolean;
+  notes: string | null;
+  updatedAt: string | null;
 };
 
-export type SchoolFeeDefault = FeeHeadBreakdown & {
+export type ClassFeeDefault = {
   id: string;
-  lateFeeFlatAmount: number;
-  installmentCount: number;
-  installmentDueDates: string[];
+  classId: string;
+  classLabel: string;
+  sessionLabel: string;
+  tuitionFee: number;
+  transportFee: number;
+  booksFee: number;
+  admissionActivityMiscFee: number;
+  customFeeHeadAmounts: Record<string, number>;
+  annualTotal: number;
   studentTypeDefault: "new" | "existing";
   transportAppliesDefault: boolean;
   notes: string | null;
   updatedAt: string;
 };
 
-export type ClassFeeDefault = FeeHeadBreakdown & {
+export type TransportDefault = {
   id: string;
-  classId: string;
-  classLabel: string;
-  sessionLabel: string;
-  annualBaseAmount: number;
-  lateFeeFlatAmount: number;
-  installmentCount: number;
-  studentTypeDefault: "new" | "existing";
-  transportAppliesDefault: boolean;
+  routeCode: string | null;
+  routeName: string;
+  defaultInstallmentAmount: number;
+  isActive: boolean;
   notes: string | null;
   updatedAt: string;
 };
@@ -53,7 +99,7 @@ export type StudentFeeOverride = {
   customTransportFeeAmount: number | null;
   customBooksFeeAmount: number | null;
   customAdmissionActivityMiscFeeAmount: number | null;
-  customOtherFeeHeads: Record<string, number>;
+  customFeeHeadAmounts: Record<string, number>;
   customLateFeeFlatAmount: number | null;
   discountAmount: number;
   studentTypeOverride: "new" | "existing" | null;
@@ -76,10 +122,32 @@ export type FeeSetupStudentOption = {
   classLabel: string;
 };
 
+export type FeeSetupRouteOption = {
+  id: string;
+  label: string;
+  routeCode: string | null;
+  isActive: boolean;
+};
+
 export type FeeSetupPageData = {
-  schoolDefault: SchoolFeeDefault | null;
+  globalPolicy: FeePolicySummary;
+  schoolDefault: SchoolFeeDefault;
   classDefaults: ClassFeeDefault[];
+  transportDefaults: TransportDefault[];
   studentOverrides: StudentFeeOverride[];
   classOptions: FeeSetupClassOption[];
   studentOptions: FeeSetupStudentOption[];
+  routeOptions: FeeSetupRouteOption[];
+};
+
+export type StudentFinancialSnapshot = {
+  policy: FeePolicySummary;
+  resolvedBreakdown: ResolvedFeeBreakdown;
+  currentOutstanding: number;
+  openInstallments: number;
+  overdueInstallments: number;
+  nextDueDate: string | null;
+  nextDueLabel: string | null;
+  nextDueAmount: number | null;
+  activeOverrideReason: string | null;
 };

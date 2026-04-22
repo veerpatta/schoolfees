@@ -59,6 +59,8 @@ export type PaymentEntryPageData = {
   studentOptions: PaymentStudentOption[];
   selectedStudent: SelectedStudentSummary | null;
   searchQuery: string;
+  modeOptions: PaymentModeOption[];
+  policyNote: string;
 };
 
 export type PaymentModeOption = {

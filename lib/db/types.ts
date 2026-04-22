@@ -124,6 +124,28 @@ export type SchoolFeeDefaultRecord = {
   updatedBy: string | null;
 };
 
+export type FeePolicyConfigRecord = {
+  id: string;
+  academicSessionLabel: string;
+  installmentSchedule: Array<{
+    label: string;
+    dueDateLabel: string;
+  }>;
+  lateFeeFlatAmount: number;
+  customFeeHeads: Array<{
+    id: string;
+    label: string;
+  }>;
+  acceptedPaymentModes: PaymentMode[];
+  receiptPrefix: string;
+  notes: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+};
+
 export type StudentFeeOverrideRecord = {
   id: string;
   studentId: string;

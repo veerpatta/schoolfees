@@ -1,235 +1,435 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import { getFeeSetupPageData } from "@/lib/fees/data";
+import { resolveStudentPolicyBreakdown } from "@/lib/fees/policy";
 
-export type LedgerGenerationPreview = {
-  totalActiveStudents: number;
-  studentsWithFeeSettings: number;
-  existingInstallments: number;
-  installmentsToGenerate: number;
-  totalInstallmentsAfterGeneration: number;
+type GeneratorStudentRow = {
+  id: string;
+  class_id: string;
+  transport_route_id: string | null;
+  class_ref:
+    | {
+        session_label: string;
+      }
+    | Array<{
+        session_label: string;
+      }>
+    | null;
 };
 
-function parseDateForSession(dayMonth: string, startYear: number): Date {
-  // e.g. "20 April" -> "April" "20"
-  // Assuming startYear is the current academic year start year.
-  // We'll hardcode logic based on month name for typical Indian academic years.
-  // April to December -> startYear
-  // January to March -> startYear + 1
-  const [dayPattern, monthName] = dayMonth.trim().split(/\s+/);
-  const day = parseInt(dayPattern, 10) || 1;
-  const monthNames = [
-    "january", "february", "march", "april", "may", "june",
-    "july", "august", "september", "october", "november", "december"
-  ];
-  const monthIdx = monthNames.indexOf(monthName.toLowerCase());
-  
-  if (monthIdx === -1) {
-    throw new Error(`Invalid month in due date: ${monthName}`);
+type ExistingInstallmentRow = {
+  id: string;
+  student_id: string;
+  class_id: string;
+  fee_setting_id: string;
+  student_fee_override_id: string | null;
+  installment_no: number;
+  installment_label: string;
+  due_date: string;
+  base_amount: number;
+  transport_amount: number;
+  discount_amount: number;
+  late_fee_flat_amount: number;
+  status: "scheduled" | "waived" | "cancelled";
+};
+
+type InstallmentRelationRow = {
+  installment_id: string;
+};
+
+type PlannedInstallment = {
+  student_id: string;
+  class_id: string;
+  fee_setting_id: string;
+  student_fee_override_id: string | null;
+  installment_no: number;
+  installment_label: string;
+  due_date: string;
+  base_amount: number;
+  transport_amount: number;
+  discount_amount: number;
+  late_fee_flat_amount: number;
+  status: "scheduled";
+};
+
+type PlannedExistingUpdate = PlannedInstallment & {
+  id: string;
+};
+
+type CancelPlan = {
+  id: string;
+};
+
+type LedgerSyncPlan = {
+  academicSessionLabel: string;
+  totalActiveStudents: number;
+  studentsInAcademicSession: number;
+  studentsWithResolvedSettings: number;
+  studentsMissingSettings: number;
+  existingInstallments: number;
+  installmentsToInsert: PlannedInstallment[];
+  installmentsToUpdate: PlannedExistingUpdate[];
+  installmentsToCancel: CancelPlan[];
+  lockedInstallments: number;
+  expectedScheduledInstallments: number;
+};
+
+export type LedgerGenerationPreview = Omit<
+  LedgerSyncPlan,
+  "installmentsToInsert" | "installmentsToUpdate" | "installmentsToCancel"
+> & {
+  installmentsToInsert: number;
+  installmentsToUpdate: number;
+  installmentsToCancel: number;
+};
+
+type LedgerGenerationResult = LedgerGenerationPreview;
+
+function toSingleRecord<T>(value: T | T[] | null) {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
   }
 
-  let year = startYear;
-  if (monthIdx < 3) {
-    // January, February, March
-    year = startYear + 1;
-  }
-
-  return new Date(Date.UTC(year, monthIdx, day));
+  return value;
 }
 
-export async function previewLedgerGeneration(): Promise<LedgerGenerationPreview> {
-  const supabase = await createClient();
+function splitAcrossInstallments(totalAmount: number, count: number) {
+  const baseAmount = Math.floor(totalAmount / count);
+  const remainder = totalAmount % count;
 
-  // We are going to just generate some basic stats from count queries or simple joins.
-  // For a precise count of what exactly will be generated, we would need to run the calculation.
-  
-  // 1. Get all active students
-  const { data: students, error: studentsError } = await supabase
+  return Array.from({ length: count }, (_, index) =>
+    baseAmount + (index === 0 ? remainder : 0),
+  );
+}
+
+function isMeaningfulResolvedConfig(payload: {
+  annualTotal: number;
+  feeSettingId: string | null;
+}) {
+  return payload.annualTotal > 0 && Boolean(payload.feeSettingId);
+}
+
+function hasLockedActivity(
+  installmentId: string,
+  paymentInstallmentIds: Set<string>,
+  adjustmentInstallmentIds: Set<string>,
+) {
+  return (
+    paymentInstallmentIds.has(installmentId) ||
+    adjustmentInstallmentIds.has(installmentId)
+  );
+}
+
+function differs(
+  existing: ExistingInstallmentRow,
+  next: PlannedInstallment,
+) {
+  return (
+    existing.fee_setting_id !== next.fee_setting_id ||
+    existing.student_fee_override_id !== next.student_fee_override_id ||
+    existing.installment_label !== next.installment_label ||
+    existing.due_date !== next.due_date ||
+    existing.base_amount !== next.base_amount ||
+    existing.transport_amount !== next.transport_amount ||
+    existing.discount_amount !== next.discount_amount ||
+    existing.late_fee_flat_amount !== next.late_fee_flat_amount ||
+    existing.status !== "scheduled"
+  );
+}
+
+async function buildLedgerSyncPlan(): Promise<LedgerSyncPlan> {
+  const supabase = await createClient();
+  const setupData = await getFeeSetupPageData();
+  const { data: activeStudentsRaw, error: studentsError } = await supabase
     .from("students")
-    .select("id, class_id")
+    .select("id, class_id, transport_route_id, class_ref:classes(session_label)")
     .eq("status", "active");
 
-  if (studentsError) throw new Error(studentsError.message);
-  
-  // 2. Get class fee settings mapped by class_id
-  const { data: feeSettings, error: settingsError } = await supabase
-    .from("fee_settings")
-    .select("id, class_id, installment_count")
-    .eq("is_active", true);
-    
-  if (settingsError) throw new Error(settingsError.message);
-
-  const studentsTotal = students.length;
-  
-  let studentsWithSettings = 0;
-  let totalProjectedInstallments = 0;
-
-  const settingsMap = new Map();
-  for (const s of feeSettings) {
-    settingsMap.set(s.class_id, s);
+  if (studentsError) {
+    throw new Error(studentsError.message);
   }
 
-  for (const student of students) {
-    const setting = settingsMap.get(student.class_id);
-    if (setting) {
-      studentsWithSettings++;
-      totalProjectedInstallments += setting.installment_count;
+  const activeStudents = (activeStudentsRaw ?? []) as GeneratorStudentRow[];
+  const sessionStudents = activeStudents.filter((student) => {
+    const classRef = toSingleRecord(student.class_ref);
+    return classRef?.session_label === setupData.globalPolicy.academicSessionLabel;
+  });
+  const studentIds = sessionStudents.map((student) => student.id);
+
+  let existingInstallments: ExistingInstallmentRow[] = [];
+  let paymentRelationRows: InstallmentRelationRow[] = [];
+  let adjustmentRelationRows: InstallmentRelationRow[] = [];
+
+  if (studentIds.length > 0) {
+    const { data: installmentsRaw, error: installmentsError } = await supabase
+      .from("installments")
+      .select(
+        "id, student_id, class_id, fee_setting_id, student_fee_override_id, installment_no, installment_label, due_date, base_amount, transport_amount, discount_amount, late_fee_flat_amount, status",
+      )
+      .in("student_id", studentIds);
+
+    if (installmentsError) {
+      throw new Error(installmentsError.message);
+    }
+
+    existingInstallments = (installmentsRaw ?? []) as ExistingInstallmentRow[];
+    const installmentIds = existingInstallments.map((row) => row.id);
+
+    if (installmentIds.length > 0) {
+      const [
+        { data: paymentsRaw, error: paymentsError },
+        { data: adjustmentsRaw, error: adjustmentsError },
+      ] = await Promise.all([
+        supabase
+          .from("payments")
+          .select("installment_id")
+          .in("installment_id", installmentIds),
+        supabase
+          .from("payment_adjustments")
+          .select("installment_id")
+          .in("installment_id", installmentIds),
+      ]);
+
+      if (paymentsError) {
+        throw new Error(paymentsError.message);
+      }
+
+      if (adjustmentsError) {
+        throw new Error(adjustmentsError.message);
+      }
+
+      paymentRelationRows = (paymentsRaw ?? []) as InstallmentRelationRow[];
+      adjustmentRelationRows = (adjustmentsRaw ?? []) as InstallmentRelationRow[];
     }
   }
 
-  // 3. Count existing installments for active students
-  const { count: existingCount, error: existingError } = await supabase
-    .from("installments")
-    .select("id", { count: "exact", head: true });
+  const classDefaultMap = new Map(
+    setupData.classDefaults.map((item) => [item.classId, item]),
+  );
+  const routeDefaultMap = new Map(
+    setupData.transportDefaults.map((item) => [item.id, item]),
+  );
+  const studentOverrideMap = new Map(
+    setupData.studentOverrides.map((item) => [item.studentId, item]),
+  );
+  const existingInstallmentMap = new Map(
+    existingInstallments.map((item) => [
+      `${item.student_id}::${item.installment_no}`,
+      item,
+    ]),
+  );
+  const paymentInstallmentIds = new Set(
+    paymentRelationRows.map((row) => row.installment_id),
+  );
+  const adjustmentInstallmentIds = new Set(
+    adjustmentRelationRows.map((row) => row.installment_id),
+  );
 
-  if (existingError) throw existingError;
+  const installmentsToInsert: PlannedInstallment[] = [];
+  const installmentsToUpdate: PlannedExistingUpdate[] = [];
+  const installmentsToCancel: CancelPlan[] = [];
+  let lockedInstallments = 0;
+  let studentsWithResolvedSettings = 0;
+  let expectedScheduledInstallments = 0;
+
+  for (const student of sessionStudents) {
+    const classDefault = classDefaultMap.get(student.class_id) ?? null;
+    const routeDefault = student.transport_route_id
+      ? (routeDefaultMap.get(student.transport_route_id) ?? null)
+      : null;
+    const studentOverride = studentOverrideMap.get(student.id) ?? null;
+    const resolved = resolveStudentPolicyBreakdown({
+      policy: setupData.globalPolicy,
+      schoolDefault: setupData.schoolDefault,
+      classDefault,
+      routeDefault,
+      studentOverride,
+      hasTransportRoute: Boolean(student.transport_route_id),
+    });
+    const transportAmount =
+      resolved.breakdown.coreHeads.find((item) => item.id === "transport_fee")?.amount ?? 0;
+    const baseAmount = resolved.breakdown.annualTotal - transportAmount;
+    const discountAmount = studentOverride?.discountAmount ?? 0;
+    const feeSettingId = classDefault?.id ?? null;
+
+    if (
+      !isMeaningfulResolvedConfig({
+        annualTotal: resolved.breakdown.annualTotal,
+        feeSettingId,
+      })
+    ) {
+      continue;
+    }
+
+    if (baseAmount + transportAmount < discountAmount) {
+      throw new Error(
+        `Discount for a student in class ${student.class_id} exceeds the configured annual total.`,
+      );
+    }
+
+    const resolvedFeeSettingId = feeSettingId as string;
+    studentsWithResolvedSettings += 1;
+    expectedScheduledInstallments += setupData.globalPolicy.installmentCount;
+
+    const baseAmounts = splitAcrossInstallments(
+      Math.max(baseAmount, 0),
+      setupData.globalPolicy.installmentCount,
+    );
+    const transportAmounts = splitAcrossInstallments(
+      Math.max(transportAmount, 0),
+      setupData.globalPolicy.installmentCount,
+    );
+    const discountAmounts = splitAcrossInstallments(
+      Math.max(discountAmount, 0),
+      setupData.globalPolicy.installmentCount,
+    );
+
+    setupData.globalPolicy.installmentSchedule.forEach((schedule, index) => {
+      const plannedInstallment = {
+        student_id: student.id,
+        class_id: student.class_id,
+        fee_setting_id: resolvedFeeSettingId,
+        student_fee_override_id: studentOverride?.id ?? null,
+        installment_no: index + 1,
+        installment_label: `${schedule.label} (${schedule.dueDateLabel})`,
+        due_date: schedule.dueDate,
+        base_amount: baseAmounts[index] ?? 0,
+        transport_amount: transportAmounts[index] ?? 0,
+        discount_amount: discountAmounts[index] ?? 0,
+        late_fee_flat_amount: resolved.lateFeeFlatAmount,
+        status: "scheduled" as const,
+      };
+      const existingInstallment = existingInstallmentMap.get(
+        `${student.id}::${plannedInstallment.installment_no}`,
+      );
+
+      if (!existingInstallment) {
+        installmentsToInsert.push(plannedInstallment);
+        return;
+      }
+
+      if (
+        hasLockedActivity(
+          existingInstallment.id,
+          paymentInstallmentIds,
+          adjustmentInstallmentIds,
+        )
+      ) {
+        lockedInstallments += 1;
+        return;
+      }
+
+      if (differs(existingInstallment, plannedInstallment)) {
+        installmentsToUpdate.push({
+          id: existingInstallment.id,
+          ...plannedInstallment,
+        });
+      }
+    });
+
+    existingInstallments
+      .filter((row) => row.student_id === student.id)
+      .filter((row) => row.installment_no > setupData.globalPolicy.installmentCount)
+      .forEach((row) => {
+        if (
+          hasLockedActivity(row.id, paymentInstallmentIds, adjustmentInstallmentIds)
+        ) {
+          lockedInstallments += 1;
+          return;
+        }
+
+        if (row.status !== "cancelled") {
+          installmentsToCancel.push({ id: row.id });
+        }
+      });
+  }
 
   return {
-    totalActiveStudents: studentsTotal,
-    studentsWithFeeSettings: studentsWithSettings,
-    existingInstallments: existingCount || 0,
-    installmentsToGenerate: Math.max(0, totalProjectedInstallments - (existingCount || 0)), // Approximate
-    totalInstallmentsAfterGeneration: totalProjectedInstallments,
+    academicSessionLabel: setupData.globalPolicy.academicSessionLabel,
+    totalActiveStudents: activeStudents.length,
+    studentsInAcademicSession: sessionStudents.length,
+    studentsWithResolvedSettings,
+    studentsMissingSettings: Math.max(
+      sessionStudents.length - studentsWithResolvedSettings,
+      0,
+    ),
+    existingInstallments: existingInstallments.length,
+    installmentsToInsert,
+    installmentsToUpdate,
+    installmentsToCancel,
+    lockedInstallments,
+    expectedScheduledInstallments,
   };
 }
 
-export async function generateSessionLedgersAction() {
+function summarizePlan(plan: LedgerSyncPlan): LedgerGenerationPreview {
+  return {
+    academicSessionLabel: plan.academicSessionLabel,
+    totalActiveStudents: plan.totalActiveStudents,
+    studentsInAcademicSession: plan.studentsInAcademicSession,
+    studentsWithResolvedSettings: plan.studentsWithResolvedSettings,
+    studentsMissingSettings: plan.studentsMissingSettings,
+    existingInstallments: plan.existingInstallments,
+    installmentsToInsert: plan.installmentsToInsert.length,
+    installmentsToUpdate: plan.installmentsToUpdate.length,
+    installmentsToCancel: plan.installmentsToCancel.length,
+    lockedInstallments: plan.lockedInstallments,
+    expectedScheduledInstallments: plan.expectedScheduledInstallments,
+  };
+}
+
+async function applyBatchedUpdates<T>(
+  values: T[],
+  handler: (value: T) => Promise<void>,
+  batchSize = 50,
+) {
+  for (let index = 0; index < values.length; index += batchSize) {
+    const batch = values.slice(index, index + batchSize);
+    await Promise.all(batch.map((value) => handler(value)));
+  }
+}
+
+export async function previewLedgerGeneration(): Promise<LedgerGenerationPreview> {
+  return summarizePlan(await buildLedgerSyncPlan());
+}
+
+export async function generateSessionLedgersAction(): Promise<LedgerGenerationResult> {
   const supabase = await createClient();
+  const plan = await buildLedgerSyncPlan();
 
-  // Note: Session start year should ideally come from a config or session_label
-  const startYear = 2026; 
+  if (plan.installmentsToInsert.length > 0) {
+    const batchSize = 100;
 
-  const { data: schoolDefaults, error: defaultsError } = await supabase
-    .from("school_fee_defaults")
-    .select("installment_due_dates")
-    .eq("is_active", true)
-    .maybeSingle();
+    for (let index = 0; index < plan.installmentsToInsert.length; index += batchSize) {
+      const batch = plan.installmentsToInsert.slice(index, index + batchSize);
+      const { error } = await supabase.from("installments").insert(batch);
 
-  if (defaultsError) throw new Error(defaultsError.message);
-  
-  // Fallback due dates from school rules
-  const dueDatesStr = schoolDefaults?.installment_due_dates || ["20 April", "20 July", "20 October", "20 January"];
-
-  // 1. Fetch Students
-  const { data: students, error: stdErr } = await supabase
-    .from("students")
-    .select("id, class_id, transport_route_id, status")
-    .eq("status", "active");
-  if (stdErr) throw stdErr;
-
-  // 2. Fetch Class Defaults
-  const { data: classDefaults, error: clsErr } = await supabase
-    .from("fee_settings")
-    .select("id, class_id, tuition_fee_amount, transport_fee_amount, books_fee_amount, admission_activity_misc_fee_amount, other_fee_heads, late_fee_flat_amount, installment_count, transport_applies_default")
-    .eq("is_active", true);
-  if (clsErr) throw clsErr;
-
-  // 3. Fetch Overrides
-  const { data: overrides, error: ovrErr } = await supabase
-    .from("student_fee_overrides")
-    .select("*")
-    .eq("is_active", true);
-  if (ovrErr) throw ovrErr;
-
-  const classDefMap = new Map();
-  for (const c of classDefaults) {
-    classDefMap.set(c.class_id, c);
-  }
-
-  const overridesMap = new Map();
-  for (const o of overrides) {
-    overridesMap.set(o.student_id, o);
-  }
-
-  const installmentsToInsert = [];
-
-  for (const student of students) {
-    const parentSetting = classDefMap.get(student.class_id);
-    if (!parentSetting) continue;
-
-    const override = overridesMap.get(student.id);
-
-    const tuition = override?.custom_tuition_fee_amount ?? parentSetting.tuition_fee_amount;
-    const books = override?.custom_books_fee_amount ?? parentSetting.books_fee_amount;
-    const studentType = override?.student_type_override ?? parentSetting.student_type_default;
-    
-    let misc = 0;
-    if (override?.custom_admission_activity_misc_fee_amount !== null && override?.custom_admission_activity_misc_fee_amount !== undefined) {
-      misc = override.custom_admission_activity_misc_fee_amount;
-    } else if (studentType === "new") {
-      misc = parentSetting.admission_activity_misc_fee_amount;
-    }    
-    // other fee heads sum
-    let otherAmount = 0;
-    const otherObj = override?.custom_other_fee_heads ?? parentSetting.other_fee_heads;
-    if (otherObj && typeof otherObj === "object") {
-      otherAmount = Object.values(
-        otherObj as Record<string, number | string | null>,
-      ).reduce<number>((sum, val) => sum + Number(val ?? 0), 0);
-    }
-
-    const lateFee = override?.custom_late_fee_flat_amount ?? parentSetting.late_fee_flat_amount;
-    const discount = override?.discount_amount ?? 0;
-    const transportApplies = override?.transport_applies_override !== null ? override?.transport_applies_override : parentSetting.transport_applies_default;
-    
-    // Only apply transport fee if student uses transport and it defaults to true
-    let transport = 0;
-    if (student.transport_route_id && transportApplies) {
-      transport = override?.custom_transport_fee_amount ?? parentSetting.transport_fee_amount;
-    }
-    
-    const totalBase = tuition + books + misc + otherAmount;
-    
-    // Distribute totalBase and transport over installments
-    // We assume an even split, remaining goes to first installment
-    const count = parentSetting.installment_count;
-    
-    const basePerInstallment = Math.floor(totalBase / count);
-    const transportPerInstallment = Math.floor(transport / count);
-    const discountPerInstallment = Math.floor(discount / count);
-
-    const baseRemainder = totalBase % count;
-    const transportRemainder = transport % count;
-    const discountRemainder = discount % count;
-
-    for (let i = 1; i <= count; i++) {
-        const isFirst = i === 1;
-        const dueStr = dueDatesStr[i - 1] || dueDatesStr[dueDatesStr.length - 1]; // fallback if less dates than counts
-        const dueDate = parseDateForSession(dueStr, startYear).toISOString().split('T')[0];
-
-        installmentsToInsert.push({
-            student_id: student.id,
-            class_id: student.class_id,
-            fee_setting_id: parentSetting.id,
-            student_fee_override_id: override?.id || null,
-            installment_no: i,
-            installment_label: `Term ${i} (${dueStr})`,
-            due_date: dueDate,
-            base_amount: basePerInstallment + (isFirst ? baseRemainder : 0),
-            transport_amount: transportPerInstallment + (isFirst ? transportRemainder : 0),
-            discount_amount: discountPerInstallment + (isFirst ? discountRemainder : 0),
-            late_fee_flat_amount: lateFee,
-            status: "scheduled"
-        });
+      if (error) {
+        throw new Error(error.message);
+      }
     }
   }
 
-  let generatedCount = 0;
-  // Upsert in batches
-  const batchSize = 100;
-  for (let i = 0; i < installmentsToInsert.length; i += batchSize) {
-    const batch = installmentsToInsert.slice(i, i + batchSize);
-    
-    const { data: upsertData, error: batchErr } = await supabase
-        .from("installments")
-        .upsert(batch, { onConflict: "student_id, class_id, installment_no", ignoreDuplicates: true })
-        .select("id");
-    
-    if (batchErr) throw batchErr;
-    if (upsertData) {
-        generatedCount += upsertData.length;
-    }
-  }
+  await applyBatchedUpdates(plan.installmentsToUpdate, async (item) => {
+    const { id, ...values } = item;
+    const { error } = await supabase.from("installments").update(values).eq("id", id);
 
-  return { success: true, count: generatedCount };
+    if (error) {
+      throw new Error(error.message);
+    }
+  });
+
+  await applyBatchedUpdates(plan.installmentsToCancel, async (item) => {
+    const { error } = await supabase
+      .from("installments")
+      .update({ status: "cancelled" })
+      .eq("id", item.id);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  });
+
+  return summarizePlan(plan);
 }
