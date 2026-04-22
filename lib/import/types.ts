@@ -22,6 +22,26 @@ export const importRowStatuses = [
 ] as const;
 export type ImportRowStatus = (typeof importRowStatuses)[number];
 
+export const importRowReviewStatuses = [
+  "pending",
+  "approved",
+  "hold",
+  "skipped",
+] as const;
+export type ImportRowReviewStatus = (typeof importRowReviewStatuses)[number];
+
+export const importAnomalyCategories = [
+  "missing-admission-no",
+  "invalid-dob",
+  "duplicate-admission-no",
+  "duplicate-name-class-dob",
+  "unmapped-class",
+  "unmapped-route",
+  "missing-parent-fields",
+  "placeholder-values",
+] as const;
+export type ImportAnomalyCategory = (typeof importAnomalyCategories)[number];
+
 export const importFieldKeys = [
   "fullName",
   "classLabel",
@@ -135,6 +155,10 @@ export type ImportRowDetail = {
   rawPayload: RawImportRowPayload;
   normalizedPayload: NormalizedStudentImportRow | null;
   status: ImportRowStatus;
+  reviewStatus: ImportRowReviewStatus;
+  reviewNote: string | null;
+  reviewedAt: string | null;
+  anomalyCategories: ImportAnomalyCategory[];
   errors: ImportIssue[];
   warnings: string[];
   duplicateStudentId: string | null;
@@ -142,10 +166,19 @@ export type ImportRowDetail = {
   importedOverrideId: string | null;
 };
 
+export type ImportReviewSummary = {
+  approvedRows: number;
+  pendingRows: number;
+  heldRows: number;
+  skippedRows: number;
+  unresolvedAnomalyRows: number;
+};
+
 export type ImportBatchDetail = ImportBatchListItem & {
   detectedHeaders: string[];
   columnMapping: StudentImportColumnMapping;
   errorMessage: string | null;
+  reviewSummary: ImportReviewSummary;
   rows: ImportRowDetail[];
 };
 

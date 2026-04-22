@@ -7,6 +7,7 @@ import {
   commitStudentImportBatch,
   createStudentImportBatch,
   runStudentImportDryRun,
+  updateStudentImportRowReview,
 } from "@/lib/import/data";
 import { getStudentImportColumnMapping } from "@/lib/import/mapping";
 import { requireStaffPermission } from "@/lib/supabase/session";
@@ -88,6 +89,50 @@ export async function runStudentImportDryRunAction(formData: FormData) {
   );
 }
 
+export async function updateStudentImportRowReviewAction(formData: FormData) {
+  await requireStaffPermission("students:write");
+
+  const batchId =
+    typeof formData.get("batchId") === "string" ? String(formData.get("batchId")) : "";
+  const rowId = typeof formData.get("rowId") === "string" ? String(formData.get("rowId")) : "";
+  const reviewStatus =
+    typeof formData.get("reviewStatus") === "string"
+      ? String(formData.get("reviewStatus"))
+      : "";
+  const reviewNote =
+    typeof formData.get("reviewNote") === "string" ? String(formData.get("reviewNote")) : "";
+
+  try {
+    if (!batchId || !rowId || !reviewStatus) {
+      throw new Error("Batch, row, and review action are required.");
+    }
+
+    if (![
+      "pending",
+      "approved",
+      "hold",
+      "skipped",
+    ].includes(reviewStatus)) {
+      throw new Error("Invalid review action.");
+    }
+
+    await updateStudentImportRowReview(
+      batchId,
+      rowId,
+      reviewStatus as "pending" | "approved" | "hold" | "skipped",
+      reviewNote.trim() || null,
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unable to update row review status.";
+
+    redirect(buildImportsUrl(batchId || null, undefined, message));
+  }
+
+  revalidatePath("/protected/imports");
+  redirect(buildImportsUrl(batchId, "Review status updated for the selected row."));
+}
+
 export async function commitStudentImportBatchAction(formData: FormData) {
   await requireStaffPermission("students:write");
 
@@ -113,7 +158,7 @@ export async function commitStudentImportBatchAction(formData: FormData) {
   redirect(
     buildImportsUrl(
       batchId,
-      "Import finished. Imported rows are now part of the student master. Invalid and duplicate rows remain in the batch trail.",
+      "Import finished. Approved clean rows are now in student master. Unapproved anomaly rows remain in the QA queue.",
     ),
   );
 }

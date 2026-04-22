@@ -21,6 +21,33 @@ export function normalizeLookupToken(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
+const PLACEHOLDER_TOKENS = new Set([
+  "na",
+  "n/a",
+  "none",
+  "null",
+  "nil",
+  "xyz",
+  "xxx",
+  "tbd",
+  "test",
+  "unknown",
+]);
+
+function normalizePlaceholderToken(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export function isPlaceholderValue(value: unknown) {
+  const normalized = normalizePlaceholderToken(stringifyImportCell(value));
+
+  if (!normalized) {
+    return false;
+  }
+
+  return PLACEHOLDER_TOKENS.has(normalized);
+}
+
 export function stringifyImportCell(value: unknown) {
   if (value === null || value === undefined) {
     return "";

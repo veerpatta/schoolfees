@@ -10,12 +10,14 @@ import {
   studentImportFieldDefinitions,
 } from "@/lib/import/mapping";
 import type {
+  ImportAnomalyCategory,
   ImportBatchDetail,
   ImportBatchListItem,
   ImportBatchSummary,
   ImportIssue,
   ImportPageData,
   ImportRowDetail,
+  ImportRowReviewStatus,
   NormalizedStudentImportOverride,
   NormalizedStudentImportRow,
   RawImportRowPayload,
@@ -51,6 +53,10 @@ type ImportRowRecord = {
   raw_payload: unknown;
   normalized_payload: unknown;
   status: ImportRowDetail["status"];
+  review_status: ImportRowReviewStatus;
+  review_note: string | null;
+  reviewed_at: string | null;
+  anomaly_categories: unknown;
   errors: unknown;
   warnings: unknown;
   duplicate_student_id: string | null;
@@ -61,6 +67,9 @@ type ImportRowRecord = {
 type ExistingStudentRow = {
   id: string;
   admission_no: string;
+  full_name: string;
+  class_id: string;
+  date_of_birth: string | null;
 };
 
 type FeeSettingRow = {
@@ -137,6 +146,93 @@ function toWarnings(value: unknown) {
   }
 
   return value.filter((entry): entry is string => typeof entry === "string");
+}
+
+function toReviewStatus(value: unknown): ImportRowReviewStatus {
+  if (
+    value === "pending" ||
+    value === "approved" ||
+    value === "hold" ||
+    value === "skipped"
+  ) {
+    return value;
+  }
+
+  return "pending";
+}
+
+function toAnomalyCategories(value: unknown): ImportAnomalyCategory[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter(
+    (entry): entry is ImportAnomalyCategory =>
+      entry === "missing-admission-no" ||
+      entry === "invalid-dob" ||
+      entry === "duplicate-admission-no" ||
+      entry === "duplicate-name-class-dob" ||
+      entry === "unmapped-class" ||
+      entry === "unmapped-route" ||
+      entry === "missing-parent-fields" ||
+      entry === "placeholder-values",
+  );
+}
+
+function deriveAnomalyCategories(row: {
+  status: ImportRowDetail["status"];
+  errors: ImportIssue[];
+  warnings: string[];
+}): ImportAnomalyCategory[] {
+  const categories = new Set<ImportAnomalyCategory>();
+
+  for (const issue of row.errors) {
+    if (issue.code.includes("MISSING_ADMISSION_NO") || issue.code === "ERR_ADMISSIONNO") {
+      categories.add("missing-admission-no");
+    }
+
+    if (issue.code.includes("INVALID_DOB")) {
+      categories.add("invalid-dob");
+    }
+
+    if (issue.code.includes("DUPLICATE") && issue.code.includes("ADMISSION_NO")) {
+      categories.add("duplicate-admission-no");
+    }
+
+    if (issue.code.includes("NAME_CLASS_DOB")) {
+      categories.add("duplicate-name-class-dob");
+    }
+
+    if (issue.code === "ERR_CLASS_NOT_FOUND") {
+      categories.add("unmapped-class");
+    }
+
+    if (issue.code === "ERR_ROUTE_NOT_FOUND") {
+      categories.add("unmapped-route");
+    }
+
+    if (issue.code.includes("PLACEHOLDER")) {
+      categories.add("placeholder-values");
+    }
+  }
+
+  for (const warning of row.warnings) {
+    if (warning.startsWith("WARN_MISSING_FATHER_NAME") || warning.startsWith("WARN_MISSING_MOTHER_NAME")) {
+      categories.add("missing-parent-fields");
+    }
+
+    if (warning.startsWith("WARN_PLACEHOLDER")) {
+      categories.add("placeholder-values");
+    }
+  }
+
+  if (row.status === "duplicate") {
+    if (![...categories].some((item) => item.startsWith("duplicate"))) {
+      categories.add("duplicate-admission-no");
+    }
+  }
+
+  return [...categories];
 }
 
 function toColumnMapping(value: unknown): StudentImportColumnMapping {
@@ -293,11 +389,27 @@ function toImportRowDetail(row: ImportRowRecord): ImportRowDetail {
     rawPayload: toRawPayload(row.raw_payload),
     normalizedPayload: toNormalizedPayload(row.normalized_payload),
     status: row.status,
+    reviewStatus: toReviewStatus(row.review_status),
+    reviewNote: typeof row.review_note === "string" ? row.review_note : null,
+    reviewedAt: typeof row.reviewed_at === "string" ? row.reviewed_at : null,
+    anomalyCategories: toAnomalyCategories(row.anomaly_categories),
     errors: toImportIssues(row.errors),
     warnings: toWarnings(row.warnings),
     duplicateStudentId: row.duplicate_student_id,
     importedStudentId: row.imported_student_id,
     importedOverrideId: row.imported_override_id,
+  };
+}
+
+function summarizeReview(rows: readonly ImportRowDetail[]) {
+  return {
+    approvedRows: rows.filter((row) => row.reviewStatus === "approved").length,
+    pendingRows: rows.filter((row) => row.reviewStatus === "pending").length,
+    heldRows: rows.filter((row) => row.reviewStatus === "hold").length,
+    skippedRows: rows.filter((row) => row.reviewStatus === "skipped").length,
+    unresolvedAnomalyRows: rows.filter(
+      (row) => row.anomalyCategories.length > 0 && row.reviewStatus !== "skipped" && row.status !== "imported",
+    ).length,
   };
 }
 
@@ -309,6 +421,7 @@ function toImportBatchDetail(batchRow: ImportBatchRow, rowRecords: ImportRowReco
     detectedHeaders: toHeaders(batchRow.detected_headers),
     columnMapping: toColumnMapping(batchRow.column_mapping),
     errorMessage: batchRow.error_message,
+    reviewSummary: summarizeReview(rows),
     rows,
   };
 }
@@ -335,7 +448,7 @@ async function getImportRowsByBatchId(batchId: string) {
   const { data, error } = await supabase
     .from("import_rows")
     .select(
-      "id, batch_id, row_index, raw_payload, normalized_payload, status, errors, warnings, duplicate_student_id, imported_student_id, imported_override_id",
+      "id, batch_id, row_index, raw_payload, normalized_payload, status, review_status, review_note, reviewed_at, anomaly_categories, errors, warnings, duplicate_student_id, imported_student_id, imported_override_id",
     )
     .eq("batch_id", batchId)
     .order("row_index", { ascending: true });
@@ -377,6 +490,10 @@ async function upsertImportRows(
     id: string;
     normalized_payload: NormalizedStudentImportRow | null;
     status: ImportRowDetail["status"];
+    review_status?: ImportRowReviewStatus;
+    review_note?: string | null;
+    reviewed_at?: string | null;
+    anomaly_categories?: ImportAnomalyCategory[];
     errors: ImportIssue[];
     warnings: string[];
     duplicate_student_id: string | null;
@@ -521,7 +638,7 @@ export async function runStudentImportDryRun(batchId: string, mapping: StudentIm
   const [masterOptions, { data: existingStudents, error: studentError }, { data: feeSettings, error: feeSettingError }] =
     await Promise.all([
       getMasterDataOptions(),
-      supabase.from("students").select("id, admission_no"),
+      supabase.from("students").select("id, admission_no, full_name, class_id, date_of_birth"),
       supabase.from("fee_settings").select("class_id").eq("is_active", true),
     ]);
 
@@ -561,6 +678,9 @@ export async function runStudentImportDryRun(batchId: string, mapping: StudentIm
     existingStudents: ((existingStudents ?? []) as ExistingStudentRow[]).map((row) => ({
       id: row.id,
       admissionNo: row.admission_no,
+      fullName: row.full_name,
+      classId: row.class_id,
+      dateOfBirth: row.date_of_birth,
     })),
     activeFeeSettingClassIds: new Set(
       ((feeSettings ?? []) as FeeSettingRow[]).map((row) => row.class_id),
@@ -568,16 +688,29 @@ export async function runStudentImportDryRun(batchId: string, mapping: StudentIm
   });
 
   await upsertImportRows(
-    validationResult.rows.map((row) => ({
-      id: row.rowId,
-      normalized_payload: row.normalizedPayload,
-      status: row.status,
-      errors: row.errors,
-      warnings: row.warnings,
-      duplicate_student_id: row.duplicateStudentId,
-      imported_student_id: null,
-      imported_override_id: null,
-    })),
+    validationResult.rows.map((row) => {
+      const anomalyCategories = deriveAnomalyCategories({
+        status: row.status,
+        errors: row.errors,
+        warnings: row.warnings,
+      });
+
+      return {
+        id: row.rowId,
+        normalized_payload: row.normalizedPayload,
+        status: row.status,
+        review_status:
+          row.status === "valid" && anomalyCategories.length === 0 ? "approved" : "pending",
+        review_note: null,
+        reviewed_at: null,
+        anomaly_categories: anomalyCategories,
+        errors: row.errors,
+        warnings: row.warnings,
+        duplicate_student_id: row.duplicateStudentId,
+        imported_student_id: null,
+        imported_override_id: null,
+      };
+    }),
   );
 
   await updateImportBatch(batchId, {
@@ -606,6 +739,53 @@ function isDuplicateAdmissionNoError(message: string) {
   );
 }
 
+export async function updateStudentImportRowReview(
+  batchId: string,
+  rowId: string,
+  reviewStatus: ImportRowReviewStatus,
+  reviewNote: string | null,
+) {
+  const [batchRow, rowRecords] = await Promise.all([
+    getImportBatchById(batchId),
+    getImportRowsByBatchId(batchId),
+  ]);
+
+  if (!batchRow) {
+    throw new Error("Import batch not found.");
+  }
+
+  if (batchRow.status === "completed") {
+    throw new Error("Completed batches are locked for review changes.");
+  }
+
+  const row = rowRecords.find((item) => item.id === rowId);
+
+  if (!row) {
+    throw new Error("Import row not found for this batch.");
+  }
+
+  const rowDetail = toImportRowDetail(row);
+
+  if (reviewStatus === "approved" && rowDetail.status !== "valid") {
+    throw new Error("Only valid rows can be approved for import.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("import_rows")
+    .update({
+      review_status: reviewStatus,
+      review_note: reviewNote,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq("id", rowId)
+    .eq("batch_id", batchId);
+
+  if (error) {
+    throw new Error(`Unable to update row review status: ${error.message}`);
+  }
+}
+
 async function updateImportRowAfterCommit(
   row: ImportRowDetail,
   status: ImportRowDetail["status"],
@@ -613,13 +793,20 @@ async function updateImportRowAfterCommit(
   duplicateStudentId: string | null,
   importedStudentId: string | null,
   importedOverrideId: string | null,
+  reviewStatus?: ImportRowReviewStatus,
 ) {
   const supabase = await createClient();
   const { error } = await supabase
     .from("import_rows")
     .update({
       status,
+      review_status: reviewStatus,
       errors,
+      anomaly_categories: deriveAnomalyCategories({
+        status,
+        errors,
+        warnings: row.warnings,
+      }),
       duplicate_student_id: duplicateStudentId,
       imported_student_id: importedStudentId,
       imported_override_id: importedOverrideId,
@@ -650,12 +837,17 @@ export async function commitStudentImportBatch(batchId: string) {
   }
 
   const rows = rowRecords.map(toImportRowDetail);
-  const validRows = rows.filter(
-    (row) => row.status === "valid" && row.normalizedPayload !== null,
+  const approvedRows = rows.filter(
+    (row) =>
+      row.status === "valid" &&
+      row.normalizedPayload !== null &&
+      row.reviewStatus === "approved",
   );
 
-  if (validRows.length === 0) {
-    throw new Error("There are no valid rows available to import.");
+  if (approvedRows.length === 0) {
+    throw new Error(
+      "There are no approved valid rows available to import. Approve clean rows from the QA queues first.",
+    );
   }
 
   await updateImportBatch(batchId, {
@@ -668,7 +860,7 @@ export async function commitStudentImportBatch(batchId: string) {
   let failedRows = 0;
 
   for (const row of rows) {
-    if (row.status !== "valid" || !row.normalizedPayload) {
+    if (row.status !== "valid" || !row.normalizedPayload || row.reviewStatus !== "approved") {
       updatedRows.push(row);
       continue;
     }
@@ -722,6 +914,7 @@ export async function commitStudentImportBatch(batchId: string) {
         null,
         importedStudentId,
         importedOverrideId,
+        "approved",
       );
 
       updatedRows.push({
@@ -760,6 +953,7 @@ export async function commitStudentImportBatch(batchId: string) {
           duplicateStudentId,
           null,
           null,
+          "pending",
         );
 
         updatedRows.push({
@@ -784,7 +978,15 @@ export async function commitStudentImportBatch(batchId: string) {
         },
       ];
 
-      await updateImportRowAfterCommit(row, "invalid", failureErrors, null, null, null);
+      await updateImportRowAfterCommit(
+        row,
+        "invalid",
+        failureErrors,
+        null,
+        null,
+        null,
+        "pending",
+      );
 
       updatedRows.push({
         ...row,

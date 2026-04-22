@@ -8,6 +8,7 @@ import {
 } from "@/lib/import/mapping";
 import {
   parseBooleanOverride,
+  isPlaceholderValue,
   parseNonNegativeWholeNumber,
   parseSpreadsheetDate,
   parseStudentStatusValue,
@@ -166,6 +167,46 @@ export function executeStudentImportDryRun({
       "Custom other fee amount",
     );
 
+    if (!admissionNo) {
+      errors.push({
+        code: "ERR_MISSING_ADMISSION_NO",
+        field: "admissionNo",
+        message: "SR no / admission no is missing.",
+      });
+    }
+
+    if (isPlaceholderValue(fullName)) {
+      errors.push({
+        code: "ERR_PLACEHOLDER_FULL_NAME",
+        field: "fullName",
+        message: "Student name contains a placeholder value. Please review this row.",
+      });
+    }
+
+    if (isPlaceholderValue(admissionNo)) {
+      errors.push({
+        code: "ERR_PLACEHOLDER_ADMISSION_NO",
+        field: "admissionNo",
+        message: "SR no / admission no contains a placeholder value. Please review this row.",
+      });
+    }
+
+    if (isPlaceholderValue(classLabel)) {
+      errors.push({
+        code: "ERR_PLACEHOLDER_CLASS",
+        field: "classLabel",
+        message: "Class contains a placeholder value. Please review this row.",
+      });
+    }
+
+    if (isPlaceholderValue(getMappedCellValue(row.rawPayload, mapping, "dateOfBirth"))) {
+      errors.push({
+        code: "ERR_PLACEHOLDER_DOB",
+        field: "dateOfBirth",
+        message: "DOB contains a placeholder value. Please review this row.",
+      });
+    }
+
     if (dateResult.error) {
       errors.push({
         code: "ERR_INVALID_DOB",
@@ -196,6 +237,26 @@ export function executeStudentImportDryRun({
         field: "status",
         message: "Status must be Active, Inactive, Left, or Graduated.",
       });
+    }
+
+    if (!fatherName) {
+      warnings.push("WARN_MISSING_FATHER_NAME: Father name is missing.");
+    }
+
+    if (!motherName) {
+      warnings.push("WARN_MISSING_MOTHER_NAME: Mother name is missing.");
+    }
+
+    if (isPlaceholderValue(fatherName)) {
+      warnings.push("WARN_PLACEHOLDER_FATHER_NAME: Father name appears to be a placeholder value.");
+    }
+
+    if (isPlaceholderValue(motherName)) {
+      warnings.push("WARN_PLACEHOLDER_MOTHER_NAME: Mother name appears to be a placeholder value.");
+    }
+
+    if (routeLabel && isPlaceholderValue(routeLabel)) {
+      warnings.push("WARN_PLACEHOLDER_ROUTE: Transport route appears to be a placeholder value.");
     }
 
     for (const result of [
