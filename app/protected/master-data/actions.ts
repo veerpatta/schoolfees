@@ -25,11 +25,6 @@ export type MasterDataActionState = {
   message: string;
 };
 
-export const INITIAL_MASTER_DATA_ACTION_STATE: MasterDataActionState = {
-  status: "idle",
-  message: "",
-};
-
 function toSuccess(message: string): MasterDataActionState {
   return { status: "success", message };
 }

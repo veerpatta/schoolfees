@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/admin/page-header";
 import { MasterDataClient } from "@/components/master-data/master-data-client";
+import type { MasterDataActionState } from "@/app/protected/master-data/actions";
 import {
   createClassAction,
   createFeeHeadAction,
@@ -9,7 +10,6 @@ import {
   deleteFeeHeadAction,
   deleteRouteAction,
   deleteSessionAction,
-  INITIAL_MASTER_DATA_ACTION_STATE,
   setPaymentModeActiveAction,
   updateClassAction,
   updateFeeHeadAction,
@@ -18,6 +18,11 @@ import {
 } from "@/app/protected/master-data/actions";
 import { getMasterDataPageData } from "@/lib/master-data/data";
 import { requireStaffPermission } from "@/lib/supabase/session";
+
+const INITIAL_MASTER_DATA_ACTION_STATE: MasterDataActionState = {
+  status: "idle",
+  message: "",
+};
 
 export default async function MasterDataPage() {
   await requireStaffPermission("settings:write", { onDenied: "redirect" });
