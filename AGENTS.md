@@ -39,7 +39,7 @@ Primary goals:
 
 - student master
 - fee settings
-- session ledger generation
+- session ledger recalculation
 - payment entry
 - append-only ledger behavior
 - printable receipts
@@ -88,8 +88,9 @@ Fully implemented core:
 - Fee Setup: canonical global policy, school-wide defaults, class defaults,
   transport defaults, and per-student overrides with impact preview and
   confirm-apply workflow
-- Session Ledger Sync workflow for previewing and applying safe unpaid-installment
-  inserts/updates/cancellations without touching paid history
+- Ledger Recalculation workflow for previewing and applying safe
+  unpaid/future-installment inserts, updates, and cancellations while flagging
+  paid or partially paid rows for manual review
 - Payment Entry: append-only posting via RPC, with receipts generated as linked
   financial records
 - Ledger: chronological per-student history with linked adjustment entries
@@ -107,7 +108,7 @@ Fully implemented core:
 - self password change under `app/protected/password`
 - append-only behavior enforced by RPCs and DB triggers on receipts, payments,
   payment_adjustments, and audit_logs
-- 12 tracked migrations covering schema, fee setup, payments, RBAC alignment,
+- 13 tracked migrations covering schema, fee setup, payments, RBAC alignment,
   import workflow, and auth/user sync
 - Role-Based Access Control (RBAC): `public.staff_role` enum and RLS policies
   enforce `admin`, `accountant`, and `read_only_staff` at the database layer
@@ -141,8 +142,9 @@ content or Supabase sample code unless the user explicitly requests that.
 - fee settings alias: `app/protected/fee-structure/page.tsx`
 - fee setup: `app/protected/fee-setup/page.tsx`
 - fee setup actions: `app/protected/fee-setup/actions.ts`
-- fee generation: `app/protected/fee-setup/generate/page.tsx`
-- fee generation actions: `app/protected/fee-setup/generate/actions.ts`
+- fee recalculation: `app/protected/fee-setup/generate/page.tsx`
+- fee recalculation actions: `app/protected/fee-setup/generate/actions.ts`
+- fee regeneration service: `lib/fees/regeneration.ts`
 - payment entry: `app/protected/payments/page.tsx`
 - payment actions: `app/protected/payments/actions.ts`
 - collections alias to payments: `app/protected/collections/page.tsx`
@@ -270,6 +272,8 @@ Current core tables in `supabase/schema.sql`:
 - `fee_policy_configs`
 - `config_change_batches`
 - `config_change_blocked_installments`
+- `ledger_regeneration_batches`
+- `ledger_regeneration_rows`
 - `setup_progress`
 - `school_fee_defaults`
 - `student_fee_overrides`

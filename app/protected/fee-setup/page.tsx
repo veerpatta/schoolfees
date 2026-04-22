@@ -35,7 +35,7 @@ export default async function FeeSetupPage() {
             <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
               <StatusBadge label="Admin write access" tone="good" />
               <Button asChild size="sm">
-                <Link href="/protected/fee-setup/generate">Generate Ledgers</Link>
+                <Link href="/protected/fee-setup/generate">Recalculate Dues</Link>
               </Button>
             </div>
           ) : (

@@ -32,6 +32,59 @@ export type ConfigChangeImpactPreview = {
   rowsMarkedForReview: number;
 };
 
+export type LedgerRegenerationReviewRow = {
+  studentId: string;
+  studentLabel: string;
+  classLabel: string;
+  installmentNo: number;
+  installmentLabel: string;
+  dueDate: string;
+  balanceStatus: "paid" | "partial" | "unpaid" | "future" | "waived" | "cancelled";
+  actionNeeded: "insert" | "update" | "cancel" | "skip" | "review";
+  reasonLabel: string;
+  outstandingAmount: number;
+};
+
+export type LedgerRegenerationPreview = {
+  policyRevisionId: string | null;
+  policyRevisionLabel: string;
+  reason: string;
+  totalActiveStudents: number;
+  studentsInAcademicSession: number;
+  studentsWithResolvedSettings: number;
+  studentsMissingSettings: number;
+  existingInstallments: number;
+  rowsInserted: number;
+  rowsUpdated: number;
+  rowsCancelled: number;
+  rowsRecalculated: number;
+  rowsSkipped: number;
+  rowsRequiringReview: number;
+  paidInstallments: number;
+  partiallyPaidInstallments: number;
+  unpaidInstallments: number;
+  futureInstallments: number;
+  affectedStudents: number;
+  reviewRowsTotal: number;
+  reviewRows: LedgerRegenerationReviewRow[];
+};
+
+export type LedgerRegenerationActionStatus = "idle" | "preview" | "success" | "error";
+
+export type LedgerRegenerationActionState = {
+  status: LedgerRegenerationActionStatus;
+  message: string | null;
+  batchId: string | null;
+  preview: LedgerRegenerationPreview | null;
+};
+
+export const INITIAL_LEDGER_REGENERATION_ACTION_STATE: LedgerRegenerationActionState = {
+  status: "idle",
+  message: null,
+  batchId: null,
+  preview: null,
+};
+
 export type FeeSetupActionStatus = "idle" | "preview" | "success" | "error";
 
 export type FeeSetupActionState = {

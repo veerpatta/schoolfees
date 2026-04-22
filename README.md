@@ -20,7 +20,7 @@ losing auditability or making office workflows harder.
 Current primary working areas:
 
 - student master
-- fee setup and session ledger generation
+- fee setup and session ledger recalculation
 - payment entry
 - append-only financial history
 - printable receipts
@@ -49,8 +49,9 @@ Implemented core:
 - fee setup with a canonical global policy, school defaults, class defaults,
   transport defaults, and student overrides, now with mandatory impact preview
   and explicit confirm-apply workflow
-- session ledger sync workflow for previewing and applying safe unpaid-ledger
-  changes
+- session ledger recalculation workflow for previewing and applying safe
+  unpaid/future-ledger changes while flagging paid or partially paid rows for
+  manual review
 - payment entry with append-only posting through RPCs
 - student ledger with chronological history and linked adjustment trail
 - receipt list and printable single-receipt view
@@ -68,7 +69,7 @@ Implemented core:
 - audit triggers on core tables
 - append-only enforcement on receipts, payments, payment adjustments, and audit
   logs
-- 12 tracked SQL migrations covering schema, fee setup, payments, RBAC, import
+- 13 tracked SQL migrations covering schema, fee setup, payments, RBAC, import
   workflow, and auth/profile sync
 - database-level RBAC using `public.staff_role` plus permission-aware policies
 
@@ -112,7 +113,7 @@ Important current routes:
 - `app/protected/fee-setup/page.tsx`
   fee defaults and overrides
 - `app/protected/fee-setup/generate/page.tsx`
-  session ledger generation
+  ledger recalculation preview/apply
 - `app/protected/fee-structure/page.tsx`
   alias route to fee setup
 - `app/protected/payments/page.tsx`
@@ -157,7 +158,7 @@ Important supporting code:
 - `lib/staff-management/data.ts`
 - `lib/students/*`
 - `lib/import/*`
-- `lib/fees/*`
+- `lib/fees/*` fee policy and ledger recalculation services
 - `lib/setup/*`
 - `lib/payments/*`
 - `lib/ledger/*`
@@ -182,6 +183,8 @@ Current core tables:
 - `fee_policy_configs`
 - `config_change_batches`
 - `config_change_blocked_installments`
+- `ledger_regeneration_batches`
+- `ledger_regeneration_rows`
 - `setup_progress`
 - `school_fee_defaults`
 - `student_fee_overrides`

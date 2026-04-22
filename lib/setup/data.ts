@@ -206,10 +206,10 @@ function buildReadinessSummary(payload: {
     },
     {
       key: "ledgers_generated",
-      label: "Ledgers generated",
+      label: "Dues recalculated",
       detail: payload.ledgerReady
         ? `${payload.installmentCount} installment windows are already in sync for the active session.`
-        : "Run Session Ledger Sync after student import so collections post against the correct dues.",
+        : "Run ledger recalculation after student import so collections post against the correct dues.",
       status: payload.ledgerReady ? "complete" : "incomplete",
       blocking: true,
       href: "/protected/fee-setup/generate",
@@ -293,7 +293,7 @@ function buildFlowItems(payload: {
           ? `${payload.importSummary.batchesWithAnomalies} import batch(es) still show duplicates, invalid rows, or failed rows.`
           : payload.importSummary.completedBatches > 0
             ? "No pending import anomalies are visible in recent batches."
-            : "After import, review duplicates and invalid rows before ledger generation.",
+            : "After import, review duplicates and invalid rows before ledger recalculation.",
       href: "/protected/imports",
       status:
         payload.importSummary.batchesWithAnomalies > 0
@@ -304,10 +304,10 @@ function buildFlowItems(payload: {
     },
     {
       key: "generate_ledgers",
-      label: "Generate ledgers",
+      label: "Recalculate dues",
       detail: payload.ledgerReady
-        ? "Session ledger sync is already up to date for current students."
-        : "Run Session Ledger Sync so the collection desk sees correct installment dues.",
+        ? "Ledger recalculation is already up to date for current students."
+        : "Run ledger recalculation so the collection desk sees correct installment dues.",
       href: "/protected/fee-setup/generate",
       status:
         payload.ledgerReady
@@ -321,7 +321,7 @@ function buildFlowItems(payload: {
       label: "Start collections",
       detail: payload.readiness.collectionDeskReady
         ? "The collection desk can begin posting receipts for the active session."
-        : "Collections should start only after student import, anomaly review, ledger sync, and setup completion.",
+        : "Collections should start only after student import, anomaly review, ledger recalculation, and setup completion.",
       href: "/protected/collections",
       status: payload.readiness.collectionDeskReady ? "current" : "upcoming",
     },

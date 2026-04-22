@@ -30,7 +30,7 @@ Current priority areas:
 
 - first-time setup / onboarding with readiness checks
 - student master
-- fee settings and session ledger generation
+- fee settings and session ledger recalculation
 - payment entry and receipts
 - ledger and adjustment entries
 - defaulters and outstanding reporting
@@ -65,7 +65,8 @@ Main routes and modules in the repo today:
   defaults, and student overrides, with mandatory impact preview and
   confirm-apply flow
 - `app/protected/fee-setup/generate/page.tsx`
-  preview + safe sync workflow for unpaid session ledger installments
+  preview + safe recalculation workflow for unpaid and future session ledger
+  installments, with paid/partial rows flagged for review
 - `app/protected/payments/page.tsx`
   payment entry desk (also served at /collections)
 - `app/protected/collections/page.tsx`
@@ -100,6 +101,8 @@ Main routes and modules in the repo today:
 - `lib/fees/policy.ts`
   server-only canonical fee policy/config service used across fee setup,
   generation, payments, settings, and policy notes
+- `lib/fees/regeneration.ts`
+  server-only ledger recalculation service with preview/apply batch logging
 - `lib/master-data/data.ts`
   server-only centralized source for session/class/route/fee-head/payment-mode
   options and in-use guardrails for master CRUD flows
@@ -118,7 +121,7 @@ Main routes and modules in the repo today:
 - `supabase/schema/*`
   reserved for future split schema/reference files
 - `supabase/migrations/*`
-  ordered SQL migration files for Supabase CLI workflows (currently 12)
+  ordered SQL migration files for Supabase CLI workflows (currently 13)
 - `scripts/bootstrap-staff.mjs`
   one-time server-only seed script for initial staff accounts
 
@@ -195,6 +198,8 @@ Important current tables:
 - `fee_policy_configs`
 - `config_change_batches`
 - `config_change_blocked_installments`
+- `ledger_regeneration_batches`
+- `ledger_regeneration_rows`
 - `setup_progress`
 - `school_fee_defaults`
 - `student_fee_overrides`
@@ -223,6 +228,7 @@ Important current database behavior:
   duplicate flags, and final imported-row traceability
 - `v_outstanding_summary` supports outstanding reporting
 - `v_installment_balances` supports installment-level due tracking
+- ledger regeneration batches and row previews support safe recalculation
 - no delete policies exist for operational finance tables
 
 ## Product And Data Constraints

@@ -122,6 +122,6 @@ export function buildDefaultFeePolicySummary(referenceDate = new Date()) {
     })),
     receiptPrefix: "SVP",
     customFeeHeads: DEFAULT_CUSTOM_FEE_HEADS,
-    notes: "Global school policy drives future fee setup, ledger generation, payment desk rules, and policy notes.",
+    notes: "Global school policy drives future fee setup, ledger recalculation, payment desk rules, and policy notes.",
   };
 }

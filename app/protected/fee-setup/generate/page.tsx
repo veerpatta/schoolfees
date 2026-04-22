@@ -1,7 +1,8 @@
 import { PageHeader } from "@/components/admin/page-header";
 import { GenerateLedgerClient } from "@/components/fees/generate-ledger-client";
+import { INITIAL_LEDGER_REGENERATION_ACTION_STATE } from "@/lib/fees/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
-import { previewGenerationAction, submitGenerationAction } from "./actions";
+import { runLedgerRegenerationAction } from "./actions";
 
 export default async function GenerateLedgerPage() {
   await requireStaffPermission("fees:write", { onDenied: "redirect" });
@@ -10,13 +11,13 @@ export default async function GenerateLedgerPage() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Fee Setup"
-        title="Session Ledger Sync"
-        description="Preview how the canonical fee policy will insert, update, or cancel unpaid installments for the active academic session before you run the sync."
+        title="Ledger recalculation"
+        description="Preview how the current fee policy will recalculate future and unpaid installment rows for the active academic session before you apply it."
       />
 
-      <GenerateLedgerClient 
-        previewAction={previewGenerationAction}
-        submitAction={submitGenerationAction}
+      <GenerateLedgerClient
+        initialState={INITIAL_LEDGER_REGENERATION_ACTION_STATE}
+        action={runLedgerRegenerationAction}
       />
     </div>
   );

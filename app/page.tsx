@@ -59,7 +59,7 @@ export default async function Home() {
             </h1>
             <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600 md:text-lg">
               This app is for office and accounts staff only. It supports
-              student master maintenance, fee structures, ledger generation,
+              student master maintenance, fee structures, ledger recalculation,
               collections, reporting, and gradual workbook migration. It is not
               a parent portal.
             </p>

@@ -28,7 +28,7 @@ export default async function SetupPage() {
       <PageHeader
         eyebrow="Go-Live Setup"
         title="First-time setup and collection readiness"
-        description="Use this admin-only wizard to initialize the active session, master data, fee defaults, and go-live checklist for Shri Veer Patta Senior Secondary School."
+        description="Use this admin-only wizard to initialize the active session, master data, fee defaults, ledger recalculation, and go-live checklist for Shri Veer Patta Senior Secondary School."
         actions={
           data.readiness.collectionDeskReady ? (
             <div className="flex flex-col items-end gap-3 sm:flex-row sm:items-center">
@@ -53,7 +53,7 @@ export default async function SetupPage() {
 
         <SectionCard
           title="Operational path"
-          description="The office should move through setup, import, review, ledger sync, and collections in this order."
+          description="The office should move through setup, import, review, ledger recalculation, and collections in this order."
         >
           <SetupFlowList items={data.flow} />
         </SectionCard>
