@@ -35,12 +35,16 @@ export default async function PrintLedgerPage({ params, searchParams }: PrintLed
 
   const data = await getReportsPageData(filters);
 
-  if (data.report.key !== "student-ledger" || !data.report.selectedStudent) {
+  if (data.report.key !== "student-ledger") {
     return notFound();
   }
 
   const { report } = data;
-  const { selectedStudent } = report;
+  const selectedStudent = report.selectedStudent;
+
+  if (!selectedStudent) {
+    return notFound();
+  }
 
   return (
     <div className="mx-auto max-w-[1000px] bg-white p-8 print:p-0">

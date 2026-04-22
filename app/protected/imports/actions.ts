@@ -4,12 +4,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import {
+  bulkUpdateImportRowReview,
   commitStudentImportBatch,
   createStudentImportBatch,
   runStudentImportDryRun,
   updateStudentImportRowReview,
 } from "@/lib/import/data";
 import { getStudentImportColumnMapping } from "@/lib/import/mapping";
+import type { ImportAnomalyCategory } from "@/lib/import/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 function buildImportsUrl(batchId: string | null, notice?: string, error?: string) {
@@ -131,6 +133,55 @@ export async function updateStudentImportRowReviewAction(formData: FormData) {
 
   revalidatePath("/protected/imports");
   redirect(buildImportsUrl(batchId, "Review status updated for the selected row."));
+}
+
+export async function bulkUpdateImportRowReviewAction(formData: FormData) {
+  await requireStaffPermission("students:write");
+
+  const batchId =
+    typeof formData.get("batchId") === "string" ? String(formData.get("batchId")) : "";
+  const reviewStatus =
+    typeof formData.get("reviewStatus") === "string"
+      ? String(formData.get("reviewStatus"))
+      : "";
+  const reviewNote =
+    typeof formData.get("reviewNote") === "string" ? String(formData.get("reviewNote")) : "";
+  const categories = formData.getAll("categories").filter(
+    (value): value is ImportAnomalyCategory =>
+      value === "missing-admission-no" ||
+      value === "invalid-dob" ||
+      value === "duplicate-admission-no" ||
+      value === "duplicate-name-class-dob" ||
+      value === "unmapped-class" ||
+      value === "unmapped-route" ||
+      value === "missing-parent-fields" ||
+      value === "placeholder-values",
+  );
+
+  try {
+    if (!batchId || !reviewStatus || categories.length === 0) {
+      throw new Error("Batch, review action, and anomaly categories are required.");
+    }
+
+    if (!["pending", "approved", "hold", "skipped"].includes(reviewStatus)) {
+      throw new Error("Invalid review action.");
+    }
+
+    await bulkUpdateImportRowReview(
+      batchId,
+      categories,
+      reviewStatus as "pending" | "approved" | "hold" | "skipped",
+      reviewNote.trim() || null,
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unable to update row review status.";
+
+    redirect(buildImportsUrl(batchId || null, undefined, message));
+  }
+
+  revalidatePath("/protected/imports");
+  redirect(buildImportsUrl(batchId, "Review status updated for matching anomaly rows."));
 }
 
 export async function commitStudentImportBatchAction(formData: FormData) {

@@ -786,6 +786,63 @@ export async function updateStudentImportRowReview(
   }
 }
 
+export async function bulkUpdateImportRowReview(
+  batchId: string,
+  categories: ImportAnomalyCategory[],
+  reviewStatus: ImportRowReviewStatus,
+  reviewNote: string | null,
+) {
+  const [batchRow, rowRecords] = await Promise.all([
+    getImportBatchById(batchId),
+    getImportRowsByBatchId(batchId),
+  ]);
+
+  if (!batchRow) {
+    throw new Error("Import batch not found.");
+  }
+
+  if (batchRow.status === "completed") {
+    throw new Error("Completed batches are locked for review changes.");
+  }
+
+  const rows = rowRecords.map(toImportRowDetail);
+  const matchingRowIds = rows
+    .filter((row) => {
+      if (row.status === "imported" || row.reviewStatus === "skipped") {
+        return false;
+      }
+
+      if (reviewStatus === "approved" && row.status !== "valid") {
+        return false;
+      }
+
+      return categories.some((category) => row.anomalyCategories.includes(category));
+    })
+    .map((row) => row.id);
+
+  if (matchingRowIds.length === 0) {
+    return;
+  }
+
+  const supabase = await createClient();
+
+  for (const chunk of chunkArray(matchingRowIds, IMPORT_ROW_WRITE_CHUNK_SIZE)) {
+    const { error } = await supabase
+      .from("import_rows")
+      .update({
+        review_status: reviewStatus,
+        review_note: reviewNote,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("batch_id", batchId)
+      .in("id", chunk);
+
+    if (error) {
+      throw new Error(`Unable to bulk-update row review status: ${error.message}`);
+    }
+  }
+}
+
 async function updateImportRowAfterCommit(
   row: ImportRowDetail,
   status: ImportRowDetail["status"],
