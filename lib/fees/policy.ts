@@ -104,7 +104,7 @@ type StudentOverrideRow = {
   student_type_override: "new" | "existing" | null;
   transport_applies_override: boolean | null;
   reason: string;
-  notes: string | null;
+  notes?: string | null;
   updated_at: string;
 };
 
@@ -378,13 +378,24 @@ async function loadGlobalPolicy(useAdmin = false): Promise<FeePolicySummary> {
 
 async function loadFeeCollections() {
   const supabase = await createClient();
+  const studentOverridesSelectWithNotes =
+    "id, student_id, fee_setting_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_late_fee_flat_amount, discount_amount, student_type_override, transport_applies_override, reason, notes, updated_at";
+  const studentOverridesSelectWithoutNotes =
+    "id, student_id, fee_setting_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_late_fee_flat_amount, discount_amount, student_type_override, transport_applies_override, reason, updated_at";
+
+  const studentOverridesRequest = supabase
+    .from("student_fee_overrides")
+    .select(studentOverridesSelectWithNotes)
+    .eq("is_active", true)
+    .order("updated_at", { ascending: false });
+
   const [
     { data: schoolDefaultRaw, error: schoolDefaultError },
     { data: classRowsRaw, error: classRowsError },
     { data: classDefaultsRaw, error: classDefaultsError },
     { data: routeRowsRaw, error: routeRowsError },
     { data: studentRowsRaw, error: studentRowsError },
-    { data: studentOverridesRaw, error: studentOverridesError },
+    studentOverridesResponse,
   ] = await Promise.all([
     supabase
       .from("school_fee_defaults")
@@ -420,14 +431,26 @@ async function loadFeeCollections() {
       )
       .in("status", ["active", "inactive"])
       .order("full_name", { ascending: true }),
-    supabase
-      .from("student_fee_overrides")
-      .select(
-        "id, student_id, fee_setting_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_late_fee_flat_amount, discount_amount, student_type_override, transport_applies_override, reason, notes, updated_at",
-      )
-      .eq("is_active", true)
-      .order("updated_at", { ascending: false }),
+    studentOverridesRequest,
   ]);
+
+  let studentOverridesRaw =
+    (studentOverridesResponse.data as StudentOverrideRow[] | null) ?? null;
+  let studentOverridesError = studentOverridesResponse.error;
+
+  if (
+    studentOverridesError &&
+    studentOverridesError.message.includes("student_fee_overrides.notes")
+  ) {
+    const fallback = await supabase
+      .from("student_fee_overrides")
+      .select(studentOverridesSelectWithoutNotes)
+      .eq("is_active", true)
+      .order("updated_at", { ascending: false });
+
+    studentOverridesRaw = (fallback.data as StudentOverrideRow[] | null) ?? null;
+    studentOverridesError = fallback.error;
+  }
 
   if (schoolDefaultError) {
     throw new Error(`Unable to load school defaults: ${schoolDefaultError.message}`);
@@ -641,7 +664,7 @@ export async function getFeeSetupPageData(): Promise<FeeSetupPageData> {
       studentTypeOverride: row.student_type_override,
       transportAppliesOverride: row.transport_applies_override,
       reason: row.reason,
-      notes: row.notes,
+      notes: row.notes ?? null,
       updatedAt: row.updated_at,
     } satisfies StudentFeeOverride;
   });
@@ -760,6 +783,10 @@ export async function upsertGlobalFeePolicy(payload: {
     throw new Error(error.message);
   }
 
+  if (!data?.id) {
+    throw new Error("Unable to save global fee policy right now.");
+  }
+
   return data.id as string;
 }
 
@@ -840,6 +867,10 @@ export async function upsertSchoolFeeDefaults(payload: {
     throw new Error(error.message);
   }
 
+  if (!data?.id) {
+    throw new Error("Unable to save school defaults right now.");
+  }
+
   return data.id as string;
 }
 
@@ -911,6 +942,10 @@ export async function upsertClassFeeDefault(payload: {
 
   if (error) {
     throw new Error(error.message);
+  }
+
+  if (!data?.id) {
+    throw new Error("Unable to save class defaults right now.");
   }
 
   return data.id as string;
@@ -1039,6 +1074,10 @@ export async function upsertStudentFeeOverride(payload: {
     notes: payload.notes,
     is_active: true,
   };
+  const valuesWithoutNotes = {
+    ...values,
+  };
+  delete (valuesWithoutNotes as { notes?: string | null }).notes;
 
   const { data: existing, error: existingError } = await supabase
     .from("student_fee_overrides")
@@ -1052,10 +1091,18 @@ export async function upsertStudentFeeOverride(payload: {
   }
 
   if (existing?.id) {
-    const { error } = await supabase
+    let { error } = await supabase
       .from("student_fee_overrides")
       .update(values)
       .eq("id", existing.id);
+
+    if (error && error.message.includes("student_fee_overrides.notes")) {
+      const fallback = await supabase
+        .from("student_fee_overrides")
+        .update(valuesWithoutNotes)
+        .eq("id", existing.id);
+      error = fallback.error;
+    }
 
     if (error) {
       throw new Error(error.message);
@@ -1064,14 +1111,29 @@ export async function upsertStudentFeeOverride(payload: {
     return existing.id as string;
   }
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("student_fee_overrides")
     .insert(values)
     .select("id")
     .single();
 
+  if (error && error.message.includes("student_fee_overrides.notes")) {
+    const fallback = await supabase
+      .from("student_fee_overrides")
+      .insert(valuesWithoutNotes)
+      .select("id")
+      .single();
+
+    data = fallback.data;
+    error = fallback.error;
+  }
+
   if (error) {
     throw new Error(error.message);
+  }
+
+  if (!data?.id) {
+    throw new Error("Unable to save student override right now.");
   }
 
   return data.id as string;

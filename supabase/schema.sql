@@ -290,6 +290,7 @@ create table if not exists public.student_fee_overrides (
   custom_late_fee_flat_amount integer check (custom_late_fee_flat_amount >= 0),
   discount_amount integer not null default 0 check (discount_amount >= 0),
   reason text not null,
+  notes text,
   is_active boolean not null default true,
   created_by uuid references auth.users(id) on delete set null,
   updated_by uuid references auth.users(id) on delete set null,

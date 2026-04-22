@@ -62,7 +62,7 @@ Implemented core:
 - audit triggers on core tables
 - append-only enforcement on receipts, payments, payment adjustments, and audit
   logs
-- 9 tracked SQL migrations covering schema, fee setup, payments, RBAC, import
+- 10 tracked SQL migrations covering schema, fee setup, payments, RBAC, import
   workflow, and auth/profile sync
 - database-level RBAC using `public.staff_role` plus permission-aware policies
 

@@ -100,7 +100,7 @@ Fully implemented core:
 - self password change under `app/protected/password`
 - append-only behavior enforced by RPCs and DB triggers on receipts, payments,
   payment_adjustments, and audit_logs
-- 9 tracked migrations covering schema, fee setup, payments, RBAC alignment,
+- 10 tracked migrations covering schema, fee setup, payments, RBAC alignment,
   import workflow, and auth/user sync
 - Role-Based Access Control (RBAC): `public.staff_role` enum and RLS policies
   enforce `admin`, `accountant`, and `read_only_staff` at the database layer
