@@ -1262,6 +1262,9 @@ adjustment_totals as (
 select
   installments.id as installment_id,
   installments.student_id,
+  students.transport_route_id,
+  routes.route_name as transport_route_name,
+  routes.route_code as transport_route_code,
   students.admission_no,
   students.full_name,
   classes.session_label,
@@ -1298,9 +1301,31 @@ select
 from public.installments
 join public.students on students.id = installments.student_id
 join public.classes on classes.id = installments.class_id
+left join public.transport_routes as routes on routes.id = students.transport_route_id
 left join payment_totals on payment_totals.installment_id = installments.id
 left join adjustment_totals on adjustment_totals.installment_id = installments.id
 where installments.status <> 'cancelled';
+
+create or replace view public.v_transport_route_outstanding
+with (security_invoker = true)
+as
+select
+  coalesce(transport_route_id::text, 'unassigned') as route_bucket,
+  transport_route_id,
+  coalesce(transport_route_name, 'No route') as route_name,
+  transport_route_code,
+  count(distinct student_id) as students_with_dues,
+  count(*) as open_installments,
+  count(*) filter (where balance_status = 'overdue') as overdue_installments,
+  coalesce(sum(outstanding_amount), 0) as outstanding_amount
+from public.v_installment_balances
+where outstanding_amount > 0
+  and balance_status in ('partial', 'overdue', 'pending')
+group by
+  coalesce(transport_route_id::text, 'unassigned'),
+  transport_route_id,
+  coalesce(transport_route_name, 'No route'),
+  transport_route_code;
 
 create or replace view public.v_outstanding_summary
 with (security_invoker = true)

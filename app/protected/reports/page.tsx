@@ -53,6 +53,10 @@ function buildReportHref(
     params.set("classId", nextFilters.classId);
   }
 
+  if (nextFilters.transportRouteId) {
+    params.set("transportRouteId", nextFilters.transportRouteId);
+  }
+
   if (nextFilters.sessionLabel) {
     params.set("sessionLabel", nextFilters.sessionLabel);
   }
@@ -234,20 +238,38 @@ function OutstandingFilters({
   filters,
   sessionOptions,
   classOptions,
+  routeOptions,
 }: {
   filters: ReportFilters;
   sessionOptions: string[];
   classOptions: Array<{ id: string; label: string; sessionLabel: string }>;
+  routeOptions: Array<{ id: string; label: string; routeCode: string | null }>;
 }) {
   return (
     <form action="/protected/reports" method="get" className="space-y-4">
       <input type="hidden" name="report" value="outstanding" />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <SharedClassAndSessionFilters
           filters={filters}
           sessionOptions={sessionOptions}
           classOptions={classOptions}
         />
+        <div>
+          <Label htmlFor="outstanding-route-id">Route</Label>
+          <select
+            id="outstanding-route-id"
+            name="transportRouteId"
+            defaultValue={filters.transportRouteId}
+            className={`${selectClassName} mt-2`}
+          >
+            <option value="">All routes</option>
+            {routeOptions.map((route) => (
+              <option key={route.id} value={route.id}>
+                {route.routeCode ? `${route.label} (${route.routeCode})` : route.label}
+              </option>
+            ))}
+          </select>
+        </div>
         <div>
           <Label htmlFor="outstanding-from-date">Due from</Label>
           <Input
@@ -280,24 +302,42 @@ function CollectionFilters({
   filters,
   sessionOptions,
   classOptions,
+  routeOptions,
   paymentModes,
   report,
 }: {
   filters: ReportFilters;
   sessionOptions: string[];
   classOptions: Array<{ id: string; label: string; sessionLabel: string }>;
+  routeOptions: Array<{ id: string; label: string; routeCode: string | null }>;
   paymentModes: ReadonlyArray<{ value: string; label: string }>;
   report: "daily-collection" | "receipt-register";
 }) {
   return (
     <form action="/protected/reports" method="get" className="space-y-4">
       <input type="hidden" name="report" value={report} />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <SharedClassAndSessionFilters
           filters={filters}
           sessionOptions={sessionOptions}
           classOptions={classOptions}
         />
+        <div>
+          <Label htmlFor={`${report}-route-id`}>Route</Label>
+          <select
+            id={`${report}-route-id`}
+            name="transportRouteId"
+            defaultValue={filters.transportRouteId}
+            className={`${selectClassName} mt-2`}
+          >
+            <option value="">All routes</option>
+            {routeOptions.map((route) => (
+              <option key={route.id} value={route.id}>
+                {route.routeCode ? `${route.label} (${route.routeCode})` : route.label}
+              </option>
+            ))}
+          </select>
+        </div>
         <div>
           <Label htmlFor={`${report}-from-date`}>Date from</Label>
           <Input
@@ -346,6 +386,7 @@ function LedgerFilters({
   filters,
   sessionOptions,
   classOptions,
+  routeOptions,
   paymentModes,
   studentOptions,
   selectedStudentId,
@@ -353,6 +394,7 @@ function LedgerFilters({
   filters: ReportFilters;
   sessionOptions: string[];
   classOptions: Array<{ id: string; label: string; sessionLabel: string }>;
+  routeOptions: Array<{ id: string; label: string; routeCode: string | null }>;
   paymentModes: ReadonlyArray<{ value: string; label: string }>;
   studentOptions: Array<{
     id: string;
@@ -365,12 +407,28 @@ function LedgerFilters({
   return (
     <form action="/protected/reports" method="get" className="space-y-4">
       <input type="hidden" name="report" value="student-ledger" />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <SharedClassAndSessionFilters
           filters={filters}
           sessionOptions={sessionOptions}
           classOptions={classOptions}
         />
+        <div>
+          <Label htmlFor="ledger-route-id">Route</Label>
+          <select
+            id="ledger-route-id"
+            name="transportRouteId"
+            defaultValue={filters.transportRouteId}
+            className={`${selectClassName} mt-2`}
+          >
+            <option value="">All routes</option>
+            {routeOptions.map((route) => (
+              <option key={route.id} value={route.id}>
+                {route.routeCode ? `${route.label} (${route.routeCode})` : route.label}
+              </option>
+            ))}
+          </select>
+        </div>
         <div>
           <Label htmlFor="ledger-student-query">Search student</Label>
           <Input
@@ -654,6 +712,7 @@ function ReportTables({ report }: { report: ReportData }) {
                   <th className="px-4 py-3">SR no</th>
                   <th className="px-4 py-3">Session</th>
                   <th className="px-4 py-3">Class</th>
+                  <th className="px-4 py-3">Route</th>
                   <th className="px-4 py-3">Installment</th>
                   <th className="px-4 py-3">Due date</th>
                   <th className="px-4 py-3">Amount due</th>
@@ -666,7 +725,7 @@ function ReportTables({ report }: { report: ReportData }) {
               <tbody>
                 {report.rows.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-4 py-6 text-center text-slate-500">
+                    <td colSpan={12} className="px-4 py-6 text-center text-slate-500">
                       No outstanding rows found for the selected filters.
                     </td>
                   </tr>
@@ -677,6 +736,7 @@ function ReportTables({ report }: { report: ReportData }) {
                       <td className="px-4 py-3">{row.admissionNo}</td>
                       <td className="px-4 py-3">{row.sessionLabel}</td>
                       <td className="px-4 py-3">{row.classLabel}</td>
+                      <td className="px-4 py-3">{row.transportRouteLabel}</td>
                       <td className="px-4 py-3">
                         {row.installmentLabel} ({row.installmentNo})
                       </td>
@@ -874,6 +934,7 @@ function ReportTables({ report }: { report: ReportData }) {
                   <th className="px-4 py-3">SR no</th>
                   <th className="px-4 py-3">Session</th>
                   <th className="px-4 py-3">Class</th>
+                  <th className="px-4 py-3">Route</th>
                   <th className="px-4 py-3">Mode</th>
                   <th className="px-4 py-3">Amount</th>
                   <th className="px-4 py-3">Reference</th>
@@ -883,7 +944,7 @@ function ReportTables({ report }: { report: ReportData }) {
               <tbody>
                 {report.rows.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-4 py-6 text-center text-slate-500">
+                    <td colSpan={12} className="px-4 py-6 text-center text-slate-500">
                       No receipts found for the selected filters.
                     </td>
                   </tr>
@@ -897,6 +958,7 @@ function ReportTables({ report }: { report: ReportData }) {
                       <td className="px-4 py-3">{row.admissionNo}</td>
                       <td className="px-4 py-3">{row.sessionLabel}</td>
                       <td className="px-4 py-3">{row.classLabel}</td>
+                      <td className="px-4 py-3">{row.transportRouteLabel}</td>
                       <td className="px-4 py-3">{formatPaymentModeLabel(row.paymentMode)}</td>
                       <td className="px-4 py-3 font-medium text-slate-900">
                         {formatInr(row.totalAmount)}
@@ -1056,6 +1118,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             filters={filters}
             sessionOptions={data.options.sessionOptions}
             classOptions={data.options.classOptions}
+            routeOptions={data.options.routeOptions}
           />
         ) : null}
 
@@ -1064,6 +1127,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             filters={filters}
             sessionOptions={data.options.sessionOptions}
             classOptions={data.options.classOptions}
+            routeOptions={data.options.routeOptions}
             paymentModes={data.options.paymentModes}
             report="daily-collection"
           />
@@ -1074,6 +1138,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             filters={filters}
             sessionOptions={data.options.sessionOptions}
             classOptions={data.options.classOptions}
+            routeOptions={data.options.routeOptions}
             paymentModes={data.options.paymentModes}
             studentOptions={data.options.studentOptions}
             selectedStudentId={data.report.selectedStudent?.id ?? filters.studentId}
@@ -1085,6 +1150,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             filters={filters}
             sessionOptions={data.options.sessionOptions}
             classOptions={data.options.classOptions}
+            routeOptions={data.options.routeOptions}
             paymentModes={data.options.paymentModes}
             report="receipt-register"
           />

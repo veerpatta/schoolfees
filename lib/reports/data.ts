@@ -47,6 +47,17 @@ type StudentRefRow = {
   id: string;
   full_name: string;
   admission_no: string;
+  transport_route_id: string | null;
+  route_ref:
+    | {
+        route_name: string;
+        route_code: string | null;
+      }
+    | Array<{
+        route_name: string;
+        route_code: string | null;
+      }>
+    | null;
   class_ref: ClassRefRow | ClassRefRow[] | null;
 };
 
@@ -72,6 +83,8 @@ type ReceiptSourceItem = {
   receivedBy: string | null;
   createdAt: string;
   studentId: string;
+  transportRouteId: string | null;
+  transportRouteLabel: string;
   fullName: string;
   admissionNo: string;
   sessionLabel: string;
@@ -80,6 +93,9 @@ type ReceiptSourceItem = {
 
 type InstallmentBalanceRow = {
   student_id: string;
+  transport_route_id: string | null;
+  transport_route_name: string | null;
+  transport_route_code: string | null;
   admission_no: string;
   full_name: string;
   session_label: string;
@@ -100,6 +116,17 @@ type LedgerStudentRow = {
   id: string;
   full_name: string;
   admission_no: string;
+  transport_route_id: string | null;
+  route_ref:
+    | {
+        route_name: string;
+        route_code: string | null;
+      }
+    | Array<{
+        route_name: string;
+        route_code: string | null;
+      }>
+    | null;
   class_ref: ClassRefRow | ClassRefRow[] | null;
 };
 
@@ -214,6 +241,14 @@ function buildClassLabel(value: {
   return parts.join(" - ");
 }
 
+function buildRouteLabel(value: { route_name: string; route_code: string | null } | null) {
+  if (!value) {
+    return "No route";
+  }
+
+  return value.route_code ? `${value.route_name} (${value.route_code})` : value.route_name;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -317,6 +352,7 @@ export function normalizeReportFilters(
   return {
     report: normalizeReportKey(getRawParamValue(source, "report")),
     classId: normalizeUuid(getRawParamValue(source, "classId")),
+    transportRouteId: normalizeUuid(getRawParamValue(source, "transportRouteId")),
     sessionLabel: (getRawParamValue(source, "sessionLabel") ?? "").trim(),
     fromDate: normalizeDate(getRawParamValue(source, "fromDate")),
     toDate: normalizeDate(getRawParamValue(source, "toDate")),
@@ -436,7 +472,7 @@ async function getReceiptSourceRows() {
   const { data, error } = await supabase
     .from("receipts")
     .select(
-      "id, receipt_number, payment_date, payment_mode, total_amount, reference_number, received_by, created_at, student_ref:students(id, full_name, admission_no, class_ref:classes(session_label, class_name, section, stream_name))",
+      "id, receipt_number, payment_date, payment_mode, total_amount, reference_number, received_by, created_at, student_ref:students(id, full_name, admission_no, transport_route_id, route_ref:transport_routes(route_name, route_code), class_ref:classes(session_label, class_name, section, stream_name))",
     )
     .order("payment_date", { ascending: false })
     .order("created_at", { ascending: false });
@@ -449,6 +485,7 @@ async function getReceiptSourceRows() {
     .map((row) => {
       const student = toSingleRecord(row.student_ref);
       const classRef = student ? toSingleRecord(student.class_ref) : null;
+      const routeRef = student ? toSingleRecord(student.route_ref) : null;
 
       if (!student || !classRef) {
         return null;
@@ -464,6 +501,8 @@ async function getReceiptSourceRows() {
         receivedBy: row.received_by,
         createdAt: row.created_at,
         studentId: student.id,
+        transportRouteId: student.transport_route_id,
+        transportRouteLabel: buildRouteLabel(routeRef),
         fullName: student.full_name,
         admissionNo: student.admission_no,
         sessionLabel: classRef.session_label,
@@ -477,11 +516,20 @@ function filterReceiptSourceRows(
   rows: ReceiptSourceItem[],
   filters: Pick<
     ReportFilters,
-    "classId" | "sessionLabel" | "fromDate" | "toDate" | "paymentMode"
+    | "classId"
+    | "transportRouteId"
+    | "sessionLabel"
+    | "fromDate"
+    | "toDate"
+    | "paymentMode"
   >,
   classOptions: StudentClassOption[],
 ) {
   return rows.filter((row) => {
+    if (filters.transportRouteId && row.transportRouteId !== filters.transportRouteId) {
+      return false;
+    }
+
     if (
       !matchesClassAndSession(filters, classOptions, {
         classLabel: row.classLabel,
@@ -507,7 +555,7 @@ async function getOutstandingReportData(
   const { data, error } = await supabase
     .from("v_installment_balances")
     .select(
-      "student_id, admission_no, full_name, session_label, class_name, section, stream_name, installment_no, installment_label, due_date, amount_due, payments_total, adjustments_total, outstanding_amount, balance_status",
+      "student_id, transport_route_id, transport_route_name, transport_route_code, admission_no, full_name, session_label, class_name, section, stream_name, installment_no, installment_label, due_date, amount_due, payments_total, adjustments_total, outstanding_amount, balance_status",
     )
     .gt("outstanding_amount", 0)
     .in("balance_status", ["partial", "overdue", "pending"]);
@@ -526,6 +574,10 @@ async function getOutstandingReportData(
         return [];
       }
 
+      if (filters.transportRouteId && row.transport_route_id !== filters.transportRouteId) {
+        return [];
+      }
+
       const classLabel = buildClassLabel({
         class_name: row.class_name,
         section: row.section || null,
@@ -539,6 +591,14 @@ async function getOutstandingReportData(
           fullName: row.full_name,
           sessionLabel: row.session_label,
           classLabel,
+          transportRouteLabel: buildRouteLabel(
+            row.transport_route_name
+              ? {
+                  route_name: row.transport_route_name,
+                  route_code: row.transport_route_code,
+                }
+              : null,
+          ),
           installmentNo: row.installment_no,
           installmentLabel: row.installment_label,
           dueDate: row.due_date,
@@ -705,7 +765,7 @@ async function getLedgerStudentOptions(
   const { data, error } = await supabase
     .from("students")
     .select(
-      "id, full_name, admission_no, class_ref:classes(session_label, class_name, section, stream_name)",
+      "id, full_name, admission_no, transport_route_id, route_ref:transport_routes(route_name, route_code), class_ref:classes(session_label, class_name, section, stream_name)",
     )
     .in("status", ["active", "inactive"])
     .order("full_name", { ascending: true });
@@ -715,8 +775,16 @@ async function getLedgerStudentOptions(
   }
 
   return ((data ?? []) as LedgerStudentRow[])
+    .filter((row) => {
+      if (!filters.transportRouteId) {
+        return true;
+      }
+
+      return row.transport_route_id === filters.transportRouteId;
+    })
     .map((row) => {
       const classRef = toSingleRecord(row.class_ref);
+      const routeRef = toSingleRecord(row.route_ref);
 
       if (!classRef) {
         return null;
@@ -729,6 +797,7 @@ async function getLedgerStudentOptions(
         fullName: row.full_name,
         admissionNo: row.admission_no,
         classLabel,
+        transportRouteLabel: buildRouteLabel(routeRef),
         sessionLabel: classRef.session_label,
         label: `${row.full_name} (${row.admission_no})`,
       } satisfies ReportStudentOption;
@@ -1027,6 +1096,7 @@ async function getReceiptRegisterReportData(
         fullName: row.fullName,
         sessionLabel: row.sessionLabel,
         classLabel: row.classLabel,
+        transportRouteLabel: row.transportRouteLabel,
       }) satisfies ReceiptRegisterReportRow,
   );
 
@@ -1181,7 +1251,7 @@ async function getImportVerificationReportData(
 export async function getReportsPageData(
   filters: ReportFilters,
 ): Promise<ReportsPageData> {
-  const [{ classOptions }, policy] = await Promise.all([
+  const [{ classOptions, routeOptions }, policy] = await Promise.all([
     getStudentFormOptions(),
     getFeePolicySummary(),
   ]);
@@ -1222,6 +1292,7 @@ export async function getReportsPageData(
     filters,
     options: {
       classOptions,
+      routeOptions,
       sessionOptions,
       paymentModes: policy.acceptedPaymentModes,
       studentOptions,
@@ -1249,6 +1320,7 @@ export async function getReportCsvData(
         headers: [
           "Session",
           "Class",
+          "Route",
           "Student",
           "SR no",
           "Installment no",
@@ -1264,6 +1336,7 @@ export async function getReportCsvData(
         rows: data.report.rows.map((row) => [
           row.sessionLabel,
           row.classLabel,
+          row.transportRouteLabel,
           row.fullName,
           row.admissionNo,
           row.installmentNo,
@@ -1351,6 +1424,7 @@ export async function getReportCsvData(
           "SR no",
           "Session",
           "Class",
+          "Route",
           "Payment mode",
           "Amount",
           "Reference no",
@@ -1364,6 +1438,7 @@ export async function getReportCsvData(
           row.admissionNo,
           row.sessionLabel,
           row.classLabel,
+          row.transportRouteLabel,
           formatPaymentModeLabel(row.paymentMode),
           row.totalAmount,
           row.referenceNumber,

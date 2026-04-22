@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -175,6 +177,119 @@ export default async function DefaultersPage({
                     <td className="px-4 py-3 capitalize">{row.followUpStatus}</td>
                   </tr>
                 ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Route-wise transport outstanding"
+        description="Use this view for transport follow-up and route-level reconciliation work."
+      >
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="w-full min-w-[980px] text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+              <tr>
+                <th className="px-4 py-3">Route</th>
+                <th className="px-4 py-3">Students with dues</th>
+                <th className="px-4 py-3">Pending amount</th>
+                <th className="px-4 py-3">Overdue installments</th>
+                <th className="px-4 py-3">Open installments</th>
+                <th className="px-4 py-3">Oldest due date</th>
+                <th className="px-4 py-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.routeSummaryRows.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
+                    No route-wise outstanding rows for the selected filters.
+                  </td>
+                </tr>
+              ) : (
+                data.routeSummaryRows.map((row) => (
+                  <tr key={`${row.routeId ?? "no-route"}-${row.routeLabel}`} className="border-t border-slate-100 text-slate-700">
+                    <td className="px-4 py-3 font-medium text-slate-900">{row.routeLabel}</td>
+                    <td className="px-4 py-3">{row.studentCount}</td>
+                    <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.totalPending)}</td>
+                    <td className="px-4 py-3">{row.overdueInstallments}</td>
+                    <td className="px-4 py-3">{row.openInstallments}</td>
+                    <td className="px-4 py-3">{formatShortDate(row.oldestDueDate)}</td>
+                    <td className="px-4 py-3">
+                      {row.routeId ? (
+                        <div className="flex flex-wrap gap-2">
+                          <Link
+                            className="text-xs font-medium text-blue-700 hover:underline"
+                            href={`/protected/defaulters?transportRouteId=${row.routeId}`}
+                          >
+                            Open defaulters
+                          </Link>
+                          <Link
+                            className="text-xs font-medium text-blue-700 hover:underline"
+                            href={`/protected/students?transportRouteId=${row.routeId}`}
+                          >
+                            Open students
+                          </Link>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-500">No direct route filter</span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Route-wise student list"
+        description="Operational student list grouped by route for office calls and follow-up tracking."
+      >
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="w-full min-w-[1120px] text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+              <tr>
+                <th className="px-4 py-3">Route</th>
+                <th className="px-4 py-3">Student</th>
+                <th className="px-4 py-3">SR no</th>
+                <th className="px-4 py-3">Class</th>
+                <th className="px-4 py-3">Pending amount</th>
+                <th className="px-4 py-3">Overdue installments</th>
+                <th className="px-4 py-3">Follow-up</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.rows.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
+                    No route-wise students for the selected filters.
+                  </td>
+                </tr>
+              ) : (
+                [...data.rows]
+                  .sort((left, right) => {
+                    const routeCompare = left.transportRouteLabel.localeCompare(right.transportRouteLabel);
+
+                    if (routeCompare !== 0) {
+                      return routeCompare;
+                    }
+
+                    return left.fullName.localeCompare(right.fullName);
+                  })
+                  .map((row) => (
+                    <tr key={`route-${row.studentId}`} className="border-t border-slate-100 text-slate-700">
+                      <td className="px-4 py-3">{row.transportRouteLabel}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">{row.fullName}</td>
+                      <td className="px-4 py-3">{row.admissionNo}</td>
+                      <td className="px-4 py-3">{row.classLabel}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.totalPending)}</td>
+                      <td className="px-4 py-3">{row.overdueInstallments}</td>
+                      <td className="px-4 py-3 capitalize">{row.followUpStatus}</td>
+                    </tr>
+                  ))
               )}
             </tbody>
           </table>

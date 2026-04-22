@@ -4,7 +4,7 @@ import type {
   ImportRowStatus,
   PaymentMode,
 } from "@/lib/db/types";
-import type { StudentClassOption } from "@/lib/students/types";
+import type { StudentClassOption, StudentRouteOption } from "@/lib/students/types";
 
 export const reportKeys = [
   "outstanding",
@@ -76,6 +76,7 @@ export const reportDefinitions: Record<
 export type ReportFilters = {
   report: ReportKey;
   classId: string;
+  transportRouteId: string;
   sessionLabel: string;
   fromDate: string;
   toDate: string;
@@ -88,6 +89,7 @@ export type ReportFilters = {
 export const EMPTY_REPORT_FILTERS: ReportFilters = {
   report: "outstanding",
   classId: "",
+  transportRouteId: "",
   sessionLabel: "",
   fromDate: "",
   toDate: "",
@@ -102,6 +104,7 @@ export type ReportStudentOption = {
   fullName: string;
   admissionNo: string;
   classLabel: string;
+  transportRouteLabel: string;
   sessionLabel: string;
   label: string;
 };
@@ -115,6 +118,7 @@ export type ReportBatchOption = {
 
 export type ReportsFilterOptions = {
   classOptions: StudentClassOption[];
+  routeOptions: StudentRouteOption[];
   sessionOptions: string[];
   paymentModes: ReadonlyArray<{ value: PaymentMode; label: string }>;
   studentOptions: ReportStudentOption[];
@@ -127,6 +131,7 @@ export type OutstandingReportRow = {
   fullName: string;
   sessionLabel: string;
   classLabel: string;
+  transportRouteLabel: string;
   installmentNo: number;
   installmentLabel: string;
   dueDate: string;
@@ -221,6 +226,7 @@ export type ReceiptRegisterReportRow = {
   fullName: string;
   sessionLabel: string;
   classLabel: string;
+  transportRouteLabel: string;
 };
 
 export type ReceiptRegisterReportData = {

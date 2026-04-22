@@ -2,7 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 
-import { createStudent, getStudentFormOptions, updateStudent } from "@/lib/students/data";
+import { generateSessionLedgersAction } from "@/lib/fees/generator";
+import {
+  createStudent,
+  getStudentDetail,
+  getStudentFormOptions,
+  updateStudent,
+} from "@/lib/students/data";
 import {
   type StudentFormActionState,
 } from "@/lib/students/types";
@@ -94,14 +100,44 @@ export async function updateStudentAction(
   }
 
   try {
+    const previousStudent = await getStudentDetail(studentId);
+
+    if (!previousStudent) {
+      return {
+        status: "error",
+        message: "Student record was not found.",
+        fieldErrors: {},
+        studentId: null,
+      };
+    }
+
     const updatedStudentId = await updateStudent(studentId, validated.data);
+    const routeOrClassChanged =
+      previousStudent.transportRouteId !== validated.data.transportRouteId ||
+      previousStudent.classId !== validated.data.classId;
+    const remainsActive = validated.data.status === "active";
+
+    let syncMessage = "";
+
+    if (routeOrClassChanged && remainsActive) {
+      await requireStaffPermission("fees:write");
+      const syncResult = await generateSessionLedgersAction({
+        scopedStudentIds: [updatedStudentId],
+      });
+
+      syncMessage = ` Route/class change sync completed: ${syncResult.installmentsToInsert} insert, ${syncResult.installmentsToUpdate} update, ${syncResult.installmentsToCancel} cancel, ${syncResult.lockedInstallments} blocked for review.`;
+    }
 
     revalidatePath("/protected/students");
     revalidatePath(`/protected/students/${updatedStudentId}`);
+    revalidatePath("/protected/defaulters");
+    revalidatePath("/protected/reports");
+    revalidatePath("/protected/fee-setup");
+    revalidatePath("/protected/fee-setup/generate");
 
     return {
       status: "success",
-      message: "Student record updated successfully.",
+      message: `Student record updated successfully.${syncMessage}`,
       fieldErrors: {},
       studentId: updatedStudentId,
     };

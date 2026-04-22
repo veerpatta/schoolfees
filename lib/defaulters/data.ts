@@ -5,6 +5,7 @@ import { getStudentFormOptions } from "@/lib/students/data";
 
 import type {
   DefaulterFilters,
+  RouteOutstandingSummaryRow,
   DefaulterSummaryRow,
   DefaultersPageData,
 } from "./types";
@@ -16,6 +17,7 @@ type StudentClassRow = {
 };
 
 type StudentRouteRow = {
+  id: string;
   route_name: string;
   route_code: string | null;
 };
@@ -96,7 +98,7 @@ export async function getDefaultersPageData(
   let studentsQuery = supabase
     .from("students")
     .select(
-      "id, full_name, admission_no, class_ref:classes(class_name, section, stream_name), route_ref:transport_routes(route_name, route_code)",
+      "id, full_name, admission_no, class_ref:classes(class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code)",
     )
     .in("status", ["active", "inactive"])
     .order("full_name", { ascending: true });
@@ -128,6 +130,7 @@ export async function getDefaultersPageData(
         openInstallments: 0,
       },
       rows: [],
+      routeSummaryRows: [],
     };
   }
 
@@ -156,6 +159,7 @@ export async function getDefaultersPageData(
       admissionNo: row.admission_no,
       fullName: row.full_name,
       classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
+      transportRouteId: routeRef?.id ?? null,
       transportRouteLabel: buildRouteLabel(routeRef),
       totalPending: 0,
       overdueInstallments: 0,
@@ -210,6 +214,44 @@ export async function getDefaultersPageData(
       return left.fullName.localeCompare(right.fullName);
     });
 
+  const routeSummaryMap = new Map<string, RouteOutstandingSummaryRow>();
+
+  rows.forEach((row) => {
+    const routeKey = row.transportRouteId ?? `label::${row.transportRouteLabel}`;
+    const existing = routeSummaryMap.get(routeKey);
+
+    if (existing) {
+      existing.studentCount += 1;
+      existing.totalPending += row.totalPending;
+      existing.overdueInstallments += row.overdueInstallments;
+      existing.openInstallments += row.openInstallments;
+
+      if (!existing.oldestDueDate || (row.oldestDueDate && row.oldestDueDate < existing.oldestDueDate)) {
+        existing.oldestDueDate = row.oldestDueDate;
+      }
+
+      return;
+    }
+
+    routeSummaryMap.set(routeKey, {
+      routeId: row.transportRouteId,
+      routeLabel: row.transportRouteLabel,
+      studentCount: 1,
+      totalPending: row.totalPending,
+      overdueInstallments: row.overdueInstallments,
+      openInstallments: row.openInstallments,
+      oldestDueDate: row.oldestDueDate,
+    });
+  });
+
+  const routeSummaryRows = Array.from(routeSummaryMap.values()).sort((left, right) => {
+    if (right.totalPending !== left.totalPending) {
+      return right.totalPending - left.totalPending;
+    }
+
+    return left.routeLabel.localeCompare(right.routeLabel);
+  });
+
   const metrics = rows.reduce(
     (acc, row) => {
       acc.totalStudents += 1;
@@ -231,5 +273,6 @@ export async function getDefaultersPageData(
     routeOptions,
     metrics,
     rows,
+    routeSummaryRows,
   };
 }
