@@ -1888,7 +1888,7 @@ export function FeeSetupClient({
       {activeStep === "class" ? (
         <SectionCard
           title="4. Class-wise fee defaults"
-          description="Save a different default only for classes that need their own fee amounts. Otherwise the school-wide defaults stay in effect."
+          description="Save only the class-specific academic fee values here. Transport amounts are handled separately in transport defaults."
           actions={
             canEdit ? (
               <StatusBadge label="Editable in Fee Setup" tone="good" />
@@ -1897,11 +1897,16 @@ export function FeeSetupClient({
             )
           }
         >
-        <form key={selectedClassId || "new-class"} action={classFormAction} className="space-y-5">
-          <ActionNotice state={classState} />
-          <ImpactPreviewCard preview={classState.preview} />
+	        <form key={selectedClassId || "new-class"} action={classFormAction} className="space-y-5">
+	          <ActionNotice state={classState} />
+	          <ImpactPreviewCard preview={classState.preview} />
+            <input
+              type="hidden"
+              name="transportFee"
+              value={selectedClassDefault?.transportFee ?? schoolDefault.transportFee}
+            />
 
-          <div className="grid gap-4 md:grid-cols-2">
+	          <div className="grid gap-4 md:grid-cols-2">
             <div>
               <Label htmlFor="class-select">Class</Label>
               <select
@@ -1932,10 +1937,10 @@ export function FeeSetupClient({
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div>
-              <Label htmlFor="class-tuition-fee">Tuition fee</Label>
-              <Input
+	          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+	            <div>
+	              <Label htmlFor="class-tuition-fee">Tuition fee</Label>
+	              <Input
                 id="class-tuition-fee"
                 name="tuitionFee"
                 type="number"
@@ -1946,22 +1951,9 @@ export function FeeSetupClient({
                 required
               />
             </div>
-            <div>
-              <Label htmlFor="class-transport-fee">Transport fee</Label>
-              <Input
-                id="class-transport-fee"
-                name="transportFee"
-                type="number"
-                min={0}
-                defaultValue={selectedClassDefault?.transportFee ?? schoolDefault.transportFee}
-                className="mt-2"
-                disabled={!canEdit}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="class-books-fee">Books fee</Label>
-              <Input
+	            <div>
+	              <Label htmlFor="class-books-fee">Books fee</Label>
+	              <Input
                 id="class-books-fee"
                 name="booksFee"
                 type="number"
@@ -1984,22 +1976,21 @@ export function FeeSetupClient({
                   schoolDefault.admissionActivityMiscFee
                 }
                 className="mt-2"
-                disabled={!canEdit}
-                required
-              />
-            </div>
-            <div>
-              <Label>Current annual total</Label>
-              <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">
-                {formatInr(selectedClassDefault?.annualTotal ?? schoolDefault.tuitionFee + schoolDefault.transportFee + schoolDefault.booksFee + schoolDefault.admissionActivityMiscFee)}
+	                disabled={!canEdit}
+	                required
+	              />
+	            </div>
+	            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                Transport fee is not edited here.
+                <br />
+                Use <strong>Step 5: Transport route defaults</strong> for route-wise transport amounts.
               </div>
-            </div>
-          </div>
+	          </div>
 
-          <AdvancedPanel
-            title="Class advanced options"
-            description="Open only when this class needs a student type default, transport switch, extra fee heads, or a note."
-          >
+	          <AdvancedPanel
+	            title="Class advanced options"
+	            description="Open only when this class needs a transport on/off default, student type default, extra fee heads, or a note."
+	          >
             <div className="space-y-5">
               <div className="grid gap-4 md:grid-cols-2">
                 <div>

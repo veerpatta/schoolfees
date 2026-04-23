@@ -3,7 +3,6 @@ import Link from "next/link";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
-import { Button } from "@/components/ui/button";
 import { advancedHubItems } from "@/lib/config/navigation";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/lib/supabase/session";
 
@@ -20,28 +19,39 @@ export default async function AdvancedPage() {
       <PageHeader
         eyebrow="Advanced"
         title="Advanced tools"
-        description="Deeper admin and finance-office modules stay here without crowding the daily office navigation."
+        description="Less-used admin and finance tools stay here so the daily workflow stays clean."
         actions={<StatusBadge label="Secondary workspace" tone="accent" />}
       />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {visibleItems.map((item) => {
-          const Icon = item.icon;
+      <SectionCard
+        title="Advanced modules"
+        description="Open only the tool you need. Everything here is secondary to the daily fee desk workflow."
+      >
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {visibleItems.map((item) => {
+            const Icon = item.icon;
 
-          return (
-            <SectionCard key={item.href} title={item.label} description={item.description}>
-              <div className="flex items-center justify-between gap-3">
-                <div className="rounded-full border border-slate-200 bg-slate-50 p-3 text-slate-700">
-                  <Icon className="size-5" />
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-slate-300 hover:bg-white"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="rounded-full border border-slate-200 bg-white p-2.5 text-slate-700">
+                    <Icon className="size-4" />
+                  </div>
+                  <span className="inline-flex h-9 items-center rounded-md border border-input bg-background px-3 text-sm font-medium shadow-sm">
+                    Open
+                  </span>
                 </div>
-                <Button asChild size="sm" variant="outline">
-                  <Link href={item.href}>Go there</Link>
-                </Button>
-              </div>
-            </SectionCard>
-          );
-        })}
-      </section>
+                <p className="mt-3 text-sm font-semibold text-slate-950">{item.label}</p>
+                <p className="mt-1 text-sm text-slate-600">{item.description}</p>
+              </Link>
+            );
+          })}
+        </div>
+      </SectionCard>
     </div>
   );
 }

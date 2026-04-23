@@ -93,11 +93,14 @@ function WorkbookSummaryCards({
   summary: OfficeWorkbookSummary;
   showClassRegisterOnly?: boolean;
 }) {
-  const cards = [
+  const essentialCards = [
     { label: "Students", value: summary.studentCount },
     { label: "Total due", value: formatInr(summary.totalDue) },
-    { label: "Total paid", value: formatInr(summary.totalPaid) },
     { label: "Outstanding", value: formatInr(summary.totalOutstanding) },
+    { label: "Total paid", value: formatInr(summary.totalPaid) },
+  ];
+
+  const detailCards = [
     { label: "Discounts", value: formatInr(summary.totalDiscount) },
     { label: "Late fee waived", value: formatInr(summary.totalLateFeeWaived) },
     { label: "Transport students", value: summary.transportStudentCount },
@@ -107,18 +110,36 @@ function WorkbookSummaryCards({
     { label: "Other adj.", value: formatInr(summary.otherAdjustmentTotal) },
   ];
 
-  const visibleCards = showClassRegisterOnly ? cards : cards.slice(0, 6);
-
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-      {visibleCards.map((card) => (
-        <div key={card.label} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-            {card.label}
-          </p>
-          <p className="mt-2 text-lg font-semibold text-slate-950">{card.value}</p>
-        </div>
-      ))}
+    <div className="space-y-4">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {essentialCards.map((card) => (
+          <div key={card.label} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+              {card.label}
+            </p>
+            <p className="mt-1.5 text-base font-semibold text-slate-950">{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {showClassRegisterOnly || detailCards.length > 0 ? (
+        <details className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-slate-700">
+            More totals
+          </summary>
+          <div className="grid gap-3 border-t border-slate-200 bg-white p-4 md:grid-cols-2 xl:grid-cols-4">
+            {detailCards.map((card) => (
+              <div key={card.label} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  {card.label}
+                </p>
+                <p className="mt-1.5 text-base font-semibold text-slate-950">{card.value}</p>
+              </div>
+            ))}
+          </div>
+        </details>
+      ) : null}
     </div>
   );
 }
@@ -635,7 +656,7 @@ export default async function DuesPage({ searchParams }: DuesPageProps) {
       <PageHeader
         eyebrow="Dues & Receipts"
         title={activeMeta.title}
-        description={activeMeta.description}
+        description={`${activeMeta.description} Keep the controls above and the working table below.`}
         actions={<StatusBadge label="Workbook office view" tone="accent" />}
       />
 
@@ -649,8 +670,8 @@ export default async function DuesPage({ searchParams }: DuesPageProps) {
       ) : null}
 
       <SectionCard
-        title="View shortcuts"
-        description="Keep the main workbook working screens one hop away."
+        title="Choose view"
+        description="Switch the workbook view and class from one compact control area."
         actions={
           <Button asChild size="sm" variant="outline">
             <Link href="/protected/reports">Open Reports & Exports</Link>
@@ -674,7 +695,7 @@ export default async function DuesPage({ searchParams }: DuesPageProps) {
           description={
             activeView === "class_register"
               ? "Top-level register totals for the selected class or working set."
-              : "Quick totals for the current workbook view."
+              : "Essential totals first, more totals only when needed."
           }
         >
           <WorkbookSummaryCards

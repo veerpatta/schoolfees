@@ -25,13 +25,13 @@ export function StudentFilters({
   routeOptions,
 }: StudentFiltersProps) {
   return (
-    <form method="get" className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+    <form method="get" className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
       <div className="xl:col-span-2">
-        <Label htmlFor="query">Search by student name</Label>
+        <Label htmlFor="query">Search</Label>
         <Input
           id="query"
           name="query"
-          placeholder="Type full or partial student name"
+          placeholder="Student name, SR no, or phone"
           defaultValue={filters.query}
           className="mt-2"
         />

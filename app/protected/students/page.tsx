@@ -69,7 +69,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
       <PageHeader
         eyebrow="Students"
         title="Student master"
-        description="Search, filter, create, and maintain student records with workbook fee-profile fields in one office-friendly workflow."
+        description="Find students fast, filter the list, and open the right student record without extra clutter."
         actions={
           canWriteStudents ? (
             <Button asChild>
@@ -82,30 +82,26 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
       />
 
       <SectionCard
-        title="Class shortcuts"
-        description="Open one class at a time when the office is working class-wise."
+        title="Find students"
+        description="Use class shortcuts and filters together so the list updates from one place."
       >
-        <ClassTabs
-          basePath="/protected/students"
-          classOptions={classOptions}
-          activeClassId={filters.classId}
-          query={{
-            query: filters.query || null,
-            transportRouteId: filters.transportRouteId || null,
-            status: filters.status || null,
-          }}
-        />
-      </SectionCard>
-
-      <SectionCard
-        title="Filters"
-        description="Use name search and dropdown filters to find student records quickly."
-      >
-        <StudentFilters
-          filters={filters}
-          classOptions={classOptions}
-          routeOptions={routeOptions}
-        />
+        <div className="space-y-4">
+          <ClassTabs
+            basePath="/protected/students"
+            classOptions={classOptions}
+            activeClassId={filters.classId}
+            query={{
+              query: filters.query || null,
+              transportRouteId: filters.transportRouteId || null,
+              status: filters.status || null,
+            }}
+          />
+          <StudentFilters
+            filters={filters}
+            classOptions={classOptions}
+            routeOptions={routeOptions}
+          />
+        </div>
       </SectionCard>
 
       <SectionCard
@@ -119,26 +115,31 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
         />
       </SectionCard>
 
-      <SectionCard
-        title="Import-ready field map"
-        description="These normalized keys and aliases match the CSV/XLSX workbook import flow, including AY 2026-27 workbook fee-profile fields."
-      >
-        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-          {STUDENT_IMPORT_FIELDS.map((field) => (
-            <div key={field.key} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <p className="text-sm font-semibold text-slate-900">{field.label}</p>
-              <p className="mt-1 text-xs text-slate-600">Key: {field.key}</p>
-              <div className="mt-2 flex flex-wrap gap-1">
-                {field.aliases.map((alias) => (
-                  <Badge key={`${field.key}-${alias}`} variant="outline" className="text-[11px]">
-                    {alias}
-                  </Badge>
-                ))}
+      <details className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-slate-900">
+          Import-ready field map
+        </summary>
+        <div className="border-t border-slate-200 p-4">
+          <p className="mb-4 text-sm text-slate-600">
+            These normalized keys and aliases match the CSV/XLSX workbook import flow.
+          </p>
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {STUDENT_IMPORT_FIELDS.map((field) => (
+              <div key={field.key} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-sm font-semibold text-slate-900">{field.label}</p>
+                <p className="mt-1 text-xs text-slate-600">Key: {field.key}</p>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {field.aliases.map((alias) => (
+                    <Badge key={`${field.key}-${alias}`} variant="outline" className="text-[11px]">
+                      {alias}
+                    </Badge>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </SectionCard>
+      </details>
     </div>
   );
 }

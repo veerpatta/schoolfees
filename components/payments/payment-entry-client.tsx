@@ -129,88 +129,92 @@ export function PaymentEntryClient({
         }
       />
 
-      <SectionCard
-        title="Class shortcuts"
-        description="Jump straight to one class when counter work is happening class-wise."
-      >
-        <ClassTabs
-          basePath="/protected/payments"
-          classOptions={classOptions}
-          activeClassId={data.classId}
-        />
-      </SectionCard>
-
       <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <SectionCard
-          title="Today at the desk"
-          description="Keep the current counter total and recent receipt shortcuts close to the posting form."
+          title="Desk tools"
+          description="Keep class shortcuts, today’s total, and recent receipt access in one compact place."
         >
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Today&apos;s collection
-              </p>
-              <p className="mt-2 text-2xl font-semibold text-slate-950">
-                {formatInr(data.todayCollection.totalAmount)}
-              </p>
-              <p className="mt-2 text-sm text-slate-600">
-                {data.todayCollection.receiptCount} receipt
-                {data.todayCollection.receiptCount === 1 ? "" : "s"} posted today.
-              </p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Quick actions
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button asChild size="sm" variant="outline">
-                  <Link href="/protected/dues?view=receipts_today">Today&apos;s receipts</Link>
-                </Button>
-                <Button asChild size="sm" variant="outline">
-                  <Link href="/protected/dues?view=collection_today">Today&apos;s summary</Link>
-                </Button>
+          <div className="space-y-4">
+            <ClassTabs
+              basePath="/protected/payments"
+              classOptions={classOptions}
+              activeClassId={data.classId}
+            />
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Today&apos;s collection
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-slate-950">
+                  {formatInr(data.todayCollection.totalAmount)}
+                </p>
+                <p className="mt-2 text-sm text-slate-600">
+                  {data.todayCollection.receiptCount} receipt
+                  {data.todayCollection.receiptCount === 1 ? "" : "s"} posted today.
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Quick actions
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button asChild size="sm" variant="outline">
+                    <Link href="/protected/dues?view=receipts_today">Today&apos;s receipts</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href="/protected/dues?view=collection_today">Today&apos;s summary</Link>
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
-                <tr>
-                  <th className="px-4 py-3">Receipt</th>
-                  <th className="px-4 py-3">Student</th>
-                  <th className="px-4 py-3">Amount</th>
-                  <th className="px-4 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.recentReceipts.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-5 text-center text-slate-500">
-                      No recent receipts yet.
-                    </td>
-                  </tr>
-                ) : (
-                  data.recentReceipts.map((receipt) => (
-                    <tr key={receipt.id} className="border-t border-slate-100">
-                      <td className="px-4 py-3 font-medium text-slate-900">{receipt.receiptNumber}</td>
-                      <td className="px-4 py-3">{receipt.studentLabel}</td>
-                      <td className="px-4 py-3">{formatInr(receipt.totalAmount)}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-2">
-                          <Button asChild size="sm" variant="outline">
-                            <Link href={`/protected/receipts/${receipt.id}`}>Print</Link>
-                          </Button>
-                          <Button asChild size="sm" variant="outline">
-                            <Link href={`/protected/students/${receipt.studentId}`}>Student</Link>
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+            <details className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+              <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-slate-700">
+                Recent receipts
+              </summary>
+              <div className="border-t border-slate-200 bg-white p-4">
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full min-w-[640px] text-left text-sm">
+                    <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                      <tr>
+                        <th className="px-4 py-3">Receipt</th>
+                        <th className="px-4 py-3">Student</th>
+                        <th className="px-4 py-3">Amount</th>
+                        <th className="px-4 py-3">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.recentReceipts.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-5 text-center text-slate-500">
+                            No recent receipts yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        data.recentReceipts.map((receipt) => (
+                          <tr key={receipt.id} className="border-t border-slate-100">
+                            <td className="px-4 py-3 font-medium text-slate-900">{receipt.receiptNumber}</td>
+                            <td className="px-4 py-3">{receipt.studentLabel}</td>
+                            <td className="px-4 py-3">{formatInr(receipt.totalAmount)}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex flex-wrap gap-2">
+                                <Button asChild size="sm" variant="outline">
+                                  <Link href={`/protected/receipts/${receipt.id}`}>Print</Link>
+                                </Button>
+                                <Button asChild size="sm" variant="outline">
+                                  <Link href={`/protected/students/${receipt.studentId}`}>Student</Link>
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </details>
           </div>
         </SectionCard>
 

@@ -47,7 +47,7 @@ export function SidebarNav({
               "group transition",
               isTopbar
                 ? "flex min-w-fit items-center gap-2 rounded-full border px-3 py-2 text-sm"
-                : "flex items-start gap-3 rounded-xl border px-3 py-3",
+                : "flex items-center gap-3 rounded-xl border px-3 py-2.5",
               active
                 ? "border-slate-900 bg-slate-900 text-white"
                 : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
@@ -69,17 +69,7 @@ export function SidebarNav({
                 {item.label}
               </span>
             ) : (
-              <div className="min-w-0">
-                <p className="text-sm font-semibold leading-5">{item.label}</p>
-                <p
-                  className={cn(
-                    "mt-0.5 text-xs leading-5",
-                    active ? "text-slate-200" : "text-slate-500",
-                  )}
-                >
-                  {item.description}
-                </p>
-              </div>
+              <span className="min-w-0 text-sm font-semibold leading-5">{item.label}</span>
             )}
           </Link>
         );
