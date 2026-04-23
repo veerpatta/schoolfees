@@ -276,6 +276,26 @@ function FormGroup({
   );
 }
 
+function AdvancedPanel({
+  title = "Advanced options",
+  description = "Open only when you need the extra fields.",
+  children,
+}: {
+  title?: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  return (
+    <details className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+      <summary className="cursor-pointer list-none px-4 py-3">
+        <p className="text-sm font-semibold text-slate-950">{title}</p>
+        <p className="mt-1 text-xs text-slate-600">{description}</p>
+      </summary>
+      <div className="border-t border-slate-200 bg-white p-4">{children}</div>
+    </details>
+  );
+}
+
 function ImpactPreviewCard({ preview }: { preview: ConfigChangeImpactPreview | null }) {
   if (!preview) {
     return null;
@@ -1467,9 +1487,9 @@ export function FeeSetupClient({
 
             <FormGroup
               title="Main policy details"
-              description="Choose the live academic year and set the high-level rules used across the app."
+              description="Keep this short: academic year, receipt prefix, fine rule, and payment modes."
             >
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div>
                   <Label htmlFor="policy-academic-session">Academic session</Label>
                   <Input
@@ -1482,20 +1502,6 @@ export function FeeSetupClient({
                   />
                 </div>
                 <div>
-                  <Label htmlFor="policy-calculation-model">Calculation mode</Label>
-                  <Input
-                    id="policy-calculation-model"
-                    value={
-                      data.globalPolicy.calculationModel === "workbook_v1"
-                        ? "Workbook AY 2026-27"
-                        : "Standard"
-                    }
-                    className="mt-2"
-                    disabled
-                    readOnly
-                  />
-                </div>
-                <div>
                   <Label htmlFor="policy-installment-count">Installment count</Label>
                   <Input
                     id="policy-installment-count"
@@ -1505,7 +1511,7 @@ export function FeeSetupClient({
                     readOnly
                   />
                 </div>
-                <div id="fine">
+                <div id="fine" className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <Label htmlFor="policy-late-fee">Late fee rule</Label>
                   <select
                     id="policy-late-fee-enabled"
@@ -1538,6 +1544,33 @@ export function FeeSetupClient({
                     disabled={!canEdit}
                     required
                   />
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <Label>Accepted payment modes</Label>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  {paymentModeOptions.map((option) => {
+                    const defaultChecked = data.globalPolicy.acceptedPaymentModes.some(
+                      (item) => item.value === option.value,
+                    );
+
+                    return (
+                      <label
+                        key={option.value}
+                        className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                      >
+                        <input
+                          type="checkbox"
+                          name="acceptedPaymentModes"
+                          value={option.value}
+                          defaultChecked={defaultChecked}
+                          disabled={!canEdit}
+                        />
+                        <span>{option.label}</span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
             </FormGroup>
@@ -1578,7 +1611,7 @@ export function FeeSetupClient({
 
             <FormGroup
               title="Installments and due dates"
-              description="Decide how many installments are needed and the due date label for each one."
+              description="Only these rows decide the installment plan. Keep the labels simple."
             >
               <div id="installments" className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -1648,36 +1681,24 @@ export function FeeSetupClient({
               </div>
             </FormGroup>
 
-            <FormGroup
-              title="Payment modes and other fee types"
-              description="Choose allowed payment modes and create any extra fee heads the school wants to track."
+            <AdvancedPanel
+              title="Other fee types and notes"
+              description="Use this only when the school needs extra fee heads or an internal policy note."
             >
               <div className="space-y-5">
-                <div className="space-y-3">
-                  <Label>Accepted payment modes</Label>
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    {paymentModeOptions.map((option) => {
-                      const defaultChecked = data.globalPolicy.acceptedPaymentModes.some(
-                        (item) => item.value === option.value,
-                      );
-
-                      return (
-                        <label
-                          key={option.value}
-                          className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700"
-                        >
-                          <input
-                            type="checkbox"
-                            name="acceptedPaymentModes"
-                            value={option.value}
-                            defaultChecked={defaultChecked}
-                            disabled={!canEdit}
-                          />
-                          <span>{option.label}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <Label htmlFor="policy-calculation-model">Calculation mode</Label>
+                  <Input
+                    id="policy-calculation-model"
+                    value={
+                      data.globalPolicy.calculationModel === "workbook_v1"
+                        ? "Workbook AY 2026-27"
+                        : "Standard"
+                    }
+                    className="mt-2"
+                    disabled
+                    readOnly
+                  />
                 </div>
 
                 <div id="other-fee-types" className="space-y-3">
@@ -1687,19 +1708,19 @@ export function FeeSetupClient({
                     canEdit={canEdit}
                   />
                 </div>
-              </div>
-            </FormGroup>
 
-            <div>
-              <Label htmlFor="policy-notes">Policy notes</Label>
-              <textarea
-                id="policy-notes"
-                name="globalNotes"
-                defaultValue={data.globalPolicy.notes ?? ""}
-                className={`${textAreaClassName} mt-2`}
-                disabled={!canEdit}
-              />
-            </div>
+                <div>
+                  <Label htmlFor="policy-notes">Policy notes</Label>
+                  <textarea
+                    id="policy-notes"
+                    name="globalNotes"
+                    defaultValue={data.globalPolicy.notes ?? ""}
+                    className={`${textAreaClassName} mt-2`}
+                    disabled={!canEdit}
+                  />
+                </div>
+              </div>
+            </AdvancedPanel>
 
             <div className="flex items-center justify-between gap-4">
               <SectionHint>
@@ -1738,7 +1759,7 @@ export function FeeSetupClient({
 
           <FormGroup
             title="Base amounts"
-            description="These values act as the fallback for students or classes without a more specific fee setup."
+            description="These are the main school-wide values. Most schools only need these fields here."
           >
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <div>
@@ -1822,31 +1843,33 @@ export function FeeSetupClient({
             </div>
           </FormGroup>
 
-          <FormGroup
-            title="Extra fee heads"
-            description="If you created extra fee types in the live policy above, set their default amounts here."
+          <AdvancedPanel
+            title="Extra school-wide settings"
+            description="Open only if you use extra fee heads or need to keep an internal note."
           >
-            <div className="space-y-3">
-              <Label>School custom fee-head amounts</Label>
-              <FeeHeadAmountFields
-                prefix="school"
-                feeHeads={effectiveFeeHeads}
-                amounts={schoolDefault.customFeeHeadAmounts}
-                canEdit={canEdit}
-              />
-            </div>
-          </FormGroup>
+            <div className="space-y-5">
+              <div className="space-y-3">
+                <Label>School custom fee-head amounts</Label>
+                <FeeHeadAmountFields
+                  prefix="school"
+                  feeHeads={effectiveFeeHeads}
+                  amounts={schoolDefault.customFeeHeadAmounts}
+                  canEdit={canEdit}
+                />
+              </div>
 
-          <div>
-            <Label htmlFor="school-notes">Notes</Label>
-            <textarea
-              id="school-notes"
-              name="notes"
-              defaultValue={schoolDefault.notes ?? ""}
-              className={`${textAreaClassName} mt-2`}
-              disabled={!canEdit}
-            />
-          </div>
+              <div>
+                <Label htmlFor="school-notes">Notes</Label>
+                <textarea
+                  id="school-notes"
+                  name="notes"
+                  defaultValue={schoolDefault.notes ?? ""}
+                  className={`${textAreaClassName} mt-2`}
+                  disabled={!canEdit}
+                />
+              </div>
+            </div>
+          </AdvancedPanel>
 
           <div className="flex items-center justify-between gap-4">
             <SectionHint>Last updated: {formatUpdatedAt(schoolDefault.updatedAt)}</SectionHint>
@@ -1909,7 +1932,7 @@ export function FeeSetupClient({
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div>
               <Label htmlFor="class-tuition-fee">Tuition fee</Label>
               <Input
@@ -1966,60 +1989,79 @@ export function FeeSetupClient({
               />
             </div>
             <div>
-              <Label htmlFor="class-student-type">Student type default</Label>
-              <select
-                id="class-student-type"
-                name="studentTypeDefault"
-                defaultValue={
-                  selectedClassDefault?.studentTypeDefault ?? schoolDefault.studentTypeDefault
-                }
-                className={`${selectClassName} mt-2`}
-                disabled={!canEdit}
-              >
-                <option value="existing">Existing</option>
-                <option value="new">New</option>
-              </select>
-            </div>
-            <div>
-              <Label htmlFor="class-transport-applies">Transport applies default</Label>
-              <select
-                id="class-transport-applies"
-                name="transportAppliesDefault"
-                defaultValue={
-                  (selectedClassDefault?.transportAppliesDefault ??
-                  schoolDefault.transportAppliesDefault)
-                    ? "yes"
-                    : "no"
-                }
-                className={`${selectClassName} mt-2`}
-                disabled={!canEdit}
-              >
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
+              <Label>Current annual total</Label>
+              <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">
+                {formatInr(selectedClassDefault?.annualTotal ?? schoolDefault.tuitionFee + schoolDefault.transportFee + schoolDefault.booksFee + schoolDefault.admissionActivityMiscFee)}
+              </div>
             </div>
           </div>
 
-          <div className="space-y-3">
-            <Label>Class custom fee-head amounts</Label>
-            <FeeHeadAmountFields
-              prefix="class"
-              feeHeads={effectiveFeeHeads}
-              amounts={selectedClassDefault?.customFeeHeadAmounts ?? schoolDefault.customFeeHeadAmounts}
-              canEdit={canEdit}
-            />
-          </div>
+          <AdvancedPanel
+            title="Class advanced options"
+            description="Open only when this class needs a student type default, transport switch, extra fee heads, or a note."
+          >
+            <div className="space-y-5">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <Label htmlFor="class-student-type">Student type default</Label>
+                  <select
+                    id="class-student-type"
+                    name="studentTypeDefault"
+                    defaultValue={
+                      selectedClassDefault?.studentTypeDefault ?? schoolDefault.studentTypeDefault
+                    }
+                    className={`${selectClassName} mt-2`}
+                    disabled={!canEdit}
+                  >
+                    <option value="existing">Existing</option>
+                    <option value="new">New</option>
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="class-transport-applies">Transport applies default</Label>
+                  <select
+                    id="class-transport-applies"
+                    name="transportAppliesDefault"
+                    defaultValue={
+                      (selectedClassDefault?.transportAppliesDefault ??
+                      schoolDefault.transportAppliesDefault)
+                        ? "yes"
+                        : "no"
+                    }
+                    className={`${selectClassName} mt-2`}
+                    disabled={!canEdit}
+                  >
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                </div>
+              </div>
 
-          <div>
-            <Label htmlFor="class-notes">Notes</Label>
-            <textarea
-              id="class-notes"
-              name="notes"
-              defaultValue={selectedClassDefault?.notes ?? ""}
-              className={`${textAreaClassName} mt-2`}
-              disabled={!canEdit}
-            />
-          </div>
+              <div className="space-y-3">
+                <Label>Class custom fee-head amounts</Label>
+                <FeeHeadAmountFields
+                  prefix="class"
+                  feeHeads={effectiveFeeHeads}
+                  amounts={
+                    selectedClassDefault?.customFeeHeadAmounts ??
+                    schoolDefault.customFeeHeadAmounts
+                  }
+                  canEdit={canEdit}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="class-notes">Notes</Label>
+                <textarea
+                  id="class-notes"
+                  name="notes"
+                  defaultValue={selectedClassDefault?.notes ?? ""}
+                  className={`${textAreaClassName} mt-2`}
+                  disabled={!canEdit}
+                />
+              </div>
+            </div>
+          </AdvancedPanel>
 
           <div className="flex items-center justify-between gap-4">
             <SectionHint>
@@ -2096,17 +2138,7 @@ export function FeeSetupClient({
 
           <input type="hidden" name="routeId" value={selectedRouteDefault?.id ?? ""} />
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-            <div>
-              <Label htmlFor="route-code">Route code</Label>
-              <Input
-                id="route-code"
-                name="routeCode"
-                defaultValue={selectedRouteDefault?.routeCode ?? ""}
-                className="mt-2"
-                disabled={!canEdit}
-              />
-            </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div>
               <Label htmlFor="route-name">Route name</Label>
               <Input
@@ -2158,16 +2190,34 @@ export function FeeSetupClient({
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="route-notes">Notes</Label>
-            <textarea
-              id="route-notes"
-              name="notes"
-              defaultValue={selectedRouteDefault?.notes ?? ""}
-              className={`${textAreaClassName} mt-2`}
-              disabled={!canEdit}
-            />
-          </div>
+          <AdvancedPanel
+            title="Route advanced options"
+            description="Open only when you need a route code or an internal note."
+          >
+            <div className="space-y-5">
+              <div>
+                <Label htmlFor="route-code">Route code</Label>
+                <Input
+                  id="route-code"
+                  name="routeCode"
+                  defaultValue={selectedRouteDefault?.routeCode ?? ""}
+                  className="mt-2"
+                  disabled={!canEdit}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="route-notes">Notes</Label>
+                <textarea
+                  id="route-notes"
+                  name="notes"
+                  defaultValue={selectedRouteDefault?.notes ?? ""}
+                  className={`${textAreaClassName} mt-2`}
+                  disabled={!canEdit}
+                />
+              </div>
+            </div>
+          </AdvancedPanel>
 
           <div className="flex items-center justify-between gap-4">
             <SectionHint>
@@ -2267,44 +2317,6 @@ export function FeeSetupClient({
               />
             </div>
             <div>
-              <Label htmlFor="student-custom-books">Custom books fee</Label>
-              <Input
-                id="student-custom-books"
-                name="customBooksFeeAmount"
-                type="number"
-                min={0}
-                defaultValue={selectedStudentOverride?.customBooksFeeAmount ?? ""}
-                className="mt-2"
-                disabled={!canEdit}
-              />
-            </div>
-            <div>
-              <Label htmlFor="student-custom-misc">Custom admission/activity/misc fee</Label>
-              <Input
-                id="student-custom-misc"
-                name="customAdmissionActivityMiscFeeAmount"
-                type="number"
-                min={0}
-                defaultValue={
-                  selectedStudentOverride?.customAdmissionActivityMiscFeeAmount ?? ""
-                }
-                className="mt-2"
-                disabled={!canEdit}
-              />
-            </div>
-            <div>
-              <Label htmlFor="student-custom-late-fee">Custom late fee</Label>
-              <Input
-                id="student-custom-late-fee"
-                name="customLateFeeFlatAmount"
-                type="number"
-                min={0}
-                defaultValue={selectedStudentOverride?.customLateFeeFlatAmount ?? ""}
-                className="mt-2"
-                disabled={!canEdit}
-              />
-            </div>
-            <div>
               <Label htmlFor="student-discount-amount">Discount amount</Label>
               <Input
                 id="student-discount-amount"
@@ -2329,40 +2341,6 @@ export function FeeSetupClient({
                 disabled={!canEdit}
                 required
               />
-            </div>
-            <div>
-              <Label htmlFor="student-type-override">Student type override</Label>
-              <select
-                id="student-type-override"
-                name="studentTypeOverride"
-                defaultValue={selectedStudentOverride?.studentTypeOverride ?? ""}
-                className={`${selectClassName} mt-2`}
-                disabled={!canEdit}
-              >
-                <option value="">No override</option>
-                <option value="existing">Existing</option>
-                <option value="new">New</option>
-              </select>
-            </div>
-            <div>
-              <Label htmlFor="student-transport-override">Transport applies override</Label>
-              <select
-                id="student-transport-override"
-                name="transportAppliesOverride"
-                defaultValue={
-                  selectedStudentOverride?.transportAppliesOverride == null
-                    ? ""
-                    : selectedStudentOverride.transportAppliesOverride
-                      ? "yes"
-                      : "no"
-                }
-                className={`${selectClassName} mt-2`}
-                disabled={!canEdit}
-              >
-                <option value="">No override</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
             </div>
           </div>
 
@@ -2392,16 +2370,6 @@ export function FeeSetupClient({
             </div>
           </div>
 
-          <div className="space-y-3">
-            <Label>Student custom fee-head amounts</Label>
-            <FeeHeadAmountFields
-              prefix="student"
-              feeHeads={effectiveFeeHeads}
-              amounts={selectedStudentOverride?.customFeeHeadAmounts ?? {}}
-              canEdit={canEdit}
-            />
-          </div>
-
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <Label htmlFor="student-reason">Reason</Label>
@@ -2415,17 +2383,110 @@ export function FeeSetupClient({
                 required
               />
             </div>
-            <div>
-              <Label htmlFor="student-notes">Notes</Label>
-              <textarea
-                id="student-notes"
-                name="notes"
-                defaultValue={selectedStudentOverride?.notes ?? ""}
-                className={`${textAreaClassName} mt-2`}
-                disabled={!canEdit}
-              />
-            </div>
           </div>
+
+          <AdvancedPanel
+            title="Student advanced options"
+            description="Open only when the student needs more than tuition, transport, discount, waiver, or an adjustment."
+          >
+            <div className="space-y-5">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div>
+                  <Label htmlFor="student-custom-books">Custom books fee</Label>
+                  <Input
+                    id="student-custom-books"
+                    name="customBooksFeeAmount"
+                    type="number"
+                    min={0}
+                    defaultValue={selectedStudentOverride?.customBooksFeeAmount ?? ""}
+                    className="mt-2"
+                    disabled={!canEdit}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="student-custom-misc">Custom admission/activity/misc fee</Label>
+                  <Input
+                    id="student-custom-misc"
+                    name="customAdmissionActivityMiscFeeAmount"
+                    type="number"
+                    min={0}
+                    defaultValue={
+                      selectedStudentOverride?.customAdmissionActivityMiscFeeAmount ?? ""
+                    }
+                    className="mt-2"
+                    disabled={!canEdit}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="student-custom-late-fee">Custom late fee</Label>
+                  <Input
+                    id="student-custom-late-fee"
+                    name="customLateFeeFlatAmount"
+                    type="number"
+                    min={0}
+                    defaultValue={selectedStudentOverride?.customLateFeeFlatAmount ?? ""}
+                    className="mt-2"
+                    disabled={!canEdit}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="student-type-override">Student type override</Label>
+                  <select
+                    id="student-type-override"
+                    name="studentTypeOverride"
+                    defaultValue={selectedStudentOverride?.studentTypeOverride ?? ""}
+                    className={`${selectClassName} mt-2`}
+                    disabled={!canEdit}
+                  >
+                    <option value="">No override</option>
+                    <option value="existing">Existing</option>
+                    <option value="new">New</option>
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="student-transport-override">Transport applies override</Label>
+                  <select
+                    id="student-transport-override"
+                    name="transportAppliesOverride"
+                    defaultValue={
+                      selectedStudentOverride?.transportAppliesOverride == null
+                        ? ""
+                        : selectedStudentOverride.transportAppliesOverride
+                          ? "yes"
+                          : "no"
+                    }
+                    className={`${selectClassName} mt-2`}
+                    disabled={!canEdit}
+                  >
+                    <option value="">No override</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Label>Student custom fee-head amounts</Label>
+                <FeeHeadAmountFields
+                  prefix="student"
+                  feeHeads={effectiveFeeHeads}
+                  amounts={selectedStudentOverride?.customFeeHeadAmounts ?? {}}
+                  canEdit={canEdit}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="student-notes">Notes</Label>
+                <textarea
+                  id="student-notes"
+                  name="notes"
+                  defaultValue={selectedStudentOverride?.notes ?? ""}
+                  className={`${textAreaClassName} mt-2`}
+                  disabled={!canEdit}
+                />
+              </div>
+            </div>
+          </AdvancedPanel>
 
           <div className="flex items-center justify-between gap-4">
             <SectionHint>
