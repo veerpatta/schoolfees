@@ -25,10 +25,12 @@ export type StudentListItem = {
   admissionNo: string;
   fullName: string;
   status: StudentStatus;
+  studentStatusLabel: "New" | "Old";
   classLabel: string;
   transportRouteLabel: string;
   fatherPhone: string | null;
   motherPhone: string | null;
+  outstandingAmount: number;
   updatedAt: string;
 };
 
@@ -47,6 +49,16 @@ export type StudentDetail = {
   transportRouteId: string | null;
   transportRouteLabel: string;
   status: StudentStatus;
+  studentTypeOverride: "new" | "existing" | null;
+  studentStatusLabel: "New" | "Old";
+  tuitionOverride: number | null;
+  transportOverride: number | null;
+  discountAmount: number;
+  lateFeeWaiverAmount: number;
+  otherAdjustmentHead: string | null;
+  otherAdjustmentAmount: number | null;
+  overrideReason: string | null;
+  overrideNotes: string | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -64,6 +76,13 @@ export type StudentFormInput = {
   address: string;
   transportRouteId: string;
   status: string;
+  studentTypeOverride: string;
+  tuitionOverride: string;
+  transportOverride: string;
+  discountAmount: string;
+  lateFeeWaiverAmount: string;
+  otherAdjustmentHead: string;
+  otherAdjustmentAmount: string;
   notes: string;
 };
 
@@ -79,6 +98,13 @@ export type StudentValidatedInput = {
   address: string | null;
   transportRouteId: string | null;
   status: StudentStatus;
+  studentTypeOverride: "new" | "existing" | null;
+  tuitionOverride: number | null;
+  transportOverride: number | null;
+  discountAmount: number;
+  lateFeeWaiverAmount: number;
+  otherAdjustmentHead: string | null;
+  otherAdjustmentAmount: number | null;
   notes: string | null;
 };
 

@@ -452,6 +452,7 @@ export async function getSetupWizardData(): Promise<SetupWizardData> {
         routeCode: item.routeCode,
         routeName: item.routeName,
         defaultInstallmentAmount: item.defaultInstallmentAmount,
+        annualFeeAmount: item.annualFeeAmount,
         isActive: item.isActive,
         notes: item.notes,
       }) satisfies SetupRouteRow,
@@ -533,8 +534,11 @@ export async function saveSetupPolicy(input: SaveSetupPolicyInput) {
 
   return upsertGlobalFeePolicy({
     academicSessionLabel: input.academicSessionLabel,
+    calculationModel: input.calculationModel,
     installmentSchedule,
     lateFeeFlatAmount: input.lateFeeFlatAmount,
+    newStudentAcademicFeeAmount: input.newStudentAcademicFeeAmount,
+    oldStudentAcademicFeeAmount: input.oldStudentAcademicFeeAmount,
     acceptedPaymentModes: input.acceptedPaymentModes,
     receiptPrefix:
       input.receiptPrefix?.trim().toUpperCase() ||
@@ -722,6 +726,7 @@ export async function saveSetupRoutes(rows: SaveSetupRouteRowInput[]) {
       routeCode: row.routeCode?.trim() || null,
       routeName: row.routeName.trim(),
       defaultInstallmentAmount: row.defaultInstallmentAmount,
+      annualFeeAmount: row.annualFeeAmount,
       isActive: row.isActive,
       notes: row.notes?.trim() || null,
     });

@@ -127,6 +127,32 @@ export default async function ProtectedPage() {
         ))}
       </section>
 
+      <SectionCard
+        title="Office shortcuts"
+        description="Open the main workbook working screens directly from Start Here."
+      >
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm" variant="outline">
+            <Link href="/protected/payments">Payment Desk</Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/protected/dues?view=class_register">Class Register</Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/protected/dues?view=installments">Installment Tracker</Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/protected/dues?view=transactions">Transactions</Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/protected/dues?view=defaulters">Defaulters</Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/protected/dues?view=receipts_today">Today&apos;s receipts</Link>
+          </Button>
+        </div>
+      </SectionCard>
+
       <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <SectionCard
           title="Continue task"

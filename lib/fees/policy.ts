@@ -11,6 +11,10 @@ import {
   formatPaymentModeLabel,
   normalizeFeeHeadId,
 } from "@/lib/config/fee-rules";
+import {
+  buildWorkbookInstallmentCharges,
+  isWorkbookSession,
+} from "@/lib/fees/workbook";
 import type {
   ClassFeeDefault,
   FeeHeadDefinition,
@@ -46,6 +50,7 @@ type RouteRow = {
   route_code: string | null;
   route_name: string;
   default_installment_amount: number;
+  annual_fee_amount: number | null;
   is_active: boolean;
   notes: string | null;
   updated_at: string;
@@ -54,8 +59,11 @@ type RouteRow = {
 type GlobalPolicyRow = {
   id: string;
   academic_session_label: string;
+  calculation_model: "standard" | "workbook_v1";
   installment_schedule: unknown;
   late_fee_flat_amount: number;
+  new_student_academic_fee_amount: number;
+  old_student_academic_fee_amount: number;
   custom_fee_heads: unknown;
   accepted_payment_modes: PaymentMode[];
   receipt_prefix: string;
@@ -99,6 +107,9 @@ type StudentOverrideRow = {
   custom_admission_activity_misc_fee_amount: number | null;
   custom_other_fee_heads: Record<string, unknown> | null;
   custom_late_fee_flat_amount: number | null;
+  other_adjustment_head: string | null;
+  other_adjustment_amount: number | null;
+  late_fee_waiver_amount: number;
   discount_amount: number;
   student_type_override: "new" | "existing" | null;
   transport_applies_override: boolean | null;
@@ -152,6 +163,14 @@ function titleCaseFromKey(value: string) {
 
 function toWholeNumber(value: unknown) {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return 0;
+  }
+
+  return Math.trunc(value);
+}
+
+function toSignedWholeNumber(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
     return 0;
   }
 
@@ -341,7 +360,7 @@ async function loadGlobalPolicy(useAdmin = false): Promise<FeePolicySummary> {
   const { data, error } = await supabase
     .from("fee_policy_configs")
     .select(
-      "id, academic_session_label, installment_schedule, late_fee_flat_amount, custom_fee_heads, accepted_payment_modes, receipt_prefix, notes",
+      "id, academic_session_label, calculation_model, installment_schedule, late_fee_flat_amount, new_student_academic_fee_amount, old_student_academic_fee_amount, custom_fee_heads, accepted_payment_modes, receipt_prefix, notes",
     )
     .eq("is_active", true)
     .maybeSingle();
@@ -363,10 +382,17 @@ async function loadGlobalPolicy(useAdmin = false): Promise<FeePolicySummary> {
   return {
     id: row.id,
     academicSessionLabel,
+    calculationModel: row.calculation_model ?? defaults.calculationModel,
     installmentCount: installmentSchedule.length,
     installmentSchedule,
     lateFeeFlatAmount: toWholeNumber(row.late_fee_flat_amount),
     lateFeeLabel: `Flat Rs ${toWholeNumber(row.late_fee_flat_amount)}`,
+    newStudentAcademicFeeAmount:
+      toWholeNumber(row.new_student_academic_fee_amount) ||
+      defaults.newStudentAcademicFeeAmount,
+    oldStudentAcademicFeeAmount:
+      toWholeNumber(row.old_student_academic_fee_amount) ||
+      defaults.oldStudentAcademicFeeAmount,
     acceptedPaymentModes: (row.accepted_payment_modes ?? defaults.acceptedPaymentModes.map((item) => item.value)).map(
       (value) => ({
         value,
@@ -382,9 +408,9 @@ async function loadGlobalPolicy(useAdmin = false): Promise<FeePolicySummary> {
 async function loadFeeCollections() {
   const supabase = await createClient();
   const studentOverridesSelectWithNotes =
-    "id, student_id, fee_setting_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_late_fee_flat_amount, discount_amount, student_type_override, transport_applies_override, reason, notes, updated_at";
+    "id, student_id, fee_setting_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, late_fee_waiver_amount, discount_amount, student_type_override, transport_applies_override, reason, notes, updated_at";
   const studentOverridesSelectWithoutNotes =
-    "id, student_id, fee_setting_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_late_fee_flat_amount, discount_amount, student_type_override, transport_applies_override, reason, updated_at";
+    "id, student_id, fee_setting_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, late_fee_waiver_amount, discount_amount, student_type_override, transport_applies_override, reason, updated_at";
 
   const studentOverridesRequest = supabase
     .from("student_fee_overrides")
@@ -423,7 +449,7 @@ async function loadFeeCollections() {
     supabase
       .from("transport_routes")
       .select(
-        "id, route_code, route_name, default_installment_amount, is_active, notes, updated_at",
+        "id, route_code, route_name, default_installment_amount, annual_fee_amount, is_active, notes, updated_at",
       )
       .order("is_active", { ascending: false })
       .order("route_name", { ascending: true }),
@@ -509,38 +535,79 @@ function buildResolvedBreakdown(payload: {
   admissionActivityMiscFee: number;
   customFeeHeadAmounts: Record<string, number>;
   customFeeHeads: FeeHeadDefinition[];
+  calculationModel?: FeePolicySummary["calculationModel"];
+  studentType?: "new" | "existing";
+  academicFeeAmount?: number;
+  otherAdjustmentHead?: string | null;
+  otherAdjustmentAmount?: number;
+  grossBaseBeforeDiscount?: number;
+  discountApplied?: number;
+  lateFeeWaiverAmount?: number;
+  annualTotal?: number;
+  booksExcludedFromWorkbook?: boolean;
 }): ResolvedFeeBreakdown {
   const customHeadMap = new Map(
     payload.customFeeHeads.map((item) => [item.id, item.label]),
   );
 
-  const coreHeads = [
-    { id: "tuition_fee", label: "Tuition fee", amount: payload.tuitionFee },
-    { id: "transport_fee", label: "Transport fee", amount: payload.transportFee },
-    { id: "books_fee", label: "Books fee", amount: payload.booksFee },
-    {
-      id: "admission_activity_misc_fee",
-      label: "Admission / activity / misc fee",
-      amount: payload.admissionActivityMiscFee,
-    },
-  ];
+  const isWorkbook = payload.calculationModel === "workbook_v1";
+  const coreHeads = isWorkbook
+    ? [
+        { id: "tuition_fee", label: "Tuition fee", amount: payload.tuitionFee },
+        { id: "transport_fee", label: "Transport fee", amount: payload.transportFee },
+        {
+          id: "academic_fee",
+          label: "Academic fee",
+          amount: Math.max(0, payload.academicFeeAmount ?? 0),
+        },
+        {
+          id: "other_adjustment",
+          label: payload.otherAdjustmentHead?.trim() || "Other fee / adjustment",
+          amount: payload.otherAdjustmentAmount ?? 0,
+        },
+      ]
+    : [
+        { id: "tuition_fee", label: "Tuition fee", amount: payload.tuitionFee },
+        { id: "transport_fee", label: "Transport fee", amount: payload.transportFee },
+        { id: "books_fee", label: "Books fee", amount: payload.booksFee },
+        {
+          id: "admission_activity_misc_fee",
+          label: "Admission / activity / misc fee",
+          amount: payload.admissionActivityMiscFee,
+        },
+      ];
 
-  const customHeads = Object.entries(payload.customFeeHeadAmounts)
-    .map(([id, amount]) => ({
-      id,
-      label: customHeadMap.get(id) ?? titleCaseFromKey(id),
-      amount,
-    }))
-    .sort((left, right) => left.label.localeCompare(right.label));
+  const customHeads = isWorkbook
+    ? []
+    : Object.entries(payload.customFeeHeadAmounts)
+        .map(([id, amount]) => ({
+          id,
+          label: customHeadMap.get(id) ?? titleCaseFromKey(id),
+          amount,
+        }))
+        .sort((left, right) => left.label.localeCompare(right.label));
 
   const annualTotal =
-    coreHeads.reduce((sum, item) => sum + item.amount, 0) +
-    customHeads.reduce((sum, item) => sum + item.amount, 0);
+    payload.annualTotal ??
+    (coreHeads.reduce((sum, item) => sum + item.amount, 0) +
+      customHeads.reduce((sum, item) => sum + item.amount, 0));
 
   return {
     coreHeads,
     customHeads,
     annualTotal,
+    calculationModel: payload.calculationModel ?? "standard",
+    studentType: payload.studentType ?? "existing",
+    academicFeeAmount: Math.max(0, payload.academicFeeAmount ?? 0),
+    otherAdjustmentHead: payload.otherAdjustmentHead ?? null,
+    otherAdjustmentAmount: payload.otherAdjustmentAmount ?? 0,
+    grossBaseBeforeDiscount:
+      payload.grossBaseBeforeDiscount ??
+      (coreHeads.reduce((sum, item) => sum + item.amount, 0) +
+        customHeads.reduce((sum, item) => sum + item.amount, 0)),
+    discountApplied: Math.max(0, payload.discountApplied ?? 0),
+    lateFeeWaiverAmount: Math.max(0, payload.lateFeeWaiverAmount ?? 0),
+    booksExcludedFromWorkbook: Boolean(payload.booksExcludedFromWorkbook),
   };
 }
 
@@ -623,6 +690,7 @@ export async function getFeeSetupPageData(): Promise<FeeSetupPageData> {
     routeCode: row.route_code,
     routeName: row.route_name,
     defaultInstallmentAmount: row.default_installment_amount,
+    annualFeeAmount: row.annual_fee_amount,
     isActive: row.is_active,
     notes: row.notes,
     updatedAt: row.updated_at,
@@ -647,6 +715,9 @@ export async function getFeeSetupPageData(): Promise<FeeSetupPageData> {
         row.custom_admission_activity_misc_fee_amount,
       customFeeHeadAmounts: parseCustomAmountMap(row.custom_other_fee_heads),
       customLateFeeFlatAmount: row.custom_late_fee_flat_amount,
+      otherAdjustmentHead: row.other_adjustment_head,
+      otherAdjustmentAmount: row.other_adjustment_amount,
+      lateFeeWaiverAmount: toWholeNumber(row.late_fee_waiver_amount),
       discountAmount: row.discount_amount,
       studentTypeOverride: row.student_type_override,
       transportAppliesOverride: row.transport_applies_override,
@@ -716,8 +787,11 @@ async function syncAcademicSessionFromPolicy(sessionLabel: string) {
 
 function buildPolicyPayload(payload: {
   academicSessionLabel: string;
+  calculationModel: FeePolicySummary["calculationModel"];
   installmentSchedule: Array<{ label: string; dueDateLabel: string }>;
   lateFeeFlatAmount: number;
+  newStudentAcademicFeeAmount: number;
+  oldStudentAcademicFeeAmount: number;
   acceptedPaymentModes: PaymentMode[];
   receiptPrefix: string;
   customFeeHeads: FeeHeadDefinition[];
@@ -759,8 +833,11 @@ function buildPolicyPayload(payload: {
 
   return {
     academic_session_label: payload.academicSessionLabel.trim(),
+    calculation_model: payload.calculationModel,
     installment_schedule: installmentSchedule,
     late_fee_flat_amount: payload.lateFeeFlatAmount,
+    new_student_academic_fee_amount: payload.newStudentAcademicFeeAmount,
+    old_student_academic_fee_amount: payload.oldStudentAcademicFeeAmount,
     custom_fee_heads: dedupedCatalog,
     accepted_payment_modes: dedupedModes,
     receipt_prefix: payload.receiptPrefix.trim(),
@@ -771,8 +848,11 @@ function buildPolicyPayload(payload: {
 
 export async function upsertGlobalFeePolicy(payload: {
   academicSessionLabel: string;
+  calculationModel: FeePolicySummary["calculationModel"];
   installmentSchedule: Array<{ label: string; dueDateLabel: string }>;
   lateFeeFlatAmount: number;
+  newStudentAcademicFeeAmount: number;
+  oldStudentAcademicFeeAmount: number;
   acceptedPaymentModes: PaymentMode[];
   receiptPrefix: string;
   customFeeHeads: FeeHeadDefinition[];
@@ -990,6 +1070,7 @@ export async function upsertTransportDefault(payload: {
   routeCode: string | null;
   routeName: string;
   defaultInstallmentAmount: number;
+  annualFeeAmount: number | null;
   isActive: boolean;
   notes: string | null;
 }) {
@@ -998,6 +1079,7 @@ export async function upsertTransportDefault(payload: {
     route_code: payload.routeCode,
     route_name: payload.routeName,
     default_installment_amount: payload.defaultInstallmentAmount,
+    annual_fee_amount: payload.annualFeeAmount,
     is_active: payload.isActive,
     notes: payload.notes,
   };
@@ -1037,6 +1119,9 @@ export async function upsertStudentFeeOverride(payload: {
   customFeeHeadAmounts: Record<string, number>;
   customFeeHeads: FeeHeadDefinition[];
   customLateFeeFlatAmount: number | null;
+  otherAdjustmentHead: string | null;
+  otherAdjustmentAmount: number | null;
+  lateFeeWaiverAmount: number;
   discountAmount: number;
   studentTypeOverride: "new" | "existing" | null;
   transportAppliesOverride: boolean | null;
@@ -1079,6 +1164,9 @@ export async function upsertStudentFeeOverride(payload: {
     payload.customBooksFeeAmount !== null ||
     payload.customAdmissionActivityMiscFeeAmount !== null ||
     payload.customLateFeeFlatAmount !== null ||
+    (payload.otherAdjustmentAmount ?? 0) !== 0 ||
+    Boolean(payload.otherAdjustmentHead?.trim()) ||
+    payload.lateFeeWaiverAmount > 0 ||
     Object.keys(payload.customFeeHeadAmounts).length > 0 ||
     payload.discountAmount > 0 ||
     payload.studentTypeOverride !== null ||
@@ -1101,6 +1189,9 @@ export async function upsertStudentFeeOverride(payload: {
       payload.customFeeHeadAmounts,
     ),
     custom_late_fee_flat_amount: payload.customLateFeeFlatAmount,
+    other_adjustment_head: payload.otherAdjustmentHead?.trim() || null,
+    other_adjustment_amount: payload.otherAdjustmentAmount,
+    late_fee_waiver_amount: payload.lateFeeWaiverAmount,
     discount_amount: payload.discountAmount,
     student_type_override: payload.studentTypeOverride,
     transport_applies_override: payload.transportAppliesOverride,
@@ -1194,39 +1285,116 @@ export function resolveStudentPolicyBreakdown(payload: {
     },
     {},
   );
-
+  const effectiveStudentType =
+    payload.studentOverride?.studentTypeOverride ?? base.studentTypeDefault;
+  const lateFeeFlatAmount =
+    payload.studentOverride?.customLateFeeFlatAmount ??
+    payload.policy.lateFeeFlatAmount;
+  const lateFeeWaiverAmount = payload.studentOverride?.lateFeeWaiverAmount ?? 0;
+  const classSessionLabel = payload.classDefault?.sessionLabel ?? payload.policy.academicSessionLabel;
   const routeAnnualAmount =
     payload.hasTransportRoute && payload.routeDefault
-      ? payload.routeDefault.defaultInstallmentAmount * payload.policy.installmentCount
-      : null;
+      ? (payload.routeDefault.annualFeeAmount ??
+          payload.routeDefault.defaultInstallmentAmount * payload.policy.installmentCount)
+      : 0;
+
+  if (isWorkbookSession(payload.policy, classSessionLabel)) {
+    const legacyOtherAdjustmentEntries = Object.entries(overrideCustomAmounts).filter(
+      ([, amount]) => amount !== 0,
+    );
+    const fallbackOtherAdjustmentAmount = legacyOtherAdjustmentEntries.reduce(
+      (sum, [, amount]) => sum + amount,
+      0,
+    );
+    const otherAdjustmentHead =
+      payload.studentOverride?.otherAdjustmentHead?.trim() ||
+      (legacyOtherAdjustmentEntries.length === 1
+        ? titleCaseFromKey(legacyOtherAdjustmentEntries[0]![0])
+        : legacyOtherAdjustmentEntries.length > 1
+          ? "Other fee / adjustment"
+          : null);
+    const otherAdjustmentAmount =
+      payload.studentOverride?.otherAdjustmentAmount ?? fallbackOtherAdjustmentAmount;
+    const tuitionFee =
+      payload.studentOverride?.customTuitionFeeAmount ?? base.tuitionFee;
+    const transportFee =
+      payload.studentOverride?.customTransportFeeAmount ??
+      (payload.hasTransportRoute ? routeAnnualAmount : 0);
+    const academicFeeAmount =
+      effectiveStudentType === "new"
+        ? payload.policy.newStudentAcademicFeeAmount
+        : payload.policy.oldStudentAcademicFeeAmount;
+    const workbookCharges = buildWorkbookInstallmentCharges({
+      installmentCount: payload.policy.installmentCount,
+      tuitionFee,
+      transportFee,
+      academicFee: academicFeeAmount,
+      otherAdjustmentAmount,
+      discountAmount: payload.studentOverride?.discountAmount ?? 0,
+    });
+
+    return {
+      breakdown: buildResolvedBreakdown({
+        tuitionFee,
+        transportFee,
+        booksFee: 0,
+        admissionActivityMiscFee: 0,
+        customFeeHeadAmounts: {},
+        customFeeHeads: [],
+        calculationModel: payload.policy.calculationModel,
+        studentType: effectiveStudentType,
+        academicFeeAmount,
+        otherAdjustmentHead,
+        otherAdjustmentAmount,
+        grossBaseBeforeDiscount: workbookCharges.grossBaseBeforeDiscount,
+        discountApplied: workbookCharges.discountApplied,
+        lateFeeWaiverAmount,
+        annualTotal: workbookCharges.baseTotalDue,
+        booksExcludedFromWorkbook: true,
+      }),
+      lateFeeFlatAmount,
+      activeOverrideReason: payload.studentOverride?.reason ?? null,
+    };
+  }
+
   const transportEnabled =
     payload.studentOverride?.transportAppliesOverride ??
     base.transportAppliesDefault;
-  const effectiveStudentType =
-    payload.studentOverride?.studentTypeOverride ?? base.studentTypeDefault;
   const admissionActivityMiscFee =
     payload.studentOverride?.customAdmissionActivityMiscFeeAmount ??
     (effectiveStudentType === "new" ? base.admissionActivityMiscFee : 0);
   const transportFee = transportEnabled
     ? payload.studentOverride?.customTransportFeeAmount ??
-      (routeAnnualAmount ?? base.transportFee)
+      (payload.hasTransportRoute ? routeAnnualAmount : base.transportFee)
     : 0;
+  const legacyTuitionFee =
+    payload.studentOverride?.customTuitionFeeAmount ?? base.tuitionFee;
+  const legacyBooksFee =
+    payload.studentOverride?.customBooksFeeAmount ?? base.booksFee;
+  const legacyGrossBaseBeforeDiscount =
+    legacyTuitionFee +
+    transportFee +
+    legacyBooksFee +
+    admissionActivityMiscFee +
+    Object.values(mergedCustomAmounts).reduce((sum, value) => sum + value, 0);
 
   const breakdown = buildResolvedBreakdown({
-    tuitionFee:
-      payload.studentOverride?.customTuitionFeeAmount ?? base.tuitionFee,
+    tuitionFee: legacyTuitionFee,
     transportFee,
-    booksFee: payload.studentOverride?.customBooksFeeAmount ?? base.booksFee,
+    booksFee: legacyBooksFee,
     admissionActivityMiscFee,
     customFeeHeadAmounts: mergedCustomAmounts,
     customFeeHeads: payload.policy.customFeeHeads,
+    calculationModel: payload.policy.calculationModel,
+    studentType: effectiveStudentType,
+    grossBaseBeforeDiscount: legacyGrossBaseBeforeDiscount,
+    discountApplied: payload.studentOverride?.discountAmount ?? 0,
+    lateFeeWaiverAmount,
   });
 
   return {
     breakdown,
-    lateFeeFlatAmount:
-      payload.studentOverride?.customLateFeeFlatAmount ??
-      payload.policy.lateFeeFlatAmount,
+    lateFeeFlatAmount,
     activeOverrideReason: payload.studentOverride?.reason ?? null,
   };
 }
@@ -1235,31 +1403,16 @@ export async function getStudentFinancialSnapshot(
   studentId: string,
 ): Promise<StudentFinancialSnapshot | null> {
   const supabase = await createClient();
-  const [
-    { data: studentRaw, error: studentError },
-    { data: balancesRaw, error: balancesError },
-  ] = await Promise.all([
-    supabase
-      .from("students")
-      .select(
-        "id, class_id, transport_route_id, class_ref:classes(id, session_label, class_name, section, stream_name)",
-      )
-      .eq("id", studentId)
-      .maybeSingle(),
-    supabase
-      .from("v_installment_balances")
-      .select("due_date, outstanding_amount, balance_status, installment_label")
-      .eq("student_id", studentId)
-      .gt("outstanding_amount", 0)
-      .order("due_date", { ascending: true }),
-  ]);
+  const { data: studentRaw, error: studentError } = await supabase
+    .from("students")
+    .select(
+      "id, class_id, transport_route_id, class_ref:classes(id, session_label, class_name, section, stream_name)",
+    )
+    .eq("id", studentId)
+    .maybeSingle();
 
   if (studentError) {
     throw new Error(`Unable to load student financial view: ${studentError.message}`);
-  }
-
-  if (balancesError) {
-    throw new Error(`Unable to load student balances: ${balancesError.message}`);
   }
 
   if (!studentRaw) {
@@ -1289,6 +1442,71 @@ export async function getStudentFinancialSnapshot(
     studentOverride,
     hasTransportRoute: Boolean(student.transport_route_id),
   });
+
+  if (pageData.globalPolicy.calculationModel === "workbook_v1") {
+    const [
+      { data: workbookStudentRaw, error: workbookStudentError },
+      { data: workbookBalancesRaw, error: workbookBalancesError },
+    ] = await Promise.all([
+      supabase
+        .from("v_workbook_student_financials")
+        .select("outstanding_amount, next_due_date, next_due_label, next_due_amount")
+        .eq("student_id", studentId)
+        .maybeSingle(),
+      supabase
+        .from("v_workbook_installment_balances")
+        .select("pending_amount, balance_status")
+        .eq("student_id", studentId)
+        .gt("pending_amount", 0),
+    ]);
+
+    if (workbookStudentError && !workbookStudentError.message.includes("does not exist")) {
+      throw new Error(`Unable to load workbook student balances: ${workbookStudentError.message}`);
+    }
+
+    if (workbookBalancesError && !workbookBalancesError.message.includes("does not exist")) {
+      throw new Error(`Unable to load workbook installment balances: ${workbookBalancesError.message}`);
+    }
+
+    const workbookStudent = (workbookStudentRaw ?? null) as
+      | {
+          outstanding_amount: number;
+          next_due_date: string | null;
+          next_due_label: string | null;
+          next_due_amount: number | null;
+        }
+      | null;
+    const workbookBalances = (workbookBalancesRaw ?? []) as Array<{
+      pending_amount: number;
+      balance_status: "paid" | "partial" | "overdue" | "pending" | "waived";
+    }>;
+
+    return {
+      policy: pageData.globalPolicy,
+      resolvedBreakdown: resolved.breakdown,
+      currentOutstanding:
+        workbookStudent?.outstanding_amount ??
+        workbookBalances.reduce((sum, row) => sum + row.pending_amount, 0),
+      openInstallments: workbookBalances.length,
+      overdueInstallments: workbookBalances.filter((row) => row.balance_status === "overdue").length,
+      nextDueDate: workbookStudent?.next_due_date ?? null,
+      nextDueLabel: workbookStudent?.next_due_label ?? null,
+      nextDueAmount: workbookStudent?.next_due_amount ?? null,
+      activeOverrideReason: resolved.activeOverrideReason,
+    };
+  }
+
+  const { data: balancesRaw, error: balancesError } = await supabase
+    .from("v_installment_balances")
+    .select("due_date, outstanding_amount, balance_status, installment_label")
+    .eq("student_id", studentId)
+    .gt("outstanding_amount", 0)
+    .order("due_date", { ascending: true });
+
+  if (balancesError) {
+    throw new Error(`Unable to load student balances: ${balancesError.message}`);
+  }
+
   const balanceRows = (balancesRaw ?? []) as InstallmentBalanceRow[];
   const nextDue = balanceRows[0] ?? null;
 

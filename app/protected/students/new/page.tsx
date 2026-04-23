@@ -22,7 +22,7 @@ export default async function NewStudentPage() {
       <PageHeader
         eyebrow="Students"
         title="Add student"
-        description="Enter the student master details. Required fields are clearly marked for faster office entry."
+        description="Enter the student master and workbook fee-profile details used for AY 2026-27 desk work."
       />
 
       {!readiness.addStudent.isReady ? (
@@ -36,7 +36,7 @@ export default async function NewStudentPage() {
 
       <SectionCard
         title="Student details"
-        description="Use clean SR no and contact details to reduce duplicates before future import migration."
+        description="Use clean SR no, class, student status, and fee-profile details before the first payment is posted."
       >
         {readiness.addStudent.isReady ? (
           <StudentForm
@@ -55,6 +55,13 @@ export default async function NewStudentPage() {
               address: "",
               transportRouteId: "",
               status: "active",
+              studentTypeOverride: "existing",
+              tuitionOverride: "",
+              transportOverride: "",
+              discountAmount: "0",
+              lateFeeWaiverAmount: "0",
+              otherAdjustmentHead: "",
+              otherAdjustmentAmount: "",
               notes: "",
             }}
             action={createStudentAction}

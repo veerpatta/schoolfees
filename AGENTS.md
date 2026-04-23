@@ -102,7 +102,7 @@ Unless a user explicitly asks otherwise, do not steer the app toward:
 
 ## Current Repo Snapshot
 
-This file reflects the repo state on April 22, 2026.
+This file reflects the repo state on April 23, 2026.
 
 Fully implemented core:
 
@@ -124,13 +124,21 @@ Fully implemented core:
 - Fee Setup: canonical global policy, school-wide defaults, class defaults,
   transport defaults, and per-student overrides with impact preview and
   confirm-apply workflow
+- AY `2026-27` workbook parity with `workbook_v1`, exact seeded class tuition,
+  exact seeded annual route defaults, workbook student status, signed other
+  adjustment, and late-fee-waiver support
 - Ledger Recalculation workflow for previewing and applying safe
   unpaid/future-installment inserts, updates, and cancellations while flagging
   paid or partially paid rows for manual review
 - Payment Entry: append-only posting via RPC, with receipts generated as linked
   financial records
+- workbook-style dues views for transactions, installment tracker, master fee
+  statements, class register, defaulters, today’s receipts, and today’s
+  collection
 - Ledger: chronological per-student history with linked adjustment entries
-- Receipts: receipt list plus printable per-receipt view
+- Receipts: receipt list plus workbook-aligned printable per-receipt view
+- printable master fee statement route at
+  `/protected/students/[studentId]/statement`
 - Reports: on-page filterable tables for Outstanding, Daily Collection, Receipt
   Register, Student Ledger, and Import Verification, plus working CSV export at
   `/protected/reports/export`
@@ -172,6 +180,7 @@ content or Supabase sample code unless the user explicitly requests that.
 - students list: `app/protected/students/page.tsx`
 - student add: `app/protected/students/new/page.tsx`
 - student detail: `app/protected/students/[studentId]/page.tsx`
+- student master statement: `app/protected/students/[studentId]/statement/page.tsx`
 - student edit: `app/protected/students/[studentId]/edit/page.tsx`
 - student actions: `app/protected/students/actions.ts`
 - imports: `app/protected/imports/page.tsx`
@@ -323,12 +332,18 @@ Current active fee-policy defaults:
 - accepted payment modes: Cash, UPI, Bank transfer, Cheque
 - receipt prefix: `SVP`
 - app mode: `internal-admin`
+- active academic session: `2026-27`
+- active fee engine: `workbook_v1`
+- new student academic fee: Rs 1100
+- old student academic fee: Rs 500
+- books are excluded from workbook-mode fee calculation for AY `2026-27`
 
 Historical SOP values that may appear in old notes or workbooks but are not
 active rules:
 
 - due dates on the 10th
 - late fee at Rs 50 per day
+- stale workbook note showing flat late fee Rs 3000 while AY `2026-27` setup and formulas use Rs 1000
 
 If old workbook data or staff notes conflict with current policy, current
 policy wins unless the user explicitly asks for historical-rule handling.
@@ -367,6 +382,8 @@ Current operational posture:
 - no delete policies exist for core operational finance tables
 - `public.v_outstanding_summary` exists for reporting
 - `public.v_installment_balances` exists for installment due tracking
+- `public.v_workbook_student_financials` exists for workbook student-wise totals
+- `public.v_workbook_installment_balances` exists for workbook installment tracking
 
 Preserve:
 
@@ -461,3 +478,4 @@ Prefer this order when adding or changing product behavior:
 
 When in doubt, choose the option that reduces staff confusion and preserves an
 audit trail.
+

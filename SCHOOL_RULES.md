@@ -17,11 +17,16 @@ Preferred full display name:
 These are the current active rules and defaults.
 
 - app mode: internal admin app for one school
+- active academic session: `2026-27`
+- fee engine: `workbook_v1`
 - late fee: flat Rs 1000
-- installment due dates: 20 April, 20 July, 20 October, 20 January
+- installment due dates: 20-04-2026, 20-07-2026, 20-10-2026, 20-01-2027
 - default installment count: 4
 - accepted payment modes: Cash, UPI, Bank transfer, Cheque
 - receipt prefix: `SVP`
+- new student academic fee: Rs 1100
+- old student academic fee: Rs 500
+- books are excluded from workbook-mode fee calculation for AY `2026-27`
 
 If code, UI copy, docs, or reports disagree with this file, treat this file and
 `lib/config/fee-rules.ts` as the active intent unless the user says otherwise.
@@ -85,6 +90,22 @@ Historical-only values:
 - late fee at Rs 50/day
 
 Do not silently reintroduce those older rules into current workflows.
+## AY 2026-27 Workbook Rules
+
+For Academic Session `2026-27`, workbook-mode behavior should match the school workbook:
+
+- annual gross = tuition + transport + academic fee + signed other adjustment
+- discounts are capped to the workbook gross base
+- academic fee is charged fully in installment 1
+- remaining annual dues split equally across 4 installments
+- odd rupees flow to installment 4
+- late fee waiver is capped to current late fee and applied installment-wise in order
+- parents may pay any positive whole amount up to current outstanding
+- tuition override replaces class tuition for that student
+- transport override replaces route default for that student
+- books stay outside workbook-mode fee calculation
+- workbook narrative notes are secondary to editable `Fee_Setup` values and formulas
+- stale workbook note conflict: one note says flat late fee Rs 3000, but editable AY `2026-27` setup and formulas use Rs 1000
 
 ## Ledger And Payment Rules
 
@@ -168,3 +189,4 @@ If school policy changes, update together:
 - `AGENTS.md`
 - `PROJECT_CONTEXT.md`
 - `SCHOOL_RULES.md`
+

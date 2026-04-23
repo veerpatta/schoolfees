@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
+import { OfficeRecentTracker, ValueStatePill } from "@/components/office/office-ui";
 import { StudentStatusBadge } from "@/components/students/student-status-badge";
 import { Button } from "@/components/ui/button";
-import { OfficeRecentTracker, ValueStatePill } from "@/components/office/office-ui";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { getStudentWorkspaceData } from "@/lib/students/workspace";
@@ -44,14 +44,11 @@ function formatDate(value: string | null) {
     return "-";
   }
 
-  const date = new Date(`${value}T00:00:00`);
-  return Number.isNaN(date.getTime())
-    ? value
-    : new Intl.DateTimeFormat("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }).format(date);
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(`${value}T00:00:00`));
 }
 
 function formatDateTime(value: string) {
@@ -65,6 +62,18 @@ function readValue(value: string | null) {
   return value?.trim() || "-";
 }
 
+function installmentTone(status: string) {
+  if (status === "paid") {
+    return "locked";
+  }
+
+  if (status === "overdue" || status === "partial") {
+    return "review";
+  }
+
+  return "calculated";
+}
+
 export default async function StudentDetailPage({
   params,
   searchParams,
@@ -73,9 +82,8 @@ export default async function StudentDetailPage({
   const resolvedParams = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const activeTab = normalizeTab(resolvedSearchParams?.tab);
-  const { student, financialSnapshot, ledger, receipts, installmentBalances } = await getStudentWorkspaceData(
-    resolvedParams.studentId,
-  );
+  const { student, financialSnapshot, ledger, receipts, installmentBalances } =
+    await getStudentWorkspaceData(resolvedParams.studentId);
 
   if (!student) {
     notFound();
@@ -112,16 +120,16 @@ export default async function StudentDetailPage({
       <PageHeader
         eyebrow="Students"
         title={student.fullName}
-        description={`SR no ${student.admissionNo} • ${student.classLabel}`}
+        description={`SR no ${student.admissionNo} | ${student.classLabel}`}
         actions={<StudentStatusBadge status={student.status} />}
       />
 
       <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <SectionCard
           title="Student workspace"
-          description="Keep the most-used identity, dues, and action shortcuts together on one staff screen."
+          description="Keep workbook identity, dues, and action shortcuts together on one staff screen."
         >
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Class</p>
               <p className="mt-2 font-semibold text-slate-950">{student.classLabel}</p>
@@ -129,6 +137,10 @@ export default async function StudentDetailPage({
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Route</p>
               <p className="mt-2 font-semibold text-slate-950">{student.transportRouteLabel}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Student status</p>
+              <p className="mt-2 font-semibold text-slate-950">{student.studentStatusLabel}</p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Primary contact</p>
@@ -153,6 +165,9 @@ export default async function StudentDetailPage({
                 <Link href={`/protected/ledger?studentId=${student.id}`}>Open ledger</Link>
               </Button>
             ) : null}
+            <Button asChild variant="outline">
+              <Link href={`/protected/students/${student.id}/statement`}>Print master statement</Link>
+            </Button>
             {receipts[0] ? (
               <Button asChild variant="outline">
                 <Link href={`/protected/receipts/${receipts[0].id}`}>
@@ -188,12 +203,17 @@ export default async function StudentDetailPage({
                 </p>
                 <p className="mt-1 text-sm text-slate-600">
                   {financialSnapshot.nextDueDate && financialSnapshot.nextDueAmount !== null
-                    ? `${formatShortDate(financialSnapshot.nextDueDate)} • ${formatInr(financialSnapshot.nextDueAmount)}`
+                    ? `${formatShortDate(financialSnapshot.nextDueDate)} | ${formatInr(financialSnapshot.nextDueAmount)}`
                     : "All installments are settled"}
                 </p>
                 {financialSnapshot.activeOverrideReason ? (
                   <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                     Override reason: {financialSnapshot.activeOverrideReason}
+                  </p>
+                ) : null}
+                {financialSnapshot.resolvedBreakdown.booksExcludedFromWorkbook ? (
+                  <p className="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+                    Books are kept outside workbook-mode calculation for AY 2026-27.
                   </p>
                 ) : null}
               </div>
@@ -223,7 +243,7 @@ export default async function StudentDetailPage({
       </SectionCard>
 
       {activeTab === "profile" ? (
-        <SectionCard title="Profile" description="Identity, family, and office contact details.">
+        <SectionCard title="Profile" description="Identity, family, and workbook student status details.">
           <div className="grid gap-5 lg:grid-cols-2">
             <dl className="space-y-3 text-sm text-slate-700">
               <div className="grid grid-cols-2 gap-2">
@@ -241,6 +261,14 @@ export default async function StudentDetailPage({
               <div className="grid grid-cols-2 gap-2">
                 <dt className="font-medium text-slate-500">Address</dt>
                 <dd>{readValue(student.address)}</dd>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <dt className="font-medium text-slate-500">Student status</dt>
+                <dd>{student.studentStatusLabel}</dd>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <dt className="font-medium text-slate-500">Record status</dt>
+                <dd>{student.status}</dd>
               </div>
             </dl>
             <dl className="space-y-3 text-sm text-slate-700">
@@ -260,17 +288,51 @@ export default async function StudentDetailPage({
                 <dt className="font-medium text-slate-500">Mother phone</dt>
                 <dd>{readValue(student.motherPhone)}</dd>
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                <dt className="font-medium text-slate-500">Route</dt>
+                <dd>{student.transportRouteLabel}</dd>
+              </div>
             </dl>
           </div>
         </SectionCard>
       ) : null}
 
       {activeTab === "fee-plan" && financialSnapshot ? (
-        <SectionCard title="Fee Plan" description="Resolved annual fee breakdown from policy, defaults, route, and override layers.">
+        <SectionCard title="Fee Plan" description="Resolved annual workbook fee breakup and override details.">
           <div className="mb-4 flex flex-wrap gap-2">
             <ValueStatePill tone="policy">Policy-driven values</ValueStatePill>
             <ValueStatePill tone="calculated">Calculated totals</ValueStatePill>
           </div>
+
+          <div className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Tuition override</p>
+              <p className="mt-2 font-semibold text-slate-950">
+                {student.tuitionOverride !== null ? formatInr(student.tuitionOverride) : "Class default"}
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Transport override</p>
+              <p className="mt-2 font-semibold text-slate-950">
+                {student.transportOverride !== null ? formatInr(student.transportOverride) : "Route default"}
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Discount</p>
+              <p className="mt-2 font-semibold text-slate-950">{formatInr(student.discountAmount)}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Late fee waiver</p>
+              <p className="mt-2 font-semibold text-slate-950">{formatInr(student.lateFeeWaiverAmount)}</p>
+            </div>
+          </div>
+
+          <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700">
+            <span className="font-semibold text-slate-900">Other fee / adjustment:</span>{" "}
+            {student.otherAdjustmentHead ? `${student.otherAdjustmentHead} | ` : ""}
+            {formatInr(student.otherAdjustmentAmount ?? 0)}
+          </div>
+
           <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="w-full min-w-[420px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
@@ -305,52 +367,42 @@ export default async function StudentDetailPage({
       ) : null}
 
       {activeTab === "dues" ? (
-        <SectionCard title="Dues / Installments" description="Current installment-level outstanding position for the student.">
+        <SectionCard title="Dues / Installments" description="Current workbook installment position for the student.">
           <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full min-w-[980px] text-left text-sm">
+            <table className="w-full min-w-[1180px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                 <tr>
                   <th className="px-4 py-3">Installment</th>
                   <th className="px-4 py-3">Due date</th>
-                  <th className="px-4 py-3">Due</th>
+                  <th className="px-4 py-3">Base due</th>
+                  <th className="px-4 py-3">Late fee</th>
                   <th className="px-4 py-3">Paid</th>
                   <th className="px-4 py-3">Adjustments</th>
                   <th className="px-4 py-3">Outstanding</th>
+                  <th className="px-4 py-3">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {installmentBalances.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
+                    <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
                       No installment balance rows are available yet.
                     </td>
                   </tr>
                 ) : (
                   installmentBalances.map((item) => (
-                    <tr key={item.installment_id} className="border-t border-slate-100">
-                      <td className="px-4 py-3">{item.installment_label}</td>
-                      <td className="px-4 py-3">{formatShortDate(item.due_date)}</td>
-                      <td className="px-4 py-3">{formatInr(item.amount_due)}</td>
-                      <td className="px-4 py-3">{formatInr(item.payments_total)}</td>
-                      <td className="px-4 py-3">{formatInr(item.adjustments_total)}</td>
+                    <tr key={item.installmentId} className="border-t border-slate-100">
+                      <td className="px-4 py-3">{item.installmentLabel}</td>
+                      <td className="px-4 py-3">{formatShortDate(item.dueDate)}</td>
+                      <td className="px-4 py-3">{formatInr(item.baseCharge)}</td>
+                      <td className="px-4 py-3">{formatInr(item.finalLateFee)}</td>
+                      <td className="px-4 py-3">{formatInr(item.paidAmount)}</td>
+                      <td className="px-4 py-3">{formatInr(item.adjustmentAmount)}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">{formatInr(item.pendingAmount)}</td>
                       <td className="px-4 py-3">
-                        <div className="font-medium text-slate-900">
-                          {formatInr(item.outstanding_amount)}
-                        </div>
-                        <div className="mt-1">
-                          <ValueStatePill
-                            tone={
-                              item.balance_status === "paid"
-                                ? "locked"
-                                : item.balance_status === "overdue" || item.balance_status === "partial"
-                                  ? "review"
-                                  : "calculated"
-                            }
-                            className="normal-case tracking-normal"
-                          >
-                            {item.balance_status}
-                          </ValueStatePill>
-                        </div>
+                        <ValueStatePill tone={installmentTone(item.balanceStatus)} className="normal-case tracking-normal">
+                          {item.balanceStatus}
+                        </ValueStatePill>
                       </td>
                     </tr>
                   ))
@@ -409,13 +461,14 @@ export default async function StudentDetailPage({
       {activeTab === "receipts" ? (
         <SectionCard title="Receipts" description="Latest receipts and quick print/open actions for this student.">
           <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full min-w-[980px] text-left text-sm">
+            <table className="w-full min-w-[1080px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                 <tr>
                   <th className="px-4 py-3">Receipt</th>
                   <th className="px-4 py-3">Date</th>
                   <th className="px-4 py-3">Mode</th>
                   <th className="px-4 py-3">Amount</th>
+                  <th className="px-4 py-3">Reference</th>
                   <th className="px-4 py-3">Received by</th>
                   <th className="px-4 py-3">Action</th>
                 </tr>
@@ -423,18 +476,19 @@ export default async function StudentDetailPage({
               <tbody>
                 {receipts.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
+                    <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
                       No receipts found for this student.
                     </td>
                   </tr>
                 ) : (
                   receipts.map((receipt) => (
                     <tr key={receipt.id} className="border-t border-slate-100">
-                      <td className="px-4 py-3 font-medium text-slate-900">{receipt.receipt_number}</td>
-                      <td className="px-4 py-3">{formatShortDate(receipt.payment_date)}</td>
-                      <td className="px-4 py-3">{receipt.payment_mode}</td>
-                      <td className="px-4 py-3">{formatInr(receipt.total_amount)}</td>
-                      <td className="px-4 py-3">{receipt.received_by || "-"}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">{receipt.receiptNumber}</td>
+                      <td className="px-4 py-3">{formatShortDate(receipt.paymentDate)}</td>
+                      <td className="px-4 py-3">{receipt.paymentModeLabel}</td>
+                      <td className="px-4 py-3">{formatInr(receipt.totalAmount)}</td>
+                      <td className="px-4 py-3">{receipt.referenceNumber ?? "-"}</td>
+                      <td className="px-4 py-3">{receipt.receivedBy || "-"}</td>
                       <td className="px-4 py-3">
                         <Button asChild size="sm" variant="outline">
                           <Link href={`/protected/receipts/${receipt.id}`}>
@@ -483,7 +537,7 @@ export default async function StudentDetailPage({
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Latest receipt</p>
-                <p className="mt-2 text-lg font-semibold text-slate-950">{receipts[0]?.receipt_number ?? "-"}</p>
+                <p className="mt-2 text-lg font-semibold text-slate-950">{receipts[0]?.receiptNumber ?? "-"}</p>
               </div>
             </div>
           ) : null}

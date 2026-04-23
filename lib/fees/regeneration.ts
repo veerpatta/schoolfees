@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { generateSessionLedgersAction } from "@/lib/fees/generator";
 import { getFeeSetupPageData } from "@/lib/fees/policy";
 import { resolveStudentPolicyBreakdown } from "@/lib/fees/policy";
+import { buildWorkbookInstallmentCharges } from "@/lib/fees/workbook";
 import type { LedgerRegenerationPreview, LedgerRegenerationReviewRow } from "@/lib/fees/types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -420,6 +421,8 @@ async function loadPlan(): Promise<RegenerationPlan> {
       hasTransportRoute: Boolean(student.transport_route_id),
     });
 
+    const tuitionAmount =
+      resolved.breakdown.coreHeads.find((item) => item.id === "tuition_fee")?.amount ?? 0;
     const transportAmount =
       resolved.breakdown.coreHeads.find((item) => item.id === "transport_fee")?.amount ?? 0;
     const baseAmount = resolved.breakdown.annualTotal - transportAmount;
@@ -439,18 +442,35 @@ async function loadPlan(): Promise<RegenerationPlan> {
 
     studentsWithResolvedSettings += 1;
 
-    const baseAmounts = splitAcrossInstallments(
-      Math.max(baseAmount, 0),
-      setupData.globalPolicy.installmentCount,
-    );
-    const transportAmounts = splitAcrossInstallments(
-      Math.max(transportAmount, 0),
-      setupData.globalPolicy.installmentCount,
-    );
-    const discountAmounts = splitAcrossInstallments(
-      Math.max(discountAmount, 0),
-      setupData.globalPolicy.installmentCount,
-    );
+    const isWorkbook = resolved.breakdown.calculationModel === "workbook_v1";
+    const workbookCharges = isWorkbook
+      ? buildWorkbookInstallmentCharges({
+          installmentCount: setupData.globalPolicy.installmentCount,
+          tuitionFee: tuitionAmount,
+          transportFee: transportAmount,
+          academicFee: resolved.breakdown.academicFeeAmount,
+          otherAdjustmentAmount: resolved.breakdown.otherAdjustmentAmount,
+          discountAmount: resolved.breakdown.discountApplied,
+        })
+      : null;
+    const baseAmounts = isWorkbook
+      ? workbookCharges!.installmentCharges
+      : splitAcrossInstallments(
+          Math.max(baseAmount, 0),
+          setupData.globalPolicy.installmentCount,
+        );
+    const transportAmounts = isWorkbook
+      ? Array.from({ length: setupData.globalPolicy.installmentCount }, () => 0)
+      : splitAcrossInstallments(
+          Math.max(transportAmount, 0),
+          setupData.globalPolicy.installmentCount,
+        );
+    const discountAmounts = isWorkbook
+      ? Array.from({ length: setupData.globalPolicy.installmentCount }, () => 0)
+      : splitAcrossInstallments(
+          Math.max(discountAmount, 0),
+          setupData.globalPolicy.installmentCount,
+        );
 
     setupData.globalPolicy.installmentSchedule.forEach((schedule, index) => {
       const plannedInstallment = {

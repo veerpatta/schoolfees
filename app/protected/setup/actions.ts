@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import type { ClassStatus, PaymentMode } from "@/lib/db/types";
+import type { ClassStatus, FeeCalculationModel, PaymentMode } from "@/lib/db/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import {
   markSetupStageComplete,
@@ -47,6 +47,39 @@ function parseRequiredNonNegativeInt(
   }
 
   return numeric;
+}
+
+function parseOptionalNonNegativeInt(
+  value: FormDataEntryValue | null,
+  fieldLabel: string,
+) {
+  const raw = (value ?? "").toString().trim();
+
+  if (!raw) {
+    return null;
+  }
+
+  const numeric = Number(raw);
+
+  if (!Number.isInteger(numeric) || numeric < 0) {
+    throw new Error(`${fieldLabel} must be blank or a whole number greater than or equal to 0.`);
+  }
+
+  return numeric;
+}
+
+function parseCalculationModel(value: FormDataEntryValue | null) {
+  const normalized = (value ?? "").toString().trim();
+
+  if (!normalized || normalized === "workbook_v1") {
+    return "workbook_v1" satisfies FeeCalculationModel;
+  }
+
+  if (normalized === "standard") {
+    return "standard" satisfies FeeCalculationModel;
+  }
+
+  throw new Error("Calculation model is invalid.");
 }
 
 function parseClassStatus(value: FormDataEntryValue | null) {
@@ -149,6 +182,7 @@ function parseSetupRouteRows(formData: FormData) {
     .getAll("routeName")
     .map((value) => value.toString().trim());
   const defaultAmounts = formData.getAll("routeDefaultInstallmentAmount");
+  const annualFeeAmounts = formData.getAll("routeAnnualFeeAmount");
   const statuses = formData.getAll("routeIsActive").map((value) => value.toString().trim());
   const notes = formData.getAll("routeNotes").map((value) => value.toString().trim());
 
@@ -173,6 +207,10 @@ function parseSetupRouteRows(formData: FormData) {
       defaultInstallmentAmount: parseRequiredNonNegativeInt(
         defaultAmounts[index] ?? "0",
         "Route default installment amount",
+      ),
+      annualFeeAmount: parseOptionalNonNegativeInt(
+        annualFeeAmounts[index] ?? "",
+        "Annual route fee",
       ),
       isActive: statuses[index] !== "no",
       notes: note || null,
@@ -235,10 +273,19 @@ export async function saveSetupPolicyAction(
     await requireStaffPermission("settings:write");
     await saveSetupPolicy({
       academicSessionLabel: (formData.get("academicSessionLabel") ?? "").toString().trim(),
+      calculationModel: parseCalculationModel(formData.get("calculationModel")),
       installmentDueDateLabels: parseInstallmentDueDateLabels(formData),
       lateFeeFlatAmount: parseRequiredNonNegativeInt(
         formData.get("lateFeeFlatAmount"),
         "Late fee",
+      ),
+      newStudentAcademicFeeAmount: parseRequiredNonNegativeInt(
+        formData.get("newStudentAcademicFeeAmount"),
+        "New student academic fee",
+      ),
+      oldStudentAcademicFeeAmount: parseRequiredNonNegativeInt(
+        formData.get("oldStudentAcademicFeeAmount"),
+        "Old student academic fee",
       ),
       acceptedPaymentModes: parseAcceptedPaymentModes(formData),
       receiptPrefix: (formData.get("receiptPrefix") ?? "").toString().trim() || null,

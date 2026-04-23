@@ -47,9 +47,9 @@ Primary daily areas:
 - `Payment Desk`
   counter posting, receipt printing, and next-payment shortcuts
 - `Dues & Receipts`
-  workbook-style views for receipt register, installment dues, class dues
-  summary, overdue list, today’s receipts, today’s collection, and import
-  issues
+  workbook-style views for receipt register, installment tracker, master fee
+  statement shortcuts, class register, defaulters, today’s receipts, today’s
+  collection, and import issues
 - `Advanced`
   first-time setup, school setup lists, day close/corrections, detailed
   reports/exports, staff, and settings
@@ -157,8 +157,9 @@ System-wide propagation:
   policy from the same canonical service
 - payment entry enforces the current accepted payment modes and current receipt
   prefix
-- transport annualisation resolves from route installment amount multiplied by
-  the active installment count
+- workbook-mode transport defaults resolve from annual route fee, while the
+  legacy per-installment route amount remains compatibility-only for older
+  sessions
 
 Historically locked behavior:
 
@@ -170,7 +171,7 @@ Historically locked behavior:
 
 ## Current Repo State
 
-This summary reflects the repo state on April 22, 2026.
+This summary reflects the repo state on April 23, 2026.
 
 Implemented core:
 
@@ -189,12 +190,18 @@ Implemented core:
 - fee setup with a canonical global policy, school defaults, class defaults,
   transport defaults, and student overrides, now with mandatory impact preview
   and explicit confirm-apply workflow
+- AY `2026-27` workbook parity with `workbook_v1` fee calculation, seeded class
+  tuition defaults, seeded annual route defaults, workbook student status,
+  other adjustment, and late-fee-waiver support
 - session ledger recalculation workflow for previewing and applying safe
   unpaid/future-ledger changes while flagging paid or partially paid rows for
   manual review
 - payment entry with append-only posting through RPCs
+- workbook-style dues views for transactions, installment tracker, master fee
+  statements, class register, defaulters, and today’s receipts/collection
 - student ledger with chronological history and linked adjustment trail
-- receipt list and printable single-receipt view
+- receipt list, workbook-aligned printable receipt, and printable master fee
+  statement per student
 - defaulters and outstanding reporting
 - reports module with filterable tables and CSV export at
   `/protected/reports/export`
@@ -345,6 +352,8 @@ Current important views:
 
 - `public.v_outstanding_summary`
 - `public.v_installment_balances`
+- `public.v_workbook_student_financials`
+- `public.v_workbook_installment_balances`
 
 Current operating posture:
 
@@ -387,18 +396,24 @@ What the apply step does:
 Active defaults in docs and config:
 
 - app mode: `internal-admin`
+- active academic session: `2026-27`
+- active fee engine: `workbook_v1`
 - receipt prefix: `SVP`
 - late fee: flat Rs 1000
-- installment due dates: 20 April, 20 July, 20 October, 20 January
+- installment due dates: 20-04-2026, 20-07-2026, 20-10-2026, 20-01-2027
 - default installment count: 4
 - accepted payment modes: Cash, UPI, Bank transfer, Cheque
 - Class 12 Science annual fee default: Rs 38000
+- new student academic fee: Rs 1100
+- old student academic fee: Rs 500
+- books are excluded from workbook-mode fee calculation for AY `2026-27`
 
 Historical values that may appear in old notes or spreadsheets but are not
 current policy:
 
 - due dates on the 10th
 - late fee at Rs 50/day
+- stale workbook note showing flat late fee Rs 3000
 
 ## Role Model
 
@@ -589,3 +604,5 @@ If schema intent changes, update together:
 - `README.md`
 - `PROJECT_CONTEXT.md`
 - `AGENTS.md`
+
+

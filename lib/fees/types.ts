@@ -1,4 +1,4 @@
-import type { PaymentMode } from "@/lib/db/types";
+import type { FeeCalculationModel, PaymentMode } from "@/lib/db/types";
 
 export type ConfigChangeScope =
   | "global_policy"
@@ -120,15 +120,27 @@ export type ResolvedFeeBreakdown = {
   coreHeads: FeeHeadAmount[];
   customHeads: FeeHeadAmount[];
   annualTotal: number;
+  calculationModel: FeeCalculationModel;
+  studentType: "new" | "existing";
+  academicFeeAmount: number;
+  otherAdjustmentHead: string | null;
+  otherAdjustmentAmount: number;
+  grossBaseBeforeDiscount: number;
+  discountApplied: number;
+  lateFeeWaiverAmount: number;
+  booksExcludedFromWorkbook: boolean;
 };
 
 export type FeePolicySummary = {
   id: string | null;
   academicSessionLabel: string;
+  calculationModel: FeeCalculationModel;
   installmentCount: number;
   installmentSchedule: InstallmentScheduleItem[];
   lateFeeFlatAmount: number;
   lateFeeLabel: string;
+  newStudentAcademicFeeAmount: number;
+  oldStudentAcademicFeeAmount: number;
   acceptedPaymentModes: Array<{
     value: PaymentMode;
     label: string;
@@ -173,6 +185,7 @@ export type TransportDefault = {
   routeCode: string | null;
   routeName: string;
   defaultInstallmentAmount: number;
+  annualFeeAmount: number | null;
   isActive: boolean;
   notes: string | null;
   updatedAt: string;
@@ -190,6 +203,9 @@ export type StudentFeeOverride = {
   customAdmissionActivityMiscFeeAmount: number | null;
   customFeeHeadAmounts: Record<string, number>;
   customLateFeeFlatAmount: number | null;
+  otherAdjustmentHead: string | null;
+  otherAdjustmentAmount: number | null;
+  lateFeeWaiverAmount: number;
   discountAmount: number;
   studentTypeOverride: "new" | "existing" | null;
   transportAppliesOverride: boolean | null;

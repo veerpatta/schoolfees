@@ -10,11 +10,13 @@ import {
   parseBooleanOverride,
   isPlaceholderValue,
   parseNonNegativeWholeNumber,
+  parseSignedWholeNumber,
   parseSpreadsheetDate,
   parseStudentStatusValue,
   parseStudentTypeOverride,
   stringifyImportCell,
 } from "@/lib/import/validation";
+import { normalizeWorkbookClassLabel } from "@/lib/fees/workbook";
 import type {
   DryRunProcessedRow,
   ImportBatchSummary,
@@ -50,6 +52,10 @@ function findReferenceMatch<T extends { id: string; aliases: readonly string[] }
   rawValue: string,
 ) {
   const normalizedRawValue = rawValue.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const workbookClassLabel = normalizeWorkbookClassLabel(rawValue);
+  const normalizedWorkbookClassLabel = workbookClassLabel
+    ? workbookClassLabel.trim().toLowerCase().replace(/[^a-z0-9]+/g, "")
+    : "";
 
   if (!normalizedRawValue) {
     return null;
@@ -58,7 +64,13 @@ function findReferenceMatch<T extends { id: string; aliases: readonly string[] }
   return (
     references.find((reference) =>
       reference.aliases.some(
-        (alias) => alias.trim().toLowerCase().replace(/[^a-z0-9]+/g, "") === normalizedRawValue,
+        (alias) => {
+          const normalizedAlias = alias.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+          return (
+            normalizedAlias === normalizedRawValue ||
+            (normalizedWorkbookClassLabel && normalizedAlias === normalizedWorkbookClassLabel)
+          );
+        },
       ),
     ) ?? null
   );
@@ -86,7 +98,10 @@ function hasAnyOverride(normalized: NormalizedStudentImportRow["overrides"]) {
     normalized.discountAmount > 0 ||
     Object.keys(normalized.customOtherFeeHeads).length > 0 ||
     normalized.studentTypeOverride !== null ||
-    normalized.transportAppliesOverride !== null
+    normalized.transportAppliesOverride !== null ||
+    normalized.otherAdjustmentAmount !== null ||
+    normalized.otherAdjustmentHead !== null ||
+    normalized.lateFeeWaiverAmount > 0
   );
 }
 
@@ -165,6 +180,17 @@ export function executeStudentImportDryRun({
     const customOtherFeeAmount = parseNonNegativeWholeNumber(
       getMappedCellValue(row.rawPayload, mapping, "customOtherFeeAmount"),
       "Custom other fee amount",
+    );
+    const otherAdjustmentHead = stringifyImportCell(
+      getMappedCellValue(row.rawPayload, mapping, "otherAdjustmentHead"),
+    );
+    const otherAdjustmentAmount = parseSignedWholeNumber(
+      getMappedCellValue(row.rawPayload, mapping, "otherAdjustmentAmount"),
+      "Other fee / adjustment amount",
+    );
+    const lateFeeWaiverAmount = parseNonNegativeWholeNumber(
+      getMappedCellValue(row.rawPayload, mapping, "lateFeeWaiverAmount"),
+      "Late fee waiver",
     );
 
     if (!admissionNo) {
@@ -266,6 +292,7 @@ export function executeStudentImportDryRun({
       admissionMiscOverride,
       lateFeeOverride,
       discountAmount,
+      lateFeeWaiverAmount,
     ]) {
       if (result.error) {
         errors.push({
@@ -308,6 +335,14 @@ export function executeStudentImportDryRun({
       });
     }
 
+    if (otherAdjustmentAmount.value !== null && !otherAdjustmentHead) {
+      errors.push({
+        code: "ERR_MISSING_OTHER_ADJUSTMENT_HEAD",
+        field: "otherAdjustmentHead",
+        message: "Other fee / adjustment head is required when an amount is provided.",
+      });
+    }
+
     const studentValidation = validateStudentInput(
       {
         fullName,
@@ -321,6 +356,18 @@ export function executeStudentImportDryRun({
         address,
         transportRouteId: matchedRoute?.id ?? (routeLabel ? "__invalid__" : ""),
         status: statusValue === "__invalid__" ? "__invalid__" : statusValue,
+        studentTypeOverride:
+          studentTypeOverride.value ?? (studentTypeOverride.error ? "__invalid__" : "existing"),
+        tuitionOverride:
+          tuitionOverride.value !== null ? tuitionOverride.value.toString() : "",
+        transportOverride:
+          transportOverride.value !== null ? transportOverride.value.toString() : "",
+        discountAmount: discountAmount.value !== null ? discountAmount.value.toString() : "0",
+        lateFeeWaiverAmount:
+          lateFeeWaiverAmount.value !== null ? lateFeeWaiverAmount.value.toString() : "0",
+        otherAdjustmentHead,
+        otherAdjustmentAmount:
+          otherAdjustmentAmount.value !== null ? otherAdjustmentAmount.value.toString() : "",
         notes,
       },
       {
@@ -380,6 +427,9 @@ export function executeStudentImportDryRun({
         discountAmount: discountAmount.value ?? 0,
         studentTypeOverride: studentTypeOverride.value,
         transportAppliesOverride: transportAppliesOverride.value,
+        otherAdjustmentHead: otherAdjustmentHead || null,
+        otherAdjustmentAmount: otherAdjustmentAmount.value,
+        lateFeeWaiverAmount: lateFeeWaiverAmount.value ?? 0,
         hasAnyOverride: false,
       },
     };

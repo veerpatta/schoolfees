@@ -67,8 +67,43 @@ export const STUDENT_IMPORT_FIELDS: ReadonlyArray<{
   },
   {
     key: "status",
-    label: "Status",
-    aliases: ["status", "student status"],
+    label: "Record status",
+    aliases: ["status", "record status", "enrollment status"],
+  },
+  {
+    key: "student_type_override",
+    label: "Student status",
+    aliases: ["student status", "new old", "new/old"],
+  },
+  {
+    key: "custom_tuition_fee_amount",
+    label: "Tuition override",
+    aliases: ["tuition override", "tuition fee override"],
+  },
+  {
+    key: "custom_transport_fee_amount",
+    label: "Transport override",
+    aliases: ["transport override", "special transport"],
+  },
+  {
+    key: "discount_amount",
+    label: "Discount",
+    aliases: ["discount", "discount amount"],
+  },
+  {
+    key: "late_fee_waiver_amount",
+    label: "Late fee waiver",
+    aliases: ["late fee waiver", "waiver"],
+  },
+  {
+    key: "other_adjustment_head",
+    label: "Other fee / adjustment head",
+    aliases: ["other head", "other fee head", "adjustment head"],
+  },
+  {
+    key: "other_adjustment_amount",
+    label: "Other fee / adjustment amount",
+    aliases: ["other amount", "adjustment amount", "other fee amount"],
   },
   {
     key: "notes",

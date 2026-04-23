@@ -69,7 +69,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
       <PageHeader
         eyebrow="Students"
         title="Student master"
-        description="Search, filter, create, and maintain student records in an office-friendly workflow."
+        description="Search, filter, create, and maintain student records with workbook fee-profile fields in one office-friendly workflow."
         actions={
           canWriteStudents ? (
             <Button asChild>
@@ -121,7 +121,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
 
       <SectionCard
         title="Import-ready field map"
-        description="These normalized keys and aliases are already aligned with the future CSV/XLSX import flow."
+        description="These normalized keys and aliases match the CSV/XLSX workbook import flow, including AY 2026-27 workbook fee-profile fields."
       >
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
           {STUDENT_IMPORT_FIELDS.map((field) => (

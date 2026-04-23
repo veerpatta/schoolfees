@@ -50,6 +50,7 @@ export type SetupRouteRow = {
   routeCode: string | null;
   routeName: string;
   defaultInstallmentAmount: number;
+  annualFeeAmount: number | null;
   isActive: boolean;
   notes: string | null;
 };
@@ -104,8 +105,11 @@ export type SetupWizardData = {
 
 export type SaveSetupPolicyInput = {
   academicSessionLabel: string;
+  calculationModel: FeePolicySummary["calculationModel"];
   installmentDueDateLabels: string[];
   lateFeeFlatAmount: number;
+  newStudentAcademicFeeAmount: number;
+  oldStudentAcademicFeeAmount: number;
   acceptedPaymentModes: PaymentMode[];
   receiptPrefix: string | null;
 };
@@ -132,6 +136,7 @@ export type SaveSetupRouteRowInput = {
   routeCode: string | null;
   routeName: string;
   defaultInstallmentAmount: number;
+  annualFeeAmount: number | null;
   isActive: boolean;
   notes: string | null;
 };

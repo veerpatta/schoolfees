@@ -22,6 +22,7 @@ import type {
   ConfigChangeImpactPreview,
   ConfigChangeScope,
   FeeHeadDefinition,
+  FeePolicySummary,
   FeeSetupPageData,
   InstallmentScheduleItem,
   SchoolFeeDefault,
@@ -31,8 +32,11 @@ import type {
 
 type GlobalPolicyChangePayload = {
   academicSessionLabel: string;
+  calculationModel: FeePolicySummary["calculationModel"];
   installmentSchedule: Array<{ label: string; dueDateLabel: string }>;
   lateFeeFlatAmount: number;
+  newStudentAcademicFeeAmount: number;
+  oldStudentAcademicFeeAmount: number;
   acceptedPaymentModes: PaymentMode[];
   receiptPrefix: string;
   customFeeHeads: FeeHeadDefinition[];
@@ -71,6 +75,7 @@ type TransportDefaultsChangePayload = {
   routeCode: string | null;
   routeName: string;
   defaultInstallmentAmount: number;
+  annualFeeAmount: number | null;
   isActive: boolean;
   notes: string | null;
 };
@@ -83,6 +88,9 @@ type StudentOverrideChangePayload = SharedCustomHeadPayload & {
   customAdmissionActivityMiscFeeAmount: number | null;
   customFeeHeadAmounts: Record<string, number>;
   customLateFeeFlatAmount: number | null;
+  otherAdjustmentHead: string | null;
+  otherAdjustmentAmount: number | null;
+  lateFeeWaiverAmount: number;
   discountAmount: number;
   studentTypeOverride: "new" | "existing" | null;
   transportAppliesOverride: boolean | null;
@@ -245,8 +253,11 @@ function buildFieldDiff(payload: {
 
 function buildGlobalPolicyPayloadFromSummary(payload: {
   academicSessionLabel: string;
+  calculationModel: FeePolicySummary["calculationModel"];
   installmentSchedule: InstallmentScheduleItem[];
   lateFeeFlatAmount: number;
+  newStudentAcademicFeeAmount: number;
+  oldStudentAcademicFeeAmount: number;
   acceptedPaymentModes: Array<{ value: PaymentMode }>;
   receiptPrefix: string;
   customFeeHeads: FeeHeadDefinition[];
@@ -254,11 +265,14 @@ function buildGlobalPolicyPayloadFromSummary(payload: {
 }) {
   return {
     academicSessionLabel: payload.academicSessionLabel,
+    calculationModel: payload.calculationModel,
     installmentSchedule: payload.installmentSchedule.map((item) => ({
       label: item.label,
       dueDateLabel: item.dueDateLabel,
     })),
     lateFeeFlatAmount: payload.lateFeeFlatAmount,
+    newStudentAcademicFeeAmount: payload.newStudentAcademicFeeAmount,
+    oldStudentAcademicFeeAmount: payload.oldStudentAcademicFeeAmount,
     acceptedPaymentModes: payload.acceptedPaymentModes.map((item) => item.value),
     receiptPrefix: payload.receiptPrefix,
     customFeeHeads: payload.customFeeHeads,
@@ -309,6 +323,7 @@ function buildTransportDefaultsPayload(
     routeCode: transportDefault.routeCode,
     routeName: transportDefault.routeName,
     defaultInstallmentAmount: transportDefault.defaultInstallmentAmount,
+    annualFeeAmount: transportDefault.annualFeeAmount,
     isActive: transportDefault.isActive,
     notes: transportDefault.notes,
   };
@@ -327,6 +342,9 @@ function buildStudentOverridePayload(
       studentOverride.customAdmissionActivityMiscFeeAmount,
     customFeeHeadAmounts: studentOverride.customFeeHeadAmounts,
     customLateFeeFlatAmount: studentOverride.customLateFeeFlatAmount,
+    otherAdjustmentHead: studentOverride.otherAdjustmentHead,
+    otherAdjustmentAmount: studentOverride.otherAdjustmentAmount,
+    lateFeeWaiverAmount: studentOverride.lateFeeWaiverAmount,
     discountAmount: studentOverride.discountAmount,
     studentTypeOverride: studentOverride.studentTypeOverride,
     transportAppliesOverride: studentOverride.transportAppliesOverride,
@@ -365,6 +383,13 @@ function buildGlobalDiffs(
       formatter: (value) => formatNullable(String(value ?? "")),
     }),
     buildFieldDiff({
+      field: "calculationModel",
+      label: "Calculation model",
+      beforeValue: beforeValues.calculationModel,
+      afterValue: afterValues.calculationModel,
+      formatter: (value) => formatNullable(String(value ?? "")),
+    }),
+    buildFieldDiff({
       field: "installmentSchedule",
       label: "Installment schedule",
       beforeValue: beforeValues.installmentSchedule,
@@ -377,6 +402,20 @@ function buildGlobalDiffs(
       label: "Late fee",
       beforeValue: beforeValues.lateFeeFlatAmount,
       afterValue: afterValues.lateFeeFlatAmount,
+      formatter: (value) => `Rs ${Number(value ?? 0)}`,
+    }),
+    buildFieldDiff({
+      field: "newStudentAcademicFeeAmount",
+      label: "New student academic fee",
+      beforeValue: beforeValues.newStudentAcademicFeeAmount,
+      afterValue: afterValues.newStudentAcademicFeeAmount,
+      formatter: (value) => `Rs ${Number(value ?? 0)}`,
+    }),
+    buildFieldDiff({
+      field: "oldStudentAcademicFeeAmount",
+      label: "Old student academic fee",
+      beforeValue: beforeValues.oldStudentAcademicFeeAmount,
+      afterValue: afterValues.oldStudentAcademicFeeAmount,
       formatter: (value) => `Rs ${Number(value ?? 0)}`,
     }),
     buildFieldDiff({
@@ -508,6 +547,13 @@ function buildTransportDiffs(
       formatter: (value) => formatOptionalAmount(value == null ? null : Number(value)),
     }),
     buildFieldDiff({
+      field: "annualFeeAmount",
+      label: "Annual route fee",
+      beforeValue: beforeValues?.annualFeeAmount ?? null,
+      afterValue: afterValues.annualFeeAmount,
+      formatter: (value) => formatOptionalAmount(value == null ? null : Number(value)),
+    }),
+    buildFieldDiff({
       field: "isActive",
       label: "Route active",
       beforeValue: beforeValues?.isActive ?? null,
@@ -569,6 +615,27 @@ function buildStudentDiffs(
       label: "Custom late fee",
       beforeValue: beforeValues?.customLateFeeFlatAmount ?? null,
       afterValue: afterValues.customLateFeeFlatAmount,
+      formatter: (value) => formatOptionalAmount(value == null ? null : Number(value)),
+    }),
+    buildFieldDiff({
+      field: "otherAdjustmentHead",
+      label: "Other fee / adjustment head",
+      beforeValue: beforeValues?.otherAdjustmentHead ?? null,
+      afterValue: afterValues.otherAdjustmentHead,
+      formatter: (value) => formatNullable((value ?? null) as string | null),
+    }),
+    buildFieldDiff({
+      field: "otherAdjustmentAmount",
+      label: "Other fee / adjustment amount",
+      beforeValue: beforeValues?.otherAdjustmentAmount ?? null,
+      afterValue: afterValues.otherAdjustmentAmount,
+      formatter: (value) => formatOptionalAmount(value == null ? null : Number(value)),
+    }),
+    buildFieldDiff({
+      field: "lateFeeWaiverAmount",
+      label: "Late fee waiver",
+      beforeValue: beforeValues?.lateFeeWaiverAmount ?? null,
+      afterValue: afterValues.lateFeeWaiverAmount,
       formatter: (value) => formatOptionalAmount(value == null ? null : Number(value)),
     }),
     buildFieldDiff({
@@ -667,10 +734,13 @@ function applyProposedPayloadToSetupData(
     nextSetupData.globalPolicy = {
       ...nextSetupData.globalPolicy,
       academicSessionLabel: globalPayload.academicSessionLabel,
+      calculationModel: globalPayload.calculationModel,
       installmentSchedule: toInstallmentScheduleItem(globalPayload.installmentSchedule),
       installmentCount: globalPayload.installmentSchedule.length,
       lateFeeFlatAmount: globalPayload.lateFeeFlatAmount,
       lateFeeLabel: `Flat Rs ${globalPayload.lateFeeFlatAmount}`,
+      newStudentAcademicFeeAmount: globalPayload.newStudentAcademicFeeAmount,
+      oldStudentAcademicFeeAmount: globalPayload.oldStudentAcademicFeeAmount,
       acceptedPaymentModes: globalPayload.acceptedPaymentModes.map((mode) => ({
         value: mode,
         label: formatPaymentModeLabel(mode),
@@ -752,6 +822,7 @@ function applyProposedPayloadToSetupData(
       routeCode: transportPayload.routeCode,
       routeName: transportPayload.routeName,
       defaultInstallmentAmount: transportPayload.defaultInstallmentAmount,
+      annualFeeAmount: transportPayload.annualFeeAmount,
       isActive: transportPayload.isActive,
       notes: transportPayload.notes,
       updatedAt:
@@ -795,6 +866,9 @@ function applyProposedPayloadToSetupData(
         studentPayload.customAdmissionActivityMiscFeeAmount,
       customFeeHeadAmounts: studentPayload.customFeeHeadAmounts,
       customLateFeeFlatAmount: studentPayload.customLateFeeFlatAmount,
+      otherAdjustmentHead: studentPayload.otherAdjustmentHead,
+      otherAdjustmentAmount: studentPayload.otherAdjustmentAmount,
+      lateFeeWaiverAmount: studentPayload.lateFeeWaiverAmount,
       discountAmount: studentPayload.discountAmount,
       studentTypeOverride: studentPayload.studentTypeOverride,
       transportAppliesOverride: studentPayload.transportAppliesOverride,
@@ -1065,8 +1139,11 @@ async function applyPayload(
     const globalPayload = asScopePayload<"global_policy">(payload);
     await upsertGlobalFeePolicy({
       academicSessionLabel: globalPayload.academicSessionLabel,
+      calculationModel: globalPayload.calculationModel,
       installmentSchedule: globalPayload.installmentSchedule,
       lateFeeFlatAmount: globalPayload.lateFeeFlatAmount,
+      newStudentAcademicFeeAmount: globalPayload.newStudentAcademicFeeAmount,
+      oldStudentAcademicFeeAmount: globalPayload.oldStudentAcademicFeeAmount,
       acceptedPaymentModes: globalPayload.acceptedPaymentModes,
       receiptPrefix: globalPayload.receiptPrefix,
       customFeeHeads: globalPayload.customFeeHeads,
@@ -1115,6 +1192,7 @@ async function applyPayload(
       routeCode: transportPayload.routeCode,
       routeName: transportPayload.routeName,
       defaultInstallmentAmount: transportPayload.defaultInstallmentAmount,
+      annualFeeAmount: transportPayload.annualFeeAmount,
       isActive: transportPayload.isActive,
       notes: transportPayload.notes,
     });
@@ -1132,6 +1210,9 @@ async function applyPayload(
     customFeeHeadAmounts: studentPayload.customFeeHeadAmounts,
     customFeeHeads: studentPayload.customFeeHeadsCatalog,
     customLateFeeFlatAmount: studentPayload.customLateFeeFlatAmount,
+    otherAdjustmentHead: studentPayload.otherAdjustmentHead,
+    otherAdjustmentAmount: studentPayload.otherAdjustmentAmount,
+    lateFeeWaiverAmount: studentPayload.lateFeeWaiverAmount,
     discountAmount: studentPayload.discountAmount,
     studentTypeOverride: studentPayload.studentTypeOverride,
     transportAppliesOverride: studentPayload.transportAppliesOverride,

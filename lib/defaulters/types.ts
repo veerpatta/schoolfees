@@ -14,13 +14,24 @@ export type DefaulterSummaryRow = {
   studentId: string;
   admissionNo: string;
   fullName: string;
+  fatherName: string | null;
+  fatherPhone: string | null;
   classLabel: string;
+  studentStatusLabel: "New" | "Old";
   transportRouteId: string | null;
   transportRouteLabel: string;
+  totalDue: number;
+  totalPaid: number;
   totalPending: number;
+  lateFee: number;
+  discountApplied: number;
+  lateFeeWaived: number;
   overdueInstallments: number;
   openInstallments: number;
+  nextDueAmount: number | null;
   oldestDueDate: string | null;
+  nextDueDate: string | null;
+  lastPaymentDate: string | null;
   followUpStatus: "overdue" | "pending";
 };
 

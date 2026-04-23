@@ -7,7 +7,11 @@ import { ClassTabs, ValueStatePill, WorkflowGuard } from "@/components/office/of
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
-import { getOfficeWorkbookData } from "@/lib/office/dues";
+import {
+  getOfficeWorkbookData,
+  type OfficeWorkbookStudentRow,
+  type OfficeWorkbookSummary,
+} from "@/lib/office/dues";
 import {
   buildOfficeWorkbookHref,
   normalizeOfficeWorkbookView,
@@ -16,15 +20,6 @@ import {
   type OfficeWorkbookView,
 } from "@/lib/office/workbook";
 import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
-import { getReportAuditNote } from "@/lib/reports/data";
-import type {
-  DailyCollectionReportData,
-  ImportVerificationReportData,
-  OutstandingReportData,
-  ReceiptRegisterReportData,
-  ReportData,
-  ReportsPageData,
-} from "@/lib/reports/types";
 import { getSetupWizardData } from "@/lib/setup/data";
 import { requireAnyStaffPermission } from "@/lib/supabase/session";
 
@@ -39,25 +34,28 @@ type DuesPageProps = {
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-function hasReportPageData(
-  value: Awaited<ReturnType<typeof getOfficeWorkbookData>>["data"],
-): value is ReportsPageData {
-  return "report" in value;
-}
-
-function hasRowsReport(
-  report: ReportData,
-): report is OutstandingReportData | DailyCollectionReportData | ReceiptRegisterReportData {
-  return "rows" in report;
-}
-
-function isImportVerificationReport(report: ReportData): report is ImportVerificationReportData {
-  return report.key === "import-verification";
-}
-
 function normalizeClassId(value: string | undefined) {
   const normalized = (value ?? "").trim();
   return UUID_PATTERN.test(normalized) ? normalized : "";
+}
+
+function formatOptionalDate(value: string | null | undefined) {
+  return value ? formatShortDate(value) : "-";
+}
+
+function getStatusTone(status: OfficeWorkbookStudentRow["statusLabel"]) {
+  switch (status) {
+    case "PAID":
+      return "locked";
+    case "OVERDUE":
+      return "review";
+    case "PARTLY PAID":
+      return "editable";
+    case "NOT STARTED":
+      return "policy";
+    default:
+      return "calculated";
+  }
 }
 
 function ViewTabs({
@@ -88,54 +86,99 @@ function ViewTabs({
   );
 }
 
-function ReceiptRegisterTable({
+function WorkbookSummaryCards({
+  summary,
+  showClassRegisterOnly = false,
+}: {
+  summary: OfficeWorkbookSummary;
+  showClassRegisterOnly?: boolean;
+}) {
+  const cards = [
+    { label: "Students", value: summary.studentCount },
+    { label: "Total due", value: formatInr(summary.totalDue) },
+    { label: "Total paid", value: formatInr(summary.totalPaid) },
+    { label: "Outstanding", value: formatInr(summary.totalOutstanding) },
+    { label: "Discounts", value: formatInr(summary.totalDiscount) },
+    { label: "Late fee waived", value: formatInr(summary.totalLateFeeWaived) },
+    { label: "Transport students", value: summary.transportStudentCount },
+    { label: "Tuition total", value: formatInr(summary.tuitionFeeTotal) },
+    { label: "Transport total", value: formatInr(summary.transportFeeTotal) },
+    { label: "Academic fee", value: formatInr(summary.academicFeeTotal) },
+    { label: "Other adj.", value: formatInr(summary.otherAdjustmentTotal) },
+  ];
+
+  const visibleCards = showClassRegisterOnly ? cards : cards.slice(0, 6);
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+      {visibleCards.map((card) => (
+        <div key={card.label} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+            {card.label}
+          </p>
+          <p className="mt-2 text-lg font-semibold text-slate-950">{card.value}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TransactionsTable({
   rows,
 }: {
-  rows: Array<{
-    receiptId: string;
-    receiptNumber: string;
-    paymentDate: string;
-    fullName: string;
-    admissionNo: string;
-    classLabel: string;
-    transportRouteLabel: string;
-    totalAmount: number;
-    studentId: string;
-  }>;
+  rows: Awaited<ReturnType<typeof getOfficeWorkbookData>> extends infer T
+    ? T extends { view: "transactions" | "receipts_today"; rows: infer R }
+      ? R
+      : never
+    : never;
 }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200">
-      <table className="w-full min-w-[1080px] text-left text-sm">
+      <table className="w-full min-w-[1520px] text-left text-sm">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
           <tr>
-            <th className="px-4 py-3">Receipt</th>
             <th className="px-4 py-3">Date</th>
+            <th className="px-4 py-3">Receipt / Ref</th>
+            <th className="px-4 py-3">Amount</th>
             <th className="px-4 py-3">Student</th>
             <th className="px-4 py-3">Class</th>
+            <th className="px-4 py-3">SR no</th>
+            <th className="px-4 py-3">Father</th>
+            <th className="px-4 py-3">Phone</th>
             <th className="px-4 py-3">Route</th>
-            <th className="px-4 py-3">Amount</th>
+            <th className="px-4 py-3">Total paid</th>
+            <th className="px-4 py-3">Outstanding</th>
+            <th className="px-4 py-3">Discount</th>
+            <th className="px-4 py-3">Late fee waived</th>
             <th className="px-4 py-3">Actions</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
-                No receipt rows found for this view.
+              <td colSpan={14} className="px-4 py-6 text-center text-slate-500">
+                No transactions found for this view.
               </td>
             </tr>
           ) : (
             rows.map((row) => (
               <tr key={row.receiptId} className="border-t border-slate-100">
-                <td className="px-4 py-3 font-medium text-slate-900">{row.receiptNumber}</td>
                 <td className="px-4 py-3">{formatShortDate(row.paymentDate)}</td>
                 <td className="px-4 py-3">
-                  {row.fullName}
-                  <div className="text-xs text-slate-500">{row.admissionNo}</div>
+                  <div className="font-medium text-slate-900">{row.receiptNumber}</div>
+                  <div className="text-xs text-slate-500">{row.referenceNumber ?? "-"}</div>
                 </td>
+                <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.totalAmount)}</td>
+                <td className="px-4 py-3">{row.studentName}</td>
                 <td className="px-4 py-3">{row.classLabel}</td>
+                <td className="px-4 py-3">{row.admissionNo}</td>
+                <td className="px-4 py-3">{row.fatherName ?? "-"}</td>
+                <td className="px-4 py-3">{row.fatherPhone ?? "-"}</td>
                 <td className="px-4 py-3">{row.transportRouteLabel}</td>
-                <td className="px-4 py-3">{formatInr(row.totalAmount)}</td>
+                <td className="px-4 py-3">{formatInr(row.currentTotalPaid)}</td>
+                <td className="px-4 py-3">{formatInr(row.currentOutstanding)}</td>
+                <td className="px-4 py-3">{formatInr(row.discountApplied)}</td>
+                <td className="px-4 py-3">{formatInr(row.lateFeeWaived)}</td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
                     <Button asChild size="sm" variant="outline">
@@ -144,10 +187,423 @@ function ReceiptRegisterTable({
                     <Button asChild size="sm" variant="outline">
                       <Link href={`/protected/students/${row.studentId}`}>Student</Link>
                     </Button>
+                  </div>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function InstallmentTrackerTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-slate-200">
+      <table className="w-full min-w-[1640px] text-left text-sm">
+        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+          <tr>
+            <th className="px-4 py-3">Student</th>
+            <th className="px-4 py-3">Class</th>
+            <th className="px-4 py-3">SR no</th>
+            <th className="px-4 py-3">Father / Phone</th>
+            <th className="px-4 py-3">Inst 1</th>
+            <th className="px-4 py-3">Inst 2</th>
+            <th className="px-4 py-3">Inst 3</th>
+            <th className="px-4 py-3">Inst 4</th>
+            <th className="px-4 py-3">Late fee</th>
+            <th className="px-4 py-3">Total due</th>
+            <th className="px-4 py-3">Paid</th>
+            <th className="px-4 py-3">Outstanding</th>
+            <th className="px-4 py-3">Next due date</th>
+            <th className="px-4 py-3">Next due amount</th>
+            <th className="px-4 py-3">Discount</th>
+            <th className="px-4 py-3">Waiver</th>
+            <th className="px-4 py-3">Status</th>
+            <th className="px-4 py-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={18} className="px-4 py-6 text-center text-slate-500">
+                No installment tracker rows found.
+              </td>
+            </tr>
+          ) : (
+            rows.map((row) => (
+              <tr key={row.studentId} className="border-t border-slate-100">
+                <td className="px-4 py-3 font-medium text-slate-900">{row.studentName}</td>
+                <td className="px-4 py-3">{row.classLabel}</td>
+                <td className="px-4 py-3">{row.admissionNo}</td>
+                <td className="px-4 py-3">
+                  <div>{row.fatherName ?? "-"}</div>
+                  <div className="text-xs text-slate-500">{row.fatherPhone ?? "-"}</div>
+                </td>
+                <td className="px-4 py-3">{formatInr(row.inst1Pending)}</td>
+                <td className="px-4 py-3">{formatInr(row.inst2Pending)}</td>
+                <td className="px-4 py-3">{formatInr(row.inst3Pending)}</td>
+                <td className="px-4 py-3">{formatInr(row.inst4Pending)}</td>
+                <td className="px-4 py-3">{formatInr(row.lateFeeTotal)}</td>
+                <td className="px-4 py-3">{formatInr(row.totalDue)}</td>
+                <td className="px-4 py-3">{formatInr(row.totalPaid)}</td>
+                <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.outstandingAmount)}</td>
+                <td className="px-4 py-3">{formatOptionalDate(row.nextDueDate)}</td>
+                <td className="px-4 py-3">{formatInr(row.nextDueAmount ?? 0)}</td>
+                <td className="px-4 py-3">{formatInr(row.discountAmount)}</td>
+                <td className="px-4 py-3">{formatInr(row.lateFeeWaiverAmount)}</td>
+                <td className="px-4 py-3">
+                  <ValueStatePill tone={getStatusTone(row.statusLabel)} className="normal-case tracking-normal">
+                    {row.statusLabel || "-"}
+                  </ValueStatePill>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/protected/payments?studentId=${row.studentId}`}>Payment</Link>
+                    </Button>
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/protected/students/${row.studentId}/statement`}>Statement</Link>
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function StatementsTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-slate-200">
+      <table className="w-full min-w-[1320px] text-left text-sm">
+        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+          <tr>
+            <th className="px-4 py-3">Student</th>
+            <th className="px-4 py-3">Class</th>
+            <th className="px-4 py-3">Tuition</th>
+            <th className="px-4 py-3">Transport</th>
+            <th className="px-4 py-3">Academic</th>
+            <th className="px-4 py-3">Other adj.</th>
+            <th className="px-4 py-3">Discount</th>
+            <th className="px-4 py-3">Late fee</th>
+            <th className="px-4 py-3">Total due</th>
+            <th className="px-4 py-3">Paid</th>
+            <th className="px-4 py-3">Outstanding</th>
+            <th className="px-4 py-3">Next due</th>
+            <th className="px-4 py-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={13} className="px-4 py-6 text-center text-slate-500">
+                No students found for statement view.
+              </td>
+            </tr>
+          ) : (
+            rows.map((row) => (
+              <tr key={row.studentId} className="border-t border-slate-100">
+                <td className="px-4 py-3">
+                  <div className="font-medium text-slate-900">{row.studentName}</div>
+                  <div className="text-xs text-slate-500">{row.admissionNo}</div>
+                </td>
+                <td className="px-4 py-3">{row.classLabel}</td>
+                <td className="px-4 py-3">{formatInr(row.tuitionFee)}</td>
+                <td className="px-4 py-3">{formatInr(row.transportFee)}</td>
+                <td className="px-4 py-3">{formatInr(row.academicFee)}</td>
+                <td className="px-4 py-3">
+                  {row.otherAdjustmentHead ? `${row.otherAdjustmentHead}: ` : ""}
+                  {formatInr(row.otherAdjustmentAmount)}
+                </td>
+                <td className="px-4 py-3">{formatInr(row.discountAmount)}</td>
+                <td className="px-4 py-3">{formatInr(row.lateFeeTotal)}</td>
+                <td className="px-4 py-3">{formatInr(row.totalDue)}</td>
+                <td className="px-4 py-3">{formatInr(row.totalPaid)}</td>
+                <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.outstandingAmount)}</td>
+                <td className="px-4 py-3">
+                  <div>{row.nextDueLabel ?? "No pending dues"}</div>
+                  <div className="text-xs text-slate-500">
+                    {row.nextDueDate ? `${formatShortDate(row.nextDueDate)} | ${formatInr(row.nextDueAmount ?? 0)}` : "-"}
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/protected/students/${row.studentId}/statement`}>Print statement</Link>
+                    </Button>
                     <Button asChild size="sm" variant="outline">
                       <Link href={`/protected/payments?studentId=${row.studentId}`}>Payment</Link>
                     </Button>
                   </div>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ClassRegisterTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-slate-200">
+      <table className="w-full min-w-[2080px] text-left text-sm">
+        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+          <tr>
+            <th className="px-4 py-3">Student</th>
+            <th className="px-4 py-3">SR no</th>
+            <th className="px-4 py-3">Father</th>
+            <th className="px-4 py-3">Phone</th>
+            <th className="px-4 py-3">Student status</th>
+            <th className="px-4 py-3">Route</th>
+            <th className="px-4 py-3">Total due</th>
+            <th className="px-4 py-3">Paid</th>
+            <th className="px-4 py-3">Outstanding</th>
+            <th className="px-4 py-3">Next due date</th>
+            <th className="px-4 py-3">Next due amount</th>
+            <th className="px-4 py-3">Status</th>
+            <th className="px-4 py-3">Last payment</th>
+            <th className="px-4 py-3">Other head</th>
+            <th className="px-4 py-3">Other adj.</th>
+            <th className="px-4 py-3">Discount</th>
+            <th className="px-4 py-3">Late fee waived</th>
+            <th className="px-4 py-3">Tuition</th>
+            <th className="px-4 py-3">Transport</th>
+            <th className="px-4 py-3">Academic</th>
+            <th className="px-4 py-3">Receipt history</th>
+            <th className="px-4 py-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={22} className="px-4 py-6 text-center text-slate-500">
+                No class register rows found.
+              </td>
+            </tr>
+          ) : (
+            rows.map((row) => (
+              <tr key={row.studentId} className="border-t border-slate-100 align-top">
+                <td className="px-4 py-3 font-medium text-slate-900">{row.studentName}</td>
+                <td className="px-4 py-3">{row.admissionNo}</td>
+                <td className="px-4 py-3">{row.fatherName ?? "-"}</td>
+                <td className="px-4 py-3">{row.fatherPhone ?? "-"}</td>
+                <td className="px-4 py-3">{row.studentStatusLabel}</td>
+                <td className="px-4 py-3">{row.transportRouteName ?? "No Transport"}</td>
+                <td className="px-4 py-3">{formatInr(row.totalDue)}</td>
+                <td className="px-4 py-3">{formatInr(row.totalPaid)}</td>
+                <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.outstandingAmount)}</td>
+                <td className="px-4 py-3">{formatOptionalDate(row.nextDueDate)}</td>
+                <td className="px-4 py-3">{formatInr(row.nextDueAmount ?? 0)}</td>
+                <td className="px-4 py-3">
+                  <ValueStatePill tone={getStatusTone(row.statusLabel)} className="normal-case tracking-normal">
+                    {row.statusLabel || "-"}
+                  </ValueStatePill>
+                </td>
+                <td className="px-4 py-3">{formatOptionalDate(row.lastPaymentDate)}</td>
+                <td className="px-4 py-3">{row.otherAdjustmentHead ?? "-"}</td>
+                <td className="px-4 py-3">{formatInr(row.otherAdjustmentAmount)}</td>
+                <td className="px-4 py-3">{formatInr(row.discountAmount)}</td>
+                <td className="px-4 py-3">{formatInr(row.lateFeeWaiverAmount)}</td>
+                <td className="px-4 py-3">{formatInr(row.tuitionFee)}</td>
+                <td className="px-4 py-3">{formatInr(row.transportFee)}</td>
+                <td className="px-4 py-3">{formatInr(row.academicFee)}</td>
+                <td className="px-4 py-3">
+                  {row.receiptHistory.length === 0 ? (
+                    <span className="text-slate-500">No receipts yet</span>
+                  ) : (
+                    <div className="space-y-1">
+                      {row.receiptHistory.map((item) => (
+                        <div key={`${row.studentId}-${item.receiptNumber}`} className="text-xs text-slate-700">
+                          {item.receiptNumber} | {formatShortDate(item.paymentDate)} | {formatInr(item.totalAmount)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/protected/students/${row.studentId}`}>Student</Link>
+                    </Button>
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/protected/payments?studentId=${row.studentId}`}>Payment</Link>
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function DefaultersTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-slate-200">
+      <table className="w-full min-w-[1640px] text-left text-sm">
+        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+          <tr>
+            <th className="px-4 py-3">Student</th>
+            <th className="px-4 py-3">Class</th>
+            <th className="px-4 py-3">SR no</th>
+            <th className="px-4 py-3">Father</th>
+            <th className="px-4 py-3">Phone</th>
+            <th className="px-4 py-3">Total due</th>
+            <th className="px-4 py-3">Paid</th>
+            <th className="px-4 py-3">Outstanding</th>
+            <th className="px-4 py-3">Late fee</th>
+            <th className="px-4 py-3">Next due date</th>
+            <th className="px-4 py-3">Next due amount</th>
+            <th className="px-4 py-3">Last payment</th>
+            <th className="px-4 py-3">Route</th>
+            <th className="px-4 py-3">Discount</th>
+            <th className="px-4 py-3">Waiver</th>
+            <th className="px-4 py-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={16} className="px-4 py-6 text-center text-slate-500">
+                No overdue students found.
+              </td>
+            </tr>
+          ) : (
+            rows.map((row) => (
+              <tr key={row.studentId} className="border-t border-slate-100">
+                <td className="px-4 py-3 font-medium text-slate-900">{row.studentName}</td>
+                <td className="px-4 py-3">{row.classLabel}</td>
+                <td className="px-4 py-3">{row.admissionNo}</td>
+                <td className="px-4 py-3">{row.fatherName ?? "-"}</td>
+                <td className="px-4 py-3">{row.fatherPhone ?? "-"}</td>
+                <td className="px-4 py-3">{formatInr(row.totalDue)}</td>
+                <td className="px-4 py-3">{formatInr(row.totalPaid)}</td>
+                <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.outstandingAmount)}</td>
+                <td className="px-4 py-3">{formatInr(row.lateFeeTotal)}</td>
+                <td className="px-4 py-3">{formatOptionalDate(row.nextDueDate)}</td>
+                <td className="px-4 py-3">{formatInr(row.nextDueAmount ?? 0)}</td>
+                <td className="px-4 py-3">{formatOptionalDate(row.lastPaymentDate)}</td>
+                <td className="px-4 py-3">{row.transportRouteName ?? "No Transport"}</td>
+                <td className="px-4 py-3">{formatInr(row.discountAmount)}</td>
+                <td className="px-4 py-3">{formatInr(row.lateFeeWaiverAmount)}</td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/protected/payments?studentId=${row.studentId}`}>Payment</Link>
+                    </Button>
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/protected/students/${row.studentId}`}>Student</Link>
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function CollectionTable({
+  rows,
+}: {
+  rows: Awaited<ReturnType<typeof getOfficeWorkbookData>> extends infer T
+    ? T extends { view: "collection_today"; rows: infer R }
+      ? R
+      : never
+    : never;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-slate-200">
+      <table className="w-full min-w-[720px] text-left text-sm">
+        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+          <tr>
+            <th className="px-4 py-3">Date</th>
+            <th className="px-4 py-3">Mode</th>
+            <th className="px-4 py-3">Receipts</th>
+            <th className="px-4 py-3">Students</th>
+            <th className="px-4 py-3">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
+                No collection rows found for today.
+              </td>
+            </tr>
+          ) : (
+            rows.map((row) => (
+              <tr key={`${row.paymentDate}-${row.paymentMode}`} className="border-t border-slate-100">
+                <td className="px-4 py-3">{formatShortDate(row.paymentDate)}</td>
+                <td className="px-4 py-3">{row.paymentMode}</td>
+                <td className="px-4 py-3">{row.receiptCount}</td>
+                <td className="px-4 py-3">{row.studentCount}</td>
+                <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.totalAmount)}</td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ImportIssuesTable({
+  rows,
+}: {
+  rows: Awaited<ReturnType<typeof getOfficeWorkbookData>> extends infer T
+    ? T extends { view: "import_issues"; rows: infer R }
+      ? R
+      : never
+    : never;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-slate-200">
+      <table className="w-full min-w-[1260px] text-left text-sm">
+        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+          <tr>
+            <th className="px-4 py-3">Row</th>
+            <th className="px-4 py-3">Student</th>
+            <th className="px-4 py-3">SR no</th>
+            <th className="px-4 py-3">Class</th>
+            <th className="px-4 py-3">Status</th>
+            <th className="px-4 py-3">Errors</th>
+            <th className="px-4 py-3">Warnings</th>
+            <th className="px-4 py-3">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
+                No import issues found for this view.
+              </td>
+            </tr>
+          ) : (
+            rows.map((row) => (
+              <tr key={row.rowId} className="border-t border-slate-100 align-top">
+                <td className="px-4 py-3">{row.rowIndex}</td>
+                <td className="px-4 py-3">{row.fullName ?? "-"}</td>
+                <td className="px-4 py-3">{row.admissionNo ?? "-"}</td>
+                <td className="px-4 py-3">{row.classLabel ?? "-"}</td>
+                <td className="px-4 py-3">{row.status}</td>
+                <td className="px-4 py-3">{row.errors.length > 0 ? row.errors.join(" | ") : "-"}</td>
+                <td className="px-4 py-3">{row.warnings.length > 0 ? row.warnings.join(" | ") : "-"}</td>
+                <td className="px-4 py-3">
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/protected/imports?batchId=${row.batchId}`}>Open batch</Link>
+                  </Button>
                 </td>
               </tr>
             ))
@@ -180,7 +636,7 @@ export default async function DuesPage({ searchParams }: DuesPageProps) {
         eyebrow="Dues & Receipts"
         title={activeMeta.title}
         description={activeMeta.description}
-        actions={<StatusBadge label="Office view" tone="accent" />}
+        actions={<StatusBadge label="Workbook office view" tone="accent" />}
       />
 
       {!readiness.reports.isReady ? (
@@ -194,7 +650,7 @@ export default async function DuesPage({ searchParams }: DuesPageProps) {
 
       <SectionCard
         title="View shortcuts"
-        description="Keep the most-used office tables one hop away. Open Reports & Exports only when you need the full filter set or CSV."
+        description="Keep the main workbook working screens one hop away."
         actions={
           <Button asChild size="sm" variant="outline">
             <Link href="/protected/reports">Open Reports & Exports</Link>
@@ -212,265 +668,86 @@ export default async function DuesPage({ searchParams }: DuesPageProps) {
         </div>
       </SectionCard>
 
-      {hasReportPageData(workbook.data) ? (
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-          {getReportAuditNote(workbook.data.report.key)}
-        </div>
-      ) : null}
-
-      {activeView === "transactions" || activeView === "receipts_today" ? (
+      {"summary" in workbook ? (
         <SectionCard
-          title={activeMeta.title}
+          title={activeView === "class_register" ? "Class summary" : "Working totals"}
           description={
-            activeView === "transactions"
-              ? "Receipt rows stay flat and easy to recheck at the counter."
-              : "Only today's posted receipts are shown for quick printing and counter recheck."
+            activeView === "class_register"
+              ? "Top-level register totals for the selected class or working set."
+              : "Quick totals for the current workbook view."
           }
         >
-          <ReceiptRegisterTable
-            rows={
-              hasReportPageData(workbook.data) && hasRowsReport(workbook.data.report)
-                ? (workbook.data.report.rows as ReceiptRegisterReportData["rows"])
-                : []
-            }
+          <WorkbookSummaryCards
+            summary={workbook.summary}
+            showClassRegisterOnly={activeView === "class_register"}
           />
         </SectionCard>
       ) : null}
 
-      {activeView === "installments" ? (
-        <SectionCard
-          title={activeMeta.title}
-          description="Open installment rows with their current due, collected, and pending amounts."
-        >
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full min-w-[1180px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
-                <tr>
-                  <th className="px-4 py-3">Student</th>
-                  <th className="px-4 py-3">Class</th>
-                  <th className="px-4 py-3">Installment</th>
-                  <th className="px-4 py-3">Due date</th>
-                  <th className="px-4 py-3">Due</th>
-                  <th className="px-4 py-3">Collected</th>
-                  <th className="px-4 py-3">Pending</th>
-                  <th className="px-4 py-3">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {hasReportPageData(workbook.data) &&
-                hasRowsReport(workbook.data.report) &&
-                workbook.data.report.rows.length > 0 ? (
-                  (workbook.data.report.rows as OutstandingReportData["rows"]).map((row) => (
-                    <tr key={`${row.studentId}-${row.installmentNo}`} className="border-t border-slate-100">
-                      <td className="px-4 py-3">
-                        {row.fullName}
-                        <div className="text-xs text-slate-500">{row.admissionNo}</div>
-                      </td>
-                      <td className="px-4 py-3">{row.classLabel}</td>
-                      <td className="px-4 py-3">{row.installmentLabel}</td>
-                      <td className="px-4 py-3">{formatShortDate(row.dueDate)}</td>
-                      <td className="px-4 py-3">{formatInr(row.amountDue)}</td>
-                      <td className="px-4 py-3">{formatInr(row.collectedAmount)}</td>
-                      <td className="px-4 py-3 font-medium text-slate-900">
-                        {formatInr(row.outstandingAmount)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <ValueStatePill
-                          tone={row.balanceStatus === "overdue" ? "review" : "calculated"}
-                          className="normal-case tracking-normal"
-                        >
-                          {row.balanceStatus}
-                        </ValueStatePill>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
-                      No installment rows found for this view.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </SectionCard>
-      ) : null}
-
-      {activeView === "statements" || activeView === "defaulters" ? (
+      {workbook.view === "transactions" || workbook.view === "receipts_today" ? (
         <SectionCard
           title={activeMeta.title}
           description={
-            activeView === "statements"
-              ? "Per-student pending totals for the selected class or current working set."
-              : "Overdue-only list for immediate follow-up."
+            workbook.view === "transactions"
+              ? "Receipt register with current workbook balance context."
+              : "Today's posted receipts with print and student shortcuts."
           }
         >
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full min-w-[1040px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
-                <tr>
-                  <th className="px-4 py-3">Student</th>
-                  <th className="px-4 py-3">SR no</th>
-                  <th className="px-4 py-3">Class</th>
-                  <th className="px-4 py-3">Route</th>
-                  <th className="px-4 py-3">Pending amount</th>
-                  <th className="px-4 py-3">Overdue installments</th>
-                  <th className="px-4 py-3">Oldest due</th>
-                  <th className="px-4 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {"rows" in workbook.data && workbook.data.rows.length > 0 ? (
-                  workbook.data.rows.map((row) => (
-                    <tr key={row.studentId} className="border-t border-slate-100">
-                      <td className="px-4 py-3 font-medium text-slate-900">{row.fullName}</td>
-                      <td className="px-4 py-3">{row.admissionNo}</td>
-                      <td className="px-4 py-3">{row.classLabel}</td>
-                      <td className="px-4 py-3">{row.transportRouteLabel}</td>
-                      <td className="px-4 py-3">{formatInr(row.totalPending)}</td>
-                      <td className="px-4 py-3">{row.overdueInstallments}</td>
-                      <td className="px-4 py-3">
-                        {row.oldestDueDate ? formatShortDate(row.oldestDueDate) : "-"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-2">
-                          <Button asChild size="sm" variant="outline">
-                            <Link href={`/protected/students/${row.studentId}`}>Student</Link>
-                          </Button>
-                          <Button asChild size="sm" variant="outline">
-                            <Link href={`/protected/payments?studentId=${row.studentId}`}>
-                              Payment
-                            </Link>
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
-                      No student rows found for this view.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <TransactionsTable rows={workbook.rows} />
         </SectionCard>
       ) : null}
 
-      {activeView === "collection_today" ? (
+      {workbook.view === "installments" ? (
         <SectionCard
-          title={activeMeta.title}
-          description="Grouped totals for same-day desk checking."
+          title="Installment tracker"
+          description="Student-wise workbook tracker with pending installment columns and next due details."
         >
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
-                <tr>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Mode</th>
-                  <th className="px-4 py-3">Receipts</th>
-                  <th className="px-4 py-3">Students</th>
-                  <th className="px-4 py-3">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {hasReportPageData(workbook.data) &&
-                hasRowsReport(workbook.data.report) &&
-                workbook.data.report.rows.length > 0 ? (
-                  (workbook.data.report.rows as DailyCollectionReportData["rows"]).map((row) => (
-                    <tr key={`${row.paymentDate}-${row.paymentMode}`} className="border-t border-slate-100">
-                      <td className="px-4 py-3">{formatShortDate(row.paymentDate)}</td>
-                      <td className="px-4 py-3">{row.paymentMode}</td>
-                      <td className="px-4 py-3">{row.receiptCount}</td>
-                      <td className="px-4 py-3">{row.studentCount}</td>
-                      <td className="px-4 py-3 font-medium text-slate-900">
-                        {formatInr(row.totalAmount)}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
-                      No collection rows found for today.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <InstallmentTrackerTable rows={workbook.rows} />
         </SectionCard>
       ) : null}
 
-      {activeView === "import_issues" ? (
+      {workbook.view === "statements" ? (
         <SectionCard
-          title={activeMeta.title}
-          description="Recent staged rows that still need office review or admin cleanup."
+          title="Master fee statements"
+          description="Open printable student statements directly from the working table."
         >
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full min-w-[1260px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
-                <tr>
-                  <th className="px-4 py-3">Row</th>
-                  <th className="px-4 py-3">Student</th>
-                  <th className="px-4 py-3">SR no</th>
-                  <th className="px-4 py-3">Class</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Errors</th>
-                  <th className="px-4 py-3">Warnings</th>
-                  <th className="px-4 py-3">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {hasReportPageData(workbook.data) &&
-                isImportVerificationReport(workbook.data.report) &&
-                workbook.data.report.detailRows.length > 0 ? (
-                  workbook.data.report.detailRows
-                    .filter(
-                      (row) =>
-                        row.errors.length > 0 ||
-                        row.warnings.length > 0 ||
-                        row.status !== "imported",
-                    )
-                    .map((row) => (
-                      <tr key={row.rowId} className="border-t border-slate-100 align-top">
-                        <td className="px-4 py-3">{row.rowIndex}</td>
-                        <td className="px-4 py-3">{row.fullName ?? "-"}</td>
-                        <td className="px-4 py-3">{row.admissionNo ?? "-"}</td>
-                        <td className="px-4 py-3">{row.classLabel ?? "-"}</td>
-                        <td className="px-4 py-3">
-                          <ValueStatePill
-                            tone={row.status === "imported" ? "calculated" : "review"}
-                            className="normal-case tracking-normal"
-                          >
-                            {row.status}
-                          </ValueStatePill>
-                        </td>
-                        <td className="px-4 py-3">
-                          {row.errors.length > 0 ? row.errors.join(" | ") : "-"}
-                        </td>
-                        <td className="px-4 py-3">
-                          {row.warnings.length > 0 ? row.warnings.join(" | ") : "-"}
-                        </td>
-                        <td className="px-4 py-3">
-                          <Button asChild size="sm" variant="outline">
-                            <Link href={`/protected/imports?batchId=${row.batchId}`}>Open batch</Link>
-                          </Button>
-                        </td>
-                      </tr>
-                    ))
-                ) : (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
-                      No import issues found for this view.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <StatementsTable rows={workbook.rows} />
+        </SectionCard>
+      ) : null}
+
+      {workbook.view === "class_register" ? (
+        <SectionCard
+          title="Class register"
+          description="Workbook-style class register with fee breakup and compact receipt history."
+        >
+          <ClassRegisterTable rows={workbook.rows} />
+        </SectionCard>
+      ) : null}
+
+      {workbook.view === "defaulters" ? (
+        <SectionCard
+          title="Defaulters"
+          description="Overdue-only follow-up register with phone-ready details."
+        >
+          <DefaultersTable rows={workbook.rows} />
+        </SectionCard>
+      ) : null}
+
+      {workbook.view === "collection_today" ? (
+        <SectionCard
+          title="Today's collection"
+          description="Grouped daily collection totals for desk and day-book recheck."
+        >
+          <CollectionTable rows={workbook.rows} />
+        </SectionCard>
+      ) : null}
+
+      {workbook.view === "import_issues" ? (
+        <SectionCard
+          title="Import issues"
+          description="Recent staged rows that still need review or cleanup."
+        >
+          <ImportIssuesTable rows={workbook.rows} />
         </SectionCard>
       ) : null}
     </div>

@@ -2,6 +2,7 @@ export const officeWorkbookViews = [
   "transactions",
   "installments",
   "statements",
+  "class_register",
   "defaulters",
   "receipts_today",
   "collection_today",
@@ -22,16 +23,20 @@ export const officeWorkbookMeta: Record<
     description: "Receipt-by-receipt checking for counter follow-up and reprints.",
   },
   installments: {
-    title: "Installment Dues",
-    description: "Open installment rows for class-wise follow-up in one flat table.",
+    title: "Installment Tracker",
+    description: "Student-wise pending installment view with next due and late fee position.",
   },
   statements: {
-    title: "Class Dues Summary",
-    description: "Per-student pending totals for day-to-day office review.",
+    title: "Master Fee Statement",
+    description: "Student-wise statement shortcuts with clean print views and fee breakup.",
+  },
+  class_register: {
+    title: "Class Register",
+    description: "Workbook-style class register with summary totals and compact payment history.",
   },
   defaulters: {
-    title: "Overdue List",
-    description: "Students with overdue dues ready for follow-up work.",
+    title: "Defaulters",
+    description: "Overdue students with phone-ready follow-up details.",
   },
   receipts_today: {
     title: "Today's Receipts",
@@ -75,4 +80,3 @@ export function buildOfficeWorkbookHref(payload: {
 
   return `/protected/dues?${params.toString()}`;
 }
-

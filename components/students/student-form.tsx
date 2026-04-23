@@ -28,6 +28,13 @@ type StudentFormValues = {
   address: string;
   transportRouteId: string;
   status: string;
+  studentTypeOverride: string;
+  tuitionOverride: string;
+  transportOverride: string;
+  discountAmount: string;
+  lateFeeWaiverAmount: string;
+  otherAdjustmentHead: string;
+  otherAdjustmentAmount: string;
   notes: string;
 };
 
@@ -48,10 +55,7 @@ const selectClassName =
 const textAreaClassName =
   "flex min-h-[84px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
-function getFieldError(
-  state: StudentFormActionState,
-  fieldName: keyof StudentFormValues,
-) {
+function getFieldError(state: StudentFormActionState, fieldName: keyof StudentFormValues) {
   return state.fieldErrors[fieldName] ?? null;
 }
 
@@ -78,10 +82,10 @@ export function StudentForm({
   const disableSubmit = classOptions.length === 0;
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form action={formAction} className="space-y-6">
       <div className="flex flex-wrap gap-2">
-        <ValueStatePill tone="editable">Editable</ValueStatePill>
-        <ValueStatePill tone="policy">Class-driven selection</ValueStatePill>
+        <ValueStatePill tone="editable">Student Master</ValueStatePill>
+        <ValueStatePill tone="policy">Workbook fee profile</ValueStatePill>
       </div>
 
       {state.message ? (
@@ -102,177 +106,281 @@ export function StudentForm({
         </div>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="space-y-4">
         <div>
-          <Label htmlFor="fullName">Student name</Label>
-          <Input
-            id="fullName"
-            name="fullName"
-            defaultValue={initialValues.fullName}
-            className="mt-2"
-            required
-          />
-          {getFieldError(state, "fullName") ? (
-            <p className="mt-1 text-xs text-red-600">{getFieldError(state, "fullName")}</p>
-          ) : null}
+          <h3 className="text-sm font-semibold text-slate-950">Student details</h3>
+          <p className="mt-1 text-sm text-slate-600">
+            Core identity and class placement. Student Master is not the daily payment screen.
+          </p>
         </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <Label htmlFor="fullName">Student name</Label>
+            <Input id="fullName" name="fullName" defaultValue={initialValues.fullName} className="mt-2" required />
+            {getFieldError(state, "fullName") ? (
+              <p className="mt-1 text-xs text-red-600">{getFieldError(state, "fullName")}</p>
+            ) : null}
+          </div>
 
+          <div>
+            <Label htmlFor="admissionNo">SR no</Label>
+            <Input id="admissionNo" name="admissionNo" defaultValue={initialValues.admissionNo} className="mt-2" required />
+            {getFieldError(state, "admissionNo") ? (
+              <p className="mt-1 text-xs text-red-600">{getFieldError(state, "admissionNo")}</p>
+            ) : null}
+          </div>
+
+          <div>
+            <Label htmlFor="classId">Class</Label>
+            <select
+              id="classId"
+              name="classId"
+              defaultValue={initialValues.classId}
+              className={`${selectClassName} mt-2`}
+              required
+            >
+              <option value="">Select class</option>
+              {classOptions.map((classOption) => (
+                <option key={classOption.id} value={classOption.id}>
+                  {classOption.label}
+                </option>
+              ))}
+            </select>
+            {getFieldError(state, "classId") ? (
+              <p className="mt-1 text-xs text-red-600">{getFieldError(state, "classId")}</p>
+            ) : null}
+          </div>
+
+          <div>
+            <Label htmlFor="dateOfBirth">DOB</Label>
+            <Input id="dateOfBirth" name="dateOfBirth" type="date" defaultValue={initialValues.dateOfBirth} className="mt-2" />
+            {getFieldError(state, "dateOfBirth") ? (
+              <p className="mt-1 text-xs text-red-600">{getFieldError(state, "dateOfBirth")}</p>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4">
         <div>
-          <Label htmlFor="admissionNo">SR no</Label>
-          <Input
-            id="admissionNo"
-            name="admissionNo"
-            defaultValue={initialValues.admissionNo}
-            className="mt-2"
-            required
-          />
-          {getFieldError(state, "admissionNo") ? (
-            <p className="mt-1 text-xs text-red-600">{getFieldError(state, "admissionNo")}</p>
-          ) : null}
+          <h3 className="text-sm font-semibold text-slate-950">Family and contact</h3>
+          <p className="mt-1 text-sm text-slate-600">Keep parent names and numbers clean for counter follow-up.</p>
         </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <Label htmlFor="fatherName">Father name</Label>
+            <Input id="fatherName" name="fatherName" defaultValue={initialValues.fatherName} className="mt-2" />
+          </div>
 
+          <div>
+            <Label htmlFor="motherName">Mother name</Label>
+            <Input id="motherName" name="motherName" defaultValue={initialValues.motherName} className="mt-2" />
+          </div>
+
+          <div>
+            <Label htmlFor="fatherPhone">Father phone</Label>
+            <Input id="fatherPhone" name="fatherPhone" defaultValue={initialValues.fatherPhone} className="mt-2" />
+            {getFieldError(state, "fatherPhone") ? (
+              <p className="mt-1 text-xs text-red-600">{getFieldError(state, "fatherPhone")}</p>
+            ) : null}
+          </div>
+
+          <div>
+            <Label htmlFor="motherPhone">Mother phone</Label>
+            <Input id="motherPhone" name="motherPhone" defaultValue={initialValues.motherPhone} className="mt-2" />
+            {getFieldError(state, "motherPhone") ? (
+              <p className="mt-1 text-xs text-red-600">{getFieldError(state, "motherPhone")}</p>
+            ) : null}
+          </div>
+
+          <div className="md:col-span-2">
+            <Label htmlFor="address">Address</Label>
+            <textarea
+              id="address"
+              name="address"
+              defaultValue={initialValues.address}
+              className={`${textAreaClassName} mt-2`}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4">
         <div>
-          <Label htmlFor="classId">Class</Label>
-          <select
-            id="classId"
-            name="classId"
-            defaultValue={initialValues.classId}
-            className={`${selectClassName} mt-2`}
-            required
-          >
-            <option value="">Select class</option>
-            {classOptions.map((classOption) => (
-              <option key={classOption.id} value={classOption.id}>
-                {classOption.label}
-              </option>
-            ))}
-          </select>
-          {getFieldError(state, "classId") ? (
-            <p className="mt-1 text-xs text-red-600">{getFieldError(state, "classId")}</p>
-          ) : null}
+          <h3 className="text-sm font-semibold text-slate-950">Workbook fee profile</h3>
+          <p className="mt-1 text-sm text-slate-600">
+            These fields feed the canonical student override layer used by AY 2026-27 workbook mode.
+          </p>
         </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div>
+            <Label htmlFor="studentTypeOverride">Student status</Label>
+            <select
+              id="studentTypeOverride"
+              name="studentTypeOverride"
+              defaultValue={initialValues.studentTypeOverride}
+              className={`${selectClassName} mt-2`}
+              required
+            >
+              <option value="existing">Old</option>
+              <option value="new">New</option>
+            </select>
+            {getFieldError(state, "studentTypeOverride") ? (
+              <p className="mt-1 text-xs text-red-600">{getFieldError(state, "studentTypeOverride")}</p>
+            ) : null}
+          </div>
 
+          <div>
+            <Label htmlFor="transportRouteId">Transport route</Label>
+            <select
+              id="transportRouteId"
+              name="transportRouteId"
+              defaultValue={initialValues.transportRouteId}
+              className={`${selectClassName} mt-2`}
+            >
+              <option value="">No Transport</option>
+              {routeOptions.map((routeOption) => (
+                <option key={routeOption.id} value={routeOption.id}>
+                  {routeOption.routeCode
+                    ? `${routeOption.label} (${routeOption.routeCode})`
+                    : routeOption.label}
+                </option>
+              ))}
+            </select>
+            {getFieldError(state, "transportRouteId") ? (
+              <p className="mt-1 text-xs text-red-600">{getFieldError(state, "transportRouteId")}</p>
+            ) : null}
+          </div>
+
+          <div>
+            <Label htmlFor="tuitionOverride">Tuition override</Label>
+            <Input
+              id="tuitionOverride"
+              name="tuitionOverride"
+              type="number"
+              min={0}
+              defaultValue={initialValues.tuitionOverride}
+              className="mt-2"
+              placeholder="Leave blank for class default"
+            />
+            {getFieldError(state, "tuitionOverride") ? (
+              <p className="mt-1 text-xs text-red-600">{getFieldError(state, "tuitionOverride")}</p>
+            ) : null}
+          </div>
+
+          <div>
+            <Label htmlFor="transportOverride">Transport override</Label>
+            <Input
+              id="transportOverride"
+              name="transportOverride"
+              type="number"
+              min={0}
+              defaultValue={initialValues.transportOverride}
+              className="mt-2"
+              placeholder="Leave blank for route default"
+            />
+            {getFieldError(state, "transportOverride") ? (
+              <p className="mt-1 text-xs text-red-600">{getFieldError(state, "transportOverride")}</p>
+            ) : null}
+          </div>
+
+          <div>
+            <Label htmlFor="discountAmount">Discount</Label>
+            <Input
+              id="discountAmount"
+              name="discountAmount"
+              type="number"
+              min={0}
+              defaultValue={initialValues.discountAmount}
+              className="mt-2"
+            />
+            {getFieldError(state, "discountAmount") ? (
+              <p className="mt-1 text-xs text-red-600">{getFieldError(state, "discountAmount")}</p>
+            ) : null}
+          </div>
+
+          <div>
+            <Label htmlFor="lateFeeWaiverAmount">Late fee waiver</Label>
+            <Input
+              id="lateFeeWaiverAmount"
+              name="lateFeeWaiverAmount"
+              type="number"
+              min={0}
+              defaultValue={initialValues.lateFeeWaiverAmount}
+              className="mt-2"
+            />
+            {getFieldError(state, "lateFeeWaiverAmount") ? (
+              <p className="mt-1 text-xs text-red-600">{getFieldError(state, "lateFeeWaiverAmount")}</p>
+            ) : null}
+          </div>
+
+          <div>
+            <Label htmlFor="otherAdjustmentHead">Other fee / adjustment head</Label>
+            <Input
+              id="otherAdjustmentHead"
+              name="otherAdjustmentHead"
+              defaultValue={initialValues.otherAdjustmentHead}
+              className="mt-2"
+              placeholder="e.g. Uniform adj."
+            />
+            {getFieldError(state, "otherAdjustmentHead") ? (
+              <p className="mt-1 text-xs text-red-600">{getFieldError(state, "otherAdjustmentHead")}</p>
+            ) : null}
+          </div>
+
+          <div>
+            <Label htmlFor="otherAdjustmentAmount">Other fee / adjustment amount</Label>
+            <Input
+              id="otherAdjustmentAmount"
+              name="otherAdjustmentAmount"
+              type="number"
+              defaultValue={initialValues.otherAdjustmentAmount}
+              className="mt-2"
+              placeholder="Positive or negative"
+            />
+            {getFieldError(state, "otherAdjustmentAmount") ? (
+              <p className="mt-1 text-xs text-red-600">{getFieldError(state, "otherAdjustmentAmount")}</p>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4">
         <div>
-          <Label htmlFor="dateOfBirth">DOB</Label>
-          <Input
-            id="dateOfBirth"
-            name="dateOfBirth"
-            type="date"
-            defaultValue={initialValues.dateOfBirth}
-            className="mt-2"
-          />
-          {getFieldError(state, "dateOfBirth") ? (
-            <p className="mt-1 text-xs text-red-600">{getFieldError(state, "dateOfBirth")}</p>
-          ) : null}
+          <h3 className="text-sm font-semibold text-slate-950">Record control</h3>
+          <p className="mt-1 text-sm text-slate-600">Record status is the lifecycle field, separate from workbook Student status.</p>
         </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <Label htmlFor="status">Record status</Label>
+            <select
+              id="status"
+              name="status"
+              defaultValue={initialValues.status}
+              className={`${selectClassName} mt-2`}
+              required
+            >
+              {STUDENT_STATUSES.map((statusOption) => (
+                <option key={statusOption.value} value={statusOption.value}>
+                  {statusOption.label}
+                </option>
+              ))}
+            </select>
+            {getFieldError(state, "status") ? (
+              <p className="mt-1 text-xs text-red-600">{getFieldError(state, "status")}</p>
+            ) : null}
+          </div>
 
-        <div>
-          <Label htmlFor="fatherName">Father name</Label>
-          <Input
-            id="fatherName"
-            name="fatherName"
-            defaultValue={initialValues.fatherName}
-            className="mt-2"
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="motherName">Mother name</Label>
-          <Input
-            id="motherName"
-            name="motherName"
-            defaultValue={initialValues.motherName}
-            className="mt-2"
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="fatherPhone">Father phone</Label>
-          <Input
-            id="fatherPhone"
-            name="fatherPhone"
-            defaultValue={initialValues.fatherPhone}
-            className="mt-2"
-          />
-          {getFieldError(state, "fatherPhone") ? (
-            <p className="mt-1 text-xs text-red-600">{getFieldError(state, "fatherPhone")}</p>
-          ) : null}
-        </div>
-
-        <div>
-          <Label htmlFor="motherPhone">Mother phone</Label>
-          <Input
-            id="motherPhone"
-            name="motherPhone"
-            defaultValue={initialValues.motherPhone}
-            className="mt-2"
-          />
-          {getFieldError(state, "motherPhone") ? (
-            <p className="mt-1 text-xs text-red-600">{getFieldError(state, "motherPhone")}</p>
-          ) : null}
-        </div>
-
-        <div className="md:col-span-2">
-          <Label htmlFor="address">Address</Label>
-          <textarea
-            id="address"
-            name="address"
-            defaultValue={initialValues.address}
-            className={`${textAreaClassName} mt-2`}
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="transportRouteId">Transport route</Label>
-          <select
-            id="transportRouteId"
-            name="transportRouteId"
-            defaultValue={initialValues.transportRouteId}
-            className={`${selectClassName} mt-2`}
-          >
-            <option value="">No route</option>
-            {routeOptions.map((routeOption) => (
-              <option key={routeOption.id} value={routeOption.id}>
-                {routeOption.routeCode
-                  ? `${routeOption.label} (${routeOption.routeCode})`
-                  : routeOption.label}
-              </option>
-            ))}
-          </select>
-          {getFieldError(state, "transportRouteId") ? (
-            <p className="mt-1 text-xs text-red-600">{getFieldError(state, "transportRouteId")}</p>
-          ) : null}
-        </div>
-
-        <div>
-          <Label htmlFor="status">Status</Label>
-          <select
-            id="status"
-            name="status"
-            defaultValue={initialValues.status}
-            className={`${selectClassName} mt-2`}
-            required
-          >
-            {STUDENT_STATUSES.map((statusOption) => (
-              <option key={statusOption.value} value={statusOption.value}>
-                {statusOption.label}
-              </option>
-            ))}
-          </select>
-          {getFieldError(state, "status") ? (
-            <p className="mt-1 text-xs text-red-600">{getFieldError(state, "status")}</p>
-          ) : null}
-        </div>
-
-        <div className="md:col-span-2">
-          <Label htmlFor="notes">Notes</Label>
-          <textarea
-            id="notes"
-            name="notes"
-            defaultValue={initialValues.notes}
-            className={`${textAreaClassName} mt-2`}
-            placeholder="Optional office notes"
-          />
+          <div className="md:col-span-2">
+            <Label htmlFor="notes">Office notes</Label>
+            <textarea
+              id="notes"
+              name="notes"
+              defaultValue={initialValues.notes}
+              className={`${textAreaClassName} mt-2`}
+              placeholder="Optional office notes"
+            />
+          </div>
         </div>
       </div>
 

@@ -304,6 +304,18 @@ function toNormalizedOverrides(value: unknown): NormalizedStudentImportOverride 
       typeof record.transportAppliesOverride === "boolean"
         ? record.transportAppliesOverride
         : null,
+    otherAdjustmentHead:
+      typeof record.otherAdjustmentHead === "string" && record.otherAdjustmentHead.trim()
+        ? record.otherAdjustmentHead.trim()
+        : null,
+    otherAdjustmentAmount:
+      typeof record.otherAdjustmentAmount === "number"
+        ? record.otherAdjustmentAmount
+        : null,
+    lateFeeWaiverAmount:
+      typeof record.lateFeeWaiverAmount === "number"
+        ? record.lateFeeWaiverAmount
+        : 0,
     hasAnyOverride: Boolean(record.hasAnyOverride),
   };
 }
@@ -950,6 +962,9 @@ export async function commitStudentImportBatch(batchId: string) {
           p_discount_amount: payload.overrides.discountAmount,
           p_student_type_override: payload.overrides.studentTypeOverride,
           p_transport_applies_override: payload.overrides.transportAppliesOverride,
+          p_other_adjustment_head: payload.overrides.otherAdjustmentHead,
+          p_other_adjustment_amount: payload.overrides.otherAdjustmentAmount,
+          p_late_fee_waiver_amount: payload.overrides.lateFeeWaiverAmount,
         })
         .single();
 

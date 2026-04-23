@@ -8,7 +8,7 @@ import {
   createConfigChangePreview,
 } from "@/lib/fees/config-change";
 import type { FeeHeadDefinition, FeeSetupActionState } from "@/lib/fees/types";
-import type { PaymentMode } from "@/lib/db/types";
+import type { FeeCalculationModel, PaymentMode } from "@/lib/db/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 function parseRequiredNonNegativeInt(
@@ -41,6 +41,39 @@ function parseOptionalNonNegativeInt(
   }
 
   return numeric;
+}
+
+function parseOptionalSignedInt(
+  value: FormDataEntryValue | null,
+  fieldLabel: string,
+) {
+  const raw = (value ?? "").toString().trim();
+
+  if (!raw) {
+    return null;
+  }
+
+  const numeric = Number(raw);
+
+  if (!Number.isInteger(numeric)) {
+    throw new Error(`${fieldLabel} must be blank or a whole number.`);
+  }
+
+  return numeric;
+}
+
+function parseCalculationModel(value: FormDataEntryValue | null) {
+  const normalized = (value ?? "").toString().trim();
+
+  if (!normalized || normalized === "workbook_v1") {
+    return "workbook_v1" satisfies FeeCalculationModel;
+  }
+
+  if (normalized === "standard") {
+    return "standard" satisfies FeeCalculationModel;
+  }
+
+  throw new Error("Calculation model selection is invalid.");
 }
 
 function parseBooleanSelect(value: FormDataEntryValue | null, fieldLabel: string) {
@@ -308,10 +341,19 @@ export async function saveGlobalPolicyAction(
       scope: "global_policy",
       proposedPayload: {
         academicSessionLabel: (formData.get("academicSessionLabel") ?? "").toString().trim(),
+        calculationModel: parseCalculationModel(formData.get("calculationModel")),
         installmentSchedule: parseInstallmentSchedule(formData),
         lateFeeFlatAmount: parseRequiredNonNegativeInt(
           formData.get("lateFeeFlatAmount"),
           "Late fee",
+        ),
+        newStudentAcademicFeeAmount: parseRequiredNonNegativeInt(
+          formData.get("newStudentAcademicFeeAmount"),
+          "New student academic fee",
+        ),
+        oldStudentAcademicFeeAmount: parseRequiredNonNegativeInt(
+          formData.get("oldStudentAcademicFeeAmount"),
+          "Old student academic fee",
         ),
         acceptedPaymentModes: parseAcceptedPaymentModes(formData),
         receiptPrefix: (formData.get("receiptPrefix") ?? "").toString().trim().toUpperCase(),
@@ -513,6 +555,10 @@ export async function saveTransportDefaultsAction(
           formData.get("defaultInstallmentAmount"),
           "Route default installment amount",
         ),
+        annualFeeAmount: parseOptionalNonNegativeInt(
+          formData.get("annualFeeAmount"),
+          "Annual route fee",
+        ),
         isActive: parseBooleanSelect(formData.get("isActive"), "Route status"),
         notes: (formData.get("notes") ?? "").toString().trim() || null,
       },
@@ -591,6 +637,16 @@ export async function saveStudentOverrideAction(
         customLateFeeFlatAmount: parseOptionalNonNegativeInt(
           formData.get("customLateFeeFlatAmount"),
           "Custom late fee",
+        ),
+        otherAdjustmentHead:
+          (formData.get("otherAdjustmentHead") ?? "").toString().trim() || null,
+        otherAdjustmentAmount: parseOptionalSignedInt(
+          formData.get("otherAdjustmentAmount"),
+          "Other fee / adjustment amount",
+        ),
+        lateFeeWaiverAmount: parseRequiredNonNegativeInt(
+          formData.get("lateFeeWaiverAmount"),
+          "Late fee waiver",
         ),
         discountAmount: parseRequiredNonNegativeInt(formData.get("discountAmount"), "Discount amount"),
         studentTypeOverride: parseOptionalStudentType(formData.get("studentTypeOverride")),

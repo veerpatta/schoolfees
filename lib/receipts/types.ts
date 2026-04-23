@@ -24,8 +24,14 @@ export type ReceiptBreakdownItem = {
   notes: string | null;
 };
 
+export type ReceiptFeeSummaryItem = {
+  label: string;
+  amount: number;
+};
+
 export type ReceiptDetail = {
   id: string;
+  studentId: string;
   receiptNumber: string;
   paymentDate: string;
   paymentMode: PaymentMode;
@@ -37,6 +43,20 @@ export type ReceiptDetail = {
   createdByName: string | null;
   studentFullName: string;
   admissionNo: string;
+  fatherName: string | null;
+  fatherPhone: string | null;
   classLabel: string;
+  sessionLabel: string;
+  transportRouteLabel: string;
+  studentStatusLabel: "New" | "Old";
+  feeSummary: ReceiptFeeSummaryItem[];
+  totalDue: number;
+  totalPaidBeforeReceipt: number;
+  totalPaidToDate: number;
+  outstandingAfterReceipt: number;
+  currentOutstanding: number;
+  discountAmount: number;
+  lateFeeAmount: number;
+  lateFeeWaived: number;
   breakdown: ReceiptBreakdownItem[];
 };

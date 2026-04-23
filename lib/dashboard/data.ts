@@ -1,55 +1,23 @@
 import "server-only";
 
-import { createClient } from "@/lib/supabase/server";
-
-type ClassRefRow = {
-  session_label: string;
-  class_name: string;
-  section: string | null;
-  stream_name: string | null;
-};
-
-type StudentRow = {
-  id: string;
-  class_ref: ClassRefRow | ClassRefRow[] | null;
-};
-
-type ReceiptStudentRow = {
-  full_name: string;
-  admission_no: string;
-  class_ref: ClassRefRow | ClassRefRow[] | null;
-};
-
-type ReceiptRow = {
-  receipt_number: string;
-  payment_date: string;
-  total_amount: number;
-  payment_mode: "cash" | "upi" | "bank_transfer" | "cheque";
-  student_ref: ReceiptStudentRow | ReceiptStudentRow[] | null;
-};
-
-type ReceiptTotalRow = {
-  total_amount: number;
-};
-
-type InstallmentBalanceRow = {
-  student_id: string;
-  session_label: string;
-  class_name: string;
-  section: string;
-  stream_name: string;
-  amount_due: number;
-  outstanding_amount: number;
-  balance_status: "paid" | "partial" | "overdue" | "pending" | "waived" | "cancelled";
-};
+import {
+  getWorkbookInstallmentRows,
+  getWorkbookStudentFinancials,
+  getWorkbookTransactions,
+} from "@/lib/workbook/data";
 
 type ClassSummaryAccumulator = {
   sessionLabel: string;
   classLabel: string;
   totalStudents: number;
-  studentsWithPending: Set<string>;
+  totalDue: number;
+  totalPaid: number;
+  totalOutstanding: number;
+  paidStudents: number;
+  partlyPaidStudents: number;
+  overdueStudents: number;
+  notStartedStudents: number;
   overdueInstallments: number;
-  pendingAmount: number;
 };
 
 export type DashboardRecentPayment = {
@@ -66,8 +34,21 @@ export type DashboardClassSummaryRow = {
   sessionLabel: string;
   classLabel: string;
   totalStudents: number;
+  totalDue: number;
+  totalPaid: number;
+  totalOutstanding: number;
+  paidStudents: number;
+  partlyPaidStudents: number;
+  overdueStudents: number;
+  notStartedStudents: number;
   studentsWithPending: number;
   overdueInstallments: number;
+  pendingAmount: number;
+};
+
+export type DashboardInstallmentSummaryRow = {
+  installmentLabel: string;
+  studentCount: number;
   pendingAmount: number;
 };
 
@@ -78,199 +59,80 @@ export type DashboardPageData = {
   totalPending: number;
   overdueInstallmentCount: number;
   studentsWithPending: number;
+  paidStudents: number;
+  partlyPaidStudents: number;
+  overdueStudents: number;
+  notStartedStudents: number;
   recentPayments: DashboardRecentPayment[];
   classSummary: DashboardClassSummaryRow[];
+  installmentSummary: DashboardInstallmentSummaryRow[];
 };
 
-function toSingleRecord<T>(value: T | T[] | null) {
-  if (Array.isArray(value)) {
-    return value[0] ?? null;
-  }
-
-  return value;
-}
-
-function buildClassLabel(value: {
-  class_name: string;
-  section: string | null;
-  stream_name: string | null;
-}) {
-  const parts = [value.class_name];
-
-  if (value.section) {
-    parts.push(`Section ${value.section}`);
-  }
-
-  if (value.stream_name) {
-    parts.push(value.stream_name);
-  }
-
-  return parts.join(" - ");
-}
-
-function buildClassKey(value: {
-  session_label: string;
-  class_name: string;
-  section: string | null;
-  stream_name: string | null;
-}) {
-  return [
-    value.session_label,
-    value.class_name,
-    value.section ?? "",
-    value.stream_name ?? "",
-  ].join("::");
-}
-
-function formatPaymentMode(
-  value: "cash" | "upi" | "bank_transfer" | "cheque",
-) {
-  switch (value) {
-    case "upi":
-      return "UPI";
-    case "bank_transfer":
-      return "Bank transfer";
-    case "cheque":
-      return "Cheque";
-    default:
-      return "Cash";
-  }
-}
-
 export async function getDashboardPageData(): Promise<DashboardPageData> {
-  const supabase = await createClient();
-
-  const [
-    { data: studentsRaw, error: studentsError },
-    { data: receiptTotalsRaw, error: receiptTotalsError },
-    { data: balancesRaw, error: balancesError },
-    { data: recentReceiptsRaw, error: recentReceiptsError },
-  ] = await Promise.all([
-    supabase
-      .from("students")
-      .select(
-        "id, class_ref:classes(session_label, class_name, section, stream_name)",
-      )
-      .in("status", ["active", "inactive"]),
-    supabase.from("receipts").select("total_amount"),
-    supabase
-      .from("v_installment_balances")
-      .select(
-        "student_id, session_label, class_name, section, stream_name, amount_due, outstanding_amount, balance_status",
-      ),
-    supabase
-      .from("receipts")
-      .select(
-        "receipt_number, payment_date, total_amount, payment_mode, student_ref:students(full_name, admission_no, class_ref:classes(class_name, section, stream_name))",
-      )
-      .order("payment_date", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(8),
+  const [financialRows, transactions, overdueInstallments] = await Promise.all([
+    getWorkbookStudentFinancials(),
+    getWorkbookTransactions(),
+    getWorkbookInstallmentRows({ overdueOnly: true, pendingOnly: true }),
   ]);
 
-  if (studentsError) {
-    throw new Error(`Unable to load dashboard students: ${studentsError.message}`);
-  }
-
-  if (receiptTotalsError) {
-    throw new Error(`Unable to load collection totals: ${receiptTotalsError.message}`);
-  }
-
-  if (balancesError) {
-    throw new Error(`Unable to load installment balances: ${balancesError.message}`);
-  }
-
-  if (recentReceiptsError) {
-    throw new Error(`Unable to load recent payments: ${recentReceiptsError.message}`);
-  }
-
-  const studentRows = (studentsRaw ?? []) as StudentRow[];
-  const balanceRows = (balancesRaw ?? []) as InstallmentBalanceRow[];
-  const receiptTotalRows = (receiptTotalsRaw ?? []) as ReceiptTotalRow[];
-  const recentPayments = ((recentReceiptsRaw ?? []) as ReceiptRow[]).map((row) => {
-    const studentRef = toSingleRecord(row.student_ref);
-    const classRef = studentRef ? toSingleRecord(studentRef.class_ref) : null;
-
-    return {
-      receiptNumber: row.receipt_number,
-      paymentDate: row.payment_date,
-      studentName: studentRef?.full_name ?? "Unknown student",
-      admissionNo: studentRef?.admission_no ?? "-",
-      classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
-      paymentMode: formatPaymentMode(row.payment_mode),
-      amount: row.total_amount,
-    } satisfies DashboardRecentPayment;
-  });
-
   const classSummaryMap = new Map<string, ClassSummaryAccumulator>();
+  let totalDue = 0;
+  let totalCollected = 0;
+  let totalPending = 0;
+  const overdueInstallmentCount = overdueInstallments.length;
+  let studentsWithPending = 0;
+  let paidStudents = 0;
+  let partlyPaidStudents = 0;
+  let overdueStudents = 0;
+  let notStartedStudents = 0;
 
-  studentRows.forEach((row) => {
-    const classRef = toSingleRecord(row.class_ref);
-
-    if (!classRef) {
-      return;
+  financialRows.forEach((row) => {
+    totalDue += row.totalDue;
+    totalCollected += row.totalPaid;
+    totalPending += row.outstandingAmount;
+    if (row.outstandingAmount > 0) {
+      studentsWithPending += 1;
     }
 
-    const key = buildClassKey(classRef);
+    if (row.statusLabel === "PAID") {
+      paidStudents += 1;
+    } else if (row.statusLabel === "NOT STARTED") {
+      notStartedStudents += 1;
+    } else if (row.statusLabel === "OVERDUE") {
+      overdueStudents += 1;
+    } else if (row.statusLabel === "PARTLY PAID") {
+      partlyPaidStudents += 1;
+    }
+
+    const key = `${row.sessionLabel}::${row.classLabel}`;
     const existing = classSummaryMap.get(key);
 
     if (existing) {
       existing.totalStudents += 1;
+      existing.totalDue += row.totalDue;
+      existing.totalPaid += row.totalPaid;
+      existing.totalOutstanding += row.outstandingAmount;
+      existing.overdueInstallments += Number(row.statusLabel === "OVERDUE");
+      existing.paidStudents += Number(row.statusLabel === "PAID");
+      existing.partlyPaidStudents += Number(row.statusLabel === "PARTLY PAID");
+      existing.overdueStudents += Number(row.statusLabel === "OVERDUE");
+      existing.notStartedStudents += Number(row.statusLabel === "NOT STARTED");
       return;
     }
 
     classSummaryMap.set(key, {
-      sessionLabel: classRef.session_label,
-      classLabel: buildClassLabel(classRef),
+      sessionLabel: row.sessionLabel,
+      classLabel: row.classLabel,
       totalStudents: 1,
-      studentsWithPending: new Set<string>(),
-      overdueInstallments: 0,
-      pendingAmount: 0,
+      totalDue: row.totalDue,
+      totalPaid: row.totalPaid,
+      totalOutstanding: row.outstandingAmount,
+      paidStudents: Number(row.statusLabel === "PAID"),
+      partlyPaidStudents: Number(row.statusLabel === "PARTLY PAID"),
+      overdueStudents: Number(row.statusLabel === "OVERDUE"),
+      notStartedStudents: Number(row.statusLabel === "NOT STARTED"),
+      overdueInstallments: Number(row.statusLabel === "OVERDUE"),
     });
-  });
-
-  let totalDue = 0;
-  let totalPending = 0;
-  let overdueInstallmentCount = 0;
-  const studentsWithPending = new Set<string>();
-
-  balanceRows.forEach((row) => {
-    if (row.balance_status !== "waived") {
-      totalDue += row.amount_due;
-    }
-
-    if (row.outstanding_amount <= 0) {
-      return;
-    }
-
-    totalPending += row.outstanding_amount;
-    studentsWithPending.add(row.student_id);
-
-    if (row.balance_status === "overdue") {
-      overdueInstallmentCount += 1;
-    }
-
-    const key = buildClassKey(row);
-    const existing = classSummaryMap.get(key);
-
-    if (!existing) {
-      classSummaryMap.set(key, {
-        sessionLabel: row.session_label,
-        classLabel: buildClassLabel(row),
-        totalStudents: 0,
-        studentsWithPending: new Set<string>([row.student_id]),
-        overdueInstallments: row.balance_status === "overdue" ? 1 : 0,
-        pendingAmount: row.outstanding_amount,
-      });
-      return;
-    }
-
-    existing.pendingAmount += row.outstanding_amount;
-    existing.studentsWithPending.add(row.student_id);
-
-    if (row.balance_status === "overdue") {
-      existing.overdueInstallments += 1;
-    }
   });
 
   const classSummary = Array.from(classSummaryMap.values())
@@ -278,35 +140,78 @@ export async function getDashboardPageData(): Promise<DashboardPageData> {
       sessionLabel: row.sessionLabel,
       classLabel: row.classLabel,
       totalStudents: row.totalStudents,
-      studentsWithPending: row.studentsWithPending.size,
+      totalDue: row.totalDue,
+      totalPaid: row.totalPaid,
+      totalOutstanding: row.totalOutstanding,
+      paidStudents: row.paidStudents,
+      partlyPaidStudents: row.partlyPaidStudents,
+      overdueStudents: row.overdueStudents,
+      notStartedStudents: row.notStartedStudents,
+      studentsWithPending: row.totalStudents - row.paidStudents,
       overdueInstallments: row.overdueInstallments,
-      pendingAmount: row.pendingAmount,
+      pendingAmount: row.totalOutstanding,
     }))
     .sort((left, right) => {
       if (right.pendingAmount !== left.pendingAmount) {
         return right.pendingAmount - left.pendingAmount;
       }
 
-      if (right.studentsWithPending !== left.studentsWithPending) {
-        return right.studentsWithPending - left.studentsWithPending;
-      }
-
       return left.classLabel.localeCompare(right.classLabel);
     });
 
-  const totalCollected = receiptTotalRows.reduce(
-    (sum, row) => sum + row.total_amount,
-    0,
-  );
+  const installmentSummary: DashboardInstallmentSummaryRow[] = [
+    {
+      installmentLabel: "Installment 1",
+      studentCount: financialRows.filter((row) => row.inst1Pending > 0).length,
+      pendingAmount: financialRows.reduce((sum, row) => sum + row.inst1Pending, 0),
+    },
+    {
+      installmentLabel: "Installment 2",
+      studentCount: financialRows.filter((row) => row.inst2Pending > 0).length,
+      pendingAmount: financialRows.reduce((sum, row) => sum + row.inst2Pending, 0),
+    },
+    {
+      installmentLabel: "Installment 3",
+      studentCount: financialRows.filter((row) => row.inst3Pending > 0).length,
+      pendingAmount: financialRows.reduce((sum, row) => sum + row.inst3Pending, 0),
+    },
+    {
+      installmentLabel: "Installment 4",
+      studentCount: financialRows.filter((row) => row.inst4Pending > 0).length,
+      pendingAmount: financialRows.reduce((sum, row) => sum + row.inst4Pending, 0),
+    },
+  ];
+
+  const recentPayments = transactions.slice(0, 8).map((row) => ({
+    receiptNumber: row.receiptNumber,
+    paymentDate: row.paymentDate,
+    studentName: row.studentName,
+    admissionNo: row.admissionNo,
+    classLabel: row.classLabel,
+    paymentMode:
+      row.paymentMode === "upi"
+        ? "UPI"
+        : row.paymentMode === "bank_transfer"
+          ? "Bank transfer"
+          : row.paymentMode === "cheque"
+            ? "Cheque"
+            : "Cash",
+    amount: row.totalAmount,
+  }));
 
   return {
-    totalStudents: studentRows.length,
+    totalStudents: financialRows.length,
     totalDue,
     totalCollected,
     totalPending,
     overdueInstallmentCount,
-    studentsWithPending: studentsWithPending.size,
+    studentsWithPending,
+    paidStudents,
+    partlyPaidStudents,
+    overdueStudents,
+    notStartedStudents,
     recentPayments,
     classSummary,
+    installmentSummary,
   };
 }

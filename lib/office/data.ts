@@ -3,18 +3,7 @@ import "server-only";
 import { getRecentConfigChangeLog } from "@/lib/fees/change-log";
 import { getDashboardPageData } from "@/lib/dashboard/data";
 import { createClient } from "@/lib/supabase/server";
-
-type DueStudentRow = {
-  student_id: string;
-  full_name: string;
-  admission_no: string;
-  class_name: string;
-  section: string | null;
-  stream_name: string | null;
-  due_date: string;
-  outstanding_amount: number;
-  balance_status: "partial" | "overdue" | "pending";
-};
+import { getWorkbookInstallmentRows, getWorkbookTransactions } from "@/lib/workbook/data";
 
 type ImportBatchRow = {
   id: string;
@@ -39,12 +28,6 @@ type LedgerRegenerationBatchRow = {
   } | null;
 };
 
-type TodayReceiptRow = {
-  id: string;
-  receipt_number: string;
-  total_amount: number;
-};
-
 function getSchoolDateStamp(referenceDate = new Date()) {
   return new Intl.DateTimeFormat("sv-SE", {
     timeZone: "Asia/Kolkata",
@@ -52,24 +35,6 @@ function getSchoolDateStamp(referenceDate = new Date()) {
     month: "2-digit",
     day: "2-digit",
   }).format(referenceDate);
-}
-
-function buildClassLabel(value: {
-  class_name: string;
-  section: string | null;
-  stream_name: string | null;
-}) {
-  const parts = [value.class_name];
-
-  if (value.section) {
-    parts.push(`Section ${value.section}`);
-  }
-
-  if (value.stream_name) {
-    parts.push(value.stream_name);
-  }
-
-  return parts.join(" - ");
 }
 
 export type OfficeHomeData = {
@@ -82,7 +47,7 @@ export type OfficeHomeData = {
     classLabel: string;
     dueDate: string;
     outstandingAmount: number;
-    balanceStatus: "partial" | "overdue" | "pending";
+    balanceStatus: "partial" | "overdue" | "pending" | "waived" | "paid";
   }>;
   overdueStudents: Array<{
     studentId: string;
@@ -124,22 +89,17 @@ export async function getOfficeHomeData(): Promise<OfficeHomeData> {
   const [
     dashboard,
     recentConfigChanges,
-    { data: dueRowsRaw, error: dueRowsError },
+    openInstallments,
+    overdueInstallments,
+    todayTransactions,
     { data: importRowsRaw, error: importRowsError },
     { data: regenRowsRaw, error: regenRowsError },
-    { data: todayReceiptsRaw, error: todayReceiptsError },
   ] = await Promise.all([
     getDashboardPageData(),
     getRecentConfigChangeLog(6),
-    supabase
-      .from("v_installment_balances")
-      .select(
-        "student_id, full_name, admission_no, class_name, section, stream_name, due_date, outstanding_amount, balance_status",
-      )
-      .gt("outstanding_amount", 0)
-      .in("balance_status", ["partial", "overdue", "pending"])
-      .order("due_date", { ascending: true })
-      .limit(40),
+    getWorkbookInstallmentRows({ pendingOnly: true }),
+    getWorkbookInstallmentRows({ overdueOnly: true, pendingOnly: true }),
+    getWorkbookTransactions({ todayOnly: true }),
     supabase
       .from("import_batches")
       .select("id, filename, status, invalid_rows, duplicate_rows, failed_rows, created_at")
@@ -150,17 +110,7 @@ export async function getOfficeHomeData(): Promise<OfficeHomeData> {
       .select("id, policy_revision_label, reason, status, created_at, preview_summary")
       .order("created_at", { ascending: false })
       .limit(6),
-    supabase
-      .from("receipts")
-      .select("id, receipt_number, total_amount")
-      .eq("payment_date", today)
-      .order("created_at", { ascending: false })
-      .limit(30),
   ]);
-
-  if (dueRowsError) {
-    throw new Error(`Unable to load today’s due list: ${dueRowsError.message}`);
-  }
 
   if (importRowsError) {
     throw new Error(`Unable to load import anomalies: ${importRowsError.message}`);
@@ -170,41 +120,32 @@ export async function getOfficeHomeData(): Promise<OfficeHomeData> {
     throw new Error(`Unable to load ledger recalculation history: ${regenRowsError.message}`);
   }
 
-  if (todayReceiptsError) {
-    throw new Error(`Unable to load today’s collection summary: ${todayReceiptsError.message}`);
-  }
-
-  const dueRows = (dueRowsRaw ?? []) as DueStudentRow[];
   const importRows = (importRowsRaw ?? []) as ImportBatchRow[];
   const regenRows = (regenRowsRaw ?? []) as LedgerRegenerationBatchRow[];
-  const todayReceipts = (todayReceiptsRaw ?? []) as TodayReceiptRow[];
 
   return {
     today,
     dashboard,
-    studentsDueToday: dueRows
-      .filter((row) => row.due_date === today)
+    studentsDueToday: openInstallments
+      .filter((row) => row.pendingAmount > 0 && row.dueDate === today)
       .slice(0, 8)
       .map((row) => ({
-        studentId: row.student_id,
-        fullName: row.full_name,
-        admissionNo: row.admission_no,
-        classLabel: buildClassLabel(row),
-        dueDate: row.due_date,
-        outstandingAmount: row.outstanding_amount,
-        balanceStatus: row.balance_status,
+        studentId: row.studentId,
+        fullName: row.studentName,
+        admissionNo: row.admissionNo,
+        classLabel: row.classLabel,
+        dueDate: row.dueDate,
+        outstandingAmount: row.pendingAmount,
+        balanceStatus: row.balanceStatus,
       })),
-    overdueStudents: dueRows
-      .filter((row) => row.due_date < today || row.balance_status === "overdue")
-      .slice(0, 8)
-      .map((row) => ({
-        studentId: row.student_id,
-        fullName: row.full_name,
-        admissionNo: row.admission_no,
-        classLabel: buildClassLabel(row),
-        dueDate: row.due_date,
-        outstandingAmount: row.outstanding_amount,
-      })),
+    overdueStudents: overdueInstallments.slice(0, 8).map((row) => ({
+      studentId: row.studentId,
+      fullName: row.studentName,
+      admissionNo: row.admissionNo,
+      classLabel: row.classLabel,
+      dueDate: row.dueDate,
+      outstandingAmount: row.pendingAmount,
+    })),
     importAnomalies: importRows
       .filter((row) => row.invalid_rows + row.duplicate_rows + row.failed_rows > 0)
       .map((row) => ({
@@ -225,10 +166,10 @@ export async function getOfficeHomeData(): Promise<OfficeHomeData> {
       affectedStudents: Number(row.preview_summary?.affectedStudents ?? 0),
     })),
     todayCollection: {
-      receiptCount: todayReceipts.length,
-      totalAmount: todayReceipts.reduce((sum, row) => sum + row.total_amount, 0),
-      lastReceiptId: todayReceipts[0]?.id ?? null,
-      lastReceiptNumber: todayReceipts[0]?.receipt_number ?? null,
+      receiptCount: todayTransactions.length,
+      totalAmount: todayTransactions.reduce((sum, row) => sum + row.totalAmount, 0),
+      lastReceiptId: todayTransactions[0]?.receiptId ?? null,
+      lastReceiptNumber: todayTransactions[0]?.receiptNumber ?? null,
     },
   };
 }

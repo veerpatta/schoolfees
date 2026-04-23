@@ -63,6 +63,9 @@ export const importFieldKeys = [
   "discountAmount",
   "studentTypeOverride",
   "transportAppliesOverride",
+  "otherAdjustmentHead",
+  "otherAdjustmentAmount",
+  "lateFeeWaiverAmount",
   "customOtherFeeHead",
   "customOtherFeeAmount",
 ] as const;
@@ -89,6 +92,9 @@ export type NormalizedStudentImportOverride = {
   discountAmount: number;
   studentTypeOverride: "new" | "existing" | null;
   transportAppliesOverride: boolean | null;
+  otherAdjustmentHead: string | null;
+  otherAdjustmentAmount: number | null;
+  lateFeeWaiverAmount: number;
   hasAnyOverride: boolean;
 };
 

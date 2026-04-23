@@ -33,8 +33,14 @@ Current student import mapping accounts for:
 - father phone
 - mother phone
 - transport route
-- fee overrides
-- status
+- student status (`New` / `Old`)
+- tuition override
+- transport override
+- discount
+- late fee waiver
+- other fee / adjustment head
+- other fee / adjustment amount
+- record status
 - notes
 
 These inputs may arrive with inconsistent column names or mixed formatting.
@@ -69,6 +75,12 @@ Supporting fields for review/matching:
 - phone numbers
 
 If a row is ambiguous, prefer review/hold behavior over automatic merging.
+Additional workbook import rules:
+
+- normalize workbook class aliases such as `1st`, `2nd`, `XI Science`, `XII Commerce`, `JKG`, and `SKG`
+- preserve raw source values when a class or route does not match master data
+- allow signed other adjustment amounts
+- map workbook `Old` to canonical stored value `existing`
 
 ## Fee Override Guidance
 
@@ -110,3 +122,4 @@ Old spreadsheet conventions may reflect historical SOP, including:
 Those are historical reference only. Current import logic should align with the
 active rules in `SCHOOL_RULES.md` unless a user explicitly asks for historical
 data interpretation.
+

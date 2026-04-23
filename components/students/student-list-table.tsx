@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { formatInr } from "@/lib/helpers/currency";
 import type { StudentListItem } from "@/lib/students/types";
 
 import { StudentStatusBadge } from "./student-status-badge";
@@ -49,10 +50,16 @@ export function StudentListTable({
               Class
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+              Student status
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
               Transport
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Status
+              Record status
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+              Outstanding
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
               Phones
@@ -70,9 +77,13 @@ export function StudentListTable({
               </td>
               <td className="px-4 py-3 text-sm text-slate-700">{student.admissionNo}</td>
               <td className="px-4 py-3 text-sm text-slate-700">{student.classLabel}</td>
+              <td className="px-4 py-3 text-sm text-slate-700">{student.studentStatusLabel}</td>
               <td className="px-4 py-3 text-sm text-slate-700">{student.transportRouteLabel}</td>
               <td className="px-4 py-3">
                 <StudentStatusBadge status={student.status} />
+              </td>
+              <td className="px-4 py-3 text-sm font-medium text-slate-900">
+                {formatInr(student.outstandingAmount)}
               </td>
               <td className="px-4 py-3 text-sm text-slate-700">
                 <p>{student.fatherPhone || "-"}</p>

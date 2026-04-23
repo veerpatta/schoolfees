@@ -4,6 +4,7 @@ import { getStudentFinancialSnapshot } from "@/lib/fees/data";
 import { getLedgerPageData } from "@/lib/ledger/data";
 import { createClient } from "@/lib/supabase/server";
 import { getStudentDetail } from "@/lib/students/data";
+import { getWorkbookInstallmentBalances } from "@/lib/workbook/data";
 
 type StudentReceiptRow = {
   id: string;
@@ -16,69 +17,64 @@ type StudentReceiptRow = {
   created_at: string;
 };
 
-type StudentInstallmentBalanceRow = {
-  installment_id: string;
-  installment_no: number;
-  installment_label: string;
-  due_date: string;
-  amount_due: number;
-  payments_total: number;
-  adjustments_total: number;
-  outstanding_amount: number;
-  balance_status: "paid" | "partial" | "overdue" | "pending" | "waived" | "cancelled";
-};
+function paymentModeLabel(mode: StudentReceiptRow["payment_mode"]) {
+  if (mode === "upi") {
+    return "UPI";
+  }
+
+  if (mode === "bank_transfer") {
+    return "Bank transfer";
+  }
+
+  if (mode === "cheque") {
+    return "Cheque";
+  }
+
+  return "Cash";
+}
 
 export async function getStudentWorkspaceData(studentId: string) {
   const supabase = await createClient();
-  const [
-    student,
-    financialSnapshot,
-    ledgerData,
-    receiptsResult,
-    installmentBalancesResult,
-  ] = await Promise.all([
-    getStudentDetail(studentId),
-    getStudentFinancialSnapshot(studentId),
-    getLedgerPageData({
-      searchQuery: "",
-      studentId,
-      entryFilter: "all",
-      entryQuery: "",
-    }),
-    supabase
-      .from("receipts")
-      .select(
-        "id, receipt_number, payment_date, total_amount, payment_mode, reference_number, received_by, created_at",
-      )
-      .eq("student_id", studentId)
-      .order("created_at", { ascending: false })
-      .limit(20),
-    supabase
-      .from("v_installment_balances")
-      .select(
-        "installment_id, installment_no, installment_label, due_date, amount_due, payments_total, adjustments_total, outstanding_amount, balance_status",
-      )
-      .eq("student_id", studentId)
-      .order("due_date", { ascending: true })
-      .order("installment_no", { ascending: true }),
-  ]);
+  const [student, financialSnapshot, ledgerData, receiptsResult, installmentBalances] =
+    await Promise.all([
+      getStudentDetail(studentId),
+      getStudentFinancialSnapshot(studentId),
+      getLedgerPageData({
+        searchQuery: "",
+        studentId,
+        entryFilter: "all",
+        entryQuery: "",
+      }),
+      supabase
+        .from("receipts")
+        .select(
+          "id, receipt_number, payment_date, total_amount, payment_mode, reference_number, received_by, created_at",
+        )
+        .eq("student_id", studentId)
+        .order("created_at", { ascending: false })
+        .limit(20),
+      getWorkbookInstallmentBalances(studentId),
+    ]);
 
   if (receiptsResult.error) {
     throw new Error(`Unable to load student receipts: ${receiptsResult.error.message}`);
-  }
-
-  if (installmentBalancesResult.error) {
-    throw new Error(
-      `Unable to load student installment balances: ${installmentBalancesResult.error.message}`,
-    );
   }
 
   return {
     student,
     financialSnapshot,
     ledger: ledgerData.selectedStudent,
-    receipts: (receiptsResult.data ?? []) as StudentReceiptRow[],
-    installmentBalances:
-      (installmentBalancesResult.data ?? []) as StudentInstallmentBalanceRow[],
+    receipts: ((receiptsResult.data ?? []) as StudentReceiptRow[]).map((row) => ({
+      id: row.id,
+      receiptNumber: row.receipt_number,
+      paymentDate: row.payment_date,
+      totalAmount: row.total_amount,
+      paymentMode: row.payment_mode,
+      paymentModeLabel: paymentModeLabel(row.payment_mode),
+      referenceNumber: row.reference_number,
+      receivedBy: row.received_by,
+      createdAt: row.created_at,
+    })),
+    installmentBalances,
   };
 }

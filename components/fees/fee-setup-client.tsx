@@ -444,6 +444,7 @@ function TransportDefaultsTable({ items }: { items: TransportDefault[] }) {
           <tr>
             <th className="px-4 py-3">Route</th>
             <th className="px-4 py-3">Code</th>
+            <th className="px-4 py-3">Annual fee</th>
             <th className="px-4 py-3">Installment default</th>
             <th className="px-4 py-3">Status</th>
             <th className="px-4 py-3">Updated</th>
@@ -461,6 +462,9 @@ function TransportDefaultsTable({ items }: { items: TransportDefault[] }) {
               <tr key={item.id} className="border-t border-slate-100 text-slate-700">
                 <td className="px-4 py-3 font-medium text-slate-900">{item.routeName}</td>
                 <td className="px-4 py-3">{item.routeCode ?? "Not set"}</td>
+                <td className="px-4 py-3">
+                  {item.annualFeeAmount == null ? "Not set" : formatInr(item.annualFeeAmount)}
+                </td>
                 <td className="px-4 py-3">{formatInr(item.defaultInstallmentAmount)}</td>
                 <td className="px-4 py-3">{item.isActive ? "Active" : "Inactive"}</td>
                 <td className="px-4 py-3">{formatUpdatedAt(item.updatedAt)}</td>
@@ -482,8 +486,9 @@ function StudentOverridesTable({ items }: { items: StudentFeeOverride[] }) {
             <th className="px-4 py-3">Student</th>
             <th className="px-4 py-3">Class</th>
             <th className="px-4 py-3">Reason</th>
+            <th className="px-4 py-3">Other adj.</th>
             <th className="px-4 py-3">Discount</th>
-            <th className="px-4 py-3">Late fee override</th>
+            <th className="px-4 py-3">Late fee waiver</th>
             <th className="px-4 py-3">Updated</th>
           </tr>
         </thead>
@@ -500,11 +505,16 @@ function StudentOverridesTable({ items }: { items: StudentFeeOverride[] }) {
                 <td className="px-4 py-3 font-medium text-slate-900">{item.studentLabel}</td>
                 <td className="px-4 py-3">{item.classLabel}</td>
                 <td className="px-4 py-3">{item.reason}</td>
+                <td className="px-4 py-3">
+                  {item.otherAdjustmentAmount
+                    ? `${item.otherAdjustmentHead ?? "Other"} (${formatInr(item.otherAdjustmentAmount)})`
+                    : "None"}
+                </td>
                 <td className="px-4 py-3">{formatInr(item.discountAmount)}</td>
                 <td className="px-4 py-3">
-                  {item.customLateFeeFlatAmount === null
-                    ? "No override"
-                    : formatInr(item.customLateFeeFlatAmount)}
+                  {item.lateFeeWaiverAmount > 0
+                    ? formatInr(item.lateFeeWaiverAmount)
+                    : "No waiver"}
                 </td>
                 <td className="px-4 py-3">{formatUpdatedAt(item.updatedAt)}</td>
               </tr>
@@ -621,7 +631,9 @@ export function FeeSetupClient({
           <ActionNotice state={globalState} />
           <ImpactPreviewCard preview={globalState.preview} />
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <input type="hidden" name="calculationModel" value={data.globalPolicy.calculationModel} />
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <div>
               <Label htmlFor="policy-academic-session">Academic session</Label>
               <Input
@@ -631,6 +643,20 @@ export function FeeSetupClient({
                 className="mt-2"
                 disabled={!canEdit}
                 required
+              />
+            </div>
+            <div>
+              <Label htmlFor="policy-calculation-model">Calculation mode</Label>
+              <Input
+                id="policy-calculation-model"
+                value={
+                  data.globalPolicy.calculationModel === "workbook_v1"
+                    ? "Workbook AY 2026-27"
+                    : "Standard"
+                }
+                className="mt-2"
+                disabled
+                readOnly
               />
             </div>
             <div>
@@ -663,6 +689,32 @@ export function FeeSetupClient({
                 name="receiptPrefix"
                 defaultValue={data.globalPolicy.receiptPrefix}
                 className="mt-2 uppercase"
+                disabled={!canEdit}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="policy-new-academic-fee">New student academic fee</Label>
+              <Input
+                id="policy-new-academic-fee"
+                name="newStudentAcademicFeeAmount"
+                type="number"
+                min={0}
+                defaultValue={data.globalPolicy.newStudentAcademicFeeAmount}
+                className="mt-2"
+                disabled={!canEdit}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="policy-old-academic-fee">Old student academic fee</Label>
+              <Input
+                id="policy-old-academic-fee"
+                name="oldStudentAcademicFeeAmount"
+                type="number"
+                min={0}
+                defaultValue={data.globalPolicy.oldStudentAcademicFeeAmount}
+                className="mt-2"
                 disabled={!canEdit}
                 required
               />
@@ -785,7 +837,9 @@ export function FeeSetupClient({
 
           <div className="flex items-center justify-between gap-4">
             <SectionHint>
-              Current policy: {data.globalPolicy.academicSessionLabel} | {data.globalPolicy.lateFeeLabel} |{" "}
+              Current policy: {data.globalPolicy.academicSessionLabel} | {data.globalPolicy.lateFeeLabel} | new academic fee{" "}
+              {formatInr(data.globalPolicy.newStudentAcademicFeeAmount)} | old academic fee{" "}
+              {formatInr(data.globalPolicy.oldStudentAcademicFeeAmount)} |{" "}
               {data.globalPolicy.installmentSchedule.map((item) => item.dueDateLabel).join(", ")}
             </SectionHint>
             <PreviewApplyActions
@@ -1148,13 +1202,14 @@ export function FeeSetupClient({
               </select>
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              Route defaults use the live installment count from Fee Setup when dues are prepared.
+              Annual route fee is the workbook source of truth. The installment amount stays only
+              for legacy compatibility with older flows.
             </div>
           </div>
 
           <input type="hidden" name="routeId" value={selectedRouteDefault?.id ?? ""} />
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <div>
               <Label htmlFor="route-code">Route code</Label>
               <Input
@@ -1177,7 +1232,19 @@ export function FeeSetupClient({
               />
             </div>
             <div>
-              <Label htmlFor="route-default-amount">Default installment amount</Label>
+              <Label htmlFor="route-annual-fee">Annual route fee</Label>
+              <Input
+                id="route-annual-fee"
+                name="annualFeeAmount"
+                type="number"
+                min={0}
+                defaultValue={selectedRouteDefault?.annualFeeAmount ?? ""}
+                className="mt-2"
+                disabled={!canEdit}
+              />
+            </div>
+            <div>
+              <Label htmlFor="route-default-amount">Legacy installment amount</Label>
               <Input
                 id="route-default-amount"
                 name="defaultInstallmentAmount"
@@ -1280,7 +1347,7 @@ export function FeeSetupClient({
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div>
               <Label htmlFor="student-custom-tuition">Custom tuition fee</Label>
               <Input
@@ -1357,6 +1424,19 @@ export function FeeSetupClient({
               />
             </div>
             <div>
+              <Label htmlFor="student-late-fee-waiver">Late fee waiver</Label>
+              <Input
+                id="student-late-fee-waiver"
+                name="lateFeeWaiverAmount"
+                type="number"
+                min={0}
+                defaultValue={selectedStudentOverride?.lateFeeWaiverAmount ?? 0}
+                className="mt-2"
+                disabled={!canEdit}
+                required
+              />
+            </div>
+            <div>
               <Label htmlFor="student-type-override">Student type override</Label>
               <select
                 id="student-type-override"
@@ -1389,6 +1469,32 @@ export function FeeSetupClient({
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
               </select>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <Label htmlFor="student-other-adjustment-head">Other fee / adjustment head</Label>
+              <Input
+                id="student-other-adjustment-head"
+                name="otherAdjustmentHead"
+                defaultValue={selectedStudentOverride?.otherAdjustmentHead ?? ""}
+                placeholder="Example: notebook adjustment"
+                className="mt-2"
+                disabled={!canEdit}
+              />
+            </div>
+            <div>
+              <Label htmlFor="student-other-adjustment-amount">Other fee / adjustment amount</Label>
+              <Input
+                id="student-other-adjustment-amount"
+                name="otherAdjustmentAmount"
+                type="number"
+                defaultValue={selectedStudentOverride?.otherAdjustmentAmount ?? ""}
+                placeholder="Use a negative number for a concession"
+                className="mt-2"
+                disabled={!canEdit}
+              />
             </div>
           </div>
 

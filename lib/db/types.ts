@@ -4,6 +4,7 @@ export type ClassStatus = "active" | "inactive" | "archived";
 export type StudentStatus = "active" | "inactive" | "left" | "graduated";
 export type InstallmentStatus = "scheduled" | "waived" | "cancelled";
 export type PaymentMode = "cash" | "upi" | "bank_transfer" | "cheque";
+export type FeeCalculationModel = "standard" | "workbook_v1";
 export type AdjustmentType =
   | "reversal"
   | "correction"
@@ -64,6 +65,7 @@ export type TransportRouteRecord = {
   routeCode: string | null;
   routeName: string;
   defaultInstallmentAmount: number;
+  annualFeeAmount: number | null;
   isActive: boolean;
   notes: string | null;
   createdAt: string;
@@ -138,11 +140,14 @@ export type SchoolFeeDefaultRecord = {
 export type FeePolicyConfigRecord = {
   id: string;
   academicSessionLabel: string;
+  calculationModel: FeeCalculationModel;
   installmentSchedule: Array<{
     label: string;
     dueDateLabel: string;
   }>;
   lateFeeFlatAmount: number;
+  newStudentAcademicFeeAmount: number;
+  oldStudentAcademicFeeAmount: number;
   customFeeHeads: Array<{
     id: string;
     label: string;
@@ -169,6 +174,9 @@ export type StudentFeeOverrideRecord = {
   customAdmissionActivityMiscFeeAmount: number | null;
   customOtherFeeHeads: Record<string, number> | null;
   customLateFeeFlatAmount: number | null;
+  otherAdjustmentHead: string | null;
+  otherAdjustmentAmount: number | null;
+  lateFeeWaiverAmount: number;
   studentTypeOverride: "new" | "existing" | null;
   transportAppliesOverride: boolean | null;
   discountAmount: number;

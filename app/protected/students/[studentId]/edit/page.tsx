@@ -31,12 +31,12 @@ export default async function EditStudentPage({ params }: EditStudentPageProps) 
       <PageHeader
         eyebrow="Students"
         title="Edit student"
-        description={`Update record for ${student.fullName} (SR no ${student.admissionNo}).`}
+        description={`Update Student Master and workbook fee-profile details for ${student.fullName} (SR no ${student.admissionNo}).`}
       />
 
       <SectionCard
         title="Student details"
-        description="Keep corrections clear and traceable for office and audit review."
+        description="Keep record corrections and workbook fee-profile changes clear and traceable."
       >
         <StudentForm
           mode="edit"
@@ -54,6 +54,13 @@ export default async function EditStudentPage({ params }: EditStudentPageProps) 
             address: student.address ?? "",
             transportRouteId: student.transportRouteId ?? "",
             status: student.status,
+            studentTypeOverride: student.studentTypeOverride ?? "existing",
+            tuitionOverride: student.tuitionOverride?.toString() ?? "",
+            transportOverride: student.transportOverride?.toString() ?? "",
+            discountAmount: student.discountAmount.toString(),
+            lateFeeWaiverAmount: student.lateFeeWaiverAmount.toString(),
+            otherAdjustmentHead: student.otherAdjustmentHead ?? "",
+            otherAdjustmentAmount: student.otherAdjustmentAmount?.toString() ?? "",
             notes: student.notes ?? "",
           }}
           action={updateStudentAction.bind(null, student.id)}

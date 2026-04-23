@@ -7,19 +7,19 @@ import {
 
 describe("fee-rules", () => {
   describe("getDefaultAcademicSessionLabel", () => {
-    it("should return 2026-2027 for April 2026", () => {
+    it("should return 2026-27 for April 2026", () => {
       const date = new Date("2026-04-01T00:00:00Z");
-      expect(getDefaultAcademicSessionLabel(date)).toBe("2026-2027");
+      expect(getDefaultAcademicSessionLabel(date)).toBe("2026-27");
     });
 
-    it("should return 2025-2026 for March 2026", () => {
+    it("should return 2025-26 for March 2026", () => {
       const date = new Date("2026-03-31T23:59:59Z");
-      expect(getDefaultAcademicSessionLabel(date)).toBe("2025-2026");
+      expect(getDefaultAcademicSessionLabel(date)).toBe("2025-26");
     });
 
-    it("should return 2026-2027 for December 2026", () => {
+    it("should return 2026-27 for December 2026", () => {
       const date = new Date("2026-12-15T00:00:00Z");
-      expect(getDefaultAcademicSessionLabel(date)).toBe("2026-2027");
+      expect(getDefaultAcademicSessionLabel(date)).toBe("2026-27");
     });
   });
 
@@ -39,11 +39,15 @@ describe("fee-rules", () => {
 
   describe("buildInstallmentDueDate", () => {
     it("should build correct ISO date for April in current year", () => {
-      expect(buildInstallmentDueDate("2026-2027", "20 April")).toBe("2026-04-20");
+      expect(buildInstallmentDueDate("2026-27", "20 April")).toBe("2026-04-20");
     });
 
     it("should build correct ISO date for January in next year", () => {
-      expect(buildInstallmentDueDate("2026-2027", "20 January")).toBe("2027-01-20");
+      expect(buildInstallmentDueDate("2026-27", "20 January")).toBe("2027-01-20");
+    });
+
+    it("accepts absolute workbook-style due date labels", () => {
+      expect(buildInstallmentDueDate("2026-27", "20-10-2026")).toBe("2026-10-20");
     });
 
     it("should throw error for invalid session", () => {
@@ -51,7 +55,7 @@ describe("fee-rules", () => {
     });
 
     it("should throw error for invalid due date label", () => {
-      expect(() => buildInstallmentDueDate("2026-2027", "invalid date")).toThrow();
+      expect(() => buildInstallmentDueDate("2026-27", "invalid date")).toThrow();
     });
   });
 });

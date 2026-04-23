@@ -317,6 +317,46 @@ export function PaymentEntryClient({
           </section>
 
           <SectionCard
+            title="Student summary"
+            description="Desk view for parent contact, workbook status, and route before posting the next receipt."
+          >
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Student status
+                </div>
+                <div className="mt-2 font-medium text-slate-900">
+                  {selectedStudent.studentStatusLabel}
+                </div>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Transport route
+                </div>
+                <div className="mt-2 font-medium text-slate-900">
+                  {selectedStudent.transportRouteLabel}
+                </div>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Father
+                </div>
+                <div className="mt-2 font-medium text-slate-900">
+                  {selectedStudent.fatherName ?? "Not set"}
+                </div>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Phone
+                </div>
+                <div className="mt-2 font-medium text-slate-900">
+                  {selectedStudent.fatherPhone ?? selectedStudent.motherPhone ?? "Not set"}
+                </div>
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard
             title="2. Current fee breakdown"
             description="Review installment-level dues and payment status before saving the next receipt."
             actions={
@@ -336,7 +376,8 @@ export function PaymentEntryClient({
                   <tr>
                     <th className="px-4 py-3">Installment</th>
                     <th className="px-4 py-3">Due date</th>
-                    <th className="px-4 py-3">Amount due</th>
+                    <th className="px-4 py-3">Base due</th>
+                    <th className="px-4 py-3">Late fee</th>
                     <th className="px-4 py-3">Paid</th>
                     <th className="px-4 py-3">Adjustments</th>
                     <th className="px-4 py-3">Outstanding</th>
@@ -348,7 +389,8 @@ export function PaymentEntryClient({
                     <tr key={item.installmentId} className="border-t border-slate-100 text-slate-700">
                       <td className="px-4 py-3">{item.installmentLabel}</td>
                       <td className="px-4 py-3">{item.dueDate}</td>
-                      <td className="px-4 py-3">{formatInr(item.amountDue)}</td>
+                      <td className="px-4 py-3">{formatInr(item.amountDue - item.finalLateFee)}</td>
+                      <td className="px-4 py-3">{formatInr(item.finalLateFee)}</td>
                       <td className="px-4 py-3">{formatInr(item.paymentsTotal)}</td>
                       <td className="px-4 py-3">{formatInr(item.adjustmentsTotal)}</td>
                       <td className="px-4 py-3 font-medium text-slate-900">
@@ -480,7 +522,7 @@ export function PaymentEntryClient({
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-sm font-semibold text-slate-900">Installment allocation preview</p>
                   <p className="mt-1 text-xs text-slate-600">
-                    Amount is auto-allocated from oldest pending installment to newest.
+                    Amount is auto-allocated from oldest pending installment to newest. Final saved allocation stays server-calculated if the payment date changes late-fee position.
                   </p>
 
                   {allocationPreview.length === 0 ? (

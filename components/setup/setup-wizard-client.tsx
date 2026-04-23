@@ -142,6 +142,7 @@ function createEmptyRouteRow(index: number): EditableRouteRow {
     routeCode: "",
     routeName: "",
     defaultInstallmentAmount: 0,
+    annualFeeAmount: 0,
     isActive: true,
     notes: "",
   };
@@ -226,6 +227,10 @@ export function SetupWizardClient({
   const [lateFeeFlatAmount, setLateFeeFlatAmount] = useState(
     data.policy.lateFeeFlatAmount.toString(),
   );
+  const [academicFees, setAcademicFees] = useState({
+    newStudentAcademicFeeAmount: data.policy.newStudentAcademicFeeAmount.toString(),
+    oldStudentAcademicFeeAmount: data.policy.oldStudentAcademicFeeAmount.toString(),
+  });
   const [receiptPrefix, setReceiptPrefix] = useState(data.policy.receiptPrefix);
   const [acceptedPaymentModes, setAcceptedPaymentModes] = useState<PaymentMode[]>(
     data.policy.acceptedPaymentModes.map((item) => item.value),
@@ -280,8 +285,9 @@ export function SetupWizardClient({
             </div>
           ) : null}
           <fieldset disabled={data.setupLocked} className="space-y-5">
+          <input type="hidden" name="calculationModel" value={data.policy.calculationModel} />
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <div className="xl:col-span-2">
               <Label htmlFor="academic-session-label">Academic session</Label>
               <Input
@@ -291,13 +297,28 @@ export function SetupWizardClient({
                 value={sessionLabel}
                 onChange={(event) => setSessionLabel(event.target.value)}
                 className="mt-2"
-                placeholder="2026-2027"
+                placeholder="2026-27"
               />
               <datalist id="session-suggestions">
                 {data.sessionSuggestions.map((item) => (
                   <option key={item} value={item} />
                 ))}
               </datalist>
+            </div>
+
+            <div>
+              <Label htmlFor="calculation-model-display">Calculation mode</Label>
+              <Input
+                id="calculation-model-display"
+                value={
+                  data.policy.calculationModel === "workbook_v1"
+                    ? "Workbook AY 2026-27"
+                    : "Standard"
+                }
+                className="mt-2"
+                disabled
+                readOnly
+              />
             </div>
 
             <div>
@@ -322,6 +343,43 @@ export function SetupWizardClient({
                 onChange={(event) => setReceiptPrefix(event.target.value.toUpperCase())}
                 className="mt-2 uppercase"
                 placeholder="SVP"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div>
+              <Label htmlFor="new-student-academic-fee">New student academic fee</Label>
+              <Input
+                id="new-student-academic-fee"
+                name="newStudentAcademicFeeAmount"
+                type="number"
+                min={0}
+                value={academicFees.newStudentAcademicFeeAmount}
+                onChange={(event) =>
+                  setAcademicFees((current) => ({
+                    ...current,
+                    newStudentAcademicFeeAmount: event.target.value,
+                  }))
+                }
+                className="mt-2"
+              />
+            </div>
+            <div>
+              <Label htmlFor="old-student-academic-fee">Old student academic fee</Label>
+              <Input
+                id="old-student-academic-fee"
+                name="oldStudentAcademicFeeAmount"
+                type="number"
+                min={0}
+                value={academicFees.oldStudentAcademicFeeAmount}
+                onChange={(event) =>
+                  setAcademicFees((current) => ({
+                    ...current,
+                    oldStudentAcademicFeeAmount: event.target.value,
+                  }))
+                }
+                className="mt-2"
               />
             </div>
           </div>
@@ -424,7 +482,10 @@ export function SetupWizardClient({
           <div className="flex items-center justify-between gap-4">
             <SectionHint>
               Current policy: {data.policy.installmentCount} installment windows, late fee{" "}
-              {formatInr(data.policy.lateFeeFlatAmount)}, receipt prefix {data.policy.receiptPrefix}.
+              {formatInr(data.policy.lateFeeFlatAmount)}, new academic fee{" "}
+              {formatInr(data.policy.newStudentAcademicFeeAmount)}, old academic fee{" "}
+              {formatInr(data.policy.oldStudentAcademicFeeAmount)}, receipt prefix{" "}
+              {data.policy.receiptPrefix}.
             </SectionHint>
             <Button type="submit" disabled={policyPending}>
               {policyPending ? "Saving..." : "Save session policy"}
@@ -631,6 +692,7 @@ export function SetupWizardClient({
                 <tr>
                   <th className="px-4 py-3">Code</th>
                   <th className="px-4 py-3">Route name</th>
+                  <th className="px-4 py-3">Annual fee</th>
                   <th className="px-4 py-3">Installment amount</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Notes</th>
@@ -675,24 +737,38 @@ export function SetupWizardClient({
                     </td>
                     <td className="px-4 py-3">
                       <Input
-                        name="routeDefaultInstallmentAmount"
+                        name="routeAnnualFeeAmount"
                         type="number"
                         min={0}
-                        value={row.defaultInstallmentAmount}
+                        value={row.annualFeeAmount ?? 0}
                         onChange={(event) =>
                           setRouteRows((current) =>
                             current.map((item) =>
                               item.key === row.key
                                 ? {
                                     ...item,
-                                    defaultInstallmentAmount: Number(
-                                      event.target.value || 0,
+                                    annualFeeAmount: Number(event.target.value || 0),
+                                    defaultInstallmentAmount: Math.floor(
+                                      Number(event.target.value || 0) /
+                                        Math.max(dueDateRows.length, 1),
                                     ),
                                   }
                                 : item,
                             ),
                           )
                         }
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="hidden"
+                        name="routeDefaultInstallmentAmount"
+                        value={row.defaultInstallmentAmount}
+                      />
+                      <Input
+                        value={row.defaultInstallmentAmount}
+                        disabled
+                        readOnly
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -756,8 +832,8 @@ export function SetupWizardClient({
 
           <div className="flex items-center justify-between gap-4">
             <SectionHint>
-              Each route amount is per installment. The annual transport charge is resolved from
-              this amount multiplied by the active installment count.
+              Annual route fee is the workbook source of truth. The installment amount is kept only
+              as a legacy compatibility field derived from the annual fee and active installment count.
             </SectionHint>
             <div className="flex items-center gap-2">
               <Button

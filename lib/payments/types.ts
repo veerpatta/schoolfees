@@ -21,6 +21,7 @@ export type PaymentStudentOption = {
   fullName: string;
   admissionNo: string;
   classLabel: string;
+  fatherName: string | null;
   fatherPhone: string | null;
   motherPhone: string | null;
 };
@@ -34,6 +35,9 @@ export type InstallmentBalanceItem = {
   paymentsTotal: number;
   adjustmentsTotal: number;
   outstandingAmount: number;
+  rawLateFee: number;
+  waiverApplied: number;
+  finalLateFee: number;
   balanceStatus: "paid" | "partial" | "overdue" | "pending" | "waived" | "cancelled";
 };
 
@@ -52,6 +56,11 @@ export type SelectedStudentSummary = {
   fullName: string;
   admissionNo: string;
   classLabel: string;
+  fatherName: string | null;
+  fatherPhone: string | null;
+  motherPhone: string | null;
+  studentStatusLabel: string;
+  transportRouteLabel: string;
   breakdown: InstallmentBalanceItem[];
   totalDue: number;
   totalPaid: number;

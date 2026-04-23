@@ -57,8 +57,8 @@ Operational boundaries:
 - `Fee Setup` is the canonical live path for fee-policy edits, defaults,
   route defaults, student exceptions, and dues update review
 - `Dues & Receipts` is the workbook-style working area for receipt register,
-  installment dues, class dues summary, overdue list, today’s receipts,
-  today’s collection, and import issues
+  installment tracker, master fee statement shortcuts, class register,
+  defaulters, today’s receipts, today’s collection, and import issues
 - `Advanced` keeps first-time setup, school setup lists, day close,
   reports/exports, staff, and settings out of the main daily flow
 - `Setup` remains first-time go-live preparation only and must not be reused
@@ -80,7 +80,9 @@ Main routes and modules in the repo today:
 - `app/protected/students/new/page.tsx`
   add student form
 - `app/protected/students/[studentId]/page.tsx`
-  student detail and edit view
+  student detail and workbook workspace view
+- `app/protected/students/[studentId]/statement/page.tsx`
+  printable master fee statement
 - `app/protected/imports/page.tsx`
   CSV/XLSX import workflow with dry-run, mapping, and batch tracking
 - `app/protected/setup/page.tsx`
@@ -101,8 +103,8 @@ Main routes and modules in the repo today:
   settings
 - `app/protected/dues/page.tsx`
   workbook-style dues and receipt area with shortcut views for receipt
-  register, installment dues, class dues summary, overdue list, today’s
-  receipts, today’s collection, and import issues
+  register, installment tracker, master fee statements, class register,
+  defaulters, today’s receipts, today’s collection, and import issues
 - `app/protected/payments/page.tsx`
   payment entry desk (also served at /collections)
 - `app/protected/collections/page.tsx`
@@ -112,7 +114,7 @@ Main routes and modules in the repo today:
 - `app/protected/receipts/page.tsx`
   receipt list view
 - `app/protected/receipts/[receiptId]/page.tsx`
-  printable single-receipt view
+  workbook-aligned printable receipt view
 - `app/protected/defaulters/page.tsx`
   defaulters and outstanding summary
 - `app/protected/reports/page.tsx`
@@ -269,7 +271,9 @@ Important current database behavior:
 - import batches keep source filename, detected headers, row-level validation,
   duplicate flags, and final imported-row traceability
 - `v_outstanding_summary` supports outstanding reporting
-- `v_installment_balances` supports installment-level due tracking
+- `v_installment_balances` supports legacy installment-level due tracking
+- `v_workbook_student_financials` supports workbook student-wise totals
+- `v_workbook_installment_balances` supports workbook installment tracking
 - ledger regeneration batches and row previews support safe recalculation
 - no delete policies exist for operational finance tables
 
@@ -326,19 +330,25 @@ Propagation expectations:
 
 Current defaults from config and project docs:
 
+- active academic session: `2026-27`
+- fee engine: `workbook_v1`
 - late fee: flat Rs 1000
-- due dates: 20 April, 20 July, 20 October, 20 January
+- due dates: 20-04-2026, 20-07-2026, 20-10-2026, 20-01-2027
 - default installment count: 4
+- new student academic fee: Rs 1100
+- old student academic fee: Rs 500
 - Class 12 Science annual fee default: Rs 38000
 - payment modes: Cash, UPI, Bank transfer, Cheque
 - receipt prefix: `SVP`
 - school display name default: `Shri Veer Patta Senior Secondary School`
 - app mode: `internal-admin`
+- books are excluded from workbook-mode fee calculation for AY `2026-27`
 
 Historical values that should be treated as old reference only:
 
 - due dates on the 10th
 - late fee at Rs 50/day
+- stale workbook note showing flat late fee Rs 3000 while editable AY 2026-27 setup uses Rs 1000
 
 ## Working Style Expectations
 
@@ -396,3 +406,4 @@ Avoid:
 - [ ] Expense tracking (petty cash, staff salary).
 - [ ] Inventory management (uniforms, books).
 - [ ] Multi-session history migration for older years.
+

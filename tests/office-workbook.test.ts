@@ -23,7 +23,9 @@ describe("office workbook helpers", () => {
 
   it("keeps the simplified office-facing workbook labels", () => {
     expect(officeWorkbookMeta.transactions.title).toBe("Receipt Register");
-    expect(officeWorkbookMeta.statements.title).toBe("Class Dues Summary");
+    expect(officeWorkbookMeta.installments.title).toBe("Installment Tracker");
+    expect(officeWorkbookMeta.statements.title).toBe("Master Fee Statement");
+    expect(officeWorkbookMeta.class_register.title).toBe("Class Register");
     expect(officeWorkbookMeta.receipts_today.title).toBe("Today's Receipts");
   });
 });

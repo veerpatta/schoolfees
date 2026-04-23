@@ -15,6 +15,10 @@ import {
 import { getStudentFormInput, validateStudentInput } from "@/lib/students/validation";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
+function isLedgerEligibleStatus(status: "active" | "inactive" | "left" | "graduated") {
+  return status === "active" || status === "inactive";
+}
+
 function mapWriteErrorToState(message: string): StudentFormActionState {
   if (message.toLowerCase().includes("admission_no") || message.toLowerCase().includes("students_admission_no_key")) {
     return {
@@ -59,13 +63,27 @@ export async function createStudentAction(
 
   try {
     const studentId = await createStudent(validated.data);
+    let syncMessage = "";
+
+    if (isLedgerEligibleStatus(validated.data.status)) {
+      await requireStaffPermission("fees:write");
+      const syncResult = await generateSessionLedgersAction({
+        scopedStudentIds: [studentId],
+      });
+
+      syncMessage = ` Dues generated: ${syncResult.installmentsToInsert} insert, ${syncResult.installmentsToUpdate} update, ${syncResult.installmentsToCancel} cancel, ${syncResult.lockedInstallments} blocked for review.`;
+    }
 
     revalidatePath("/protected/students");
     revalidatePath(`/protected/students/${studentId}`);
+    revalidatePath(`/protected/students/${studentId}/statement`);
+    revalidatePath("/protected/payments");
+    revalidatePath("/protected/dues");
+    revalidatePath("/protected/defaulters");
 
     return {
       status: "success",
-      message: "Student record created successfully.",
+      message: `Student record created successfully.${syncMessage}`,
       fieldErrors: {},
       studentId,
     };
@@ -112,28 +130,39 @@ export async function updateStudentAction(
     }
 
     const updatedStudentId = await updateStudent(studentId, validated.data);
+    const feeProfileChanged =
+      previousStudent.studentTypeOverride !== validated.data.studentTypeOverride ||
+      previousStudent.tuitionOverride !== validated.data.tuitionOverride ||
+      previousStudent.transportOverride !== validated.data.transportOverride ||
+      previousStudent.discountAmount !== validated.data.discountAmount ||
+      previousStudent.lateFeeWaiverAmount !== validated.data.lateFeeWaiverAmount ||
+      previousStudent.otherAdjustmentHead !== validated.data.otherAdjustmentHead ||
+      previousStudent.otherAdjustmentAmount !== validated.data.otherAdjustmentAmount;
     const routeOrClassChanged =
       previousStudent.transportRouteId !== validated.data.transportRouteId ||
       previousStudent.classId !== validated.data.classId;
-    const remainsActive = validated.data.status === "active";
+    const remainsLedgerEligible = isLedgerEligibleStatus(validated.data.status);
 
     let syncMessage = "";
 
-    if (routeOrClassChanged && remainsActive) {
+    if ((routeOrClassChanged || feeProfileChanged) && remainsLedgerEligible) {
       await requireStaffPermission("fees:write");
       const syncResult = await generateSessionLedgersAction({
         scopedStudentIds: [updatedStudentId],
       });
 
-      syncMessage = ` Route/class change sync completed: ${syncResult.installmentsToInsert} insert, ${syncResult.installmentsToUpdate} update, ${syncResult.installmentsToCancel} cancel, ${syncResult.lockedInstallments} blocked for review.`;
+      syncMessage = ` Workbook dues sync completed: ${syncResult.installmentsToInsert} insert, ${syncResult.installmentsToUpdate} update, ${syncResult.installmentsToCancel} cancel, ${syncResult.lockedInstallments} blocked for review.`;
     }
 
     revalidatePath("/protected/students");
     revalidatePath(`/protected/students/${updatedStudentId}`);
+    revalidatePath(`/protected/students/${updatedStudentId}/statement`);
     revalidatePath("/protected/defaulters");
     revalidatePath("/protected/reports");
     revalidatePath("/protected/fee-setup");
     revalidatePath("/protected/fee-setup/generate");
+    revalidatePath("/protected/payments");
+    revalidatePath("/protected/dues");
 
     return {
       status: "success",

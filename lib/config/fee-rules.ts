@@ -20,8 +20,9 @@ export function getDefaultAcademicSessionLabel(referenceDate = new Date()) {
   const month = referenceDate.getUTCMonth();
   const year = referenceDate.getUTCFullYear();
   const startYear = month >= 3 ? year : year - 1;
+  const endYear = (startYear + 1).toString().slice(-2);
 
-  return `${startYear}-${startYear + 1}`;
+  return `${startYear}-${endYear}`;
 }
 
 export const DEFAULT_INSTALLMENT_SCHEDULE = [
@@ -77,6 +78,28 @@ export function buildInstallmentDueDate(
     throw new Error(`Academic session "${academicSessionLabel}" is invalid.`);
   }
 
+  const absoluteMatch = dueDateLabel.trim().match(/^(\d{2})-(\d{2})-(\d{4})$/);
+
+  if (absoluteMatch) {
+    const [, dayRawAbsolute, monthRawAbsolute, yearRawAbsolute] = absoluteMatch;
+    const dayAbsolute = Number(dayRawAbsolute);
+    const monthAbsolute = Number(monthRawAbsolute);
+    const yearAbsolute = Number(yearRawAbsolute);
+
+    if (
+      Number.isInteger(dayAbsolute) &&
+      Number.isInteger(monthAbsolute) &&
+      Number.isInteger(yearAbsolute) &&
+      dayAbsolute > 0 &&
+      monthAbsolute >= 1 &&
+      monthAbsolute <= 12
+    ) {
+      return new Date(Date.UTC(yearAbsolute, monthAbsolute - 1, dayAbsolute))
+        .toISOString()
+        .slice(0, 10);
+    }
+  }
+
   const [dayRaw, ...monthParts] = dueDateLabel.trim().split(/\s+/);
   const day = Number(dayRaw);
   const monthName = monthParts.join(" ");
@@ -85,7 +108,9 @@ export function buildInstallmentDueDate(
   );
 
   if (!Number.isInteger(day) || day <= 0 || monthIndex === -1) {
-    throw new Error(`Due date "${dueDateLabel}" is invalid. Use format like "20 April".`);
+    throw new Error(
+      `Due date "${dueDateLabel}" is invalid. Use format like "20 April" or "20-04-2026".`,
+    );
   }
 
   const year = monthIndex < 3 ? startYear + 1 : startYear;
@@ -112,10 +137,13 @@ export function buildDefaultFeePolicySummary(referenceDate = new Date()) {
 
   return {
     academicSessionLabel,
+    calculationModel: "standard" as const,
     installmentCount: installmentSchedule.length,
     installmentSchedule,
     lateFeeFlatAmount: 1000,
     lateFeeLabel: "Flat Rs 1000",
+    newStudentAcademicFeeAmount: 1100,
+    oldStudentAcademicFeeAmount: 500,
     acceptedPaymentModes: DEFAULT_ACCEPTED_PAYMENT_MODES.map((value) => ({
       value,
       label: formatPaymentModeLabel(value),

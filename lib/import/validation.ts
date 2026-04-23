@@ -139,6 +139,25 @@ export function parseNonNegativeWholeNumber(value: unknown, label: string) {
   return { value: numeric, error: null } as const;
 }
 
+export function parseSignedWholeNumber(value: unknown, label: string) {
+  const normalized = stringifyImportCell(value);
+
+  if (!normalized) {
+    return { value: null, error: null } as const;
+  }
+
+  const numeric = Number(normalized);
+
+  if (!Number.isInteger(numeric)) {
+    return {
+      value: null,
+      error: `${label} must be a whole number.`,
+    } as const;
+  }
+
+  return { value: numeric, error: null } as const;
+}
+
 export function parseStudentStatusValue(value: unknown): StudentStatus | "__invalid__" {
   const normalized = stringifyImportCell(value).toLowerCase();
 
@@ -168,13 +187,17 @@ export function parseStudentTypeOverride(value: unknown) {
     return { value: null, error: null } as const;
   }
 
-  if (normalized === "new" || normalized === "existing") {
-    return { value: normalized, error: null } as const;
+  if (normalized === "new") {
+    return { value: "new" as const, error: null } as const;
+  }
+
+  if (normalized === "existing" || normalized === "old") {
+    return { value: "existing" as const, error: null } as const;
   }
 
   return {
     value: null,
-    error: "Student type override must be either new or existing.",
+    error: "Student status must be either new, old, or existing.",
   } as const;
 }
 

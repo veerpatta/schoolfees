@@ -79,10 +79,10 @@ export const studentImportFieldDefinitions: readonly ImportFieldDefinition[] = [
   },
   {
     key: "status",
-    label: "Status",
-    description: "Optional. Blank defaults to Active.",
+    label: "Record status",
+    description: "Optional lifecycle status. Blank defaults to Active.",
     required: false,
-    aliases: ["status", "student status"],
+    aliases: ["status", "record status", "lifecycle status"],
   },
   {
     key: "notes",
@@ -139,10 +139,16 @@ export const studentImportFieldDefinitions: readonly ImportFieldDefinition[] = [
   },
   {
     key: "studentTypeOverride",
-    label: "Student type override",
-    description: "Optional override. Accepts new or existing.",
+    label: "Student status (New / Old)",
+    description: "Optional workbook field. Accepts new, old, or existing.",
     required: false,
-    aliases: ["student type override", "student type"],
+    aliases: [
+      "student type override",
+      "student type",
+      "student status",
+      "new old",
+      "status new old",
+    ],
   },
   {
     key: "transportAppliesOverride",
@@ -150,6 +156,37 @@ export const studentImportFieldDefinitions: readonly ImportFieldDefinition[] = [
     description: "Optional override. Accepts yes/no, true/false, 1/0.",
     required: false,
     aliases: ["transport applies override", "transport applies"],
+  },
+  {
+    key: "otherAdjustmentHead",
+    label: "Other fee / adjustment head",
+    description: "Optional workbook field. Use together with Other fee / adjustment amount.",
+    required: false,
+    aliases: [
+      "other fee adjustment head",
+      "other fee head",
+      "adjustment head",
+      "other fee head name",
+    ],
+  },
+  {
+    key: "otherAdjustmentAmount",
+    label: "Other fee / adjustment amount",
+    description: "Optional workbook field. Signed whole number allowed.",
+    required: false,
+    aliases: [
+      "other fee adjustment amount",
+      "other adjustment amount",
+      "adjustment amount",
+      "other fee amount",
+    ],
+  },
+  {
+    key: "lateFeeWaiverAmount",
+    label: "Late fee waiver",
+    description: "Optional workbook field. Whole number only.",
+    required: false,
+    aliases: ["late fee waiver", "late waiver", "waiver amount"],
   },
   {
     key: "customOtherFeeHead",

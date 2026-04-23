@@ -43,6 +43,18 @@ function isAllowedPhone(value: string) {
   return PHONE_PATTERN.test(value);
 }
 
+function parseOptionalWholeNumber(value: string) {
+  if (!value.trim()) {
+    return null;
+  }
+
+  if (!/^-?\d+$/.test(value.trim())) {
+    return Number.NaN;
+  }
+
+  return Number(value);
+}
+
 export function getStudentFormInput(formData: FormData): StudentFormInput {
   return {
     fullName: asTrimmedString(formData.get("fullName")),
@@ -56,6 +68,13 @@ export function getStudentFormInput(formData: FormData): StudentFormInput {
     address: asTrimmedString(formData.get("address")),
     transportRouteId: asTrimmedString(formData.get("transportRouteId")),
     status: asTrimmedString(formData.get("status")),
+    studentTypeOverride: asTrimmedString(formData.get("studentTypeOverride")),
+    tuitionOverride: asTrimmedString(formData.get("tuitionOverride")),
+    transportOverride: asTrimmedString(formData.get("transportOverride")),
+    discountAmount: asTrimmedString(formData.get("discountAmount")),
+    lateFeeWaiverAmount: asTrimmedString(formData.get("lateFeeWaiverAmount")),
+    otherAdjustmentHead: asTrimmedString(formData.get("otherAdjustmentHead")),
+    otherAdjustmentAmount: asTrimmedString(formData.get("otherAdjustmentAmount")),
     notes: asTrimmedString(formData.get("notes")),
   };
 }
@@ -80,6 +99,11 @@ export function validateStudentInput(
     } {
   const fieldErrors: StudentFormFieldErrors = {};
   const allowedStatuses = new Set(STUDENT_STATUSES.map((status) => status.value));
+  const tuitionOverride = parseOptionalWholeNumber(input.tuitionOverride);
+  const transportOverride = parseOptionalWholeNumber(input.transportOverride);
+  const discountAmount = parseOptionalWholeNumber(input.discountAmount);
+  const lateFeeWaiverAmount = parseOptionalWholeNumber(input.lateFeeWaiverAmount);
+  const otherAdjustmentAmount = parseOptionalWholeNumber(input.otherAdjustmentAmount);
 
   if (!input.fullName) {
     fieldErrors.fullName = "Student name is required.";
@@ -100,9 +124,15 @@ export function validateStudentInput(
   }
 
   if (!input.status) {
-    fieldErrors.status = "Status is required.";
+    fieldErrors.status = "Record status is required.";
   } else if (!allowedStatuses.has(input.status as StudentValidatedInput["status"])) {
-    fieldErrors.status = "Please choose a valid status.";
+    fieldErrors.status = "Please choose a valid record status.";
+  }
+
+  if (!input.studentTypeOverride) {
+    fieldErrors.studentTypeOverride = "Student status is required.";
+  } else if (!["new", "existing"].includes(input.studentTypeOverride)) {
+    fieldErrors.studentTypeOverride = "Please choose New or Old.";
   }
 
   if (input.transportRouteId && !options.routeIds.has(input.transportRouteId)) {
@@ -115,6 +145,39 @@ export function validateStudentInput(
 
   if (!isAllowedPhone(input.motherPhone)) {
     fieldErrors.motherPhone = "Please enter a valid phone number.";
+  }
+
+  if (Number.isNaN(tuitionOverride) || (tuitionOverride !== null && tuitionOverride < 0)) {
+    fieldErrors.tuitionOverride = "Tuition override must be a whole number.";
+  }
+
+  if (Number.isNaN(transportOverride) || (transportOverride !== null && transportOverride < 0)) {
+    fieldErrors.transportOverride = "Transport override must be a whole number.";
+  }
+
+  if (Number.isNaN(discountAmount) || (discountAmount !== null && discountAmount < 0)) {
+    fieldErrors.discountAmount = "Discount must be a whole number.";
+  }
+
+  if (
+    Number.isNaN(lateFeeWaiverAmount) ||
+    (lateFeeWaiverAmount !== null && lateFeeWaiverAmount < 0)
+  ) {
+    fieldErrors.lateFeeWaiverAmount = "Late fee waiver must be a whole number.";
+  }
+
+  if (Number.isNaN(otherAdjustmentAmount)) {
+    fieldErrors.otherAdjustmentAmount = "Other adjustment must be a whole number.";
+  }
+
+  const normalizedOtherAdjustmentHead = normalizeNullableText(input.otherAdjustmentHead, 120);
+
+  if ((otherAdjustmentAmount ?? 0) !== 0 && !normalizedOtherAdjustmentHead) {
+    fieldErrors.otherAdjustmentHead = "Enter a head for the other adjustment.";
+  }
+
+  if (normalizedOtherAdjustmentHead && otherAdjustmentAmount === null) {
+    fieldErrors.otherAdjustmentAmount = "Enter the adjustment amount for this head.";
   }
 
   if (Object.keys(fieldErrors).length > 0) {
@@ -139,6 +202,13 @@ export function validateStudentInput(
       address: normalizeNullableText(input.address, 500),
       transportRouteId: input.transportRouteId || null,
       status: input.status as StudentValidatedInput["status"],
+      studentTypeOverride: input.studentTypeOverride as "new" | "existing",
+      tuitionOverride,
+      transportOverride,
+      discountAmount: discountAmount ?? 0,
+      lateFeeWaiverAmount: lateFeeWaiverAmount ?? 0,
+      otherAdjustmentHead: normalizedOtherAdjustmentHead,
+      otherAdjustmentAmount,
       notes: normalizeNullableText(input.notes, 1000),
     },
   };
