@@ -22,6 +22,60 @@ export const WORKBOOK_CLASS_ORDER = [
   "12 Science",
 ] as const;
 
+export const WORKBOOK_CLASS_TUITION_DEFAULTS = [
+  { label: "Nursery", sortOrder: 1, annualTuition: 16000 },
+  { label: "JKG", sortOrder: 2, annualTuition: 17000 },
+  { label: "SKG", sortOrder: 3, annualTuition: 17000 },
+  { label: "Class 1", sortOrder: 4, annualTuition: 18000 },
+  { label: "Class 2", sortOrder: 5, annualTuition: 18500 },
+  { label: "Class 3", sortOrder: 6, annualTuition: 19000 },
+  { label: "Class 4", sortOrder: 7, annualTuition: 19500 },
+  { label: "Class 5", sortOrder: 8, annualTuition: 20000 },
+  { label: "Class 6", sortOrder: 9, annualTuition: 21000 },
+  { label: "Class 7", sortOrder: 10, annualTuition: 22000 },
+  { label: "Class 8", sortOrder: 11, annualTuition: 23000 },
+  { label: "Class 9", sortOrder: 12, annualTuition: 24000 },
+  { label: "Class 10", sortOrder: 13, annualTuition: 25000 },
+  { label: "11 Arts", sortOrder: 14, annualTuition: 30000 },
+  { label: "11 Commerce", sortOrder: 15, annualTuition: 30000 },
+  { label: "11 Science", sortOrder: 16, annualTuition: 35000 },
+  { label: "12 Arts", sortOrder: 17, annualTuition: 32000 },
+  { label: "12 Commerce", sortOrder: 18, annualTuition: 32000 },
+  { label: "12 Science", sortOrder: 19, annualTuition: 38000 },
+] as const;
+
+export const WORKBOOK_ROUTE_FEE_DEFAULTS = [
+  { routeName: "No Transport", annualFee: 0 },
+  { routeName: "Amet Bus", annualFee: 5500 },
+  { routeName: "Amet College Side (On Road)", annualFee: 6000 },
+  { routeName: "Amet College Road (Colony Inside)", annualFee: 6000 },
+  { routeName: "Amet Railway Station (On Road)", annualFee: 7000 },
+  { routeName: "Amet Railway Station (Inside)", annualFee: 7000 },
+  { routeName: "Amet City", annualFee: 7000 },
+  { routeName: "Bhopji Ka Kheda", annualFee: 11000 },
+  { routeName: "Ballo Ka Khera", annualFee: 12000 },
+  { routeName: "Makarda", annualFee: 14000 },
+  { routeName: "Masingpura", annualFee: 14000 },
+  { routeName: "Jilola", annualFee: 17000 },
+  { routeName: "Mund Koshiya", annualFee: 12000 },
+  { routeName: "Dhelana", annualFee: 11000 },
+  { routeName: "Selaguda", annualFee: 9000 },
+  { routeName: "Kanji Ka Kedha", annualFee: 4000 },
+  { routeName: "Aambaghati", annualFee: 6000 },
+  { routeName: "Banda", annualFee: 9500 },
+  { routeName: "Aidana", annualFee: 11500 },
+  { routeName: "Karera", annualFee: 13000 },
+  { routeName: "Saprav", annualFee: 10500 },
+  { routeName: "Dabla", annualFee: 14500 },
+  { routeName: "Tanvan", annualFee: 6000 },
+  { routeName: "Sardargarh", annualFee: 14000 },
+  { routeName: "Agariya Kotari", annualFee: 9000 },
+  { routeName: "Gugli", annualFee: 11500 },
+  { routeName: "Ghosundi", annualFee: 10000 },
+  { routeName: "Agariya", annualFee: 10000 },
+  { routeName: "Bhakroda", annualFee: 14000 },
+] as const;
+
 const WORKBOOK_CLASS_ALIASES: Record<string, string> = {
   nursery: "Nursery",
   kg1: "JKG",
@@ -98,6 +152,10 @@ const WORKBOOK_CLASS_ALIASES: Record<string, string> = {
 
 function normalizeWorkbookLookupToken(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+export function normalizeWorkbookRouteName(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 export function normalizeWorkbookClassLabel(value: string) {

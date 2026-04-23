@@ -35,32 +35,31 @@ If code, UI copy, docs, or reports disagree with this file, treat this file and
 
 What is editable in the system right now:
 
-- live fee policy fields:
-  academic session label, installment schedule, late fee, receipt prefix,
-  accepted payment modes, and custom fee-head catalog
-- school-wide defaults
-- class-wise defaults
-- transport route defaults
-- per-student overrides
+- workbook Fee Setup sheet fields:
+  academic session label, 4-installment due dates, flat late fee, new student
+  academic fee, old student academic fee, class-wise annual tuition, and
+  route-wise annual transport fee
 - academic sessions, classes, and routes as master data
 
 Operational rule:
 
-- live fee policy/default changes should be made through `/protected/fee-setup`
+- live workbook fee setup changes should be made through `/protected/fee-setup`
   so preview/apply safety, audit batches, and ledger-safe propagation all run
 - `/protected/setup` is for first-time go-live preparation only; after setup is
   marked complete, it should no longer be used as a live policy editing path
-- `/protected/fee-setup` is the primary live surface for academic years,
-  classes, routes, fee heads, payment modes, and fee-policy/default changes;
-  `/protected/master-data` still exists, but Fee Setup is the preferred daily
-  workflow because preview, audit, and safe propagation stay attached there
+- `/protected/fee-setup` is the primary daily live surface for the workbook
+  fee sheet: academic session, due dates, late fee, new/old academic fee,
+  class tuition, and route transport fee. `/protected/master-data` still
+  exists for direct admin maintenance of sessions, classes, and routes, but
+  Fee Setup is the preferred daily workflow because preview, audit, and safe
+  propagation stay attached there
 
 Daily workflow boundary:
 
 - `Start Here` is the staff-facing first worksheet for blockers and shortcuts
 - `Advanced` is the place for setup, school setup lists, finance controls,
   reports, staff, and settings
-- `Fee Setup` is the only live fee-editing path
+- `Fee Setup` is the daily live fee-editing path for workbook values
 
 ## System-Wide Propagation Rules
 
@@ -190,4 +189,3 @@ If school policy changes, update together:
 - `AGENTS.md`
 - `PROJECT_CONTEXT.md`
 - `SCHOOL_RULES.md`
-

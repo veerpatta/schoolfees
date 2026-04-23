@@ -42,8 +42,9 @@ Primary daily areas:
 - `Students`
   student master and one-student workspace
 - `Fee Setup`
-  the only live path for fee rules, defaults, route defaults, student
-  exceptions, and dues update review
+  the live workbook-style fee sheet for academic session, due dates, late fee,
+  new/old academic fee, class tuition, route transport fee, and dues update
+  review
 - `Payment Desk`
   counter posting, receipt printing, and next-payment shortcuts
 - `Dues & Receipts`
@@ -94,9 +95,11 @@ Live fee changes happen in one place:
 
 This is where admins:
 
-- update the live fee policy
-- update school, class, and route defaults
-- update per-student exceptions
+- update the active academic session label
+- update the 4 installment due dates
+- update the flat late fee and new/old academic fee
+- update class-wise annual tuition
+- update route-wise annual transport fee
 - review the impact first
 - save the live change only after the impact summary is visible
 - open dues update review for future and unpaid rows
@@ -126,8 +129,8 @@ The app now maps more closely to the school’s workbook flow:
   overdue follow-up
 - `Students` behaves like the student-wise detail sheet
 - `Fee Setup` behaves like the controlled live policy/default sheet with audit
-  protection behind it, and it now also carries the live academic-year,
-  class, and transport-route workflow
+  protection behind it, and it now behaves like the workbook `Fee_Setup` sheet
+  for academic session and live fee values
 - `Advanced` keeps the less-frequent admin tasks out of the daily path
 
 ## Canonical Configuration Model
@@ -143,9 +146,9 @@ Live fee configuration now follows one explicit model:
 - live policy/default changes should run through `/protected/fee-setup`, which
   creates a preview batch, shows impact, and only applies future or unpaid
   ledger changes after explicit confirmation.
-- `/protected/master-data` remains available for direct admin maintenance, but
-  live academic-year, class, route, and fee-policy edits should happen in fee
-  setup so the preview/apply audit trail stays intact.
+- `/protected/master-data` remains available for direct admin maintenance of
+  sessions, classes, and routes, but live workbook fee values should be saved
+  through fee setup so the preview/apply audit trail stays intact.
 - `/protected/setup` is first-time go-live setup only. After setup is marked
   complete, the wizard stays readable but no longer acts as a live-edit path
   for policy/default changes.
@@ -187,9 +190,10 @@ Implemented core:
   route master-data setup, school/class defaults, readiness checklist, and
   explicit go-live completion marker; once setup is marked complete, the wizard
   stops acting as a live-edit path for fee policy/default changes
-- fee setup with a canonical global policy, school defaults, class defaults,
-  transport defaults, and student overrides, now with mandatory impact preview
-  and explicit confirm-apply workflow
+- fee setup with a workbook-style one-page screen for academic session, 4 due
+  dates, flat late fee, new/old academic fee, class-wise annual tuition, and
+  route-wise annual transport fee, now with mandatory impact preview and
+  explicit confirm-apply workflow
 - AY `2026-27` workbook parity with `workbook_v1` fee calculation, seeded class
   tuition defaults, seeded annual route defaults, workbook student status,
   other adjustment, and late-fee-waiver support
@@ -219,7 +223,7 @@ Implemented core:
 - audit triggers on core tables
 - append-only enforcement on receipts, payments, payment adjustments, and audit
   logs
-- 16 tracked SQL migrations covering schema, fee setup, policy preview/apply,
+- 17 tracked SQL migrations covering schema, fee setup, policy preview/apply,
   payments, RBAC, import workflow, setup completion, ledger regeneration, and
   finance-office controls
 - database-level RBAC using `public.staff_role` plus permission-aware policies
@@ -373,8 +377,8 @@ Non-negotiable rule:
 Admins should use this sequence for live fee changes:
 
 1. open `/protected/fee-setup`
-2. edit the canonical policy, school/class defaults, route default, or student
-   override
+2. edit the academic session label, 4 due dates, fee policy values, class
+   tuition table, or route transport fee table
 3. run preview first and review the changed fields, affected students, and
    blocked rows
 4. confirm apply only after reviewing the impact summary
@@ -604,5 +608,3 @@ If schema intent changes, update together:
 - `README.md`
 - `PROJECT_CONTEXT.md`
 - `AGENTS.md`
-
-

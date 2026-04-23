@@ -2127,7 +2127,8 @@ create table if not exists public.config_change_batches (
         'school_defaults',
         'class_defaults',
         'transport_defaults',
-        'student_override'
+        'student_override',
+        'workbook_setup'
       )
     ),
   target_ref text,

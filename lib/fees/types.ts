@@ -5,7 +5,8 @@ export type ConfigChangeScope =
   | "school_defaults"
   | "class_defaults"
   | "transport_defaults"
-  | "student_override";
+  | "student_override"
+  | "workbook_setup";
 
 export type ConfigChangeFieldDiff = {
   field: string;
@@ -30,6 +31,12 @@ export type ConfigChangeImpactPreview = {
   blockedAdjustedInstallments: number;
   updatesLimitedToFutureUnpaid: boolean;
   rowsMarkedForReview: number;
+  classRowsUpdated?: number;
+  classRowsCreated?: number;
+  routeRowsUpdated?: number;
+  routeRowsCreated?: number;
+  pendingClassCreates?: string[];
+  pendingRouteCreates?: string[];
 };
 
 export type LedgerRegenerationReviewRow = {

@@ -104,6 +104,7 @@ type ConfigPayloadByScope = {
   class_defaults: ClassDefaultsChangePayload;
   transport_defaults: TransportDefaultsChangePayload;
   student_override: StudentOverrideChangePayload;
+  workbook_setup: never;
 };
 
 type ConfigBatchStatus = "preview_ready" | "applied" | "stale" | "failed" | "cancelled";
@@ -688,6 +689,8 @@ function buildScopeLabel(scope: ConfigChangeScope) {
       return "Transport defaults";
     case "student_override":
       return "Student override";
+    case "workbook_setup":
+      return "Workbook Fee Setup";
     default:
       return "Configuration";
   }
@@ -895,6 +898,10 @@ async function loadScopedStudentIds(
   payload: ConfigPayloadByScope[ConfigChangeScope],
   setupData: FeeSetupPageData,
 ) {
+  if (scope === "workbook_setup") {
+    throw new Error("Workbook Fee Setup uses the aggregated workbook preview workflow.");
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("students")
@@ -987,6 +994,10 @@ function buildScopeContext(
   payload: ConfigPayloadByScope[ConfigChangeScope],
   setupData: FeeSetupPageData,
 ): ScopeContext {
+  if (scope === "workbook_setup") {
+    throw new Error("Workbook Fee Setup uses the aggregated workbook preview workflow.");
+  }
+
   if (scope === "global_policy") {
     const globalPayload = payload as GlobalPolicyChangePayload;
     const beforePayload = buildGlobalPolicyPayloadFromSummary(setupData.globalPolicy);
@@ -1135,6 +1146,10 @@ async function applyPayload(
   scope: ConfigChangeScope,
   payload: ConfigPayloadByScope[ConfigChangeScope],
 ) {
+  if (scope === "workbook_setup") {
+    throw new Error("Workbook Fee Setup uses the aggregated workbook apply workflow.");
+  }
+
   if (scope === "global_policy") {
     const globalPayload = asScopePayload<"global_policy">(payload);
     await upsertGlobalFeePolicy({

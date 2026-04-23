@@ -54,8 +54,10 @@ Operational boundaries:
 
 - `Start Here` is the first daily worksheet for blockers, shortcuts, and
   recent office activity
-- `Fee Setup` is the canonical live path for fee-policy edits, defaults,
-  route defaults, student exceptions, and dues update review
+- `Fee Setup` is the canonical live path for the workbook-style fee sheet:
+  academic session, installment due dates, late fee, new/old academic fee,
+  class-wise annual tuition, route-wise annual transport fee, and dues update
+  review
 - `Dues & Receipts` is the workbook-style working area for receipt register,
   installment tracker, master fee statement shortcuts, class register,
   defaulters, today’s receipts, today’s collection, and import issues
@@ -92,8 +94,9 @@ Main routes and modules in the repo today:
 - `app/protected/fee-structure/page.tsx`
   alias route to fee setup area
 - `app/protected/fee-setup/page.tsx`
-  canonical global fee policy, school defaults, class defaults, transport
-  defaults, and student overrides, with mandatory impact preview and
+  workbook-style one-page fee setup screen for academic session, 4 installment
+  due dates, late fee, new/old academic fee, class-wise annual tuition, and
+  route-wise annual transport fee, with mandatory impact preview and
   confirm-apply flow
 - `app/protected/fee-setup/generate/page.tsx`
   preview + safe recalculation workflow for unpaid and future session ledger
@@ -124,7 +127,7 @@ Main routes and modules in the repo today:
 - `app/protected/master-data/page.tsx`
   admin CRUD for academic sessions, classes, and transport routes, with safe
   disable/delete guards; current fee heads and payment modes are shown there
-  for reference and routed to fee setup for live edits
+  for reference, while daily workbook fee edits stay in fee setup
 - `app/protected/settings/page.tsx`
   deployment readiness checks, active policy notes, and recent config-change
   batch history
@@ -303,17 +306,18 @@ Live fee configuration currently works like this:
 - `school_fee_defaults`, `fee_settings`, `transport_routes`, and
   `student_fee_overrides` are the editable default/override layers beneath the
   canonical policy
-- live policy/default edits should run through `/protected/fee-setup`, which
-  creates a preview batch, records changed fields, applies only after explicit
-  confirmation, and then runs ledger-safe propagation
+- live workbook fee setup edits should run through `/protected/fee-setup`,
+  which creates a preview batch, records changed fields, applies only after
+  explicit confirmation, and then runs ledger-safe propagation
 - `/protected/setup` is first-time go-live preparation only; once setup is
   marked complete, live edits move to fee setup or master data depending on the
   change type
-- `/protected/fee-setup` is now the primary live surface for academic years,
-  classes, routes, fee heads, payment modes, and fee-policy/default changes;
-  `/protected/master-data` remains available for direct admin maintenance, but
-  Fee Setup is the workflow staff should use first because preview and audit
-  stay attached there
+- `/protected/fee-setup` is now the primary live surface for the active
+  workbook-style fee sheet: academic session label, due dates, late fee,
+  new/old academic fee, class tuition, and route transport fee.
+  `/protected/master-data` remains available for direct admin maintenance of
+  sessions, classes, and routes, but Fee Setup is the workflow staff should use
+  first for live fee values because preview and audit stay attached there
 
 Propagation expectations:
 
@@ -408,4 +412,3 @@ Avoid:
 - [ ] Expense tracking (petty cash, staff salary).
 - [ ] Inventory management (uniforms, books).
 - [ ] Multi-session history migration for older years.
-

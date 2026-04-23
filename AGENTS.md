@@ -73,8 +73,10 @@ Operational boundaries:
 
 - `Start Here` is the first daily worksheet for blockers, shortcuts, and
   continue-task links
-- `Fee Setup` is the canonical live path for fee rules, defaults, route
-  defaults, student exceptions, and dues update review
+- `Fee Setup` is the canonical live path for workbook-style fee setup:
+  academic session, installment due dates, late fee, new/old academic fee,
+  class-wise annual tuition, route-wise annual transport fee, and dues update
+  review
 - `Dues & Receipts` is the workbook-style working area for receipt register,
   installment dues, class dues summary, overdue list, today’s receipts,
   today’s collection, and import issues
@@ -121,8 +123,9 @@ Fully implemented core:
 - Student Master with add, detail, and edit workflows
 - Student Spreadsheet Import: CSV/XLSX upload, column mapping, dry-run
   validation, duplicate detection, batch tracking, and valid-row-only save
-- Fee Setup: canonical global policy, school-wide defaults, class defaults,
-  transport defaults, and per-student overrides with impact preview and
+- Fee Setup: workbook-style one-page live setup for academic session, 4
+  installment due dates, flat late fee, new/old academic fee, class-wise
+  annual tuition, and route-wise annual transport fee, with impact preview and
   confirm-apply workflow
 - AY `2026-27` workbook parity with `workbook_v1`, exact seeded class tuition,
   exact seeded annual route defaults, workbook student status, signed other
@@ -145,7 +148,8 @@ Fully implemented core:
 - Master Data Management: admin CRUD for academic sessions, classes, and
   transport routes under `/protected/master-data`, with in-use delete guards
   and active/current session markers; fee heads and payment modes are shown
-  there for reference but edited through fee setup
+  there for reference, while the daily Fee Setup screen stays focused on
+  workbook-style fee values
 - Deployment Settings Validator showing env checks, policy notes, and recent
   config-change batch history
 - explicit access-denied route under `app/protected/access-denied`
@@ -154,7 +158,7 @@ Fully implemented core:
 - self password change under `app/protected/password`
 - append-only behavior enforced by RPCs and DB triggers on receipts, payments,
   payment_adjustments, and audit_logs
-- 16 tracked migrations covering schema, fee setup, config preview/apply,
+- 17 tracked migrations covering schema, fee setup, config preview/apply,
   payments, RBAC alignment, import workflow, setup progress, ledger
   regeneration, and finance-office controls
 - Role-Based Access Control (RBAC): `public.staff_role` enum and RLS policies
@@ -299,17 +303,18 @@ Treat the live configuration model like this:
 - `school_fee_defaults`, `fee_settings`, `transport_routes`, and
   `student_fee_overrides` are the editable default/override layers resolved
   beneath the canonical policy.
-- live policy/default edits should go through `/protected/fee-setup`, not setup
-  or master-data shortcuts, because fee setup creates `config_change_batches`,
-  shows impact preview, applies only after confirmation, and then runs
-  ledger-safe propagation.
+- live workbook fee setup edits should go through `/protected/fee-setup`, not
+  setup or master-data shortcuts, because fee setup creates
+  `config_change_batches`, shows impact preview, applies only after
+  confirmation, and then runs ledger-safe propagation.
 - `/protected/setup` is first-time go-live preparation. After setup completion,
   it becomes read-only for live policy/default edits.
-- `/protected/fee-setup` is now the primary live surface for academic years,
-  classes, routes, fee heads, payment modes, and fee-policy/default changes.
-  `/protected/master-data` remains available for direct admin maintenance, but
-  Fee Setup is the workflow staff should use first because preview, audit, and
-  propagation stay attached there.
+- `/protected/fee-setup` is now the primary live surface for the active
+  workbook-style fee sheet: academic session label, due dates, workbook fee
+  values, class tuition, and route transport fees. `/protected/master-data`
+  remains available for direct admin maintenance of sessions, classes, and
+  routes, but Fee Setup is the workflow staff should use first for live fee
+  values because preview, audit, and propagation stay attached there.
 
 Propagation expectations:
 
@@ -481,4 +486,3 @@ Prefer this order when adding or changing product behavior:
 
 When in doubt, choose the option that reduces staff confusion and preserves an
 audit trail.
-
