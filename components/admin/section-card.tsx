@@ -3,6 +3,7 @@ import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 type SectionCardProps = {
+  id?: string;
   title: string;
   description?: string;
   children: ReactNode;
@@ -11,6 +12,7 @@ type SectionCardProps = {
 };
 
 export function SectionCard({
+  id,
   title,
   description,
   children,
@@ -19,6 +21,7 @@ export function SectionCard({
 }: SectionCardProps) {
   return (
     <section
+      id={id}
       className={cn(
         "rounded-2xl border border-slate-200 bg-white p-5",
         className,

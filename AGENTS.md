@@ -133,7 +133,7 @@ Fully implemented core:
 - Payment Entry: append-only posting via RPC, with receipts generated as linked
   financial records
 - workbook-style dues views for transactions, installment tracker, master fee
-  statements, class register, defaulters, today’s receipts, and today’s
+  statements, class register, defaulters, todayï¿½s receipts, and todayï¿½s
   collection
 - Ledger: chronological per-student history with linked adjustment entries
 - Receipts: receipt list plus workbook-aligned printable per-receipt view
@@ -305,8 +305,11 @@ Treat the live configuration model like this:
   ledger-safe propagation.
 - `/protected/setup` is first-time go-live preparation. After setup completion,
   it becomes read-only for live policy/default edits.
-- `/protected/master-data` remains the editable source for sessions, classes,
-  and routes. Fee heads and payment modes are visible there for reference only.
+- `/protected/fee-setup` is now the primary live surface for academic years,
+  classes, routes, fee heads, payment modes, and fee-policy/default changes.
+  `/protected/master-data` remains available for direct admin maintenance, but
+  Fee Setup is the workflow staff should use first because preview, audit, and
+  propagation stay attached there.
 
 Propagation expectations:
 

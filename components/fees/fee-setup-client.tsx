@@ -21,9 +21,63 @@ import type {
 } from "@/lib/fees/types";
 import type { PaymentMode } from "@/lib/db/types";
 
+type StructureActionState = {
+  status: "idle" | "success" | "error";
+  message: string;
+};
+
+type AcademicSessionItem = {
+  id: string;
+  session_label: string;
+  status: "active" | "inactive" | "archived";
+  is_current: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type ClassItem = {
+  id: string;
+  session_label: string;
+  class_name: string;
+  section: string | null;
+  stream_name: string | null;
+  sort_order: number;
+  status: "active" | "inactive" | "archived";
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type RouteItem = {
+  id: string;
+  route_code: string | null;
+  route_name: string;
+  default_installment_amount: number;
+  annual_fee_amount?: number | null;
+  is_active: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type StructureData = {
+  sessions: AcademicSessionItem[];
+  classes: ClassItem[];
+  routes: RouteItem[];
+  currentSessionLabel: string | null;
+};
+
+type ActionFn<TState> = (
+  previous: TState,
+  formData: FormData,
+) => Promise<TState>;
+
 type FeeSetupClientProps = {
   data: FeeSetupPageData;
+  structureData: StructureData;
   canEdit: boolean;
+  canStructureEdit: boolean;
   saveGlobalPolicyAction: (
     previous: FeeSetupActionState,
     formData: FormData,
@@ -44,7 +98,17 @@ type FeeSetupClientProps = {
     previous: FeeSetupActionState,
     formData: FormData,
   ) => Promise<FeeSetupActionState>;
+  createSessionAction: ActionFn<StructureActionState>;
+  updateSessionAction: ActionFn<StructureActionState>;
+  deleteSessionAction: ActionFn<StructureActionState>;
+  createClassAction: ActionFn<StructureActionState>;
+  updateClassAction: ActionFn<StructureActionState>;
+  deleteClassAction: ActionFn<StructureActionState>;
+  createRouteAction: ActionFn<StructureActionState>;
+  updateRouteAction: ActionFn<StructureActionState>;
+  deleteRouteAction: ActionFn<StructureActionState>;
   initialState: FeeSetupActionState;
+  structureInitialState: StructureActionState;
 };
 
 type EditableFeeHead = FeeHeadDefinition & {
@@ -265,6 +329,34 @@ function useRefreshOnSuccess(
     transportState.status,
     studentState.status,
   ]);
+}
+
+function StructureNotice({ state }: { state: StructureActionState }) {
+  if (state.status === "idle" || !state.message) {
+    return null;
+  }
+
+  return (
+    <div
+      className={
+        state.status === "error"
+          ? "rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+          : "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
+      }
+    >
+      {state.message}
+    </div>
+  );
+}
+
+function LifecycleStatusSelect({ name, value }: { name: string; value: string }) {
+  return (
+    <select name={name} defaultValue={value} className={selectClassName}>
+      <option value="active">Active</option>
+      <option value="inactive">Inactive</option>
+      <option value="archived">Archived</option>
+    </select>
+  );
 }
 
 function FeeHeadCatalogEditor({
@@ -526,15 +618,484 @@ function StudentOverridesTable({ items }: { items: StudentFeeOverride[] }) {
   );
 }
 
+function AcademicYearSection({
+  structureData,
+  canEdit,
+  structureInitialState,
+  createSessionAction,
+  updateSessionAction,
+  deleteSessionAction,
+}: {
+  structureData: StructureData;
+  canEdit: boolean;
+  structureInitialState: StructureActionState;
+  createSessionAction: ActionFn<StructureActionState>;
+  updateSessionAction: ActionFn<StructureActionState>;
+  deleteSessionAction: ActionFn<StructureActionState>;
+}) {
+  const router = useRouter();
+  const [createState, createFormAction] = useActionState(
+    createSessionAction,
+    structureInitialState,
+  );
+  const [updateState, updateFormAction] = useActionState(
+    updateSessionAction,
+    structureInitialState,
+  );
+  const [deleteState, deleteFormAction] = useActionState(
+    deleteSessionAction,
+    structureInitialState,
+  );
+
+  useEffect(() => {
+    if (
+      createState.status === "success" ||
+      updateState.status === "success" ||
+      deleteState.status === "success"
+    ) {
+      router.refresh();
+    }
+  }, [router, createState.status, updateState.status, deleteState.status]);
+
+  return (
+    <SectionCard
+      id="academic-year"
+      title="Academic year"
+      description="Create, activate, archive, or safely remove academic years. The selected year becomes the live label used by the fee policy below."
+      actions={canEdit ? <StatusBadge label="Admin editable" tone="good" /> : <StatusBadge label="Read-only" tone="warning" />}
+    >
+      <div className="space-y-4">
+        <StructureNotice state={createState} />
+        <StructureNotice state={updateState} />
+        <StructureNotice state={deleteState} />
+
+        {!canEdit ? (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            Academic years are visible here, but only admin staff can create, update, or archive them.
+          </div>
+        ) : (
+          <form action={createFormAction} className="grid gap-3 rounded-xl border border-slate-200 p-4 md:grid-cols-5">
+            <div className="md:col-span-2">
+              <Label htmlFor="new-session-label">Academic year</Label>
+              <Input id="new-session-label" name="sessionLabel" placeholder="2027-28" className="mt-1" required />
+            </div>
+            <div>
+              <Label>Status</Label>
+              <LifecycleStatusSelect name="sessionStatus" value="active" />
+            </div>
+            <div>
+              <Label>Make current</Label>
+              <select name="isCurrentSession" defaultValue="yes" className={selectClassName}>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="new-session-notes">Notes</Label>
+              <Input id="new-session-notes" name="sessionNotes" className="mt-1" placeholder="Optional note" />
+            </div>
+            <div className="md:col-span-5 text-xs text-slate-500">
+              Tip: create the new year here first, then save the live fee policy below with the same year label.
+            </div>
+            <Button type="submit" className="w-fit md:col-span-5">
+              Add academic year
+            </Button>
+          </form>
+        )}
+
+        <div className="space-y-3">
+          {structureData.sessions.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+              No academic years saved yet. Add the active year before setting live fees.
+            </div>
+          ) : (
+            structureData.sessions.map((session) => (
+              <div key={session.id} className="rounded-xl border border-slate-200 p-4">
+                <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-slate-950">{session.session_label}</p>
+                    <p className="text-xs text-slate-500">
+                      {session.is_current ? "Current academic year" : "Not current"} · {session.status}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {session.is_current ? <StatusBadge label="Current" tone="good" /> : null}
+                    {session.status === "archived" ? <StatusBadge label="Archived" tone="warning" /> : null}
+                  </div>
+                </div>
+
+                <form action={updateFormAction} className="grid gap-3 md:grid-cols-5">
+                  <input type="hidden" name="sessionId" value={session.id} />
+                  <div className="md:col-span-2">
+                    <Label>Academic year</Label>
+                    <Input name="sessionLabel" defaultValue={session.session_label} className="mt-1" required />
+                  </div>
+                  <div>
+                    <Label>Status</Label>
+                    <LifecycleStatusSelect name="sessionStatus" value={session.status} />
+                  </div>
+                  <div>
+                    <Label>Make current</Label>
+                    <select
+                      name="isCurrentSession"
+                      defaultValue={session.is_current ? "yes" : "no"}
+                      className={selectClassName}
+                    >
+                      <option value="yes">Yes</option>
+                      <option value="no">No</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label>Notes</Label>
+                    <Input name="sessionNotes" defaultValue={session.notes ?? ""} className="mt-1" />
+                  </div>
+                  <div className="flex flex-wrap gap-2 md:col-span-5">
+                    <Button type="submit" disabled={!canEdit}>Save year</Button>
+                  </div>
+                </form>
+
+                <form action={deleteFormAction} className="mt-3">
+                  <input type="hidden" name="sessionId" value={session.id} />
+                  <Button type="submit" variant="outline" disabled={!canEdit}>
+                    Delete year safely
+                  </Button>
+                </form>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </SectionCard>
+  );
+}
+
+function ClassManagementSection({
+  structureData,
+  canEdit,
+  structureInitialState,
+  createClassAction,
+  updateClassAction,
+  deleteClassAction,
+}: {
+  structureData: StructureData;
+  canEdit: boolean;
+  structureInitialState: StructureActionState;
+  createClassAction: ActionFn<StructureActionState>;
+  updateClassAction: ActionFn<StructureActionState>;
+  deleteClassAction: ActionFn<StructureActionState>;
+}) {
+  const router = useRouter();
+  const [createState, createFormAction] = useActionState(createClassAction, structureInitialState);
+  const [updateState, updateFormAction] = useActionState(updateClassAction, structureInitialState);
+  const [deleteState, deleteFormAction] = useActionState(deleteClassAction, structureInitialState);
+
+  useEffect(() => {
+    if (
+      createState.status === "success" ||
+      updateState.status === "success" ||
+      deleteState.status === "success"
+    ) {
+      router.refresh();
+    }
+  }, [router, createState.status, updateState.status, deleteState.status]);
+
+  return (
+    <SectionCard
+      id="classes"
+      title="Classes"
+      description="Add classes, keep their names and order current, and manage safe archival without touching payment history. Class fee amounts are saved in the class defaults section below."
+      actions={canEdit ? <StatusBadge label="Admin editable" tone="good" /> : <StatusBadge label="Read-only" tone="warning" />}
+    >
+      <div className="space-y-4">
+        <StructureNotice state={createState} />
+        <StructureNotice state={updateState} />
+        <StructureNotice state={deleteState} />
+
+        {!canEdit ? (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            Class records are visible here, but only admin staff can change them.
+          </div>
+        ) : (
+          <form action={createFormAction} className="grid gap-3 rounded-xl border border-slate-200 p-4 md:grid-cols-6">
+            <div>
+              <Label>Academic year</Label>
+              <select name="sessionLabel" className={`${selectClassName} mt-1`} required>
+                <option value="">Select year</option>
+                {structureData.sessions.map((session) => (
+                  <option key={session.id} value={session.session_label}>
+                    {session.session_label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label>Class name</Label>
+              <Input name="className" className="mt-1" placeholder="Class 1" required />
+            </div>
+            <div>
+              <Label>Section</Label>
+              <Input name="section" className="mt-1" placeholder="A" />
+            </div>
+            <div>
+              <Label>Stream</Label>
+              <Input name="streamName" className="mt-1" placeholder="Science" />
+            </div>
+            <div>
+              <Label>Sort order</Label>
+              <Input name="sortOrder" type="number" min={0} defaultValue={0} className="mt-1" required />
+            </div>
+            <div>
+              <Label>Status</Label>
+              <LifecycleStatusSelect name="classStatus" value="active" />
+            </div>
+            <div className="md:col-span-6">
+              <Label>Notes</Label>
+              <Input name="classNotes" className="mt-1" placeholder="Optional note" />
+            </div>
+            <Button type="submit" className="w-fit md:col-span-6">
+              Add class
+            </Button>
+          </form>
+        )}
+
+        <div className="space-y-3">
+          {structureData.classes.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+              No classes saved yet.
+            </div>
+          ) : (
+            structureData.classes.map((item) => (
+              <div key={item.id} className="rounded-xl border border-slate-200 p-4">
+                <form action={updateFormAction} className="grid gap-3 md:grid-cols-6">
+                  <input type="hidden" name="classId" value={item.id} />
+                  <div>
+                    <Label>Academic year</Label>
+                    <select name="sessionLabel" defaultValue={item.session_label} className={`${selectClassName} mt-1`} required>
+                      {structureData.sessions.map((session) => (
+                        <option key={session.id} value={session.session_label}>
+                          {session.session_label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label>Class name</Label>
+                    <Input name="className" defaultValue={item.class_name} className="mt-1" required />
+                  </div>
+                  <div>
+                    <Label>Section</Label>
+                    <Input name="section" defaultValue={item.section ?? ""} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label>Stream</Label>
+                    <Input name="streamName" defaultValue={item.stream_name ?? ""} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label>Sort order</Label>
+                    <Input name="sortOrder" type="number" min={0} defaultValue={item.sort_order} className="mt-1" required />
+                  </div>
+                  <div>
+                    <Label>Status</Label>
+                    <LifecycleStatusSelect name="classStatus" value={item.status} />
+                  </div>
+                  <div className="md:col-span-6">
+                    <Label>Notes</Label>
+                    <Input name="classNotes" defaultValue={item.notes ?? ""} className="mt-1" />
+                  </div>
+                  <div className="flex flex-wrap gap-2 md:col-span-6">
+                    <Button type="submit" disabled={!canEdit}>Save class</Button>
+                  </div>
+                </form>
+                <form action={deleteFormAction} className="mt-3">
+                  <input type="hidden" name="classId" value={item.id} />
+                  <Button type="submit" variant="outline" disabled={!canEdit}>
+                    Delete class safely
+                  </Button>
+                </form>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </SectionCard>
+  );
+}
+
+function RouteManagementSection({
+  structureData,
+  canEdit,
+  structureInitialState,
+  createRouteAction,
+  updateRouteAction,
+  deleteRouteAction,
+}: {
+  structureData: StructureData;
+  canEdit: boolean;
+  structureInitialState: StructureActionState;
+  createRouteAction: ActionFn<StructureActionState>;
+  updateRouteAction: ActionFn<StructureActionState>;
+  deleteRouteAction: ActionFn<StructureActionState>;
+}) {
+  const router = useRouter();
+  const [createState, createFormAction] = useActionState(createRouteAction, structureInitialState);
+  const [updateState, updateFormAction] = useActionState(updateRouteAction, structureInitialState);
+  const [deleteState, deleteFormAction] = useActionState(deleteRouteAction, structureInitialState);
+
+  useEffect(() => {
+    if (
+      createState.status === "success" ||
+      updateState.status === "success" ||
+      deleteState.status === "success"
+    ) {
+      router.refresh();
+    }
+  }, [router, createState.status, updateState.status, deleteState.status]);
+
+  return (
+    <SectionCard
+      id="transport-routes"
+      title="Transport routes"
+      description="Add routes, adjust route codes and amounts, and archive unused routes safely. No Transport is handled by turning transport off for a student or class; it does not need a dummy route row."
+      actions={canEdit ? <StatusBadge label="Admin editable" tone="good" /> : <StatusBadge label="Read-only" tone="warning" />}
+    >
+      <div className="space-y-4">
+        <StructureNotice state={createState} />
+        <StructureNotice state={updateState} />
+        <StructureNotice state={deleteState} />
+
+        {!canEdit ? (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            Transport routes are visible here, but only admin staff can change them.
+          </div>
+        ) : (
+          <form action={createFormAction} className="grid gap-3 rounded-xl border border-slate-200 p-4 md:grid-cols-5">
+            <div>
+              <Label>Route code</Label>
+              <Input name="routeCode" className="mt-1" placeholder="R1" />
+            </div>
+            <div>
+              <Label>Route name</Label>
+              <Input name="routeName" className="mt-1" placeholder="Main town route" required />
+            </div>
+            <div>
+              <Label>Annual fee</Label>
+              <Input name="annualFeeAmount" type="number" min={0} defaultValue={0} className="mt-1" />
+            </div>
+            <div>
+              <Label>Legacy installment amount</Label>
+              <Input name="defaultInstallmentAmount" type="number" min={0} defaultValue={0} className="mt-1" required />
+            </div>
+            <div>
+              <Label>Status</Label>
+              <select name="routeIsActive" defaultValue="yes" className={`${selectClassName} mt-1`}>
+                <option value="yes">Active</option>
+                <option value="no">Inactive</option>
+              </select>
+            </div>
+            <div className="md:col-span-5">
+              <Label>Notes</Label>
+              <Input name="routeNotes" className="mt-1" placeholder="Optional note" />
+            </div>
+            <Button type="submit" className="w-fit md:col-span-5">
+              Add route
+            </Button>
+          </form>
+        )}
+
+        <div className="space-y-3">
+          {structureData.routes.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+              No transport routes saved yet.
+            </div>
+          ) : (
+            structureData.routes.map((item) => (
+              <div key={item.id} className="rounded-xl border border-slate-200 p-4">
+                <form action={updateFormAction} className="grid gap-3 md:grid-cols-5">
+                  <input type="hidden" name="routeId" value={item.id} />
+                  <div>
+                    <Label>Route code</Label>
+                    <Input name="routeCode" defaultValue={item.route_code ?? ""} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label>Route name</Label>
+                    <Input name="routeName" defaultValue={item.route_name} className="mt-1" required />
+                  </div>
+                  <div>
+                    <Label>Annual fee</Label>
+                    <Input
+                      name="annualFeeAmount"
+                      type="number"
+                      min={0}
+                      defaultValue={item.annual_fee_amount ?? 0}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>Legacy installment amount</Label>
+                    <Input
+                      name="defaultInstallmentAmount"
+                      type="number"
+                      min={0}
+                      defaultValue={item.default_installment_amount}
+                      className="mt-1"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label>Status</Label>
+                    <select
+                      name="routeIsActive"
+                      defaultValue={item.is_active ? "yes" : "no"}
+                      className={`${selectClassName} mt-1`}
+                    >
+                      <option value="yes">Active</option>
+                      <option value="no">Inactive</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-5">
+                    <Label>Notes</Label>
+                    <Input name="routeNotes" defaultValue={item.notes ?? ""} className="mt-1" />
+                  </div>
+                  <div className="flex flex-wrap gap-2 md:col-span-5">
+                    <Button type="submit" disabled={!canEdit}>Save route</Button>
+                  </div>
+                </form>
+                <form action={deleteFormAction} className="mt-3">
+                  <input type="hidden" name="routeId" value={item.id} />
+                  <Button type="submit" variant="outline" disabled={!canEdit}>
+                    Delete route safely
+                  </Button>
+                </form>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </SectionCard>
+  );
+}
+
 export function FeeSetupClient({
   data,
+  structureData,
   canEdit,
+  canStructureEdit,
   saveGlobalPolicyAction,
   saveSchoolDefaultsAction,
   saveClassDefaultsAction,
   saveTransportDefaultsAction,
   saveStudentOverrideAction,
+  createSessionAction,
+  updateSessionAction,
+  deleteSessionAction,
+  createClassAction,
+  updateClassAction,
+  deleteClassAction,
+  createRouteAction,
+  updateRouteAction,
+  deleteRouteAction,
   initialState,
+  structureInitialState,
 }: FeeSetupClientProps) {
   const [globalState, globalFormAction, globalPending] = useActionState(
     saveGlobalPolicyAction,
@@ -597,8 +1158,63 @@ export function FeeSetupClient({
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-3 text-sm text-slate-600">
+        <a className="rounded-full border border-slate-200 px-3 py-1 hover:border-slate-400 hover:text-slate-900" href="#academic-year">
+          Academic Year
+        </a>
+        <a className="rounded-full border border-slate-200 px-3 py-1 hover:border-slate-400 hover:text-slate-900" href="#classes">
+          Classes
+        </a>
+        <a className="rounded-full border border-slate-200 px-3 py-1 hover:border-slate-400 hover:text-slate-900" href="#transport-routes">
+          Transport Routes
+        </a>
+        <a className="rounded-full border border-slate-200 px-3 py-1 hover:border-slate-400 hover:text-slate-900" href="#academic-fees">
+          Academic Fees
+        </a>
+        <a className="rounded-full border border-slate-200 px-3 py-1 hover:border-slate-400 hover:text-slate-900" href="#other-fee-types">
+          Other Fee Types
+        </a>
+        <a className="rounded-full border border-slate-200 px-3 py-1 hover:border-slate-400 hover:text-slate-900" href="#installments">
+          Installments & Due Dates
+        </a>
+        <a className="rounded-full border border-slate-200 px-3 py-1 hover:border-slate-400 hover:text-slate-900" href="#fine">
+          Fine / Late Fee
+        </a>
+        <a className="rounded-full border border-slate-200 px-3 py-1 hover:border-slate-400 hover:text-slate-900" href="#review-save">
+          Review & Save
+        </a>
+      </div>
+
+      <AcademicYearSection
+        structureData={structureData}
+        canEdit={canStructureEdit}
+        structureInitialState={structureInitialState}
+        createSessionAction={createSessionAction}
+        updateSessionAction={updateSessionAction}
+        deleteSessionAction={deleteSessionAction}
+      />
+
+      <ClassManagementSection
+        structureData={structureData}
+        canEdit={canStructureEdit}
+        structureInitialState={structureInitialState}
+        createClassAction={createClassAction}
+        updateClassAction={updateClassAction}
+        deleteClassAction={deleteClassAction}
+      />
+
+      <RouteManagementSection
+        structureData={structureData}
+        canEdit={canStructureEdit}
+        structureInitialState={structureInitialState}
+        createRouteAction={createRouteAction}
+        updateRouteAction={updateRouteAction}
+        deleteRouteAction={deleteRouteAction}
+      />
+
       <SectionCard
-        title="Field guide"
+        id="review-save"
+        title="Review & Save"
         description="Use the same visual language everywhere: editable values can change here, policy-driven values flow into dues, and paid history stays locked."
       >
         <div className="flex flex-wrap gap-2">
@@ -617,8 +1233,9 @@ export function FeeSetupClient({
       ) : null}
 
       <SectionCard
-        title="Live fee policy"
-        description="This is the main live policy used by dues updates, payment mode checks, dashboard notes, reports, and settings."
+        id="academic-fees"
+        title="Academic fees"
+        description="This is the main live fee policy used by dues updates, payment mode checks, dashboard notes, reports, and settings."
         actions={
           canEdit ? (
             <StatusBadge label="Admin editable" tone="good" />
@@ -669,8 +1286,18 @@ export function FeeSetupClient({
                 readOnly
               />
             </div>
-            <div>
+            <div id="fine">
               <Label htmlFor="policy-late-fee">Late fee rule</Label>
+              <select
+                id="policy-late-fee-enabled"
+                name="lateFeeEnabled"
+                defaultValue={data.globalPolicy.lateFeeFlatAmount > 0 ? "yes" : "no"}
+                className={`${selectClassName} mt-2`}
+                disabled={!canEdit}
+              >
+                <option value="yes">Enabled</option>
+                <option value="no">Disabled</option>
+              </select>
               <Input
                 id="policy-late-fee"
                 name="lateFeeFlatAmount"
@@ -721,7 +1348,7 @@ export function FeeSetupClient({
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div id="installments" className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
                 <Label>Installment due schedule</Label>
@@ -818,11 +1445,13 @@ export function FeeSetupClient({
             </div>
           </div>
 
-          <FeeHeadCatalogEditor
-            feeHeads={feeHeads}
-            setFeeHeads={setFeeHeads}
-            canEdit={canEdit}
-          />
+          <div id="other-fee-types" className="space-y-3">
+            <FeeHeadCatalogEditor
+              feeHeads={feeHeads}
+              setFeeHeads={setFeeHeads}
+              canEdit={canEdit}
+            />
+          </div>
 
           <div>
             <Label htmlFor="policy-notes">Policy notes</Label>
@@ -854,7 +1483,7 @@ export function FeeSetupClient({
       </SectionCard>
 
       <SectionCard
-        title="School defaults"
+        title="Academic fee defaults"
         description="Set the base amounts used when a class does not need its own live default."
         actions={
           canEdit ? (
@@ -984,7 +1613,7 @@ export function FeeSetupClient({
       </SectionCard>
 
       <SectionCard
-        title="Class defaults"
+        title="Class fee defaults"
         description="Each class keeps one live default record. Dues use the class default before falling back to school defaults."
         actions={
           canEdit ? (
@@ -1164,7 +1793,7 @@ export function FeeSetupClient({
       </SectionCard>
 
       <SectionCard
-        title="Route defaults"
+        title="Transport route defaults"
         description="Set route-wise transport amounts used for future and unpaid dues only."
         actions={
           canEdit ? (

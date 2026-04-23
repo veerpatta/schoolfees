@@ -50,9 +50,10 @@ Operational rule:
   so preview/apply safety, audit batches, and ledger-safe propagation all run
 - `/protected/setup` is for first-time go-live preparation only; after setup is
   marked complete, it should no longer be used as a live policy editing path
-- `/protected/master-data` remains the editable source for sessions, classes,
-  and routes; fee heads and payment modes are visible there but edited in fee
-  setup
+- `/protected/fee-setup` is the primary live surface for academic years,
+  classes, routes, fee heads, payment modes, and fee-policy/default changes;
+  `/protected/master-data` still exists, but Fee Setup is the preferred daily
+  workflow because preview, audit, and safe propagation stay attached there
 
 Daily workflow boundary:
 

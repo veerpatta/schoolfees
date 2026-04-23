@@ -4,6 +4,7 @@ import { FeeSetupClient } from "@/components/fees/fee-setup-client";
 import { PageHeader } from "@/components/admin/page-header";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
+import { getMasterDataPageData } from "@/lib/master-data/data";
 import { getFeeSetupPageData } from "@/lib/fees/data";
 import { INITIAL_FEE_SETUP_ACTION_STATE } from "@/lib/fees/types";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
@@ -15,25 +16,41 @@ import {
   saveStudentOverrideAction,
   saveTransportDefaultsAction,
 } from "./actions";
+import {
+  createSessionAction,
+  updateSessionAction,
+  deleteSessionAction,
+  createClassAction,
+  updateClassAction,
+  deleteClassAction,
+  createRouteAction,
+  updateRouteAction,
+  deleteRouteAction,
+} from "../master-data/actions";
 
 export default async function FeeSetupPage() {
-  const [staff, data] = await Promise.all([
+  const [staff, data, structureData] = await Promise.all([
     requireStaffPermission("fees:view", { onDenied: "redirect" }),
     getFeeSetupPageData(),
+    getMasterDataPageData(),
   ]);
 
   const canEdit = hasStaffPermission(staff, "fees:write");
+  const canStructureEdit = hasStaffPermission(staff, "settings:write");
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Fee Setup"
         title="Live fee rules and defaults"
-        description="Update fee rules, school defaults, class defaults, route defaults, and student exceptions with review-first safety before anything changes live."
+        description="Manage the active academic year, classes, transport routes, fee defaults, installments, late fee rules, and student exceptions in one review-first office workflow."
         actions={
-          canEdit ? (
+          canEdit || canStructureEdit ? (
             <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
-              <StatusBadge label="Admin write access" tone="good" />
+              <StatusBadge
+                label={canStructureEdit ? "Admin write access" : "Fee-only write access"}
+                tone="good"
+              />
               <Button asChild size="sm">
                 <Link href="/protected/fee-setup/generate">Recalculate Dues</Link>
               </Button>
@@ -46,13 +63,25 @@ export default async function FeeSetupPage() {
 
       <FeeSetupClient
         data={data}
+        structureData={structureData}
         canEdit={canEdit}
+        canStructureEdit={canStructureEdit}
         saveGlobalPolicyAction={saveGlobalPolicyAction}
         saveSchoolDefaultsAction={saveSchoolDefaultsAction}
         saveClassDefaultsAction={saveClassDefaultsAction}
         saveTransportDefaultsAction={saveTransportDefaultsAction}
         saveStudentOverrideAction={saveStudentOverrideAction}
+        createSessionAction={createSessionAction}
+        updateSessionAction={updateSessionAction}
+        deleteSessionAction={deleteSessionAction}
+        createClassAction={createClassAction}
+        updateClassAction={updateClassAction}
+        deleteClassAction={deleteClassAction}
+        createRouteAction={createRouteAction}
+        updateRouteAction={updateRouteAction}
+        deleteRouteAction={deleteRouteAction}
         initialState={INITIAL_FEE_SETUP_ACTION_STATE}
+        structureInitialState={{ status: "idle", message: "" }}
       />
     </div>
   );

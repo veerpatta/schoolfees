@@ -126,7 +126,8 @@ The app now maps more closely to the school’s workbook flow:
   overdue follow-up
 - `Students` behaves like the student-wise detail sheet
 - `Fee Setup` behaves like the controlled live policy/default sheet with audit
-  protection behind it
+  protection behind it, and it now also carries the live academic-year,
+  class, and transport-route workflow
 - `Advanced` keeps the less-frequent admin tasks out of the daily path
 
 ## Canonical Configuration Model
@@ -142,10 +143,9 @@ Live fee configuration now follows one explicit model:
 - live policy/default changes should run through `/protected/fee-setup`, which
   creates a preview batch, shows impact, and only applies future or unpaid
   ledger changes after explicit confirmation.
-- `/protected/master-data` remains the editable source for academic sessions,
-  classes, and transport routes. Current fee heads and payment modes are shown
-  there for reference, but live edits now happen in fee setup so the
-  preview/apply audit trail stays intact.
+- `/protected/master-data` remains available for direct admin maintenance, but
+  live academic-year, class, route, and fee-policy edits should happen in fee
+  setup so the preview/apply audit trail stays intact.
 - `/protected/setup` is first-time go-live setup only. After setup is marked
   complete, the wizard stays readable but no longer acts as a live-edit path
   for policy/default changes.

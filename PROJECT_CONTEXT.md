@@ -309,9 +309,11 @@ Live fee configuration currently works like this:
 - `/protected/setup` is first-time go-live preparation only; once setup is
   marked complete, live edits move to fee setup or master data depending on the
   change type
-- `/protected/master-data` remains the editable source for sessions, classes,
-  and routes; fee heads and payment modes are visible there but edited in fee
-  setup so policy audit behavior stays consistent
+- `/protected/fee-setup` is now the primary live surface for academic years,
+  classes, routes, fee heads, payment modes, and fee-policy/default changes;
+  `/protected/master-data` remains available for direct admin maintenance, but
+  Fee Setup is the workflow staff should use first because preview and audit
+  stay attached there
 
 Propagation expectations:
 

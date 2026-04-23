@@ -316,6 +316,7 @@ function revalidateFeePolicySurface() {
   revalidatePath("/protected/fee-setup");
   revalidatePath("/protected/fee-setup/generate");
   revalidatePath("/protected/fee-structure");
+  revalidatePath("/protected/master-data");
   revalidatePath("/protected/payments");
   revalidatePath("/protected/collections");
   revalidatePath("/protected/defaulters");
@@ -343,10 +344,10 @@ export async function saveGlobalPolicyAction(
         academicSessionLabel: (formData.get("academicSessionLabel") ?? "").toString().trim(),
         calculationModel: parseCalculationModel(formData.get("calculationModel")),
         installmentSchedule: parseInstallmentSchedule(formData),
-        lateFeeFlatAmount: parseRequiredNonNegativeInt(
-          formData.get("lateFeeFlatAmount"),
-          "Late fee",
-        ),
+        lateFeeFlatAmount:
+          parseBooleanSelect(formData.get("lateFeeEnabled"), "Late fee")
+            ? parseRequiredNonNegativeInt(formData.get("lateFeeFlatAmount"), "Late fee")
+            : 0,
         newStudentAcademicFeeAmount: parseRequiredNonNegativeInt(
           formData.get("newStudentAcademicFeeAmount"),
           "New student academic fee",
