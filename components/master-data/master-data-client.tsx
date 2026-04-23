@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -171,6 +171,39 @@ export function MasterDataClient({
     actions.setPaymentModeActiveAction,
     initialActionState,
   );
+  const [classSearch, setClassSearch] = useState("");
+  const [routeSearch, setRouteSearch] = useState("");
+
+  const normalizedClassSearch = classSearch.trim().toLowerCase();
+  const normalizedRouteSearch = routeSearch.trim().toLowerCase();
+  const filteredClasses = normalizedClassSearch
+    ? classes.filter((item) => {
+        const searchHaystack = [
+          item.session_label,
+          item.class_name,
+          item.section ?? "",
+          item.stream_name ?? "",
+          item.notes ?? "",
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        return searchHaystack.includes(normalizedClassSearch);
+      })
+    : classes;
+  const filteredRoutes = normalizedRouteSearch
+    ? routes.filter((item) => {
+        const searchHaystack = [
+          item.route_code ?? "",
+          item.route_name,
+          item.notes ?? "",
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        return searchHaystack.includes(normalizedRouteSearch);
+      })
+    : routes;
 
   return (
     <div className="space-y-8">
@@ -252,7 +285,27 @@ export function MasterDataClient({
       </section>
 
       <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-semibold text-slate-950">Classes</h2>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-950">Classes</h2>
+            <p className="text-sm text-slate-600">
+              Search the class list, then edit rows inline. Delete actions stay on the same row.
+            </p>
+          </div>
+          <div className="w-full max-w-sm">
+            <Label htmlFor="class-search">Search classes</Label>
+            <Input
+              id="class-search"
+              value={classSearch}
+              onChange={(event) => setClassSearch(event.target.value)}
+              placeholder="Class name, section, session"
+              className="mt-1"
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Showing {filteredClasses.length} of {classes.length} classes
+            </p>
+          </div>
+        </div>
         <ActionMessage state={classCreateState} />
         <ActionMessage state={classUpdateState} />
         <ActionMessage state={classDeleteState} />
@@ -297,13 +350,12 @@ export function MasterDataClient({
         </form>
 
         <div className="space-y-3">
-          {classes.length === 0 ? (
+          {filteredClasses.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
-              No classes saved yet. Add classes for the active session before student
-              entry or fee-default work.
+              No matching classes found. Clear the search or add a new class row.
             </div>
           ) : (
-            classes.map((item) => (
+            filteredClasses.map((item) => (
               <div key={item.id} className="rounded-xl border border-slate-200 p-3">
                 <form action={updateClassFormAction} className="grid gap-3 md:grid-cols-6">
                   <input type="hidden" name="classId" value={item.id} />
@@ -343,11 +395,10 @@ export function MasterDataClient({
                   </div>
                   <div className="flex flex-wrap gap-2 md:col-span-6">
                     <Button type="submit">Save class</Button>
+                    <Button type="submit" variant="outline" formAction={deleteClassFormAction}>
+                      Delete class
+                    </Button>
                   </div>
-                </form>
-                <form action={deleteClassFormAction} className="mt-2">
-                  <input type="hidden" name="classId" value={item.id} />
-                  <Button type="submit" variant="outline">Delete class</Button>
                 </form>
               </div>
             ))
@@ -356,7 +407,27 @@ export function MasterDataClient({
       </section>
 
       <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-semibold text-slate-950">Transport Routes</h2>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-950">Transport Routes</h2>
+            <p className="text-sm text-slate-600">
+              Search the route list, then edit route fee rows inline.
+            </p>
+          </div>
+          <div className="w-full max-w-sm">
+            <Label htmlFor="route-search">Search routes</Label>
+            <Input
+              id="route-search"
+              value={routeSearch}
+              onChange={(event) => setRouteSearch(event.target.value)}
+              placeholder="Route code or route name"
+              className="mt-1"
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Showing {filteredRoutes.length} of {routes.length} routes
+            </p>
+          </div>
+        </div>
         <ActionMessage state={routeCreateState} />
         <ActionMessage state={routeUpdateState} />
         <ActionMessage state={routeDeleteState} />
@@ -389,13 +460,12 @@ export function MasterDataClient({
         </form>
 
         <div className="space-y-3">
-          {routes.length === 0 ? (
+          {filteredRoutes.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
-              No transport routes saved yet. If the school uses transport, add route
-              rows here before assigning students or recalculating dues.
+              No matching routes found. Clear the search or add a new route row.
             </div>
           ) : (
-            routes.map((item) => (
+            filteredRoutes.map((item) => (
               <div key={item.id} className="rounded-xl border border-slate-200 p-3">
                 <form action={updateRouteFormAction} className="grid gap-3 md:grid-cols-5">
                   <input type="hidden" name="routeId" value={item.id} />
@@ -435,11 +505,10 @@ export function MasterDataClient({
                   </div>
                   <div className="flex flex-wrap gap-2 md:col-span-5">
                     <Button type="submit">Save route</Button>
+                    <Button type="submit" variant="outline" formAction={deleteRouteFormAction}>
+                      Delete route
+                    </Button>
                   </div>
-                </form>
-                <form action={deleteRouteFormAction} className="mt-2">
-                  <input type="hidden" name="routeId" value={item.id} />
-                  <Button type="submit" variant="outline">Delete route</Button>
                 </form>
               </div>
             ))

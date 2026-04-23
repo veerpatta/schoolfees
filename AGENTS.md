@@ -306,7 +306,9 @@ Treat the live configuration model like this:
 - live workbook fee setup edits should go through `/protected/fee-setup`, not
   setup or master-data shortcuts, because fee setup creates
   `config_change_batches`, shows impact preview, applies only after
-  confirmation, and then runs ledger-safe propagation.
+  confirmation, and then runs ledger-safe propagation; when the academic
+  session changes, the save flow creates a fresh fee-policy snapshot for the
+  new session instead of rewriting the prior year in place.
 - `/protected/setup` is first-time go-live preparation. After setup completion,
   it becomes read-only for live policy/default edits.
 - `/protected/fee-setup` is now the primary live surface for the active

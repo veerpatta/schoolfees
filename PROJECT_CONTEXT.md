@@ -97,7 +97,9 @@ Main routes and modules in the repo today:
   workbook-style fee setup screen for academic session, editable installment
   schedule, late fee, new/old academic fee, class-wise annual tuition, route-
   wise annual transport fee, and embedded supporting list management, with
-  mandatory impact preview and confirm-apply flow
+  mandatory impact preview and confirm-apply flow; a changed academic session
+  now saves as a fresh fee-policy snapshot instead of overwriting the prior
+  year in place
 - `app/protected/fee-setup/generate/page.tsx`
   preview + safe recalculation workflow for unpaid and future session ledger
   installments, with paid/partial rows flagged for review
@@ -128,7 +130,7 @@ Main routes and modules in the repo today:
   admin CRUD for academic sessions, classes, transport routes, custom fee
   heads, and payment modes, with safe disable/delete guards; the same
   supporting list editor is also embedded inside Fee Setup for the daily
-  workbook flow
+  workbook flow, but collapsed by default there to reduce scrolling
 - `app/protected/settings/page.tsx`
   deployment readiness checks, active policy notes, and recent config-change
   batch history

@@ -854,7 +854,7 @@ export async function upsertGlobalFeePolicy(payload: {
   const values = buildPolicyPayload(payload);
   const { data: existing, error: existingError } = await supabase
     .from("fee_policy_configs")
-    .select("id")
+    .select("id, academic_session_label")
     .eq("is_active", true)
     .maybeSingle();
 
@@ -863,6 +863,34 @@ export async function upsertGlobalFeePolicy(payload: {
   }
 
   if (existing?.id) {
+    if (existing.academic_session_label.trim() !== values.academic_session_label) {
+      const { error: deactivateError } = await supabase
+        .from("fee_policy_configs")
+        .update({ is_active: false })
+        .eq("id", existing.id);
+
+      if (deactivateError) {
+        throw new Error(deactivateError.message);
+      }
+
+      const { data: inserted, error: insertError } = await supabase
+        .from("fee_policy_configs")
+        .insert(values)
+        .select("id")
+        .single();
+
+      if (insertError) {
+        await supabase
+          .from("fee_policy_configs")
+          .update({ is_active: true })
+          .eq("id", existing.id);
+        throw new Error(insertError.message);
+      }
+
+      await syncAcademicSessionFromPolicy(values.academic_session_label);
+      return inserted.id as string;
+    }
+
     const { error } = await supabase
       .from("fee_policy_configs")
       .update(values)
