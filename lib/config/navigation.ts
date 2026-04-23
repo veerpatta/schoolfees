@@ -5,7 +5,6 @@ import {
   CircleAlert,
   ClipboardList,
   FolderCog,
-  LayoutDashboard,
   ListChecks,
   ReceiptText,
   ScrollText,
@@ -38,13 +37,6 @@ export type ProtectedRouteMeta = {
 };
 
 const simpleNavigationItems: ProtectedNavigationItem[] = [
-  {
-    href: "/protected",
-    label: "Start Here",
-    description: "Today's work, blockers, and the next safe office step.",
-    icon: LayoutDashboard,
-    requiredPermission: "dashboard:view",
-  },
   {
     href: "/protected/students",
     label: "Students",
@@ -93,9 +85,9 @@ const routeMetaItems: Array<
 > = [
   {
     match: "/protected",
-    href: "/protected",
-    label: "Start Here",
-    description: "Today's work, blockers, and the next safe office step.",
+    href: null,
+    label: "Workspace",
+    description: "Protected workspace routing entry point.",
   },
   {
     match: "/protected/students",
@@ -220,7 +212,7 @@ export function getProtectedNavigationItem(pathname: string) {
 }
 
 export function getDefaultProtectedHref(role: StaffRole) {
-  return role === "accountant" ? "/protected/payments" : "/protected";
+  return role === "accountant" ? "/protected/payments" : "/protected/fee-setup";
 }
 
 export function getVisibleProtectedNavigation(staffRole: StaffRole) {
@@ -243,9 +235,8 @@ export function getVisibleProtectedNavigation(staffRole: StaffRole) {
   const preferredOrder = [
     "/protected/payments",
     "/protected/dues",
-    "/protected/students",
     "/protected/fee-setup",
-    "/protected",
+    "/protected/students",
     "/protected/advanced",
   ];
 

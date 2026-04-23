@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { Button } from "@/components/ui/button";
 import { roleLabels } from "@/lib/auth/roles";
+import { getDefaultProtectedHref } from "@/lib/config/navigation";
 import { requireAuthenticatedStaff } from "@/lib/supabase/session";
 
 type AccessDeniedPageProps = {
@@ -58,7 +59,7 @@ export default async function AccessDeniedPage({
 
         <div className="mt-4 flex flex-wrap gap-2">
           <Button asChild>
-            <Link href="/protected">Go to Start Here</Link>
+            <Link href={getDefaultProtectedHref(staff.appRole)}>Go to workspace</Link>
           </Button>
           {staff.appRole === "admin" ? (
             <Button asChild variant="outline">

@@ -128,6 +128,60 @@ const paymentModeOptions: Array<{ value: PaymentMode; label: string }> = [
   { value: "cheque", label: "Cheque" },
 ];
 
+type FeeSetupStepId =
+  | "structure"
+  | "policy"
+  | "school"
+  | "class"
+  | "route"
+  | "student";
+
+type StructureSetupView = "year" | "class" | "route";
+
+const feeSetupSteps: Array<{
+  id: FeeSetupStepId;
+  label: string;
+  shortLabel: string;
+  description: string;
+}> = [
+  {
+    id: "structure",
+    label: "School structure",
+    shortLabel: "Structure",
+    description: "Academic year, classes, and transport routes.",
+  },
+  {
+    id: "policy",
+    label: "Live fee policy",
+    shortLabel: "Policy",
+    description: "Academic fees, installments, due dates, fine, and other fee types.",
+  },
+  {
+    id: "school",
+    label: "School defaults",
+    shortLabel: "School",
+    description: "Base fee amounts used unless a class has its own values.",
+  },
+  {
+    id: "class",
+    label: "Class-wise defaults",
+    shortLabel: "Class",
+    description: "Different defaults for specific classes.",
+  },
+  {
+    id: "route",
+    label: "Transport defaults",
+    shortLabel: "Route",
+    description: "Route-wise transport fees.",
+  },
+  {
+    id: "student",
+    label: "Student exceptions",
+    shortLabel: "Student",
+    description: "Approved special-case overrides only.",
+  },
+];
+
 function ActionNotice({ state }: { state: FeeSetupActionState }) {
   if (!state.message) {
     return null;
@@ -151,62 +205,54 @@ function SectionHint({ children }: { children: ReactNode }) {
   return <p className="text-xs text-slate-500">{children}</p>;
 }
 
-function SetupSummaryCard({
+function CompactStat({
   label,
   value,
-  detail,
-  href,
 }: {
   label: string;
   value: string;
-  detail: string;
-  href: string;
 }) {
   return (
-    <a
-      href={href}
-      className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 transition-colors hover:border-slate-300 hover:bg-white"
-    >
+    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</p>
-      <p className="mt-2 text-lg font-semibold text-slate-950">{value}</p>
-      <p className="mt-1 text-sm text-slate-600">{detail}</p>
-    </a>
+      <p className="mt-1 text-sm font-semibold text-slate-950">{value}</p>
+    </div>
   );
 }
 
-function ExpandableSection({
-  title,
-  description,
-  badge,
-  defaultOpen = false,
-  children,
+function SetupStepButton({
+  step,
+  index,
+  active,
+  onClick,
 }: {
-  title: string;
-  description: string;
-  badge?: ReactNode;
-  defaultOpen?: boolean;
-  children: ReactNode;
+  step: (typeof feeSetupSteps)[number];
+  index: number;
+  active: boolean;
+  onClick: () => void;
 }) {
   return (
-    <details
-      open={defaultOpen}
-      className="group overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-xl border px-4 py-4 text-left transition-colors ${
+        active
+          ? "border-slate-900 bg-slate-900 text-white"
+          : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+      }`}
     >
-      <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 px-4 py-4">
-        <div>
-          <p className="text-base font-semibold text-slate-950">{title}</p>
-          <p className="mt-1 text-sm text-slate-600">{description}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {badge}
-          <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
-            <span className="group-open:hidden">Open</span>
-            <span className="hidden group-open:inline">Hide</span>
-          </span>
-        </div>
-      </summary>
-      <div className="border-t border-slate-200 bg-white p-4 md:p-5">{children}</div>
-    </details>
+      <p
+        className={`text-xs font-semibold uppercase tracking-[0.16em] ${
+          active ? "text-slate-300" : "text-slate-500"
+        }`}
+      >
+        Step {index + 1}
+      </p>
+      <p className="mt-2 text-sm font-semibold">{step.label}</p>
+      <p className={`mt-1 text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>
+        {step.description}
+      </p>
+    </button>
   );
 }
 
@@ -1224,6 +1270,19 @@ export function FeeSetupClient({
   const [selectedStudentId, setSelectedStudentId] = useState(
     data.studentOverrides[0]?.studentId ?? "",
   );
+  const [activeStep, setActiveStep] = useState<FeeSetupStepId>(() => {
+    if (
+      structureData.sessions.length === 0 ||
+      structureData.classes.length === 0 ||
+      structureData.routes.length === 0
+    ) {
+      return "structure";
+    }
+
+    return "policy";
+  });
+  const [activeStructureView, setActiveStructureView] =
+    useState<StructureSetupView>("year");
 
   const selectedClassDefault =
     data.classDefaults.find((item) => item.classId === selectedClassId) ?? null;
@@ -1243,169 +1302,68 @@ export function FeeSetupClient({
   const dueDateSummary = data.globalPolicy.installmentSchedule
     .map((item) => item.dueDateLabel)
     .join(", ");
+  const activeStepIndex = feeSetupSteps.findIndex((item) => item.id === activeStep);
+  const activeStepMeta = feeSetupSteps[activeStepIndex];
 
   return (
     <div className="space-y-6">
       <SectionCard
-        title="Fee setup at a glance"
-        description="Everything that decides what students should pay lives here. Start with the school structure, then save the live fee policy, then set defaults for classes and transport."
+        title="Simple fee setup"
+        description="Open one setup block at a time. Save it, then move to the next block. This keeps the screen short and point-to-point."
       >
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <SetupSummaryCard
-            label="Academic year"
-            value={currentAcademicYear}
-            detail="Create or switch the live year used by fee setup."
-            href="#structure-setup"
-          />
-          <SetupSummaryCard
-            label="Classes"
-            value={`${activeClassesCount} active`}
-            detail="Add, archive, or review the class list before class-wise fee defaults."
-            href="#structure-setup"
-          />
-          <SetupSummaryCard
-            label="Transport routes"
-            value={`${activeRoutesCount} active`}
-            detail="Keep route names and fees current for transport-linked students."
-            href="#structure-setup"
-          />
-          <SetupSummaryCard
-            label="Academic fees"
-            value={`${formatInr(data.globalPolicy.newStudentAcademicFeeAmount)} / ${formatInr(data.globalPolicy.oldStudentAcademicFeeAmount)}`}
-            detail="Set separate academic fees for new and old students."
-            href="#live-policy"
-          />
-          <SetupSummaryCard
-            label="Installments"
-            value={`${scheduleRows.length} installments`}
-            detail={dueDateSummary || "Add due dates for each installment."}
-            href="#live-policy"
-          />
-          <SetupSummaryCard
-            label="Other fee types"
-            value={
-              effectiveFeeHeads.length === 0
-                ? "No extra heads"
-                : `${effectiveFeeHeads.length} extra heads`
-            }
-            detail="Create custom fee types beyond tuition, transport, books, and misc."
-            href="#live-policy"
-          />
-        </div>
-
-        <div className="mt-5 grid gap-3 lg:grid-cols-[1.5fr_1fr]">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-            <p className="text-sm font-semibold text-slate-950">Simple admin workflow</p>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              1. Create the academic year, classes, and transport routes.
-              <br />
-              2. Save the live fee policy with academic fees, installments, due dates, fine, payment modes, and other fee heads.
-              <br />
-              3. Set school, class, and route defaults.
-              <br />
-              4. Use student exceptions only for approved special cases.
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-            <p className="text-sm font-semibold text-slate-950">Access model already in place</p>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Admin has full access here.
-              <br />
-              Accountant can review fee setup and works mainly from Payment Desk.
-              <br />
-              View-only staff can review current settings without changing them.
-            </p>
-          </div>
-        </div>
-      </SectionCard>
-
-      <SectionCard
-        id="structure-setup"
-        title="1. School structure"
-        description="These are the basic lists used by fee setup: academic year, classes, and transport routes. Keep them correct first, then save fee amounts below."
-      >
-        <div className="mb-5 flex flex-wrap gap-2">
-          <ValueStatePill tone="editable">Admin list setup</ValueStatePill>
-          <ValueStatePill tone="policy">Live fee policy uses these lists</ValueStatePill>
-          <ValueStatePill tone="locked">Payments stay untouched</ValueStatePill>
-        </div>
         <div className="space-y-4">
-          <ExpandableSection
-            title="Academic year"
-            description="Create the year label that the live policy should use."
-            badge={
-              canStructureEdit ? (
-                <StatusBadge label="Admin editable" tone="good" />
-              ) : (
-                <StatusBadge label="Read-only" tone="warning" />
-              )
-            }
-            defaultOpen
-          >
-            <AcademicYearSection
-              structureData={structureData}
-              canEdit={canStructureEdit}
-              structureInitialState={structureInitialState}
-              createSessionAction={createSessionAction}
-              updateSessionAction={updateSessionAction}
-              deleteSessionAction={deleteSessionAction}
-            />
-          </ExpandableSection>
+          <div className="grid gap-2 lg:grid-cols-3 xl:grid-cols-6">
+            {feeSetupSteps.map((step, index) => (
+              <SetupStepButton
+                key={step.id}
+                step={step}
+                index={index}
+                active={activeStep === step.id}
+                onClick={() => setActiveStep(step.id)}
+              />
+            ))}
+          </div>
 
-          <ExpandableSection
-            title="Classes"
-            description="Add or archive classes here. Class-wise amounts are saved later in class defaults."
-            badge={
-              canStructureEdit ? (
-                <StatusBadge label="Admin editable" tone="good" />
-              ) : (
-                <StatusBadge label="Read-only" tone="warning" />
-              )
-            }
-          >
-            <ClassManagementSection
-              structureData={structureData}
-              canEdit={canStructureEdit}
-              structureInitialState={structureInitialState}
-              createClassAction={createClassAction}
-              updateClassAction={updateClassAction}
-              deleteClassAction={deleteClassAction}
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <CompactStat label="Academic year" value={currentAcademicYear} />
+            <CompactStat label="Classes" value={`${activeClassesCount} active`} />
+            <CompactStat label="Routes" value={`${activeRoutesCount} active`} />
+            <CompactStat
+              label="Academic fee"
+              value={`${formatInr(data.globalPolicy.newStudentAcademicFeeAmount)} / ${formatInr(data.globalPolicy.oldStudentAcademicFeeAmount)}`}
             />
-          </ExpandableSection>
-
-          <ExpandableSection
-            title="Transport routes"
-            description="Add, remove, or archive route records used by transport fee defaults."
-            badge={
-              canStructureEdit ? (
-                <StatusBadge label="Admin editable" tone="good" />
-              ) : (
-                <StatusBadge label="Read-only" tone="warning" />
-              )
-            }
-          >
-            <RouteManagementSection
-              structureData={structureData}
-              canEdit={canStructureEdit}
-              structureInitialState={structureInitialState}
-              createRouteAction={createRouteAction}
-              updateRouteAction={updateRouteAction}
-              deleteRouteAction={deleteRouteAction}
+            <CompactStat
+              label="Installments"
+              value={dueDateSummary || `${scheduleRows.length} installments`}
             />
-          </ExpandableSection>
-        </div>
-      </SectionCard>
+          </div>
 
-      <SectionCard
-        title="How saving works"
-        description="The screen now follows one rule: edit values, review impact, then save. Paid history remains protected."
-      >
-        <div className="flex flex-wrap gap-2">
-          <ValueStatePill tone="editable">Editable</ValueStatePill>
-          <ValueStatePill tone="policy">Policy-driven</ValueStatePill>
-          <ValueStatePill tone="calculated">Calculated impact</ValueStatePill>
-          <ValueStatePill tone="locked">Locked paid history</ValueStatePill>
-          <ValueStatePill tone="review">Review needed</ValueStatePill>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-950">
+                Step {activeStepIndex + 1}: {activeStepMeta.label}
+              </p>
+              <p className="text-sm text-slate-600">{activeStepMeta.description}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={activeStepIndex === 0}
+                onClick={() => setActiveStep(feeSetupSteps[activeStepIndex - 1].id)}
+              >
+                Previous
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={activeStepIndex === feeSetupSteps.length - 1}
+                onClick={() => setActiveStep(feeSetupSteps[activeStepIndex + 1].id)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
         </div>
       </SectionCard>
 
@@ -1415,289 +1373,365 @@ export function FeeSetupClient({
         </div>
       ) : null}
 
-      <SectionCard
-        id="live-policy"
-        title="2. Live fee policy"
-        description="Set the active academic year, academic fees, installments, due dates, fine, payment modes, receipt prefix, and extra fee types in one place."
-        actions={
-          canEdit ? (
-            <StatusBadge label="Admin editable" tone="good" />
-          ) : (
-            <StatusBadge label="Admin only" tone="warning" />
-          )
-        }
-      >
-        <form action={globalFormAction} className="space-y-5">
-          <ActionNotice state={globalState} />
-          <ImpactPreviewCard preview={globalState.preview} />
-
-          <input type="hidden" name="calculationModel" value={data.globalPolicy.calculationModel} />
-
-          <FormGroup
-            title="Main policy details"
-            description="Choose the live academic year and set the high-level rules used across the app."
-          >
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-              <div>
-                <Label htmlFor="policy-academic-session">Academic session</Label>
-                <Input
-                  id="policy-academic-session"
-                  name="academicSessionLabel"
-                  defaultValue={data.globalPolicy.academicSessionLabel}
-                  className="mt-2"
-                  disabled={!canEdit}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="policy-calculation-model">Calculation mode</Label>
-                <Input
-                  id="policy-calculation-model"
-                  value={
-                    data.globalPolicy.calculationModel === "workbook_v1"
-                      ? "Workbook AY 2026-27"
-                      : "Standard"
-                  }
-                  className="mt-2"
-                  disabled
-                  readOnly
-                />
-              </div>
-              <div>
-                <Label htmlFor="policy-installment-count">Installment count</Label>
-                <Input
-                  id="policy-installment-count"
-                  value={scheduleRows.length}
-                  className="mt-2"
-                  disabled
-                  readOnly
-                />
-              </div>
-              <div id="fine">
-                <Label htmlFor="policy-late-fee">Late fee rule</Label>
-                <select
-                  id="policy-late-fee-enabled"
-                  name="lateFeeEnabled"
-                  defaultValue={data.globalPolicy.lateFeeFlatAmount > 0 ? "yes" : "no"}
-                  className={`${selectClassName} mt-2`}
-                  disabled={!canEdit}
-                >
-                  <option value="yes">Enabled</option>
-                  <option value="no">Disabled</option>
-                </select>
-                <Input
-                  id="policy-late-fee"
-                  name="lateFeeFlatAmount"
-                  type="number"
-                  min={0}
-                  defaultValue={data.globalPolicy.lateFeeFlatAmount}
-                  className="mt-2"
-                  disabled={!canEdit}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="policy-receipt-prefix">Receipt prefix</Label>
-                <Input
-                  id="policy-receipt-prefix"
-                  name="receiptPrefix"
-                  defaultValue={data.globalPolicy.receiptPrefix}
-                  className="mt-2 uppercase"
-                  disabled={!canEdit}
-                  required
-                />
-              </div>
+      {activeStep === "structure" ? (
+        <SectionCard
+          id="structure-setup"
+          title="1. School structure"
+          description="First create the academic year, classes, and transport routes. Open only the list you want to edit."
+        >
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant={activeStructureView === "year" ? "default" : "outline"}
+                onClick={() => setActiveStructureView("year")}
+              >
+                Academic year
+              </Button>
+              <Button
+                type="button"
+                variant={activeStructureView === "class" ? "default" : "outline"}
+                onClick={() => setActiveStructureView("class")}
+              >
+                Classes
+              </Button>
+              <Button
+                type="button"
+                variant={activeStructureView === "route" ? "default" : "outline"}
+                onClick={() => setActiveStructureView("route")}
+              >
+                Transport routes
+              </Button>
             </div>
-          </FormGroup>
 
-          <FormGroup
-            title="Academic fees for students"
-            description="Set the academic fee amount separately for new students and old students."
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <Label htmlFor="policy-new-academic-fee">New student academic fee</Label>
-                <Input
-                  id="policy-new-academic-fee"
-                  name="newStudentAcademicFeeAmount"
-                  type="number"
-                  min={0}
-                  defaultValue={data.globalPolicy.newStudentAcademicFeeAmount}
-                  className="mt-2"
-                  disabled={!canEdit}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="policy-old-academic-fee">Old student academic fee</Label>
-                <Input
-                  id="policy-old-academic-fee"
-                  name="oldStudentAcademicFeeAmount"
-                  type="number"
-                  min={0}
-                  defaultValue={data.globalPolicy.oldStudentAcademicFeeAmount}
-                  className="mt-2"
-                  disabled={!canEdit}
-                  required
-                />
-              </div>
+            <div className="flex flex-wrap gap-2">
+              <ValueStatePill tone="editable">Admin list setup</ValueStatePill>
+              <ValueStatePill tone="policy">Used by fee setup</ValueStatePill>
+              <ValueStatePill tone="locked">Payments stay untouched</ValueStatePill>
             </div>
-          </FormGroup>
 
-          <FormGroup
-            title="Installments and due dates"
-            description="Decide how many installments are needed and the due date label for each one."
-          >
-            <div id="installments" className="space-y-3">
-              <div className="flex items-center justify-between">
-                <SectionHint>
-                  Review changes first. Paid and partially paid rows stay untouched and are marked for review when needed.
-                </SectionHint>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={!canEdit}
-                  onClick={() =>
-                    setScheduleRows((current) => [...current, createScheduleRow(current.length)])
-                  }
-                >
-                  Add installment
-                </Button>
-              </div>
+            {activeStructureView === "year" ? (
+              <AcademicYearSection
+                structureData={structureData}
+                canEdit={canStructureEdit}
+                structureInitialState={structureInitialState}
+                createSessionAction={createSessionAction}
+                updateSessionAction={updateSessionAction}
+                deleteSessionAction={deleteSessionAction}
+              />
+            ) : null}
 
-              <div className="space-y-3">
-                {scheduleRows.map((item, index) => (
-                  <div
-                    key={item.key}
-                    className="grid gap-3 md:grid-cols-[1fr_1fr_auto] xl:grid-cols-[1fr_1fr_auto]"
+            {activeStructureView === "class" ? (
+              <ClassManagementSection
+                structureData={structureData}
+                canEdit={canStructureEdit}
+                structureInitialState={structureInitialState}
+                createClassAction={createClassAction}
+                updateClassAction={updateClassAction}
+                deleteClassAction={deleteClassAction}
+              />
+            ) : null}
+
+            {activeStructureView === "route" ? (
+              <RouteManagementSection
+                structureData={structureData}
+                canEdit={canStructureEdit}
+                structureInitialState={structureInitialState}
+                createRouteAction={createRouteAction}
+                updateRouteAction={updateRouteAction}
+                deleteRouteAction={deleteRouteAction}
+              />
+            ) : null}
+          </div>
+        </SectionCard>
+      ) : null}
+
+      {activeStep === "policy" ? (
+        <SectionCard
+          id="live-policy"
+          title="2. Live fee policy"
+          description="Set the active academic year, academic fees, installments, due dates, fine, payment modes, receipt prefix, and extra fee types in one place."
+          actions={
+            canEdit ? (
+              <StatusBadge label="Admin editable" tone="good" />
+            ) : (
+              <StatusBadge label="Admin only" tone="warning" />
+            )
+          }
+        >
+          <form action={globalFormAction} className="space-y-5">
+            <ActionNotice state={globalState} />
+            <ImpactPreviewCard preview={globalState.preview} />
+
+            <input type="hidden" name="calculationModel" value={data.globalPolicy.calculationModel} />
+
+            <FormGroup
+              title="Main policy details"
+              description="Choose the live academic year and set the high-level rules used across the app."
+            >
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                <div>
+                  <Label htmlFor="policy-academic-session">Academic session</Label>
+                  <Input
+                    id="policy-academic-session"
+                    name="academicSessionLabel"
+                    defaultValue={data.globalPolicy.academicSessionLabel}
+                    className="mt-2"
+                    disabled={!canEdit}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="policy-calculation-model">Calculation mode</Label>
+                  <Input
+                    id="policy-calculation-model"
+                    value={
+                      data.globalPolicy.calculationModel === "workbook_v1"
+                        ? "Workbook AY 2026-27"
+                        : "Standard"
+                    }
+                    className="mt-2"
+                    disabled
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="policy-installment-count">Installment count</Label>
+                  <Input
+                    id="policy-installment-count"
+                    value={scheduleRows.length}
+                    className="mt-2"
+                    disabled
+                    readOnly
+                  />
+                </div>
+                <div id="fine">
+                  <Label htmlFor="policy-late-fee">Late fee rule</Label>
+                  <select
+                    id="policy-late-fee-enabled"
+                    name="lateFeeEnabled"
+                    defaultValue={data.globalPolicy.lateFeeFlatAmount > 0 ? "yes" : "no"}
+                    className={`${selectClassName} mt-2`}
+                    disabled={!canEdit}
                   >
-                    <div>
-                      <Label htmlFor={`schedule-label-${item.key}`}>Label</Label>
-                      <Input
-                        id={`schedule-label-${item.key}`}
-                        name="scheduleLabel"
-                        defaultValue={item.label}
-                        className="mt-2"
-                        disabled={!canEdit}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor={`schedule-due-${item.key}`}>Due date label</Label>
-                      <Input
-                        id={`schedule-due-${item.key}`}
-                        name="scheduleDueDateLabel"
-                        defaultValue={item.dueDateLabel}
-                        placeholder="20 April"
-                        className="mt-2"
-                        disabled={!canEdit}
-                        required
-                      />
-                    </div>
-                    <div className="flex items-end">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full"
-                        disabled={!canEdit || scheduleRows.length <= 1}
-                        onClick={() =>
-                          setScheduleRows((current) =>
-                            current.filter((_, rowIndex) => rowIndex !== index),
-                          )
-                        }
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </FormGroup>
-
-          <FormGroup
-            title="Payment modes and other fee types"
-            description="Choose allowed payment modes and create any extra fee heads the school wants to track."
-          >
-            <div className="space-y-5">
-              <div className="space-y-3">
-                <Label>Accepted payment modes</Label>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  {paymentModeOptions.map((option) => {
-                    const defaultChecked = data.globalPolicy.acceptedPaymentModes.some(
-                      (item) => item.value === option.value,
-                    );
-
-                    return (
-                      <label
-                        key={option.value}
-                        className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700"
-                      >
-                        <input
-                          type="checkbox"
-                          name="acceptedPaymentModes"
-                          value={option.value}
-                          defaultChecked={defaultChecked}
-                          disabled={!canEdit}
-                        />
-                        <span>{option.label}</span>
-                      </label>
-                    );
-                  })}
+                    <option value="yes">Enabled</option>
+                    <option value="no">Disabled</option>
+                  </select>
+                  <Input
+                    id="policy-late-fee"
+                    name="lateFeeFlatAmount"
+                    type="number"
+                    min={0}
+                    defaultValue={data.globalPolicy.lateFeeFlatAmount}
+                    className="mt-2"
+                    disabled={!canEdit}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="policy-receipt-prefix">Receipt prefix</Label>
+                  <Input
+                    id="policy-receipt-prefix"
+                    name="receiptPrefix"
+                    defaultValue={data.globalPolicy.receiptPrefix}
+                    className="mt-2 uppercase"
+                    disabled={!canEdit}
+                    required
+                  />
                 </div>
               </div>
+            </FormGroup>
 
-              <div id="other-fee-types" className="space-y-3">
-                <FeeHeadCatalogEditor
-                  feeHeads={feeHeads}
-                  setFeeHeads={setFeeHeads}
-                  canEdit={canEdit}
-                />
+            <FormGroup
+              title="Academic fees for students"
+              description="Set the academic fee amount separately for new students and old students."
+            >
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <Label htmlFor="policy-new-academic-fee">New student academic fee</Label>
+                  <Input
+                    id="policy-new-academic-fee"
+                    name="newStudentAcademicFeeAmount"
+                    type="number"
+                    min={0}
+                    defaultValue={data.globalPolicy.newStudentAcademicFeeAmount}
+                    className="mt-2"
+                    disabled={!canEdit}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="policy-old-academic-fee">Old student academic fee</Label>
+                  <Input
+                    id="policy-old-academic-fee"
+                    name="oldStudentAcademicFeeAmount"
+                    type="number"
+                    min={0}
+                    defaultValue={data.globalPolicy.oldStudentAcademicFeeAmount}
+                    className="mt-2"
+                    disabled={!canEdit}
+                    required
+                  />
+                </div>
               </div>
+            </FormGroup>
+
+            <FormGroup
+              title="Installments and due dates"
+              description="Decide how many installments are needed and the due date label for each one."
+            >
+              <div id="installments" className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <SectionHint>
+                    Review changes first. Paid and partially paid rows stay untouched and are marked for review when needed.
+                  </SectionHint>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!canEdit}
+                    onClick={() =>
+                      setScheduleRows((current) => [...current, createScheduleRow(current.length)])
+                    }
+                  >
+                    Add installment
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  {scheduleRows.map((item, index) => (
+                    <div
+                      key={item.key}
+                      className="grid gap-3 md:grid-cols-[1fr_1fr_auto] xl:grid-cols-[1fr_1fr_auto]"
+                    >
+                      <div>
+                        <Label htmlFor={`schedule-label-${item.key}`}>Label</Label>
+                        <Input
+                          id={`schedule-label-${item.key}`}
+                          name="scheduleLabel"
+                          defaultValue={item.label}
+                          className="mt-2"
+                          disabled={!canEdit}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor={`schedule-due-${item.key}`}>Due date label</Label>
+                        <Input
+                          id={`schedule-due-${item.key}`}
+                          name="scheduleDueDateLabel"
+                          defaultValue={item.dueDateLabel}
+                          placeholder="20 April"
+                          className="mt-2"
+                          disabled={!canEdit}
+                          required
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full"
+                          disabled={!canEdit || scheduleRows.length <= 1}
+                          onClick={() =>
+                            setScheduleRows((current) =>
+                              current.filter((_, rowIndex) => rowIndex !== index),
+                            )
+                          }
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </FormGroup>
+
+            <FormGroup
+              title="Payment modes and other fee types"
+              description="Choose allowed payment modes and create any extra fee heads the school wants to track."
+            >
+              <div className="space-y-5">
+                <div className="space-y-3">
+                  <Label>Accepted payment modes</Label>
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    {paymentModeOptions.map((option) => {
+                      const defaultChecked = data.globalPolicy.acceptedPaymentModes.some(
+                        (item) => item.value === option.value,
+                      );
+
+                      return (
+                        <label
+                          key={option.value}
+                          className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                        >
+                          <input
+                            type="checkbox"
+                            name="acceptedPaymentModes"
+                            value={option.value}
+                            defaultChecked={defaultChecked}
+                            disabled={!canEdit}
+                          />
+                          <span>{option.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div id="other-fee-types" className="space-y-3">
+                  <FeeHeadCatalogEditor
+                    feeHeads={feeHeads}
+                    setFeeHeads={setFeeHeads}
+                    canEdit={canEdit}
+                  />
+                </div>
+              </div>
+            </FormGroup>
+
+            <div>
+              <Label htmlFor="policy-notes">Policy notes</Label>
+              <textarea
+                id="policy-notes"
+                name="globalNotes"
+                defaultValue={data.globalPolicy.notes ?? ""}
+                className={`${textAreaClassName} mt-2`}
+                disabled={!canEdit}
+              />
             </div>
-          </FormGroup>
 
-          <div>
-            <Label htmlFor="policy-notes">Policy notes</Label>
-            <textarea
-              id="policy-notes"
-              name="globalNotes"
-              defaultValue={data.globalPolicy.notes ?? ""}
-              className={`${textAreaClassName} mt-2`}
-              disabled={!canEdit}
-            />
-          </div>
+            <div className="flex items-center justify-between gap-4">
+              <SectionHint>
+                Current policy: {data.globalPolicy.academicSessionLabel} | {data.globalPolicy.lateFeeLabel} | new academic fee{" "}
+                {formatInr(data.globalPolicy.newStudentAcademicFeeAmount)} | old academic fee{" "}
+                {formatInr(data.globalPolicy.oldStudentAcademicFeeAmount)} |{" "}
+                {data.globalPolicy.installmentSchedule.map((item) => item.dueDateLabel).join(", ")}
+              </SectionHint>
+              <PreviewApplyActions
+                state={globalState}
+                canEdit={canEdit}
+                pending={globalPending}
+                previewLabel="Review policy changes"
+                applyLabel="Save policy changes"
+              />
+            </div>
+          </form>
+        </SectionCard>
+      ) : null}
 
-          <div className="flex items-center justify-between gap-4">
-            <SectionHint>
-              Current policy: {data.globalPolicy.academicSessionLabel} | {data.globalPolicy.lateFeeLabel} | new academic fee{" "}
-              {formatInr(data.globalPolicy.newStudentAcademicFeeAmount)} | old academic fee{" "}
-              {formatInr(data.globalPolicy.oldStudentAcademicFeeAmount)} |{" "}
-              {data.globalPolicy.installmentSchedule.map((item) => item.dueDateLabel).join(", ")}
-            </SectionHint>
-            <PreviewApplyActions
-              state={globalState}
-              canEdit={canEdit}
-              pending={globalPending}
-              previewLabel="Review policy changes"
-              applyLabel="Save policy changes"
-            />
-          </div>
-        </form>
-      </SectionCard>
-
-      <SectionCard
-        title="3. School-wide defaults"
-        description="These are the base amounts used if a class does not have its own saved default yet."
-        actions={
-          canEdit ? (
-            <StatusBadge label="Editable in Fee Setup" tone="good" />
-          ) : (
-            <StatusBadge label="Read-only" tone="warning" />
-          )
-        }
-      >
+      {activeStep === "school" ? (
+        <SectionCard
+          title="3. School-wide defaults"
+          description="These are the base amounts used if a class does not have its own saved default yet."
+          actions={
+            canEdit ? (
+              <StatusBadge label="Editable in Fee Setup" tone="good" />
+            ) : (
+              <StatusBadge label="Read-only" tone="warning" />
+            )
+          }
+        >
         <form action={schoolFormAction} className="space-y-5">
           <ActionNotice state={schoolState} />
           <ImpactPreviewCard preview={schoolState.preview} />
@@ -1825,19 +1859,21 @@ export function FeeSetupClient({
             />
           </div>
         </form>
-      </SectionCard>
+        </SectionCard>
+      ) : null}
 
-      <SectionCard
-        title="4. Class-wise fee defaults"
-        description="Save a different default only for classes that need their own fee amounts. Otherwise the school-wide defaults stay in effect."
-        actions={
-          canEdit ? (
-            <StatusBadge label="Editable in Fee Setup" tone="good" />
-          ) : (
-            <StatusBadge label="Read-only" tone="warning" />
-          )
-        }
-      >
+      {activeStep === "class" ? (
+        <SectionCard
+          title="4. Class-wise fee defaults"
+          description="Save a different default only for classes that need their own fee amounts. Otherwise the school-wide defaults stay in effect."
+          actions={
+            canEdit ? (
+              <StatusBadge label="Editable in Fee Setup" tone="good" />
+            ) : (
+              <StatusBadge label="Read-only" tone="warning" />
+            )
+          }
+        >
         <form key={selectedClassId || "new-class"} action={classFormAction} className="space-y-5">
           <ActionNotice state={classState} />
           <ImpactPreviewCard preview={classState.preview} />
@@ -2010,19 +2046,21 @@ export function FeeSetupClient({
             <ClassDefaultsTable items={data.classDefaults} />
           </div>
         </details>
-      </SectionCard>
+        </SectionCard>
+      ) : null}
 
-      <SectionCard
-        title="5. Transport route defaults"
-        description="Set route-wise transport fees. These apply only to future and unpaid dues and do not rewrite paid history."
-        actions={
-          canEdit ? (
-            <StatusBadge label="Editable in Fee Setup" tone="good" />
-          ) : (
-            <StatusBadge label="Read-only" tone="warning" />
-          )
-        }
-      >
+      {activeStep === "route" ? (
+        <SectionCard
+          title="5. Transport route defaults"
+          description="Set route-wise transport fees. These apply only to future and unpaid dues and do not rewrite paid history."
+          actions={
+            canEdit ? (
+              <StatusBadge label="Editable in Fee Setup" tone="good" />
+            ) : (
+              <StatusBadge label="Read-only" tone="warning" />
+            )
+          }
+        >
         <form
           key={selectedRouteId || "new-route"}
           action={transportFormAction}
@@ -2155,19 +2193,21 @@ export function FeeSetupClient({
             <TransportDefaultsTable items={data.transportDefaults} />
           </div>
         </details>
-      </SectionCard>
+        </SectionCard>
+      ) : null}
 
-      <SectionCard
-        title="6. Student exceptions"
-        description="Use this only for approved special cases. Student exceptions sit on top of the live class or school defaults."
-        actions={
-          canEdit ? (
-            <StatusBadge label="Editable in Fee Setup" tone="good" />
-          ) : (
-            <StatusBadge label="Read-only" tone="warning" />
-          )
-        }
-      >
+      {activeStep === "student" ? (
+        <SectionCard
+          title="6. Student exceptions"
+          description="Use this only for approved special cases. Student exceptions sit on top of the live class or school defaults."
+          actions={
+            canEdit ? (
+              <StatusBadge label="Editable in Fee Setup" tone="good" />
+            ) : (
+              <StatusBadge label="Read-only" tone="warning" />
+            )
+          }
+        >
         <form
           key={selectedStudentId || "new-student-override"}
           action={studentFormAction}
@@ -2412,7 +2452,8 @@ export function FeeSetupClient({
             <StudentOverridesTable items={data.studentOverrides} />
           </div>
         </details>
-      </SectionCard>
+        </SectionCard>
+      ) : null}
     </div>
   );
 }
