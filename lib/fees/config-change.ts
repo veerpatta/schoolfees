@@ -717,6 +717,12 @@ function applyProposedPayloadToSetupData(
       acceptedPaymentModes: [...setupData.globalPolicy.acceptedPaymentModes],
       customFeeHeads: [...setupData.globalPolicy.customFeeHeads],
     },
+    policySnapshots: setupData.policySnapshots.map((item) => ({
+      ...item,
+      installmentSchedule: [...item.installmentSchedule],
+      acceptedPaymentModes: [...item.acceptedPaymentModes],
+      customFeeHeads: [...item.customFeeHeads],
+    })),
     schoolDefault: {
       ...setupData.schoolDefault,
       customFeeHeadAmounts: { ...setupData.schoolDefault.customFeeHeadAmounts },

@@ -207,7 +207,59 @@ export function MasterDataClient({
 
   return (
     <div className="space-y-8">
-      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
+      <section className="rounded-3xl border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+              Supporting lists overview
+            </p>
+            <h2 className="mt-2 font-heading text-xl font-semibold text-slate-950">
+              Keep sessions, classes, routes, and fee catalogs moving fast
+            </h2>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
+              Use the compact controls below to add or adjust master data without losing the main
+              fee setup workflow.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="outline" size="sm">
+              <a href="#master-data-sessions">Sessions</a>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <a href="#master-data-classes">Classes</a>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <a href="#master-data-routes">Routes</a>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <a href="#master-data-fee-heads">Fee heads</a>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <a href="#master-data-payment-modes">Payment modes</a>
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            Sessions: <strong className="text-slate-950">{sessions.length}</strong>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            Classes: <strong className="text-slate-950">{classes.length}</strong>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            Routes: <strong className="text-slate-950">{routes.length}</strong>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            Fee heads: <strong className="text-slate-950">{feeHeads.length}</strong>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            Payment modes: <strong className="text-slate-950">{paymentModes.length}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section id="master-data-sessions" className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 scroll-mt-24">
         <h2 className="text-lg font-semibold text-slate-950">Academic Sessions</h2>
         <ActionMessage state={sessionCreateState} />
         <ActionMessage state={sessionUpdateState} />
@@ -236,7 +288,7 @@ export function MasterDataClient({
           <Button type="submit" className="md:col-span-5 w-fit">Add session</Button>
         </form>
 
-        <div className="space-y-3">
+        <div className="max-h-[28rem] space-y-3 overflow-auto pr-1">
           {sessions.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
               No academic sessions saved yet. Add the active session before configuring
@@ -284,7 +336,8 @@ export function MasterDataClient({
         </div>
       </section>
 
-      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="grid gap-6 2xl:grid-cols-2">
+        <section id="master-data-classes" className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 scroll-mt-24">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-slate-950">Classes</h2>
@@ -349,7 +402,7 @@ export function MasterDataClient({
           <Button type="submit" className="md:col-span-6 w-fit">Add class</Button>
         </form>
 
-        <div className="space-y-3">
+        <div className="max-h-[32rem] space-y-3 overflow-auto pr-1">
           {filteredClasses.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
               No matching classes found. Clear the search or add a new class row.
@@ -406,7 +459,7 @@ export function MasterDataClient({
         </div>
       </section>
 
-      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
+        <section id="master-data-routes" className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 scroll-mt-24">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-slate-950">Transport Routes</h2>
@@ -459,7 +512,7 @@ export function MasterDataClient({
           <Button type="submit" className="md:col-span-5 w-fit">Add route</Button>
         </form>
 
-        <div className="space-y-3">
+        <div className="max-h-[32rem] space-y-3 overflow-auto pr-1">
           {filteredRoutes.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
               No matching routes found. Clear the search or add a new route row.
@@ -515,8 +568,10 @@ export function MasterDataClient({
           )}
         </div>
       </section>
+      </div>
 
-      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="grid gap-6 2xl:grid-cols-2">
+        <section id="master-data-fee-heads" className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 scroll-mt-24">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-slate-950">Custom fee heads</h2>
@@ -580,7 +635,7 @@ export function MasterDataClient({
         )}
       </section>
 
-      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
+        <section id="master-data-payment-modes" className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 scroll-mt-24">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-slate-950">Accepted payment modes</h2>
@@ -613,6 +668,7 @@ export function MasterDataClient({
           ))}
         </div>
       </section>
+      </div>
     </div>
   );
 }

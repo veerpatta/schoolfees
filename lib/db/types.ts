@@ -151,6 +151,14 @@ export type FeePolicyConfigRecord = {
   customFeeHeads: Array<{
     id: string;
     label: string;
+    amount: number;
+    applicationType:
+      | "annual_fixed"
+      | "installment_1_only"
+      | "split_across_installments"
+      | "optional_per_student";
+    isActive: boolean;
+    notes: string | null;
   }>;
   acceptedPaymentModes: PaymentMode[];
   receiptPrefix: string;

@@ -1,5 +1,7 @@
 import type {
   ClassFeeDefault,
+  FeeHeadDefinition,
+  FeePolicySnapshot,
   FeePolicySummary,
   FeeSetupPageData,
   TransportDefault,
@@ -17,6 +19,7 @@ export type WorkbookFeeSetupFormPayload = {
   lateFeeFlatAmount: number;
   newStudentAcademicFeeAmount: number;
   oldStudentAcademicFeeAmount: number;
+  customFeeHeads: FeeHeadDefinition[];
   classRows: Array<{
     label: string;
     annualTuition: number;
@@ -53,6 +56,16 @@ function getWorkbookClassKey(value: string) {
   return normalizeWorkbookClassLabel(value) ?? value.trim();
 }
 
+export function getSessionPolicySnapshot(
+  data: Pick<FeeSetupPageData, "globalPolicy" | "policySnapshots">,
+  academicSessionLabel: string,
+): FeePolicySummary | FeePolicySnapshot {
+  return (
+    data.policySnapshots.find((item) => item.academicSessionLabel === academicSessionLabel) ??
+    data.globalPolicy
+  );
+}
+
 export function toWorkbookDueDateInputValue(
   item: Pick<FeePolicySummary["installmentSchedule"][number], "dueDate"> | undefined,
 ) {
@@ -63,20 +76,24 @@ export function buildWorkbookClassSetupRows(
   data: Pick<FeeSetupPageData, "classOptions" | "classDefaults">,
   academicSessionLabel: string,
 ): WorkbookFeeSetupClassRow[] {
+  const sessionClassOptions = data.classOptions.filter(
+    (item) => item.sessionLabel === academicSessionLabel,
+  );
+  const sessionClassDefaults = data.classDefaults.filter(
+    (item) => item.sessionLabel === academicSessionLabel,
+  );
   const classOptionByLabel = new Map(
-    data.classOptions
-      .filter((item) => item.sessionLabel === academicSessionLabel)
-      .map((item) => [getWorkbookClassKey(item.label), item]),
+    sessionClassOptions.map((item) => [getWorkbookClassKey(item.label), item]),
   );
   const classDefaultByLabel = new Map(
-    data.classDefaults
-      .filter((item) => item.sessionLabel === academicSessionLabel)
-      .map((item) => [getWorkbookClassKey(item.classLabel), item]),
+    sessionClassDefaults.map((item) => [getWorkbookClassKey(item.classLabel), item]),
   );
-
-  return WORKBOOK_CLASS_TUITION_DEFAULTS.map((item) => {
-    const matchedClass = classOptionByLabel.get(item.label) ?? null;
-    const matchedDefault = classDefaultByLabel.get(item.label) ?? null;
+  const usedKeys = new Set<string>();
+  const seededRows = WORKBOOK_CLASS_TUITION_DEFAULTS.map((item) => {
+    const key = item.label;
+    const matchedClass = classOptionByLabel.get(key) ?? null;
+    const matchedDefault = classDefaultByLabel.get(key) ?? null;
+    usedKeys.add(key);
 
     return {
       label: item.label,
@@ -90,6 +107,26 @@ export function buildWorkbookClassSetupRows(
       existingClassDefault: matchedDefault,
     };
   });
+  const extraRows = sessionClassOptions
+    .filter((item) => !usedKeys.has(getWorkbookClassKey(item.label)))
+    .map((item, index) => {
+      const key = getWorkbookClassKey(item.label);
+      const matchedDefault = classDefaultByLabel.get(key) ?? null;
+
+      return {
+        label: item.label,
+        sortOrder: WORKBOOK_CLASS_TUITION_DEFAULTS.length + index + 1,
+        suggestedAnnualTuition: matchedDefault?.tuitionFee ?? 0,
+        annualTuition: matchedDefault?.tuitionFee ?? 0,
+        classId: item.id,
+        hasClassRecord: true,
+        hasSavedDefault: Boolean(matchedDefault),
+        updatedAt: matchedDefault?.updatedAt ?? null,
+        existingClassDefault: matchedDefault,
+      };
+    });
+
+  return [...seededRows, ...extraRows];
 }
 
 export function buildWorkbookRouteSetupRows(
@@ -98,9 +135,10 @@ export function buildWorkbookRouteSetupRows(
   const routeByName = new Map(
     data.transportDefaults.map((item) => [normalizeWorkbookRouteName(item.routeName), item]),
   );
-
-  return WORKBOOK_ROUTE_FEE_DEFAULTS.map((item) => {
+  const usedKeys = new Set<string>();
+  const seededRows = WORKBOOK_ROUTE_FEE_DEFAULTS.map((item) => {
     const matchedRoute = routeByName.get(normalizeWorkbookRouteName(item.routeName)) ?? null;
+    usedKeys.add(normalizeWorkbookRouteName(item.routeName));
 
     return {
       routeName: item.routeName,
@@ -112,23 +150,37 @@ export function buildWorkbookRouteSetupRows(
       existingRouteDefault: matchedRoute,
     };
   });
+  const extraRows = data.transportDefaults
+    .filter((item) => !usedKeys.has(normalizeWorkbookRouteName(item.routeName)))
+    .map((item) => ({
+      routeName: item.routeName,
+      suggestedAnnualFee: item.annualFeeAmount ?? 0,
+      annualFee: item.annualFeeAmount ?? 0,
+      routeId: item.id,
+      hasRouteRecord: true,
+      updatedAt: item.updatedAt,
+      existingRouteDefault: item,
+    }));
+
+  return [...seededRows, ...extraRows];
 }
 
 export function buildWorkbookSetupSnapshot(
   data: Pick<
     FeeSetupPageData,
-    "globalPolicy" | "classOptions" | "classDefaults" | "transportDefaults"
+    "globalPolicy" | "policySnapshots" | "classOptions" | "classDefaults" | "transportDefaults"
   >,
   academicSessionLabel: string,
 ) {
+  const policy = getSessionPolicySnapshot(data, academicSessionLabel);
+
   return {
-    academicSessionLabel: data.globalPolicy.academicSessionLabel,
-    installmentDates: data.globalPolicy.installmentSchedule.map((item) =>
-      toWorkbookDueDateInputValue(item),
-    ),
-    lateFeeFlatAmount: data.globalPolicy.lateFeeFlatAmount,
-    newStudentAcademicFeeAmount: data.globalPolicy.newStudentAcademicFeeAmount,
-    oldStudentAcademicFeeAmount: data.globalPolicy.oldStudentAcademicFeeAmount,
+    academicSessionLabel: policy.academicSessionLabel,
+    installmentDates: policy.installmentSchedule.map((item) => toWorkbookDueDateInputValue(item)),
+    lateFeeFlatAmount: policy.lateFeeFlatAmount,
+    newStudentAcademicFeeAmount: policy.newStudentAcademicFeeAmount,
+    oldStudentAcademicFeeAmount: policy.oldStudentAcademicFeeAmount,
+    customFeeHeads: policy.customFeeHeads,
     targetSessionLabel: academicSessionLabel,
     classRows: buildWorkbookClassSetupRows(data, academicSessionLabel).map((item) => ({
       label: item.label,

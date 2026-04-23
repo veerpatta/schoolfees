@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import type { ClassStatus, PaymentMode } from "@/lib/db/types";
 import {
+  copyAcademicSessionSetup,
   createAcademicSession,
   createClass,
   createFeeHead,
@@ -183,6 +184,25 @@ export async function deleteSessionAction(
     await deleteAcademicSession(parseRequiredUuid(formData.get("sessionId"), "Session"));
     revalidateMasterDataSurface();
     return toSuccess("Academic session deleted.");
+  } catch (error) {
+    return toError(error);
+  }
+}
+
+export async function copySessionAction(
+  _previous: MasterDataActionState,
+  formData: FormData,
+): Promise<MasterDataActionState> {
+  try {
+    await requireStaffPermission("settings:write");
+
+    await copyAcademicSessionSetup({
+      sourceSessionLabel: parseRequiredString(formData.get("sourceSessionLabel"), "Source session"),
+      targetSessionLabel: parseRequiredString(formData.get("targetSessionLabel"), "Target session"),
+    });
+
+    revalidateMasterDataSurface();
+    return toSuccess("Session setup copied.");
   } catch (error) {
     return toError(error);
   }

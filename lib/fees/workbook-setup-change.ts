@@ -16,6 +16,7 @@ import {
   buildWorkbookClassSetupRows,
   buildWorkbookRouteSetupRows,
   buildWorkbookSetupSnapshot,
+  getSessionPolicySnapshot,
   type WorkbookFeeSetupFormPayload,
 } from "@/lib/fees/workbook-setup";
 import { createClass } from "@/lib/master-data/data";
@@ -140,6 +141,19 @@ function formatDateValue(value: string | null | undefined) {
   }).format(parsed);
 }
 
+function formatFeeHeadList(value: WorkbookFeeSetupFormPayload["customFeeHeads"]) {
+  if (!value || value.length === 0) {
+    return "No fee heads";
+  }
+
+  return value
+    .map((item) => {
+      const statusLabel = item.isActive ? "Active" : "Inactive";
+      return `${item.label} (${statusLabel}, Rs ${item.amount})`;
+    })
+    .join(", ");
+}
+
 function buildFieldDiff(payload: {
   field: string;
   label: string;
@@ -200,9 +214,8 @@ function buildWorkbookSetupPlan(
   setupData: FeeSetupPageData,
   payload: WorkbookFeeSetupFormPayload,
 ): WorkbookSetupPlan {
-  const currentInstallmentDates = setupData.globalPolicy.installmentSchedule.map(
-    (item) => item.dueDate,
-  );
+  const basePolicy = getSessionPolicySnapshot(setupData, payload.academicSessionLabel);
+  const currentInstallmentDates = basePolicy.installmentSchedule.map((item) => item.dueDate);
   const maxInstallmentCount = Math.max(currentInstallmentDates.length, payload.installmentDates.length);
 
   const classValueByLabel = new Map(
@@ -216,7 +229,7 @@ function buildWorkbookSetupPlan(
     buildFieldDiff({
       field: "academicSessionLabel",
       label: "Academic session",
-      beforeValue: setupData.globalPolicy.academicSessionLabel,
+      beforeValue: basePolicy.academicSessionLabel,
       afterValue: payload.academicSessionLabel,
       formatter: (value) => formatNullable(String(value ?? "")),
     }),
@@ -232,23 +245,31 @@ function buildWorkbookSetupPlan(
     buildFieldDiff({
       field: "lateFeeFlatAmount",
       label: "Flat late fee",
-      beforeValue: setupData.globalPolicy.lateFeeFlatAmount,
+      beforeValue: basePolicy.lateFeeFlatAmount,
       afterValue: payload.lateFeeFlatAmount,
       formatter: (value) => formatAmount(Number(value ?? 0)),
     }),
     buildFieldDiff({
       field: "newStudentAcademicFeeAmount",
       label: "New student academic fee",
-      beforeValue: setupData.globalPolicy.newStudentAcademicFeeAmount,
+      beforeValue: basePolicy.newStudentAcademicFeeAmount,
       afterValue: payload.newStudentAcademicFeeAmount,
       formatter: (value) => formatAmount(Number(value ?? 0)),
     }),
     buildFieldDiff({
       field: "oldStudentAcademicFeeAmount",
       label: "Old student academic fee",
-      beforeValue: setupData.globalPolicy.oldStudentAcademicFeeAmount,
+      beforeValue: basePolicy.oldStudentAcademicFeeAmount,
       afterValue: payload.oldStudentAcademicFeeAmount,
       formatter: (value) => formatAmount(Number(value ?? 0)),
+    }),
+    buildFieldDiff({
+      field: "customFeeHeads",
+      label: "Fee heads",
+      beforeValue: basePolicy.customFeeHeads,
+      afterValue: payload.customFeeHeads,
+      formatter: (value) =>
+        formatFeeHeadList((value ?? []) as WorkbookFeeSetupFormPayload["customFeeHeads"]),
     }),
   ].filter((item): item is ConfigChangeFieldDiff => Boolean(item));
 
@@ -352,10 +373,11 @@ function applyWorkbookPlanToSetupData(
   payload: WorkbookFeeSetupFormPayload,
   plan: WorkbookSetupPlan,
 ) {
+  const basePolicy = getSessionPolicySnapshot(setupData, payload.academicSessionLabel);
   const nextSetupData: FeeSetupPageData = {
     ...setupData,
     globalPolicy: {
-      ...setupData.globalPolicy,
+      ...basePolicy,
       academicSessionLabel: payload.academicSessionLabel,
       installmentCount: payload.installmentDates.length,
       installmentSchedule: buildPreviewSchedule(payload),
@@ -363,7 +385,23 @@ function applyWorkbookPlanToSetupData(
       lateFeeLabel: `Flat Rs ${payload.lateFeeFlatAmount}`,
       newStudentAcademicFeeAmount: payload.newStudentAcademicFeeAmount,
       oldStudentAcademicFeeAmount: payload.oldStudentAcademicFeeAmount,
+      customFeeHeads: payload.customFeeHeads,
     },
+    policySnapshots: setupData.policySnapshots.map((item) =>
+      item.academicSessionLabel === payload.academicSessionLabel
+        ? {
+            ...item,
+            academicSessionLabel: payload.academicSessionLabel,
+            installmentCount: payload.installmentDates.length,
+            installmentSchedule: buildPreviewSchedule(payload),
+            lateFeeFlatAmount: payload.lateFeeFlatAmount,
+            lateFeeLabel: `Flat Rs ${payload.lateFeeFlatAmount}`,
+            newStudentAcademicFeeAmount: payload.newStudentAcademicFeeAmount,
+            oldStudentAcademicFeeAmount: payload.oldStudentAcademicFeeAmount,
+            customFeeHeads: payload.customFeeHeads,
+          }
+        : item,
+    ),
     classDefaults: [...setupData.classDefaults],
     transportDefaults: [...setupData.transportDefaults],
     studentOverrides: setupData.studentOverrides,
@@ -569,10 +607,12 @@ async function applyWorkbookSetupPayload(
   setupData: FeeSetupPageData,
   plan: WorkbookSetupPlan,
 ) {
+  const basePolicy = getSessionPolicySnapshot(setupData, payload.academicSessionLabel);
+
   if (plan.globalChanged) {
     await upsertGlobalFeePolicy({
       academicSessionLabel: payload.academicSessionLabel,
-      calculationModel: setupData.globalPolicy.calculationModel,
+      calculationModel: basePolicy.calculationModel,
       installmentSchedule: buildPreviewSchedule(payload).map((item) => ({
         label: item.label,
         dueDateLabel: item.dueDateLabel,
@@ -580,10 +620,10 @@ async function applyWorkbookSetupPayload(
       lateFeeFlatAmount: payload.lateFeeFlatAmount,
       newStudentAcademicFeeAmount: payload.newStudentAcademicFeeAmount,
       oldStudentAcademicFeeAmount: payload.oldStudentAcademicFeeAmount,
-      acceptedPaymentModes: setupData.globalPolicy.acceptedPaymentModes.map((item) => item.value),
-      receiptPrefix: setupData.globalPolicy.receiptPrefix,
-      customFeeHeads: setupData.globalPolicy.customFeeHeads,
-      notes: setupData.globalPolicy.notes,
+      acceptedPaymentModes: basePolicy.acceptedPaymentModes.map((item) => item.value),
+      receiptPrefix: basePolicy.receiptPrefix,
+      customFeeHeads: payload.customFeeHeads,
+      notes: basePolicy.notes,
     });
   }
 
@@ -625,7 +665,10 @@ async function applyWorkbookSetupPayload(
       booksFee: preserved.booksFee,
       admissionActivityMiscFee: preserved.admissionActivityMiscFee,
       customFeeHeadAmounts: preserved.customFeeHeadAmounts,
-      customFeeHeads: refreshedSetupData.globalPolicy.customFeeHeads,
+      customFeeHeads: getSessionPolicySnapshot(
+        refreshedSetupData,
+        payload.academicSessionLabel,
+      ).customFeeHeads,
       studentTypeDefault: preserved.studentTypeDefault,
       transportAppliesDefault: preserved.transportAppliesDefault,
       notes: preserved.notes,
@@ -637,7 +680,9 @@ async function applyWorkbookSetupPayload(
       routeId: row.routeId,
       routeCode: row.existingRouteDefault?.routeCode ?? null,
       routeName: row.routeName,
-      defaultInstallmentAmount: Math.floor(row.requestedAnnualFee / 4),
+      defaultInstallmentAmount: Math.floor(
+        row.requestedAnnualFee / Math.max(payload.installmentDates.length, 1),
+      ),
       annualFeeAmount: row.requestedAnnualFee,
       isActive: true,
       notes: row.existingRouteDefault?.notes ?? "Saved from workbook-style Fee Setup.",

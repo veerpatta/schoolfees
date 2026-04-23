@@ -114,12 +114,24 @@ export type InstallmentScheduleItem = {
   dueDate: string;
 };
 
+export type FeeHeadApplicationType =
+  | "annual_fixed"
+  | "installment_1_only"
+  | "split_across_installments"
+  | "optional_per_student";
+
 export type FeeHeadDefinition = {
   id: string;
   label: string;
+  amount: number;
+  applicationType: FeeHeadApplicationType;
+  isActive: boolean;
+  notes: string | null;
 };
 
-export type FeeHeadAmount = FeeHeadDefinition & {
+export type FeeHeadAmount = {
+  id: string;
+  label: string;
   amount: number;
 };
 
@@ -155,6 +167,11 @@ export type FeePolicySummary = {
   receiptPrefix: string;
   customFeeHeads: FeeHeadDefinition[];
   notes: string | null;
+};
+
+export type FeePolicySnapshot = FeePolicySummary & {
+  isActive: boolean;
+  updatedAt: string | null;
 };
 
 export type SchoolFeeDefault = {
@@ -243,6 +260,7 @@ export type FeeSetupRouteOption = {
 
 export type FeeSetupPageData = {
   globalPolicy: FeePolicySummary;
+  policySnapshots: FeePolicySnapshot[];
   schoolDefault: SchoolFeeDefault;
   classDefaults: ClassFeeDefault[];
   transportDefaults: TransportDefault[];

@@ -7,7 +7,7 @@ import {
   createWorkbookFeeSetupPreview,
 } from "@/lib/fees/workbook-setup-change";
 import type { WorkbookFeeSetupFormPayload } from "@/lib/fees/workbook-setup";
-import type { FeeSetupActionState } from "@/lib/fees/types";
+import type { FeeHeadApplicationType, FeeSetupActionState } from "@/lib/fees/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 function parseRequiredString(value: FormDataEntryValue | null, label: string) {
@@ -67,6 +67,61 @@ function parseRepeatedRows(
   }));
 }
 
+function parseFeeHeadApplicationType(value: FormDataEntryValue | null): FeeHeadApplicationType {
+  const normalized = (value ?? "").toString().trim();
+
+  switch (normalized) {
+    case "installment_1_only":
+    case "split_across_installments":
+    case "optional_per_student":
+      return normalized;
+    default:
+      return "annual_fixed";
+  }
+}
+
+function parseFeeHeadRows(formData: FormData) {
+  const ids = formData.getAll("feeHeadId").map((value) => value.toString().trim());
+  const labels = formData.getAll("feeHeadLabel").map((value) => value.toString().trim());
+  const amounts = formData.getAll("feeHeadAmount");
+  const applicationTypes = formData.getAll("feeHeadApplicationType");
+  const activeValues = formData.getAll("feeHeadIsActive");
+  const notes = formData.getAll("feeHeadNotes").map((value) => value.toString().trim());
+
+  if (
+    ids.length !== labels.length ||
+    labels.length !== amounts.length ||
+    labels.length !== applicationTypes.length ||
+    labels.length !== activeValues.length ||
+    labels.length !== notes.length
+  ) {
+    throw new Error("Fee head rows are out of sync. Refresh the page and try again.");
+  }
+
+  return labels
+    .map((label, index) => {
+      const hasAnyValue =
+        label ||
+        ids[index] ||
+        (amounts[index] ?? "").toString().trim() ||
+        (notes[index] ?? "").trim();
+
+      if (!hasAnyValue) {
+        return null;
+      }
+
+      return {
+        id: ids[index] || label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""),
+        label: parseRequiredString(labels[index] ?? null, "Fee head label"),
+        amount: parseRequiredNonNegativeInt(amounts[index] ?? null, `${label} amount`),
+        applicationType: parseFeeHeadApplicationType(applicationTypes[index] ?? null),
+        isActive: (activeValues[index] ?? "").toString().trim() !== "no",
+        notes: notes[index] || null,
+      };
+    })
+    .filter((row) => Boolean(row)) as WorkbookFeeSetupFormPayload["customFeeHeads"];
+}
+
 function parseWorkbookFeeSetupForm(formData: FormData): WorkbookFeeSetupFormPayload {
   const classRows = parseRepeatedRows(
     formData,
@@ -99,6 +154,7 @@ function parseWorkbookFeeSetupForm(formData: FormData): WorkbookFeeSetupFormPayl
       formData.get("oldStudentAcademicFeeAmount"),
       "Old student academic fee",
     ),
+    customFeeHeads: parseFeeHeadRows(formData),
     classRows: classRows.map((item) => ({
       label: item.label,
       annualTuition: item.value,
@@ -202,7 +258,7 @@ export async function saveWorkbookFeeSetupAction(
     return toPreviewState({
       batchId: previewResult.batchId,
       preview,
-      message: `Review ready: ${preview.studentsAffected} students affected, ${preview.installmentsToUpdate + preview.installmentsToInsert + preview.installmentsToCancel} installment rows changing, and ${preview.blockedInstallments} rows held for review. Apply only after checking the workbook summary below.`,
+      message: `Draft saved for review: ${preview.studentsAffected} students affected, ${preview.installmentsToUpdate + preview.installmentsToInsert + preview.installmentsToCancel} installment rows changing, and ${preview.blockedInstallments} rows held for review. Apply Live Setup only after checking the summary below.`,
     });
   } catch (error) {
     return toErrorState(error);

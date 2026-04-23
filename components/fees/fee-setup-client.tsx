@@ -1,51 +1,118 @@
 "use client";
 
-import Link from "next/link";
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import type { MasterDataActionState } from "@/app/protected/master-data/actions";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { ClassStatus } from "@/lib/db/types";
+import type {
+  FeeHeadApplicationType,
+  FeeHeadDefinition,
+  FeeSetupActionState,
+  FeeSetupPageData,
+} from "@/lib/fees/types";
 import {
   buildWorkbookClassSetupRows,
   buildWorkbookRouteSetupRows,
-  type WorkbookFeeSetupFormPayload,
 } from "@/lib/fees/workbook-setup";
-import type { FeeSetupActionState, FeeSetupPageData } from "@/lib/fees/types";
+
+const selectClassName =
+  "flex h-11 w-full rounded-xl border border-input/80 bg-white/88 px-3.5 py-2 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-[border-color,box-shadow,background-color] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-100 disabled:cursor-not-allowed disabled:opacity-50";
+
+type SessionItem = {
+  id: string;
+  session_label: string;
+  status: ClassStatus;
+  is_current: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type ClassItem = {
+  id: string;
+  session_label: string;
+  class_name: string;
+  section: string | null;
+  stream_name: string | null;
+  sort_order: number;
+  status: ClassStatus;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type RouteItem = {
+  id: string;
+  route_code: string | null;
+  route_name: string;
+  default_installment_amount: number;
+  is_active: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type FeeSetupMasterData = {
+  sessions: SessionItem[];
+  classes: ClassItem[];
+  routes: RouteItem[];
+};
+
+type MasterDataActionFn = (
+  previous: MasterDataActionState,
+  formData: FormData,
+) => Promise<MasterDataActionState>;
 
 type FeeSetupClientProps = {
   data: FeeSetupPageData;
+  masterData: FeeSetupMasterData;
   canEdit: boolean;
   saveWorkbookFeeSetupAction: (
     previous: FeeSetupActionState,
     formData: FormData,
   ) => Promise<FeeSetupActionState>;
   initialState: FeeSetupActionState;
+  initialMasterDataState: MasterDataActionState;
+  actions: {
+    createSessionAction: MasterDataActionFn;
+    updateSessionAction: MasterDataActionFn;
+    deleteSessionAction: MasterDataActionFn;
+    copySessionAction: MasterDataActionFn;
+    createClassAction: MasterDataActionFn;
+    updateClassAction: MasterDataActionFn;
+    deleteClassAction: MasterDataActionFn;
+    createRouteAction: MasterDataActionFn;
+    updateRouteAction: MasterDataActionFn;
+    deleteRouteAction: MasterDataActionFn;
+  };
 };
 
-function buildInitialFormState(data: FeeSetupPageData): WorkbookFeeSetupFormPayload {
-  return {
-    academicSessionLabel: data.globalPolicy.academicSessionLabel,
-    installmentDates: data.globalPolicy.installmentSchedule.map((item) => item.dueDate),
-    lateFeeFlatAmount: data.globalPolicy.lateFeeFlatAmount,
-    newStudentAcademicFeeAmount: data.globalPolicy.newStudentAcademicFeeAmount,
-    oldStudentAcademicFeeAmount: data.globalPolicy.oldStudentAcademicFeeAmount,
-    classRows: buildWorkbookClassSetupRows(
-      data,
-      data.globalPolicy.academicSessionLabel,
-    ).map((item) => ({
-      label: item.label,
-      annualTuition: item.annualTuition,
-    })),
-    routeRows: buildWorkbookRouteSetupRows(data).map((item) => ({
-      routeName: item.routeName,
-      annualFee: item.annualFee,
-    })),
-  };
-}
+type FeeHeadRow = FeeHeadDefinition & {
+  rowId: string;
+};
+
+type SessionFormState = {
+  academicSessionLabel: string;
+  installmentDates: string[];
+  lateFeeFlatAmount: number;
+  newStudentAcademicFeeAmount: number;
+  oldStudentAcademicFeeAmount: number;
+  customFeeHeads: FeeHeadRow[];
+  classRows: Array<{
+    label: string;
+    annualTuition: number;
+  }>;
+  routeRows: Array<{
+    routeName: string;
+    annualFee: number;
+  }>;
+};
 
 function formatDateTime(value: string | null) {
   if (!value) {
@@ -64,8 +131,49 @@ function formatDateTime(value: string | null) {
   }).format(parsed);
 }
 
-function ActionNotice({ state }: { state: FeeSetupActionState }) {
-  if (!state.message) {
+function buildFeeHeadRow(item: FeeHeadDefinition, index: number): FeeHeadRow {
+  return {
+    ...item,
+    rowId: `${item.id}-${index}`,
+  };
+}
+
+function getPolicySnapshot(data: FeeSetupPageData, sessionLabel: string) {
+  return (
+    data.policySnapshots.find((item) => item.academicSessionLabel === sessionLabel) ??
+    data.globalPolicy
+  );
+}
+
+function buildSessionFormState(data: FeeSetupPageData, sessionLabel: string): SessionFormState {
+  const snapshot = getPolicySnapshot(data, sessionLabel);
+
+  return {
+    academicSessionLabel: sessionLabel,
+    installmentDates: snapshot.installmentSchedule.map((item) => item.dueDate),
+    lateFeeFlatAmount: snapshot.lateFeeFlatAmount,
+    newStudentAcademicFeeAmount: snapshot.newStudentAcademicFeeAmount,
+    oldStudentAcademicFeeAmount: snapshot.oldStudentAcademicFeeAmount,
+    customFeeHeads: snapshot.customFeeHeads.map((item, index) => buildFeeHeadRow(item, index)),
+    classRows: buildWorkbookClassSetupRows(data, sessionLabel).map((item) => ({
+      label: item.label,
+      annualTuition: item.annualTuition,
+    })),
+    routeRows: buildWorkbookRouteSetupRows(data).map((item) => ({
+      routeName: item.routeName,
+      annualFee: item.annualFee,
+    })),
+  };
+}
+
+function ActionNotice({
+  state,
+  idleIsHidden = true,
+}: {
+  state: { status: string; message: string | null | undefined };
+  idleIsHidden?: boolean;
+}) {
+  if ((idleIsHidden && state.status === "idle") || !state.message) {
     return null;
   }
 
@@ -83,11 +191,7 @@ function ActionNotice({ state }: { state: FeeSetupActionState }) {
   );
 }
 
-function PreviewSummaryCard({
-  state,
-}: {
-  state: FeeSetupActionState;
-}) {
+function PreviewSummaryCard({ state }: { state: FeeSetupActionState }) {
   if (!state.preview) {
     return null;
   }
@@ -103,16 +207,16 @@ function PreviewSummaryCard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-blue-700">
-            Review Fee Setup Changes
+            Review & Apply
           </p>
           <h2 className="mt-2 font-heading text-xl font-semibold text-slate-950">
-            Workbook Fee Setup
+            Fee Setup Draft
           </h2>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            Only future or unpaid installment rows will update when you apply this review.
+            This draft is ready to go live. Only future or unpaid installment rows will change.
           </p>
         </div>
-        <StatusBadge label="Review ready" tone="accent" />
+        <StatusBadge label="Draft ready" tone="accent" />
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -145,20 +249,6 @@ function PreviewSummaryCard({
         </div>
       </div>
 
-      {preview.pendingClassCreates && preview.pendingClassCreates.length > 0 ? (
-        <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm text-slate-700">
-          Missing class rows that will be created on save:{" "}
-          <strong>{preview.pendingClassCreates.join(", ")}</strong>
-        </div>
-      ) : null}
-
-      {preview.pendingRouteCreates && preview.pendingRouteCreates.length > 0 ? (
-        <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm text-slate-700">
-          Missing route rows that will be created on save:{" "}
-          <strong>{preview.pendingRouteCreates.join(", ")}</strong>
-        </div>
-      ) : null}
-
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-600">
           Changed items
@@ -181,51 +271,165 @@ function PreviewSummaryCard({
   );
 }
 
+function createWorkbookFormData(
+  form: SessionFormState,
+  intent: "preview" | "apply",
+  changeBatchId: string | null,
+) {
+  const formData = new FormData();
+  formData.set("academicSessionLabel", form.academicSessionLabel);
+  formData.set("lateFeeFlatAmount", String(form.lateFeeFlatAmount));
+  formData.set("newStudentAcademicFeeAmount", String(form.newStudentAcademicFeeAmount));
+  formData.set("oldStudentAcademicFeeAmount", String(form.oldStudentAcademicFeeAmount));
+  formData.set("_intent", intent);
+
+  if (changeBatchId) {
+    formData.set("changeBatchId", changeBatchId);
+  }
+
+  form.installmentDates.forEach((value) => formData.append("installmentDueDate", value));
+  form.customFeeHeads.forEach((item) => {
+    formData.append("feeHeadId", item.id);
+    formData.append("feeHeadLabel", item.label);
+    formData.append("feeHeadAmount", String(item.amount));
+    formData.append("feeHeadApplicationType", item.applicationType);
+    formData.append("feeHeadIsActive", item.isActive ? "yes" : "no");
+    formData.append("feeHeadNotes", item.notes ?? "");
+  });
+  form.classRows.forEach((item) => {
+    formData.append("classLabel", item.label);
+    formData.append("classAnnualTuition", String(item.annualTuition));
+  });
+  form.routeRows.forEach((item) => {
+    formData.append("routeName", item.routeName);
+    formData.append("routeAnnualFee", String(item.annualFee));
+  });
+
+  return formData;
+}
+
+function getFeeHeadApplicationLabel(value: FeeHeadApplicationType) {
+  switch (value) {
+    case "installment_1_only":
+      return "Installment 1 only";
+    case "split_across_installments":
+      return "Evenly split";
+    case "optional_per_student":
+      return "Optional / per-student";
+    default:
+      return "Annual fixed";
+  }
+}
+
 export function FeeSetupClient({
   data,
+  masterData,
   canEdit,
   saveWorkbookFeeSetupAction,
   initialState,
+  initialMasterDataState,
+  actions,
 }: FeeSetupClientProps) {
   const router = useRouter();
-  const [state, formAction, isPending] = useActionState(
-    saveWorkbookFeeSetupAction,
-    initialState,
+  const [selectedSessionLabel, setSelectedSessionLabel] = useState(
+    data.globalPolicy.academicSessionLabel,
   );
-  const [form, setForm] = useState<WorkbookFeeSetupFormPayload>(() =>
-    buildInitialFormState(data),
+  const [form, setForm] = useState<SessionFormState>(() =>
+    buildSessionFormState(data, data.globalPolicy.academicSessionLabel),
   );
+  const [saveState, setSaveState] = useState(initialState);
   const [previewDirty, setPreviewDirty] = useState(false);
+  const [sessionState, setSessionState] = useState(initialMasterDataState);
+  const [classState, setClassState] = useState(initialMasterDataState);
+  const [routeState, setRouteState] = useState(initialMasterDataState);
   const [classSearch, setClassSearch] = useState("");
   const [routeSearch, setRouteSearch] = useState("");
+  const [newSessionLabel, setNewSessionLabel] = useState("");
+  const [copyTargetSessionLabel, setCopyTargetSessionLabel] = useState("");
+  const [newClassName, setNewClassName] = useState("");
+  const [newRouteName, setNewRouteName] = useState("");
+  const [newRouteCode, setNewRouteCode] = useState("");
+  const [isSaving, startSaving] = useTransition();
+  const [isSupportingPending, startSupporting] = useTransition();
 
   useEffect(() => {
-    setForm(buildInitialFormState(data));
+    const sessionExists = masterData.sessions.some(
+      (item) => item.session_label === selectedSessionLabel,
+    );
+    const nextSessionLabel = sessionExists
+      ? selectedSessionLabel
+      : data.globalPolicy.academicSessionLabel;
+
+    setSelectedSessionLabel(nextSessionLabel);
+    setForm(buildSessionFormState(data, nextSessionLabel));
+    setSaveState(initialState);
     setPreviewDirty(false);
-  }, [data]);
+  }, [data, initialState, masterData.sessions, selectedSessionLabel]);
 
-  useEffect(() => {
-    if (state.status === "preview") {
-      setPreviewDirty(false);
+  function markDirty() {
+    if (saveState.status === "preview") {
+      setPreviewDirty(true);
     }
+  }
 
-    if (state.status === "success") {
-      setPreviewDirty(false);
-      router.refresh();
-    }
-  }, [router, state.status]);
+  async function runSupportAction(
+    action: MasterDataActionFn,
+    previous: MasterDataActionState,
+    formData: FormData,
+    setState: (value: MasterDataActionState) => void,
+    options?: { onSuccess?: () => void },
+  ) {
+    startSupporting(async () => {
+      const result = await action(previous, formData);
+      setState(result);
 
-  const classRows = buildWorkbookClassSetupRows(data, form.academicSessionLabel).map((row) => ({
+      if (result.status === "success") {
+        options?.onSuccess?.();
+        router.refresh();
+      }
+    });
+  }
+
+  function submitFeeSetup(intent: "preview" | "apply") {
+    startSaving(async () => {
+      const result = await saveWorkbookFeeSetupAction(
+        saveState,
+        createWorkbookFormData(form, intent, saveState.changeBatchId),
+      );
+
+      setSaveState(result);
+
+      if (result.status === "preview") {
+        setPreviewDirty(false);
+      }
+
+      if (result.status === "success") {
+        setPreviewDirty(false);
+        router.refresh();
+      }
+    });
+  }
+
+  const sessionRows = masterData.sessions;
+  const selectedPolicySnapshot = data.policySnapshots.find(
+    (item) => item.academicSessionLabel === selectedSessionLabel,
+  );
+  const currentSessionLabel = data.globalPolicy.academicSessionLabel;
+  const classRows = buildWorkbookClassSetupRows(data, selectedSessionLabel).map((row) => ({
     ...row,
     annualTuition:
-      form.classRows.find((item) => item.label === row.label)?.annualTuition ??
-      row.annualTuition,
+      form.classRows.find((item) => item.label === row.label)?.annualTuition ?? row.annualTuition,
+    classRecord: row.classId
+      ? masterData.classes.find((item) => item.id === row.classId) ?? null
+      : null,
   }));
   const routeRows = buildWorkbookRouteSetupRows(data).map((row) => ({
     ...row,
     annualFee:
-      form.routeRows.find((item) => item.routeName === row.routeName)?.annualFee ??
-      row.annualFee,
+      form.routeRows.find((item) => item.routeName === row.routeName)?.annualFee ?? row.annualFee,
+    routeRecord: row.routeId
+      ? masterData.routes.find((item) => item.id === row.routeId) ?? null
+      : masterData.routes.find((item) => item.route_name === row.routeName) ?? null,
   }));
   const normalizedClassSearch = classSearch.trim().toLowerCase();
   const normalizedRouteSearch = routeSearch.trim().toLowerCase();
@@ -235,13 +439,8 @@ export function FeeSetupClient({
   const visibleRouteRows = normalizedRouteSearch
     ? routeRows.filter((row) => row.routeName.toLowerCase().includes(normalizedRouteSearch))
     : routeRows;
-  const canApply = canEdit && state.preview && !previewDirty;
-
-  function markDirty() {
-    if (state.status === "preview") {
-      setPreviewDirty(true);
-    }
-  }
+  const totalActiveFeeHeads = form.customFeeHeads.filter((item) => item.isActive).length;
+  const canApply = canEdit && saveState.preview && !previewDirty;
 
   function updateInstallmentDate(index: number, value: string) {
     setForm((current) => {
@@ -298,168 +497,415 @@ export function FeeSetupClient({
     markDirty();
   }
 
+  function addFeeHeadRow() {
+    setForm((current) => ({
+      ...current,
+      customFeeHeads: [
+        ...current.customFeeHeads,
+        {
+          rowId: `new-${Date.now()}`,
+          id: `new_head_${Date.now()}`,
+          label: "",
+          amount: 0,
+          applicationType: "annual_fixed",
+          isActive: true,
+          notes: null,
+        },
+      ],
+    }));
+    markDirty();
+  }
+
+  function updateFeeHeadRow(rowId: string, patch: Partial<FeeHeadRow>) {
+    setForm((current) => ({
+      ...current,
+      customFeeHeads: current.customFeeHeads.map((item) =>
+        item.rowId === rowId ? { ...item, ...patch } : item,
+      ),
+    }));
+    markDirty();
+  }
+
+  function removeFeeHeadRow(rowId: string) {
+    setForm((current) => ({
+      ...current,
+      customFeeHeads: current.customFeeHeads.filter((item) => item.rowId !== rowId),
+    }));
+    markDirty();
+  }
+
+  function switchSession(sessionLabel: string) {
+    setSelectedSessionLabel(sessionLabel);
+    setForm(buildSessionFormState(data, sessionLabel));
+    setSaveState(initialState);
+    setPreviewDirty(false);
+  }
+
   return (
-    <form action={formAction} className="space-y-6">
-      <ActionNotice state={state} />
-      <PreviewSummaryCard state={state} />
+    <div className="space-y-6">
+      <ActionNotice state={saveState} />
+      <PreviewSummaryCard state={saveState} />
 
       {!canEdit ? (
         <div className="rounded-[26px] border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm leading-6 text-amber-900">
-          Only admins can change Fee Setup. Accountant and read-only staff can review the live
-          values here.
+          Only admins can change Fee Setup. Accountant and read-only staff can review the current
+          and saved session setup here.
         </div>
       ) : null}
 
       {previewDirty ? (
         <div className="rounded-[26px] border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm leading-6 text-amber-900">
-          Values changed after review. Review the Fee Setup again before applying it.
+          The draft is now out of date. Save Draft again before you apply the live setup.
         </div>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
-          <SectionCard
-            title="Quick Workflow"
-            description="Use this rail to jump to the part staff need next."
-          >
-            <div className="space-y-2">
-              <Button asChild variant="outline" className="w-full justify-start">
-                <Link href="#fee-setup-session">1. Session</Link>
-              </Button>
-              <Button asChild variant="outline" className="w-full justify-start">
-                <Link href="#fee-setup-installments">2. Installments</Link>
-              </Button>
-              <Button asChild variant="outline" className="w-full justify-start">
-                <Link href="#fee-setup-policy">3. Policy values</Link>
-              </Button>
-              <Button asChild variant="outline" className="w-full justify-start">
-                <Link href="#fee-setup-classes">4. Classes</Link>
-              </Button>
-              <Button asChild variant="outline" className="w-full justify-start">
-                <Link href="#fee-setup-routes">5. Routes</Link>
-              </Button>
-              <Button asChild variant="outline" className="w-full justify-start">
-                <Link href="#fee-setup-save">6. Save</Link>
-              </Button>
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            title="Setup Snapshot"
-            description="A compact view of what is live right now."
-          >
-            <div className="space-y-3 text-sm text-slate-700">
-              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Session
-                </p>
-                <p className="mt-1 font-medium text-slate-950">{data.globalPolicy.academicSessionLabel}</p>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Installments
-                </p>
-                <p className="mt-1 font-medium text-slate-950">{form.installmentDates.length} rows</p>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Fee policy
-                </p>
-                <p className="mt-1 font-medium text-slate-950">New academic session creates a new saved fee-policy snapshot.</p>
-              </div>
-            </div>
-          </SectionCard>
-        </aside>
-
-        <div className="space-y-6">
-          <SectionCard
-            id="fee-setup-session"
-            title="1. Academic Session"
-            description="Change this first. If you enter a new academic year, the save flow creates a fresh fee-policy snapshot for that session."
-          >
-            <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-              <div>
-                <Label htmlFor="academic-session-label">Academic session label</Label>
-                <Input
-                  id="academic-session-label"
-                  name="academicSessionLabel"
-                  value={form.academicSessionLabel}
-                  onChange={(event) => {
-                    setForm((current) => ({
-                      ...current,
-                      academicSessionLabel: event.target.value,
-                    }));
-                    markDirty();
-                  }}
-                  className="mt-2"
-                  disabled={!canEdit}
-                  required
-                />
-              </div>
-              <div className="rounded-[24px] border border-sky-100 bg-sky-50/75 px-4 py-3 text-sm leading-6 text-slate-700">
-                Current live session:{" "}
-                <strong className="text-slate-950">{data.globalPolicy.academicSessionLabel}</strong>
-                <br />
-                Switching to a new session keeps the old year as history and starts a new fee
-                setup snapshot for the new year.
-              </div>
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            id="fee-setup-installments"
-            title="2. Installment Schedule"
-            description="Set the installment count by adding or removing due-date rows. The fee engine uses the number of rows you keep here."
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="rounded-2xl border border-sky-100 bg-sky-50/80 px-4 py-3 text-sm text-slate-700">
-                Installments in this setup:{" "}
-                <strong className="text-slate-950">{form.installmentDates.length}</strong>
-              </div>
-              {canEdit ? (
-                <Button type="button" variant="outline" onClick={addInstallmentDate}>
-                  Add installment row
-                </Button>
-              ) : null}
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {form.installmentDates.map((value, index) => (
-                <div key={`due-date-${index}`} className="rounded-[24px] border border-slate-200 bg-white p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <Label htmlFor={`installment-date-${index}`}>Installment {index + 1} due date</Label>
-                    {canEdit && form.installmentDates.length > 1 ? (
-                      <Button type="button" variant="ghost" onClick={() => removeInstallmentDate(index)}>
-                        Remove
-                      </Button>
-                    ) : null}
-                  </div>
-                  <Input
-                    id={`installment-date-${index}`}
-                    name="installmentDueDate"
-                    type="date"
-                    value={value}
-                    onChange={(event) => updateInstallmentDate(index, event.target.value)}
-                    className="mt-2"
-                    disabled={!canEdit}
-                    required
-                  />
-                </div>
+      <SectionCard
+        title="1. Academic Session"
+        description="Add, edit, archive, remove, select, or copy academic sessions here. Selecting a session on this page prepares the live switch, but the session becomes live only after Apply Live Setup."
+        actions={
+          <div className="min-w-[240px]">
+            <Label htmlFor="selected-session">Selected session</Label>
+            <select
+              id="selected-session"
+              value={selectedSessionLabel}
+              onChange={(event) => switchSession(event.target.value)}
+              className={`${selectClassName} mt-2`}
+            >
+              {sessionRows.map((item) => (
+                <option key={item.id} value={item.session_label}>
+                  {item.session_label}
+                </option>
               ))}
-            </div>
-          </SectionCard>
+            </select>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <ActionNotice state={sessionState} />
 
-          <SectionCard
-            id="fee-setup-policy"
-            title="3. Fee Policy Values"
-            description="These are the workbook-style policy values that stay live for the current academic session."
-          >
-            <div className="grid gap-4 md:grid-cols-3">
+          {canEdit ? (
+            <div className="grid gap-4 xl:grid-cols-2">
+              <form
+                className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const formData = new FormData(event.currentTarget);
+                  runSupportAction(actions.createSessionAction, sessionState, formData, setSessionState, {
+                    onSuccess: () => setNewSessionLabel(""),
+                  });
+                }}
+              >
+                <p className="text-sm font-semibold text-slate-950">Add session</p>
+                <div className="mt-3 grid gap-3 md:grid-cols-[1fr_140px]">
+                  <div>
+                    <Label htmlFor="new-session-label">Session label</Label>
+                    <Input
+                      id="new-session-label"
+                      name="sessionLabel"
+                      value={newSessionLabel}
+                      onChange={(event) => setNewSessionLabel(event.target.value)}
+                      placeholder="2027-28"
+                      className="mt-2"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label>Status</Label>
+                    <select name="sessionStatus" defaultValue="active" className={`${selectClassName} mt-2`}>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                  </div>
+                </div>
+                <input type="hidden" name="isCurrentSession" value="no" />
+                <input type="hidden" name="sessionNotes" value="" />
+                <Button type="submit" className="mt-4" disabled={isSupportingPending}>
+                  Add
+                </Button>
+              </form>
+
+              <form
+                className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const formData = new FormData(event.currentTarget);
+                  runSupportAction(actions.copySessionAction, sessionState, formData, setSessionState, {
+                    onSuccess: () => setCopyTargetSessionLabel(""),
+                  });
+                }}
+              >
+                <p className="text-sm font-semibold text-slate-950">Copy setup</p>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <div>
+                    <Label htmlFor="source-session-label">Copy from</Label>
+                    <select
+                      id="source-session-label"
+                      name="sourceSessionLabel"
+                      defaultValue={selectedSessionLabel}
+                      className={`${selectClassName} mt-2`}
+                    >
+                      {sessionRows.map((item) => (
+                        <option key={item.id} value={item.session_label}>
+                          {item.session_label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="target-session-label">New session</Label>
+                    <Input
+                      id="target-session-label"
+                      name="targetSessionLabel"
+                      value={copyTargetSessionLabel}
+                      onChange={(event) => setCopyTargetSessionLabel(event.target.value)}
+                      placeholder="2027-28"
+                      className="mt-2"
+                      required
+                    />
+                  </div>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-slate-500">
+                  This copies the latest fee-policy snapshot and class fee rows into a new session.
+                  The copied session still goes live only after Apply Live Setup.
+                </p>
+                <Button type="submit" className="mt-4" variant="outline" disabled={isSupportingPending}>
+                  Copy Setup
+                </Button>
+              </form>
+            </div>
+          ) : null}
+
+          <div className="overflow-auto rounded-[26px] border border-slate-200 bg-white">
+            <table className="w-full min-w-[860px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Session</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Policy</th>
+                  <th className="px-4 py-3">Updated</th>
+                  <th className="px-4 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sessionRows.map((item) => {
+                  const formId = `session-row-${item.id}`;
+                  const snapshot = data.policySnapshots.find(
+                    (policy) => policy.academicSessionLabel === item.session_label,
+                  );
+
+                  return (
+                    <tr key={item.id} className="border-t border-slate-100 align-top">
+                      <td className="px-4 py-3">
+                        <form
+                          id={formId}
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            runSupportAction(
+                              actions.updateSessionAction,
+                              sessionState,
+                              new FormData(event.currentTarget),
+                              setSessionState,
+                            );
+                          }}
+                        >
+                          <input type="hidden" name="sessionId" value={item.id} />
+                          <input type="hidden" name="isCurrentSession" value={item.is_current ? "yes" : "no"} />
+                          <input type="hidden" name="sessionNotes" value={item.notes ?? ""} />
+                          <Input
+                            name="sessionLabel"
+                            defaultValue={item.session_label}
+                            disabled={!canEdit}
+                          />
+                        </form>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {item.session_label === currentSessionLabel ? (
+                            <StatusBadge label="Current" tone="good" />
+                          ) : null}
+                          {item.session_label === selectedSessionLabel ? (
+                            <StatusBadge label="Selected" tone="accent" />
+                          ) : null}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <select
+                          form={formId}
+                          name="sessionStatus"
+                          defaultValue={item.status}
+                          className={selectClassName}
+                          disabled={!canEdit}
+                        >
+                          <option value="active">Active</option>
+                          <option value="inactive">Inactive</option>
+                          <option value="archived">Archived</option>
+                        </select>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {snapshot ? (
+                          <div className="space-y-1">
+                            <p className="font-medium text-slate-950">
+                              {snapshot.installmentCount} installments
+                            </p>
+                            <p>{snapshot.customFeeHeads.filter((head) => head.isActive).length} fee heads</p>
+                          </div>
+                        ) : (
+                          <span>No saved setup yet</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {formatDateTime(snapshot?.updatedAt ?? item.updated_at)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            variant={item.session_label === selectedSessionLabel ? "default" : "outline"}
+                            onClick={() => switchSession(item.session_label)}
+                          >
+                            Set Current
+                          </Button>
+                          {canEdit ? (
+                            <>
+                              <Button type="submit" form={formId} variant="outline" disabled={isSupportingPending}>
+                                Save
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                disabled={isSupportingPending || item.status === "archived"}
+                                onClick={() => {
+                                  const formData = new FormData();
+                                  formData.set("sessionId", item.id);
+                                  formData.set("sessionLabel", item.session_label);
+                                  formData.set("sessionStatus", "archived");
+                                  formData.set("isCurrentSession", item.is_current ? "yes" : "no");
+                                  formData.set("sessionNotes", item.notes ?? "");
+                                  runSupportAction(
+                                    actions.updateSessionAction,
+                                    sessionState,
+                                    formData,
+                                    setSessionState,
+                                  );
+                                }}
+                              >
+                                Archive
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                disabled={isSupportingPending}
+                                onClick={() => {
+                                  const formData = new FormData();
+                                  formData.set("sessionId", item.id);
+                                  runSupportAction(
+                                    actions.deleteSessionAction,
+                                    sessionState,
+                                    formData,
+                                    setSessionState,
+                                  );
+                                }}
+                              >
+                                Remove
+                              </Button>
+                            </>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="2. Fee Policy"
+        description="Set the canonical policy values for the selected academic session. This section stays simple on purpose."
+        actions={<StatusBadge label={selectedSessionLabel} tone="accent" />}
+      >
+        <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                Installments configured: <strong>{form.installmentDates.length}</strong>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                Fee heads configured: <strong>{form.customFeeHeads.length}</strong>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                Selected session: <strong>{selectedSessionLabel}</strong>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-950">Installment due dates</p>
+                  <p className="text-sm text-slate-600">
+                    Add or remove rows to change the installment count for this session.
+                  </p>
+                </div>
+                {canEdit ? (
+                  <Button type="button" variant="outline" onClick={addInstallmentDate}>
+                    Add installment
+                  </Button>
+                ) : null}
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                {form.installmentDates.map((value, index) => (
+                  <div key={`installment-${index}`} className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <Label htmlFor={`installment-date-${index}`}>Installment {index + 1}</Label>
+                      {canEdit && form.installmentDates.length > 1 ? (
+                        <Button type="button" variant="ghost" onClick={() => removeInstallmentDate(index)}>
+                          Remove
+                        </Button>
+                      ) : null}
+                    </div>
+                    <Input
+                      id={`installment-date-${index}`}
+                      type="date"
+                      value={value}
+                      onChange={(event) => updateInstallmentDate(index, event.target.value)}
+                      className="mt-2"
+                      disabled={!canEdit}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[26px] border border-slate-200 bg-white p-5">
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <Label htmlFor="late-fee-flat-amount">Flat late fee per overdue installment</Label>
+                <p className="text-sm font-semibold text-slate-950">Late fee</p>
+                <p className="text-sm text-slate-600">Keep it on or turn it off for this session.</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!canEdit}
+                onClick={() => {
+                  setForm((current) => ({
+                    ...current,
+                    lateFeeFlatAmount: current.lateFeeFlatAmount > 0 ? 0 : 1000,
+                  }));
+                  markDirty();
+                }}
+              >
+                {form.lateFeeFlatAmount > 0 ? "Disable" : "Enable"}
+              </Button>
+            </div>
+
+            <div className="mt-4 space-y-4">
+              <div>
+                <Label htmlFor="late-fee-amount">Late fee amount</Label>
                 <Input
-                  id="late-fee-flat-amount"
-                  name="lateFeeFlatAmount"
+                  id="late-fee-amount"
                   type="number"
                   min={0}
                   value={form.lateFeeFlatAmount}
@@ -471,15 +917,13 @@ export function FeeSetupClient({
                     markDirty();
                   }}
                   className="mt-2"
-                  disabled={!canEdit}
-                  required
+                  disabled={!canEdit || form.lateFeeFlatAmount === 0}
                 />
               </div>
               <div>
-                <Label htmlFor="new-student-academic-fee">New student academic fee</Label>
+                <Label htmlFor="new-academic-fee">New student academic fee</Label>
                 <Input
-                  id="new-student-academic-fee"
-                  name="newStudentAcademicFeeAmount"
+                  id="new-academic-fee"
                   type="number"
                   min={0}
                   value={form.newStudentAcademicFeeAmount}
@@ -492,14 +936,12 @@ export function FeeSetupClient({
                   }}
                   className="mt-2"
                   disabled={!canEdit}
-                  required
                 />
               </div>
               <div>
-                <Label htmlFor="old-student-academic-fee">Old student academic fee</Label>
+                <Label htmlFor="old-academic-fee">Old student academic fee</Label>
                 <Input
-                  id="old-student-academic-fee"
-                  name="oldStudentAcademicFeeAmount"
+                  id="old-academic-fee"
                   type="number"
                   min={0}
                   value={form.oldStudentAcademicFeeAmount}
@@ -512,62 +954,122 @@ export function FeeSetupClient({
                   }}
                   className="mt-2"
                   disabled={!canEdit}
-                  required
                 />
               </div>
             </div>
-          </SectionCard>
+          </div>
+        </div>
+      </SectionCard>
 
-          <SectionCard
-            id="fee-setup-classes"
-            title="4. Class-wise Tuition Table"
-            description="Edit the annual tuition for each class for the selected academic session."
-          >
-            <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="sm:min-w-[260px]">
-                  <Label htmlFor="class-search">Search classes</Label>
+      <SectionCard
+        title="3. Class Fees"
+        description="Manage classes for the selected session and set annual tuition in one fast grid."
+        actions={
+          <div className="w-full min-w-[240px] max-w-sm">
+            <Label htmlFor="class-search">Search classes</Label>
+            <Input
+              id="class-search"
+              value={classSearch}
+              onChange={(event) => setClassSearch(event.target.value)}
+              placeholder="Type class name"
+              className="mt-2"
+            />
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <ActionNotice state={classState} />
+
+          {canEdit ? (
+            <form
+              className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const formData = new FormData();
+                formData.set("sessionLabel", selectedSessionLabel);
+                formData.set("className", newClassName);
+                formData.set("section", "");
+                formData.set("streamName", "");
+                formData.set("sortOrder", String(classRows.length + 1));
+                formData.set("classStatus", "active");
+                formData.set("classNotes", "");
+                runSupportAction(actions.createClassAction, classState, formData, setClassState, {
+                  onSuccess: () => setNewClassName(""),
+                });
+              }}
+            >
+              <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                <div>
+                  <Label htmlFor="new-class-name">Add class</Label>
                   <Input
-                    id="class-search"
-                    value={classSearch}
-                    onChange={(event) => setClassSearch(event.target.value)}
-                    placeholder="Type class name"
+                    id="new-class-name"
+                    value={newClassName}
+                    onChange={(event) => setNewClassName(event.target.value)}
+                    placeholder="Class 11 Humanities"
                     className="mt-2"
+                    required
                   />
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                  Showing <strong className="text-slate-950">{visibleClassRows.length}</strong> of{" "}
-                  <strong className="text-slate-950">{classRows.length}</strong> class rows
+                <div className="flex items-end">
+                  <Button type="submit" disabled={isSupportingPending}>
+                    Add row
+                  </Button>
                 </div>
               </div>
-              {canEdit ? (
-                <p className="text-sm text-slate-600">
-                  Search first, then edit tuition in place. Keep the collapsed supporting list
-                  section closed unless you need to add or remove a class record.
-                </p>
-              ) : null}
-            </div>
+            </form>
+          ) : null}
 
-            <div className="overflow-x-auto rounded-[26px] border border-slate-200 bg-white">
-              <table className="w-full min-w-[760px] text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3">Class</th>
-                    <th className="px-4 py-3">Annual tuition</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Last saved</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleClassRows.map((row) => (
-                    <tr key={`${form.academicSessionLabel}-${row.label}`} className="border-t border-slate-100">
-                      <td className="px-4 py-3 font-medium text-slate-950">
-                        <input type="hidden" name="classLabel" value={row.label} />
-                        {row.label}
+          <div className="overflow-auto rounded-[26px] border border-slate-200 bg-white">
+            <table className="w-full min-w-[980px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Class Name</th>
+                  <th className="px-4 py-3">Annual Tuition Fee</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleClassRows.map((row) => {
+                  const formId = row.classRecord ? `class-row-${row.classRecord.id}` : null;
+
+                  return (
+                    <tr key={`${selectedSessionLabel}-${row.label}`} className="border-t border-slate-100 align-top">
+                      <td className="px-4 py-3">
+                        {row.classRecord && formId ? (
+                          <form
+                            id={formId}
+                            onSubmit={(event) => {
+                              event.preventDefault();
+                              runSupportAction(
+                                actions.updateClassAction,
+                                classState,
+                                new FormData(event.currentTarget),
+                                setClassState,
+                              );
+                            }}
+                          >
+                            <input type="hidden" name="classId" value={row.classRecord.id} />
+                            <input type="hidden" name="sessionLabel" value={selectedSessionLabel} />
+                            <input type="hidden" name="section" value={row.classRecord.section ?? ""} />
+                            <input type="hidden" name="streamName" value={row.classRecord.stream_name ?? ""} />
+                            <input type="hidden" name="sortOrder" value={String(row.classRecord.sort_order)} />
+                            <input type="hidden" name="classNotes" value={row.classRecord.notes ?? ""} />
+                            <Input
+                              name="className"
+                              defaultValue={row.classRecord.class_name}
+                              disabled={!canEdit}
+                            />
+                          </form>
+                        ) : (
+                          <div>
+                            <p className="font-medium text-slate-950">{row.label}</p>
+                            <p className="mt-1 text-xs text-slate-500">Will be created on apply</p>
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <Input
-                          name="classAnnualTuition"
                           type="number"
                           min={0}
                           value={row.annualTuition}
@@ -575,75 +1077,191 @@ export function FeeSetupClient({
                             updateClassAnnualTuition(row.label, Number(event.target.value || 0))
                           }
                           disabled={!canEdit}
-                          required
                         />
                       </td>
                       <td className="px-4 py-3">
-                        {row.hasSavedDefault ? (
-                          <StatusBadge label="Saved row" tone="good" />
-                        ) : row.hasClassRecord ? (
-                          <StatusBadge label="Will save default" tone="accent" />
+                        {row.classRecord && formId ? (
+                          <select
+                            form={formId}
+                            name="classStatus"
+                            defaultValue={row.classRecord.status}
+                            className={selectClassName}
+                            disabled={!canEdit}
+                          >
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="archived">Archived</option>
+                          </select>
                         ) : (
-                          <StatusBadge label="Will create row" tone="warning" />
+                          <StatusBadge label="Pending create" tone="warning" />
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{formatDateTime(row.updatedAt)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          {row.classRecord && formId ? (
+                            <>
+                              <Button type="submit" form={formId} variant="outline" disabled={!canEdit || isSupportingPending}>
+                                Save
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                disabled={!canEdit || isSupportingPending}
+                                onClick={() => {
+                                  const formData = new FormData();
+                                  formData.set("classId", row.classRecord!.id);
+                                  runSupportAction(
+                                    actions.deleteClassAction,
+                                    classState,
+                                    formData,
+                                    setClassState,
+                                  );
+                                }}
+                              >
+                                Remove
+                              </Button>
+                            </>
+                          ) : (
+                            <span className="text-xs text-slate-500">
+                              Tuition will save when you apply the live setup.
+                            </span>
+                          )}
+                        </div>
+                      </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </SectionCard>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </SectionCard>
 
-          <SectionCard
-            id="fee-setup-routes"
-            title="5. Route-wise Transport Fee Table"
-            description="Edit the annual transport fee for each route. The yearly fee stays the live workbook value."
-          >
-            <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="sm:min-w-[260px]">
-                  <Label htmlFor="route-search">Search routes</Label>
+      <SectionCard
+        title="4. Route Fees"
+        description="Keep transport routes easy to maintain and set the annual route fees in one list."
+        actions={
+          <div className="w-full min-w-[240px] max-w-sm">
+            <Label htmlFor="route-search">Search routes</Label>
+            <Input
+              id="route-search"
+              value={routeSearch}
+              onChange={(event) => setRouteSearch(event.target.value)}
+              placeholder="Type route name"
+              className="mt-2"
+            />
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <ActionNotice state={routeState} />
+
+          {canEdit ? (
+            <form
+              className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const formData = new FormData();
+                formData.set("routeCode", newRouteCode);
+                formData.set("routeName", newRouteName);
+                formData.set(
+                  "defaultInstallmentAmount",
+                  String(Math.floor(0 / Math.max(form.installmentDates.length, 1))),
+                );
+                formData.set("routeIsActive", "yes");
+                formData.set("routeNotes", "");
+                runSupportAction(actions.createRouteAction, routeState, formData, setRouteState, {
+                  onSuccess: () => {
+                    setNewRouteName("");
+                    setNewRouteCode("");
+                  },
+                });
+              }}
+            >
+              <div className="grid gap-3 md:grid-cols-[180px_1fr_auto]">
+                <div>
+                  <Label htmlFor="new-route-code">Route code</Label>
                   <Input
-                    id="route-search"
-                    value={routeSearch}
-                    onChange={(event) => setRouteSearch(event.target.value)}
-                    placeholder="Type route name"
+                    id="new-route-code"
+                    value={newRouteCode}
+                    onChange={(event) => setNewRouteCode(event.target.value)}
                     className="mt-2"
                   />
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                  Showing <strong className="text-slate-950">{visibleRouteRows.length}</strong> of{" "}
-                  <strong className="text-slate-950">{routeRows.length}</strong> route rows
+                <div>
+                  <Label htmlFor="new-route-name">Add route</Label>
+                  <Input
+                    id="new-route-name"
+                    value={newRouteName}
+                    onChange={(event) => setNewRouteName(event.target.value)}
+                    placeholder="Amet Bus"
+                    className="mt-2"
+                    required
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button type="submit" disabled={isSupportingPending}>
+                    Add row
+                  </Button>
                 </div>
               </div>
-              {canEdit ? (
-                <p className="text-sm text-slate-600">
-                  Use the search box to narrow the route list before adjusting fees.
-                </p>
-              ) : null}
-            </div>
+            </form>
+          ) : null}
 
-            <div className="overflow-x-auto rounded-[26px] border border-slate-200 bg-white">
-              <table className="w-full min-w-[760px] text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3">Transport route</th>
-                    <th className="px-4 py-3">Annual transport fee</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Last saved</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleRouteRows.map((row) => (
-                    <tr key={row.routeName} className="border-t border-slate-100">
-                      <td className="px-4 py-3 font-medium text-slate-950">
-                        <input type="hidden" name="routeName" value={row.routeName} />
-                        {row.routeName}
+          <div className="overflow-auto rounded-[26px] border border-slate-200 bg-white">
+            <table className="w-full min-w-[980px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Route Name</th>
+                  <th className="px-4 py-3">Annual Transport Fee</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleRouteRows.map((row) => {
+                  const routeRecord = row.routeRecord;
+                  const formId = routeRecord ? `route-row-${routeRecord.id}` : null;
+
+                  return (
+                    <tr key={row.routeName} className="border-t border-slate-100 align-top">
+                      <td className="px-4 py-3">
+                        {routeRecord && formId ? (
+                          <form
+                            id={formId}
+                            onSubmit={(event) => {
+                              event.preventDefault();
+                              runSupportAction(
+                                actions.updateRouteAction,
+                                routeState,
+                                new FormData(event.currentTarget),
+                                setRouteState,
+                              );
+                            }}
+                          >
+                            <input type="hidden" name="routeId" value={routeRecord.id} />
+                            <input type="hidden" name="routeCode" value={routeRecord.route_code ?? ""} />
+                            <input
+                              type="hidden"
+                              name="defaultInstallmentAmount"
+                              value={String(routeRecord.default_installment_amount)}
+                            />
+                            <input type="hidden" name="routeNotes" value={routeRecord.notes ?? ""} />
+                            <Input
+                              name="routeName"
+                              defaultValue={routeRecord.route_name}
+                              disabled={!canEdit}
+                            />
+                          </form>
+                        ) : (
+                          <div>
+                            <p className="font-medium text-slate-950">{row.routeName}</p>
+                            <p className="mt-1 text-xs text-slate-500">Will be created on apply</p>
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <Input
-                          name="routeAnnualFee"
                           type="number"
                           min={0}
                           value={row.annualFee}
@@ -651,61 +1269,295 @@ export function FeeSetupClient({
                             updateRouteAnnualFee(row.routeName, Number(event.target.value || 0))
                           }
                           disabled={!canEdit}
-                          required
                         />
                       </td>
                       <td className="px-4 py-3">
-                        {row.hasRouteRecord ? (
-                          <StatusBadge label="Saved row" tone="good" />
+                        {routeRecord && formId ? (
+                          <select
+                            form={formId}
+                            name="routeIsActive"
+                            defaultValue={routeRecord.is_active ? "yes" : "no"}
+                            className={selectClassName}
+                            disabled={!canEdit}
+                          >
+                            <option value="yes">Active</option>
+                            <option value="no">Inactive</option>
+                          </select>
                         ) : (
-                          <StatusBadge label="Will create row" tone="warning" />
+                          <StatusBadge label="Pending create" tone="warning" />
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{formatDateTime(row.updatedAt)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          {routeRecord && formId ? (
+                            <>
+                              <Button type="submit" form={formId} variant="outline" disabled={!canEdit || isSupportingPending}>
+                                Save
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                disabled={!canEdit || isSupportingPending}
+                                onClick={() => {
+                                  const formData = new FormData();
+                                  formData.set("routeId", routeRecord.id);
+                                  runSupportAction(
+                                    actions.deleteRouteAction,
+                                    routeState,
+                                    formData,
+                                    setRouteState,
+                                  );
+                                }}
+                              >
+                                Remove
+                              </Button>
+                            </>
+                          ) : (
+                            <span className="text-xs text-slate-500">
+                              Route fee will save when you apply the live setup.
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="5. Fee Heads"
+        description="Add session-level fee heads without turning this page into a complex rules engine."
+        actions={
+          canEdit ? (
+            <Button type="button" variant="outline" onClick={addFeeHeadRow}>
+              Add fee head
+            </Button>
+          ) : null
+        }
+      >
+        <div className="space-y-4">
+          {form.customFeeHeads.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+              No extra fee heads are configured for this session yet.
+            </div>
+          ) : (
+            <div className="overflow-auto rounded-[26px] border border-slate-200 bg-white">
+              <table className="w-full min-w-[1080px] text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">Fee Head Name</th>
+                    <th className="px-4 py-3">Amount</th>
+                    <th className="px-4 py-3">Application Type</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Notes</th>
+                    <th className="px-4 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {form.customFeeHeads.map((item) => (
+                    <tr key={item.rowId} className="border-t border-slate-100 align-top">
+                      <td className="px-4 py-3">
+                        <Input
+                          value={item.label}
+                          onChange={(event) =>
+                            updateFeeHeadRow(item.rowId, {
+                              label: event.target.value,
+                              id:
+                                event.target.value
+                                  .toLowerCase()
+                                  .replace(/[^a-z0-9]+/g, "_")
+                                  .replace(/^_+|_+$/g, "") || item.id,
+                            })
+                          }
+                          disabled={!canEdit}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <Input
+                          type="number"
+                          min={0}
+                          value={item.amount}
+                          onChange={(event) =>
+                            updateFeeHeadRow(item.rowId, {
+                              amount: Number(event.target.value || 0),
+                            })
+                          }
+                          disabled={!canEdit}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={item.applicationType}
+                          onChange={(event) =>
+                            updateFeeHeadRow(item.rowId, {
+                              applicationType: event.target.value as FeeHeadApplicationType,
+                            })
+                          }
+                          className={selectClassName}
+                          disabled={!canEdit}
+                        >
+                          <option value="annual_fixed">
+                            {getFeeHeadApplicationLabel("annual_fixed")}
+                          </option>
+                          <option value="installment_1_only">
+                            {getFeeHeadApplicationLabel("installment_1_only")}
+                          </option>
+                          <option value="split_across_installments">
+                            {getFeeHeadApplicationLabel("split_across_installments")}
+                          </option>
+                          <option value="optional_per_student">
+                            {getFeeHeadApplicationLabel("optional_per_student")}
+                          </option>
+                        </select>
+                      </td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={item.isActive ? "yes" : "no"}
+                          onChange={(event) =>
+                            updateFeeHeadRow(item.rowId, {
+                              isActive: event.target.value === "yes",
+                            })
+                          }
+                          className={selectClassName}
+                          disabled={!canEdit}
+                        >
+                          <option value="yes">Active</option>
+                          <option value="no">Inactive</option>
+                        </select>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Input
+                          value={item.notes ?? ""}
+                          onChange={(event) =>
+                            updateFeeHeadRow(item.rowId, {
+                              notes: event.target.value || null,
+                            })
+                          }
+                          disabled={!canEdit}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        {canEdit ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => removeFeeHeadRow(item.rowId)}
+                          >
+                            Remove
+                          </Button>
+                        ) : (
+                          <StatusBadge
+                            label={item.isActive ? "Active" : "Inactive"}
+                            tone={item.isActive ? "good" : "warning"}
+                          />
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </SectionCard>
+          )}
+        </div>
+      </SectionCard>
 
-          <div
-            id="fee-setup-save"
-            className="glass-panel flex flex-col gap-3 rounded-[30px] p-5 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div>
-              <p className="font-heading text-lg font-semibold text-slate-950">Save Fee Setup</p>
-              <p className="mt-1 text-sm leading-6 text-slate-600">
-                Review the workbook-style changes first, then apply the reviewed setup. Paid
-                receipts, payments, adjustments, and audit logs remain append-only.
-              </p>
+      <SectionCard
+        title="6. Review & Save"
+        description="Use Save Draft to create a reviewed change batch, then apply it live only after checking the impact summary."
+      >
+        <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+              Current session label: <strong>{selectedSessionLabel}</strong>
             </div>
-
-            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-              {state.changeBatchId ? (
-                <input type="hidden" name="changeBatchId" value={state.changeBatchId} />
-              ) : null}
-              <Button
-                type="submit"
-                name="_intent"
-                value="preview"
-                variant="outline"
-                disabled={!canEdit || isPending}
-              >
-                {isPending ? "Working..." : "Review Fee Setup Changes"}
-              </Button>
-              <Button
-                type="submit"
-                name="_intent"
-                value="apply"
-                disabled={!canApply || isPending}
-              >
-                {isPending ? "Saving..." : "Apply Fee Setup"}
-              </Button>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+              Installment count: <strong>{form.installmentDates.length}</strong>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+              Late fee:{" "}
+              <strong>{form.lateFeeFlatAmount > 0 ? `Rs ${form.lateFeeFlatAmount}` : "Disabled"}</strong>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+              New student academic fee: <strong>Rs {form.newStudentAcademicFeeAmount}</strong>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+              Old student academic fee: <strong>Rs {form.oldStudentAcademicFeeAmount}</strong>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+              Fee heads configured: <strong>{form.customFeeHeads.length}</strong>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+              Total classes configured: <strong>{classRows.length}</strong>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+              Total routes configured: <strong>{routeRows.length}</strong>
             </div>
           </div>
+
+          <div className="rounded-[26px] border border-slate-200 bg-white p-5">
+            <p className="text-sm font-semibold text-slate-950">Due dates</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {form.installmentDates.map((item, index) => (
+                <StatusBadge
+                  key={`${item}-${index}`}
+                  label={`Installment ${index + 1}: ${item || "Not set"}`}
+                  tone="neutral"
+                />
+              ))}
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              {canEdit ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => submitFeeSetup("preview")}
+                    disabled={!canEdit || isSaving}
+                  >
+                    {isSaving ? "Saving..." : "Save Draft"}
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => submitFeeSetup("apply")}
+                    disabled={!canApply || isSaving}
+                  >
+                    {isSaving ? "Applying..." : "Apply Live Setup"}
+                  </Button>
+                </>
+              ) : (
+                <p className="text-sm leading-6 text-slate-600">
+                  View-only users can review the saved session setup, but only admins can save or
+                  apply changes.
+                </p>
+              )}
+            </div>
+
+            <p className="mt-3 text-xs leading-5 text-slate-500">
+              Paid receipts, payments, adjustments, and audit logs remain append-only. Applied
+              changes still use the existing blocked-row protection for paid or partial dues.
+            </p>
+            {selectedPolicySnapshot?.id ? (
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                Last saved session snapshot: {formatDateTime(selectedPolicySnapshot.updatedAt ?? null)}
+              </p>
+            ) : null}
+            {totalActiveFeeHeads > 0 ? (
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                Active fee heads in this session:{" "}
+                {form.customFeeHeads
+                  .filter((item) => item.isActive)
+                  .map((item) => `${item.label} (${getFeeHeadApplicationLabel(item.applicationType)})`)
+                  .join(", ")}
+              </p>
+            ) : null}
+          </div>
         </div>
-      </div>
-    </form>
+      </SectionCard>
+    </div>
   );
 }

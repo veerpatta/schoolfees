@@ -17,7 +17,9 @@ import {
 } from "@/lib/fees/workbook";
 import type {
   ClassFeeDefault,
+  FeeHeadApplicationType,
   FeeHeadDefinition,
+  FeePolicySnapshot,
   FeePolicySummary,
   FeeSetupPageData,
   FeeSetupStudentOption,
@@ -68,6 +70,8 @@ type GlobalPolicyRow = {
   accepted_payment_modes: PaymentMode[];
   receipt_prefix: string;
   notes: string | null;
+  is_active: boolean;
+  updated_at: string;
 };
 
 type SchoolDefaultRow = {
@@ -189,6 +193,17 @@ function parseCustomAmountMap(value: Record<string, unknown> | null) {
   }, {});
 }
 
+function normalizeFeeHeadApplicationType(value: unknown): FeeHeadApplicationType {
+  switch (value) {
+    case "installment_1_only":
+    case "split_across_installments":
+    case "optional_per_student":
+      return value;
+    default:
+      return "annual_fixed";
+  }
+}
+
 function parseCatalog(value: unknown) {
   if (!Array.isArray(value)) {
     return [];
@@ -207,13 +222,18 @@ function parseCatalog(value: unknown) {
         return null;
       }
 
-      if (entry.isActive === false) {
-        return null;
-      }
-
       return {
         id: id || normalizeFeeHeadId(label),
         label,
+        amount: toWholeNumber((entry as { amount?: unknown }).amount),
+        applicationType: normalizeFeeHeadApplicationType(
+          (entry as { applicationType?: unknown }).applicationType,
+        ),
+        isActive: (entry as { isActive?: unknown }).isActive !== false,
+        notes:
+          typeof (entry as { notes?: unknown }).notes === "string"
+            ? (entry as { notes?: string }).notes?.trim() || null
+            : null,
       } satisfies FeeHeadDefinition;
     })
     .filter((entry): entry is FeeHeadDefinition => Boolean(entry));
@@ -234,6 +254,10 @@ function normalizeCatalog(
     ordered.set(id, {
       id,
       label: item.label.trim(),
+      amount: toWholeNumber(item.amount),
+      applicationType: normalizeFeeHeadApplicationType(item.applicationType),
+      isActive: item.isActive !== false,
+      notes: item.notes?.trim() || null,
     });
   });
 
@@ -247,10 +271,102 @@ function normalizeCatalog(
     ordered.set(id, {
       id,
       label: titleCaseFromKey(rawId),
+      amount: 0,
+      applicationType: "annual_fixed",
+      isActive: true,
+      notes: null,
     });
   }
 
   return Array.from(ordered.values());
+}
+
+function toFeePolicySummary(
+  row: GlobalPolicyRow,
+  defaults = buildDefaultFeePolicySummary(),
+): FeePolicySnapshot {
+  const academicSessionLabel = row.academic_session_label?.trim() || defaults.academicSessionLabel;
+  const installmentSchedule = parseInstallmentSchedule(
+    academicSessionLabel,
+    row.installment_schedule,
+  );
+
+  return {
+    id: row.id,
+    academicSessionLabel,
+    calculationModel: row.calculation_model ?? defaults.calculationModel,
+    installmentCount: installmentSchedule.length,
+    installmentSchedule,
+    lateFeeFlatAmount: toWholeNumber(row.late_fee_flat_amount),
+    lateFeeLabel: `Flat Rs ${toWholeNumber(row.late_fee_flat_amount)}`,
+    newStudentAcademicFeeAmount:
+      toWholeNumber(row.new_student_academic_fee_amount) ||
+      defaults.newStudentAcademicFeeAmount,
+    oldStudentAcademicFeeAmount:
+      toWholeNumber(row.old_student_academic_fee_amount) ||
+      defaults.oldStudentAcademicFeeAmount,
+    acceptedPaymentModes: (
+      row.accepted_payment_modes ?? defaults.acceptedPaymentModes.map((item) => item.value)
+    ).map((value) => ({
+      value,
+      label: formatPaymentModeLabel(value),
+    })),
+    receiptPrefix: row.receipt_prefix?.trim() || defaults.receiptPrefix,
+    customFeeHeads: parseCatalog(row.custom_fee_heads),
+    notes: row.notes ?? defaults.notes,
+    isActive: row.is_active,
+    updatedAt: row.updated_at,
+  };
+}
+
+async function loadFeePolicySnapshots(useAdmin = false): Promise<FeePolicySnapshot[]> {
+  const defaults = buildDefaultFeePolicySummary();
+  const supabase = await getReadClient(useAdmin);
+
+  if (!supabase) {
+    return [
+      {
+        id: null,
+        ...defaults,
+        isActive: true,
+        updatedAt: null,
+      },
+    ];
+  }
+
+  const { data, error } = await supabase
+    .from("fee_policy_configs")
+    .select(
+      "id, academic_session_label, calculation_model, installment_schedule, late_fee_flat_amount, new_student_academic_fee_amount, old_student_academic_fee_amount, custom_fee_heads, accepted_payment_modes, receipt_prefix, notes, is_active, updated_at",
+    )
+    .order("is_active", { ascending: false })
+    .order("updated_at", { ascending: false });
+
+  if (error || !data || data.length === 0) {
+    return [
+      {
+        id: null,
+        ...defaults,
+        isActive: true,
+        updatedAt: null,
+      },
+    ];
+  }
+
+  const seen = new Set<string>();
+
+  return (data as GlobalPolicyRow[])
+    .map((row) => toFeePolicySummary(row, defaults))
+    .filter((row) => {
+      const key = row.academicSessionLabel.trim().toLowerCase();
+
+      if (!key || seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    });
 }
 
 function parseInstallmentSchedule(
@@ -339,61 +455,30 @@ async function getReadClient(useAdmin = false): Promise<ReadClient | null> {
 }
 
 async function loadGlobalPolicy(useAdmin = false): Promise<FeePolicySummary> {
-  const defaults = buildDefaultFeePolicySummary();
-  const supabase = await getReadClient(useAdmin);
+  const snapshots = await loadFeePolicySnapshots(useAdmin);
+  const active = snapshots.find((item) => item.isActive) ?? snapshots[0];
 
-  if (!supabase) {
+  if (!active) {
     return {
       id: null,
-      ...defaults,
+      ...buildDefaultFeePolicySummary(),
     };
   }
-
-  const { data, error } = await supabase
-    .from("fee_policy_configs")
-    .select(
-      "id, academic_session_label, calculation_model, installment_schedule, late_fee_flat_amount, new_student_academic_fee_amount, old_student_academic_fee_amount, custom_fee_heads, accepted_payment_modes, receipt_prefix, notes",
-    )
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (error || !data) {
-    return {
-      id: null,
-      ...defaults,
-    };
-  }
-
-  const row = data as GlobalPolicyRow;
-  const academicSessionLabel = row.academic_session_label?.trim() || defaults.academicSessionLabel;
-  const installmentSchedule = parseInstallmentSchedule(
-    academicSessionLabel,
-    row.installment_schedule,
-  );
 
   return {
-    id: row.id,
-    academicSessionLabel,
-    calculationModel: row.calculation_model ?? defaults.calculationModel,
-    installmentCount: installmentSchedule.length,
-    installmentSchedule,
-    lateFeeFlatAmount: toWholeNumber(row.late_fee_flat_amount),
-    lateFeeLabel: `Flat Rs ${toWholeNumber(row.late_fee_flat_amount)}`,
-    newStudentAcademicFeeAmount:
-      toWholeNumber(row.new_student_academic_fee_amount) ||
-      defaults.newStudentAcademicFeeAmount,
-    oldStudentAcademicFeeAmount:
-      toWholeNumber(row.old_student_academic_fee_amount) ||
-      defaults.oldStudentAcademicFeeAmount,
-    acceptedPaymentModes: (row.accepted_payment_modes ?? defaults.acceptedPaymentModes.map((item) => item.value)).map(
-      (value) => ({
-        value,
-        label: formatPaymentModeLabel(value),
-      }),
-    ),
-    receiptPrefix: row.receipt_prefix?.trim() || defaults.receiptPrefix,
-    customFeeHeads: parseCatalog(row.custom_fee_heads),
-    notes: row.notes ?? defaults.notes,
+    id: active.id,
+    academicSessionLabel: active.academicSessionLabel,
+    calculationModel: active.calculationModel,
+    installmentCount: active.installmentCount,
+    installmentSchedule: active.installmentSchedule,
+    lateFeeFlatAmount: active.lateFeeFlatAmount,
+    lateFeeLabel: active.lateFeeLabel,
+    newStudentAcademicFeeAmount: active.newStudentAcademicFeeAmount,
+    oldStudentAcademicFeeAmount: active.oldStudentAcademicFeeAmount,
+    acceptedPaymentModes: active.acceptedPaymentModes,
+    receiptPrefix: active.receiptPrefix,
+    customFeeHeads: active.customFeeHeads,
+    notes: active.notes,
   };
 }
 
@@ -608,8 +693,9 @@ export async function getFeePolicySummary(options: { useAdmin?: boolean } = {}) 
 }
 
 export async function getFeeSetupPageData(): Promise<FeeSetupPageData> {
-  const [globalPolicy, collections, masterOptions] = await Promise.all([
+  const [globalPolicy, policySnapshotsRaw, collections, masterOptions] = await Promise.all([
     loadGlobalPolicy(false),
+    loadFeePolicySnapshots(false),
     loadFeeCollections(),
     getMasterDataOptions(),
   ]);
@@ -628,7 +714,18 @@ export async function getFeeSetupPageData(): Promise<FeeSetupPageData> {
     );
   });
 
-  const customFeeHeads = normalizeCatalog(globalPolicy.customFeeHeads, discoveredFeeHeadIds);
+  const policySnapshots = policySnapshotsRaw.map((snapshot) => ({
+    ...snapshot,
+    customFeeHeads: normalizeCatalog(snapshot.customFeeHeads, discoveredFeeHeadIds),
+  }));
+  const activeSnapshot =
+    policySnapshots.find((item) => item.isActive) ??
+    policySnapshots.find((item) => item.academicSessionLabel === globalPolicy.academicSessionLabel) ??
+    null;
+  const customFeeHeads = normalizeCatalog(
+    activeSnapshot?.customFeeHeads ?? globalPolicy.customFeeHeads,
+    discoveredFeeHeadIds,
+  );
   const classMap = new Map(collections.classRows.map((row) => [row.id, row]));
   const studentMap = new Map(collections.studentRows.map((row) => [row.id, row]));
 
@@ -724,6 +821,7 @@ export async function getFeeSetupPageData(): Promise<FeeSetupPageData> {
       ...globalPolicy,
       customFeeHeads,
     },
+    policySnapshots,
     schoolDefault,
     classDefaults,
     transportDefaults,

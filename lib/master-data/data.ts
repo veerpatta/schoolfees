@@ -2,6 +2,7 @@ import "server-only";
 
 import type { ClassStatus, PaymentMode } from "@/lib/db/types";
 import { formatPaymentModeLabel, normalizeFeeHeadId } from "@/lib/config/fee-rules";
+import type { FeeHeadApplicationType, FeeHeadDefinition } from "@/lib/fees/types";
 import { createClient } from "@/lib/supabase/server";
 
 type SessionRow = {
@@ -41,18 +42,16 @@ type RouteRow = {
 type PolicyRow = {
   id: string;
   academic_session_label: string;
+  calculation_model?: "standard" | "workbook_v1";
   installment_schedule: unknown;
+  new_student_academic_fee_amount?: number;
+  old_student_academic_fee_amount?: number;
   late_fee_flat_amount: number;
   custom_fee_heads: unknown;
   accepted_payment_modes: PaymentMode[];
   receipt_prefix: string;
   notes: string | null;
-};
-
-type FeeHeadDefinition = {
-  id: string;
-  label: string;
-  isActive: boolean;
+  is_active?: boolean;
 };
 
 export type MasterClassOption = {
@@ -102,6 +101,25 @@ function buildClassLabel(value: {
   return parts.join(" - ");
 }
 
+function toWholeNumber(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return 0;
+  }
+
+  return Math.trunc(value);
+}
+
+function normalizeFeeHeadApplicationType(value: unknown): FeeHeadApplicationType {
+  switch (value) {
+    case "installment_1_only":
+    case "split_across_installments":
+    case "optional_per_student":
+      return value;
+    default:
+      return "annual_fixed";
+  }
+}
+
 function parseFeeHeads(value: unknown) {
   if (!Array.isArray(value)) {
     return [] as FeeHeadDefinition[];
@@ -135,7 +153,10 @@ function parseFeeHeads(value: unknown) {
       return {
         id,
         label,
+        amount: toWholeNumber(record.amount),
+        applicationType: normalizeFeeHeadApplicationType(record.applicationType),
         isActive: record.isActive !== false,
+        notes: typeof record.notes === "string" ? record.notes.trim() || null : null,
       } satisfies FeeHeadDefinition;
     })
     .filter((entry): entry is FeeHeadDefinition => Boolean(entry));
@@ -197,11 +218,17 @@ async function saveActivePolicy(policy: PolicyRow, payload: {
   const values = {
     academic_session_label: payload.academicSessionLabel ?? policy.academic_session_label,
     installment_schedule: policy.installment_schedule,
+    calculation_model: policy.calculation_model ?? "workbook_v1",
+    new_student_academic_fee_amount: policy.new_student_academic_fee_amount ?? 1100,
+    old_student_academic_fee_amount: policy.old_student_academic_fee_amount ?? 500,
     late_fee_flat_amount: policy.late_fee_flat_amount,
     custom_fee_heads: (payload.customFeeHeads ?? parseFeeHeads(policy.custom_fee_heads)).map((item) => ({
       id: item.id,
       label: item.label,
+      amount: item.amount,
+      applicationType: item.applicationType,
       isActive: item.isActive,
+      notes: item.notes,
     })),
     accepted_payment_modes:
       payload.acceptedPaymentModes ?? dedupeModes(policy.accepted_payment_modes ?? []),
@@ -222,17 +249,28 @@ async function saveActivePolicy(policy: PolicyRow, payload: {
 
 async function ensureSessionNotReferenced(sessionLabel: string) {
   const supabase = await createClient();
-  const { count, error } = await supabase
-    .from("classes")
-    .select("id", { head: true, count: "exact" })
-    .eq("session_label", sessionLabel);
+  const [{ count: classCount, error: classError }, { count: policyCount, error: policyError }] =
+    await Promise.all([
+      supabase
+        .from("classes")
+        .select("id", { head: true, count: "exact" })
+        .eq("session_label", sessionLabel),
+      supabase
+        .from("fee_policy_configs")
+        .select("id", { head: true, count: "exact" })
+        .eq("academic_session_label", sessionLabel),
+    ]);
 
-  if (error) {
-    throw new Error(error.message);
+  if (classError) {
+    throw new Error(classError.message);
   }
 
-  if ((count ?? 0) > 0) {
-    throw new Error("This session is in use by classes and cannot be deleted.");
+  if (policyError) {
+    throw new Error(policyError.message);
+  }
+
+  if ((classCount ?? 0) > 0 || (policyCount ?? 0) > 0) {
+    throw new Error("This session already has saved classes or fee setup and cannot be deleted.");
   }
 }
 
@@ -603,6 +641,219 @@ export async function deleteAcademicSession(sessionId: string) {
   }
 }
 
+export async function copyAcademicSessionSetup(payload: {
+  sourceSessionLabel: string;
+  targetSessionLabel: string;
+}) {
+  const supabase = await createClient();
+  const sourceSessionLabel = normalizeText(payload.sourceSessionLabel);
+  const targetSessionLabel = normalizeText(payload.targetSessionLabel);
+
+  if (!sourceSessionLabel || !targetSessionLabel) {
+    throw new Error("Source and target session labels are required.");
+  }
+
+  if (normalizeKey(sourceSessionLabel) === normalizeKey(targetSessionLabel)) {
+    throw new Error("Choose a different target session label.");
+  }
+
+  const { data: existingSession, error: existingSessionError } = await supabase
+    .from("academic_sessions")
+    .select("id")
+    .ilike("session_label", targetSessionLabel)
+    .maybeSingle();
+
+  if (existingSessionError) {
+    throw new Error(existingSessionError.message);
+  }
+
+  if (existingSession?.id) {
+    throw new Error("Target session already exists.");
+  }
+
+  const [
+    { data: sourcePolicyRaw, error: sourcePolicyError },
+    { data: sourceClassesRaw, error: sourceClassesError },
+  ] = await Promise.all([
+    supabase
+      .from("fee_policy_configs")
+      .select(
+        "id, academic_session_label, calculation_model, installment_schedule, new_student_academic_fee_amount, old_student_academic_fee_amount, late_fee_flat_amount, custom_fee_heads, accepted_payment_modes, receipt_prefix, notes, is_active",
+      )
+      .eq("academic_session_label", sourceSessionLabel)
+      .order("is_active", { ascending: false })
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("classes")
+      .select(
+        "id, session_label, class_name, section, stream_name, sort_order, status, notes",
+      )
+      .eq("session_label", sourceSessionLabel)
+      .order("sort_order", { ascending: true })
+      .order("class_name", { ascending: true }),
+  ]);
+
+  if (sourcePolicyError) {
+    throw new Error(sourcePolicyError.message);
+  }
+
+  if (sourceClassesError) {
+    throw new Error(sourceClassesError.message);
+  }
+
+  const sourcePolicy = (sourcePolicyRaw as PolicyRow | null) ?? null;
+  const sourceClasses = (sourceClassesRaw ?? []) as Array<
+    Pick<
+      ClassRow,
+      "id" | "session_label" | "class_name" | "section" | "stream_name" | "sort_order" | "status" | "notes"
+    >
+  >;
+
+  const { data: insertedSession, error: insertSessionError } = await supabase
+    .from("academic_sessions")
+    .insert({
+      session_label: targetSessionLabel,
+      status: "active",
+      is_current: false,
+      notes: `Copied from ${sourceSessionLabel}.`,
+    })
+    .select("id")
+    .single();
+
+  if (insertSessionError || !insertedSession?.id) {
+    throw new Error(insertSessionError?.message ?? "Unable to create the copied session.");
+  }
+
+  if (sourcePolicy) {
+    const { error: copyPolicyError } = await supabase.from("fee_policy_configs").insert({
+      academic_session_label: targetSessionLabel,
+      calculation_model: sourcePolicy.calculation_model ?? "workbook_v1",
+      installment_schedule: sourcePolicy.installment_schedule,
+      new_student_academic_fee_amount:
+        sourcePolicy.new_student_academic_fee_amount ?? 1100,
+      old_student_academic_fee_amount:
+        sourcePolicy.old_student_academic_fee_amount ?? 500,
+      late_fee_flat_amount: sourcePolicy.late_fee_flat_amount,
+      custom_fee_heads: sourcePolicy.custom_fee_heads,
+      accepted_payment_modes: sourcePolicy.accepted_payment_modes,
+      receipt_prefix: sourcePolicy.receipt_prefix,
+      notes: sourcePolicy.notes,
+      is_active: false,
+    });
+
+    if (copyPolicyError) {
+      throw new Error(copyPolicyError.message);
+    }
+  }
+
+  if (sourceClasses.length === 0) {
+    return;
+  }
+
+  const { data: insertedClassesRaw, error: insertClassesError } = await supabase
+    .from("classes")
+    .insert(
+      sourceClasses.map((row) => ({
+        session_label: targetSessionLabel,
+        class_name: row.class_name,
+        section: row.section,
+        stream_name: row.stream_name,
+        sort_order: row.sort_order,
+        status: row.status,
+        notes: row.notes,
+      })),
+    )
+    .select("id, class_name, section, stream_name");
+
+  if (insertClassesError) {
+    throw new Error(insertClassesError.message);
+  }
+
+  const insertedClasses = (insertedClassesRaw ?? []) as Array<{
+    id: string;
+    class_name: string;
+    section: string | null;
+    stream_name: string | null;
+  }>;
+  const classIdByKey = new Map(
+    insertedClasses.map((row) => [
+      `${normalizeKey(row.class_name)}|${normalizeKey(row.section)}|${normalizeKey(row.stream_name)}`,
+      row.id,
+    ]),
+  );
+  const sourceClassIds = sourceClasses.map((row) => row.id);
+
+  const { data: sourceDefaultsRaw, error: sourceDefaultsError } = await supabase
+    .from("fee_settings")
+    .select(
+      "class_id, annual_base_amount, tuition_fee_amount, transport_fee_amount, books_fee_amount, admission_activity_misc_fee_amount, other_fee_heads, student_type_default, transport_applies_default, notes, is_active",
+    )
+    .in("class_id", sourceClassIds)
+    .eq("is_active", true);
+
+  if (sourceDefaultsError) {
+    throw new Error(sourceDefaultsError.message);
+  }
+
+  const sourceDefaults = (sourceDefaultsRaw ?? []) as Array<{
+    class_id: string;
+    annual_base_amount: number;
+    tuition_fee_amount: number;
+    transport_fee_amount: number;
+    books_fee_amount: number;
+    admission_activity_misc_fee_amount: number;
+    other_fee_heads: Record<string, unknown> | null;
+    student_type_default: "new" | "existing";
+    transport_applies_default: boolean;
+    notes: string | null;
+    is_active: boolean;
+  }>;
+  const sourceClassById = new Map(sourceClasses.map((row) => [row.id, row]));
+  const nextDefaults = sourceDefaults
+    .map((row) => {
+      const sourceClass = sourceClassById.get(row.class_id);
+
+      if (!sourceClass) {
+        return null;
+      }
+
+      const targetClassId = classIdByKey.get(
+        `${normalizeKey(sourceClass.class_name)}|${normalizeKey(sourceClass.section)}|${normalizeKey(sourceClass.stream_name)}`,
+      );
+
+      if (!targetClassId) {
+        return null;
+      }
+
+      return {
+        class_id: targetClassId,
+        annual_base_amount: row.annual_base_amount,
+        tuition_fee_amount: row.tuition_fee_amount,
+        transport_fee_amount: row.transport_fee_amount,
+        books_fee_amount: row.books_fee_amount,
+        admission_activity_misc_fee_amount: row.admission_activity_misc_fee_amount,
+        other_fee_heads: row.other_fee_heads ?? {},
+        student_type_default: row.student_type_default,
+        transport_applies_default: row.transport_applies_default,
+        notes: row.notes,
+        is_active: row.is_active,
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => Boolean(row));
+
+  if (nextDefaults.length === 0) {
+    return;
+  }
+
+  const { error: copyDefaultsError } = await supabase.from("fee_settings").insert(nextDefaults);
+
+  if (copyDefaultsError) {
+    throw new Error(copyDefaultsError.message);
+  }
+}
+
 export async function createClass(payload: {
   sessionLabel: string;
   className: string;
@@ -879,7 +1130,17 @@ export async function createFeeHead(label: string) {
   }
 
   await saveActivePolicy(policy, {
-    customFeeHeads: [...feeHeads, { id, label: normalizedLabel, isActive: true }],
+    customFeeHeads: [
+      ...feeHeads,
+      {
+        id,
+        label: normalizedLabel,
+        amount: 0,
+        applicationType: "annual_fixed",
+        isActive: true,
+        notes: null,
+      },
+    ],
   });
 }
 

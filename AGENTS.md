@@ -125,8 +125,9 @@ Fully implemented core:
   validation, duplicate detection, batch tracking, and valid-row-only save
 - Fee Setup: workbook-style live setup for academic session, editable
   installment schedule, flat late fee, new/old academic fee, class-wise
-  annual tuition, route-wise annual transport fee, and embedded supporting
-  list management, with impact preview and confirm-apply workflow
+  annual tuition, route-wise annual transport fee, session-level fee heads,
+  and inline session/class/route maintenance on one cleaner page, with
+  impact preview and confirm-apply workflow
 - AY `2026-27` workbook parity with `workbook_v1`, exact seeded class tuition,
   exact seeded annual route defaults, workbook student status, signed other
   adjustment, and late-fee-waiver support
@@ -314,7 +315,8 @@ Treat the live configuration model like this:
 - `/protected/fee-setup` is now the primary live surface for the active
   workbook-style fee sheet: academic session label, editable installment
   schedule, workbook fee values, class tuition, route transport fees, and
-  embedded supporting list management. `/protected/master-data` remains
+  session/class/route management plus session-level fee heads.
+  `/protected/master-data` remains
   available for direct admin maintenance of sessions, classes, routes, fee
   heads, and payment modes, but Fee Setup is the workflow staff should use
   first for live fee values because preview, audit, and propagation stay

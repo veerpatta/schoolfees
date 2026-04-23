@@ -53,10 +53,38 @@ export function formatPaymentModeLabel(value: PaymentMode) {
 }
 
 export const CORE_FEE_HEADS = [
-  { id: "tuition_fee", label: "Tuition fee" },
-  { id: "transport_fee", label: "Transport fee" },
-  { id: "books_fee", label: "Books fee" },
-  { id: "admission_activity_misc_fee", label: "Admission / activity / misc fee" },
+  {
+    id: "tuition_fee",
+    label: "Tuition fee",
+    amount: 0,
+    applicationType: "annual_fixed",
+    isActive: true,
+    notes: null,
+  },
+  {
+    id: "transport_fee",
+    label: "Transport fee",
+    amount: 0,
+    applicationType: "annual_fixed",
+    isActive: true,
+    notes: null,
+  },
+  {
+    id: "books_fee",
+    label: "Books fee",
+    amount: 0,
+    applicationType: "annual_fixed",
+    isActive: true,
+    notes: null,
+  },
+  {
+    id: "admission_activity_misc_fee",
+    label: "Admission / activity / misc fee",
+    amount: 0,
+    applicationType: "annual_fixed",
+    isActive: true,
+    notes: null,
+  },
 ] as const satisfies ReadonlyArray<FeeHeadDefinition>;
 
 export function normalizeFeeHeadId(value: string) {
