@@ -43,7 +43,7 @@ export default async function FeeSetupPage() {
       <PageHeader
         eyebrow="Fee Setup"
         title="Live fee rules and defaults"
-        description="Manage the active academic year, classes, transport routes, fee defaults, installments, late fee rules, and student exceptions in one review-first office workflow."
+        description="Set the school year, classes, transport routes, academic fees, other fee types, installments, due dates, late fee, and saved defaults in one clearer admin workflow."
         actions={
           canEdit || canStructureEdit ? (
             <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
