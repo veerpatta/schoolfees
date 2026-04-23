@@ -48,8 +48,8 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
     <div className="space-y-6">
       <PageHeader
         eyebrow="Payments"
-        title="Payment entry desk"
-        description="Search student, review dues, post append-only payment entries, and generate receipts in one office-friendly workflow."
+        title="Payment Desk"
+        description="Choose a student, review dues, post append-only payments, and print receipts in one office workflow."
         actions={
           <StatusBadge
             label={canPostPayments ? "Posting enabled" : "Read-only access"}

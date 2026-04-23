@@ -29,6 +29,106 @@ Current primary working areas:
 - staged spreadsheet import
 - internal staff login and access control
 
+## Simplified Daily Workflow
+
+The protected workspace now follows a workbook-style office flow instead of a
+module catalog.
+
+Primary daily areas:
+
+- `Start Here`
+  first worksheet for blockers, today’s receipts, overdue follow-up, and
+  continue-task shortcuts
+- `Students`
+  student master and one-student workspace
+- `Fee Setup`
+  the only live path for fee rules, defaults, route defaults, student
+  exceptions, and dues update review
+- `Payment Desk`
+  counter posting, receipt printing, and next-payment shortcuts
+- `Dues & Receipts`
+  workbook-style views for receipt register, installment dues, class dues
+  summary, overdue list, today’s receipts, today’s collection, and import
+  issues
+- `Advanced`
+  first-time setup, school setup lists, day close/corrections, detailed
+  reports/exports, staff, and settings
+
+## What Each Role Sees By Default
+
+- `admin`
+  lands on `Start Here`; sees the simplified primary nav plus `Advanced`
+- `accountant`
+  lands on `Payment Desk`; nav order prioritizes `Payment Desk` and `Dues &
+  Receipts`
+- `read_only_staff`
+  lands on `Start Here`; keeps the simplified primary nav without `Advanced`
+  while still retaining intended deep-link access to detailed read-only screens
+  such as reports or imports when permissions allow
+
+## Start Here vs Advanced
+
+What belongs in `Start Here`:
+
+- blockers that stop live work
+- continue-task shortcuts
+- today’s receipt and collection shortcuts
+- overdue follow-up
+- import-review shortcuts
+- quick visibility into recent fee-change and dues-update review items
+
+What belongs in `Advanced`:
+
+- first-time setup and go-live completion
+- school setup lists for sessions, classes, and routes
+- day close, correction review, and finance controls
+- detailed reports, exports, and print views
+- staff management
+- deployment/settings checks
+
+## Live Changes vs Historically Locked Records
+
+Live fee changes happen in one place:
+
+- `/protected/fee-setup`
+
+This is where admins:
+
+- update the live fee policy
+- update school, class, and route defaults
+- update per-student exceptions
+- review the impact first
+- save the live change only after the impact summary is visible
+- open dues update review for future and unpaid rows
+
+What remains append-only and historically locked:
+
+- receipts
+- payments
+- payment adjustments
+- audit logs
+
+Operationally this means:
+
+- paid history is never silently rewritten
+- corrections must remain explicit and auditable
+- live config changes only touch future or unpaid installment rows
+- paid, partial, or adjusted rows are held for manual review instead of being
+  rewritten
+
+## Workbook-Style Office Mapping
+
+The app now maps more closely to the school’s workbook flow:
+
+- `Start Here` behaves like the first office worksheet
+- `Payment Desk` behaves like the collection counter sheet
+- `Dues & Receipts` behaves like the working register for dues, receipts, and
+  overdue follow-up
+- `Students` behaves like the student-wise detail sheet
+- `Fee Setup` behaves like the controlled live policy/default sheet with audit
+  protection behind it
+- `Advanced` keeps the less-frequent admin tasks out of the daily path
+
 ## Canonical Configuration Model
 
 Live fee configuration now follows one explicit model:

@@ -118,35 +118,35 @@ export function GenerateLedgerClient({ initialState, action }: GenerateLedgerCli
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
             <RotateCcw className="h-5 w-5 text-blue-600" />
-            <span>Ledger recalculation</span>
+            <span>Dues update review</span>
           </CardTitle>
           <CardDescription>
-            Preview how the current fee policy affects future and unpaid installment rows before
-            applying any updates. Rows with payments, partial payments, or adjustments are left
-            untouched and flagged for manual review.
+            Review how the current Fee Setup affects future and unpaid installment rows before
+            saving the dues update. Rows with payments, partial payments, or adjustments stay
+            untouched and are flagged for manual review.
           </CardDescription>
         </CardHeader>
 
         <form action={formAction}>
           <CardContent className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="reason">Reason for regeneration</Label>
+              <Label htmlFor="reason">Reason for dues update</Label>
               <textarea
                 id="reason"
                 name="reason"
                 required
                 rows={4}
                 className="flex min-h-[96px] w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors focus-visible:border-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-400"
-                placeholder="Describe why dues are being recalculated, such as a session fee change or updated installment dates."
+                placeholder="Describe why dues are being updated, such as a fee change or revised installment dates."
                 defaultValue={preview?.reason ?? ""}
               />
               <p className="text-xs text-slate-500">
-                This reason is recorded with the regeneration batch for audit review.
+                This reason is saved with the review record for audit follow-up.
               </p>
             </div>
 
             {state.message && state.status === "error" ? (
-              <AlertBox tone="error" title="Preview failed" message={state.message} />
+              <AlertBox tone="error" title="Review failed" message={state.message} />
             ) : null}
 
             {preview ? (
@@ -154,7 +154,7 @@ export function GenerateLedgerClient({ initialState, action }: GenerateLedgerCli
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-700">
-                      Preview ready
+                      Review ready
                     </p>
                     <h3 className="mt-1 text-lg font-semibold text-slate-950">
                       {preview.policyRevisionLabel}
@@ -170,7 +170,7 @@ export function GenerateLedgerClient({ initialState, action }: GenerateLedgerCli
 
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   <MetricCard
-                    label="Rows recalculated"
+                    label="Rows updated"
                     value={preview.rowsRecalculated}
                     hint={`${preview.rowsInserted} inserts, ${preview.rowsUpdated} updates, ${preview.rowsCancelled} cancellations`}
                   />
@@ -191,7 +191,7 @@ export function GenerateLedgerClient({ initialState, action }: GenerateLedgerCli
                 </div>
 
                 <div className="rounded-xl border border-slate-200 bg-white p-4">
-                  <p className="text-sm font-semibold text-slate-900">Regeneration reason</p>
+                  <p className="text-sm font-semibold text-slate-900">Reason for this dues update</p>
                   <p className="mt-1 text-sm text-slate-600">{preview.reason}</p>
                 </div>
 
@@ -249,17 +249,16 @@ export function GenerateLedgerClient({ initialState, action }: GenerateLedgerCli
               </div>
             ) : (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
-                Enter a reason, preview the recalculation, and then apply it if the preview looks
-                correct. Only rows without payments or adjustments will be updated automatically.
+                Enter a reason, review the dues update, and then save it if the results look correct. Only rows without payments or adjustments will be updated automatically.
               </div>
             )}
 
             {state.message && state.status === "success" ? (
-              <AlertBox tone="success" title="Recalculation applied" message={state.message} />
+              <AlertBox tone="success" title="Dues update saved" message={state.message} />
             ) : null}
 
             {state.message && state.status === "preview" ? (
-              <AlertBox tone="preview" title="Preview summary" message={state.message} />
+              <AlertBox tone="preview" title="Review summary" message={state.message} />
             ) : null}
 
             {state.batchId ? <input type="hidden" name="batchId" value={state.batchId} /> : null}
@@ -285,7 +284,7 @@ export function GenerateLedgerClient({ initialState, action }: GenerateLedgerCli
                     Working...
                   </>
                 ) : (
-                  "Preview recalculation"
+                  "Review dues update"
                 )}
               </Button>
 
@@ -296,7 +295,7 @@ export function GenerateLedgerClient({ initialState, action }: GenerateLedgerCli
                     Applying...
                   </>
                 ) : (
-                  "Apply recalculation"
+                  "Save dues update"
                 )}
               </Button>
             </div>

@@ -129,7 +129,7 @@ export function ReadinessChecklist({
                   href={item.href}
                   className="text-sm font-medium text-slate-700 underline-offset-4 hover:text-slate-950 hover:underline"
                 >
-                  Open
+                  Go to step
                 </Link>
               </div>
             </div>
@@ -167,7 +167,7 @@ export function SetupFlowList({ items }: { items: SetupFlowItem[] }) {
                 href={item.href}
                 className="text-sm font-medium text-slate-700 underline-offset-4 hover:text-slate-950 hover:underline"
               >
-                Open
+                Go there
               </Link>
             </div>
           </div>

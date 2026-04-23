@@ -1,34 +1,16 @@
 import "server-only";
 
 import { getDefaultersPageData } from "@/lib/defaulters/data";
+import { type OfficeWorkbookView } from "@/lib/office/workbook";
 import { getReportsPageData, normalizeReportFilters } from "@/lib/reports/data";
 import type { ReportFilters } from "@/lib/reports/types";
 import { getStudentFormOptions } from "@/lib/students/data";
-
-export const officeWorkbookViews = [
-  "transactions",
-  "installments",
-  "statements",
-  "defaulters",
-  "receipts_today",
-  "collection_today",
-  "import_issues",
-] as const;
-
-export type OfficeWorkbookView = (typeof officeWorkbookViews)[number];
 
 export type OfficeWorkbookFilters = {
   view: OfficeWorkbookView;
   classId: string;
   sessionLabel: string;
 };
-
-export function normalizeOfficeWorkbookView(value: string | undefined | null): OfficeWorkbookView {
-  const normalized = (value ?? "").trim();
-  return officeWorkbookViews.includes(normalized as OfficeWorkbookView)
-    ? (normalized as OfficeWorkbookView)
-    : "transactions";
-}
 
 function todayStamp(referenceDate = new Date()) {
   return new Intl.DateTimeFormat("sv-SE", {

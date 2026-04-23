@@ -110,8 +110,8 @@ function ReportCatalog({
 }) {
   return (
     <SectionCard
-      title="Report catalog"
-      description="Keep the report list small, operational, and easy for staff to trust."
+      title="Report list"
+      description="Keep the report list small, practical, and easy for staff to trust."
       className="print:hidden"
     >
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -166,7 +166,7 @@ function ReportFiltersSection({
   return (
     <SectionCard
       title="Filters and output"
-      description="Apply only the practical filters staff actually need, then export the same table to CSV."
+      description="Use only the filters staff actually need, then export the same table to CSV."
       actions={
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
@@ -295,7 +295,7 @@ function OutstandingFilters({
         </div>
       </div>
       <div className="flex items-center justify-end">
-        <Button type="submit">Apply filters</Button>
+        <Button type="submit">Update view</Button>
       </div>
     </form>
   );
@@ -379,7 +379,7 @@ function CollectionFilters({
         </div>
       </div>
       <div className="flex items-center justify-end">
-        <Button type="submit">Apply filters</Button>
+        <Button type="submit">Update view</Button>
       </div>
     </form>
   );
@@ -496,7 +496,7 @@ function LedgerFilters({
         </div>
       </div>
       <div className="flex items-center justify-end">
-        <Button type="submit">Apply filters</Button>
+        <Button type="submit">Update view</Button>
       </div>
     </form>
   );
@@ -562,7 +562,7 @@ function ImportFilters({
         </div>
       </div>
       <div className="flex items-center justify-end">
-        <Button type="submit">Apply filters</Button>
+        <Button type="submit">Update view</Button>
       </div>
     </form>
   );

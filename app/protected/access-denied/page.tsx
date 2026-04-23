@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { Button } from "@/components/ui/button";
+import { roleLabels } from "@/lib/auth/roles";
 import { requireAuthenticatedStaff } from "@/lib/supabase/session";
 
 type AccessDeniedPageProps = {
@@ -32,37 +33,36 @@ export default async function AccessDeniedPage({
     <div className="space-y-6">
       <PageHeader
         eyebrow="Access"
-        title="Permission required"
-        description="Your account is signed in, but this screen or action needs a permission that is not available to your current role."
+        title="This screen is not available"
+        description="Your account is signed in, but this screen or action is not included in your current role."
       />
 
       <SectionCard
-        title="Why access was denied"
-        description="Use this page instead of a silent redirect so staff can see what capability is missing."
+        title="Why you were stopped"
+        description="This page explains the block clearly instead of silently redirecting you."
       >
         <div className="space-y-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
           <p>
             Signed in as <strong>{staff.email ?? "staff user"}</strong> with role{" "}
-            <strong>{staff.appRole}</strong>.
+            <strong>{roleLabels[staff.appRole]}</strong>.
           </p>
           <p>
             {requestedPermission
-              ? `Required permission: ${requestedPermission}.`
-              : "A higher permission is required for this route."}
+              ? `This action needs: ${requestedPermission}.`
+              : "This route needs a permission that is not included in your role."}
           </p>
           <p>
-            If this access is expected, ask an admin to review the staff role assignment
-            in staff management.
+            If you should have this access, ask an admin to review the role assignment in staff management.
           </p>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
           <Button asChild>
-            <Link href="/protected">Back to dashboard</Link>
+            <Link href="/protected">Go to Start Here</Link>
           </Button>
           {staff.appRole === "admin" ? (
             <Button asChild variant="outline">
-              <Link href="/protected/staff">Open staff management</Link>
+              <Link href="/protected/staff">Review staff access</Link>
             </Button>
           ) : null}
         </div>

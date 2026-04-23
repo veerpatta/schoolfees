@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { buildPaymentAllocation } from "@/lib/payments/allocation";
+import { buildPaymentDeskSuccessActions } from "@/lib/payments/workflow";
 import type {
   PaymentEntryActionState,
   PaymentEntryPageData,
@@ -94,6 +95,16 @@ export function PaymentEntryClient({
   const paymentSearchHref = data.classId
     ? `/protected/payments?classId=${data.classId}`
     : "/protected/payments";
+  const successActions =
+    state.status === "success" &&
+    state.receiptId &&
+    state.studentId
+      ? buildPaymentDeskSuccessActions({
+          receiptId: state.receiptId,
+          studentId: state.studentId,
+          nextPaymentHref: paymentSearchHref,
+        })
+      : [];
 
   return (
     <div className="space-y-6">
@@ -120,7 +131,7 @@ export function PaymentEntryClient({
 
       <SectionCard
         title="Class shortcuts"
-        description="Open the desk already narrowed to one class when the counter work is class-wise."
+        description="Jump straight to one class when counter work is happening class-wise."
       >
         <ClassTabs
           basePath="/protected/payments"
@@ -212,7 +223,7 @@ export function PaymentEntryClient({
       </section>
 
       <SectionCard
-        title="1. Search and select student"
+        title="1. Choose student"
         description="Use SR no, student name, phone number, or receipt number to reach the right student quickly."
       >
         <form action="/protected/payments" method="get" className="space-y-4">
@@ -247,7 +258,7 @@ export function PaymentEntryClient({
             </div>
             <div className="flex items-end">
               <Button type="submit" className="w-full md:w-auto">
-                Open payment desk
+                Continue with this student
               </Button>
             </div>
           </div>
@@ -265,11 +276,11 @@ export function PaymentEntryClient({
 
       {!selectedStudent ? (
         <SectionCard
-          title="Select a student to continue"
-          description="Fee summary, installment breakdown, and payment form will appear after selecting a student."
+          title="Choose a student to continue"
+          description="Dues, installment breakup, and the payment form will appear after a student is selected."
         >
           <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-            Search by SR no, student name, phone number, or receipt number, then open payment desk.
+            Search by SR no, student name, phone number, or receipt number, then continue with that student.
           </p>
         </SectionCard>
       ) : (
@@ -382,18 +393,11 @@ export function PaymentEntryClient({
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900">
                   <p className="font-semibold">Counter entry saved.</p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={receiptHref}>View receipt</Link>
-                    </Button>
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={receiptHref}>Print receipt</Link>
-                    </Button>
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={`/protected/students/${selectedStudent.id}`}>Student workspace</Link>
-                    </Button>
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={paymentSearchHref}>Post next payment</Link>
-                    </Button>
+                    {successActions.map((action) => (
+                      <Button key={`${action.label}-${action.href}`} asChild size="sm" variant="outline">
+                        <Link href={action.href}>{action.label}</Link>
+                      </Button>
+                    ))}
                   </div>
                 </div>
               ) : null}

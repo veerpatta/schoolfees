@@ -431,20 +431,20 @@ export function MasterDataClient({
       <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-950">Canonical fee heads</h2>
+            <h2 className="text-lg font-semibold text-slate-950">Fee heads in current Fee Setup</h2>
             <p className="text-sm text-slate-600">
-              These values are part of the live fee policy and now stay editable only
-              through the fee-setup preview/apply workflow.
+              These values are part of the live fee policy and stay editable only
+              through Fee Setup so the review and audit trail stays together.
             </p>
           </div>
           <Button asChild variant="outline">
-            <Link href="/protected/fee-setup">Open fee setup</Link>
+            <Link href="/protected/fee-setup">Open Fee Setup</Link>
           </Button>
         </div>
 
         {feeHeads.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
-            No custom fee heads are active right now. Add them from fee setup when the
+            No custom fee heads are active right now. Add them from Fee Setup when the
             school needs policy-backed heads beyond tuition, transport, books, and
             admission/activity/misc.
           </div>
@@ -477,12 +477,12 @@ export function MasterDataClient({
           <div>
             <h2 className="text-lg font-semibold text-slate-950">Accepted payment modes</h2>
             <p className="text-sm text-slate-600">
-              New payment-mode activation also goes through fee setup so the policy change is
-              previewed, logged, and propagated consistently.
+              Payment-mode changes also go through Fee Setup so the change is checked,
+              logged, and propagated consistently.
             </p>
           </div>
           <Button asChild variant="outline">
-            <Link href="/protected/fee-setup">Manage in fee setup</Link>
+            <Link href="/protected/fee-setup">Manage in Fee Setup</Link>
           </Button>
         </div>
 

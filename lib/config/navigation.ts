@@ -41,7 +41,7 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
   {
     href: "/protected",
     label: "Start Here",
-    description: "Today’s work, blockers, and the next safe office step.",
+    description: "Today's work, blockers, and the next safe office step.",
     icon: LayoutDashboard,
     requiredPermission: "dashboard:view",
   },
@@ -54,8 +54,8 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
   },
   {
     href: "/protected/fee-setup",
-    label: "Fee Structure",
-    description: "Policy-driven defaults, overrides, and due recalculation.",
+    label: "Fee Setup",
+    description: "Live fee rules, defaults, overrides, and dues updates.",
     icon: ScrollText,
     requiredPermission: "fees:view",
     aliases: ["/protected/fee-structure"],
@@ -71,14 +71,14 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
   {
     href: "/protected/dues",
     label: "Dues & Receipts",
-    description: "Workbook-style dues, transactions, receipts, and import issues.",
+    description: "Workbook-style dues, receipts, overdue follow-up, and import issues.",
     icon: BookOpenCheck,
     requiredPermission: "receipts:view",
   },
   {
     href: "/protected/advanced",
     label: "Advanced",
-    description: "Setup, day close, exports, staff, and settings.",
+    description: "School setup, day close, exports, staff, and settings.",
     icon: FolderCog,
     requiredPermission: "finance:view",
     visibleTo: ["admin", "accountant"],
@@ -95,7 +95,7 @@ const routeMetaItems: Array<
     match: "/protected",
     href: "/protected",
     label: "Start Here",
-    description: "Today’s work, blockers, and the next safe office step.",
+    description: "Today's work, blockers, and the next safe office step.",
   },
   {
     match: "/protected/students",
@@ -106,8 +106,8 @@ const routeMetaItems: Array<
   {
     match: "/protected/fee-setup",
     href: "/protected/fee-setup",
-    label: "Fee Structure",
-    description: "Policy-driven defaults, overrides, and due recalculation.",
+    label: "Fee Setup",
+    description: "Live fee rules, defaults, overrides, and dues updates.",
     aliases: ["/protected/fee-structure", "/protected/fee-setup/generate"],
   },
   {
@@ -121,13 +121,13 @@ const routeMetaItems: Array<
     match: "/protected/dues",
     href: "/protected/dues",
     label: "Dues & Receipts",
-    description: "Workbook-style tables for dues, transactions, receipts, and import issues.",
+    description: "Workbook-style tables for dues, receipts, overdue follow-up, and import issues.",
   },
   {
     match: "/protected/advanced",
     href: "/protected/advanced",
     label: "Advanced",
-    description: "Setup, day close, exports, staff, and settings.",
+    description: "School setup, day close, exports, staff, and settings.",
   },
   {
     match: "/protected/setup",
@@ -139,19 +139,19 @@ const routeMetaItems: Array<
     match: "/protected/master-data",
     href: "/protected/advanced",
     label: "School Setup Lists",
-    description: "Sessions, classes, and routes kept in one admin source of truth.",
+    description: "Sessions, classes, and routes kept in one place for admin upkeep.",
   },
   {
     match: "/protected/finance-controls",
     href: "/protected/advanced",
-    label: "Day Close & Refunds",
-    description: "Day close, refund review, corrections, and finance-office controls.",
+    label: "Day Close & Corrections",
+    description: "Day close, refunds, correction review, and finance-office controls.",
   },
   {
     match: "/protected/reports",
     href: "/protected/advanced",
-    label: "Export & Print",
-    description: "Advanced reports, print views, and CSV export tools.",
+    label: "Reports & Exports",
+    description: "Advanced reports, print views, and CSV exports.",
   },
   {
     match: "/protected/ledger",
@@ -287,20 +287,20 @@ export const advancedHubItems: AdvancedHubItem[] = [
   {
     href: "/protected/master-data",
     label: "School Setup Lists",
-    description: "Sessions, classes, routes, fee-head reference, and payment modes reference.",
+    description: "Sessions, classes, routes, and other school setup lists in one place.",
     icon: BookText,
     requiredPermission: "settings:write",
   },
   {
     href: "/protected/finance-controls",
-    label: "Day Close & Refunds",
-    description: "Day-book review, refund workflow, cashier totals, and close controls.",
+    label: "Day Close & Corrections",
+    description: "Day-book review, refunds, correction review, and close controls.",
     icon: ClipboardList,
     requiredPermission: "finance:view",
   },
   {
     href: "/protected/reports",
-    label: "Export & Print",
+    label: "Reports & Exports",
     description: "Advanced reports, exports, and print-friendly views.",
     icon: ReceiptText,
     requiredPermission: "reports:view",
@@ -348,4 +348,3 @@ export const advancedHubItems: AdvancedHubItem[] = [
     requiredPermission: "imports:view",
   },
 ] as const;
-

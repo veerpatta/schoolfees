@@ -10,6 +10,7 @@ import {
   upsertTransportDefault,
 } from "@/lib/fees/policy";
 import { createClient } from "@/lib/supabase/server";
+import { getSetupLockedMessage } from "@/lib/setup/copy";
 
 import type {
   SaveSetupClassDefaultInput,
@@ -86,21 +87,7 @@ async function assertSetupEditable(reason: "policy" | "master_data" | "defaults"
     return;
   }
 
-  if (reason === "policy") {
-    throw new Error(
-      "Initial setup is already marked complete. Use Fee Setup for live policy and fee-default changes.",
-    );
-  }
-
-  if (reason === "defaults") {
-    throw new Error(
-      "Initial setup is already marked complete. Use Fee Setup for live default changes.",
-    );
-  }
-
-  throw new Error(
-    "Initial setup is already marked complete. Use Master Data for live class and route changes.",
-  );
+  throw new Error(getSetupLockedMessage(reason));
 }
 
 function toSingleRecord<T>(value: T | T[] | null) {

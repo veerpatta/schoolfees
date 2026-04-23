@@ -42,7 +42,7 @@ function toErrorState(error: unknown): LedgerRegenerationActionState {
     message:
       error instanceof Error
         ? error.message
-        : "Unable to run ledger regeneration right now. Please try again.",
+        : "Unable to review dues update right now. Please try again.",
     batchId: null,
     preview: null,
   };
@@ -77,7 +77,7 @@ function buildPreviewMessage(payload: {
   rowsRequiringReview: number;
   studentsAffected: number;
 }) {
-  return `Preview ready for ${payload.policyRevisionLabel}: ${payload.rowsRecalculated} rows will be recalculated, ${payload.rowsSkipped} rows will be skipped, and ${payload.rowsRequiringReview} rows need manual review across ${payload.studentsAffected} students.`;
+  return `Review ready for ${payload.policyRevisionLabel}: ${payload.rowsRecalculated} rows will be updated, ${payload.rowsSkipped} rows will be skipped, and ${payload.rowsRequiringReview} rows need manual review across ${payload.studentsAffected} students.`;
 }
 
 function buildApplyMessage(payload: {
@@ -89,7 +89,7 @@ function buildApplyMessage(payload: {
 }) {
   const recalculated = payload.rowsInserted + payload.rowsUpdated + payload.rowsCancelled;
 
-  return `Applied ${payload.policyRevisionLabel}: ${recalculated} rows recalculated (${payload.rowsInserted} inserted, ${payload.rowsUpdated} updated, ${payload.rowsCancelled} cancelled) and ${payload.rowsRequiringReview} rows left for manual review.`;
+  return `Saved ${payload.policyRevisionLabel}: ${recalculated} rows updated (${payload.rowsInserted} inserted, ${payload.rowsUpdated} updated, ${payload.rowsCancelled} cancelled) and ${payload.rowsRequiringReview} rows still need manual review.`;
 }
 
 function revalidateRegenerationSurface() {

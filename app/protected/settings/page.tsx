@@ -110,8 +110,8 @@ export default async function SettingsPage() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Settings"
-        title="Deployment readiness and policy"
-        description="Use this page to verify that the internal admin shell is configured safely before production deployment."
+        title="System checks and policy notes"
+        description="Use this page to confirm the internal admin app is configured safely and still matches the active school policy."
         actions={
           <StatusBadge
             label={staff.appRole === "admin" ? "Admin access" : "Read-only access"}
@@ -203,12 +203,12 @@ export default async function SettingsPage() {
       </SectionCard>
 
       <SectionCard
-        title="Recent Policy Change Log"
-        description="Live policy/default changes made through the fee-setup preview/apply workflow are recorded here with their apply result and blocked-row review counts."
+        title="Recent Fee Setup changes"
+        description="Changes made through Fee Setup are recorded here with saved results and any rows that were held for manual review."
       >
         {recentConfigChanges.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
-            No config change batches recorded yet. Initial setup writes are still captured by
+            No recent Fee Setup changes are recorded yet. Initial setup writes are still captured by
             table-level audit logs.
           </div>
         ) : (

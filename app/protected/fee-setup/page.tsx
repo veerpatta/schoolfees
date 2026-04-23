@@ -28,8 +28,8 @@ export default async function FeeSetupPage() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Fee Setup"
-        title="School, class, and student fee defaults"
-        description="Manage school-wide defaults, per-class settings, and per-student overrides with mandatory impact preview and confirm-apply safety checks."
+        title="Live fee rules and defaults"
+        description="Update fee rules, school defaults, class defaults, route defaults, and student exceptions with review-first safety before anything changes live."
         actions={
           canEdit ? (
             <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">

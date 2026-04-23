@@ -28,8 +28,8 @@ export default async function MasterDataPage() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Admin"
-        title="Master Data Management"
-        description="Manage sessions, classes, and routes from one source of truth with safe delete guards. Live fee-head and payment-mode policy changes now run through fee setup so preview/apply logging stays consistent."
+        title="School Setup Lists"
+        description="Manage sessions, classes, and routes in one place with safe delete guards. Live fee-head and payment-mode changes still go through Fee Setup."
       />
 
       <MasterDataClient

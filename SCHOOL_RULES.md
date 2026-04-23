@@ -49,6 +49,13 @@ Operational rule:
   and routes; fee heads and payment modes are visible there but edited in fee
   setup
 
+Daily workflow boundary:
+
+- `Start Here` is the staff-facing first worksheet for blockers and shortcuts
+- `Advanced` is the place for setup, school setup lists, finance controls,
+  reports, staff, and settings
+- `Fee Setup` is the only live fee-editing path
+
 ## System-Wide Propagation Rules
 
 Current policy changes should propagate to:
@@ -117,9 +124,9 @@ Current live-change behavior should work like this:
 Safe admin workflow for live fee policy change:
 
 1. update the desired values in `/protected/fee-setup`
-2. run preview
+2. review the changes first
 3. review changed fields, affected students, and blocked rows
-4. confirm apply only after review
+4. save the change only after review
 5. follow up manually on blocked rows if the system protected paid history
 
 ## UI And Workflow Rules

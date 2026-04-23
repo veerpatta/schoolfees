@@ -37,6 +37,33 @@ Current priority areas:
 - filterable report tables with CSV export
 - staged spreadsheet import (implemented)
 
+## Simplified Workspace Model
+
+The protected workspace now follows a simplified workbook-style layout.
+
+Primary daily navigation:
+
+- `Start Here`
+- `Students`
+- `Fee Setup`
+- `Payment Desk`
+- `Dues & Receipts`
+- `Advanced`
+
+Operational boundaries:
+
+- `Start Here` is the first daily worksheet for blockers, shortcuts, and
+  recent office activity
+- `Fee Setup` is the canonical live path for fee-policy edits, defaults,
+  route defaults, student exceptions, and dues update review
+- `Dues & Receipts` is the workbook-style working area for receipt register,
+  installment dues, class dues summary, overdue list, today’s receipts,
+  today’s collection, and import issues
+- `Advanced` keeps first-time setup, school setup lists, day close,
+  reports/exports, staff, and settings out of the main daily flow
+- `Setup` remains first-time go-live preparation only and must not be reused
+  as a live fee-editing surface after setup completion
+
 ## Current Repo Structure
 
 Main routes and modules in the repo today:
@@ -46,7 +73,8 @@ Main routes and modules in the repo today:
 - `app/auth/*`
   login, password reset/recovery, auth confirmation, and error screens
 - `app/protected/page.tsx`
-  main dashboard with real-time aggregates
+  `Start Here` daily sheet with blockers, continue-task shortcuts, and today’s
+  office work
 - `app/protected/students/page.tsx`
   student master list
 - `app/protected/students/new/page.tsx`
@@ -68,6 +96,13 @@ Main routes and modules in the repo today:
 - `app/protected/fee-setup/generate/page.tsx`
   preview + safe recalculation workflow for unpaid and future session ledger
   installments, with paid/partial rows flagged for review
+- `app/protected/advanced/page.tsx`
+  secondary hub for setup, school setup lists, day close, reports, staff, and
+  settings
+- `app/protected/dues/page.tsx`
+  workbook-style dues and receipt area with shortcut views for receipt
+  register, installment dues, class dues summary, overdue list, today’s
+  receipts, today’s collection, and import issues
 - `app/protected/payments/page.tsx`
   payment entry desk (also served at /collections)
 - `app/protected/collections/page.tsx`
@@ -280,6 +315,8 @@ Propagation expectations:
   landing/auth policy copy all consume the same canonical policy service
 - payment entry enforces the current accepted payment modes and current receipt
   prefix
+- role landing remains workbook-first: admin -> `Start Here`, accountant ->
+  `Payment Desk`, read_only_staff -> `Start Here`
 - reports and receipts keep historical financial facts visible even after the
   current policy changes
 - paid, partially paid, or adjusted installment rows are never silently

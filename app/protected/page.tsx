@@ -39,14 +39,14 @@ export default async function ProtectedPage() {
           detail: readiness.postPayments.detail,
           href: readiness.postPayments.actionHref ?? getDefaultProtectedHref(staff.appRole),
           action: readiness.postPayments.actionLabel ?? "Open collection status",
-          tone: "review" as const,
+          tone: "review",
         }
       : {
           title: "Open Payment Desk",
           detail: `${home.todayCollection.receiptCount} receipt${home.todayCollection.receiptCount === 1 ? "" : "s"} posted today.`,
           href: "/protected/payments",
           action: "Open counter desk",
-          tone: "editable" as const,
+          tone: "editable",
         },
     !readiness.importStudents.isReady
       ? {
@@ -54,14 +54,14 @@ export default async function ProtectedPage() {
           detail: readiness.importStudents.detail,
           href: readiness.importStudents.actionHref ?? "/protected/setup",
           action: readiness.importStudents.actionLabel ?? "Review setup",
-          tone: "review" as const,
+          tone: "review",
         }
       : {
           title: "Continue student work",
           detail:
             home.importAnomalies.length > 0
               ? `${home.importAnomalies.length} import batch${home.importAnomalies.length === 1 ? "" : "es"} still need review.`
-              : "Student entry and import are ready for office work.",
+              : "Student entry and import are ready for daily office work.",
           href: home.importAnomalies.length > 0 ? "/protected/imports" : "/protected/students",
           action: home.importAnomalies.length > 0 ? "Review import issues" : "Open students",
           tone: home.importAnomalies.length > 0 ? "review" : "editable",
@@ -71,17 +71,23 @@ export default async function ProtectedPage() {
           title: readiness.recalculateLedgers.title,
           detail: readiness.recalculateLedgers.detail,
           href: readiness.recalculateLedgers.actionHref ?? "/protected/fee-setup",
-          action: readiness.recalculateLedgers.actionLabel ?? "Review fee setup",
-          tone: "review" as const,
+          action: readiness.recalculateLedgers.actionLabel ?? "Review Fee Setup",
+          tone: "review",
         }
       : {
-          title: "Fee Structure and dues",
+          title: "Fee Setup and dues",
           detail:
             home.pendingConfigChanges.length > 0
-              ? `${home.pendingConfigChanges.length} preview-ready fee change${home.pendingConfigChanges.length === 1 ? "" : "s"} waiting for apply or review.`
-              : "Defaults, overrides, and due recalculation are ready for review.",
-          href: home.pendingConfigChanges.length > 0 ? "/protected/fee-setup" : "/protected/fee-setup/generate",
-          action: home.pendingConfigChanges.length > 0 ? "Continue fee setup change" : "Open recalculation",
+              ? `${home.pendingConfigChanges.length} reviewed fee change${home.pendingConfigChanges.length === 1 ? "" : "s"} still need saving or follow-up.`
+              : "Fee rules, defaults, and dues updates are ready to review.",
+          href:
+            home.pendingConfigChanges.length > 0
+              ? "/protected/fee-setup"
+              : "/protected/fee-setup/generate",
+          action:
+            home.pendingConfigChanges.length > 0
+              ? "Continue Fee Setup"
+              : "Review dues update",
           tone: home.pendingConfigChanges.length > 0 ? "policy" : "calculated",
         },
   ];
@@ -90,8 +96,8 @@ export default async function ProtectedPage() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Start Here"
-        title="Today’s work"
-        description="Use this page like the first worksheet in the fee workbook: start with blockers, continue live tasks, then open the correct operational screen."
+        title="Today's work"
+        description="Use this page like the first worksheet in the fee workbook: clear blockers, continue live tasks, then open the right office screen."
         actions={
           <StatusBadge
             label={setup.readiness.collectionDeskReady ? "Collection desk ready" : "Setup attention needed"}
@@ -108,7 +114,7 @@ export default async function ProtectedPage() {
                 {item.tone === "review"
                   ? "Needs attention"
                   : item.tone === "policy"
-                    ? "Preview ready"
+                    ? "Ready to review"
                     : item.tone === "editable"
                       ? "Ready now"
                       : "Calculated"}
@@ -124,7 +130,7 @@ export default async function ProtectedPage() {
       <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <SectionCard
           title="Continue task"
-          description="Resume the last student or receipt, or open the right queue from the latest auditable batch."
+          description="Resume the last student or receipt, or open the right queue from the latest saved work."
         >
           <div className="space-y-3">
             <OfficeRecentActions />
@@ -132,17 +138,19 @@ export default async function ProtectedPage() {
             {home.pendingConfigChanges.slice(0, 2).map((batch) => (
               <div key={batch.id} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-slate-950">{batch.scopeLabel}: {batch.targetLabel}</p>
-                  <ValueStatePill tone="policy">Preview ready</ValueStatePill>
+                  <p className="text-sm font-semibold text-slate-950">
+                    {batch.scopeLabel}: {batch.targetLabel}
+                  </p>
+                  <ValueStatePill tone="policy">Ready to review</ValueStatePill>
                 </div>
                 <p className="mt-2 text-sm text-slate-600">
                   {batch.summary
-                    ? `${batch.summary.studentsAffected} students affected, ${batch.blockedInstallmentCount} blocked rows for review.`
-                    : "Impact preview is ready for review."}
+                    ? `${batch.summary.studentsAffected} students affected, ${batch.blockedInstallmentCount} rows held for review.`
+                    : "Saved review details are ready to reopen."}
                 </p>
                 <div className="mt-3">
                   <Button asChild size="sm" variant="outline">
-                    <Link href="/protected/fee-setup">Continue fee setup change</Link>
+                    <Link href="/protected/fee-setup">Continue Fee Setup</Link>
                   </Button>
                 </div>
               </div>
@@ -155,14 +163,14 @@ export default async function ProtectedPage() {
                 <div key={batch.id} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm font-semibold text-slate-950">{batch.policyRevisionLabel}</p>
-                    <ValueStatePill tone="review">Manual review queue</ValueStatePill>
+                    <ValueStatePill tone="review">Review queue</ValueStatePill>
                   </div>
                   <p className="mt-2 text-sm text-slate-600">
-                    {batch.rowsRecalculated} rows recalculated in preview and {batch.rowsRequiringReview} need manual review.
+                    {batch.rowsRecalculated} rows were checked and {batch.rowsRequiringReview} still need manual follow-up.
                   </p>
                   <div className="mt-3">
                     <Button asChild size="sm" variant="outline">
-                      <Link href="/protected/fee-setup/generate">Continue blocked recalculation review</Link>
+                      <Link href="/protected/fee-setup/generate">Continue dues review</Link>
                     </Button>
                   </div>
                 </div>
@@ -185,7 +193,7 @@ export default async function ProtectedPage() {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm font-semibold text-slate-950">{item.label}</p>
                     <Button asChild size="sm" variant="outline">
-                      <Link href={item.href}>Open step</Link>
+                      <Link href={item.href}>Go to step</Link>
                     </Button>
                   </div>
                   <p className="mt-2 text-sm text-slate-700">{item.detail}</p>
@@ -199,7 +207,12 @@ export default async function ProtectedPage() {
       <section className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
         <SectionCard
           title="Students due today and overdue"
-          description="Open the exact student workspace from the action list instead of browsing through reports."
+          description="Open the exact student workspace or payment desk from the list instead of browsing through reports."
+          actions={
+            <Button asChild size="sm" variant="outline">
+              <Link href="/protected/dues?view=installments">Open installment dues</Link>
+            </Button>
+          }
         >
           <div className="grid gap-4 lg:grid-cols-2">
             <div>
@@ -218,14 +231,16 @@ export default async function ProtectedPage() {
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
                           <p className="font-semibold text-slate-950">{row.fullName}</p>
-                          <p className="text-sm text-slate-600">{row.classLabel} • {row.admissionNo}</p>
+                          <p className="text-sm text-slate-600">
+                            {row.classLabel} | {row.admissionNo}
+                          </p>
                         </div>
                         <ValueStatePill tone={row.balanceStatus === "overdue" ? "review" : "calculated"}>
                           {row.balanceStatus}
                         </ValueStatePill>
                       </div>
                       <p className="mt-2 text-sm text-slate-700">
-                        Due {formatShortDate(row.dueDate)} • {formatInr(row.outstandingAmount)}
+                        Due {formatShortDate(row.dueDate)} | {formatInr(row.outstandingAmount)}
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <Button asChild size="sm" variant="outline">
@@ -245,7 +260,7 @@ export default async function ProtectedPage() {
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-sm font-semibold text-slate-900">Overdue follow-up</p>
                 <Button asChild size="sm" variant="outline">
-                  <Link href="/protected/dues?view=defaulters">Open defaulters</Link>
+                  <Link href="/protected/dues?view=defaulters">Open overdue list</Link>
                 </Button>
               </div>
               <div className="space-y-3">
@@ -257,13 +272,18 @@ export default async function ProtectedPage() {
                   home.overdueStudents.map((row) => (
                     <div key={`${row.studentId}-${row.dueDate}`} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
                       <p className="font-semibold text-slate-950">{row.fullName}</p>
-                      <p className="mt-1 text-sm text-slate-600">{row.classLabel} • {row.admissionNo}</p>
-                      <p className="mt-2 text-sm text-slate-700">
-                        Oldest due {formatShortDate(row.dueDate)} • {formatInr(row.outstandingAmount)}
+                      <p className="mt-1 text-sm text-slate-600">
+                        {row.classLabel} | {row.admissionNo}
                       </p>
-                      <div className="mt-3">
+                      <p className="mt-2 text-sm text-slate-700">
+                        Oldest due {formatShortDate(row.dueDate)} | {formatInr(row.outstandingAmount)}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
                         <Button asChild size="sm" variant="outline">
                           <Link href={`/protected/students/${row.studentId}`}>Open student</Link>
+                        </Button>
+                        <Button asChild size="sm" variant="outline">
+                          <Link href={`/protected/payments?studentId=${row.studentId}`}>Open payment desk</Link>
                         </Button>
                       </div>
                     </div>
@@ -281,7 +301,7 @@ export default async function ProtectedPage() {
           <div className="space-y-3">
             {home.importAnomalies.length === 0 ? (
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
-                No recent import batches show unresolved anomalies.
+                No recent import batches show unresolved issues.
               </div>
             ) : (
               home.importAnomalies.map((batch) => (
@@ -333,7 +353,17 @@ export default async function ProtectedPage() {
 
       <SectionCard
         title="Recent receipts"
-        description="Keep the last few desk entries visible from the Start Here sheet."
+        description="Keep the latest desk entries visible from the Start Here sheet."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href="/protected/dues?view=receipts_today">Today&apos;s receipts</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/protected/dues?view=collection_today">Today&apos;s collection</Link>
+            </Button>
+          </div>
+        }
       >
         <div className="overflow-x-auto rounded-xl border border-slate-200">
           <table className="w-full min-w-[760px] text-left text-sm">

@@ -19,8 +19,8 @@ export default async function GenerateLedgerPage() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Fee Setup"
-        title="Ledger recalculation"
-        description="Preview how the current fee policy will recalculate future and unpaid installment rows for the active academic session before you apply it."
+        title="Review dues update"
+        description="Check how the current Fee Setup will update future and unpaid installment rows before you save the dues update."
       />
 
       {!readiness.recalculateLedgers.isReady ? (
@@ -34,8 +34,8 @@ export default async function GenerateLedgerPage() {
 
       {recentBatches.length > 0 ? (
         <SectionCard
-          title="Recent recalculation batches"
-          description="Existing preview and apply batches remain visible even when new recalculation is blocked."
+          title="Recent dues updates"
+          description="Recent review and saved runs stay visible even when a new dues update is blocked."
         >
           <div className="grid gap-3 md:grid-cols-3">
             {recentBatches.map((batch) => (
@@ -43,7 +43,7 @@ export default async function GenerateLedgerPage() {
                 <p className="text-sm font-semibold text-slate-950">{batch.policyRevisionLabel}</p>
                 <p className="mt-1 text-sm text-slate-600">{batch.reason}</p>
                 <p className="mt-2 text-xs text-slate-500">
-                  {batch.rowsRecalculated} rows recalculated, {batch.rowsRequiringReview} rows for review.
+                  {batch.rowsRecalculated} rows checked, {batch.rowsRequiringReview} rows held for review.
                 </p>
               </div>
             ))}

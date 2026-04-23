@@ -56,6 +56,39 @@ Primary product qualities:
 - gradual migration from workbook-based work
 - explicit, correction-safe financial history
 
+## Simplified Workspace Truth
+
+The protected workspace now follows a workbook-style operating model.
+
+Primary daily areas:
+
+- `Start Here`
+- `Students`
+- `Fee Setup`
+- `Payment Desk`
+- `Dues & Receipts`
+- `Advanced`
+
+Operational boundaries:
+
+- `Start Here` is the first daily worksheet for blockers, shortcuts, and
+  continue-task links
+- `Fee Setup` is the canonical live path for fee rules, defaults, route
+  defaults, student exceptions, and dues update review
+- `Dues & Receipts` is the workbook-style working area for receipt register,
+  installment dues, class dues summary, overdue list, today’s receipts,
+  today’s collection, and import issues
+- `Advanced` contains setup, school setup lists, day close/corrections,
+  reports/exports, staff, and settings
+- `Setup` remains first-time go-live preparation only and must not be reused
+  as a live fee-editing path after completion
+
+Default role landing:
+
+- `admin` -> `Start Here`
+- `accountant` -> `Payment Desk`
+- `read_only_staff` -> `Start Here`
+
 ## Non-Goals
 
 Unless a user explicitly asks otherwise, do not steer the app toward:
@@ -78,6 +111,8 @@ Fully implemented core:
   confirm route, error route, and a sign-up route that should remain disabled
   for public use
 - protected admin workspace under `app/protected`
+- simplified workbook-style protected shell with `Start Here`, `Students`,
+  `Fee Setup`, `Payment Desk`, `Dues & Receipts`, and `Advanced`
 - admin-only first-time setup wizard with academic session selection, class and
   route setup, school/class defaults, readiness checklist, and explicit setup
   completion marker; once setup is marked complete, the wizard no longer serves
@@ -148,6 +183,8 @@ content or Supabase sample code unless the user explicitly requests that.
 - fee setup actions: `app/protected/fee-setup/actions.ts`
 - fee recalculation: `app/protected/fee-setup/generate/page.tsx`
 - fee recalculation actions: `app/protected/fee-setup/generate/actions.ts`
+- advanced hub: `app/protected/advanced/page.tsx`
+- dues workbook: `app/protected/dues/page.tsx`
 - fee regeneration service: `lib/fees/regeneration.ts`
 - payment entry: `app/protected/payments/page.tsx`
 - payment actions: `app/protected/payments/actions.ts`
@@ -269,6 +306,9 @@ Propagation expectations:
   canonical service
 - payment entry must enforce the current accepted payment modes and receipt
   prefix
+- role landing and simplified navigation should stay workbook-first:
+  `admin` -> `Start Here`, `accountant` -> `Payment Desk`,
+  `read_only_staff` -> `Start Here`
 - receipts, payments, and payment adjustments remain historical facts after
   posting even if the current policy later changes
 

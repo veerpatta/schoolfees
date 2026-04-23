@@ -20,7 +20,7 @@ export default async function AdvancedPage() {
       <PageHeader
         eyebrow="Advanced"
         title="Advanced tools"
-        description="All deeper admin and finance-office modules stay available here without crowding the daily office navigation."
+        description="Deeper admin and finance-office modules stay here without crowding the daily office navigation."
         actions={<StatusBadge label="Secondary workspace" tone="accent" />}
       />
 
@@ -35,7 +35,7 @@ export default async function AdvancedPage() {
                   <Icon className="size-5" />
                 </div>
                 <Button asChild size="sm" variant="outline">
-                  <Link href={item.href}>Open</Link>
+                  <Link href={item.href}>Go there</Link>
                 </Button>
               </div>
             </SectionCard>

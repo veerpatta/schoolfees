@@ -27,16 +27,16 @@ export const reportDefinitions: Record<
   }
 > = {
   outstanding: {
-    title: "Outstanding report",
+    title: "Outstanding Dues",
     description:
-      "Open dues by class, session, student, and installment for follow-up work.",
-    tableTitle: "Outstanding rows",
+      "Open dues by class, session, student, and installment for office follow-up.",
+    tableTitle: "Outstanding dues",
     tableDescription:
-      "Flat installment-level table for office follow-up and spreadsheet export.",
+      "Flat installment-level table for follow-up work and spreadsheet export.",
     printFriendly: true,
   },
   "daily-collection": {
-    title: "Daily collection report",
+    title: "Daily Collection",
     description:
       "Day-book style summary grouped by payment date and payment mode.",
     tableTitle: "Daily collection summary",
@@ -45,7 +45,7 @@ export const reportDefinitions: Record<
     printFriendly: true,
   },
   "student-ledger": {
-    title: "Student ledger report",
+    title: "Student Ledger",
     description:
       "Chronological payment and adjustment history for one student without hiding corrections.",
     tableTitle: "Ledger entries",
@@ -54,7 +54,7 @@ export const reportDefinitions: Record<
     printFriendly: true,
   },
   "receipt-register": {
-    title: "Receipt register",
+    title: "Receipt Register",
     description:
       "Receipt-by-receipt register for verification, reconciliation, and recheck work.",
     tableTitle: "Receipt register",
@@ -63,7 +63,7 @@ export const reportDefinitions: Record<
     printFriendly: true,
   },
   "import-verification": {
-    title: "Import verification report",
+    title: "Import Verification",
     description:
       "Batch summary and row-level import status for checking workbook migration results.",
     tableTitle: "Import detail rows",

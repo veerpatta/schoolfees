@@ -239,7 +239,7 @@ function toErrorState(error: unknown): FeeSetupActionState {
     message:
       error instanceof Error
         ? error.message
-        : "Unable to save fee setup right now. Please try again.",
+        : "Unable to save Fee Setup right now. Please try again.",
     changeBatchId: null,
     preview: null,
   };
@@ -273,7 +273,7 @@ function previewMessage(payload: {
   installmentsAffected: number;
   blocked: number;
 }) {
-  return `Impact preview ready for ${payload.target}: ${payload.studentsAffected} students, ${payload.installmentsAffected} installment rows (${payload.blocked} blocked for review). Confirm apply to proceed.`;
+  return `Review ready for ${payload.target}: ${payload.studentsAffected} students, ${payload.installmentsAffected} installment rows, and ${payload.blocked} rows held for review. Save these changes to continue.`;
 }
 
 function revalidateFeePolicySurface() {

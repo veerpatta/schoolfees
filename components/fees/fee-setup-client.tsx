@@ -97,11 +97,11 @@ function ImpactPreviewCard({ preview }: { preview: ConfigChangeImpactPreview | n
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
-            Impact Preview
+            Review changes
           </p>
           <p className="text-sm font-semibold text-slate-900">{preview.targetLabel}</p>
           <p className="text-xs text-slate-600">
-            {preview.scopeLabel}: confirm apply to run this exact preview.
+            {preview.scopeLabel}: save these exact changes to update live dues safely.
           </p>
         </div>
         <div className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-medium text-blue-700">
@@ -134,13 +134,13 @@ function ImpactPreviewCard({ preview }: { preview: ConfigChangeImpactPreview | n
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
-          Insert unpaid rows: <strong>{preview.installmentsToInsert}</strong>
+          New unpaid rows: <strong>{preview.installmentsToInsert}</strong>
         </div>
         <div className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
-          Cancel extra unpaid rows: <strong>{preview.installmentsToCancel}</strong>
+          Cancel unpaid rows: <strong>{preview.installmentsToCancel}</strong>
         </div>
         <div className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
-          Adjusted rows blocked: <strong>{preview.blockedAdjustedInstallments}</strong>
+          Adjusted rows held: <strong>{preview.blockedAdjustedInstallments}</strong>
         </div>
       </div>
 
@@ -589,7 +589,7 @@ export function FeeSetupClient({
     <div className="space-y-6">
       <SectionCard
         title="Field guide"
-        description="Use the same visual language everywhere: editable values can be changed here, policy-driven values flow into ledgers, and paid history stays locked."
+        description="Use the same visual language everywhere: editable values can change here, policy-driven values flow into dues, and paid history stays locked."
       >
         <div className="flex flex-wrap gap-2">
           <ValueStatePill tone="editable">Editable</ValueStatePill>
@@ -602,14 +602,13 @@ export function FeeSetupClient({
 
       {!canEdit ? (
         <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-          You can review policy, defaults, routes, and override records, but only admin
-          staff can change canonical fee policy or editable default tables.
+          You can review fee rules, defaults, routes, and student exceptions here, but only admin staff can change the live settings.
         </div>
       ) : null}
 
       <SectionCard
-        title="Canonical fee policy"
-        description="This is the single editable fee-policy source used by ledger sync, payment desk mode validation, dashboard notes, defaulters, reports, and settings."
+        title="Live fee policy"
+        description="This is the main live policy used by dues updates, payment mode checks, dashboard notes, reports, and settings."
         actions={
           canEdit ? (
             <StatusBadge label="Admin editable" tone="good" />
@@ -675,8 +674,7 @@ export function FeeSetupClient({
               <div>
                 <Label>Installment due schedule</Label>
                 <SectionHint>
-                  Preview first, then confirm apply. Paid and partially paid rows stay
-                  untouched and are marked for review when needed.
+                  Review changes first. Paid and partially paid rows stay untouched and are marked for review when needed.
                 </SectionHint>
               </div>
               <Button
@@ -794,19 +792,19 @@ export function FeeSetupClient({
               state={globalState}
               canEdit={canEdit}
               pending={globalPending}
-              previewLabel="Preview policy impact"
-              applyLabel="Confirm and apply policy"
+              previewLabel="Review policy changes"
+              applyLabel="Save policy changes"
             />
           </div>
         </form>
       </SectionCard>
 
       <SectionCard
-        title="School-wide fee defaults"
-        description="Set the default base amounts used when a class does not need a different active default."
+        title="School defaults"
+        description="Set the base amounts used when a class does not need its own live default."
         actions={
           canEdit ? (
-            <StatusBadge label="Editable master data" tone="good" />
+            <StatusBadge label="Editable in Fee Setup" tone="good" />
           ) : (
             <StatusBadge label="Read-only" tone="warning" />
           )
@@ -924,19 +922,19 @@ export function FeeSetupClient({
               state={schoolState}
               canEdit={canEdit}
               pending={schoolPending}
-              previewLabel="Preview school impact"
-              applyLabel="Confirm and apply school defaults"
+              previewLabel="Review school changes"
+              applyLabel="Save school defaults"
             />
           </div>
         </form>
       </SectionCard>
 
       <SectionCard
-        title="Class-wise fee defaults"
-        description="Each class keeps one active editable default record. Ledger sync resolves class defaults before school-level fallback."
+        title="Class defaults"
+        description="Each class keeps one live default record. Dues use the class default before falling back to school defaults."
         actions={
           canEdit ? (
-            <StatusBadge label="Editable master data" tone="good" />
+            <StatusBadge label="Editable in Fee Setup" tone="good" />
           ) : (
             <StatusBadge label="Read-only" tone="warning" />
           )
@@ -969,10 +967,10 @@ export function FeeSetupClient({
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
               {selectedClassDefault ? (
                 <>
-                  Editing current active default for <strong>{selectedClassDefault.classLabel}</strong>.
+                  Editing the live default for <strong>{selectedClassDefault.classLabel}</strong>.
                 </>
               ) : (
-                <>Select a class to create or update its active default.</>
+                <>Choose a class to create or update its live default.</>
               )}
             </div>
           </div>
@@ -1093,15 +1091,15 @@ export function FeeSetupClient({
             <SectionHint>
               {selectedClassDefault
                 ? `Last updated: ${formatUpdatedAt(selectedClassDefault.updatedAt)}`
-                : "New class default will become the active record for the selected class."}
+                : "The saved class default will become the live record for this class."}
             </SectionHint>
             <PreviewApplyActions
               state={classState}
               canEdit={canEdit}
               pending={classPending}
               disablePreview={!selectedClassId}
-              previewLabel="Preview class impact"
-              applyLabel="Confirm and apply class defaults"
+              previewLabel="Review class changes"
+              applyLabel="Save class defaults"
             />
           </div>
         </form>
@@ -1112,11 +1110,11 @@ export function FeeSetupClient({
       </SectionCard>
 
       <SectionCard
-        title="Transport defaults"
-        description="Transport route defaults stay editable as master data. Resolved route amounts feed future and unpaid installment calculations only."
+        title="Route defaults"
+        description="Set route-wise transport amounts used for future and unpaid dues only."
         actions={
           canEdit ? (
-            <StatusBadge label="Editable master data" tone="good" />
+            <StatusBadge label="Editable in Fee Setup" tone="good" />
           ) : (
             <StatusBadge label="Read-only" tone="warning" />
           )
@@ -1150,8 +1148,7 @@ export function FeeSetupClient({
               </select>
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              Route defaults control transport annualisation through the active policy
-              installment count.
+              Route defaults use the live installment count from Fee Setup when dues are prepared.
             </div>
           </div>
 
@@ -1228,8 +1225,8 @@ export function FeeSetupClient({
               state={transportState}
               canEdit={canEdit}
               pending={transportPending}
-              previewLabel="Preview route impact"
-              applyLabel="Confirm and apply route default"
+              previewLabel="Review route changes"
+              applyLabel="Save route default"
             />
           </div>
         </form>
@@ -1240,11 +1237,11 @@ export function FeeSetupClient({
       </SectionCard>
 
       <SectionCard
-        title="Per-student overrides"
-        description="Overrides are explicit exception records. They affect only future and unpaid-fee calculations after policy-aware ledger sync."
+        title="Student exceptions"
+        description="Use student exceptions for approved cases only. They affect future and unpaid dues without rewriting paid history."
         actions={
           canEdit ? (
-            <StatusBadge label="Editable default exception" tone="good" />
+            <StatusBadge label="Editable in Fee Setup" tone="good" />
           ) : (
             <StatusBadge label="Read-only" tone="warning" />
           )
@@ -1279,8 +1276,7 @@ export function FeeSetupClient({
               </select>
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              Save class defaults for the student&apos;s class first. Overrides are layered on top of
-              the active class or school defaults.
+              Save the class default first. Student exceptions sit on top of the live class or school defaults.
             </div>
           </div>
 
@@ -1442,8 +1438,8 @@ export function FeeSetupClient({
               canEdit={canEdit}
               pending={studentPending}
               disablePreview={!selectedStudentId}
-              previewLabel="Preview override impact"
-              applyLabel="Confirm and apply override"
+              previewLabel="Review student changes"
+              applyLabel="Save student exception"
             />
           </div>
         </form>
