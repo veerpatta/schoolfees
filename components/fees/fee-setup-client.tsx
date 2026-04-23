@@ -28,12 +28,7 @@ type FeeSetupClientProps = {
 function buildInitialFormState(data: FeeSetupPageData): WorkbookFeeSetupFormPayload {
   return {
     academicSessionLabel: data.globalPolicy.academicSessionLabel,
-    installmentDates: [
-      data.globalPolicy.installmentSchedule[0]?.dueDate ?? "",
-      data.globalPolicy.installmentSchedule[1]?.dueDate ?? "",
-      data.globalPolicy.installmentSchedule[2]?.dueDate ?? "",
-      data.globalPolicy.installmentSchedule[3]?.dueDate ?? "",
-    ],
+    installmentDates: data.globalPolicy.installmentSchedule.map((item) => item.dueDate),
     lateFeeFlatAmount: data.globalPolicy.lateFeeFlatAmount,
     newStudentAcademicFeeAmount: data.globalPolicy.newStudentAcademicFeeAmount,
     oldStudentAcademicFeeAmount: data.globalPolicy.oldStudentAcademicFeeAmount,
@@ -239,12 +234,34 @@ export function FeeSetupClient({
 
   function updateInstallmentDate(index: number, value: string) {
     setForm((current) => {
-      const nextDates = [...current.installmentDates] as WorkbookFeeSetupFormPayload["installmentDates"];
+      const nextDates = [...current.installmentDates];
       nextDates[index] = value;
 
       return {
         ...current,
         installmentDates: nextDates,
+      };
+    });
+    markDirty();
+  }
+
+  function addInstallmentDate() {
+    setForm((current) => ({
+      ...current,
+      installmentDates: [...current.installmentDates, ""],
+    }));
+    markDirty();
+  }
+
+  function removeInstallmentDate(index: number) {
+    setForm((current) => {
+      if (current.installmentDates.length <= 1) {
+        return current;
+      }
+
+      return {
+        ...current,
+        installmentDates: current.installmentDates.filter((_, currentIndex) => currentIndex !== index),
       };
     });
     markDirty();
@@ -322,13 +339,31 @@ export function FeeSetupClient({
       </SectionCard>
 
       <SectionCard
-        title="2. Installment Due Dates"
-        description="Set the 4 installment due dates for the active academic session."
+        title="2. Installment Schedule"
+        description="Set the installment count by adding or removing due-date rows. The fee engine uses the number of rows you keep here."
       >
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="rounded-2xl border border-sky-100 bg-sky-50/80 px-4 py-3 text-sm text-slate-700">
+            Installments in this setup: <strong className="text-slate-950">{form.installmentDates.length}</strong>
+          </div>
+          {canEdit ? (
+            <Button type="button" variant="outline" onClick={addInstallmentDate}>
+              Add installment row
+            </Button>
+          ) : null}
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {form.installmentDates.map((value, index) => (
-            <div key={`due-date-${index}`}>
-              <Label htmlFor={`installment-date-${index}`}>Installment {index + 1} due date</Label>
+            <div key={`due-date-${index}`} className="rounded-[24px] border border-slate-200 bg-white p-4">
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor={`installment-date-${index}`}>Installment {index + 1} due date</Label>
+                {canEdit && form.installmentDates.length > 1 ? (
+                  <Button type="button" variant="ghost" onClick={() => removeInstallmentDate(index)}>
+                    Remove
+                  </Button>
+                ) : null}
+              </div>
               <Input
                 id={`installment-date-${index}`}
                 name="installmentDueDate"

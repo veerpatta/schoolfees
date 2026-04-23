@@ -55,9 +55,9 @@ Operational boundaries:
 - `Start Here` is the first daily worksheet for blockers, shortcuts, and
   recent office activity
 - `Fee Setup` is the canonical live path for the workbook-style fee sheet:
-  academic session, installment due dates, late fee, new/old academic fee,
-  class-wise annual tuition, route-wise annual transport fee, and dues update
-  review
+  academic session, editable installment schedule, late fee, new/old academic
+  fee, class-wise annual tuition, route-wise annual transport fee, and dues
+  update review
 - `Dues & Receipts` is the workbook-style working area for receipt register,
   installment tracker, master fee statement shortcuts, class register,
   defaulters, today’s receipts, today’s collection, and import issues
@@ -94,10 +94,10 @@ Main routes and modules in the repo today:
 - `app/protected/fee-structure/page.tsx`
   alias route to fee setup area
 - `app/protected/fee-setup/page.tsx`
-  workbook-style one-page fee setup screen for academic session, 4 installment
-  due dates, late fee, new/old academic fee, class-wise annual tuition, and
-  route-wise annual transport fee, with mandatory impact preview and
-  confirm-apply flow
+  workbook-style fee setup screen for academic session, editable installment
+  schedule, late fee, new/old academic fee, class-wise annual tuition, route-
+  wise annual transport fee, and embedded supporting list management, with
+  mandatory impact preview and confirm-apply flow
 - `app/protected/fee-setup/generate/page.tsx`
   preview + safe recalculation workflow for unpaid and future session ledger
   installments, with paid/partial rows flagged for review
@@ -125,9 +125,10 @@ Main routes and modules in the repo today:
 - `app/protected/reports/export/route.ts`
   CSV download API endpoint for all report types
 - `app/protected/master-data/page.tsx`
-  admin CRUD for academic sessions, classes, and transport routes, with safe
-  disable/delete guards; current fee heads and payment modes are shown there
-  for reference, while daily workbook fee edits stay in fee setup
+  admin CRUD for academic sessions, classes, transport routes, custom fee
+  heads, and payment modes, with safe disable/delete guards; the same
+  supporting list editor is also embedded inside Fee Setup for the daily
+  workbook flow
 - `app/protected/settings/page.tsx`
   deployment readiness checks, active policy notes, and recent config-change
   batch history

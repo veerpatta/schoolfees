@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -73,6 +72,10 @@ type MasterDataClientProps = {
     createRouteAction: ActionFn;
     updateRouteAction: ActionFn;
     deleteRouteAction: ActionFn;
+    createFeeHeadAction: ActionFn;
+    updateFeeHeadAction: ActionFn;
+    deleteFeeHeadAction: ActionFn;
+    setPaymentModeActiveAction: ActionFn;
   };
   initialActionState: MasterDataActionState;
 };
@@ -150,6 +153,22 @@ export function MasterDataClient({
   );
   const [routeDeleteState, deleteRouteFormAction] = useActionState(
     actions.deleteRouteAction,
+    initialActionState,
+  );
+  const [feeHeadCreateState, createFeeHeadFormAction] = useActionState(
+    actions.createFeeHeadAction,
+    initialActionState,
+  );
+  const [feeHeadUpdateState, updateFeeHeadFormAction] = useActionState(
+    actions.updateFeeHeadAction,
+    initialActionState,
+  );
+  const [feeHeadDeleteState, deleteFeeHeadFormAction] = useActionState(
+    actions.deleteFeeHeadAction,
+    initialActionState,
+  );
+  const [paymentModeState, setPaymentModeFormAction] = useActionState(
+    actions.setPaymentModeActiveAction,
     initialActionState,
   );
 
@@ -431,43 +450,63 @@ export function MasterDataClient({
       <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-950">Fee heads in current Fee Setup</h2>
+            <h2 className="text-lg font-semibold text-slate-950">Custom fee heads</h2>
             <p className="text-sm text-slate-600">
-              These values are part of the live fee policy and stay editable only
-              through Fee Setup so the review and audit trail stays together.
+              Define the named fee-head catalog here, then use the live fee setup rows to assign
+              amounts where needed.
             </p>
           </div>
-          <Button asChild variant="outline">
-            <Link href="/protected/fee-setup">Open Fee Setup</Link>
-          </Button>
+          <span className="text-xs uppercase tracking-[0.2em] text-slate-500">Editable</span>
         </div>
+
+        <ActionMessage state={feeHeadCreateState} />
+        <ActionMessage state={feeHeadUpdateState} />
+        <ActionMessage state={feeHeadDeleteState} />
+
+        <form action={createFeeHeadFormAction} className="flex flex-col gap-3 rounded-xl border border-slate-200 p-3 md:flex-row md:items-end">
+          <div className="flex-1">
+            <Label htmlFor="feeHeadLabel">Fee head label</Label>
+            <Input id="feeHeadLabel" name="feeHeadLabel" className="mt-1" placeholder="Lab fee" required />
+          </div>
+          <Button type="submit" className="w-fit">Add fee head</Button>
+        </form>
 
         {feeHeads.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
-            No custom fee heads are active right now. Add them from Fee Setup when the
-            school needs policy-backed heads beyond tuition, transport, books, and
-            admission/activity/misc.
+            No custom fee heads are active right now. Add one above when the school needs an extra
+            named fee type beyond tuition, transport, books, or admission/activity/misc.
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
-                <tr>
-                  <th className="px-4 py-3">Fee head</th>
-                  <th className="px-4 py-3">ID</th>
-                  <th className="px-4 py-3">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {feeHeads.map((item) => (
-                  <tr key={item.id} className="border-t border-slate-100 text-slate-700">
-                    <td className="px-4 py-3 font-medium text-slate-900">{item.label}</td>
-                    <td className="px-4 py-3">{item.id}</td>
-                    <td className="px-4 py-3">{item.isActive ? "Active" : "Inactive"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-3">
+            {feeHeads.map((item) => (
+              <div key={item.id} className="rounded-xl border border-slate-200 p-3">
+                <form action={updateFeeHeadFormAction} className="grid gap-3 md:grid-cols-[1fr_180px_auto] md:items-end">
+                  <input type="hidden" name="feeHeadId" value={item.id} />
+                  <div>
+                    <Label>Fee head label</Label>
+                    <Input name="feeHeadLabel" defaultValue={item.label} className="mt-1" required />
+                  </div>
+                  <div>
+                    <Label>Status</Label>
+                    <select
+                      name="feeHeadIsActive"
+                      defaultValue={item.isActive ? "yes" : "no"}
+                      className={selectClassName}
+                    >
+                      <option value="yes">Active</option>
+                      <option value="no">Inactive</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="submit">Save</Button>
+                  </div>
+                </form>
+                <form action={deleteFeeHeadFormAction} className="mt-2">
+                  <input type="hidden" name="feeHeadId" value={item.id} />
+                  <Button type="submit" variant="outline">Delete</Button>
+                </form>
+              </div>
+            ))}
           </div>
         )}
       </section>
@@ -477,29 +516,31 @@ export function MasterDataClient({
           <div>
             <h2 className="text-lg font-semibold text-slate-950">Accepted payment modes</h2>
             <p className="text-sm text-slate-600">
-              Payment-mode changes also go through Fee Setup so the change is checked,
-              logged, and propagated consistently.
+              Keep the accepted payment modes aligned with the live collection desk.
             </p>
           </div>
-          <Button asChild variant="outline">
-            <Link href="/protected/fee-setup">Manage in Fee Setup</Link>
-          </Button>
+          <span className="text-xs uppercase tracking-[0.2em] text-slate-500">Editable</span>
         </div>
+
+        <ActionMessage state={paymentModeState} />
 
         <div className="space-y-2">
           {paymentModes.map((item) => (
-            <div
+            <form
               key={item.value}
-              className="flex items-center justify-between rounded-xl border border-slate-200 p-3"
+              action={setPaymentModeFormAction}
+              className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"
             >
+              <input type="hidden" name="paymentMode" value={item.value} />
+              <input type="hidden" name="modeIsActive" value={item.isActive ? "no" : "yes"} />
               <div>
                 <p className="font-medium text-slate-900">{item.label}</p>
                 <p className="text-xs text-slate-500">{item.value}</p>
               </div>
-              <span className="text-sm text-slate-600">
-                {item.isActive ? "Active in current policy" : "Inactive in current policy"}
-              </span>
-            </div>
+              <Button type="submit" variant="outline">
+                {item.isActive ? "Disable" : "Enable"}
+              </Button>
+            </form>
           ))}
         </div>
       </section>

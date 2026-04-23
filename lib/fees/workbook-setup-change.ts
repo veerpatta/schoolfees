@@ -200,12 +200,10 @@ function buildWorkbookSetupPlan(
   setupData: FeeSetupPageData,
   payload: WorkbookFeeSetupFormPayload,
 ): WorkbookSetupPlan {
-  const currentInstallmentDates = [
-    setupData.globalPolicy.installmentSchedule[0]?.dueDate ?? "",
-    setupData.globalPolicy.installmentSchedule[1]?.dueDate ?? "",
-    setupData.globalPolicy.installmentSchedule[2]?.dueDate ?? "",
-    setupData.globalPolicy.installmentSchedule[3]?.dueDate ?? "",
-  ] as [string, string, string, string];
+  const currentInstallmentDates = setupData.globalPolicy.installmentSchedule.map(
+    (item) => item.dueDate,
+  );
+  const maxInstallmentCount = Math.max(currentInstallmentDates.length, payload.installmentDates.length);
 
   const classValueByLabel = new Map(
     payload.classRows.map((item) => [item.label, item.annualTuition]),
@@ -222,12 +220,12 @@ function buildWorkbookSetupPlan(
       afterValue: payload.academicSessionLabel,
       formatter: (value) => formatNullable(String(value ?? "")),
     }),
-    ...payload.installmentDates.map((value, index) =>
+    ...Array.from({ length: maxInstallmentCount }, (_, index) =>
       buildFieldDiff({
         field: `installmentDate${index + 1}`,
         label: `Installment ${index + 1} due date`,
-        beforeValue: currentInstallmentDates[index],
-        afterValue: value,
+        beforeValue: currentInstallmentDates[index] ?? "",
+        afterValue: payload.installmentDates[index] ?? "",
         formatter: (rawValue) => formatDateValue(String(rawValue ?? "")),
       }),
     ),
@@ -272,7 +270,9 @@ function buildWorkbookSetupPlan(
 
   const routeRows = buildWorkbookRouteSetupRows(setupData).map((row) => {
     const requestedAnnualFee = routeValueByName.get(row.routeName) ?? row.annualFee;
-    const desiredInstallmentAmount = Math.floor(requestedAnnualFee / 4);
+    const desiredInstallmentAmount = Math.floor(
+      requestedAnnualFee / Math.max(payload.installmentDates.length, 1),
+    );
 
     return {
       ...row,
@@ -357,7 +357,7 @@ function applyWorkbookPlanToSetupData(
     globalPolicy: {
       ...setupData.globalPolicy,
       academicSessionLabel: payload.academicSessionLabel,
-      installmentCount: 4,
+      installmentCount: payload.installmentDates.length,
       installmentSchedule: buildPreviewSchedule(payload),
       lateFeeFlatAmount: payload.lateFeeFlatAmount,
       lateFeeLabel: `Flat Rs ${payload.lateFeeFlatAmount}`,
@@ -422,8 +422,10 @@ function applyWorkbookPlanToSetupData(
       const nextRouteDefault: TransportDefault = {
         id: row.routeId!,
         routeCode: row.existingRouteDefault?.routeCode ?? null,
-        routeName: row.routeName,
-        defaultInstallmentAmount: Math.floor(row.requestedAnnualFee / 4),
+      routeName: row.routeName,
+        defaultInstallmentAmount: Math.floor(
+          row.requestedAnnualFee / Math.max(payload.installmentDates.length, 1),
+        ),
         annualFeeAmount: row.requestedAnnualFee,
         isActive: true,
         notes: row.existingRouteDefault?.notes ?? "Saved from workbook-style Fee Setup.",

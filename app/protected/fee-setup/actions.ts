@@ -35,8 +35,8 @@ function parseDateList(formData: FormData, fieldName: string) {
     .getAll(fieldName)
     .map((value) => value.toString().trim());
 
-  if (values.length !== 4) {
-    throw new Error("Fee Setup requires exactly 4 installment due dates.");
+  if (values.length === 0) {
+    throw new Error("Fee Setup requires at least 1 installment due date.");
   }
 
   values.forEach((value, index) => {
@@ -45,7 +45,7 @@ function parseDateList(formData: FormData, fieldName: string) {
     }
   });
 
-  return values as [string, string, string, string];
+  return values;
 }
 
 function parseRepeatedRows(

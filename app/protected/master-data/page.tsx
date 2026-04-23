@@ -3,12 +3,16 @@ import { MasterDataClient } from "@/components/master-data/master-data-client";
 import type { MasterDataActionState } from "@/app/protected/master-data/actions";
 import {
   createClassAction,
+  createFeeHeadAction,
   createRouteAction,
   createSessionAction,
   deleteClassAction,
+  deleteFeeHeadAction,
   deleteRouteAction,
   deleteSessionAction,
+  setPaymentModeActiveAction,
   updateClassAction,
+  updateFeeHeadAction,
   updateRouteAction,
   updateSessionAction,
 } from "@/app/protected/master-data/actions";
@@ -29,7 +33,7 @@ export default async function MasterDataPage() {
       <PageHeader
         eyebrow="Admin"
         title="School Setup Lists"
-        description="Manage sessions, classes, and routes in one place with safe delete guards. Live fee-head and payment-mode changes still go through Fee Setup."
+        description="Manage academic sessions, classes, transport routes, custom fee heads, and payment modes in one place with safe delete guards."
       />
 
       <MasterDataClient
@@ -49,6 +53,10 @@ export default async function MasterDataPage() {
           createRouteAction,
           updateRouteAction,
           deleteRouteAction,
+          createFeeHeadAction,
+          updateFeeHeadAction,
+          deleteFeeHeadAction,
+          setPaymentModeActiveAction,
         }}
       />
     </div>

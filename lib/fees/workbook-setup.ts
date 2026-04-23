@@ -13,7 +13,7 @@ import {
 
 export type WorkbookFeeSetupFormPayload = {
   academicSessionLabel: string;
-  installmentDates: [string, string, string, string];
+  installmentDates: string[];
   lateFeeFlatAmount: number;
   newStudentAcademicFeeAmount: number;
   oldStudentAcademicFeeAmount: number;
@@ -123,12 +123,9 @@ export function buildWorkbookSetupSnapshot(
 ) {
   return {
     academicSessionLabel: data.globalPolicy.academicSessionLabel,
-    installmentDates: [
-      toWorkbookDueDateInputValue(data.globalPolicy.installmentSchedule[0]),
-      toWorkbookDueDateInputValue(data.globalPolicy.installmentSchedule[1]),
-      toWorkbookDueDateInputValue(data.globalPolicy.installmentSchedule[2]),
-      toWorkbookDueDateInputValue(data.globalPolicy.installmentSchedule[3]),
-    ] as [string, string, string, string],
+    installmentDates: data.globalPolicy.installmentSchedule.map((item) =>
+      toWorkbookDueDateInputValue(item),
+    ),
     lateFeeFlatAmount: data.globalPolicy.lateFeeFlatAmount,
     newStudentAcademicFeeAmount: data.globalPolicy.newStudentAcademicFeeAmount,
     oldStudentAcademicFeeAmount: data.globalPolicy.oldStudentAcademicFeeAmount,

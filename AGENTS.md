@@ -123,10 +123,10 @@ Fully implemented core:
 - Student Master with add, detail, and edit workflows
 - Student Spreadsheet Import: CSV/XLSX upload, column mapping, dry-run
   validation, duplicate detection, batch tracking, and valid-row-only save
-- Fee Setup: workbook-style one-page live setup for academic session, 4
-  installment due dates, flat late fee, new/old academic fee, class-wise
-  annual tuition, and route-wise annual transport fee, with impact preview and
-  confirm-apply workflow
+- Fee Setup: workbook-style live setup for academic session, editable
+  installment schedule, flat late fee, new/old academic fee, class-wise
+  annual tuition, route-wise annual transport fee, and embedded supporting
+  list management, with impact preview and confirm-apply workflow
 - AY `2026-27` workbook parity with `workbook_v1`, exact seeded class tuition,
   exact seeded annual route defaults, workbook student status, signed other
   adjustment, and late-fee-waiver support
@@ -145,11 +145,11 @@ Fully implemented core:
 - Reports: on-page filterable tables for Outstanding, Daily Collection, Receipt
   Register, Student Ledger, and Import Verification, plus working CSV export at
   `/protected/reports/export`
-- Master Data Management: admin CRUD for academic sessions, classes, and
-  transport routes under `/protected/master-data`, with in-use delete guards
-  and active/current session markers; fee heads and payment modes are shown
-  there for reference, while the daily Fee Setup screen stays focused on
-  workbook-style fee values
+- Master Data Management: admin CRUD for academic sessions, classes, transport
+  routes, custom fee heads, and payment modes under `/protected/master-data`,
+  with in-use delete guards and active/current session markers; the same
+  supporting list editor is also embedded in the daily Fee Setup screen so the
+  workbook workflow stays in one place
 - Deployment Settings Validator showing env checks, policy notes, and recent
   config-change batch history
 - explicit access-denied route under `app/protected/access-denied`
@@ -310,11 +310,13 @@ Treat the live configuration model like this:
 - `/protected/setup` is first-time go-live preparation. After setup completion,
   it becomes read-only for live policy/default edits.
 - `/protected/fee-setup` is now the primary live surface for the active
-  workbook-style fee sheet: academic session label, due dates, workbook fee
-  values, class tuition, and route transport fees. `/protected/master-data`
-  remains available for direct admin maintenance of sessions, classes, and
-  routes, but Fee Setup is the workflow staff should use first for live fee
-  values because preview, audit, and propagation stay attached there.
+  workbook-style fee sheet: academic session label, editable installment
+  schedule, workbook fee values, class tuition, route transport fees, and
+  embedded supporting list management. `/protected/master-data` remains
+  available for direct admin maintenance of sessions, classes, routes, fee
+  heads, and payment modes, but Fee Setup is the workflow staff should use
+  first for live fee values because preview, audit, and propagation stay
+  attached there.
 
 Propagation expectations:
 
