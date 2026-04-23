@@ -31,7 +31,7 @@ export function SidebarNav({
       className={cn(
         isTopbar
           ? "flex gap-2 overflow-x-auto pb-1"
-          : "space-y-1.5",
+          : "space-y-2",
         className,
       )}
     >
@@ -44,22 +44,22 @@ export function SidebarNav({
             key={item.href}
             href={item.href}
             className={cn(
-              "group transition",
+              "group transition-all duration-200",
               isTopbar
-                ? "flex min-w-fit items-center gap-2 rounded-full border px-3 py-2 text-sm"
-                : "flex items-center gap-3 rounded-xl border px-3 py-2.5",
+                ? "flex min-w-fit items-center gap-2 rounded-full border px-3 py-2 text-sm shadow-[0_12px_26px_-22px_rgba(15,23,42,0.35)]"
+                : "flex items-start gap-3 rounded-[24px] border px-3.5 py-3.5",
               active
-                ? "border-slate-900 bg-slate-900 text-white"
-                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
+                ? "border-transparent bg-[linear-gradient(135deg,#1d4ed8_0%,#0ea5e9_100%)] text-white shadow-[0_20px_50px_-30px_rgba(37,99,235,0.8)]"
+                : "border-white/70 bg-white/80 text-slate-700 hover:-translate-y-0.5 hover:border-sky-100 hover:bg-sky-50/70",
             )}
           >
             <div
               className={cn(
-                "rounded-full p-1.5",
+                "rounded-2xl p-2",
                 !isTopbar && "mt-0.5",
                 active
-                  ? "bg-white/10 text-slate-100"
-                  : "bg-slate-100 text-slate-500 group-hover:text-slate-900",
+                  ? "bg-white/12 text-slate-100"
+                  : "bg-sky-50 text-sky-700 group-hover:bg-white group-hover:text-sky-700",
               )}
             >
               <Icon className="size-4" />
@@ -69,7 +69,19 @@ export function SidebarNav({
                 {item.label}
               </span>
             ) : (
-              <span className="min-w-0 text-sm font-semibold leading-5">{item.label}</span>
+              <div className="min-w-0">
+                <span className="block min-w-0 font-heading text-sm font-semibold leading-5">
+                  {item.label}
+                </span>
+                <span
+                  className={cn(
+                    "mt-1 block text-xs leading-5",
+                    active ? "text-sky-50/92" : "text-slate-500",
+                  )}
+                >
+                  {item.description}
+                </span>
+              </div>
             )}
           </Link>
         );

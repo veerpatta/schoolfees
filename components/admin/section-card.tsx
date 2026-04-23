@@ -23,24 +23,24 @@ export function SectionCard({
     <section
       id={id}
       className={cn(
-        "rounded-2xl border border-slate-200 bg-white p-4",
+        "glass-panel rounded-[28px] p-5 md:p-6",
         className,
       )}
     >
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-base font-semibold tracking-tight text-slate-950 sm:text-lg">
+          <h2 className="font-heading text-base font-semibold tracking-tight text-slate-950 sm:text-lg">
             {title}
           </h2>
           {description ? (
-            <p className="mt-1 text-sm leading-5 text-slate-600">
+            <p className="mt-1.5 max-w-3xl text-sm leading-6 text-slate-600">
               {description}
             </p>
           ) : null}
         </div>
         {actions ? <div className="shrink-0">{actions}</div> : null}
       </div>
-      <div className="mt-4">{children}</div>
+      <div className="mt-5">{children}</div>
     </section>
   );
 }

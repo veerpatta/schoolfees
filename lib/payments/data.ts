@@ -84,7 +84,6 @@ export async function getPaymentEntryPageData(payload: {
   searchQuery: string;
   classId?: string;
 }): Promise<PaymentEntryPageData> {
-  const supabase = await createClient();
   const policy = await getFeePolicySummary();
   const normalizedQuery = normalizePaymentDeskQuery(payload.searchQuery);
   const workbookRows = await getWorkbookStudentFinancials({

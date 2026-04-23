@@ -169,14 +169,6 @@ function toWholeNumber(value: unknown) {
   return Math.trunc(value);
 }
 
-function toSignedWholeNumber(value: unknown) {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return 0;
-  }
-
-  return Math.trunc(value);
-}
-
 function parseCustomAmountMap(value: Record<string, unknown> | null) {
   if (!value || typeof value !== "object") {
     return {};
