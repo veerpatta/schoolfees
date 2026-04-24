@@ -1,58 +1,82 @@
 import "server-only";
 
+import type { StaffRole } from "@/lib/auth/roles";
+import { getRecentConfigChangeLog } from "@/lib/fees/change-log";
+import { getFeePolicySummary } from "@/lib/fees/data";
+import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
+import { getSetupWizardData } from "@/lib/setup/data";
+import { createClient } from "@/lib/supabase/server";
+import {
+  buildDashboardSummary,
+  type DashboardClassSummaryRow,
+  type DashboardEmptyState,
+  type DashboardFollowUpStudent,
+  type DashboardInstallmentSummaryRow,
+  type DashboardKpis,
+  type DashboardPaymentModeBreakdown,
+  type DashboardRecentPayment,
+  type DashboardTrendPoint,
+} from "@/lib/dashboard/summary";
 import {
   getWorkbookInstallmentRows,
   getWorkbookStudentFinancials,
   getWorkbookTransactions,
 } from "@/lib/workbook/data";
 
-type ClassSummaryAccumulator = {
-  sessionLabel: string;
-  classLabel: string;
-  totalStudents: number;
-  totalDue: number;
-  totalPaid: number;
-  totalOutstanding: number;
-  paidStudents: number;
-  partlyPaidStudents: number;
-  overdueStudents: number;
-  notStartedStudents: number;
-  overdueInstallments: number;
+type DashboardAlertTone = "info" | "warning" | "danger" | "success";
+
+type ImportBatchRow = {
+  id: string;
+  filename: string;
+  status: string;
+  invalid_rows: number;
+  duplicate_rows: number;
+  failed_rows: number;
+  created_at: string;
 };
 
-export type DashboardRecentPayment = {
-  receiptNumber: string;
-  paymentDate: string;
-  studentName: string;
-  admissionNo: string;
-  classLabel: string;
-  paymentMode: string;
-  amount: number;
+type LedgerRegenerationBatchRow = {
+  id: string;
+  policy_revision_label: string;
+  reason: string;
+  status: "preview_ready" | "applied" | "stale" | "failed" | "cancelled";
+  created_at: string;
+  preview_summary: {
+    rowsRequiringReview?: number;
+    rowsRecalculated?: number;
+    affectedStudents?: number;
+  } | null;
 };
 
-export type DashboardClassSummaryRow = {
-  sessionLabel: string;
-  classLabel: string;
-  totalStudents: number;
-  totalDue: number;
-  totalPaid: number;
-  totalOutstanding: number;
-  paidStudents: number;
-  partlyPaidStudents: number;
-  overdueStudents: number;
-  notStartedStudents: number;
-  studentsWithPending: number;
-  overdueInstallments: number;
-  pendingAmount: number;
+export type DashboardAlert = {
+  key: string;
+  title: string;
+  detail: string;
+  tone: DashboardAlertTone;
+  actionHref?: string;
+  actionLabel?: string;
 };
 
-export type DashboardInstallmentSummaryRow = {
-  installmentLabel: string;
-  studentCount: number;
-  pendingAmount: number;
+export type DashboardCurrentInstallment = {
+  label: string;
+  dueDate: string;
+  status: "due_today" | "upcoming" | "overdue";
 };
 
 export type DashboardPageData = {
+  currentSession: string;
+  currentInstallment: DashboardCurrentInstallment | null;
+  generatedAt: string;
+  kpis: DashboardKpis;
+  collectionTrend: DashboardTrendPoint[];
+  classSummary: DashboardClassSummaryRow[];
+  installmentSummary: DashboardInstallmentSummaryRow[];
+  followUpQueue: DashboardFollowUpStudent[];
+  recentPayments: DashboardRecentPayment[];
+  todayPaymentModeBreakdown: DashboardPaymentModeBreakdown[];
+  alerts: DashboardAlert[];
+  emptyState: DashboardEmptyState;
+  loadWarnings: string[];
   totalStudents: number;
   totalDue: number;
   totalCollected: number;
@@ -63,155 +87,312 @@ export type DashboardPageData = {
   partlyPaidStudents: number;
   overdueStudents: number;
   notStartedStudents: number;
-  recentPayments: DashboardRecentPayment[];
-  classSummary: DashboardClassSummaryRow[];
-  installmentSummary: DashboardInstallmentSummaryRow[];
 };
 
-export async function getDashboardPageData(): Promise<DashboardPageData> {
-  const [financialRows, transactions, overdueInstallments] = await Promise.all([
-    getWorkbookStudentFinancials(),
-    getWorkbookTransactions(),
-    getWorkbookInstallmentRows({ overdueOnly: true, pendingOnly: true }),
-  ]);
+function getSchoolDateStamp(referenceDate = new Date()) {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(referenceDate);
+}
 
-  const classSummaryMap = new Map<string, ClassSummaryAccumulator>();
-  let totalDue = 0;
-  let totalCollected = 0;
-  let totalPending = 0;
-  const overdueInstallmentCount = overdueInstallments.length;
-  let studentsWithPending = 0;
-  let paidStudents = 0;
-  let partlyPaidStudents = 0;
-  let overdueStudents = 0;
-  let notStartedStudents = 0;
+function toErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
 
-  financialRows.forEach((row) => {
-    totalDue += row.totalDue;
-    totalCollected += row.totalPaid;
-    totalPending += row.outstandingAmount;
-    if (row.outstandingAmount > 0) {
-      studentsWithPending += 1;
-    }
+async function optionalLoad<T>(
+  label: string,
+  loader: () => Promise<T>,
+  fallback: T,
+  warnings: string[],
+) {
+  try {
+    return await loader();
+  } catch (error) {
+    warnings.push(`${label}: ${toErrorMessage(error)}`);
+    return fallback;
+  }
+}
 
-    if (row.statusLabel === "PAID") {
-      paidStudents += 1;
-    } else if (row.statusLabel === "NOT STARTED") {
-      notStartedStudents += 1;
-    } else if (row.statusLabel === "OVERDUE") {
-      overdueStudents += 1;
-    } else if (row.statusLabel === "PARTLY PAID") {
-      partlyPaidStudents += 1;
-    }
+function buildCurrentInstallment(
+  policy: Awaited<ReturnType<typeof getFeePolicySummary>>,
+  today: string,
+): DashboardCurrentInstallment | null {
+  const schedule = [...policy.installmentSchedule]
+    .filter((item) => item.dueDate)
+    .sort((left, right) => left.dueDate.localeCompare(right.dueDate));
 
-    const key = `${row.sessionLabel}::${row.classLabel}`;
-    const existing = classSummaryMap.get(key);
+  if (schedule.length === 0) {
+    return null;
+  }
 
-    if (existing) {
-      existing.totalStudents += 1;
-      existing.totalDue += row.totalDue;
-      existing.totalPaid += row.totalPaid;
-      existing.totalOutstanding += row.outstandingAmount;
-      existing.overdueInstallments += Number(row.statusLabel === "OVERDUE");
-      existing.paidStudents += Number(row.statusLabel === "PAID");
-      existing.partlyPaidStudents += Number(row.statusLabel === "PARTLY PAID");
-      existing.overdueStudents += Number(row.statusLabel === "OVERDUE");
-      existing.notStartedStudents += Number(row.statusLabel === "NOT STARTED");
-      return;
-    }
-
-    classSummaryMap.set(key, {
-      sessionLabel: row.sessionLabel,
-      classLabel: row.classLabel,
-      totalStudents: 1,
-      totalDue: row.totalDue,
-      totalPaid: row.totalPaid,
-      totalOutstanding: row.outstandingAmount,
-      paidStudents: Number(row.statusLabel === "PAID"),
-      partlyPaidStudents: Number(row.statusLabel === "PARTLY PAID"),
-      overdueStudents: Number(row.statusLabel === "OVERDUE"),
-      notStartedStudents: Number(row.statusLabel === "NOT STARTED"),
-      overdueInstallments: Number(row.statusLabel === "OVERDUE"),
-    });
-  });
-
-  const classSummary = Array.from(classSummaryMap.values())
-    .map((row) => ({
-      sessionLabel: row.sessionLabel,
-      classLabel: row.classLabel,
-      totalStudents: row.totalStudents,
-      totalDue: row.totalDue,
-      totalPaid: row.totalPaid,
-      totalOutstanding: row.totalOutstanding,
-      paidStudents: row.paidStudents,
-      partlyPaidStudents: row.partlyPaidStudents,
-      overdueStudents: row.overdueStudents,
-      notStartedStudents: row.notStartedStudents,
-      studentsWithPending: row.totalStudents - row.paidStudents,
-      overdueInstallments: row.overdueInstallments,
-      pendingAmount: row.totalOutstanding,
-    }))
-    .sort((left, right) => {
-      if (right.pendingAmount !== left.pendingAmount) {
-        return right.pendingAmount - left.pendingAmount;
-      }
-
-      return left.classLabel.localeCompare(right.classLabel);
-    });
-
-  const installmentSummary: DashboardInstallmentSummaryRow[] = [
-    {
-      installmentLabel: "Installment 1",
-      studentCount: financialRows.filter((row) => row.inst1Pending > 0).length,
-      pendingAmount: financialRows.reduce((sum, row) => sum + row.inst1Pending, 0),
-    },
-    {
-      installmentLabel: "Installment 2",
-      studentCount: financialRows.filter((row) => row.inst2Pending > 0).length,
-      pendingAmount: financialRows.reduce((sum, row) => sum + row.inst2Pending, 0),
-    },
-    {
-      installmentLabel: "Installment 3",
-      studentCount: financialRows.filter((row) => row.inst3Pending > 0).length,
-      pendingAmount: financialRows.reduce((sum, row) => sum + row.inst3Pending, 0),
-    },
-    {
-      installmentLabel: "Installment 4",
-      studentCount: financialRows.filter((row) => row.inst4Pending > 0).length,
-      pendingAmount: financialRows.reduce((sum, row) => sum + row.inst4Pending, 0),
-    },
-  ];
-
-  const recentPayments = transactions.slice(0, 8).map((row) => ({
-    receiptNumber: row.receiptNumber,
-    paymentDate: row.paymentDate,
-    studentName: row.studentName,
-    admissionNo: row.admissionNo,
-    classLabel: row.classLabel,
-    paymentMode:
-      row.paymentMode === "upi"
-        ? "UPI"
-        : row.paymentMode === "bank_transfer"
-          ? "Bank transfer"
-          : row.paymentMode === "cheque"
-            ? "Cheque"
-            : "Cash",
-    amount: row.totalAmount,
-  }));
+  const nextDue = schedule.find((item) => item.dueDate >= today) ?? schedule[schedule.length - 1];
+  const status =
+    nextDue.dueDate === today
+      ? "due_today"
+      : nextDue.dueDate < today
+        ? "overdue"
+        : "upcoming";
 
   return {
-    totalStudents: financialRows.length,
-    totalDue,
-    totalCollected,
-    totalPending,
-    overdueInstallmentCount,
+    label: nextDue.label,
+    dueDate: nextDue.dueDate,
+    status,
+  };
+}
+
+async function getImportIssueAlerts(): Promise<DashboardAlert[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("import_batches")
+    .select("id, filename, status, invalid_rows, duplicate_rows, failed_rows, created_at")
+    .order("created_at", { ascending: false })
+    .limit(8);
+
+  if (error) {
+    throw new Error(`Unable to load import alerts: ${error.message}`);
+  }
+
+  return ((data ?? []) as ImportBatchRow[])
+    .map((row) => ({
+      row,
+      issueCount: row.invalid_rows + row.duplicate_rows + row.failed_rows,
+    }))
+    .filter((item) => item.issueCount > 0)
+    .slice(0, 2)
+    .map(({ row, issueCount }) => ({
+      key: `import-${row.id}`,
+      title: "Student import needs review",
+      detail: `${row.filename} has ${issueCount} row issue${issueCount === 1 ? "" : "s"} waiting for office review.`,
+      tone: "warning" as const,
+      actionHref: "/protected/imports",
+      actionLabel: "Open imports",
+    }));
+}
+
+async function getLedgerReviewAlerts(): Promise<DashboardAlert[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("ledger_regeneration_batches")
+    .select("id, policy_revision_label, reason, status, created_at, preview_summary")
+    .order("created_at", { ascending: false })
+    .limit(6);
+
+  if (error) {
+    throw new Error(`Unable to load dues update alerts: ${error.message}`);
+  }
+
+  return ((data ?? []) as LedgerRegenerationBatchRow[])
+    .filter((row) => {
+      const requiringReview = Number(row.preview_summary?.rowsRequiringReview ?? 0);
+      return requiringReview > 0 || row.status === "failed" || row.status === "preview_ready";
+    })
+    .slice(0, 2)
+    .map((row) => {
+      const requiringReview = Number(row.preview_summary?.rowsRequiringReview ?? 0);
+      return {
+        key: `ledger-${row.id}`,
+        title:
+          row.status === "failed"
+            ? "Dues update failed"
+            : requiringReview > 0
+              ? "Dues update needs review"
+              : "Dues update waiting",
+        detail:
+          requiringReview > 0
+            ? `${requiringReview} row${requiringReview === 1 ? "" : "s"} are protected from automatic update and need manual review.`
+            : row.reason || "A dues update review is waiting for the next step.",
+        tone: row.status === "failed" ? "danger" as const : "warning" as const,
+        actionHref: "/protected/fee-setup/generate",
+        actionLabel: "Review dues update",
+      };
+    });
+}
+
+async function getConfigChangeAlerts(): Promise<DashboardAlert[]> {
+  const recentConfigChanges = await getRecentConfigChangeLog(6);
+
+  return recentConfigChanges
+    .filter((item) => item.status === "preview_ready")
+    .slice(0, 2)
+    .map((item) => ({
+      key: `config-${item.id}`,
+      title: "Fee setup review is pending",
+      detail: `${item.scopeLabel} for ${item.targetLabel} is saved for review but not live yet.`,
+      tone: "warning" as const,
+      actionHref: "/protected/fee-setup",
+      actionLabel: "Open Fee Setup",
+    }));
+}
+
+async function getSetupAlerts(
+  staffRole: StaffRole,
+  warnings: string[],
+): Promise<DashboardAlert[]> {
+  const setup = await optionalLoad(
+    "setup readiness",
+    () => getSetupWizardData(),
+    null,
+    warnings,
+  );
+
+  if (!setup) {
+    return [];
+  }
+
+  const readiness = getOfficeWorkflowReadiness(setup, staffRole);
+  const alerts: DashboardAlert[] = [];
+
+  if (!readiness.reports.isReady) {
+    alerts.push({
+      key: "reports-readiness",
+      title: readiness.reports.title,
+      detail: readiness.reports.detail,
+      tone: "warning",
+      actionHref: readiness.reports.actionHref ?? undefined,
+      actionLabel: readiness.reports.actionLabel ?? undefined,
+    });
+  }
+
+  if (!readiness.postPayments.isReady) {
+    alerts.push({
+      key: "payment-readiness",
+      title: readiness.postPayments.title,
+      detail: readiness.postPayments.detail,
+      tone: "warning",
+      actionHref: readiness.postPayments.actionHref ?? undefined,
+      actionLabel: readiness.postPayments.actionLabel ?? undefined,
+    });
+  }
+
+  return alerts;
+}
+
+export async function getDashboardPageData(options: { staffRole?: StaffRole } = {}): Promise<DashboardPageData> {
+  const staffRole = options.staffRole ?? "admin";
+  const warnings: string[] = [];
+  const today = getSchoolDateStamp();
+
+  const policy = await getFeePolicySummary();
+  const [
+    financialRows,
+    installmentRows,
+    overdueInstallments,
+    transactions,
+    todayTransactions,
+    configAlerts,
+    importAlerts,
+    ledgerAlerts,
+    setupAlerts,
+  ] = await Promise.all([
+    optionalLoad("workbook student financials", () => getWorkbookStudentFinancials(), [], warnings),
+    optionalLoad("workbook installment balances", () => getWorkbookInstallmentRows(), [], warnings),
+    optionalLoad(
+      "overdue workbook installments",
+      () => getWorkbookInstallmentRows({ overdueOnly: true, pendingOnly: true }),
+      [],
+      warnings,
+    ),
+    optionalLoad("receipt activity", () => getWorkbookTransactions(), [], warnings),
+    optionalLoad(
+      "today receipt activity",
+      () => getWorkbookTransactions({ todayOnly: true }),
+      [],
+      warnings,
+    ),
+    optionalLoad("fee setup review alerts", getConfigChangeAlerts, [], warnings),
+    optionalLoad("student import alerts", getImportIssueAlerts, [], warnings),
+    optionalLoad("dues update alerts", getLedgerReviewAlerts, [], warnings),
+    getSetupAlerts(staffRole, warnings),
+  ]);
+
+  const summary = buildDashboardSummary({
+    financialRows,
+    installmentRows,
+    overdueInstallments,
+    transactions,
+    todayTransactions,
+  });
+
+  const paidStudents = financialRows.filter((row) => row.statusLabel === "PAID").length;
+  const partlyPaidStudents = financialRows.filter((row) => row.statusLabel === "PARTLY PAID").length;
+  const overdueStudents = financialRows.filter((row) => row.statusLabel === "OVERDUE").length;
+  const notStartedStudents = financialRows.filter((row) => row.statusLabel === "NOT STARTED").length;
+  const studentsWithPending = financialRows.filter((row) => row.outstandingAmount > 0).length;
+  const alerts: DashboardAlert[] = [
+    ...setupAlerts,
+    ...configAlerts,
+    ...ledgerAlerts,
+    ...importAlerts,
+  ];
+
+  if (warnings.length > 0) {
+    alerts.push({
+      key: "dashboard-limited-data",
+      title: "Dashboard data is limited",
+      detail: "Some dashboard sections could not be loaded. Existing posting and setup rules were not changed.",
+      tone: "warning",
+      actionHref: "/protected/reports",
+      actionLabel: "Open reports",
+    });
+  }
+
+  if (!summary.emptyState.hasStudents) {
+    alerts.push({
+      key: "no-students",
+      title: "No fee data yet",
+      detail: "Add or upload test students before relying on collection totals.",
+      tone: "info",
+      actionHref: "/protected/students/new",
+      actionLabel: "Add student",
+    });
+  }
+
+  if (!summary.emptyState.hasReceipts) {
+    alerts.push({
+      key: "no-receipts",
+      title: "No receipts posted yet",
+      detail: "Today and trend sections will fill in after payments are posted at the Payment Desk.",
+      tone: "info",
+      actionHref: "/protected/payments",
+      actionLabel: "Open Payment Desk",
+    });
+  } else if (todayTransactions.length === 0) {
+    alerts.push({
+      key: "no-receipts-today",
+      title: "No receipts today",
+      detail: "No collection has been posted for the current school day yet.",
+      tone: "info",
+      actionHref: "/protected/payments",
+      actionLabel: "Open Payment Desk",
+    });
+  }
+
+  return {
+    currentSession: policy.academicSessionLabel,
+    currentInstallment: buildCurrentInstallment(policy, today),
+    generatedAt: new Date().toISOString(),
+    kpis: summary.kpis,
+    collectionTrend: summary.collectionTrend,
+    classSummary: summary.classSummary,
+    installmentSummary: summary.installmentSummary,
+    followUpQueue: summary.followUpQueue,
+    recentPayments: summary.recentPayments,
+    todayPaymentModeBreakdown: summary.todayPaymentModeBreakdown,
+    alerts,
+    emptyState: summary.emptyState,
+    loadWarnings: warnings,
+    totalStudents: summary.kpis.totalStudents,
+    totalDue: summary.kpis.totalExpectedFees,
+    totalCollected: summary.kpis.totalCollected,
+    totalPending: summary.kpis.totalPending,
+    overdueInstallmentCount: overdueInstallments.length,
     studentsWithPending,
     paidStudents,
     partlyPaidStudents,
     overdueStudents,
     notStartedStudents,
-    recentPayments,
-    classSummary,
-    installmentSummary,
   };
 }

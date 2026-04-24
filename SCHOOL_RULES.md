@@ -75,7 +75,8 @@ Operational rule:
 
 Daily workflow boundary:
 
-- `Start Here` is the staff-facing first worksheet for blockers and shortcuts
+- `Dashboard` is the staff-facing first overview for fee collection, blockers,
+  follow-up, and safe shortcuts
 - `Students` is the staff-facing worksheet for student master records,
   class/route assignment, student-specific fee profiles, special cases, and
   staged spreadsheet add/update work

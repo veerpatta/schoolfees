@@ -24,7 +24,7 @@ Current primary working areas:
 - payment entry
 - append-only financial history
 - printable receipts
-- dashboard and dues visibility
+- read-only dashboard and dues visibility
 - defaulters reporting
 - staged spreadsheet import
 - internal staff login and access control
@@ -36,9 +36,9 @@ module catalog.
 
 Primary daily areas:
 
-- `Start Here`
-  first worksheet for blockers, today’s receipts, overdue follow-up, and
-  continue-task shortcuts
+- `Dashboard`
+  first overview screen for school-wide fee collection, pending dues, overdue
+  follow-up, today receipts, attention items, and safe shortcuts
 - `Students`
   student master, student-specific fee profiles, spreadsheet add/update, and
   one-student workspace
@@ -59,12 +59,12 @@ Primary daily areas:
 ## What Each Role Sees By Default
 
 - `admin`
-  lands on `Students`; sees the simplified primary nav plus `Advanced`
+  lands on `Dashboard`; sees the simplified primary nav plus `Advanced`
 - `accountant`
   lands on `Payment Desk`; nav order prioritizes `Payment Desk` and `Dues &
-  Receipts`
+  Receipts`, with Dashboard available as a read-only overview
 - `read_only_staff`
-  lands on `Students`; keeps the simplified primary nav without `Advanced`
+  lands on `Dashboard`; keeps the simplified primary nav without `Advanced`
   while still retaining intended deep-link access to detailed read-only screens
   such as reports or imports when permissions allow
 
@@ -85,16 +85,21 @@ Do not change the real AY `2026-27` defaults just to test the workflow. Do not
 post test payments against real students, and do not mix dummy students or
 dummy receipts with production records.
 
-## Start Here vs Advanced
+## Dashboard vs Advanced
 
-What belongs in `Start Here`:
+What belongs in `Dashboard`:
 
-- blockers that stop live work
-- continue-task shortcuts
-- today’s receipt and collection shortcuts
-- overdue follow-up
-- import-review shortcuts
-- quick visibility into recent fee-change and dues-update review items
+- read-only school-wide collection overview
+- total expected, collected, pending, overdue, and collection-rate cards
+- charts or chart-like views for trends, class pending, and installments
+- follow-up students, latest receipts, and today collection
+- blockers that stop live work and safe shortcut links
+- import-review, fee-setup review, and dues-update attention items
+
+Dashboard is analytical and read-only. It does not post payments, edit student
+fee profiles, or change school-wide fee setup. Fee Setup remains the only
+school-wide fee setup editor, Students remains the student-specific profile and
+override editor, and Payment Desk remains the transaction posting surface.
 
 What belongs in `Advanced`:
 
@@ -141,7 +146,7 @@ Operationally this means:
 
 The app now maps more closely to the school’s workbook flow:
 
-- `Start Here` behaves like the first office worksheet
+- `Dashboard` behaves like the first office overview worksheet
 - `Payment Desk` behaves like the collection counter sheet
 - `Dues & Receipts` behaves like the working register for dues, receipts, and
   overdue follow-up
@@ -205,7 +210,7 @@ Implemented core:
 - internal auth flow under `app/auth` with login, forgot password, update
   password, auth confirm handler, and error routes
 - protected admin workspace under `app/protected`
-- dashboard with live fee and outstanding summaries
+- read-only dashboard with live fee collection, outstanding, class-wise, follow-up, and attention summaries
 - Student Master with list, add, detail, and edit flows
 - student spreadsheet import with CSV/XLSX upload, header mapping, dry-run
   validation, duplicate detection, batch tracking, and valid-row-only save

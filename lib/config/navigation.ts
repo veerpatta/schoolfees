@@ -1,5 +1,6 @@
 import {
   BadgeIndianRupee,
+  BarChart3,
   BookOpenCheck,
   BookText,
   CircleAlert,
@@ -37,6 +38,13 @@ export type ProtectedRouteMeta = {
 };
 
 const simpleNavigationItems: ProtectedNavigationItem[] = [
+  {
+    href: "/protected/dashboard",
+    label: "Dashboard",
+    description: "School fee overview, collection progress, and follow-up alerts.",
+    icon: BarChart3,
+    requiredPermission: "dashboard:view",
+  },
   {
     href: "/protected/students",
     label: "Students",
@@ -88,6 +96,12 @@ const routeMetaItems: Array<
     href: null,
     label: "Workspace",
     description: "Protected workspace routing entry point.",
+  },
+  {
+    match: "/protected/dashboard",
+    href: "/protected/dashboard",
+    label: "Dashboard",
+    description: "Fee collection overview for the current academic session.",
   },
   {
     match: "/protected/students",
@@ -216,7 +230,7 @@ export function getDefaultProtectedHref(role: StaffRole) {
     return "/protected/payments";
   }
 
-  return "/protected/students";
+  return "/protected/dashboard";
 }
 
 export function getVisibleProtectedNavigation(staffRole: StaffRole) {
@@ -238,6 +252,7 @@ export function getVisibleProtectedNavigation(staffRole: StaffRole) {
 
   const preferredOrder = [
     "/protected/payments",
+    "/protected/dashboard",
     "/protected/dues",
     "/protected/fee-setup",
     "/protected/students",

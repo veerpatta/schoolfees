@@ -11,12 +11,12 @@ describe("office navigation", () => {
     expect(getDefaultProtectedHref("accountant")).toBe("/protected/payments");
   });
 
-  it("sends admins to Students by default", () => {
-    expect(getDefaultProtectedHref("admin")).toBe("/protected/students");
+  it("sends admins to Dashboard by default", () => {
+    expect(getDefaultProtectedHref("admin")).toBe("/protected/dashboard");
   });
 
-  it("sends read-only staff to Students by default", () => {
-    expect(getDefaultProtectedHref("read_only_staff")).toBe("/protected/students");
+  it("sends read-only staff to Dashboard by default", () => {
+    expect(getDefaultProtectedHref("read_only_staff")).toBe("/protected/dashboard");
   });
 
   it("never sends a role back to the protected routing entry point", () => {
@@ -29,7 +29,15 @@ describe("office navigation", () => {
     const items = getVisibleProtectedNavigation("accountant");
 
     expect(items[0]?.href).toBe("/protected/payments");
-    expect(items[1]?.href).toBe("/protected/dues");
+    expect(items[1]?.href).toBe("/protected/dashboard");
+    expect(items[2]?.href).toBe("/protected/dues");
+  });
+
+  it("keeps Dashboard first for admin and read-only staff", () => {
+    expect(getVisibleProtectedNavigation("admin")[0]?.href).toBe("/protected/dashboard");
+    expect(getVisibleProtectedNavigation("read_only_staff")[0]?.href).toBe(
+      "/protected/dashboard",
+    );
   });
 
   it("hides the advanced hub from read-only staff", () => {
@@ -53,6 +61,13 @@ describe("office navigation", () => {
     expect(getProtectedRouteMeta("/protected/fee-setup/generate")).toMatchObject({
       href: "/protected/fee-setup",
       label: "Fee Setup",
+    });
+  });
+
+  it("maps dashboard route meta to the Dashboard navigation item", () => {
+    expect(getProtectedRouteMeta("/protected/dashboard")).toMatchObject({
+      href: "/protected/dashboard",
+      label: "Dashboard",
     });
   });
 

@@ -44,7 +44,7 @@ The protected workspace now follows a simplified workbook-style layout.
 
 Primary daily navigation:
 
-- `Start Here`
+- `Dashboard`
 - `Students`
 - `Fee Setup`
 - `Payment Desk`
@@ -53,8 +53,10 @@ Primary daily navigation:
 
 Operational boundaries:
 
-- `Start Here` is the first daily worksheet for blockers, shortcuts, and
-  recent office activity
+- `Dashboard` is the first daily overview for fee collection, pending dues,
+  overdue follow-up, today receipts, attention items, and safe shortcuts
+- `Dashboard` is read-only and analytical; it links to existing workflows but
+  does not post payments, edit student overrides, or change fee setup
 - `Fee Setup` is the canonical live path for the workbook-style fee sheet:
   academic session, master fee heads, editable installment schedule, late fee,
   new/old academic fee, class-wise annual tuition, route-wise annual transport
@@ -80,7 +82,10 @@ Main routes and modules in the repo today:
   login, password reset/recovery, auth confirmation, and error screens
 - `app/protected/page.tsx`
   protected routing entry point that redirects accountants to Payment Desk and
-  admins/read-only staff to Students
+  admins/read-only staff to Dashboard
+- `app/protected/dashboard/page.tsx`
+  read-only fee collection dashboard with KPI cards, chart-like analytics,
+  class-wise dues, follow-up queue, latest receipts, and attention items
 - `app/protected/students/page.tsx`
   student master list
 - `app/protected/students/new/page.tsx`
@@ -338,8 +343,8 @@ Propagation expectations:
   landing/auth policy copy all consume the same canonical policy service
 - payment entry enforces the current accepted payment modes and current receipt
   prefix
-- role landing remains workbook-first: admin -> `Students`, accountant ->
-  `Payment Desk`, read_only_staff -> `Students`
+- role landing remains workbook-first: admin -> `Dashboard`, accountant ->
+  `Payment Desk`, read_only_staff -> `Dashboard`
 - reports and receipts keep historical financial facts visible even after the
   current policy changes
 - paid, partially paid, or adjusted installment rows are never silently

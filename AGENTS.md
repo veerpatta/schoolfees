@@ -63,7 +63,7 @@ The protected workspace now follows a workbook-style operating model.
 
 Primary daily areas:
 
-- `Start Here`
+- `Dashboard`
 - `Students`
 - `Fee Setup`
 - `Payment Desk`
@@ -72,8 +72,10 @@ Primary daily areas:
 
 Operational boundaries:
 
-- `Start Here` is the first daily worksheet for blockers, shortcuts, and
-  continue-task links
+- `Dashboard` is the first daily overview for fee collection, pending dues,
+  overdue follow-up, today receipts, attention items, and safe shortcuts
+- `Dashboard` is read-only and analytical; it links to existing workflows but
+  does not post payments, edit student overrides, or change fee setup
 - `Fee Setup` is the canonical live path for workbook-style fee setup:
   academic session, master fee heads, installment/session policy, standard
   concession planning, class-wise annual tuition, route-wise annual transport
@@ -91,9 +93,9 @@ Operational boundaries:
 
 Default role landing:
 
-- `admin` -> `Students`
+- `admin` -> `Dashboard`
 - `accountant` -> `Payment Desk`
-- `read_only_staff` -> `Students`
+- `read_only_staff` -> `Dashboard`
 
 ## Non-Goals
 
@@ -117,7 +119,7 @@ Fully implemented core:
   confirm route, error route, and a sign-up route that should remain disabled
   for public use
 - protected admin workspace under `app/protected`
-- simplified workbook-style protected shell with `Start Here`, `Students`,
+- simplified workbook-style protected shell with `Dashboard`, `Students`,
   `Fee Setup`, `Payment Desk`, `Dues & Receipts`, and `Advanced`
 - admin-only first-time setup wizard with academic session selection, class and
   route setup, school/class defaults, readiness checklist, and explicit setup
@@ -188,7 +190,7 @@ content or Supabase sample code unless the user explicitly requests that.
 - auth routes: `app/auth/*`
 - login action: `app/auth/login/actions.ts`
 - protected layout and dashboard: `app/protected/layout.tsx`,
-  `app/protected/page.tsx`
+  `app/protected/page.tsx`, `app/protected/dashboard/page.tsx`
 - students list: `app/protected/students/page.tsx`
 - student add: `app/protected/students/new/page.tsx`
 - student detail: `app/protected/students/[studentId]/page.tsx`
@@ -339,8 +341,8 @@ Propagation expectations:
 - payment entry must enforce the current accepted payment modes and receipt
   prefix
 - role landing and simplified navigation should stay workbook-first:
-  `admin` -> `Students`, `accountant` -> `Payment Desk`,
-  `read_only_staff` -> `Students`
+  `admin` -> `Dashboard`, `accountant` -> `Payment Desk`,
+  `read_only_staff` -> `Dashboard`
 - receipts, payments, and payment adjustments remain historical facts after
   posting even if the current policy later changes
 - Standard concession profiles in Fee Setup are Phase 1 read-only planning
