@@ -43,6 +43,9 @@ export function detectDuplicateRows(
         student,
       ]),
   );
+  const existingByNameClass = new Map(
+    existingStudents.map((student) => [buildIdentityKey([student.fullName, student.classId]), student]),
+  );
 
   return rows.map((row) => {
     if (row.status !== "valid" || !row.normalizedPayload) {
@@ -107,6 +110,28 @@ export function detectDuplicateRows(
         field: "admissionNo",
         message: `SR no ${row.normalizedPayload.admissionNo} already exists in Student Master.`,
       });
+    }
+
+    const nameClassKey = buildIdentityKey([
+      row.normalizedPayload.fullName,
+      row.normalizedPayload.classId,
+    ]);
+    const existingByNameClassOnly = nameClassKey ? existingByNameClass.get(nameClassKey) : null;
+
+    if (
+      mode === "add" &&
+      existingByNameClassOnly &&
+      !existingStudent &&
+      !row.normalizedPayload.dateOfBirth
+    ) {
+      return {
+        ...row,
+        duplicateStudentId: existingByNameClassOnly.id,
+        warnings: [
+          ...row.warnings,
+          "WARN_POSSIBLE_DUPLICATE_NAME_CLASS: Possible duplicate by name and class. Please review before import.",
+        ],
+      };
     }
 
     if (errors.length === row.errors.length) {

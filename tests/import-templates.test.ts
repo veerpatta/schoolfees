@@ -15,6 +15,30 @@ function readSheet(workbook: XLSX.WorkBook, sheetName: string) {
 }
 
 describe("student import templates", () => {
+  it("keeps add template columns simple with student name and class required", () => {
+    const workbook = buildAddStudentsTemplateWorkbook(
+      [{ label: "Class 1" }],
+      [{ label: "Main Route (MR)" }],
+    );
+    const sheetRows = readSheet(workbook, "Fill Students Here");
+
+    expect(workbook.SheetNames).toEqual(
+      expect.arrayContaining(["Fill Students Here", "Examples"]),
+    );
+    expect(sheetRows[0]).toEqual(
+      expect.arrayContaining([
+        "Student name",
+        "Class",
+        "SR no",
+        "Father name",
+        "Phone",
+        "Route",
+        "New/Old",
+        "Notes",
+      ]),
+    );
+  });
+
   it("uses real class and route labels in the add template examples", () => {
     const workbook = buildAddStudentsTemplateWorkbook(
       [{ label: "Class 1" }],

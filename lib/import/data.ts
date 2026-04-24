@@ -25,6 +25,7 @@ import type {
   NormalizedStudentImportOverride,
   NormalizedStudentImportRow,
   RawImportRowPayload,
+  ImportReviewSummary,
   StudentImportColumnMapping,
 } from "@/lib/import/types";
 import type { StudentValidatedInput } from "@/lib/students/types";
@@ -87,6 +88,7 @@ type FeeSettingRow = {
 
 const BATCH_PAGE_SIZE = 8;
 const IMPORT_ROW_WRITE_CHUNK_SIZE = 200;
+const PROBLEM_ROW_PAGE_SIZE = 120;
 
 function chunkArray<T>(items: readonly T[], size: number) {
   const chunks: T[][] = [];
@@ -201,6 +203,7 @@ function toChangedFields(value: unknown): string[] {
 }
 
 function deriveAnomalyCategories(row: {
+  mode: "add" | "update";
   status: ImportRowDetail["status"];
   errors: ImportIssue[];
   warnings: string[];
@@ -208,7 +211,10 @@ function deriveAnomalyCategories(row: {
   const categories = new Set<ImportAnomalyCategory>();
 
   for (const issue of row.errors) {
-    if (issue.code.includes("MISSING_ADMISSION_NO") || issue.code === "ERR_ADMISSIONNO") {
+    if (
+      row.mode !== "add" &&
+      (issue.code.includes("MISSING_ADMISSION_NO") || issue.code === "ERR_ADMISSIONNO")
+    ) {
       categories.add("missing-admission-no");
     }
 
@@ -238,12 +244,8 @@ function deriveAnomalyCategories(row: {
   }
 
   for (const warning of row.warnings) {
-    if (warning.startsWith("WARN_MISSING_FATHER_NAME") || warning.startsWith("WARN_MISSING_MOTHER_NAME")) {
-      categories.add("missing-parent-fields");
-    }
-
-    if (warning.startsWith("WARN_PLACEHOLDER")) {
-      categories.add("placeholder-values");
+    if (warning.includes("WARN_MISSING_ADMISSION_NO")) {
+      categories.add("missing-admission-no");
     }
   }
 
@@ -454,19 +456,11 @@ function toImportRowDetail(row: ImportRowRecord): ImportRowDetail {
   };
 }
 
-function summarizeReview(rows: readonly ImportRowDetail[]) {
-  return {
-    approvedRows: rows.filter((row) => row.reviewStatus === "approved").length,
-    pendingRows: rows.filter((row) => row.reviewStatus === "pending").length,
-    heldRows: rows.filter((row) => row.reviewStatus === "hold").length,
-    skippedRows: rows.filter((row) => row.reviewStatus === "skipped").length,
-    unresolvedAnomalyRows: rows.filter(
-      (row) => row.anomalyCategories.length > 0 && row.reviewStatus !== "skipped" && row.status !== "imported",
-    ).length,
-  };
-}
-
-function toImportBatchDetail(batchRow: ImportBatchRow, rowRecords: ImportRowRecord[]): ImportBatchDetail {
+function toImportBatchDetail(
+  batchRow: ImportBatchRow,
+  rowRecords: ImportRowRecord[],
+  reviewSummary: ImportReviewSummary,
+): ImportBatchDetail {
   const rows = rowRecords.map(toImportRowDetail);
 
   return {
@@ -474,8 +468,99 @@ function toImportBatchDetail(batchRow: ImportBatchRow, rowRecords: ImportRowReco
     detectedHeaders: toHeaders(batchRow.detected_headers),
     columnMapping: toColumnMapping(batchRow.column_mapping),
     errorMessage: batchRow.error_message,
-    reviewSummary: summarizeReview(rows),
+    reviewSummary,
     rows,
+  };
+}
+
+type CountQuery = {
+  eq: (column: string, value: unknown) => CountQuery;
+  neq: (column: string, value: unknown) => CountQuery;
+  in: (column: string, values: readonly string[]) => CountQuery;
+};
+
+type CountQueryResult = {
+  count: number | null;
+  error: { message: string } | null;
+};
+
+async function countImportRows(
+  batchId: string,
+  apply: (query: CountQuery) => unknown,
+) {
+  const supabase = await createClient();
+  const baseQuery = supabase.from("import_rows").select("id", { count: "exact", head: true }).eq("batch_id", batchId);
+  const { count, error } = await (apply(baseQuery as unknown as CountQuery) as Promise<CountQueryResult>);
+
+  if (error) {
+    throw new Error(`Unable to summarize import rows: ${error.message}`);
+  }
+
+  return count ?? 0;
+}
+
+async function getImportReviewSummary(batchId: string) {
+  const [
+    approvedRows,
+    pendingRows,
+    heldRows,
+    skippedRows,
+    unresolvedAnomalyRows,
+    readyToImportRows,
+    readyCreateRows,
+    readyUpdateRows,
+    invalidRows,
+    duplicateRows,
+    validPendingRows,
+    pendingSafeRows,
+    warningRows,
+  ] = await Promise.all([
+    countImportRows(batchId, (query) => query.eq("review_status", "approved")),
+    countImportRows(batchId, (query) => query.eq("review_status", "pending")),
+    countImportRows(batchId, (query) => query.eq("review_status", "hold")),
+    countImportRows(batchId, (query) => query.eq("review_status", "skipped")),
+    countImportRows(batchId, (query) =>
+      query
+        .neq("anomaly_categories", "[]")
+        .neq("review_status", "skipped")
+        .neq("status", "imported"),
+    ),
+    countImportRows(batchId, (query) =>
+      query.eq("status", "valid").eq("review_status", "approved"),
+    ),
+    countImportRows(batchId, (query) =>
+      query
+        .eq("status", "valid")
+        .eq("review_status", "approved")
+        .eq("import_operation", "create"),
+    ),
+    countImportRows(batchId, (query) =>
+      query
+        .eq("status", "valid")
+        .eq("review_status", "approved")
+        .eq("import_operation", "update"),
+    ),
+    countImportRows(batchId, (query) => query.eq("status", "invalid")),
+    countImportRows(batchId, (query) => query.eq("status", "duplicate")),
+    countImportRows(batchId, (query) =>
+      query.eq("status", "valid").in("review_status", ["pending", "hold"]),
+    ),
+    countImportRows(batchId, (query) => query.eq("status", "valid").eq("review_status", "pending")),
+    countImportRows(batchId, (query) => query.eq("status", "valid").neq("warnings", "[]")),
+  ]);
+
+  return {
+    approvedRows,
+    pendingRows,
+    heldRows,
+    skippedRows,
+    unresolvedAnomalyRows,
+    readyToImportRows,
+    readyCreateRows,
+    readyUpdateRows,
+    correctionRows: invalidRows + duplicateRows + validPendingRows,
+    warningRows,
+    pendingSafeRows,
   };
 }
 
@@ -496,8 +581,56 @@ async function getImportBatchById(batchId: string) {
   return (data as ImportBatchRow | null) ?? null;
 }
 
-async function getImportRowsByBatchId(batchId: string) {
+async function getImportRowsByBatchId(
+  batchId: string,
+  options?: {
+    problemOnly?: boolean;
+    limit?: number;
+  },
+) {
   const supabase = await createClient();
+  const rows: ImportRowRecord[] = [];
+
+  if (options?.problemOnly) {
+    const [problemRowsResult, pendingValidResult] = await Promise.all([
+      supabase
+        .from("import_rows")
+        .select(
+          "id, batch_id, row_index, raw_payload, normalized_payload, status, review_status, review_note, reviewed_at, anomaly_categories, errors, warnings, duplicate_student_id, target_student_id, import_operation, changed_fields, imported_student_id, imported_override_id",
+        )
+        .eq("batch_id", batchId)
+        .in("status", ["invalid", "duplicate"])
+        .order("row_index", { ascending: true })
+        .limit(options.limit ?? PROBLEM_ROW_PAGE_SIZE),
+      supabase
+        .from("import_rows")
+        .select(
+          "id, batch_id, row_index, raw_payload, normalized_payload, status, review_status, review_note, reviewed_at, anomaly_categories, errors, warnings, duplicate_student_id, target_student_id, import_operation, changed_fields, imported_student_id, imported_override_id",
+        )
+        .eq("batch_id", batchId)
+        .eq("status", "valid")
+        .in("review_status", ["pending", "hold"])
+        .order("row_index", { ascending: true })
+        .limit(options.limit ?? PROBLEM_ROW_PAGE_SIZE),
+    ]);
+
+    if (problemRowsResult.error) {
+      throw new Error(`Unable to load import rows: ${problemRowsResult.error.message}`);
+    }
+
+    if (pendingValidResult.error) {
+      throw new Error(`Unable to load import rows: ${pendingValidResult.error.message}`);
+    }
+
+    const merged = [
+      ...((problemRowsResult.data ?? []) as ImportRowRecord[]),
+      ...((pendingValidResult.data ?? []) as ImportRowRecord[]),
+    ];
+    const byId = new Map(merged.map((row) => [row.id, row]));
+    rows.push(...[...byId.values()].sort((a, b) => a.row_index - b.row_index).slice(0, options.limit ?? PROBLEM_ROW_PAGE_SIZE));
+    return rows;
+  }
+
   const { data, error } = await supabase
     .from("import_rows")
     .select(
@@ -601,15 +734,16 @@ export async function getStudentImportPageData(
     };
   }
 
-  const [batchRow, rowRecords] = await Promise.all([
+  const [batchRow, rowRecords, reviewSummary] = await Promise.all([
     getImportBatchById(resolvedBatchId),
-    getImportRowsByBatchId(resolvedBatchId),
+    getImportRowsByBatchId(resolvedBatchId, { problemOnly: true, limit: PROBLEM_ROW_PAGE_SIZE }),
+    getImportReviewSummary(resolvedBatchId),
   ]);
 
   return {
     mode: batchRow?.import_mode === "update" ? "update" : mode,
     recentBatches,
-    selectedBatch: batchRow ? toImportBatchDetail(batchRow, rowRecords) : null,
+    selectedBatch: batchRow ? toImportBatchDetail(batchRow, rowRecords, reviewSummary) : null,
     fieldDefinitions: studentImportFieldDefinitions,
     supportedFormats: ["csv", "xlsx"],
   };
@@ -633,6 +767,7 @@ export async function createStudentImportBatch(
     updateRows: 0,
   };
 
+  const autoMapping = buildAutoColumnMapping(parsedFile.headers);
   const { data, error } = await supabase
     .from("import_batches")
     .insert({
@@ -643,7 +778,7 @@ export async function createStudentImportBatch(
       file_size_bytes: parsedFile.fileSizeBytes,
       status: "uploaded",
       detected_headers: parsedFile.headers,
-      column_mapping: buildAutoColumnMapping(parsedFile.headers),
+      column_mapping: autoMapping,
       total_rows: parsedFile.rows.length,
       valid_rows: 0,
       invalid_rows: 0,
@@ -677,7 +812,15 @@ export async function createStudentImportBatch(
     }
   }
 
-  return batchId;
+  const mappingErrors = validateColumnMapping(autoMapping, parsedFile.headers);
+  if (mappingErrors.length === 0) {
+    await runStudentImportDryRun(batchId, autoMapping);
+  }
+
+  return {
+    batchId,
+    autoValidated: mappingErrors.length === 0,
+  };
 }
 
 export async function runStudentImportDryRun(batchId: string, mapping: StudentImportColumnMapping) {
@@ -758,6 +901,7 @@ export async function runStudentImportDryRun(batchId: string, mapping: StudentIm
   await upsertImportRows(
     validationResult.rows.map((row) => {
       const anomalyCategories = deriveAnomalyCategories({
+        mode: batchRow.import_mode === "update" ? "update" : "add",
         status: row.status,
         errors: row.errors,
         warnings: row.warnings,
@@ -767,8 +911,7 @@ export async function runStudentImportDryRun(batchId: string, mapping: StudentIm
         id: row.rowId,
         normalized_payload: row.normalizedPayload,
         status: row.status,
-        review_status:
-          row.status === "valid" && anomalyCategories.length === 0 ? "approved" : "pending",
+        review_status: row.status === "valid" ? "approved" : "pending",
         review_note: null,
         reviewed_at: null,
         anomaly_categories: anomalyCategories,
@@ -1049,6 +1192,34 @@ export async function bulkUpdateImportRowReview(
   }
 }
 
+export async function approveAllSafeImportRows(batchId: string) {
+  const batchRow = await getImportBatchById(batchId);
+
+  if (!batchRow) {
+    throw new Error("Import batch not found.");
+  }
+
+  if (batchRow.status === "completed") {
+    throw new Error("Completed batches are locked for review changes.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("import_rows")
+    .update({
+      review_status: "approved",
+      review_note: "Bulk approved safe rows",
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq("batch_id", batchId)
+    .eq("status", "valid")
+    .eq("review_status", "pending");
+
+  if (error) {
+    throw new Error(`Unable to approve safe rows: ${error.message}`);
+  }
+}
+
 async function updateImportRowAfterCommit(
   row: ImportRowDetail,
   status: ImportRowDetail["status"],
@@ -1066,6 +1237,7 @@ async function updateImportRowAfterCommit(
       review_status: reviewStatus,
       errors,
       anomaly_categories: deriveAnomalyCategories({
+        mode: row.operation === "update" ? "update" : "add",
         status,
         errors,
         warnings: row.warnings,

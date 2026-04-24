@@ -38,7 +38,7 @@ type ImportDashboardProps = {
 
 export function ImportDashboard({ recentBatches, selectedBatch }: ImportDashboardProps) {
   return (
-    <SectionCard title="Import dashboard" description="Batch history with import and QA review progress.">
+    <SectionCard title="Upload history" description="Recent uploads and import progress.">
       {recentBatches.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-600">
           No import batches yet. Upload the first spreadsheet to begin staged migration.
@@ -48,7 +48,7 @@ export function ImportDashboard({ recentBatches, selectedBatch }: ImportDashboar
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-600">
               <tr>
-                <th className="px-4 py-3">Batch</th>
+                <th className="px-4 py-3">Upload</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Rows</th>
                 <th className="px-4 py-3">Valid / Invalid / Dup</th>
@@ -98,7 +98,7 @@ export function ImportDashboard({ recentBatches, selectedBatch }: ImportDashboar
                     <td className="px-4 py-3 text-sm text-slate-700">{formatShortDate(batch.updatedAt)}</td>
                     <td className="px-4 py-3 text-right">
                       <Button variant={isSelected ? "secondary" : "outline"} size="sm" asChild>
-                        <Link href={`/protected/imports?batchId=${batch.id}`}>Open</Link>
+                        <Link href={`/protected/imports?mode=${batch.importMode}&batchId=${batch.id}`}>Open</Link>
                       </Button>
                     </td>
                   </tr>

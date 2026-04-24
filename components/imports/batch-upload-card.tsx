@@ -32,7 +32,7 @@ export function BatchUploadCard({ canManage, mode, supportedFormats }: BatchUplo
 
   return (
     <SectionCard
-      title="1. Upload batch"
+      title="1. Upload file"
       description={mode === "update"
         ? "Upload the edited existing-students file. Blank cells mean no change."
         : "Upload the add-students file. Student name and class are enough to create a row."}
@@ -63,7 +63,7 @@ export function BatchUploadCard({ canManage, mode, supportedFormats }: BatchUplo
             </p>
           </div>
           <Button type="submit" disabled={!canManage || submitting}>
-            {submitting ? "Uploading…" : "Upload batch"}
+            {submitting ? "Uploading..." : "Upload file"}
           </Button>
         </div>
       </form>

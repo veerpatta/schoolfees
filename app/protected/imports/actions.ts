@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import {
+  approveAllSafeImportRows,
   bulkUpdateImportRowReview,
   commitStudentImportBatch,
   createStudentImportBatch,
@@ -52,13 +53,16 @@ export async function uploadStudentImportBatchAction(formData: FormData) {
   const file = formData.get("importFile");
   const mode = normalizeImportMode(formData.get("importMode"));
   let batchId: string | null = null;
+  let autoValidated = false;
 
   try {
     if (!(file instanceof File)) {
       throw new Error("Please select a CSV or XLSX file to import.");
     }
 
-    batchId = await createStudentImportBatch(file, mode);
+    const result = await createStudentImportBatch(file, mode);
+    batchId = result.batchId;
+    autoValidated = result.autoValidated;
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unable to upload the import file.";
@@ -70,7 +74,9 @@ export async function uploadStudentImportBatchAction(formData: FormData) {
   redirect(
     buildImportsUrl(
       batchId,
-      "Upload batch ready. Review the matched columns, then check the rows.",
+      autoValidated
+        ? "Upload complete. Rows were checked automatically. Review summary and import valid students."
+        : "Upload complete. Match spreadsheet columns, then check rows.",
       undefined,
       mode,
     ),
@@ -238,4 +244,28 @@ export async function commitStudentImportBatchAction(formData: FormData) {
       mode,
     ),
   );
+}
+
+export async function approveAllSafeRowsAction(formData: FormData) {
+  await requireStaffPermission("students:write");
+
+  const batchId =
+    typeof formData.get("batchId") === "string" ? String(formData.get("batchId")) : "";
+  const mode = normalizeImportMode(formData.get("importMode"));
+
+  try {
+    if (!batchId) {
+      throw new Error("Select an upload before approving rows.");
+    }
+
+    await approveAllSafeImportRows(batchId);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unable to approve safe rows.";
+
+    redirect(buildImportsUrl(batchId || null, undefined, message, mode));
+  }
+
+  revalidatePath("/protected/imports");
+  redirect(buildImportsUrl(batchId, "All safe rows are approved and ready to import.", undefined, mode));
 }

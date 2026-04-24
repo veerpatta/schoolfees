@@ -26,6 +26,10 @@ export function ColumnMappingCard({
 }: ColumnMappingCardProps) {
   const [submitting, setSubmitting] = useState(false);
   const isLocked = batch.importedRows > 0;
+  const requiredFields = fieldDefinitions.filter(
+    (field) => field.required && (mode === "update" || field.key !== "studentId"),
+  );
+  const hasRequiredMappingGap = requiredFields.some((field) => !batch.columnMapping[field.key]);
 
   async function handleSubmit(formData: FormData) {
     setSubmitting(true);
@@ -46,7 +50,7 @@ export function ColumnMappingCard({
         <input type="hidden" name="batchId" value={batch.id} />
         <input type="hidden" name="importMode" value={mode} />
 
-        <details className="rounded-xl border border-slate-200 bg-white" open={batch.status === "uploaded"}>
+        <details className="rounded-xl border border-slate-200 bg-white" open={hasRequiredMappingGap}>
           <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-900">
             Advanced column mapping
           </summary>
@@ -86,7 +90,7 @@ export function ColumnMappingCard({
               : "Required for add: student name and class. Blank SR no gets a temporary SR no."}
           </p>
           <Button type="submit" disabled={!canManage || isLocked || submitting}>
-            {submitting ? "Checking rows..." : "Check rows"}
+            {submitting ? "Checking rows..." : "Re-check rows"}
           </Button>
         </div>
       </form>

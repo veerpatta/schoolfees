@@ -69,7 +69,7 @@ function AnomalyBreakdown({ batch }: { batch: ImportBatchDetail }) {
 
   return (
     <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
-      <p className="text-sm font-semibold text-amber-900">Anomaly category breakdown</p>
+      <p className="text-sm font-semibold text-amber-900">Visible correction category breakdown</p>
       <div className="mt-3 flex flex-wrap gap-3">
         {[...categoryCounts.entries()]
           .sort(([, a], [, b]) => b - a)
@@ -97,8 +97,8 @@ export function BatchSummaryCard({ batch }: BatchSummaryCardProps) {
 
   return (
     <SectionCard
-      title="Batch summary"
-      description="Dry-run totals, anomaly review states, and final approvals stay attached to this batch for traceability."
+      title="Upload summary"
+      description="Validation totals and review states stay attached to this upload for traceability."
       actions={<StatusBadge label={getStatusLabel(batch.status)} tone={getBatchTone(batch.status)} />}
     >
       <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
@@ -117,22 +117,22 @@ export function BatchSummaryCard({ batch }: BatchSummaryCardProps) {
 
       <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <SummaryCard
-          label="Approved for import"
-          value={batch.reviewSummary.approvedRows}
+          label="Ready to import"
+          value={batch.reviewSummary.readyToImportRows}
           className="border-emerald-200 bg-emerald-50"
         />
         <SummaryCard
-          label="Pending review"
-          value={batch.reviewSummary.pendingRows}
+          label="Needs correction"
+          value={batch.reviewSummary.correctionRows}
           className="border-amber-200 bg-amber-50"
+        />
+        <SummaryCard
+          label="Warnings"
+          value={batch.reviewSummary.warningRows}
+          className="border-blue-200 bg-blue-50"
         />
         <SummaryCard label="On hold" value={batch.reviewSummary.heldRows} />
         <SummaryCard label="Skipped" value={batch.reviewSummary.skippedRows} />
-        <SummaryCard
-          label="Unresolved anomalies"
-          value={batch.reviewSummary.unresolvedAnomalyRows}
-          className="border-red-200 bg-red-50"
-        />
       </div>
 
       <AnomalyBreakdown batch={batch} />
@@ -140,7 +140,7 @@ export function BatchSummaryCard({ batch }: BatchSummaryCardProps) {
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
           <p>
-            <span className="font-semibold text-slate-900">File:</span> {batch.filename}
+            <span className="font-semibold text-slate-900">Upload file:</span> {batch.filename}
           </p>
           <p className="mt-1">
             <span className="font-semibold text-slate-900">Format:</span> {batch.sourceFormat.toUpperCase()}

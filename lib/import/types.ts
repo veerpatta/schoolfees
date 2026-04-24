@@ -197,6 +197,12 @@ export type ImportReviewSummary = {
   heldRows: number;
   skippedRows: number;
   unresolvedAnomalyRows: number;
+  readyToImportRows: number;
+  readyCreateRows: number;
+  readyUpdateRows: number;
+  correctionRows: number;
+  warningRows: number;
+  pendingSafeRows: number;
 };
 
 export type ImportBatchDetail = ImportBatchListItem & {

@@ -293,7 +293,7 @@ export function executeStudentImportDryRun({
       errors.push({
         code: "ERR_CLASS_NOT_FOUND",
         field: "classLabel",
-        message: `Class "${classLabel}" could not be matched to an existing class.`,
+        message: `Class "${classLabel}" was not found. Use the downloaded template or choose an existing class.`,
       });
     }
 
@@ -315,14 +315,24 @@ export function executeStudentImportDryRun({
         field: "status",
         message: "Status must be Active, Inactive, Left, or Graduated.",
       });
+    } else if (!stringifyImportCell(getMappedCellValue(row.rawPayload, mapping, "studentTypeOverride")) && mode === "add") {
+      warnings.push("WARN_BLANK_STUDENT_TYPE: New/Old is blank. This is allowed and will default to Existing.");
     }
 
     if (!fatherName) {
-      warnings.push("WARN_MISSING_FATHER_NAME: Father name is missing.");
+      warnings.push("WARN_MISSING_FATHER_NAME: Father name is blank. This is allowed and can be filled later.");
     }
 
     if (!motherName) {
-      warnings.push("WARN_MISSING_MOTHER_NAME: Mother name is missing.");
+      warnings.push("WARN_MISSING_MOTHER_NAME: Mother name is blank. This is allowed and can be filled later.");
+    }
+
+    if (!fatherPhone && !motherPhone && mode === "add") {
+      warnings.push("WARN_MISSING_PHONE: Phone is blank. This is allowed and can be filled later.");
+    }
+
+    if (!routeLabel && mode === "add") {
+      warnings.push("WARN_MISSING_ROUTE: Route is blank. Student will be added without transport.");
     }
 
     if (isPlaceholderValue(fatherName)) {

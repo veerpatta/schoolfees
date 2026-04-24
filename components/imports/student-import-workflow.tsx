@@ -44,17 +44,13 @@ export function StudentImportWorkflow({
   const selectedBatch = data.selectedBatch;
   const mode = selectedBatch?.importMode ?? data.mode;
 
-  const approvedRows =
-    selectedBatch?.rows.filter(
-      (row) => row.status === "valid" && row.reviewStatus === "approved",
-    ) ?? [];
-
   const unresolvedQueue =
     selectedBatch?.rows.filter(
       (row) =>
-        row.status !== "imported" &&
-        row.reviewStatus !== "skipped" &&
-        (row.reviewStatus !== "approved" || row.anomalyCategories.length > 0),
+        row.status === "invalid" ||
+        row.status === "duplicate" ||
+        row.reviewStatus === "hold" ||
+        (row.status === "valid" && row.reviewStatus === "pending"),
     ) ?? [];
 
   return (
@@ -67,7 +63,7 @@ export function StudentImportWorkflow({
           : "Upload student names and classes, review only problem rows, then import valid students."}
         actions={
           canManage ? (
-            <StatusBadge label="Review and approval required" tone="accent" />
+            <StatusBadge label="Fast upload flow" tone="accent" />
           ) : (
             <StatusBadge label="Read-only QA view" tone="warning" />
           )
@@ -89,10 +85,14 @@ export function StudentImportWorkflow({
         supportedFormats={data.supportedFormats}
       />
 
-      <ImportDashboard
-        recentBatches={data.recentBatches}
-        selectedBatch={selectedBatch}
-      />
+      <details className="rounded-xl border border-slate-200 bg-white">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-900">
+          Previous uploads and history
+        </summary>
+        <div className="border-t border-slate-200 p-4">
+          <ImportDashboard recentBatches={data.recentBatches} selectedBatch={selectedBatch} />
+        </div>
+      </details>
 
       {selectedBatch ? (
         <>
@@ -114,7 +114,6 @@ export function StudentImportWorkflow({
 
           <ImportCommitCard
             batch={selectedBatch}
-            approvedRows={approvedRows}
             canManage={canManage}
             mode={mode}
           />

@@ -38,6 +38,38 @@ const updateMapping = {
 };
 
 describe("student import dry-run", () => {
+  it("treats add rows with only student name and class as valid", () => {
+    const result = executeStudentImportDryRun({
+      mode: "add",
+      rows: [
+        {
+          id: "row-minimal",
+          rowIndex: 2,
+          rawPayload: {
+            "Student Name": "Neha Verma",
+            Class: "Class 1",
+          },
+        },
+      ],
+      mapping,
+      classes,
+      routes,
+      existingStudents: [],
+      activeFeeSettingClassIds: new Set(["class-1"]),
+    });
+
+    expect(result.rows[0]).toMatchObject({
+      status: "valid",
+      operation: "create",
+      normalizedPayload: {
+        fullName: "Neha Verma",
+        classId: "class-1",
+        admissionNo: "",
+      },
+    });
+    expect(result.rows[0].warnings.join(" ")).toContain("temporary SR no");
+  });
+
   it("keeps UAT-relevant fee-profile fields in the import mapping", () => {
     const keys = new Set(studentImportFieldDefinitions.map((field) => field.key));
 
@@ -195,6 +227,57 @@ describe("student import dry-run", () => {
     expect(result.rows[0].warnings.join(" ")).toContain("without transport route");
   });
 
+  it("keeps warning-only add rows importable even when parent fields are blank", () => {
+    const result = executeStudentImportDryRun({
+      mode: "add",
+      rows: [
+        {
+          id: "row-warning-only",
+          rowIndex: 2,
+          rawPayload: {
+            "Student Name": "Asha Sharma",
+            Class: "Class 1",
+            "SR No": "SR500",
+            "Father Name": "",
+          },
+        },
+      ],
+      mapping,
+      classes,
+      routes,
+      existingStudents: [],
+      activeFeeSettingClassIds: new Set(["class-1"]),
+    });
+
+    expect(result.rows[0].status).toBe("valid");
+    expect(result.rows[0].warnings.join(" ")).toContain("Father name is blank");
+  });
+
+  it("blocks add rows with unknown class labels", () => {
+    const result = executeStudentImportDryRun({
+      mode: "add",
+      rows: [
+        {
+          id: "row-bad-class",
+          rowIndex: 2,
+          rawPayload: {
+            "Student Name": "Asha Sharma",
+            Class: "Unknown Class",
+            "SR No": "SR777",
+          },
+        },
+      ],
+      mapping,
+      classes,
+      routes,
+      existingStudents: [],
+      activeFeeSettingClassIds: new Set(["class-1"]),
+    });
+
+    expect(result.rows[0].status).toBe("invalid");
+    expect(result.rows[0].errors.some((issue) => issue.code === "ERR_CLASS_NOT_FOUND")).toBe(true);
+  });
+
   it("matches update rows by Student ID before SR no", () => {
     const result = executeStudentImportDryRun({
       mode: "update",
@@ -280,6 +363,39 @@ describe("student import dry-run", () => {
         classId: "class-1",
       },
     });
+  });
+
+  it("requires Student ID or SR no in update mode and does not match by name alone", () => {
+    const result = executeStudentImportDryRun({
+      mode: "update",
+      rows: [
+        {
+          id: "row-name-only-update",
+          rowIndex: 2,
+          rawPayload: {
+            "Student Name": "Asha Sharma",
+            Class: "Class 1",
+            "Father Name": "Updated Father",
+          },
+        },
+      ],
+      mapping: updateMapping,
+      classes,
+      routes,
+      existingStudents: [
+        {
+          id: "student-1",
+          admissionNo: "SR001",
+          fullName: "Asha Sharma",
+          classId: "class-1",
+          dateOfBirth: null,
+        },
+      ],
+      activeFeeSettingClassIds: new Set(["class-1"]),
+    });
+
+    expect(result.rows[0].status).toBe("invalid");
+    expect(result.rows[0].errors.some((issue) => issue.code === "ERR_MISSING_STUDENT_ID_OR_ADMISSION_NO")).toBe(true);
   });
 
   it("keeps a second same-file SR row reviewable as a duplicate", () => {

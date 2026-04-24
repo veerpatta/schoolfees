@@ -51,12 +51,12 @@ const QUEUE_TABS: AnomalyCategoryTabConfig[] = [
     masterDataLink: "/protected/master-data",
   },
   {
-    key: "dob-parent",
-    label: "DOB / parent fields",
-    categories: ["invalid-dob", "missing-parent-fields"],
-    description: "Fix DOB and parent details in the source file, then rerun dry-run. Warnings can still be approved with office notes when acceptable.",
+    key: "date-issues",
+    label: "Date issues",
+    categories: ["invalid-dob"],
+    description: "Fix invalid DOB values in the source file, then rerun row checks.",
     guidance:
-      "Invalid DOB errors usually mean the date format could not be read. Missing parent fields are warnings. You can approve these rows if the office accepts incomplete data, but add an office note explaining why.",
+      "Invalid DOB errors usually mean the date format could not be read. Correct the date in the source file and upload again.",
     masterDataLink: null,
   },
   {
@@ -70,11 +70,11 @@ const QUEUE_TABS: AnomalyCategoryTabConfig[] = [
   },
   {
     key: "missing-sr",
-    label: "Missing SR no",
+    label: "Missing SR No",
     categories: ["missing-admission-no"],
-    description: "Rows without an SR no or admission number cannot be imported. Fix the source data first.",
+    description: "Rows with blank SR numbers where a temporary one will be assigned.",
     guidance:
-      "Every student needs a unique SR number. Correct these rows in the spreadsheet and re-upload, or skip them.",
+      "Missing SR numbers are permitted but generate a warning. If approved, a temporary SR number will be assigned automatically.",
     masterDataLink: null,
   },
 ];
