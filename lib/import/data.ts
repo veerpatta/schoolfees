@@ -106,6 +106,29 @@ function chunkArray<T>(items: readonly T[], size: number) {
   return chunks;
 }
 
+type ImportRowInsertInput = {
+  rowIndex: number;
+  rawPayload: RawImportRowPayload;
+};
+
+type ImportRowValidationUpdate = {
+  id: string;
+  normalizedPayload: NormalizedStudentImportRow | null;
+  status: ImportRowDetail["status"];
+  reviewStatus?: ImportRowReviewStatus;
+  reviewNote?: string | null;
+  reviewedAt?: string | null;
+  anomalyCategories?: ImportAnomalyCategory[];
+  errors: ImportIssue[];
+  warnings: string[];
+  duplicateStudentId: string | null;
+  targetStudentId?: string | null;
+  importOperation?: ImportRowOperation;
+  changedFields?: string[];
+  importedStudentId?: string | null;
+  importedOverrideId?: string | null;
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -660,42 +683,104 @@ async function updateImportBatch(
   }
 }
 
-async function upsertImportRows(
+export async function insertRawImportRows(
   batchId: string,
-  rows: ReadonlyArray<{
-    id: string;
-    normalized_payload: NormalizedStudentImportRow | null;
-    status: ImportRowDetail["status"];
-    review_status?: ImportRowReviewStatus;
-    review_note?: string | null;
-    reviewed_at?: string | null;
-    anomaly_categories?: ImportAnomalyCategory[];
-    errors: ImportIssue[];
-    warnings: string[];
-    duplicate_student_id: string | null;
-    target_student_id?: string | null;
-    import_operation?: ImportRowOperation;
-    changed_fields?: string[];
-    imported_student_id?: string | null;
-    imported_override_id?: string | null;
-  }>,
+  mode: ImportBatchListItem["importMode"],
+  rows: ReadonlyArray<ImportRowInsertInput>,
 ) {
+  const normalizedBatchId = batchId.trim();
+  if (!normalizedBatchId) {
+    throw new Error("Import batch ID is missing while saving rows.");
+  }
+
+  const supabase = await createClient();
+  const importOperation: ImportRowOperation = mode === "update" ? "update" : "create";
+
+  for (const chunk of chunkArray(rows, IMPORT_ROW_WRITE_CHUNK_SIZE)) {
+    for (const row of chunk) {
+      if (!Number.isInteger(row.rowIndex) || row.rowIndex <= 0) {
+        throw new Error("Import row index is missing.");
+      }
+
+      if (!isRecord(row.rawPayload)) {
+        throw new Error("Import raw row payload is missing.");
+      }
+    }
+
+    const payload = chunk.map((row) => ({
+      batch_id: normalizedBatchId,
+      row_index: row.rowIndex,
+      raw_payload: row.rawPayload,
+      normalized_payload: null,
+      status: "pending",
+      review_status: "pending",
+      review_note: null,
+      reviewed_at: null,
+      anomaly_categories: [],
+      errors: [],
+      warnings: [],
+      duplicate_student_id: null,
+      target_student_id: null,
+      import_operation: importOperation,
+      changed_fields: [],
+      imported_student_id: null,
+      imported_override_id: null,
+    }));
+
+    const { error } = await supabase.from("import_rows").insert(payload);
+
+    if (error) {
+      throw new Error(`Unable to create import rows: ${error.message}`);
+    }
+  }
+}
+
+export async function updateImportRowsForBatch(
+  batchId: string,
+  rows: ReadonlyArray<ImportRowValidationUpdate>,
+) {
+  const normalizedBatchId = batchId.trim();
+  if (!normalizedBatchId) {
+    throw new Error("Import batch ID is missing while saving rows.");
+  }
+
+  for (const row of rows) {
+    if (!row.id) {
+      throw new Error("Import row ID is missing.");
+    }
+  }
+
   const supabase = await createClient();
 
   for (const chunk of chunkArray(rows, IMPORT_ROW_WRITE_CHUNK_SIZE)) {
-    const rowsWithBatchId = chunk.map((row) => ({
-      ...row,
-      batch_id: batchId,
-    }));
+    await Promise.all(
+      chunk.map(async (row) => {
+        const { error } = await supabase
+          .from("import_rows")
+          .update({
+            normalized_payload: row.normalizedPayload,
+            status: row.status,
+            review_status: row.reviewStatus ?? (row.status === "valid" ? "approved" : "pending"),
+            review_note: row.reviewNote ?? null,
+            reviewed_at: row.reviewedAt ?? null,
+            anomaly_categories: row.anomalyCategories ?? [],
+            errors: row.errors,
+            warnings: row.warnings,
+            duplicate_student_id: row.duplicateStudentId,
+            target_student_id: row.targetStudentId ?? null,
+            import_operation: row.importOperation ?? "create",
+            changed_fields: row.changedFields ?? [],
+            imported_student_id: row.importedStudentId ?? null,
+            imported_override_id: row.importedOverrideId ?? null,
+          })
+          .eq("id", row.id)
+          .eq("batch_id", normalizedBatchId);
 
-    const { error } = await supabase.from("import_rows").upsert(rowsWithBatchId, {
-      onConflict: "id",
-      ignoreDuplicates: false,
-    });
-
-    if (error) {
-      throw new Error(`Unable to update import rows: ${error.message}`);
-    }
+        if (error) {
+          throw new Error(`Unable to update import rows: ${error.message}`);
+        }
+      }),
+    );
   }
 }
 
@@ -854,10 +939,10 @@ export async function createStudentImportBatch(
   const { data, error } = await supabase
     .from("import_batches")
     .insert({
-        filename: parsedFile.filename,
-        import_mode: mode,
-        target_session_label: resolvedTargetSessionLabel || null,
-        source_format: parsedFile.sourceFormat,
+      filename: parsedFile.filename,
+      import_mode: mode,
+      target_session_label: resolvedTargetSessionLabel || null,
+      source_format: parsedFile.sourceFormat,
       worksheet_name: parsedFile.worksheetName,
       file_size_bytes: parsedFile.fileSizeBytes,
       status: "uploaded",
@@ -880,21 +965,7 @@ export async function createStudentImportBatch(
   }
 
   const batchId = data.id as string;
-
-  for (const chunk of chunkArray(parsedFile.rows, IMPORT_ROW_WRITE_CHUNK_SIZE)) {
-    const { error: insertRowsError } = await supabase.from("import_rows").insert(
-      chunk.map((row) => ({
-        batch_id: batchId,
-        row_index: row.rowIndex,
-        raw_payload: row.rawPayload,
-        status: "pending",
-      })),
-    );
-
-    if (insertRowsError) {
-      throw new Error(`Unable to create import rows: ${insertRowsError.message}`);
-    }
-  }
+  await insertRawImportRows(batchId, mode, parsedFile.rows);
 
   const mappingErrors = validateColumnMapping(autoMapping, parsedFile.headers);
   if (mappingErrors.length === 0) {
@@ -999,7 +1070,7 @@ export async function runStudentImportDryRun(batchId: string, mapping: StudentIm
     ),
   });
 
-  await upsertImportRows(
+  await updateImportRowsForBatch(
     batchId,
     validationResult.rows.map((row) => {
       const anomalyCategories = deriveAnomalyCategoriesForRow({
@@ -1010,20 +1081,20 @@ export async function runStudentImportDryRun(batchId: string, mapping: StudentIm
 
       return {
         id: row.rowId,
-        normalized_payload: row.normalizedPayload,
+        normalizedPayload: row.normalizedPayload,
         status: row.status,
-        review_status: row.status === "valid" ? "approved" : "pending",
-        review_note: null,
-        reviewed_at: null,
-        anomaly_categories: anomalyCategories,
+        reviewStatus: row.status === "valid" ? "approved" : "pending",
+        reviewNote: null,
+        reviewedAt: null,
+        anomalyCategories,
         errors: row.errors,
         warnings: row.warnings,
-        duplicate_student_id: row.duplicateStudentId,
-        target_student_id: row.targetStudentId,
-        import_operation: row.operation,
-        changed_fields: row.changedFields,
-        imported_student_id: null,
-        imported_override_id: null,
+        duplicateStudentId: row.duplicateStudentId,
+        targetStudentId: row.targetStudentId,
+        importOperation: row.operation,
+        changedFields: row.changedFields,
+        importedStudentId: null,
+        importedOverrideId: null,
       };
     }),
   );
@@ -1322,6 +1393,7 @@ export async function approveAllSafeImportRows(batchId: string) {
 }
 
 async function updateImportRowAfterCommit(
+  batchId: string,
   row: ImportRowDetail,
   status: ImportRowDetail["status"],
   errors: ImportIssue[],
@@ -1330,8 +1402,12 @@ async function updateImportRowAfterCommit(
   importedOverrideId: string | null,
   reviewStatus?: ImportRowReviewStatus,
 ) {
+  if (!batchId.trim()) {
+    throw new Error("Import batch ID is missing while saving rows.");
+  }
+
   const supabase = await createClient();
-  const { error } = await supabase
+  const scopedUpdate = await supabase
     .from("import_rows")
     .update({
       status,
@@ -1349,10 +1425,11 @@ async function updateImportRowAfterCommit(
       imported_student_id: importedStudentId,
       imported_override_id: importedOverrideId,
     })
-    .eq("id", row.id);
+    .eq("id", row.id)
+    .eq("batch_id", batchId);
 
-  if (error) {
-    throw new Error(`Unable to update import row ${row.rowIndex}: ${error.message}`);
+  if (scopedUpdate.error) {
+    throw new Error(`Unable to update import row ${row.rowIndex}: ${scopedUpdate.error.message}`);
   }
 }
 
@@ -1432,6 +1509,7 @@ export async function commitStudentImportBatch(batchId: string) {
       }
 
       await updateImportRowAfterCommit(
+        batchId,
         row,
         "imported",
         row.errors,
@@ -1465,6 +1543,7 @@ export async function commitStudentImportBatch(batchId: string) {
       ];
 
       await updateImportRowAfterCommit(
+        batchId,
         row,
         "invalid",
         failureErrors,
