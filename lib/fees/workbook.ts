@@ -300,3 +300,177 @@ export function buildWorkbookStatus(payload: {
 
   return "PARTLY PAID";
 }
+
+export type WorkbookPaymentInput = {
+  paymentDate: string;
+  amount: number;
+};
+
+export type WorkbookStudentMasterCalculationInput = {
+  classLabel: string;
+  studentName: string;
+  admissionNo?: string | null;
+  dateOfBirth?: string | null;
+  installmentDueDates: string[];
+  lateFeeFlatAmount: number;
+  tuitionFee: number;
+  transportFee: number;
+  academicFee: number;
+  otherAdjustmentAmount?: number;
+  discountAmount?: number;
+  lateFeeWaiverAmount?: number;
+  payments?: WorkbookPaymentInput[];
+  today?: string;
+};
+
+export type WorkbookStudentMasterCalculation = ReturnType<
+  typeof buildWorkbookStudentMasterCalculation
+>;
+
+function toWorkbookDateKey(value: string | null | undefined) {
+  const normalized = (value ?? "").trim();
+
+  if (!normalized) {
+    return "";
+  }
+
+  const isoMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    return `${isoMatch[3]}${isoMatch[2]}${isoMatch[1]}`;
+  }
+
+  const slashMatch = normalized.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (slashMatch) {
+    return `${slashMatch[1].padStart(2, "0")}${slashMatch[2].padStart(2, "0")}${slashMatch[3]}`;
+  }
+
+  return normalized.replace(/[^0-9]/g, "");
+}
+
+export function buildWorkbookStudentKey(payload: {
+  classLabel: string;
+  studentName: string;
+  admissionNo?: string | null;
+  dateOfBirth?: string | null;
+}) {
+  const classLabel = payload.classLabel.trim();
+  const studentName = payload.studentName.trim();
+  const admissionNo = (payload.admissionNo ?? "").trim();
+  const dobKey = toWorkbookDateKey(payload.dateOfBirth);
+
+  if (admissionNo) {
+    return `${classLabel}|${admissionNo}`;
+  }
+
+  if (dobKey) {
+    return `${classLabel}|${studentName}|${dobKey}`;
+  }
+
+  return `${classLabel}|${studentName}`;
+}
+
+function normalizeWorkbookPayments(payments: WorkbookPaymentInput[] | undefined) {
+  return (payments ?? [])
+    .map((payment, index) => ({
+      index,
+      paymentDate: payment.paymentDate,
+      amount: Math.max(0, Math.trunc(payment.amount)),
+    }))
+    .filter((payment) => payment.amount > 0 && payment.paymentDate.trim().length > 0)
+    .sort((left, right) => {
+      if (left.paymentDate === right.paymentDate) {
+        return left.index - right.index;
+      }
+
+      return left.paymentDate.localeCompare(right.paymentDate);
+    });
+}
+
+export function buildWorkbookStudentMasterCalculation(
+  payload: WorkbookStudentMasterCalculationInput,
+) {
+  const installmentDueDates = payload.installmentDueDates.slice(0, 4);
+  const charges = buildWorkbookInstallmentCharges({
+    installmentCount: installmentDueDates.length || 4,
+    tuitionFee: payload.tuitionFee,
+    transportFee: payload.transportFee,
+    academicFee: payload.academicFee,
+    otherAdjustmentAmount: payload.otherAdjustmentAmount ?? 0,
+    discountAmount: payload.discountAmount ?? 0,
+  });
+  const payments = normalizeWorkbookPayments(payload.payments);
+  const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const cumulativeBaseCharges = charges.installmentCharges.map((_, index) =>
+    charges.installmentCharges
+      .slice(0, index + 1)
+      .reduce((sum, amount) => sum + amount, 0),
+  );
+  const rawLateFees = charges.installmentCharges.map((_, index) => {
+    const dueDate = installmentDueDates[index] ?? "";
+    const paidByDueDate = payments
+      .filter((payment) => dueDate && payment.paymentDate <= dueDate)
+      .reduce((sum, payment) => sum + payment.amount, 0);
+    const hasLatePayment = payments.some((payment) => dueDate && payment.paymentDate > dueDate);
+    const wasNotPaidByDue = paidByDueDate < cumulativeBaseCharges[index];
+    const laterPaymentHappened = totalPaid > paidByDueDate && hasLatePayment;
+
+    return wasNotPaidByDue && laterPaymentHappened
+      ? Math.max(0, Math.trunc(payload.lateFeeFlatAmount))
+      : 0;
+  });
+  const lateFeeRows = distributeLateFeeWaiver({
+    rawLateFees,
+    waiverAmount: payload.lateFeeWaiverAmount ?? 0,
+  });
+  const installmentCharges = charges.installmentCharges.map(
+    (baseCharge, index) => baseCharge + lateFeeRows[index].finalLateFee,
+  );
+  let remainingPaid = totalPaid;
+  const paidByInstallment = installmentCharges.map((installmentCharge) => {
+    const paid = Math.min(remainingPaid, installmentCharge);
+    remainingPaid -= paid;
+    return paid;
+  });
+  const pendingByInstallment = installmentCharges.map((installmentCharge, index) =>
+    Math.max(0, installmentCharge - paidByInstallment[index]),
+  );
+  const finalLateFeeTotal = lateFeeRows.reduce((sum, row) => sum + row.finalLateFee, 0);
+  const totalDueIncludingLate = charges.baseTotalDue + finalLateFeeTotal;
+  const outstanding = Math.max(0, totalDueIncludingLate - totalPaid);
+  const nextDueIndex = pendingByInstallment.findIndex((amount) => amount > 0);
+  const lastPayment = payments.at(-1) ?? null;
+
+  return {
+    workbookStudentKey: buildWorkbookStudentKey(payload),
+    tuitionRate: Math.max(0, Math.trunc(payload.tuitionFee)),
+    transportFee: Math.max(0, Math.trunc(payload.transportFee)),
+    academicFee: Math.max(0, Math.trunc(payload.academicFee)),
+    otherAdjustmentAmount: Math.trunc(payload.otherAdjustmentAmount ?? 0),
+    grossBaseBeforeDiscount: charges.grossBaseBeforeDiscount,
+    discountApplied: charges.discountApplied,
+    baseTotalDue: charges.baseTotalDue,
+    installmentBase: charges.installmentCharges,
+    rawLateFees: lateFeeRows.map((row) => row.rawLateFee),
+    lateFeeWaiverApplied: lateFeeRows.map((row) => row.appliedWaiver),
+    finalLateFees: lateFeeRows.map((row) => row.finalLateFee),
+    paidByInstallment,
+    pendingByInstallment,
+    totalPaid,
+    lateFeeTotal: finalLateFeeTotal,
+    totalDueIncludingLate,
+    outstanding,
+    nextDueNo: nextDueIndex === -1 ? 0 : nextDueIndex + 1,
+    nextDueLabel: nextDueIndex === -1 ? "" : `Installment ${nextDueIndex + 1}`,
+    nextDueDate: nextDueIndex === -1 ? null : (installmentDueDates[nextDueIndex] ?? null),
+    nextDueAmount: nextDueIndex === -1 ? 0 : pendingByInstallment[nextDueIndex],
+    status: buildWorkbookStatus({
+      totalDueIncludingLate,
+      totalPaid,
+      outstandingAmount: outstanding,
+      nextDueDate: nextDueIndex === -1 ? null : (installmentDueDates[nextDueIndex] ?? null),
+      today: payload.today,
+    }),
+    lastPaymentDate: lastPayment?.paymentDate ?? null,
+    lastPaymentAmount: lastPayment?.amount ?? 0,
+  };
+}

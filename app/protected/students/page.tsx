@@ -148,7 +148,14 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
                 defaultSessionLabel={filters.sessionLabel}
               />
               <Button asChild variant="outline">
-                <Link href="/protected/imports?mode=add">Open Advanced Import History</Link>
+                <Link href={`/protected/imports/template?mode=add&sessionLabel=${encodeURIComponent(filters.sessionLabel)}`}>
+                  Download Add Template
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/protected/imports/template?mode=update">
+                  Download Existing Students Update Template
+                </Link>
               </Button>
             </div>
           ) : (
@@ -198,8 +205,8 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
       ) : null}
 
       <SectionCard
-        title="Student list"
-        description={`${students.length} record${students.length === 1 ? "" : "s"} found`}
+        title="Students_Master"
+        description={`${students.length} workbook row${students.length === 1 ? "" : "s"} found. Calculated columns are read-only and come from Fee Setup plus Payment Ledger.`}
       >
         <StudentListTable
           students={students}

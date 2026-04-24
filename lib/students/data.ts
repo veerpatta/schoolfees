@@ -31,6 +31,7 @@ type StudentListRow = {
   id: string;
   admission_no: string;
   full_name: string;
+  date_of_birth: string | null;
   status: StudentListItem["status"];
   primary_phone: string | null;
   secondary_phone: string | null;
@@ -61,8 +62,33 @@ type StudentDetailRow = {
 
 type StudentWorkbookFinancialRow = {
   student_id: string;
+  workbook_student_key?: string | null;
   student_status_label: "New" | "Old";
+  tuition_fee?: number | null;
+  transport_fee?: number | null;
+  academic_fee?: number | null;
+  gross_base_before_discount?: number | null;
+  discount_amount?: number | null;
+  base_total_due?: number | null;
+  base_charge_total?: number | null;
+  installment1_base?: number | null;
+  installment2_base?: number | null;
+  installment3_base?: number | null;
+  installment4_base?: number | null;
+  total_paid?: number | null;
+  late_fee_total?: number | null;
+  total_due?: number | null;
   outstanding_amount: number;
+  next_due_label?: string | null;
+  next_due_date?: string | null;
+  next_due_amount?: number | null;
+  status_label?: "" | "PAID" | "NOT STARTED" | "OVERDUE" | "PARTLY PAID";
+  last_payment_date?: string | null;
+  last_payment_amount?: number | null;
+  duplicate_sr_flag?: boolean | null;
+  missing_dob_flag?: boolean | null;
+  missing_class_flag?: boolean | null;
+  missing_status_flag?: boolean | null;
 };
 
 type StudentFeeOverrideRow = {
@@ -322,7 +348,7 @@ export async function getStudents(filters: StudentListFilters) {
   let query = supabase
     .from("students")
     .select(
-      "id, admission_no, full_name, status, primary_phone, secondary_phone, updated_at, class_ref:classes(id, session_label, class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code)",
+      "id, admission_no, full_name, date_of_birth, status, primary_phone, secondary_phone, updated_at, class_ref:classes(id, session_label, class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code)",
     )
     .order("full_name", { ascending: true });
 
@@ -365,7 +391,9 @@ export async function getStudents(filters: StudentListFilters) {
     ] = await Promise.all([
       supabase
         .from("v_workbook_student_financials")
-        .select("student_id, student_status_label, outstanding_amount")
+        .select(
+          "student_id, workbook_student_key, student_status_label, tuition_fee, transport_fee, academic_fee, gross_base_before_discount, discount_amount, base_total_due, base_charge_total, installment1_base, installment2_base, installment3_base, installment4_base, total_paid, late_fee_total, total_due, outstanding_amount, next_due_label, next_due_date, next_due_amount, status_label, last_payment_date, last_payment_amount, duplicate_sr_flag, missing_dob_flag, missing_class_flag, missing_status_flag",
+        )
         .in("student_id", studentIds),
       supabase
         .from("student_fee_overrides")
@@ -427,8 +455,12 @@ export async function getStudents(filters: StudentListFilters) {
 
     return {
       id: row.id,
+      workbookStudentKey:
+        financial?.workbook_student_key ??
+        `${classRef ? buildClassLabel(classRef) : "Unknown class"}|${row.admission_no}`,
       admissionNo: row.admission_no,
       fullName: row.full_name,
+      dateOfBirth: row.date_of_birth,
       status: row.status,
       studentStatusLabel: financial?.student_status_label ?? "Old",
       classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
@@ -443,8 +475,31 @@ export async function getStudents(filters: StudentListFilters) {
         : override
           ? "Standard profile"
           : "Missing profile",
+      tuitionFee: financial?.tuition_fee ?? 0,
+      transportFee: financial?.transport_fee ?? 0,
+      academicFee: financial?.academic_fee ?? 0,
+      grossBaseBeforeDiscount: financial?.gross_base_before_discount ?? 0,
+      discountAmount: financial?.discount_amount ?? 0,
+      baseTotalDue: financial?.base_total_due ?? financial?.base_charge_total ?? 0,
+      installment1Base: financial?.installment1_base ?? 0,
+      installment2Base: financial?.installment2_base ?? 0,
+      installment3Base: financial?.installment3_base ?? 0,
+      installment4Base: financial?.installment4_base ?? 0,
+      totalPaid: financial?.total_paid ?? 0,
+      lateFeeTotal: financial?.late_fee_total ?? 0,
+      totalDue: financial?.total_due ?? 0,
       fatherPhone: row.primary_phone,
       motherPhone: row.secondary_phone,
+      nextDueLabel: financial?.next_due_label ?? null,
+      nextDueDate: financial?.next_due_date ?? null,
+      nextDueAmount: financial?.next_due_amount ?? null,
+      statusLabel: financial?.status_label ?? "",
+      lastPaymentDate: financial?.last_payment_date ?? null,
+      lastPaymentAmount: financial?.last_payment_amount ?? 0,
+      duplicateSrFlag: Boolean(financial?.duplicate_sr_flag),
+      missingDobFlag: Boolean(financial?.missing_dob_flag),
+      missingClassFlag: Boolean(financial?.missing_class_flag),
+      missingStatusFlag: Boolean(financial?.missing_status_flag),
       outstandingAmount: financial?.outstanding_amount ?? 0,
       updatedAt: row.updated_at,
     } satisfies StudentListItem;
