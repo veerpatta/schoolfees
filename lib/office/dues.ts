@@ -15,7 +15,12 @@ import {
 export type OfficeWorkbookFilters = {
   view: OfficeWorkbookView;
   classId: string;
+  fromDate?: string;
+  paymentMode?: string;
+  routeId?: string;
+  searchQuery?: string;
   sessionLabel: string;
+  toDate?: string;
 };
 
 export type OfficeWorkbookCollectionRow = {
@@ -50,12 +55,12 @@ export type OfficeWorkbookSummary = {
 
 export type OfficeWorkbookData =
   | {
-      view: "transactions" | "receipts_today";
+      view: "transactions" | "receipts";
       classOptions: WorkbookClassOption[];
       rows: WorkbookTransaction[];
     }
   | {
-      view: "installments" | "statements" | "class_register" | "defaulters";
+      view: "installments" | "student_dues" | "class_register" | "defaulters";
       classOptions: WorkbookClassOption[];
       rows: OfficeWorkbookStudentRow[];
       summary: OfficeWorkbookSummary;
@@ -69,6 +74,10 @@ export type OfficeWorkbookData =
       view: "import_issues";
       classOptions: WorkbookClassOption[];
       rows: ImportVerificationDetailRow[];
+    }
+  | {
+      view: "exports";
+      classOptions: WorkbookClassOption[];
     };
 
 function toStudentRows(
@@ -192,30 +201,53 @@ function buildCollectionRows(rows: WorkbookTransaction[]) {
     });
 }
 
+function filterStudentRows(rows: WorkbookStudentFinancial[], filters: OfficeWorkbookFilters) {
+  const normalizedSearch = (filters.searchQuery ?? "").trim().toLowerCase();
+
+  return rows
+    .filter((row) => (filters.routeId ? row.transportRouteId === filters.routeId : true))
+    .filter((row) => {
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      const haystack = [
+        row.studentName,
+        row.admissionNo,
+        row.fatherName ?? "",
+        row.fatherPhone ?? "",
+        row.motherPhone ?? "",
+        row.classLabel,
+        row.transportRouteName ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(normalizedSearch);
+    });
+}
+
 export async function getOfficeWorkbookData(
   filters: OfficeWorkbookFilters,
 ): Promise<OfficeWorkbookData> {
   const classOptions = await getWorkbookClassOptions();
   const sharedFilters = {
     classId: filters.classId || undefined,
+    fromDate: filters.fromDate || undefined,
+    paymentMode: filters.paymentMode || undefined,
+    query: filters.searchQuery || undefined,
+    routeId: filters.routeId || undefined,
     sessionLabel: filters.sessionLabel || undefined,
+    toDate: filters.toDate || undefined,
   };
 
   switch (filters.view) {
     case "transactions":
+    case "receipts":
       return {
         view: filters.view,
         classOptions,
         rows: await getWorkbookTransactions(sharedFilters),
-      };
-    case "receipts_today":
-      return {
-        view: filters.view,
-        classOptions,
-        rows: await getWorkbookTransactions({
-          ...sharedFilters,
-          todayOnly: true,
-        }),
       };
     case "collection_today":
       return {
@@ -229,7 +261,7 @@ export async function getOfficeWorkbookData(
         ),
       };
     case "installments":
-    case "statements":
+    case "student_dues":
     case "class_register":
     case "defaulters": {
       const [students, transactions] = await Promise.all([
@@ -243,12 +275,13 @@ export async function getOfficeWorkbookData(
         filters.view === "defaulters"
           ? students.filter((row) => row.statusLabel === "OVERDUE")
           : students;
+      const visibleRows = filterStudentRows(filteredRows, filters);
 
       return {
         view: filters.view,
         classOptions,
-        rows: toStudentRows(filteredRows, transactions),
-        summary: buildSummary(filteredRows),
+        rows: toStudentRows(visibleRows, transactions),
+        summary: buildSummary(visibleRows),
       };
     }
     case "import_issues": {
@@ -274,6 +307,11 @@ export async function getOfficeWorkbookData(
             : [],
       };
     }
+    case "exports":
+      return {
+        view: filters.view,
+        classOptions,
+      };
     default:
       return {
         view: "transactions",

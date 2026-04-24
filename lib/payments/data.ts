@@ -33,6 +33,7 @@ function mapStudentOptions(
     fatherName: row.fatherName,
     fatherPhone: row.fatherPhone,
     motherPhone: row.motherPhone,
+    pendingAmount: row.outstandingAmount,
   }));
 }
 
@@ -73,6 +74,9 @@ function summarizeStudent(
     totalDue: financial.totalDue,
     totalPaid: financial.totalPaid,
     totalPending: financial.outstandingAmount,
+    overdueAmount: breakdown
+      .filter((item) => item.balanceStatus === "overdue")
+      .reduce((sum, item) => sum + item.outstandingAmount, 0),
     nextDueInstallmentLabel: financial.nextDueLabel,
     nextDueDate: financial.nextDueDate,
     nextDueAmount: financial.nextDueAmount,
@@ -122,6 +126,8 @@ export async function getPaymentEntryPageData(payload: {
           return;
         }
 
+        const financial = workbookRows.find((item) => item.studentId === row.studentId);
+
         studentOptions = [
           {
             id: row.studentId,
@@ -131,6 +137,7 @@ export async function getPaymentEntryPageData(payload: {
             fatherName: row.fatherName,
             fatherPhone: row.fatherPhone,
             motherPhone: null,
+            pendingAmount: financial?.outstandingAmount ?? row.currentOutstanding,
           },
           ...studentOptions,
         ];

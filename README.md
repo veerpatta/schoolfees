@@ -1,4 +1,4 @@
-# Shri Veer Patta Senior Secondary School Fee Admin
+﻿# Shri Veer Patta Senior Secondary School Fee Admin
 
 Internal fee management web app for one school:
 Shri Veer Patta Senior Secondary School.
@@ -24,7 +24,7 @@ Current primary working areas:
 - payment entry
 - append-only financial history
 - printable receipts
-- read-only dashboard and dues visibility
+- read-only dashboard and Transactions visibility
 - defaulters reporting
 - staged spreadsheet import
 - internal staff login and access control
@@ -47,11 +47,11 @@ Primary daily areas:
   heads, session policy, class tuition, route transport fee, and final
   review/publish
 - `Payment Desk`
-  counter posting, receipt printing, and next-payment shortcuts
-- `Dues & Receipts`
-  workbook-style views for receipt register, installment tracker, master fee
-  statement shortcuts, class register, defaulters, today’s receipts, today’s
-  collection, and import issues
+  counter posting only: select a student, review dues, collect payment, confirm
+  allocation, and generate an append-only receipt
+- `Transactions`
+  read-only permanent records, receipts, dues, installment tracker, defaulters,
+  class register, today collection, import issues, and CSV downloads
 - `Advanced`
   first-time setup, school setup lists, day close/corrections, detailed
   reports/exports, staff, and settings
@@ -61,8 +61,8 @@ Primary daily areas:
 - `admin`
   lands on `Dashboard`; sees the simplified primary nav plus `Advanced`
 - `accountant`
-  lands on `Payment Desk`; nav order prioritizes `Payment Desk` and `Dues &
-  Receipts`, with Dashboard available as a read-only overview
+  lands on `Payment Desk`; nav order prioritizes `Payment Desk` and
+  `Transactions`, with Dashboard available as a read-only overview
 - `read_only_staff`
   lands on `Dashboard`; keeps the simplified primary nav without `Advanced`
   while still retaining intended deep-link access to detailed read-only screens
@@ -101,6 +101,10 @@ fee profiles, or change school-wide fee setup. Fee Setup remains the only
 school-wide fee setup editor, Students remains the student-specific profile and
 override editor, and Payment Desk remains the transaction posting surface.
 
+Transactions is read-only. It shows permanent receipts, dues, installment
+status, defaulters, and exports, but it does not post payments or mutate
+financial history.
+
 What belongs in `Advanced`:
 
 - first-time setup and go-live completion
@@ -133,6 +137,8 @@ What remains append-only and historically locked:
 - payments
 - payment adjustments
 - audit logs
+- posted receipts and payments are not edited directly; corrections use
+  adjustment or reversal-style workflows where supported
 
 Operationally this means:
 
@@ -144,12 +150,13 @@ Operationally this means:
 
 ## Workbook-Style Office Mapping
 
-The app now maps more closely to the school’s workbook flow:
+The app now maps more closely to the schoolâ€™s workbook flow:
 
 - `Dashboard` behaves like the first office overview worksheet
-- `Payment Desk` behaves like the collection counter sheet
-- `Dues & Receipts` behaves like the working register for dues, receipts, and
-  overdue follow-up
+- `Payment Desk` behaves like the collection counter sheet and is the only
+  payment posting surface
+- `Transactions` behaves like the permanent register for posted receipts, dues,
+  installment status, defaulters, and exports
 - `Students` behaves like the student master, student fee-profile, and bulk
   student add/update sheet
 - `Fee Setup` behaves like the controlled live policy/default sheet with audit
@@ -229,8 +236,9 @@ Implemented core:
   unpaid/future-ledger changes while flagging paid or partially paid rows for
   manual review
 - payment entry with append-only posting through RPCs
-- workbook-style dues views for transactions, installment tracker, master fee
-  statements, class register, defaulters, and today’s receipts/collection
+- read-only Transactions workspace for posted receipts, student dues,
+  installment tracker, class register, defaulters, today collection, import
+  issues, and CSV exports; legacy `/protected/dues` links redirect there
 - student ledger with chronological history and linked adjustment trail
 - receipt list, workbook-aligned printable receipt, and printable master fee
   statement per student

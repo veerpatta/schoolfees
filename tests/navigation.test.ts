@@ -30,7 +30,8 @@ describe("office navigation", () => {
 
     expect(items[0]?.href).toBe("/protected/payments");
     expect(items[1]?.href).toBe("/protected/dashboard");
-    expect(items[2]?.href).toBe("/protected/dues");
+    expect(items[2]?.href).toBe("/protected/transactions");
+    expect(items[2]?.label).toBe("Transactions");
   });
 
   it("keeps Dashboard first for admin and read-only staff", () => {
@@ -79,6 +80,21 @@ describe("office navigation", () => {
     expect(getProtectedRouteMeta("/protected/imports")).toMatchObject({
       href: "/protected/students",
       label: "Student Imports",
+    });
+  });
+
+  it("maps transactions and legacy dues routes to Transactions", () => {
+    expect(getProtectedRouteMeta("/protected/transactions")).toMatchObject({
+      href: "/protected/transactions",
+      label: "Transactions",
+    });
+    expect(getProtectedRouteMeta("/protected/dues")).toMatchObject({
+      href: "/protected/transactions",
+      label: "Transactions",
+    });
+    expect(getProtectedRouteMeta("/protected/receipts/receipt-1")).toMatchObject({
+      href: "/protected/transactions",
+      label: "Transactions",
     });
   });
 });

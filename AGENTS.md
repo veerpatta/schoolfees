@@ -67,7 +67,7 @@ Primary daily areas:
 - `Students`
 - `Fee Setup`
 - `Payment Desk`
-- `Dues & Receipts`
+- `Transactions`
 - `Advanced`
 
 Operational boundaries:
@@ -83,9 +83,11 @@ Operational boundaries:
 - `Students` is the canonical daily path for student master records,
   class/route assignment, student-specific fee profiles, special-case
   overrides, and staged spreadsheet add/update work
-- `Dues & Receipts` is the workbook-style working area for receipt register,
-  installment dues, class dues summary, overdue list, today’s receipts,
-  today’s collection, and import issues
+- `Payment Desk` is the only daily surface for posting payments and generating
+  append-only receipts
+- `Transactions` is the read-only permanent record and download center for
+  receipt records, dues, installment tracker, defaulters, class register,
+  today collection, import issues, and exports
 - `Advanced` contains setup, school setup lists, day close/corrections,
   reports/exports, staff, and settings
 - `Setup` remains first-time go-live preparation only and must not be reused
@@ -120,7 +122,7 @@ Fully implemented core:
   for public use
 - protected admin workspace under `app/protected`
 - simplified workbook-style protected shell with `Dashboard`, `Students`,
-  `Fee Setup`, `Payment Desk`, `Dues & Receipts`, and `Advanced`
+  `Fee Setup`, `Payment Desk`, `Transactions`, and `Advanced`
 - admin-only first-time setup wizard with academic session selection, class and
   route setup, school/class defaults, readiness checklist, and explicit setup
   completion marker; once setup is marked complete, the wizard no longer serves
@@ -143,9 +145,9 @@ Fully implemented core:
   paid or partially paid rows for manual review
 - Payment Entry: append-only posting via RPC, with receipts generated as linked
   financial records
-- workbook-style dues views for transactions, installment tracker, master fee
-  statements, class register, defaulters, today�s receipts, and today�s
-  collection
+- read-only Transactions workspace for posted receipts, student dues,
+  installment tracker, class register, defaulters, today collection, import
+  issues, and CSV exports; legacy `/protected/dues` links redirect there
 - Ledger: chronological per-student history with linked adjustment entries
 - Receipts: receipt list plus workbook-aligned printable per-receipt view
 - printable master fee statement route at
@@ -207,7 +209,8 @@ content or Supabase sample code unless the user explicitly requests that.
 - fee recalculation: `app/protected/fee-setup/generate/page.tsx`
 - fee recalculation actions: `app/protected/fee-setup/generate/actions.ts`
 - advanced hub: `app/protected/advanced/page.tsx`
-- dues workbook: `app/protected/dues/page.tsx`
+- transactions workspace: `app/protected/transactions/page.tsx`
+- legacy dues alias: `app/protected/dues/page.tsx`
 - fee regeneration service: `lib/fees/regeneration.ts`
 - payment entry: `app/protected/payments/page.tsx`
 - payment actions: `app/protected/payments/actions.ts`

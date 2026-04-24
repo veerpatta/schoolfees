@@ -102,11 +102,11 @@ export function ClassTabs({
   };
 
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1">
+    <div className="flex flex-wrap gap-2">
       <Link
         href={buildHref("")}
         className={cn(
-          "inline-flex min-w-fit items-center rounded-full border px-3 py-2 text-sm transition-colors",
+          "inline-flex items-center rounded-full border px-3 py-2 text-sm transition-colors",
           activeClassId
             ? "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
             : "border-slate-900 bg-slate-900 text-white",
@@ -119,7 +119,7 @@ export function ClassTabs({
           key={item.id}
           href={buildHref(item.id)}
           className={cn(
-            "inline-flex min-w-fit items-center rounded-full border px-3 py-2 text-sm transition-colors",
+            "inline-flex items-center rounded-full border px-3 py-2 text-sm transition-colors",
             item.id === activeClassId
               ? "border-slate-900 bg-slate-900 text-white"
               : "border-slate-200 bg-white text-slate-700 hover:border-slate-300",

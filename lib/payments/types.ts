@@ -24,6 +24,7 @@ export type PaymentStudentOption = {
   fatherName: string | null;
   fatherPhone: string | null;
   motherPhone: string | null;
+  pendingAmount: number;
 };
 
 export type InstallmentBalanceItem = {
@@ -65,6 +66,7 @@ export type SelectedStudentSummary = {
   totalDue: number;
   totalPaid: number;
   totalPending: number;
+  overdueAmount: number;
   nextDueInstallmentLabel: string | null;
   nextDueDate: string | null;
   nextDueAmount: number | null;

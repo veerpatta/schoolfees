@@ -69,11 +69,12 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
     aliases: ["/protected/collections"],
   },
   {
-    href: "/protected/dues",
-    label: "Dues & Receipts",
-    description: "Workbook-style dues, receipts, and overdue follow-up.",
+    href: "/protected/transactions",
+    label: "Transactions",
+    description: "Permanent records, receipts, dues, installment tracker, defaulters, and exports.",
     icon: BookOpenCheck,
     requiredPermission: "receipts:view",
+    aliases: ["/protected/dues", "/protected/receipts", "/protected/defaulters", "/protected/ledger"],
   },
   {
     href: "/protected/advanced",
@@ -124,10 +125,11 @@ const routeMetaItems: Array<
     aliases: ["/protected/collections"],
   },
   {
-    match: "/protected/dues",
-    href: "/protected/dues",
-    label: "Dues & Receipts",
-    description: "Workbook-style tables for dues, receipts, and overdue follow-up.",
+    match: "/protected/transactions",
+    href: "/protected/transactions",
+    label: "Transactions",
+    description: "Permanent receipt records, dues, installment tracker, defaulters, and exportable finance views.",
+    aliases: ["/protected/dues", "/protected/receipts", "/protected/defaulters", "/protected/ledger"],
   },
   {
     match: "/protected/advanced",
@@ -161,19 +163,19 @@ const routeMetaItems: Array<
   },
   {
     match: "/protected/ledger",
-    href: "/protected/dues",
+    href: "/protected/transactions",
     label: "Ledger",
     description: "Append-only student payment history and adjustment review.",
   },
   {
     match: "/protected/receipts",
-    href: "/protected/dues",
+    href: "/protected/transactions",
     label: "Receipts",
     description: "Receipt lookup, reprints, and desk verification.",
   },
   {
     match: "/protected/defaulters",
-    href: "/protected/dues",
+    href: "/protected/transactions",
     label: "Defaulters",
     description: "Outstanding follow-up by class, route, and overdue window.",
   },
@@ -253,7 +255,7 @@ export function getVisibleProtectedNavigation(staffRole: StaffRole) {
   const preferredOrder = [
     "/protected/payments",
     "/protected/dashboard",
-    "/protected/dues",
+    "/protected/transactions",
     "/protected/fee-setup",
     "/protected/students",
     "/protected/advanced",

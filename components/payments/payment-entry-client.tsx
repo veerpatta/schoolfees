@@ -11,7 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { buildPaymentAllocation } from "@/lib/payments/allocation";
-import { buildPaymentDeskSuccessActions } from "@/lib/payments/workflow";
+import {
+  buildPaymentDeskSuccessActions,
+  buildPaymentQuickAmounts,
+} from "@/lib/payments/workflow";
 import type {
   PaymentEntryActionState,
   PaymentEntryPageData,
@@ -74,6 +77,13 @@ export function PaymentEntryClient({
     initialState,
   );
   const [paymentAmountInput, setPaymentAmountInput] = useState("0");
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
+  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [paymentMode, setPaymentMode] = useState(data.modeOptions[0]?.value ?? "cash");
+  const [referenceNumber, setReferenceNumber] = useState("");
+  const [receivedBy, setReceivedBy] = useState(defaultReceivedBy);
+  const [remarks, setRemarks] = useState("");
 
   const selectedStudent = data.selectedStudent;
   const paymentAmount = Number(paymentAmountInput) || 0;
@@ -85,6 +95,17 @@ export function PaymentEntryClient({
 
     return buildPaymentAllocation(selectedStudent.breakdown, paymentAmount);
   }, [paymentAmount, selectedStudent]);
+  const quickAmounts = useMemo(() => {
+    if (!selectedStudent) {
+      return [];
+    }
+
+    return buildPaymentQuickAmounts({
+      totalPending: selectedStudent.totalPending,
+      nextDueAmount: selectedStudent.nextDueAmount,
+      overdueAmount: selectedStudent.overdueAmount,
+    });
+  }, [selectedStudent]);
 
   const allocatedPreviewTotal = allocationPreview.reduce(
     (sum, item) => sum + item.allocatedAmount,
@@ -103,8 +124,15 @@ export function PaymentEntryClient({
           receiptId: state.receiptId,
           studentId: state.studentId,
           nextPaymentHref: paymentSearchHref,
+          transactionsHref: "/protected/transactions",
         })
       : [];
+  const selectedPaymentModeLabel =
+    data.modeOptions.find((modeOption) => modeOption.value === paymentMode)?.label ?? paymentMode;
+  const whatsappCopy =
+    state.status === "success" && state.receiptNumber && selectedStudent
+      ? `Dear Parent, payment of ${formatInr(paymentAmount)} has been received for ${selectedStudent.fullName} (${selectedStudent.classLabel}). Receipt No: ${state.receiptNumber}. Thank you - Shri Veer Patta Senior Secondary School.`
+      : "";
 
   return (
     <div className="space-y-6">
@@ -131,8 +159,8 @@ export function PaymentEntryClient({
 
       <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <SectionCard
-          title="Desk tools"
-          description="Keep class shortcuts, today’s total, and recent receipt access in one compact place."
+          title="1. Select Class"
+          description="Filter the counter desk by class first, then pick the student."
         >
           <div className="space-y-4">
             <ClassTabs
@@ -160,10 +188,10 @@ export function PaymentEntryClient({
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button asChild size="sm" variant="outline">
-                    <Link href="/protected/dues?view=receipts_today">Today&apos;s receipts</Link>
+                    <Link href="/protected/transactions?view=receipts">Receipts</Link>
                   </Button>
                   <Button asChild size="sm" variant="outline">
-                    <Link href="/protected/dues?view=collection_today">Today&apos;s summary</Link>
+                    <Link href="/protected/transactions?view=collection_today">Today&apos;s collection</Link>
                   </Button>
                 </div>
               </div>
@@ -227,7 +255,7 @@ export function PaymentEntryClient({
       </section>
 
       <SectionCard
-        title="1. Choose student"
+        title="2. Select Student"
         description="Use SR no, student name, phone number, or receipt number to reach the right student quickly."
       >
         <form action="/protected/payments" method="get" className="space-y-4">
@@ -255,7 +283,7 @@ export function PaymentEntryClient({
                 <option value="">Select student</option>
                 {data.studentOptions.map((student) => (
                   <option key={student.id} value={student.id}>
-                    {student.fullName} ({student.admissionNo}) - {student.classLabel}
+                    {student.fullName} ({student.admissionNo}) - {student.classLabel} - pending {formatInr(student.pendingAmount)}
                   </option>
                 ))}
               </select>
@@ -293,7 +321,7 @@ export function PaymentEntryClient({
             {data.policyNote}
           </div>
 
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <MetricCard
               title="Total due"
               value={formatInr(selectedStudent.totalDue)}
@@ -310,6 +338,11 @@ export function PaymentEntryClient({
               hint="Outstanding balance available for collection"
             />
             <MetricCard
+              title="Overdue"
+              value={formatInr(selectedStudent.overdueAmount)}
+              hint="Due installments past their date"
+            />
+            <MetricCard
               title="Next due installment"
               value={selectedStudent.nextDueInstallmentLabel ?? "No pending dues"}
               hint={
@@ -321,7 +354,7 @@ export function PaymentEntryClient({
           </section>
 
           <SectionCard
-            title="Student summary"
+            title="3. Student Fee Summary"
             description="Desk view for parent contact, workbook status, and route before posting the next receipt."
           >
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -361,7 +394,7 @@ export function PaymentEntryClient({
           </SectionCard>
 
           <SectionCard
-            title="2. Current fee breakdown"
+            title="4. Installment Dues"
             description="Review installment-level dues and payment status before saving the next receipt."
             actions={
               <div className="flex flex-wrap items-center gap-2">
@@ -422,7 +455,7 @@ export function PaymentEntryClient({
           </SectionCard>
 
           <SectionCard
-            title="3. Enter and save payment"
+            title="5. Collect Payment"
             description="Payments are append-only. If correction is needed later, use adjustment entries instead of editing history."
             actions={<ValueStatePill tone="locked">Locked history after posting</ValueStatePill>}
           >
@@ -437,13 +470,31 @@ export function PaymentEntryClient({
               <ActionNotice state={state} />
               {state.status === "success" && receiptHref ? (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900">
-                  <p className="font-semibold">Counter entry saved.</p>
+                  <p className="font-semibold">Receipt generated.</p>
+                  <div className="mt-2 grid gap-2 text-sm md:grid-cols-3">
+                    <span>Receipt: {state.receiptNumber}</span>
+                    <span>Amount: {formatInr(paymentAmount)}</span>
+                    <span>Student: {selectedStudent.fullName}</span>
+                  </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {successActions.map((action) => (
                       <Button key={`${action.label}-${action.href}`} asChild size="sm" variant="outline">
                         <Link href={action.href}>{action.label}</Link>
                       </Button>
                     ))}
+                    {whatsappCopy ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(whatsappCopy);
+                          setCopyStatus("copied");
+                        }}
+                      >
+                        {copyStatus === "copied" ? "Copied text" : "Copy confirmation text"}
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
               ) : null}
@@ -457,7 +508,11 @@ export function PaymentEntryClient({
                       id="payment-date"
                       name="paymentDate"
                       type="date"
-                      defaultValue={new Date().toISOString().slice(0, 10)}
+                      value={paymentDate}
+                      onChange={(event) => {
+                        setPaymentDate(event.target.value);
+                        setIsReviewing(false);
+                      }}
                       className="mt-2"
                       required
                     />
@@ -472,9 +527,34 @@ export function PaymentEntryClient({
                       max={selectedStudent.totalPending}
                       className="mt-2"
                       value={paymentAmountInput}
-                      onChange={(event) => setPaymentAmountInput(event.target.value)}
+                      onChange={(event) => {
+                        setPaymentAmountInput(event.target.value);
+                        setIsReviewing(false);
+                      }}
                       required
                     />
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {quickAmounts.map((quickAmount) => (
+                        <Button
+                          key={quickAmount.key}
+                          type="button"
+                          size="sm"
+                          variant={quickAmount.key === "custom" ? "ghost" : "outline"}
+                          disabled={quickAmount.disabled}
+                          onClick={() => {
+                            setIsReviewing(false);
+                            if (quickAmount.amount === null) {
+                              setPaymentAmountInput("");
+                              return;
+                            }
+
+                            setPaymentAmountInput(String(quickAmount.amount));
+                          }}
+                        >
+                          {quickAmount.label}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                   <div>
                     <Label htmlFor="payment-mode">Payment mode</Label>
@@ -482,7 +562,11 @@ export function PaymentEntryClient({
                       id="payment-mode"
                       name="paymentMode"
                       className={`${selectClassName} mt-2`}
-                      defaultValue="cash"
+                      value={paymentMode}
+                      onChange={(event) => {
+                        setPaymentMode(event.target.value as typeof paymentMode);
+                        setIsReviewing(false);
+                      }}
                       required
                     >
                       {data.modeOptions.map((modeOption) => (
@@ -499,6 +583,11 @@ export function PaymentEntryClient({
                       name="referenceNumber"
                       className="mt-2"
                       placeholder="UPI/cheque/txn ref"
+                      value={referenceNumber}
+                      onChange={(event) => {
+                        setReferenceNumber(event.target.value);
+                        setIsReviewing(false);
+                      }}
                     />
                   </div>
                   <div>
@@ -507,7 +596,11 @@ export function PaymentEntryClient({
                       id="payment-received-by"
                       name="receivedBy"
                       className="mt-2"
-                      defaultValue={defaultReceivedBy}
+                      value={receivedBy}
+                      onChange={(event) => {
+                        setReceivedBy(event.target.value);
+                        setIsReviewing(false);
+                      }}
                       required
                     />
                   </div>
@@ -520,6 +613,11 @@ export function PaymentEntryClient({
                     name="remarks"
                     className={`${textAreaClassName} mt-2`}
                     placeholder="Optional desk remarks"
+                    value={remarks}
+                    onChange={(event) => {
+                      setRemarks(event.target.value);
+                      setIsReviewing(false);
+                    }}
                   />
                 </div>
 
@@ -568,19 +666,59 @@ export function PaymentEntryClient({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end">
-                  <Button
-                    type="submit"
-                    disabled={
-                      !canPost ||
-                      pending ||
-                      selectedStudent.totalPending <= 0 ||
-                      paymentAmount <= 0 ||
-                      paymentAmount > selectedStudent.totalPending
-                    }
-                  >
-                    {pending ? "Saving payment..." : "Save payment and generate receipt"}
-                  </Button>
+                <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                  <p className="text-sm font-semibold text-blue-950">6. Review & Confirm</p>
+                  {isReviewing ? (
+                    <div className="mt-3 space-y-3 text-sm text-blue-950">
+                      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                        <span>Student: {selectedStudent.fullName}</span>
+                        <span>SR no: {selectedStudent.admissionNo}</span>
+                        <span>Class: {selectedStudent.classLabel}</span>
+                        <span>Amount: {formatInr(paymentAmount)}</span>
+                        <span>Mode: {selectedPaymentModeLabel}</span>
+                        <span>Date: {paymentDate}</span>
+                        <span>Allocated: {formatInr(allocatedPreviewTotal)}</span>
+                        <span>Unallocated: {formatInr(unallocatedAmount)}</span>
+                      </div>
+                      <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+                        This will generate an append-only receipt and cannot be edited later.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-blue-900">
+                      Review the amount, payment mode, date, and allocation before generating the receipt.
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-end gap-2">
+                  {!isReviewing ? (
+                    <Button
+                      type="button"
+                      disabled={
+                        !canPost ||
+                        selectedStudent.totalPending <= 0 ||
+                        paymentAmount <= 0 ||
+                        paymentAmount > selectedStudent.totalPending
+                      }
+                      onClick={() => setIsReviewing(true)}
+                    >
+                      Review Payment
+                    </Button>
+                  ) : (
+                    <Button
+                      type="submit"
+                      disabled={
+                        !canPost ||
+                        pending ||
+                        selectedStudent.totalPending <= 0 ||
+                        paymentAmount <= 0 ||
+                        paymentAmount > selectedStudent.totalPending
+                      }
+                    >
+                      {pending ? "Generating receipt..." : "Confirm & Generate Receipt"}
+                    </Button>
+                  )}
                 </div>
               </fieldset>
             </form>

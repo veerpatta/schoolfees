@@ -48,7 +48,7 @@ Primary daily navigation:
 - `Students`
 - `Fee Setup`
 - `Payment Desk`
-- `Dues & Receipts`
+- `Transactions`
 - `Advanced`
 
 Operational boundaries:
@@ -64,9 +64,11 @@ Operational boundaries:
 - `Students` is the daily surface for student master records, class/route
   assignment, student-specific fee profiles, special cases, and spreadsheet
   add/update work
-- `Dues & Receipts` is the workbook-style working area for receipt register,
-  installment tracker, master fee statement shortcuts, class register,
-  defaulters, today’s receipts, today’s collection, and import issues
+- `Payment Desk` is the only daily surface for posting payments and generating
+  append-only receipts
+- `Transactions` is the read-only permanent record and download center for
+  receipt records, dues, installment tracker, defaulters, class register,
+  today collection, import issues, and exports
 - `Advanced` keeps first-time setup, school setup lists, day close,
   reports/exports, staff, and settings out of the main daily flow
 - `Setup` remains first-time go-live preparation only and must not be reused
@@ -120,10 +122,12 @@ Main routes and modules in the repo today:
 - `app/protected/advanced/page.tsx`
   secondary hub for setup, school setup lists, day close, reports, staff, and
   settings
+- `app/protected/transactions/page.tsx`
+  read-only Transactions workspace with posted receipts, student dues,
+  installment tracker, class register, defaulters, today collection, import
+  issues, and CSV exports
 - `app/protected/dues/page.tsx`
-  workbook-style dues and receipt area with shortcut views for receipt
-  register, installment tracker, master fee statements, class register,
-  defaulters, today’s receipts, today’s collection, and import issues
+  legacy compatibility redirect to `/protected/transactions`
 - `app/protected/payments/page.tsx`
   payment entry desk (also served at /collections)
 - `app/protected/collections/page.tsx`

@@ -80,6 +80,10 @@ Daily workflow boundary:
 - `Students` is the staff-facing worksheet for student master records,
   class/route assignment, student-specific fee profiles, special cases, and
   staged spreadsheet add/update work
+- `Payment Desk` is the only staff-facing workflow for collecting payments,
+  posting through allocation, and generating append-only receipts
+- `Transactions` is read-only and owns permanent receipt records, dues,
+  installment tracker, defaulters, class register, and finance CSV downloads
 - `Advanced` is the place for setup, school setup lists, finance controls,
   reports, staff, and settings
 - `Fee Setup` is the daily live fee-editing path for workbook values
@@ -139,6 +143,8 @@ For Academic Session `2026-27`, workbook-mode behavior should match the school w
 These rules are critical:
 
 - never edit historical payments directly
+- never edit posted receipts directly
+- never mark a student paid without a posted payment and receipt allocation
 - use adjustment entries, reversal entries, or other explicit correction records
 - preserve the original receipt trail
 - keep audit logs for all meaningful financial changes

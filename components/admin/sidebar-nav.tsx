@@ -30,7 +30,7 @@ export function SidebarNav({
     <nav
       className={cn(
         isTopbar
-          ? "flex gap-2 overflow-x-auto pb-1"
+          ? "grid grid-cols-2 gap-2 sm:grid-cols-3"
           : "space-y-2",
         className,
       )}
@@ -46,7 +46,7 @@ export function SidebarNav({
             className={cn(
               "group transition-all duration-200",
               isTopbar
-                ? "flex min-w-fit items-center gap-2 rounded-full border px-3 py-2 text-sm shadow-[0_12px_26px_-22px_rgba(15,23,42,0.35)]"
+                ? "flex w-full flex-col items-center justify-center gap-1 rounded-2xl border px-2 py-2 text-center text-[11px] leading-4 shadow-[0_12px_26px_-22px_rgba(15,23,42,0.35)]"
                 : "flex items-start gap-3 rounded-[24px] border px-3.5 py-3.5",
               active
                 ? "border-transparent bg-[linear-gradient(135deg,#1d4ed8_0%,#0ea5e9_100%)] text-white shadow-[0_20px_50px_-30px_rgba(37,99,235,0.8)]"
@@ -65,7 +65,7 @@ export function SidebarNav({
               <Icon className="size-4" />
             </div>
             {isTopbar ? (
-              <span className="whitespace-nowrap text-sm font-medium">
+              <span className="text-[11px] font-medium leading-4">
                 {item.label}
               </span>
             ) : (

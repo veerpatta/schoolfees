@@ -98,10 +98,12 @@ type ReceiptRouteRow = {
 };
 
 type ReceiptStudentRow = {
+  id: string;
   full_name: string;
   admission_no: string;
   father_name: string | null;
   primary_phone: string | null;
+  transport_route_id: string | null;
   class_ref: ReceiptClassRow | ReceiptClassRow[] | null;
   route_ref: ReceiptRouteRow | ReceiptRouteRow[] | null;
 };
@@ -113,6 +115,7 @@ type ReceiptRow = {
   payment_mode: "cash" | "upi" | "bank_transfer" | "cheque";
   total_amount: number;
   reference_number: string | null;
+  received_by: string | null;
   student_id: string;
   student_ref: ReceiptStudentRow | ReceiptStudentRow[] | null;
 };
@@ -204,6 +207,7 @@ export type WorkbookTransaction = {
   paymentDate: string;
   paymentMode: string;
   referenceNumber: string | null;
+  receivedBy?: string | null;
   totalAmount: number;
   studentId: string;
   studentName: string;
@@ -212,6 +216,7 @@ export type WorkbookTransaction = {
   fatherPhone: string | null;
   classId: string | null;
   classLabel: string;
+  transportRouteId: string | null;
   transportRouteLabel: string;
   sessionLabel: string | null;
   currentOutstanding: number;
@@ -483,15 +488,21 @@ export async function getWorkbookInstallmentRows(filters?: {
 
 export async function getWorkbookTransactions(filters?: {
   classId?: string;
+  fromDate?: string;
+  limit?: number | null;
+  paymentMode?: string;
+  query?: string;
+  routeId?: string;
   todayOnly?: boolean;
   studentId?: string;
   sessionLabel?: string;
+  toDate?: string;
 }) {
   const supabase = await createClient();
   let query = supabase
     .from("receipts")
     .select(
-      "id, receipt_number, payment_date, payment_mode, total_amount, reference_number, student_id, student_ref:students(full_name, admission_no, father_name, primary_phone, class_ref:classes(id, session_label, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code))",
+      "id, receipt_number, payment_date, payment_mode, total_amount, reference_number, received_by, student_id, student_ref:students(id, full_name, admission_no, father_name, primary_phone, transport_route_id, class_ref:classes(id, session_label, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code))",
     )
     .order("payment_date", { ascending: false })
     .order("created_at", { ascending: false });
@@ -504,7 +515,25 @@ export async function getWorkbookTransactions(filters?: {
     query = query.eq("payment_date", getTodayStamp());
   }
 
-  const { data, error } = await query.limit(250);
+  if (filters?.fromDate) {
+    query = query.gte("payment_date", filters.fromDate);
+  }
+
+  if (filters?.toDate) {
+    query = query.lte("payment_date", filters.toDate);
+  }
+
+  if (filters?.paymentMode) {
+    query = query.eq("payment_mode", filters.paymentMode);
+  }
+
+  if (typeof filters?.limit === "number") {
+    query = query.limit(filters.limit);
+  } else if (filters?.limit !== null) {
+    query = query.limit(250);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(`Unable to load workbook transactions: ${error.message}`);
@@ -531,6 +560,7 @@ export async function getWorkbookTransactions(filters?: {
         paymentDate: row.payment_date,
         paymentMode: row.payment_mode,
         referenceNumber: row.reference_number,
+        receivedBy: row.received_by ?? null,
         totalAmount: row.total_amount,
         studentId: row.student_id,
         studentName: studentRef?.full_name ?? "Unknown student",
@@ -539,6 +569,7 @@ export async function getWorkbookTransactions(filters?: {
         fatherPhone: studentRef?.primary_phone ?? null,
         classId: classRef?.id ?? null,
         classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
+        transportRouteId: studentRef?.transport_route_id ?? null,
         transportRouteLabel: buildRouteLabel(routeRef),
         sessionLabel: classRef?.session_label ?? null,
         currentOutstanding: financial?.outstandingAmount ?? 0,
@@ -548,5 +579,27 @@ export async function getWorkbookTransactions(filters?: {
       } satisfies WorkbookTransaction;
     })
     .filter((row) => (filters?.classId ? row.classId === filters.classId : true))
-    .filter((row) => (filters?.sessionLabel ? row.sessionLabel === filters.sessionLabel : true));
+    .filter((row) => (filters?.routeId ? row.transportRouteId === filters.routeId : true))
+    .filter((row) => (filters?.sessionLabel ? row.sessionLabel === filters.sessionLabel : true))
+    .filter((row) => {
+      const normalizedQuery = (filters?.query ?? "").trim().toLowerCase();
+
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      const haystack = [
+        row.receiptNumber,
+        row.referenceNumber ?? "",
+        row.studentName,
+        row.admissionNo,
+        row.classLabel,
+        row.fatherName ?? "",
+        row.fatherPhone ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(normalizedQuery);
+    });
 }

@@ -108,9 +108,9 @@ function ActionButtons({
         </Button>
       ) : null}
       <Button asChild variant="outline">
-        <Link href="/protected/dues">
+        <Link href="/protected/transactions">
           <ReceiptText className="size-4" />
-          Dues & Receipts
+          Transactions
         </Link>
       </Button>
     </div>

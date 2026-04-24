@@ -99,12 +99,16 @@ export default async function StudentDetailPage({
       tab === "fee-plan"
         ? "Fee Plan"
         : tab === "dues"
-          ? "Dues / Installments"
+          ? "Dues"
           : tab === "history"
-            ? "Audit / History"
-            : tab === "profile"
-              ? "Profile"
-              : tab.charAt(0).toUpperCase() + tab.slice(1),
+            ? "History"
+            : tab === "payments"
+              ? "Payments"
+              : tab === "receipts"
+                ? "Receipts"
+                : tab === "notes"
+                  ? "Notes"
+                  : "Profile",
   }));
 
   return (
@@ -225,15 +229,15 @@ export default async function StudentDetailPage({
       </section>
 
       <SectionCard title="Workspace tabs" description="Open one section at a time instead of jumping across several routes.">
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex flex-wrap gap-2">
           {tabs.map((tab) => (
             <Link
               key={tab.key}
               href={`/protected/students/${student.id}?tab=${tab.key}`}
               className={
                 activeTab === tab.key
-                  ? "inline-flex min-w-fit items-center rounded-full border border-slate-900 bg-slate-900 px-3 py-2 text-sm text-white"
-                  : "inline-flex min-w-fit items-center rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:border-slate-300"
+                  ? "inline-flex items-center rounded-full border border-slate-900 bg-slate-900 px-3 py-2 text-sm text-white"
+                  : "inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:border-slate-300"
               }
             >
               {tab.label}

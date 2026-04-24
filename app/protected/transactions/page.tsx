@@ -13,6 +13,7 @@ import {
   type OfficeWorkbookSummary,
 } from "@/lib/office/dues";
 import {
+  buildOfficeWorkbookExportHref,
   buildOfficeWorkbookHref,
   normalizeOfficeWorkbookView,
   officeWorkbookMeta,
@@ -20,14 +21,21 @@ import {
   type OfficeWorkbookView,
 } from "@/lib/office/workbook";
 import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
+import { getFeePolicySummary } from "@/lib/fees/data";
 import { getSetupWizardData } from "@/lib/setup/data";
-import { requireAnyStaffPermission } from "@/lib/supabase/session";
+import { getStudentFormOptions } from "@/lib/students/data";
+import { hasStaffPermission, requireAnyStaffPermission } from "@/lib/supabase/session";
 
-type DuesPageProps = {
+type TransactionsPageProps = {
   searchParams?: Promise<{
     view?: string;
     classId?: string;
+    fromDate?: string;
+    paymentMode?: string;
+    query?: string;
+    routeId?: string;
     sessionLabel?: string;
+    toDate?: string;
   }>;
 };
 
@@ -37,6 +45,34 @@ const UUID_PATTERN =
 function normalizeClassId(value: string | undefined) {
   const normalized = (value ?? "").trim();
   return UUID_PATTERN.test(normalized) ? normalized : "";
+}
+
+function normalizeDate(value: string | undefined) {
+  const normalized = (value ?? "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : "";
+}
+
+function normalizePaymentMode(value: string | undefined) {
+  const normalized = (value ?? "").trim();
+  return ["cash", "upi", "bank_transfer", "cheque"].includes(normalized)
+    ? normalized
+    : "";
+}
+
+function formatPaymentModeLabel(value: string) {
+  if (value === "upi") {
+    return "UPI";
+  }
+
+  if (value === "bank_transfer") {
+    return "Bank transfer";
+  }
+
+  if (value === "cheque") {
+    return "Cheque";
+  }
+
+  return "Cash";
 }
 
 function formatOptionalDate(value: string | null | undefined) {
@@ -61,25 +97,37 @@ function getStatusTone(status: OfficeWorkbookStudentRow["statusLabel"]) {
 function ViewTabs({
   activeView,
   classId,
-  sessionLabel,
+  query,
 }: {
   activeView: OfficeWorkbookView;
   classId: string;
-  sessionLabel: string;
+  query: Record<string, string>;
 }) {
+  const buildHref = (view: OfficeWorkbookView) => {
+    const params = new URLSearchParams();
+
+    Object.entries({ ...query, view, classId }).forEach(([key, value]) => {
+      if (value) {
+        params.set(key, value);
+      }
+    });
+
+    return `/protected/transactions?${params.toString()}`;
+  };
+
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1">
+    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-5">
       {officeWorkbookViews.map((view) => (
         <Link
           key={view}
-          href={buildOfficeWorkbookHref({ view, classId, sessionLabel })}
+          href={buildHref(view)}
           className={
             view === activeView
-              ? "inline-flex min-w-fit items-center rounded-full border border-slate-900 bg-slate-900 px-3 py-2 text-sm text-white"
-              : "inline-flex min-w-fit items-center rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:border-slate-300"
+              ? "inline-flex w-full items-center justify-center rounded-full border border-slate-900 bg-slate-900 px-2 py-2 text-[11px] font-medium leading-4 text-white sm:px-3 sm:text-sm"
+              : "inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-2 py-2 text-[11px] font-medium leading-4 text-slate-700 hover:border-slate-300 sm:px-3 sm:text-sm"
           }
         >
-          {officeWorkbookMeta[view].title}
+          {officeWorkbookMeta[view].shortTitle}
         </Link>
       ))}
     </div>
@@ -148,7 +196,7 @@ function TransactionsTable({
   rows,
 }: {
   rows: Awaited<ReturnType<typeof getOfficeWorkbookData>> extends infer T
-    ? T extends { view: "transactions" | "receipts_today"; rows: infer R }
+    ? T extends { view: "transactions" | "receipts"; rows: infer R }
       ? R
       : never
     : never;
@@ -160,10 +208,13 @@ function TransactionsTable({
           <tr>
             <th className="px-4 py-3">Date</th>
             <th className="px-4 py-3">Receipt / Ref</th>
-            <th className="px-4 py-3">Amount</th>
             <th className="px-4 py-3">Student</th>
-            <th className="px-4 py-3">Class</th>
             <th className="px-4 py-3">SR no</th>
+            <th className="px-4 py-3">Class</th>
+            <th className="px-4 py-3">Payment mode</th>
+            <th className="px-4 py-3">Reference</th>
+            <th className="px-4 py-3">Amount</th>
+            <th className="px-4 py-3">Received by</th>
             <th className="px-4 py-3">Father</th>
             <th className="px-4 py-3">Phone</th>
             <th className="px-4 py-3">Route</th>
@@ -177,7 +228,7 @@ function TransactionsTable({
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={14} className="px-4 py-6 text-center text-slate-500">
+              <td colSpan={16} className="px-4 py-6 text-center text-slate-500">
                 No transactions found for this view.
               </td>
             </tr>
@@ -187,12 +238,14 @@ function TransactionsTable({
                 <td className="px-4 py-3">{formatShortDate(row.paymentDate)}</td>
                 <td className="px-4 py-3">
                   <div className="font-medium text-slate-900">{row.receiptNumber}</div>
-                  <div className="text-xs text-slate-500">{row.referenceNumber ?? "-"}</div>
                 </td>
-                <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.totalAmount)}</td>
                 <td className="px-4 py-3">{row.studentName}</td>
-                <td className="px-4 py-3">{row.classLabel}</td>
                 <td className="px-4 py-3">{row.admissionNo}</td>
+                <td className="px-4 py-3">{row.classLabel}</td>
+                <td className="px-4 py-3">{formatPaymentModeLabel(row.paymentMode)}</td>
+                <td className="px-4 py-3">{row.referenceNumber ?? "-"}</td>
+                <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.totalAmount)}</td>
+                <td className="px-4 py-3">{row.receivedBy ?? "-"}</td>
                 <td className="px-4 py-3">{row.fatherName ?? "-"}</td>
                 <td className="px-4 py-3">{row.fatherPhone ?? "-"}</td>
                 <td className="px-4 py-3">{row.transportRouteLabel}</td>
@@ -207,6 +260,9 @@ function TransactionsTable({
                     </Button>
                     <Button asChild size="sm" variant="outline">
                       <Link href={`/protected/students/${row.studentId}`}>Student</Link>
+                    </Button>
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/protected/payments?studentId=${row.studentId}`}>Payment Desk</Link>
                     </Button>
                   </div>
                 </td>
@@ -298,7 +354,7 @@ function InstallmentTrackerTable({ rows }: { rows: OfficeWorkbookStudentRow[] })
   );
 }
 
-function StatementsTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
+function StudentDuesTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200">
       <table className="w-full min-w-[1320px] text-left text-sm">
@@ -635,29 +691,88 @@ function ImportIssuesTable({
   );
 }
 
-export default async function DuesPage({ searchParams }: DuesPageProps) {
-  const staff = await requireAnyStaffPermission(["receipts:view", "defaulters:view", "imports:view"], {
-    onDenied: "redirect",
-  });
+export default async function TransactionsPage({ searchParams }: TransactionsPageProps) {
+  const staff = await requireAnyStaffPermission(
+    ["receipts:view", "defaulters:view", "reports:view", "finance:view"],
+    {
+      onDenied: "redirect",
+    },
+  );
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const activeView = normalizeOfficeWorkbookView(resolvedSearchParams?.view);
   const classId = normalizeClassId(resolvedSearchParams?.classId);
+  const routeId = normalizeClassId(resolvedSearchParams?.routeId);
   const sessionLabel = (resolvedSearchParams?.sessionLabel ?? "").trim();
-  const [workbook, setup] = await Promise.all([
-    getOfficeWorkbookData({ view: activeView, classId, sessionLabel }),
+  const searchQuery = (resolvedSearchParams?.query ?? "").trim();
+  const fromDate = normalizeDate(resolvedSearchParams?.fromDate);
+  const toDate = normalizeDate(resolvedSearchParams?.toDate);
+  const paymentMode = normalizePaymentMode(resolvedSearchParams?.paymentMode);
+  const [workbook, setup, { routeOptions }, policy] = await Promise.all([
+    getOfficeWorkbookData({
+      view: activeView,
+      classId,
+      fromDate,
+      paymentMode,
+      routeId,
+      searchQuery,
+      sessionLabel,
+      toDate,
+    }),
     getSetupWizardData(),
+    getStudentFormOptions(),
+    getFeePolicySummary(),
   ]);
   const readiness = getOfficeWorkflowReadiness(setup, staff.appRole);
   const activeMeta = officeWorkbookMeta[activeView];
+  const canExport = hasStaffPermission(staff, "reports:view");
+  const preservedQuery = {
+    query: searchQuery,
+    fromDate,
+    toDate,
+    paymentMode,
+    routeId,
+    sessionLabel,
+  };
+  const currentExportHref = buildOfficeWorkbookExportHref({
+    view: activeView,
+    classId,
+    fromDate,
+    paymentMode,
+    query: searchQuery,
+    routeId,
+    sessionLabel,
+    toDate,
+  });
 
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Dues & Receipts"
-        title={activeMeta.title}
-        description={`${activeMeta.description} Keep the controls above and the working table below.`}
-        actions={<StatusBadge label="Workbook office view" tone="accent" />}
+        eyebrow="Finance records"
+        title="Transactions"
+        description="Permanent receipt records, dues, installment tracker, defaulters, and exportable finance views."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {canExport ? (
+              <Button asChild size="sm" variant="outline">
+                <Link href={currentExportHref}>Export current view</Link>
+              </Button>
+            ) : null}
+            <Button asChild size="sm" variant="outline">
+              <Link href="/protected/payments">Open Payment Desk</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href={buildOfficeWorkbookHref({ view: "collection_today", classId, sessionLabel })}>
+                Today&apos;s Collection
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href={buildOfficeWorkbookHref({ view: "receipts", classId, sessionLabel })}>
+                Receipt Register
+              </Link>
+            </Button>
+          </div>
+        }
       />
 
       {!readiness.reports.isReady ? (
@@ -671,21 +786,103 @@ export default async function DuesPage({ searchParams }: DuesPageProps) {
 
       <SectionCard
         title="Choose view"
-        description="Switch the workbook view and class from one compact control area."
+        description="Switch records, dues, receipts, and export views from one compact control area."
         actions={
-          <Button asChild size="sm" variant="outline">
-            <Link href="/protected/reports">Open Reports & Exports</Link>
-          </Button>
+          <StatusBadge label="Read-only records" tone="accent" />
         }
       >
         <div className="space-y-4">
-          <ViewTabs activeView={activeView} classId={classId} sessionLabel={sessionLabel} />
+          <ViewTabs activeView={activeView} classId={classId} query={preservedQuery} />
           <ClassTabs
-            basePath="/protected/dues"
+            basePath="/protected/transactions"
             classOptions={workbook.classOptions}
             activeClassId={classId}
-            query={{ view: activeView, sessionLabel }}
+            query={{ view: activeView, ...preservedQuery }}
           />
+          <form action="/protected/transactions" method="get" className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+            <input type="hidden" name="view" value={activeView} />
+            {classId ? <input type="hidden" name="classId" value={classId} /> : null}
+            <div className="xl:col-span-2">
+              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" htmlFor="transactions-query">
+                Search
+              </label>
+              <input
+                id="transactions-query"
+                name="query"
+                defaultValue={searchQuery}
+                className="mt-2 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                placeholder="Student, SR no, receipt no, phone"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" htmlFor="transactions-route">
+                Route
+              </label>
+              <select
+                id="transactions-route"
+                name="routeId"
+                defaultValue={routeId}
+                className="mt-2 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+              >
+                <option value="">All routes</option>
+                {routeOptions.map((route) => (
+                  <option key={route.id} value={route.id}>
+                    {route.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" htmlFor="transactions-mode">
+                Mode
+              </label>
+              <select
+                id="transactions-mode"
+                name="paymentMode"
+                defaultValue={paymentMode}
+                className="mt-2 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+              >
+                <option value="">All modes</option>
+                {policy.acceptedPaymentModes.map((mode) => (
+                  <option key={mode.value} value={mode.value}>
+                    {mode.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" htmlFor="transactions-from">
+                From
+              </label>
+              <input
+                id="transactions-from"
+                name="fromDate"
+                type="date"
+                defaultValue={fromDate}
+                className="mt-2 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" htmlFor="transactions-to">
+                To
+              </label>
+              <input
+                id="transactions-to"
+                name="toDate"
+                type="date"
+                defaultValue={toDate}
+                className="mt-2 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+              />
+            </div>
+            <div className="flex items-end gap-2 xl:col-span-6">
+              <Button type="submit" size="sm">Apply filters</Button>
+              <Button asChild size="sm" variant="outline">
+                <Link href={buildOfficeWorkbookHref({ view: activeView, classId: "", sessionLabel: "" })}>
+                  Reset
+                </Link>
+              </Button>
+            </div>
+          </form>
         </div>
       </SectionCard>
 
@@ -705,13 +902,13 @@ export default async function DuesPage({ searchParams }: DuesPageProps) {
         </SectionCard>
       ) : null}
 
-      {workbook.view === "transactions" || workbook.view === "receipts_today" ? (
+      {workbook.view === "transactions" || workbook.view === "receipts" ? (
         <SectionCard
           title={activeMeta.title}
           description={
             workbook.view === "transactions"
-              ? "Receipt register with current workbook balance context."
-              : "Today's posted receipts with print and student shortcuts."
+              ? "Latest posted records newest first with current workbook balance context."
+              : "Receipt register with print, student, and payment desk shortcuts."
           }
         >
           <TransactionsTable rows={workbook.rows} />
@@ -727,12 +924,12 @@ export default async function DuesPage({ searchParams }: DuesPageProps) {
         </SectionCard>
       ) : null}
 
-      {workbook.view === "statements" ? (
+      {workbook.view === "student_dues" ? (
         <SectionCard
-          title="Master fee statements"
-          description="Open printable student statements directly from the working table."
+          title="Student dues"
+          description="Student-wise dues, paid, pending, discount, and next-due details."
         >
-          <StatementsTable rows={workbook.rows} />
+          <StudentDuesTable rows={workbook.rows} />
         </SectionCard>
       ) : null}
 
@@ -769,6 +966,44 @@ export default async function DuesPage({ searchParams }: DuesPageProps) {
           description="Recent staged rows that still need review or cleanup."
         >
           <ImportIssuesTable rows={workbook.rows} />
+        </SectionCard>
+      ) : null}
+
+      {workbook.view === "exports" ? (
+        <SectionCard
+          title="Exports"
+          description="Download the permanent finance views as CSV. PDF export remains deferred."
+        >
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {officeWorkbookViews
+              .filter((view) => view !== "exports")
+              .map((view) => (
+                <div key={view} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+                  <p className="font-medium text-slate-950">{officeWorkbookMeta[view].title}</p>
+                  <p className="mt-1 text-sm text-slate-600">{officeWorkbookMeta[view].description}</p>
+                  {canExport ? (
+                    <Button asChild size="sm" variant="outline" className="mt-3">
+                      <Link
+                        href={buildOfficeWorkbookExportHref({
+                          view,
+                          classId,
+                          fromDate,
+                          paymentMode,
+                          query: searchQuery,
+                          routeId,
+                          sessionLabel,
+                          toDate,
+                        })}
+                      >
+                        Download CSV
+                      </Link>
+                    </Button>
+                  ) : (
+                    <p className="mt-3 text-sm text-slate-500">CSV export requires reports access.</p>
+                  )}
+                </div>
+              ))}
+          </div>
         </SectionCard>
       ) : null}
     </div>

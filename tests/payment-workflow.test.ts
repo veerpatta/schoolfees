@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { buildPaymentDeskSuccessActions } from "@/lib/payments/workflow";
+import {
+  buildPaymentDeskSuccessActions,
+  buildPaymentQuickAmounts,
+} from "@/lib/payments/workflow";
 
 describe("payment desk success workflow", () => {
   it("returns the main next-step shortcuts after posting a payment", () => {
@@ -16,16 +19,51 @@ describe("payment desk success workflow", () => {
         href: "/protected/receipts/receipt-1",
       },
       {
-        label: "Open receipt",
-        href: "/protected/receipts/receipt-1",
-      },
-      {
-        label: "Back to student",
+        label: "Open student",
         href: "/protected/students/student-1",
       },
       {
-        label: "Post next payment",
+        label: "Next payment",
         href: "/protected/payments",
+      },
+      {
+        label: "Open Transactions",
+        href: "/protected/transactions",
+      },
+    ]);
+  });
+
+  it("builds quick-fill amounts without posting anything", () => {
+    expect(
+      buildPaymentQuickAmounts({
+        totalPending: 12000,
+        nextDueAmount: 3000,
+        overdueAmount: 5000,
+      }),
+    ).toEqual([
+      {
+        key: "full",
+        label: "Pay full pending",
+        amount: 12000,
+        disabled: false,
+      },
+      {
+        key: "next",
+        label: "Pay current / next due installment",
+        amount: 3000,
+        disabled: false,
+      },
+      {
+        key: "overdue",
+        label: "Pay overdue amount",
+        amount: 5000,
+        disabled: false,
+      },
+      {
+        key: "custom",
+        label: "Custom amount",
+        amount: null,
+        disabled: false,
       },
     ]);
   });
