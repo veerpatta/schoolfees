@@ -9,7 +9,10 @@ import { getSetupWizardData } from "@/lib/setup/data";
 import { getStudentFormOptions } from "@/lib/students/data";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
-import { submitPaymentEntryAction } from "./actions";
+import {
+  repairPaymentDeskStudentDuesAction,
+  submitPaymentEntryAction,
+} from "./actions";
 
 type PaymentsPageProps = {
   searchParams?: Promise<{
@@ -75,6 +78,7 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
         initialState={INITIAL_PAYMENT_ENTRY_ACTION_STATE}
         defaultReceivedBy={staff.email ?? "Office desk"}
         submitPaymentEntryAction={submitPaymentEntryAction}
+        repairPaymentDeskStudentDuesAction={repairPaymentDeskStudentDuesAction}
       />
     </div>
   );

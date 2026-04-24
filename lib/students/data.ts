@@ -2,7 +2,9 @@ import "server-only";
 
 import { getFeePolicySummary, upsertStudentFeeOverride } from "@/lib/fees/data";
 import { getMasterDataOptions } from "@/lib/master-data/data";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getStudentDeletePolicy } from "@/lib/students/delete-policy";
 import type {
   StudentClassOption,
   StudentDetail,
@@ -10,6 +12,7 @@ import type {
   StudentListItem,
   StudentRouteOption,
   StudentSessionOption,
+  StudentDeletionSafety,
   StudentValidatedInput,
 } from "@/lib/students/types";
 
@@ -660,4 +663,110 @@ export async function updateStudent(studentId: string, payload: StudentValidated
   const updatedStudentId = data.id as string;
   await saveStudentFeeProfile(updatedStudentId, payload, existingOverride);
   return updatedStudentId;
+}
+
+async function countRows(
+  tableName: string,
+  studentId: string,
+  columnName = "student_id",
+) {
+  const supabase = await createClient();
+  const { count, error } = await supabase
+    .from(tableName)
+    .select("id", { count: "exact", head: true })
+    .eq(columnName, studentId);
+
+  if (error) {
+    throw new Error(`Unable to check ${tableName}: ${error.message}`);
+  }
+
+  return count ?? 0;
+}
+
+export async function getStudentDeletionSafety(studentId: string): Promise<StudentDeletionSafety | null> {
+  const student = await getStudentDetail(studentId);
+
+  if (!student) {
+    return null;
+  }
+
+  const [
+    installmentCount,
+    receiptCount,
+    paymentCount,
+    adjustmentCount,
+    auditLogCount,
+  ] = await Promise.all([
+    countRows("installments", studentId),
+    countRows("receipts", studentId),
+    countRows("payments", studentId),
+    countRows("payment_adjustments", studentId),
+    countRows("audit_logs", studentId, "record_id").catch(() => 0),
+  ]);
+  const deletePolicy = getStudentDeletePolicy({
+    installmentCount,
+    receiptCount,
+    paymentCount,
+    adjustmentCount,
+    sessionLabel: student.classSessionLabel,
+    admissionNo: student.admissionNo,
+    fullName: student.fullName,
+  });
+
+  return {
+    studentId,
+    hasFinancialHistory: deletePolicy.hasFinancialHistory,
+    hardDeleteAllowed: deletePolicy.hardDeleteAllowed,
+    generatedDuesDeleteAllowed: deletePolicy.generatedDuesDeleteAllowed,
+    canForceDeleteTestRecord: deletePolicy.canForceDeleteTestRecord,
+    installmentCount,
+    receiptCount,
+    paymentCount,
+    adjustmentCount,
+    auditLogCount,
+    sessionLabel: student.classSessionLabel,
+    admissionNo: student.admissionNo,
+    fullName: student.fullName,
+  };
+}
+
+export async function archiveStudent(studentId: string) {
+  const supabase = await createClient();
+  const existing = await getStudentDetail(studentId);
+  const archiveNote = "Archived / withdrawn from Student Master.";
+  const nextNotes = existing?.notes
+    ? `${existing.notes}\n${archiveNote}`
+    : archiveNote;
+  const { error } = await supabase
+    .from("students")
+    .update({
+      status: "left",
+      notes: nextNotes,
+    })
+    .eq("id", studentId);
+
+  if (error) {
+    throw new Error(`Unable to archive student: ${error.message}`);
+  }
+}
+
+export async function hardDeleteStudent(studentId: string, options: { forceTestRecord?: boolean } = {}) {
+  const safety = await getStudentDeletionSafety(studentId);
+
+  if (!safety) {
+    throw new Error("Student record was not found.");
+  }
+
+  if (!safety.hardDeleteAllowed && !(options.forceTestRecord && safety.canForceDeleteTestRecord)) {
+    throw new Error(
+      "This student has posted financial history. Archive / withdraw the student so old records stay valid.",
+    );
+  }
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("students").delete().eq("id", studentId);
+
+  if (error) {
+    throw new Error(`Unable to delete student safely: ${error.message}`);
+  }
 }

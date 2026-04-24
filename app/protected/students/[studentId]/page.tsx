@@ -9,7 +9,13 @@ import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { getStudentWorkspaceData } from "@/lib/students/workspace";
+import { getStudentDeletionSafety } from "@/lib/students/data";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
+
+import {
+  archiveStudentAction,
+  hardDeleteStudentAction,
+} from "../actions";
 
 type StudentDetailPageProps = {
   params: Promise<{
@@ -84,6 +90,7 @@ export default async function StudentDetailPage({
   const activeTab = normalizeTab(resolvedSearchParams?.tab);
   const { student, financialSnapshot, ledger, receipts, installmentBalances } =
     await getStudentWorkspaceData(resolvedParams.studentId);
+  const deletionSafety = await getStudentDeletionSafety(resolvedParams.studentId);
 
   if (!student) {
     notFound();
@@ -547,6 +554,60 @@ export default async function StudentDetailPage({
               </div>
             </div>
           ) : null}
+        </SectionCard>
+      ) : null}
+
+      {canEditStudent && deletionSafety ? (
+        <SectionCard
+          title="Admin record action"
+          description="Use delete only for wrong no-history records. Use archive / withdraw when finance records must stay valid."
+        >
+          <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              <p>
+                Receipts: {deletionSafety.receiptCount}, payments: {deletionSafety.paymentCount},
+                installments: {deletionSafety.installmentCount}, adjustments: {deletionSafety.adjustmentCount}.
+              </p>
+              <p className="mt-2">
+                {deletionSafety.hardDeleteAllowed
+                  ? deletionSafety.generatedDuesDeleteAllowed
+                    ? "Only generated dues are linked. Admin can delete this wrong record and its unpaid generated dues."
+                    : "No finance rows are linked, so admin can delete this wrong record."
+                  : "Posted finance history exists, so archive keeps old receipts and records true."}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 lg:justify-end">
+              <form action={archiveStudentAction}>
+                <input type="hidden" name="studentId" value={student.id} />
+                <Button type="submit" variant="outline">
+                  Archive / Withdraw student
+                </Button>
+              </form>
+              {deletionSafety.hardDeleteAllowed || deletionSafety.canForceDeleteTestRecord ? (
+                <form action={hardDeleteStudentAction} className="flex max-w-xs flex-col gap-2">
+                  <input type="hidden" name="studentId" value={student.id} />
+                  {deletionSafety.canForceDeleteTestRecord && !deletionSafety.hardDeleteAllowed ? (
+                    <input type="hidden" name="forceTestRecord" value="yes" />
+                  ) : null}
+                  <label className="text-xs font-medium text-slate-600" htmlFor="confirmDelete">
+                    Type SR {deletionSafety.admissionNo} to confirm delete
+                  </label>
+                  <input
+                    id="confirmDelete"
+                    name="confirmDelete"
+                    required
+                    className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                    placeholder={deletionSafety.admissionNo}
+                  />
+                  <Button type="submit" variant="destructive">
+                    {deletionSafety.generatedDuesDeleteAllowed
+                      ? "Delete wrong record and unpaid dues"
+                      : "Delete wrong record"}
+                  </Button>
+                </form>
+              ) : null}
+            </div>
+          </div>
         </SectionCard>
       ) : null}
     </div>

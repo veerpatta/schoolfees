@@ -3,7 +3,7 @@ import "server-only";
 import { getMasterDataOptions } from "@/lib/master-data/data";
 import { createClient } from "@/lib/supabase/server";
 import { getFeePolicySummary } from "@/lib/fees/data";
-import { generateSessionLedgersAction } from "@/lib/fees/generator";
+import { syncAfterBulkStudentImport } from "@/lib/system-sync/finance-sync";
 import { createStudent, getStudentDetail, updateStudent } from "@/lib/students/data";
 import { buildAutoColumnMapping, validateColumnMapping } from "@/lib/import/mapping";
 import { parseStudentImportFile } from "@/lib/import/parser";
@@ -1616,9 +1616,7 @@ export async function commitStudentImportBatch(batchId: string) {
 
   if (!ledgerSyncError && studentsToRegenerate.size > 0) {
     try {
-      const ledgerResult = await generateSessionLedgersAction({
-        scopedStudentIds: [...studentsToRegenerate],
-      });
+      const ledgerResult = await syncAfterBulkStudentImport([...studentsToRegenerate]);
 
       if (
         (createdCount > 0 || updatedCount > 0) &&

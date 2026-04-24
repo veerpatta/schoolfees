@@ -1,12 +1,16 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import type { PaymentMode } from "@/lib/db/types";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { postStudentPayment } from "@/lib/payments/data";
 import type { PaymentEntryActionState } from "@/lib/payments/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
+import {
+  revalidateCoreFinancePaths,
+  syncStudentDues,
+} from "@/lib/system-sync/finance-sync";
 
 function parseRequiredString(value: FormDataEntryValue | null, fieldLabel: string) {
   const normalized = (value ?? "").toString().trim();
@@ -63,12 +67,23 @@ function parsePaymentDate(value: FormDataEntryValue | null) {
 }
 
 function toActionStateError(error: unknown): PaymentEntryActionState {
+  const rawMessage =
+    error instanceof Error
+      ? error.message
+      : "Unable to save payment right now. Please try again.";
+  const normalized = rawMessage.toLowerCase();
+  const friendlyMessage =
+    normalized.includes("no pending dues") || normalized.includes("dues")
+      ? "No pending dues are available for this student. Generate dues or refresh the selected student before posting."
+      : normalized.includes("allocate")
+        ? "Payment could not be allocated to the student's dues. Refresh dues and try again."
+        : normalized.includes("receipt")
+          ? "Payment could not generate a receipt. Please try again or contact admin."
+          : "Unable to save payment right now. Please check the student, dues, amount, and payment mode.";
+
   return {
     status: "error",
-    message:
-      error instanceof Error
-        ? error.message
-        : "Unable to save payment right now. Please try again.",
+    message: friendlyMessage,
     receiptNumber: null,
     receiptId: null,
     studentId: null,
@@ -93,19 +108,7 @@ export async function submitPaymentEntryAction(
       receivedBy: parseRequiredString(formData.get("receivedBy"), "Received by"),
     });
 
-    revalidatePath("/protected");
-    revalidatePath("/protected/dashboard");
-    revalidatePath("/protected/payments");
-    revalidatePath("/protected/collections");
-    revalidatePath("/protected/finance-controls");
-    revalidatePath("/protected/receipts");
-    revalidatePath("/protected/dues");
-    revalidatePath("/protected/defaulters");
-    revalidatePath("/protected/transactions");
-    revalidatePath("/protected/reports");
-    revalidatePath("/protected/ledger");
-    revalidatePath(`/protected/students/${studentId}`);
-    revalidatePath(`/protected/students/${studentId}/statement`);
+    revalidateCoreFinancePaths([studentId]);
 
     return {
       status: "success",
@@ -117,4 +120,13 @@ export async function submitPaymentEntryAction(
   } catch (error) {
     return toActionStateError(error);
   }
+}
+
+export async function repairPaymentDeskStudentDuesAction(formData: FormData) {
+  await requireStaffPermission("fees:write");
+  const studentId = parseUuid(formData.get("studentId"), "Student");
+
+  await syncStudentDues([studentId]);
+
+  redirect(`/protected/payments?studentId=${studentId}`);
 }

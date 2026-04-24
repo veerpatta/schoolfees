@@ -120,6 +120,19 @@ vi.mock("@/lib/fees/generator", () => ({
   generateSessionLedgersAction,
 }));
 
+vi.mock("@/lib/system-sync/finance-sync", () => ({
+  syncAfterBulkStudentImport: vi.fn(async (studentIds: string[]) => {
+    await generateSessionLedgersAction({ scopedStudentIds: studentIds });
+    return {
+      affectedStudents: studentIds.length,
+      installmentsToInsert: 4,
+      installmentsToUpdate: 0,
+      installmentsToCancel: 0,
+      lockedInstallments: 0,
+    };
+  }),
+}));
+
 vi.mock("@/lib/students/data", () => ({
   createStudent,
   getStudentDetail,

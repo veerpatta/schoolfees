@@ -7,6 +7,10 @@ import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
 import { getSetupWizardData } from "@/lib/setup/data";
 import { createClient } from "@/lib/supabase/server";
 import {
+  getSystemSyncHealth,
+  type SystemSyncHealth,
+} from "@/lib/system-sync/finance-sync";
+import {
   buildDashboardSummary,
   type DashboardClassSummaryRow,
   type DashboardEmptyState,
@@ -87,6 +91,7 @@ export type DashboardPageData = {
   partlyPaidStudents: number;
   overdueStudents: number;
   notStartedStudents: number;
+  systemSyncHealth: SystemSyncHealth | null;
 };
 
 function getSchoolDateStamp(referenceDate = new Date()) {
@@ -282,6 +287,7 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
     overdueInstallments,
     transactions,
     todayTransactions,
+    systemSyncHealth,
     configAlerts,
     importAlerts,
     ledgerAlerts,
@@ -302,6 +308,7 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
       [],
       warnings,
     ),
+    optionalLoad("system sync health", getSystemSyncHealth, null, warnings),
     optionalLoad("fee setup review alerts", getConfigChangeAlerts, [], warnings),
     optionalLoad("student import alerts", getImportIssueAlerts, [], warnings),
     optionalLoad("dues update alerts", getLedgerReviewAlerts, [], warnings),
@@ -314,6 +321,7 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
     overdueInstallments,
     transactions,
     todayTransactions,
+    rawStudentCount: systemSyncHealth?.rawStudentsInActiveSession,
   });
 
   const paidStudents = financialRows.filter((row) => row.statusLabel === "PAID").length;
@@ -336,6 +344,22 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
       tone: "warning",
       actionHref: "/protected/reports",
       actionLabel: "Open reports",
+    });
+  }
+
+  if (
+    systemSyncHealth &&
+    systemSyncHealth.rawStudentsInActiveSession > 0 &&
+    (systemSyncHealth.studentsMissingInstallmentRows > 0 ||
+      systemSyncHealth.studentsMissingFinancialRows > 0)
+  ) {
+    alerts.unshift({
+      key: "missing-dues",
+      title: "Repair / Generate Missing Dues",
+      detail: `${systemSyncHealth.rawStudentsInActiveSession} students found, but dues are not generated for ${Math.max(systemSyncHealth.studentsMissingInstallmentRows, systemSyncHealth.studentsMissingFinancialRows)} student${Math.max(systemSyncHealth.studentsMissingInstallmentRows, systemSyncHealth.studentsMissingFinancialRows) === 1 ? "" : "s"}.`,
+      tone: "warning",
+      actionHref: "/protected/dashboard#system-sync-health",
+      actionLabel: "Generate Missing Dues",
     });
   }
 
@@ -394,5 +418,6 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
     partlyPaidStudents,
     overdueStudents,
     notStartedStudents,
+    systemSyncHealth,
   };
 }

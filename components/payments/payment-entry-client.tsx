@@ -37,6 +37,7 @@ type PaymentEntryClientProps = {
     previous: PaymentEntryActionState,
     formData: FormData,
   ) => Promise<PaymentEntryActionState>;
+  repairPaymentDeskStudentDuesAction: (formData: FormData) => Promise<void>;
 };
 
 const selectClassName =
@@ -71,6 +72,7 @@ export function PaymentEntryClient({
   initialState,
   defaultReceivedBy,
   submitPaymentEntryAction,
+  repairPaymentDeskStudentDuesAction,
 }: PaymentEntryClientProps) {
   const [state, formAction, pending] = useActionState(
     submitPaymentEntryAction,
@@ -313,7 +315,12 @@ export function PaymentEntryClient({
           description={selectedStudentIssue.detail}
         >
           <div className="flex flex-wrap items-center gap-2">
-            {selectedStudentIssue.actionHref && selectedStudentIssue.actionLabel ? (
+            {selectedStudentIssue.repairStudentId && selectedStudentIssue.actionLabel ? (
+              <form action={repairPaymentDeskStudentDuesAction}>
+                <input type="hidden" name="studentId" value={selectedStudentIssue.repairStudentId} />
+                <Button type="submit">{selectedStudentIssue.actionLabel}</Button>
+              </form>
+            ) : selectedStudentIssue.actionHref && selectedStudentIssue.actionLabel ? (
               <Button asChild>
                 <Link href={selectedStudentIssue.actionHref}>{selectedStudentIssue.actionLabel}</Link>
               </Button>

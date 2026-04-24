@@ -15,6 +15,7 @@ import { getStudentImportColumnMapping } from "@/lib/import/mapping";
 import type { ImportAnomalyCategory } from "@/lib/import/types";
 import type { ImportMode } from "@/lib/import/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
+import { revalidateCoreFinancePaths } from "@/lib/system-sync/finance-sync";
 
 function normalizeImportMode(value: FormDataEntryValue | string | null): ImportMode {
   return value === "update" ? "update" : "add";
@@ -26,26 +27,7 @@ function parseOptionalString(value: FormDataEntryValue | string | null) {
 }
 
 function revalidateImportPostCommit(studentIds: readonly string[] = []) {
-  revalidatePath("/protected");
-  revalidatePath("/protected/imports");
-  revalidatePath("/protected/students");
-  revalidatePath("/protected/dashboard");
-  revalidatePath("/protected/payments");
-  revalidatePath("/protected/transactions");
-  revalidatePath("/protected/dues");
-  revalidatePath("/protected/reports");
-  revalidatePath("/protected/defaulters");
-  revalidatePath("/protected/ledger");
-  revalidatePath("/protected/receipts");
-
-  for (const studentId of studentIds) {
-    if (!studentId) {
-      continue;
-    }
-
-    revalidatePath(`/protected/students/${studentId}`);
-    revalidatePath(`/protected/students/${studentId}/statement`);
-  }
+  revalidateCoreFinancePaths(studentIds);
 }
 
 function buildImportsUrl(

@@ -17,6 +17,7 @@ import type {
   FeeSetupActionState,
 } from "@/lib/fees/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
+import { revalidateCoreFinancePaths } from "@/lib/system-sync/finance-sync";
 
 function parseRequiredString(value: FormDataEntryValue | null, label: string) {
   const normalized = (value ?? "").toString().trim();
@@ -277,6 +278,7 @@ function revalidateFeeSetupSurface() {
   revalidatePath("/protected/students");
   revalidatePath("/protected/students/new");
   revalidatePath("/protected/imports");
+  revalidateCoreFinancePaths();
 }
 
 export async function saveWorkbookFeeSetupAction(

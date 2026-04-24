@@ -1,12 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
-import { generateSessionLedgersAction } from "@/lib/fees/generator";
 import {
   createStudent,
+  archiveStudent,
+  hardDeleteStudent,
   getStudentDetail,
   getStudentFormOptions,
+  getStudentDeletionSafety,
   updateStudent,
 } from "@/lib/students/data";
 import {
@@ -14,6 +14,10 @@ import {
 } from "@/lib/students/types";
 import { getStudentFormInput, validateStudentInput } from "@/lib/students/validation";
 import { requireStaffPermission } from "@/lib/supabase/session";
+import {
+  syncAfterStudentChange,
+  revalidateFinanceSurfaces,
+} from "@/lib/system-sync/finance-sync";
 
 function isLedgerEligibleStatus(status: "active" | "inactive" | "left" | "graduated") {
   return status === "active" || status === "inactive";
@@ -68,19 +72,12 @@ export async function createStudentAction(
 
     if (isLedgerEligibleStatus(validated.data.status)) {
       await requireStaffPermission("fees:write");
-      const syncResult = await generateSessionLedgersAction({
-        scopedStudentIds: [studentId],
-      });
+      const syncResult = await syncAfterStudentChange(studentId);
 
       syncMessage = ` Dues generated: ${syncResult.installmentsToInsert} insert, ${syncResult.installmentsToUpdate} update, ${syncResult.installmentsToCancel} cancel, ${syncResult.lockedInstallments} blocked for review.`;
+    } else {
+      revalidateFinanceSurfaces({ studentIds: [studentId] });
     }
-
-    revalidatePath("/protected/students");
-    revalidatePath(`/protected/students/${studentId}`);
-    revalidatePath(`/protected/students/${studentId}/statement`);
-    revalidatePath("/protected/payments");
-    revalidatePath("/protected/dues");
-    revalidatePath("/protected/defaulters");
 
     return {
       status: "success",
@@ -150,22 +147,12 @@ export async function updateStudentAction(
 
     if ((routeOrClassChanged || feeProfileChanged) && remainsLedgerEligible) {
       await requireStaffPermission("fees:write");
-      const syncResult = await generateSessionLedgersAction({
-        scopedStudentIds: [updatedStudentId],
-      });
+      const syncResult = await syncAfterStudentChange(updatedStudentId);
 
       syncMessage = ` Workbook dues sync completed: ${syncResult.installmentsToInsert} insert, ${syncResult.installmentsToUpdate} update, ${syncResult.installmentsToCancel} cancel, ${syncResult.lockedInstallments} blocked for review.`;
+    } else {
+      revalidateFinanceSurfaces({ studentIds: [updatedStudentId] });
     }
-
-    revalidatePath("/protected/students");
-    revalidatePath(`/protected/students/${updatedStudentId}`);
-    revalidatePath(`/protected/students/${updatedStudentId}/statement`);
-    revalidatePath("/protected/defaulters");
-    revalidatePath("/protected/reports");
-    revalidatePath("/protected/fee-setup");
-    revalidatePath("/protected/fee-setup/generate");
-    revalidatePath("/protected/payments");
-    revalidatePath("/protected/dues");
 
     return {
       status: "success",
@@ -178,5 +165,41 @@ export async function updateStudentAction(
       error instanceof Error ? error.message : "Unexpected error while updating student.",
     );
   }
+}
+
+export async function archiveStudentAction(formData: FormData) {
+  await requireStaffPermission("students:write");
+  const studentId = (formData.get("studentId") ?? "").toString().trim();
+
+  if (!studentId) {
+    throw new Error("Student is required.");
+  }
+
+  await archiveStudent(studentId);
+  revalidateFinanceSurfaces({ studentIds: [studentId] });
+}
+
+export async function hardDeleteStudentAction(formData: FormData) {
+  await requireStaffPermission("students:write");
+  const studentId = (formData.get("studentId") ?? "").toString().trim();
+
+  if (!studentId) {
+    throw new Error("Student is required.");
+  }
+
+  const safety = await getStudentDeletionSafety(studentId);
+
+  if (!safety) {
+    throw new Error("Student record was not found.");
+  }
+
+  const confirmation = (formData.get("confirmDelete") ?? "").toString().trim();
+  if (confirmation !== safety.admissionNo) {
+    throw new Error("Type the student's SR no exactly before deleting this record.");
+  }
+
+  const forceTestRecord = formData.get("forceTestRecord") === "yes";
+  await hardDeleteStudent(studentId, { forceTestRecord });
+  revalidateFinanceSurfaces({ studentIds: [studentId] });
 }
 

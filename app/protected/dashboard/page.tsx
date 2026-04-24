@@ -30,6 +30,11 @@ import {
 } from "@/lib/supabase/session";
 import { cn } from "@/lib/utils";
 
+import {
+  repairCurrentSessionDuesAction,
+  syncDashboardNowAction,
+} from "./actions";
+
 function formatPercent(value: number) {
   return `${value}%`;
 }
@@ -580,11 +585,106 @@ function AlertsPanel({ alerts }: { alerts: DashboardAlert[] }) {
   );
 }
 
-export default async function DashboardPage() {
+function SystemSyncHealthPanel({
+  health,
+  canRepair,
+}: {
+  health: NonNullable<Awaited<ReturnType<typeof getDashboardPageData>>["systemSyncHealth"]>;
+  canRepair: boolean;
+}) {
+  const rows = [
+    ["Active session", health.activeSession],
+    ["Students in active session", health.rawStudentsInActiveSession],
+    ["Students with fee rows", health.studentsWithFinancialRows],
+    ["Missing dues rows", health.studentsMissingInstallmentRows],
+    ["No class fee setting", health.studentsWithNoFeeSetting],
+    ["Wrong/inactive session", health.studentsInInactiveOrWrongSession],
+    ["Classes without fee settings", health.classesWithoutFeeSettings],
+    ["Routes without annual fees", health.routesWithoutAnnualFees],
+  ] as const;
+
+  const needsRepair =
+    health.studentsMissingInstallmentRows > 0 ||
+    health.studentsMissingFinancialRows > 0 ||
+    health.studentsWithNoFeeSetting > 0 ||
+    !health.paymentDeskReady ||
+    !health.dashboardReady;
+
+  return (
+    <SectionCard
+      id="system-sync-health"
+      title="System Sync Health"
+      description="Admin check for whether Student Master and Fee Setup are feeding Dashboard, Payment Desk, Transactions, and reports."
+      actions={
+        <div className="flex flex-wrap gap-2">
+          <StatusBadge
+            label={needsRepair ? "Needs attention" : "Ready"}
+            tone={needsRepair ? "warning" : "good"}
+          />
+          {canRepair ? (
+            <>
+              <form action={syncDashboardNowAction}>
+                <Button type="submit" size="sm" variant="outline">
+                  Sync Dashboard Now
+                </Button>
+              </form>
+              <form action={repairCurrentSessionDuesAction}>
+                <Button type="submit" size="sm">
+                  Generate Missing Dues
+                </Button>
+              </form>
+              <form action={repairCurrentSessionDuesAction}>
+                <Button type="submit" size="sm" variant="outline">
+                  Sync Current Session
+                </Button>
+              </form>
+              <form action={repairCurrentSessionDuesAction}>
+                <Button type="submit" size="sm" variant="outline">
+                  Repair Payment Desk Data
+                </Button>
+              </form>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/protected/students">
+                  Open Students Missing Dues
+                </Link>
+              </Button>
+            </>
+          ) : null}
+        </div>
+      }
+    >
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {rows.map(([label, value]) => (
+          <div key={label} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              {label}
+            </p>
+            <p className="mt-2 font-semibold text-slate-950">{value}</p>
+          </div>
+        ))}
+      </div>
+      {health.rawStudentsInActiveSession > 0 && health.studentsMissingInstallmentRows > 0 ? (
+        <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {health.rawStudentsInActiveSession} students found, but dues are not generated for {health.studentsMissingInstallmentRows} student{health.studentsMissingInstallmentRows === 1 ? "" : "s"}.
+        </p>
+      ) : null}
+    </SectionCard>
+  );
+}
+
+type DashboardPageProps = {
+  searchParams?: Promise<{
+    notice?: string;
+  }>;
+};
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const staff = await requireStaffPermission("dashboard:view", { onDenied: "redirect" });
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const data = await getDashboardPageData({ staffRole: staff.appRole });
   const canWriteStudents = hasStaffPermission(staff, "students:write");
   const canPostPayments = hasStaffPermission(staff, "payments:write");
+  const canRepairFinance = hasStaffPermission(staff, "fees:write");
   const canViewImports = hasStaffPermission(staff, "imports:view");
   const canViewReports = hasStaffPermission(staff, "reports:view");
   const maxChartCards = data.classSummary.slice(0, 8);
@@ -633,6 +733,12 @@ export default async function DashboardPage() {
         }
       />
 
+      {resolvedSearchParams?.notice ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          {resolvedSearchParams.notice}
+        </div>
+      ) : null}
+
       {!data.emptyState.hasFinancialData ? (
         <SectionCard
           title="No fee data yet"
@@ -655,6 +761,13 @@ export default async function DashboardPage() {
             </Button>
           </div>
         </SectionCard>
+      ) : null}
+
+      {data.systemSyncHealth ? (
+        <SystemSyncHealthPanel
+          health={data.systemSyncHealth}
+          canRepair={canRepairFinance}
+        />
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

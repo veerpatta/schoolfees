@@ -24,6 +24,57 @@ type PostStudentPaymentRow = {
   allocated_total: number;
 };
 
+type PaymentStudentBaseRow = {
+  id: string;
+  full_name: string;
+  admission_no: string;
+  father_name: string | null;
+  primary_phone: string | null;
+  secondary_phone: string | null;
+  class_ref:
+    | {
+        id: string;
+        session_label: string;
+        class_name: string;
+        section: string | null;
+        stream_name: string | null;
+      }
+    | Array<{
+        id: string;
+        session_label: string;
+        class_name: string;
+        section: string | null;
+        stream_name: string | null;
+      }>
+    | null;
+};
+
+function toSingleRecord<T>(value: T | T[] | null) {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return value;
+}
+
+function buildClassLabel(value: {
+  class_name: string;
+  section: string | null;
+  stream_name: string | null;
+}) {
+  const parts = [value.class_name];
+
+  if (value.section) {
+    parts.push(`Section ${value.section}`);
+  }
+
+  if (value.stream_name) {
+    parts.push(value.stream_name);
+  }
+
+  return parts.join(" - ");
+}
+
 function mapStudentOptions(
   rows: Awaited<ReturnType<typeof getWorkbookStudentFinancials>>,
 ): PaymentStudentOption[] {
@@ -59,6 +110,75 @@ function buildStudentOption(payload: {
     motherPhone: payload.motherPhone,
     pendingAmount: payload.pendingAmount ?? 0,
   };
+}
+
+async function getBasePaymentStudentOptions(payload: {
+  classId?: string;
+  normalizedQuery: string;
+  selectedStudentId?: string | null;
+  pendingByStudentId: Map<string, number>;
+}) {
+  const policy = await getFeePolicySummary();
+  const supabase = await createClient();
+  let query = supabase
+    .from("students")
+    .select(
+      "id, full_name, admission_no, father_name, primary_phone, secondary_phone, class_ref:classes!inner(id, session_label, class_name, section, stream_name)",
+    )
+    .in("status", ["active", "inactive"])
+    .eq("class_ref.session_label", policy.academicSessionLabel)
+    .order("full_name", { ascending: true });
+
+  if (payload.classId) {
+    query = query.eq("class_ref.id", payload.classId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Unable to load Payment Desk students: ${error.message}`);
+  }
+
+  const normalizedQuery = payload.normalizedQuery.toLowerCase();
+  const selectedStudentId = payload.selectedStudentId ?? null;
+
+  return ((data ?? []) as PaymentStudentBaseRow[])
+    .map((row) => {
+      const classRef = toSingleRecord(row.class_ref);
+
+      return buildStudentOption({
+        studentId: row.id,
+        studentName: row.full_name,
+        admissionNo: row.admission_no,
+        classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
+        fatherName: row.father_name,
+        fatherPhone: row.primary_phone,
+        motherPhone: row.secondary_phone,
+        pendingAmount: payload.pendingByStudentId.get(row.id) ?? 0,
+      });
+    })
+    .filter((row) => {
+      if (row.id === selectedStudentId) {
+        return true;
+      }
+
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      const haystack = [
+        row.fullName,
+        row.admissionNo,
+        row.fatherName ?? "",
+        row.fatherPhone ?? "",
+        row.motherPhone ?? "",
+        row.classLabel,
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(normalizedQuery);
+    });
 }
 
 function mapBreakdown(
@@ -137,8 +257,20 @@ export async function getPaymentEntryPageData(payload: {
       })
     : workbookRows;
 
-  let studentOptions = mapStudentOptions(filteredWorkbookRows);
+  const pendingByStudentId = new Map(
+    workbookRows.map((row) => [row.studentId, row.outstandingAmount]),
+  );
+  let studentOptions = await getBasePaymentStudentOptions({
+    classId: payload.classId,
+    normalizedQuery,
+    selectedStudentId: payload.studentId,
+    pendingByStudentId,
+  });
   let selectedStudentIssue: PaymentDeskIssue | null = null;
+
+  if (studentOptions.length === 0 && filteredWorkbookRows.length > 0) {
+    studentOptions = mapStudentOptions(filteredWorkbookRows);
+  }
 
   if (normalizedQuery && looksLikeReceiptQuery(normalizedQuery)) {
     const receiptMatches = await getWorkbookTransactions();
@@ -233,9 +365,10 @@ export async function getPaymentEntryPageData(payload: {
         selectedStudentIssue: {
           title: "Dues are not generated for this student yet.",
           detail:
-            "Open Fee Setup / Refresh Dues to generate installment rows before posting a payment.",
-          actionLabel: "Refresh Dues",
-          actionHref: "/protected/fee-setup/generate",
+            "Student exists, but dues are not generated yet. Generate dues for this student before posting payment.",
+          actionLabel: "Generate Dues for this Student",
+          actionHref: null,
+          repairStudentId: selectedFinancial.studentId,
         },
         searchQuery: normalizedQuery,
         classId: payload.classId ?? "",
@@ -304,9 +437,10 @@ export async function getPaymentEntryPageData(payload: {
         : {
             title: "Dues are not generated for this student yet.",
             detail:
-              "Open Fee Setup / Refresh Dues to generate installment rows before posting a payment.",
-            actionLabel: "Refresh Dues",
-            actionHref: "/protected/fee-setup/generate",
+              "Student exists, but dues are not generated yet. Generate dues for this student before posting payment.",
+            actionLabel: "Generate Dues for this Student",
+            actionHref: null,
+            repairStudentId: selectedStudentDetail.id,
           };
 
     return {

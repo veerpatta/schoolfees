@@ -90,6 +90,7 @@ export type DashboardSummaryInput = {
   overdueInstallments: WorkbookInstallmentBalance[];
   transactions: WorkbookTransaction[];
   todayTransactions: WorkbookTransaction[];
+  rawStudentCount?: number;
 };
 
 export function calculatePercentage(part: number, whole: number) {
@@ -128,6 +129,7 @@ function getCollectedFromInstallment(row: WorkbookInstallmentBalance) {
 }
 
 export function buildDashboardSummary(input: DashboardSummaryInput) {
+  const totalStudents = input.rawStudentCount ?? input.financialRows.length;
   const totalExpectedFees = input.financialRows.reduce(
     (sum, row) => sum + row.totalDue,
     0,
@@ -150,7 +152,7 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
   );
 
   const kpis: DashboardKpis = {
-    totalStudents: input.financialRows.length,
+    totalStudents,
     totalExpectedFees,
     totalCollected,
     totalPending,
@@ -323,7 +325,7 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
     }));
 
   const emptyState: DashboardEmptyState = {
-    hasStudents: input.financialRows.length > 0,
+    hasStudents: totalStudents > 0,
     hasReceipts: input.transactions.length > 0,
     hasFinancialData: totalExpectedFees > 0 || totalCollected > 0 || totalPending > 0,
   };

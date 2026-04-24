@@ -77,6 +77,7 @@ export type PaymentDeskIssue = {
   detail: string;
   actionLabel: string | null;
   actionHref: string | null;
+  repairStudentId?: string | null;
 };
 
 export type PaymentEntryPageData = {

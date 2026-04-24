@@ -98,6 +98,22 @@ export type StudentDetail = {
   updatedAt: string;
 };
 
+export type StudentDeletionSafety = {
+  studentId: string;
+  hasFinancialHistory: boolean;
+  hardDeleteAllowed: boolean;
+  generatedDuesDeleteAllowed: boolean;
+  canForceDeleteTestRecord: boolean;
+  installmentCount: number;
+  receiptCount: number;
+  paymentCount: number;
+  adjustmentCount: number;
+  auditLogCount: number;
+  sessionLabel: string;
+  admissionNo: string;
+  fullName: string;
+};
+
 export type StudentFormInput = {
   fullName: string;
   classId: string;

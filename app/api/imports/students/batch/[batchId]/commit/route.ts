@@ -1,4 +1,3 @@
-import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
 import {
@@ -6,6 +5,7 @@ import {
   getStudentImportBatchSummary,
 } from "@/lib/import/data";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/lib/supabase/session";
+import { revalidateCoreFinancePaths } from "@/lib/system-sync/finance-sync";
 
 type RouteContext = {
   params: Promise<{
@@ -28,22 +28,7 @@ export async function POST(_request: Request, context: RouteContext) {
     const result = await commitStudentImportBatch(batchId);
     const summary = await getStudentImportBatchSummary(batchId);
 
-    revalidatePath("/protected");
-    revalidatePath("/protected/imports");
-    revalidatePath("/protected/students");
-    revalidatePath("/protected/dashboard");
-    revalidatePath("/protected/payments");
-    revalidatePath("/protected/transactions");
-    revalidatePath("/protected/dues");
-    revalidatePath("/protected/reports");
-    revalidatePath("/protected/defaulters");
-    revalidatePath("/protected/ledger");
-    revalidatePath("/protected/receipts");
-
-    for (const studentId of result.affectedStudentIds ?? []) {
-      revalidatePath(`/protected/students/${studentId}`);
-      revalidatePath(`/protected/students/${studentId}/statement`);
-    }
+    revalidateCoreFinancePaths(result.affectedStudentIds ?? []);
 
     return NextResponse.json({
       result,

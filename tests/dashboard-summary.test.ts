@@ -157,6 +157,21 @@ describe("dashboard summary", () => {
     expect(calculatePercentage(-20, 100)).toBe(0);
   });
 
+  it("uses raw active-session student count even when fee rows are missing", () => {
+    const summary = buildDashboardSummary({
+      rawStudentCount: 40,
+      financialRows: [],
+      installmentRows: [],
+      overdueInstallments: [],
+      transactions: [],
+      todayTransactions: [],
+    });
+
+    expect(summary.kpis.totalStudents).toBe(40);
+    expect(summary.emptyState.hasStudents).toBe(true);
+    expect(summary.emptyState.hasFinancialData).toBe(false);
+  });
+
   it("builds class, installment, trend, and follow-up summaries from existing rows", () => {
     const summary = buildDashboardSummary({
       financialRows: [

@@ -8,6 +8,7 @@ import {
 } from "@/lib/fees/regeneration";
 import type { LedgerRegenerationActionState } from "@/lib/fees/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
+import { revalidateCoreFinancePaths } from "@/lib/system-sync/finance-sync";
 
 function parseIntent(formData: FormData) {
   const intent = (formData.get("_intent") ?? "preview").toString().trim();
@@ -103,6 +104,7 @@ function revalidateRegenerationSurface() {
   revalidatePath("/protected/collections");
   revalidatePath("/protected/defaulters");
   revalidatePath("/protected/reports");
+  revalidateCoreFinancePaths();
 }
 
 export async function runLedgerRegenerationAction(

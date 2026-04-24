@@ -1728,7 +1728,7 @@ export function FeeSetupClient({
                       onClick={() => submitFeeSetup("apply")}
                       disabled={!canApply || isSaving}
                     >
-                      {isSaving ? "Publishing..." : "Publish Fee Setup"}
+                      {isSaving ? "Syncing..." : "Publish & Sync All"}
                     </Button>
                   ) : null}
                 </>

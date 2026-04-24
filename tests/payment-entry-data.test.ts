@@ -40,7 +40,16 @@ describe("payment entry data", () => {
       ],
     });
     getWorkbookTransactions.mockResolvedValue([]);
-    createClient.mockResolvedValue({});
+    const emptyStudentQuery = {
+      select: vi.fn().mockReturnThis(),
+      in: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      then: vi.fn((resolve) => resolve({ data: [], error: null })),
+    };
+    createClient.mockResolvedValue({
+      from: vi.fn(() => emptyStudentQuery),
+    });
   });
 
   it("loads a selected student even when the class filter does not include them", async () => {
@@ -166,6 +175,7 @@ describe("payment entry data", () => {
 
     expect(data.selectedStudent).toBeNull();
     expect(data.selectedStudentIssue?.title).toContain("Dues are not generated");
-    expect(data.selectedStudentIssue?.actionHref).toBe("/protected/fee-setup/generate");
+    expect(data.selectedStudentIssue?.actionHref).toBeNull();
+    expect(data.selectedStudentIssue?.repairStudentId).toBe("student-2");
   });
 });
