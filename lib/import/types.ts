@@ -161,6 +161,7 @@ export type ImportBatchSummary = {
 export type ImportBatchListItem = ImportBatchSummary & {
   id: string;
   importMode: ImportMode;
+  targetSessionLabel: string | null;
   filename: string;
   sourceFormat: SupportedImportFormat;
   worksheetName: string | null;
@@ -227,6 +228,22 @@ export type ImportPageData = {
   recentBatches: ImportBatchListItem[];
   fieldDefinitions: readonly ImportFieldDefinition[];
   supportedFormats: readonly SupportedImportFormat[];
+};
+
+export type ImportWarningSummaryItem = {
+  label: string;
+  count: number;
+};
+
+export type ImportBatchDialogSummary = {
+  batchId: string;
+  mode: ImportMode;
+  targetSessionLabel: string | null;
+  status: ImportBatchStatus;
+  reviewSummary: ImportReviewSummary;
+  problemRows: ImportRowDetail[];
+  readyPreviewRows: ImportRowDetail[];
+  warningSummary: ImportWarningSummaryItem[];
 };
 
 export type StudentImportActionState = {

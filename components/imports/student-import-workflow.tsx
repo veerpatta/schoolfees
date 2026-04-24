@@ -52,10 +52,10 @@ export function StudentImportWorkflow({
     <div className="space-y-6">
       <PageHeader
         eyebrow="Students"
-        title={mode === "update" ? "Bulk Update Existing Students" : "Bulk Add New Students"}
+        title="Advanced Import History"
         description={mode === "update"
-          ? "Download existing students, edit required fields, upload, preview changes, then update safely."
-          : "Upload student names and classes, review only problem rows, then import valid students."}
+          ? "Technical import dashboard for batch history, troubleshooting, and update-mode review."
+          : "Technical import dashboard for batch history, troubleshooting, and add-mode review."}
         actions={
           canManage ? (
             <StatusBadge label="Fast upload flow" tone="accent" />

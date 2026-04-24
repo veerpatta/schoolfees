@@ -9,10 +9,18 @@ import { requireStaffPermission } from "@/lib/supabase/session";
 
 import { createStudentAction } from "../actions";
 
-export default async function NewStudentPage() {
+type NewStudentPageProps = {
+  searchParams?: Promise<{
+    sessionLabel?: string;
+  }>;
+};
+
+export default async function NewStudentPage({ searchParams }: NewStudentPageProps) {
   const staff = await requireStaffPermission("students:write", { onDenied: "redirect" });
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const requestedSessionLabel = resolvedSearchParams?.sessionLabel?.trim() ?? null;
   const [{ classOptions, routeOptions }, setup] = await Promise.all([
-    getStudentFormOptions(),
+    getStudentFormOptions({ sessionLabel: requestedSessionLabel }),
     getSetupWizardData(),
   ]);
   const readiness = getOfficeWorkflowReadiness(setup, staff.appRole);

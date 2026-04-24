@@ -6,9 +6,10 @@ import {
 } from "@/lib/import/templates";
 import { getMasterDataOptions } from "@/lib/master-data/data";
 import { createClient } from "@/lib/supabase/server";
-import { requireStaffPermission } from "@/lib/supabase/session";
+import { requireAnyStaffPermission } from "@/lib/supabase/session";
 
 type StudentClassRef = {
+  session_label: string;
   class_name: string;
   section: string | null;
   stream_name: string | null;
@@ -64,13 +65,13 @@ function xlsxResponse(buffer: Buffer, filename: string) {
   });
 }
 
-async function buildUpdateRows(): Promise<UpdateTemplateStudent[]> {
+async function buildUpdateRows(sessionLabel: string | null): Promise<UpdateTemplateStudent[]> {
   const supabase = await createClient();
   const [{ data: students, error: studentsError }, { data: overrides, error: overridesError }] =
     await Promise.all([
       supabase
         .from("students")
-        .select("id, admission_no, full_name, father_name, primary_phone, notes, class_ref:classes(class_name, section, stream_name), route_ref:transport_routes(route_name, route_code)")
+        .select("id, admission_no, full_name, father_name, primary_phone, notes, class_ref:classes(session_label, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code)")
         .order("full_name", { ascending: true }),
       supabase
         .from("student_fee_overrides")
@@ -90,7 +91,16 @@ async function buildUpdateRows(): Promise<UpdateTemplateStudent[]> {
     ((overrides ?? []) as OverrideRow[]).map((row) => [row.student_id, row]),
   );
 
-  return ((students ?? []) as StudentExportRow[]).map((student) => {
+  return ((students ?? []) as StudentExportRow[])
+    .filter((student) => {
+      if (!sessionLabel) {
+        return true;
+      }
+
+      const classRef = single(student.class_ref);
+      return classRef?.session_label === sessionLabel;
+    })
+    .map((student) => {
     const override = overrideMap.get(student.id);
     const classRef = single(student.class_ref);
     const routeRef = single(student.route_ref);
@@ -116,21 +126,26 @@ async function buildUpdateRows(): Promise<UpdateTemplateStudent[]> {
 }
 
 export async function GET(request: Request) {
-  await requireStaffPermission("imports:view", { onDenied: "redirect" });
+  await requireAnyStaffPermission(["imports:view", "students:write"], { onDenied: "redirect" });
 
   const url = new URL(request.url);
   const mode = url.searchParams.get("mode") === "update" ? "update" : "add";
+  const sessionLabel = url.searchParams.get("sessionLabel")?.trim() ?? "";
+  const normalizedSessionLabel = sessionLabel && sessionLabel !== "__all__" ? sessionLabel : null;
 
   if (mode === "update") {
-    const workbook = buildUpdateStudentsTemplateWorkbook(await buildUpdateRows());
+    const workbook = buildUpdateStudentsTemplateWorkbook(
+      await buildUpdateRows(normalizedSessionLabel),
+    );
     return xlsxResponse(workbookToXlsxBuffer(workbook), "student-update-template.xlsx");
   }
 
   const { classOptions, routeOptions, currentSessionLabel } = await getMasterDataOptions();
-  const currentSessionClasses = currentSessionLabel
-    ? classOptions.filter((item) => item.sessionLabel === currentSessionLabel)
+  const targetSessionLabel = normalizedSessionLabel || currentSessionLabel || "";
+  const sessionClasses = targetSessionLabel
+    ? classOptions.filter((item) => item.sessionLabel === targetSessionLabel)
     : classOptions;
-  const classesForTemplate = currentSessionClasses.length > 0 ? currentSessionClasses : classOptions;
+  const classesForTemplate = sessionClasses.length > 0 ? sessionClasses : classOptions;
 
   const workbook = buildAddStudentsTemplateWorkbook(
     classesForTemplate.map((item) => ({ label: item.label })),

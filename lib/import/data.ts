@@ -15,10 +15,12 @@ import {
 import type {
   ImportAnomalyCategory,
   ImportBatchDetail,
+  ImportBatchDialogSummary,
   ImportBatchListItem,
   ImportBatchSummary,
   ImportFieldKey,
   ImportIssue,
+  ImportWarningSummaryItem,
   ImportPageData,
   ImportRowDetail,
   ImportRowOperation,
@@ -34,6 +36,7 @@ import type { StudentValidatedInput } from "@/lib/students/types";
 type ImportBatchRow = {
   id: string;
   import_mode?: ImportBatchListItem["importMode"];
+  target_session_label?: string | null;
   filename: string;
   source_format: ImportBatchListItem["sourceFormat"];
   worksheet_name: string | null;
@@ -81,6 +84,7 @@ type ExistingStudentRow = {
   full_name: string;
   class_id: string;
   date_of_birth: string | null;
+  class_ref: { session_label: string } | Array<{ session_label: string }> | null;
 };
 
 type FeeSettingRow = {
@@ -90,6 +94,7 @@ type FeeSettingRow = {
 const BATCH_PAGE_SIZE = 8;
 const IMPORT_ROW_WRITE_CHUNK_SIZE = 200;
 const PROBLEM_ROW_PAGE_SIZE = 120;
+const READY_ROW_PREVIEW_SIZE = 10;
 
 function chunkArray<T>(items: readonly T[], size: number) {
   const chunks: T[][] = [];
@@ -227,6 +232,14 @@ function toHeaders(value: unknown) {
   return value.filter((entry): entry is string => typeof entry === "string");
 }
 
+function toSingleRecord<T>(value: T | T[] | null) {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return value;
+}
+
 function toNormalizedOverrides(value: unknown): NormalizedStudentImportOverride {
   const record = isRecord(value) ? value : {};
   const customOtherFeeHeads = isRecord(record.customOtherFeeHeads)
@@ -361,6 +374,10 @@ function toImportBatchListItem(row: ImportBatchRow): ImportBatchListItem {
   return {
     id: row.id,
     importMode: row.import_mode === "update" ? "update" : "add",
+    targetSessionLabel:
+      typeof row.target_session_label === "string" && row.target_session_label.trim()
+        ? row.target_session_label
+        : null,
     filename: row.filename,
     sourceFormat: row.source_format,
     worksheetName: row.worksheet_name,
@@ -519,7 +536,7 @@ async function getImportBatchById(batchId: string) {
   const { data, error } = await supabase
     .from("import_batches")
     .select(
-      "id, import_mode, filename, source_format, worksheet_name, status, detected_headers, column_mapping, total_rows, valid_rows, invalid_rows, duplicate_rows, imported_rows, skipped_rows, failed_rows, validation_completed_at, import_completed_at, error_message, created_at, updated_at",
+      "id, import_mode, target_session_label, filename, source_format, worksheet_name, status, detected_headers, column_mapping, total_rows, valid_rows, invalid_rows, duplicate_rows, imported_rows, skipped_rows, failed_rows, validation_completed_at, import_completed_at, error_message, created_at, updated_at",
     )
     .eq("id", batchId)
     .maybeSingle();
@@ -597,13 +614,19 @@ async function getImportRowsByBatchId(
     return rows;
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("import_rows")
     .select(
       "id, batch_id, row_index, raw_payload, normalized_payload, status, review_status, review_note, reviewed_at, anomaly_categories, errors, warnings, duplicate_student_id, target_student_id, import_operation, changed_fields, imported_student_id, imported_override_id",
     )
     .eq("batch_id", batchId)
     .order("row_index", { ascending: true });
+
+  if (options?.limit && options.limit > 0) {
+    query = query.limit(options.limit);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(`Unable to load import rows: ${error.message}`);
@@ -678,7 +701,7 @@ export async function getStudentImportPageData(
   const { data, error } = await supabase
     .from("import_batches")
     .select(
-      "id, import_mode, filename, source_format, worksheet_name, status, detected_headers, column_mapping, total_rows, valid_rows, invalid_rows, duplicate_rows, imported_rows, skipped_rows, failed_rows, validation_completed_at, import_completed_at, error_message, created_at, updated_at",
+      "id, import_mode, target_session_label, filename, source_format, worksheet_name, status, detected_headers, column_mapping, total_rows, valid_rows, invalid_rows, duplicate_rows, imported_rows, skipped_rows, failed_rows, validation_completed_at, import_completed_at, error_message, created_at, updated_at",
     )
     .order("created_at", { ascending: false })
     .limit(BATCH_PAGE_SIZE);
@@ -715,12 +738,100 @@ export async function getStudentImportPageData(
   };
 }
 
+function warningSummaryLabel(message: string) {
+  const dividerIndex = message.indexOf(":");
+  const cleaned = dividerIndex === -1 ? message : message.slice(dividerIndex + 1);
+  return cleaned.trim() || "General warning";
+}
+
+export async function getStudentImportBatchSummary(batchId: string) {
+  const [batchRow, reviewSummary, problemRowsRaw, readyRowsRaw, warningRowsRaw] = await Promise.all([
+    getImportBatchById(batchId),
+    getImportReviewSummary(batchId),
+    getImportRowsByBatchId(batchId, { problemOnly: true, limit: PROBLEM_ROW_PAGE_SIZE }),
+    (async () => {
+      const supabase = await createClient();
+      const { data, error } = await supabase
+        .from("import_rows")
+        .select(
+          "id, batch_id, row_index, raw_payload, normalized_payload, status, review_status, review_note, reviewed_at, anomaly_categories, errors, warnings, duplicate_student_id, target_student_id, import_operation, changed_fields, imported_student_id, imported_override_id",
+        )
+        .eq("batch_id", batchId)
+        .eq("status", "valid")
+        .eq("review_status", "approved")
+        .order("row_index", { ascending: true })
+        .limit(READY_ROW_PREVIEW_SIZE);
+
+      if (error) {
+        throw new Error(`Unable to load ready rows preview: ${error.message}`);
+      }
+
+      return (data ?? []) as ImportRowRecord[];
+    })(),
+    (async () => {
+      const supabase = await createClient();
+      const { data, error } = await supabase
+        .from("import_rows")
+        .select("id, warnings")
+        .eq("batch_id", batchId)
+        .eq("status", "valid")
+        .neq("warnings", "[]")
+        .limit(500);
+
+      if (error) {
+        throw new Error(`Unable to load warning summary: ${error.message}`);
+      }
+
+      return (data ?? []) as Array<{ id: string; warnings: unknown }>;
+    })(),
+  ]);
+
+  if (!batchRow) {
+    throw new Error("Import batch not found.");
+  }
+
+  const readyPreviewRows = readyRowsRaw.map(toImportRowDetail);
+  const warningCounts = new Map<string, number>();
+  for (const row of warningRowsRaw) {
+    for (const warning of toWarnings(row.warnings)) {
+      const label = warningSummaryLabel(warning);
+      warningCounts.set(label, (warningCounts.get(label) ?? 0) + 1);
+    }
+  }
+  const warningSummary: ImportWarningSummaryItem[] = [...warningCounts.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 8)
+    .map(([label, count]) => ({ label, count }));
+
+  return {
+    batchId: batchRow.id,
+    mode: batchRow.import_mode === "update" ? "update" : "add",
+    targetSessionLabel: batchRow.target_session_label ?? null,
+    status: batchRow.status,
+    reviewSummary,
+    problemRows: problemRowsRaw.map(toImportRowDetail),
+    readyPreviewRows,
+    warningSummary,
+  } satisfies ImportBatchDialogSummary;
+}
+
 export async function createStudentImportBatch(
   file: File,
   mode: ImportBatchListItem["importMode"] = "add",
+  targetSessionLabel?: string | null,
 ) {
   const parsedFile = await parseStudentImportFile(file);
+  const masterOptions = await getMasterDataOptions();
   const supabase = await createClient();
+  const normalizedTargetSessionLabel = targetSessionLabel?.trim() ?? "";
+  const resolvedTargetSessionLabel =
+    mode === "add"
+      ? normalizedTargetSessionLabel || masterOptions.currentSessionLabel || ""
+      : normalizedTargetSessionLabel;
+
+  if (mode === "add" && !resolvedTargetSessionLabel) {
+    throw new Error("Select an academic year before bulk add upload.");
+  }
   const initialSummary: ImportBatchSummary = {
     totalRows: parsedFile.rows.length,
     validRows: 0,
@@ -737,9 +848,10 @@ export async function createStudentImportBatch(
   const { data, error } = await supabase
     .from("import_batches")
     .insert({
-      filename: parsedFile.filename,
-      import_mode: mode,
-      source_format: parsedFile.sourceFormat,
+        filename: parsedFile.filename,
+        import_mode: mode,
+        target_session_label: resolvedTargetSessionLabel || null,
+        source_format: parsedFile.sourceFormat,
       worksheet_name: parsedFile.worksheetName,
       file_size_bytes: parsedFile.fileSizeBytes,
       status: "uploaded",
@@ -785,6 +897,7 @@ export async function createStudentImportBatch(
 
   return {
     batchId,
+    targetSessionLabel: resolvedTargetSessionLabel || null,
     autoValidated: mappingErrors.length === 0,
   };
 }
@@ -811,10 +924,19 @@ export async function runStudentImportDryRun(batchId: string, mapping: StudentIm
   }
 
   const supabase = await createClient();
+  const targetSessionLabel =
+    typeof batchRow.target_session_label === "string" && batchRow.target_session_label.trim()
+      ? batchRow.target_session_label.trim()
+      : null;
+  if (batchRow.import_mode === "add" && !targetSessionLabel) {
+    throw new Error("Select an academic year before running bulk add validation.");
+  }
   const [masterOptions, { data: existingStudents, error: studentError }, { data: feeSettings, error: feeSettingError }] =
     await Promise.all([
       getMasterDataOptions(),
-      supabase.from("students").select("id, admission_no, full_name, class_id, date_of_birth"),
+      supabase.from("students").select(
+        "id, admission_no, full_name, class_id, date_of_birth, class_ref:classes(session_label)",
+      ),
       supabase.from("fee_settings").select("class_id").eq("is_active", true),
     ]);
 
@@ -826,18 +948,24 @@ export async function runStudentImportDryRun(batchId: string, mapping: StudentIm
     throw new Error(`Unable to load fee settings for import validation: ${feeSettingError.message}`);
   }
 
+  const classesForValidation = targetSessionLabel
+    ? masterOptions.classOptions.filter((row) => row.sessionLabel === targetSessionLabel)
+    : masterOptions.classOptions;
+
   const validationResult = executeStudentImportDryRun({
     mode: batchRow.import_mode === "update" ? "update" : "add",
+    targetSessionLabel,
     rows: rowRecords.map((row) => ({
       id: row.id,
       rowIndex: row.row_index,
       rawPayload: toRawPayload(row.raw_payload),
     })),
     mapping,
-    classes: masterOptions.classOptions.map((row) => ({
+    classes: classesForValidation.map((row) => ({
       id: row.id,
       label: row.label,
       aliases: [normalizeLookupToken(row.label)],
+      sessionLabel: row.sessionLabel,
     })),
     routes: masterOptions.routeOptions
       .filter((row) => row.isActive)
@@ -857,6 +985,7 @@ export async function runStudentImportDryRun(batchId: string, mapping: StudentIm
       admissionNo: row.admission_no,
       fullName: row.full_name,
       classId: row.class_id,
+      classSessionLabel: toSingleRecord(row.class_ref)?.session_label ?? "",
       dateOfBirth: row.date_of_birth,
     })),
     activeFeeSettingClassIds: new Set(
@@ -1261,6 +1390,9 @@ export async function commitStudentImportBatch(batchId: string) {
   const studentsToRegenerate = new Set<string>();
   let failedRows = 0;
   const mapping = toColumnMapping(batchRow.column_mapping);
+  let createdCount = 0;
+  let updatedCount = 0;
+  let temporarySrGeneratedCount = 0;
 
   for (const row of rows) {
     if (row.status !== "valid" || !row.normalizedPayload || row.reviewStatus !== "approved") {
@@ -1278,6 +1410,14 @@ export async function commitStudentImportBatch(batchId: string) {
         row.operation === "update" && row.targetStudentId
           ? await updateStudent(row.targetStudentId, input)
           : await createStudent(input);
+      if (row.operation === "update") {
+        updatedCount += 1;
+      } else {
+        createdCount += 1;
+        if (!row.normalizedPayload.admissionNo) {
+          temporarySrGeneratedCount += 1;
+        }
+      }
       const importedOverrideId = await getActiveImportedOverrideId(importedStudentId);
 
       if (shouldSyncDues(previousStudent, input)) {
@@ -1361,4 +1501,15 @@ export async function commitStudentImportBatch(batchId: string) {
         ? `${failedRows} row${failedRows === 1 ? "" : "s"} could not be saved during import.`
         : null,
   });
+
+  return {
+    batchId,
+    createdCount,
+    updatedCount,
+    importedCount: summary.importedRows,
+    failedCount: failedRows,
+    skippedCount: summary.skippedRows,
+    temporarySrGeneratedCount,
+    status: failedRows > 0 ? "failed" : "completed",
+  };
 }

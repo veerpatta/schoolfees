@@ -8,10 +8,12 @@ import type {
   StudentClassOption,
   StudentListFilters,
   StudentRouteOption,
+  StudentSessionOption,
 } from "@/lib/students/types";
 
 type StudentFiltersProps = {
   filters: StudentListFilters;
+  sessionOptions: StudentSessionOption[];
   classOptions: StudentClassOption[];
   routeOptions: StudentRouteOption[];
 };
@@ -21,11 +23,12 @@ const selectClassName =
 
 export function StudentFilters({
   filters,
+  sessionOptions,
   classOptions,
   routeOptions,
 }: StudentFiltersProps) {
   return (
-    <form method="get" className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+    <form method="get" className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
       <div className="xl:col-span-2">
         <Label htmlFor="query">Search</Label>
         <Input
@@ -35,6 +38,22 @@ export function StudentFilters({
           defaultValue={filters.query}
           className="mt-2"
         />
+      </div>
+
+      <div>
+        <Label htmlFor="sessionLabel">Academic year</Label>
+        <select
+          id="sessionLabel"
+          name="sessionLabel"
+          defaultValue={filters.sessionLabel}
+          className={`${selectClassName} mt-2`}
+        >
+          {sessionOptions.map((sessionOption) => (
+            <option key={sessionOption.value} value={sessionOption.value}>
+              {sessionOption.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div>
@@ -90,7 +109,7 @@ export function StudentFilters({
         </select>
       </div>
 
-      <div className="flex items-end gap-2 xl:col-span-5">
+      <div className="flex items-end gap-2 xl:col-span-6">
         <Button type="submit">Apply filters</Button>
         <Button type="button" variant="outline" asChild>
           <Link href="/protected/students">Clear</Link>

@@ -9,6 +9,7 @@ import type {
   StudentListFilters,
   StudentListItem,
   StudentRouteOption,
+  StudentSessionOption,
   StudentValidatedInput,
 } from "@/lib/students/types";
 
@@ -106,6 +107,50 @@ function toSingleRecord<T>(value: T | T[] | null) {
   }
 
   return value;
+}
+
+function normalizeSessionKey(value: string) {
+  return value.trim().toLowerCase();
+}
+
+export function getClassOptionsForSession(
+  classOptions: readonly StudentClassOption[],
+  sessionLabel: string | null | undefined,
+) {
+  const normalizedSessionLabel = normalizeSessionKey(sessionLabel ?? "");
+
+  if (!normalizedSessionLabel) {
+    return [...classOptions];
+  }
+
+  return classOptions.filter(
+    (row) => normalizeSessionKey(row.sessionLabel) === normalizedSessionLabel,
+  );
+}
+
+function buildStudentSessionOptions(
+  classOptions: readonly StudentClassOption[],
+  currentSessionLabel: string | null,
+) {
+  const uniqueSessionLabels = new Set(
+    classOptions.map((row) => row.sessionLabel).filter((value) => value.trim().length > 0),
+  );
+
+  if (currentSessionLabel) {
+    uniqueSessionLabels.add(currentSessionLabel);
+  }
+
+  const sortedSessionLabels = [...uniqueSessionLabels].sort((left, right) =>
+    right.localeCompare(left),
+  );
+
+  return sortedSessionLabels.map(
+    (label) =>
+      ({
+        value: label,
+        label,
+      }) satisfies StudentSessionOption,
+  );
 }
 
 function parseCustomAmountMap(value: Record<string, unknown> | null) {
@@ -207,14 +252,27 @@ async function generatePendingAdmissionNo() {
   throw new Error("Unable to generate a temporary SR no. Please enter SR no manually.");
 }
 
-export async function getStudentFormOptions() {
+export async function getStudentFormOptions(payload?: {
+  sessionLabel?: string | null;
+}) {
   const options = await getMasterDataOptions();
 
-  const classOptions: StudentClassOption[] = options.classOptions.map((row) => ({
+  const allClassOptions: StudentClassOption[] = options.classOptions.map((row) => ({
     id: row.id,
     label: row.label,
     sessionLabel: row.sessionLabel,
   }));
+  const requestedSessionLabel = payload?.sessionLabel?.trim() ?? "";
+  const resolvedSessionLabel =
+    requestedSessionLabel || options.currentSessionLabel || "";
+  const classOptions = getClassOptionsForSession(
+    allClassOptions,
+    resolvedSessionLabel || null,
+  );
+  const sessionOptions = buildStudentSessionOptions(
+    allClassOptions,
+    options.currentSessionLabel,
+  );
 
   const routeOptions: StudentRouteOption[] = options.routeOptions.map((row) => ({
     id: row.id,
@@ -224,6 +282,10 @@ export async function getStudentFormOptions() {
   }));
 
   return {
+    currentSessionLabel: options.currentSessionLabel,
+    resolvedSessionLabel,
+    sessionOptions,
+    allClassOptions,
     classOptions,
     routeOptions,
   };
@@ -240,6 +302,10 @@ export async function getStudents(filters: StudentListFilters) {
 
   if (filters.query) {
     query = query.ilike("full_name", `%${filters.query}%`);
+  }
+
+  if (filters.sessionLabel) {
+    query = query.eq("class_ref.session_label", filters.sessionLabel);
   }
 
   if (filters.classId) {
@@ -390,6 +456,7 @@ export async function getStudentDetail(studentId: string) {
     address: row.address,
     classId: row.class_id,
     classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
+    classSessionLabel: classRef?.session_label ?? "",
     transportRouteId: row.transport_route_id,
     transportRouteLabel: routeRef
       ? routeRef.route_code

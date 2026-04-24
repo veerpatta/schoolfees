@@ -232,10 +232,6 @@ export async function commitStudentImportBatchAction(formData: FormData) {
 
   revalidatePath("/protected/imports");
   revalidatePath("/protected/students");
-  revalidatePath("/protected/dues");
-  revalidatePath("/protected/defaulters");
-  revalidatePath("/protected/reports");
-  revalidatePath("/protected/fee-setup");
   redirect(
     buildImportsUrl(
       batchId,

@@ -15,9 +15,15 @@ export type StudentRouteOption = {
 
 export type StudentListFilters = {
   query: string;
+  sessionLabel: string;
   classId: string;
   transportRouteId: string;
   status: "" | StudentStatus;
+};
+
+export type StudentSessionOption = {
+  value: string;
+  label: string;
 };
 
 export type StudentListItem = {
@@ -48,6 +54,7 @@ export type StudentDetail = {
   address: string | null;
   classId: string;
   classLabel: string;
+  classSessionLabel: string;
   transportRouteId: string | null;
   transportRouteLabel: string;
   status: StudentStatus;
@@ -132,6 +139,7 @@ export const INITIAL_STUDENT_FORM_ACTION_STATE: StudentFormActionState = {
 
 export const EMPTY_STUDENT_FILTERS: StudentListFilters = {
   query: "",
+  sessionLabel: "",
   classId: "",
   transportRouteId: "",
   status: "",

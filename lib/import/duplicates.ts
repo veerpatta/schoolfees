@@ -6,6 +6,7 @@ export type ExistingStudentDuplicateRecord = {
   admissionNo: string;
   fullName: string;
   classId: string;
+  classSessionLabel: string;
   dateOfBirth: string | null;
 };
 

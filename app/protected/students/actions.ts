@@ -45,10 +45,10 @@ export async function createStudentAction(
 ): Promise<StudentFormActionState> {
   await requireStaffPermission("students:write");
   const input = getStudentFormInput(formData);
-  const { classOptions, routeOptions } = await getStudentFormOptions();
+  const { allClassOptions, routeOptions } = await getStudentFormOptions();
 
   const validated = validateStudentInput(input, {
-    classIds: new Set(classOptions.map((option) => option.id)),
+    classIds: new Set(allClassOptions.map((option) => option.id)),
     routeIds: new Set(routeOptions.map((option) => option.id)),
     allowBlankAdmissionNo: true,
   });
@@ -102,10 +102,10 @@ export async function updateStudentAction(
 ): Promise<StudentFormActionState> {
   await requireStaffPermission("students:write");
   const input = getStudentFormInput(formData);
-  const { classOptions, routeOptions } = await getStudentFormOptions();
+  const { allClassOptions, routeOptions } = await getStudentFormOptions();
 
   const validated = validateStudentInput(input, {
-    classIds: new Set(classOptions.map((option) => option.id)),
+    classIds: new Set(allClassOptions.map((option) => option.id)),
     routeIds: new Set(routeOptions.map((option) => option.id)),
   });
 

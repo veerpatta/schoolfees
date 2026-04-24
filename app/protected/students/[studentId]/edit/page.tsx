@@ -17,14 +17,15 @@ type EditStudentPageProps = {
 export default async function EditStudentPage({ params }: EditStudentPageProps) {
   await requireStaffPermission("students:write", { onDenied: "redirect" });
   const resolvedParams = await params;
-  const [{ classOptions, routeOptions }, student] = await Promise.all([
-    getStudentFormOptions(),
-    getStudentDetail(resolvedParams.studentId),
-  ]);
+  const student = await getStudentDetail(resolvedParams.studentId);
 
   if (!student) {
     notFound();
   }
+
+  const { classOptions, routeOptions } = await getStudentFormOptions({
+    sessionLabel: student.classSessionLabel,
+  });
 
   return (
     <div className="space-y-6">

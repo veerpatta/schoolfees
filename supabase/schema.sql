@@ -1674,6 +1674,7 @@ grant execute on function public.post_student_payment(
 create table if not exists public.import_batches (
   id uuid primary key default gen_random_uuid(),
   import_mode text not null default 'add' check (import_mode in ('add', 'update')),
+  target_session_label text,
   filename text not null,
   source_format text not null check (source_format in ('csv', 'xlsx')),
   worksheet_name text,
@@ -1754,6 +1755,10 @@ on public.import_batches (status, created_at desc);
 
 create index if not exists idx_import_batches_created_by
 on public.import_batches (created_by);
+
+create index if not exists idx_import_batches_target_session_label
+on public.import_batches (target_session_label)
+where target_session_label is not null;
 
 create index if not exists idx_import_rows_batch_row_index
 on public.import_rows (batch_id, row_index);

@@ -8,6 +8,7 @@ const classes = [
   {
     id: "class-1",
     label: "Class 1",
+    sessionLabel: "2026-27",
     aliases: ["class1", "class 1"],
   },
 ];
@@ -116,6 +117,7 @@ describe("student import dry-run", () => {
           admissionNo: "SR001",
           fullName: "Asha Sharma",
           classId: "class-1",
+          classSessionLabel: "2026-27",
           dateOfBirth: null,
         },
       ],
@@ -187,6 +189,7 @@ describe("student import dry-run", () => {
           admissionNo: "SR001",
           fullName: "Asha Sharma",
           classId: "class-1",
+          classSessionLabel: "2026-27",
           dateOfBirth: null,
         },
       ],
@@ -344,6 +347,7 @@ describe("student import dry-run", () => {
           admissionNo: "SR001",
           fullName: "Asha Sharma",
           classId: "class-1",
+          classSessionLabel: "2026-27",
           dateOfBirth: null,
         },
         {
@@ -351,6 +355,7 @@ describe("student import dry-run", () => {
           admissionNo: "SR002",
           fullName: "Asha Sharma",
           classId: "class-1",
+          classSessionLabel: "2026-27",
           dateOfBirth: null,
         },
       ],
@@ -389,6 +394,7 @@ describe("student import dry-run", () => {
           admissionNo: "SR001",
           fullName: "Asha Sharma",
           classId: "class-1",
+          classSessionLabel: "2026-27",
           dateOfBirth: null,
         },
       ],
@@ -429,6 +435,7 @@ describe("student import dry-run", () => {
           admissionNo: "SR001",
           fullName: "Asha Sharma",
           classId: "class-1",
+          classSessionLabel: "2026-27",
           dateOfBirth: null,
         },
       ],
@@ -512,6 +519,77 @@ describe("student import dry-run", () => {
         reviewStatus: "pending",
         anomalyCategories: ["unmapped-class"],
       }),
+    ).toBe(true);
+  });
+
+  it("validates class labels within the selected academic session only", () => {
+    const result = executeStudentImportDryRun({
+      mode: "add",
+      targetSessionLabel: "TEST-2026-27",
+      rows: [
+        {
+          id: "row-session-class",
+          rowIndex: 2,
+          rawPayload: {
+            "Student Name": "Test Student",
+            Class: "Class 2",
+          },
+        },
+      ],
+      mapping,
+      classes: [
+        ...classes,
+        {
+          id: "class-2-prod",
+          label: "Class 2",
+          sessionLabel: "2026-27",
+          aliases: ["class2", "class 2"],
+        },
+      ],
+      routes,
+      existingStudents: [],
+      activeFeeSettingClassIds: new Set(["class-1", "class-2-prod"]),
+    });
+
+    expect(result.rows[0].status).toBe("invalid");
+    expect(result.rows[0].errors.some((issue) => issue.code === "ERR_CLASS_NOT_FOUND")).toBe(true);
+  });
+
+  it("blocks update rows when selected academic session does not match matched student session", () => {
+    const result = executeStudentImportDryRun({
+      mode: "update",
+      targetSessionLabel: "TEST-2026-27",
+      rows: [
+        {
+          id: "row-session-mismatch",
+          rowIndex: 2,
+          rawPayload: {
+            "Student ID": "student-1",
+            "Student Name": "",
+            Class: "",
+            "SR No": "",
+          },
+        },
+      ],
+      mapping: updateMapping,
+      classes,
+      routes,
+      existingStudents: [
+        {
+          id: "student-1",
+          admissionNo: "SR001",
+          fullName: "Asha Sharma",
+          classId: "class-1",
+          classSessionLabel: "2026-27",
+          dateOfBirth: null,
+        },
+      ],
+      activeFeeSettingClassIds: new Set(["class-1"]),
+    });
+
+    expect(result.rows[0].status).toBe("invalid");
+    expect(
+      result.rows[0].errors.some((issue) => issue.code === "ERR_UPDATE_TARGET_SESSION_MISMATCH"),
     ).toBe(true);
   });
 });

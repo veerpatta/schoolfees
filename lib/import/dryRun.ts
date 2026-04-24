@@ -31,6 +31,7 @@ type ImportClassReference = {
   id: string;
   label: string;
   aliases: readonly string[];
+  sessionLabel: string;
 };
 
 type ImportRouteReference = {
@@ -41,6 +42,7 @@ type ImportRouteReference = {
 
 export type StudentImportDryRunContext = {
   mode?: ImportMode;
+  targetSessionLabel?: string | null;
   rows: ImportStoredRowInput[];
   mapping: StudentImportColumnMapping;
   classes: ImportClassReference[];
@@ -112,13 +114,21 @@ function hasAnyOverride(normalized: NormalizedStudentImportRow["overrides"]) {
 export function executeStudentImportDryRun({
   rows,
   mode = "add",
+  targetSessionLabel = null,
   mapping,
   classes,
   routes,
   existingStudents,
   activeFeeSettingClassIds,
 }: StudentImportDryRunContext) {
-  const classIds = new Set(classes.map((item) => item.id));
+  const normalizedTargetSessionLabel = targetSessionLabel?.trim().toLowerCase() ?? "";
+  const isSessionScoped = normalizedTargetSessionLabel.length > 0;
+  const classesForValidation = isSessionScoped
+    ? classes.filter(
+        (item) => item.sessionLabel.trim().toLowerCase() === normalizedTargetSessionLabel,
+      )
+    : classes;
+  const classIds = new Set(classesForValidation.map((item) => item.id));
   const routeIds = new Set(routes.map((item) => item.id));
   const existingById = new Map(existingStudents.map((student) => [student.id, student]));
   const existingByAdmissionNo = new Map(
@@ -161,8 +171,21 @@ export function executeStudentImportDryRun({
       ? updateTarget?.admissionNo ?? ""
       : admissionNo;
 
-    const matchedClass = findReferenceMatch(classes, classLabel);
+    const matchedClass = findReferenceMatch(classesForValidation, classLabel);
     const matchedRoute = routeLabel ? findReferenceMatch(routes, routeLabel) : null;
+
+    if (
+      mode === "update" &&
+      isSessionScoped &&
+      updateTarget &&
+      updateTarget.classSessionLabel.trim().toLowerCase() !== normalizedTargetSessionLabel
+    ) {
+      errors.push({
+        code: "ERR_UPDATE_TARGET_SESSION_MISMATCH",
+        field: "row",
+        message: `Matched student is not in academic session ${targetSessionLabel}. Choose the correct session or use All Existing Students.`,
+      });
+    }
 
     const dateResult = parseSpreadsheetDate(
       getMappedCellValue(row.rawPayload, mapping, "dateOfBirth"),
@@ -281,7 +304,9 @@ export function executeStudentImportDryRun({
       errors.push({
         code: "ERR_CLASS_NOT_FOUND",
         field: "classLabel",
-        message: `Class "${classLabel}" was not found. Use the downloaded template or choose an existing class.`,
+        message: isSessionScoped
+          ? `Class "${classLabel}" was not found in academic session ${targetSessionLabel}. Use the session template or correct the class label.`
+          : `Class "${classLabel}" was not found. Use the downloaded template or choose an existing class.`,
       });
     }
 
