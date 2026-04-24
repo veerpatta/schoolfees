@@ -576,6 +576,11 @@ export function FeeSetupClient({
         </div>
       ) : null}
 
+      <div className="rounded-[26px] border border-sky-200 bg-sky-50/90 px-4 py-3 text-sm leading-6 text-sky-900">
+        For trial runs, create or copy a test session named TEST-2026-27 before entering real
+        records. Do not change the actual AY 2026-27 defaults just to test the workflow.
+      </div>
+
       <SectionCard
         title="1. Academic Session"
         description="Choose the session to work on, add a new session, or copy last year. Selecting a session here edits the draft target only; the live setup changes only after Publish Live Setup."

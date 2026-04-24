@@ -28,6 +28,7 @@ records auditable and office-friendly.
 
 Current priority areas:
 
+- pre-go-live UAT with dummy data and a clearly named test academic session
 - first-time setup / onboarding with readiness checks
 - student master
 - fee settings and session ledger recalculation
@@ -91,6 +92,10 @@ Main routes and modules in the repo today:
 - `app/protected/imports/page.tsx`
   Student bulk upload/update workflow with CSV/XLSX upload, template download,
   dry-run, mapping, row review, and batch tracking
+- `docs/uat-test-plan.md`, `docs/test-data-setup.md`,
+  `docs/before-real-data-checklist.md`, and
+  `docs/samples/student-import-test-sample.csv`
+  manual UAT and safe dummy-data guidance before real data entry
 - `app/protected/setup/page.tsx`
   admin-only first-time setup wizard for session selection, class and route
   setup, school/class defaults, and go-live readiness; once marked complete it

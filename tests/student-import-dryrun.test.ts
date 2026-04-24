@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { executeStudentImportDryRun } from "@/lib/import/dryRun";
+import { studentImportFieldDefinitions } from "@/lib/import/mapping";
 
 const classes = [
   {
@@ -29,6 +30,24 @@ const mapping = {
 };
 
 describe("student import dry-run", () => {
+  it("keeps UAT-relevant fee-profile fields in the import mapping", () => {
+    const keys = new Set(studentImportFieldDefinitions.map((field) => field.key));
+
+    expect(keys.has("fullName")).toBe(true);
+    expect(keys.has("classLabel")).toBe(true);
+    expect(keys.has("admissionNo")).toBe(true);
+    expect(keys.has("transportRouteLabel")).toBe(true);
+    expect(keys.has("studentTypeOverride")).toBe(true);
+    expect(keys.has("customTuitionFeeAmount")).toBe(true);
+    expect(keys.has("customTransportFeeAmount")).toBe(true);
+    expect(keys.has("discountAmount")).toBe(true);
+    expect(keys.has("lateFeeWaiverAmount")).toBe(true);
+    expect(keys.has("otherAdjustmentHead")).toBe(true);
+    expect(keys.has("otherAdjustmentAmount")).toBe(true);
+    expect(keys.has("feeProfileReason")).toBe(true);
+    expect(keys.has("notes")).toBe(true);
+  });
+
   it("marks existing SR rows as update rows instead of duplicates", () => {
     const result = executeStudentImportDryRun({
       rows: [

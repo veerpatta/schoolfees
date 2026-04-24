@@ -1,0 +1,4 @@
+Student name,Class,SR no,Father phone,Mother phone,Transport route,New/Existing,Discount,Tuition override,Transport override,Other fee / adjustment head,Other fee / adjustment amount,Special-case reason,Notes
+Test Student 001,TEST CLASS 1,TEST-SR-001,9999999999,9999999999,TEST ROUTE,existing,0,,,Workbook correction,-100,UAT discount check,Dummy UAT record only
+Test Student 002,TEST CLASS 1,TEST-SR-002,9999999999,9999999999,TEST ROUTE,new,500,12000,3000,Uniform adjustment,250,UAT override check,Dummy UAT record only
+Test Student 003,TEST CLASS 12 SCIENCE,TEST-SR-003,9999999999,9999999999,,existing,0,,,,,No transport UAT case,Dummy UAT record only

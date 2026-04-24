@@ -31,6 +31,21 @@ These are the current active rules and defaults.
 If code, UI copy, docs, or reports disagree with this file, treat this file and
 `lib/config/fee-rules.ts` as the active intent unless the user says otherwise.
 
+## UAT And Test Data Rules
+
+Before real student data entry, run UAT with dummy records only.
+
+- recommended test academic session: `TEST-2026-27`
+- dummy SR number pattern: `TEST-SR-001`
+- dummy student name pattern: `Test Student 001`
+- dummy route/class labels should be clearly marked with `TEST`
+- do not use real student names, real SR numbers, real parent phone numbers, or
+  real home addresses during testing
+- do not post test payments against real students
+- do not change the actual AY `2026-27` defaults just to test the workflow
+- do not add a production reset or test-data-clear action unless it is
+  explicitly requested and guarded outside production
+
 ## Editable Configuration Surfaces
 
 What is editable in the system right now:

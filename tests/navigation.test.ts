@@ -19,6 +19,12 @@ describe("office navigation", () => {
     expect(getDefaultProtectedHref("read_only_staff")).toBe("/protected/students");
   });
 
+  it("never sends a role back to the protected routing entry point", () => {
+    expect(getDefaultProtectedHref("admin")).not.toBe("/protected");
+    expect(getDefaultProtectedHref("accountant")).not.toBe("/protected");
+    expect(getDefaultProtectedHref("read_only_staff")).not.toBe("/protected");
+  });
+
   it("orders accountant navigation around counter work", () => {
     const items = getVisibleProtectedNavigation("accountant");
 

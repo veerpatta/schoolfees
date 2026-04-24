@@ -107,6 +107,10 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
             <p className="mt-1">CSV/XLSX uploads are staged, validated, reviewed, and linked back to import batches.</p>
           </div>
         </div>
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+          Before real data entry, use dummy students such as Test Student 001 and SR numbers like
+          TEST-SR-001. Do not post test payments against real student records.
+        </div>
       </SectionCard>
 
       <SectionCard

@@ -1,11 +1,15 @@
+import Link from "next/link";
+
 import { PageHeader } from "@/components/admin/page-header";
 import { RolePreview } from "@/components/admin/role-preview";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { Button } from "@/components/ui/button";
 import { schoolProfile } from "@/lib/config/school";
 import { getRecentConfigChangeLog } from "@/lib/fees/change-log";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import {
+  getRuntimeEnvironmentLabel,
   getOptionalEnvVar,
   getSiteUrl,
   hasExplicitSiteUrl,
@@ -51,7 +55,7 @@ export default async function SettingsPage() {
   const serviceRoleConfigured = Boolean(
     getOptionalEnvVar("SUPABASE_SERVICE_ROLE_KEY"),
   );
-  const deploymentEnvironment = getOptionalEnvVar("VERCEL_ENV") ?? "local";
+  const deploymentEnvironment = getRuntimeEnvironmentLabel();
   const resolvedSiteUrl = getSiteUrl();
   const explicitSiteUrlConfigured = hasExplicitSiteUrl();
   const productionEnvironment = isVercelProductionEnvironment();
@@ -128,6 +132,39 @@ export default async function SettingsPage() {
           Current defaults stay aligned to the canonical school policy: session {policy.academicSessionLabel}, late fee Rs {policy.lateFeeFlatAmount}, due dates {policy.installmentSchedule.map((item) => item.dueDateLabel).join(", ")}.
         </div>
       </section>
+
+      <SectionCard
+        title="Before Real Data"
+        description="Use dummy data first, then confirm the real AY 2026-27 setup before production entry."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href="/protected/fee-setup">Fee Setup</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/protected/students">Students</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/protected/imports">Student Imports</Link>
+            </Button>
+          </div>
+        }
+      >
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+            Use TEST-2026-27 for trial runs. Do not post test payments against real students.
+          </div>
+          <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-900">
+            Fee Setup owns school-wide defaults. Students owns student-specific records and
+            overrides.
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+            Manual UAT docs: <code>docs/uat-test-plan.md</code>,{" "}
+            <code>docs/test-data-setup.md</code>, and{" "}
+            <code>docs/before-real-data-checklist.md</code>.
+          </div>
+        </div>
+      </SectionCard>
 
       <section className="grid gap-5 lg:grid-cols-2">
         <SectionCard

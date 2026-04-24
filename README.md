@@ -59,14 +59,31 @@ Primary daily areas:
 ## What Each Role Sees By Default
 
 - `admin`
-  lands on `Start Here`; sees the simplified primary nav plus `Advanced`
+  lands on `Students`; sees the simplified primary nav plus `Advanced`
 - `accountant`
   lands on `Payment Desk`; nav order prioritizes `Payment Desk` and `Dues &
   Receipts`
 - `read_only_staff`
-  lands on `Start Here`; keeps the simplified primary nav without `Advanced`
+  lands on `Students`; keeps the simplified primary nav without `Advanced`
   while still retaining intended deep-link access to detailed read-only screens
   such as reports or imports when permissions allow
+
+## Before Real Data / UAT
+
+Run UAT with dummy data before entering actual student records. Use a clearly
+named test academic session such as `TEST-2026-27`, dummy students such as
+`Test Student 001`, and dummy SR numbers such as `TEST-SR-001`.
+
+UAT guidance lives in:
+
+- `docs/uat-test-plan.md`
+- `docs/test-data-setup.md`
+- `docs/before-real-data-checklist.md`
+- `docs/samples/student-import-test-sample.csv`
+
+Do not change the real AY `2026-27` defaults just to test the workflow. Do not
+post test payments against real students, and do not mix dummy students or
+dummy receipts with production records.
 
 ## Start Here vs Advanced
 

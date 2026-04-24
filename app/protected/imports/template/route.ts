@@ -16,11 +16,16 @@ export async function GET() {
   const sample = studentImportFieldDefinitions.map((field) => {
     switch (field.key) {
       case "fullName":
-        return "Student Name";
+        return "Test Student 001";
       case "classLabel":
-        return "Class 1";
+        return "TEST CLASS 1";
       case "admissionNo":
-        return "SR001";
+        return "TEST-SR-001";
+      case "fatherPhone":
+      case "motherPhone":
+        return "9999999999";
+      case "transportRouteLabel":
+        return "TEST ROUTE";
       case "studentTypeOverride":
         return "existing";
       case "status":
@@ -28,6 +33,10 @@ export async function GET() {
       case "discountAmount":
       case "lateFeeWaiverAmount":
         return "0";
+      case "feeProfileReason":
+        return "UAT dummy record";
+      case "notes":
+        return "Dummy UAT record only";
       default:
         return "";
     }

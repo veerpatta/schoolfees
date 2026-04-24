@@ -55,6 +55,7 @@ Primary product qualities:
 - clear auditability
 - gradual migration from workbook-based work
 - explicit, correction-safe financial history
+- safe UAT with dummy data before real student records are entered
 
 ## Simplified Workspace Truth
 
@@ -157,6 +158,8 @@ Fully implemented core:
   workbook workflow stays in one place
 - Deployment Settings Validator showing env checks, policy notes, and recent
   config-change batch history
+- UAT docs and dummy student import sample under `docs/` for safe testing
+  before real data entry
 - explicit access-denied route under `app/protected/access-denied`
 - internal staff management under `app/protected/staff` with role assignment,
   activation toggles, password resets, and initial password handling
@@ -424,6 +427,8 @@ Preserve:
 Current auth/environment expectations:
 
 - `proxy.ts` protects `/protected` routes and refreshes auth cookies for SSR
+- run UAT with dummy data before real student records are entered; recommended
+  test session label is `TEST-2026-27`
 - server actions handle login/logout and key account-management flows
 - keep `NEXT_PUBLIC_SITE_URL` explicitly set in production
 - keep the service role key out of browser code

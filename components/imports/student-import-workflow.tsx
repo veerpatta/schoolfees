@@ -74,6 +74,12 @@ export function StudentImportWorkflow({
       {notice ? <NoticeBlock message={notice} tone="success" /> : null}
       {error ? <NoticeBlock message={error} tone="error" /> : null}
 
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+        UAT import runs should use dummy rows only: Test Student 001, TEST-SR-001, and TEST
+        ROUTE. Matching SR numbers update existing students, so never reuse a real SR number for
+        testing.
+      </div>
+
       <BatchUploadCard
         canManage={canManage}
         supportedFormats={data.supportedFormats}

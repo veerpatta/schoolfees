@@ -90,6 +90,20 @@ export function isVercelProductionEnvironment() {
   return getOptionalEnvVar("VERCEL_ENV") === "production";
 }
 
+export function getRuntimeEnvironmentLabel() {
+  const vercelEnvironment = getOptionalEnvVar("VERCEL_ENV");
+
+  if (vercelEnvironment) {
+    return vercelEnvironment;
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    return "local/development";
+  }
+
+  return process.env.NODE_ENV ?? "local";
+}
+
 export function getPublicSiteUrl() {
   const configuredUrl = getOptionalEnvVar("NEXT_PUBLIC_SITE_URL");
 
