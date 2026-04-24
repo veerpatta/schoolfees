@@ -3202,6 +3202,8 @@ as
 select *
 from private.workbook_installment_snapshot(null, current_date, false);
 
+drop view if exists public.v_workbook_student_financials;
+
 create or replace view public.v_workbook_student_financials
 with (security_invoker = true)
 as
@@ -4055,6 +4057,8 @@ with (security_invoker = true)
 as
 select *
 from private.workbook_installment_snapshot(null, current_date, false);
+
+drop view if exists public.v_workbook_student_financials;
 
 create or replace view public.v_workbook_student_financials
 with (security_invoker = true)
