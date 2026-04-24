@@ -212,7 +212,11 @@ export function getProtectedNavigationItem(pathname: string) {
 }
 
 export function getDefaultProtectedHref(role: StaffRole) {
-  return role === "accountant" ? "/protected/payments" : "/protected";
+  if (role === "accountant") {
+    return "/protected/payments";
+  }
+
+  return "/protected/students";
 }
 
 export function getVisibleProtectedNavigation(staffRole: StaffRole) {

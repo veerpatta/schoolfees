@@ -90,9 +90,9 @@ Operational boundaries:
 
 Default role landing:
 
-- `admin` -> `Start Here`
+- `admin` -> `Students`
 - `accountant` -> `Payment Desk`
-- `read_only_staff` -> `Start Here`
+- `read_only_staff` -> `Students`
 
 ## Non-Goals
 
@@ -336,8 +336,8 @@ Propagation expectations:
 - payment entry must enforce the current accepted payment modes and receipt
   prefix
 - role landing and simplified navigation should stay workbook-first:
-  `admin` -> `Start Here`, `accountant` -> `Payment Desk`,
-  `read_only_staff` -> `Start Here`
+  `admin` -> `Students`, `accountant` -> `Payment Desk`,
+  `read_only_staff` -> `Students`
 - receipts, payments, and payment adjustments remain historical facts after
   posting even if the current policy later changes
 - Standard concession profiles in Fee Setup are Phase 1 read-only planning

@@ -11,12 +11,12 @@ describe("office navigation", () => {
     expect(getDefaultProtectedHref("accountant")).toBe("/protected/payments");
   });
 
-  it("keeps admins on Start Here by default", () => {
-    expect(getDefaultProtectedHref("admin")).toBe("/protected");
+  it("sends admins to Students by default", () => {
+    expect(getDefaultProtectedHref("admin")).toBe("/protected/students");
   });
 
-  it("keeps read-only staff on Start Here by default", () => {
-    expect(getDefaultProtectedHref("read_only_staff")).toBe("/protected");
+  it("sends read-only staff to Students by default", () => {
+    expect(getDefaultProtectedHref("read_only_staff")).toBe("/protected/students");
   });
 
   it("orders accountant navigation around counter work", () => {

@@ -78,8 +78,8 @@ Main routes and modules in the repo today:
 - `app/auth/*`
   login, password reset/recovery, auth confirmation, and error screens
 - `app/protected/page.tsx`
-  `Start Here` daily sheet with blockers, continue-task shortcuts, and today’s
-  office work
+  protected routing entry point that redirects accountants to Payment Desk and
+  admins/read-only staff to Students
 - `app/protected/students/page.tsx`
   student master list
 - `app/protected/students/new/page.tsx`
@@ -333,8 +333,8 @@ Propagation expectations:
   landing/auth policy copy all consume the same canonical policy service
 - payment entry enforces the current accepted payment modes and current receipt
   prefix
-- role landing remains workbook-first: admin -> `Start Here`, accountant ->
-  `Payment Desk`, read_only_staff -> `Start Here`
+- role landing remains workbook-first: admin -> `Students`, accountant ->
+  `Payment Desk`, read_only_staff -> `Students`
 - reports and receipts keep historical financial facts visible even after the
   current policy changes
 - paid, partially paid, or adjusted installment rows are never silently
