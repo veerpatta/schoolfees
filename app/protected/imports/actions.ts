@@ -12,10 +12,22 @@ import {
 } from "@/lib/import/data";
 import { getStudentImportColumnMapping } from "@/lib/import/mapping";
 import type { ImportAnomalyCategory } from "@/lib/import/types";
+import type { ImportMode } from "@/lib/import/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
-function buildImportsUrl(batchId: string | null, notice?: string, error?: string) {
+function normalizeImportMode(value: FormDataEntryValue | string | null): ImportMode {
+  return value === "update" ? "update" : "add";
+}
+
+function buildImportsUrl(
+  batchId: string | null,
+  notice?: string,
+  error?: string,
+  mode: ImportMode = "add",
+) {
   const searchParams = new URLSearchParams();
+
+  searchParams.set("mode", mode);
 
   if (batchId) {
     searchParams.set("batchId", batchId);
@@ -38,6 +50,7 @@ export async function uploadStudentImportBatchAction(formData: FormData) {
   await requireStaffPermission("students:write");
 
   const file = formData.get("importFile");
+  const mode = normalizeImportMode(formData.get("importMode"));
   let batchId: string | null = null;
 
   try {
@@ -45,19 +58,21 @@ export async function uploadStudentImportBatchAction(formData: FormData) {
       throw new Error("Please select a CSV or XLSX file to import.");
     }
 
-    batchId = await createStudentImportBatch(file);
+    batchId = await createStudentImportBatch(file, mode);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unable to upload the import file.";
 
-    redirect(buildImportsUrl(batchId, undefined, message));
+    redirect(buildImportsUrl(batchId, undefined, message, mode));
   }
 
   revalidatePath("/protected/imports");
   redirect(
     buildImportsUrl(
       batchId,
-      "Batch uploaded. Review the auto-mapping, then run dry-run validation.",
+      "Upload batch ready. Review the matched columns, then check the rows.",
+      undefined,
+      mode,
     ),
   );
 }
@@ -67,6 +82,7 @@ export async function runStudentImportDryRunAction(formData: FormData) {
 
   const batchId =
     typeof formData.get("batchId") === "string" ? String(formData.get("batchId")) : "";
+  const mode = normalizeImportMode(formData.get("importMode"));
   const mapping = getStudentImportColumnMapping(formData);
 
   try {
@@ -79,14 +95,16 @@ export async function runStudentImportDryRunAction(formData: FormData) {
     const message =
       error instanceof Error ? error.message : "Unable to run dry-run validation.";
 
-    redirect(buildImportsUrl(batchId || null, undefined, message));
+    redirect(buildImportsUrl(batchId || null, undefined, message, mode));
   }
 
   revalidatePath("/protected/imports");
   redirect(
     buildImportsUrl(
       batchId,
-      "Dry-run complete. Review duplicates and row-level errors before importing valid rows.",
+      "Rows checked. Review rows needing correction, then import valid students.",
+      undefined,
+      mode,
     ),
   );
 }
@@ -96,6 +114,7 @@ export async function updateStudentImportRowReviewAction(formData: FormData) {
 
   const batchId =
     typeof formData.get("batchId") === "string" ? String(formData.get("batchId")) : "";
+  const mode = normalizeImportMode(formData.get("importMode"));
   const rowId = typeof formData.get("rowId") === "string" ? String(formData.get("rowId")) : "";
   const reviewStatus =
     typeof formData.get("reviewStatus") === "string"
@@ -128,11 +147,11 @@ export async function updateStudentImportRowReviewAction(formData: FormData) {
     const message =
       error instanceof Error ? error.message : "Unable to update row review status.";
 
-    redirect(buildImportsUrl(batchId || null, undefined, message));
+    redirect(buildImportsUrl(batchId || null, undefined, message, mode));
   }
 
   revalidatePath("/protected/imports");
-  redirect(buildImportsUrl(batchId, "Review status updated for the selected row."));
+  redirect(buildImportsUrl(batchId, "Review status updated for the selected row.", undefined, mode));
 }
 
 export async function bulkUpdateImportRowReviewAction(formData: FormData) {
@@ -140,6 +159,7 @@ export async function bulkUpdateImportRowReviewAction(formData: FormData) {
 
   const batchId =
     typeof formData.get("batchId") === "string" ? String(formData.get("batchId")) : "";
+  const mode = normalizeImportMode(formData.get("importMode"));
   const reviewStatus =
     typeof formData.get("reviewStatus") === "string"
       ? String(formData.get("reviewStatus"))
@@ -177,11 +197,11 @@ export async function bulkUpdateImportRowReviewAction(formData: FormData) {
     const message =
       error instanceof Error ? error.message : "Unable to update row review status.";
 
-    redirect(buildImportsUrl(batchId || null, undefined, message));
+    redirect(buildImportsUrl(batchId || null, undefined, message, mode));
   }
 
   revalidatePath("/protected/imports");
-  redirect(buildImportsUrl(batchId, "Review status updated for matching anomaly rows."));
+  redirect(buildImportsUrl(batchId, "Review status updated for matching rows.", undefined, mode));
 }
 
 export async function commitStudentImportBatchAction(formData: FormData) {
@@ -189,6 +209,7 @@ export async function commitStudentImportBatchAction(formData: FormData) {
 
   const batchId =
     typeof formData.get("batchId") === "string" ? String(formData.get("batchId")) : "";
+  const mode = normalizeImportMode(formData.get("importMode"));
 
   try {
     if (!batchId) {
@@ -200,7 +221,7 @@ export async function commitStudentImportBatchAction(formData: FormData) {
     const message =
       error instanceof Error ? error.message : "Unable to complete the import batch.";
 
-    redirect(buildImportsUrl(batchId || null, undefined, message));
+    redirect(buildImportsUrl(batchId || null, undefined, message, mode));
   }
 
   revalidatePath("/protected/imports");
@@ -212,7 +233,9 @@ export async function commitStudentImportBatchAction(formData: FormData) {
   redirect(
     buildImportsUrl(
       batchId,
-      "Import finished. Approved rows were saved to Student Master. Matching SR numbers updated existing students; unapproved rows remain in the QA queue.",
+      "Import finished. Valid rows were saved to Student Master. Rows needing correction remain available for follow-up.",
+      undefined,
+      mode,
     ),
   );
 }

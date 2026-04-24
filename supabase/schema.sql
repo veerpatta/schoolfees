@@ -1673,6 +1673,7 @@ grant execute on function public.post_student_payment(
 
 create table if not exists public.import_batches (
   id uuid primary key default gen_random_uuid(),
+  import_mode text not null default 'add' check (import_mode in ('add', 'update')),
   filename text not null,
   source_format text not null check (source_format in ('csv', 'xlsx')),
   worksheet_name text,

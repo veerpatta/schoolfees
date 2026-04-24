@@ -8,12 +8,20 @@ student entry and review still take priority over blind automation.
 
 Current import flow:
 
-1. upload CSV/XLSX
-2. review or adjust column mapping
-3. run dry-run validation
-4. review row-level duplicates and errors
-5. save approved valid rows only
-6. keep the full batch/row trail for later review
+1. choose Bulk Add New Students or Bulk Update Existing Students
+2. download the matching XLSX template
+3. upload CSV/XLSX
+4. let the app auto-match spreadsheet columns
+5. run validation
+6. review only rows needing correction or warnings
+7. import valid students
+8. keep the full batch/row trail for later review
+
+Bulk Add requires only Student name and Class. SR no is recommended but blank
+SR numbers are allowed and become unique `PENDING-SR-0001` style temporary
+numbers. Bulk Update should start from the downloaded existing-students export.
+Update matching uses Student ID first and SR/admission no second; name alone is
+never used for automatic update.
 
 ## Planned Import Use Case
 
@@ -24,6 +32,7 @@ from existing spreadsheets/workbooks into the app in staged, reviewable batches.
 
 Current student import mapping accounts for:
 
+- student ID (bulk update export only)
 - student name
 - class
 - SR no
@@ -97,8 +106,11 @@ Practical expectation:
 Current save behavior:
 
 - existing students are never overwritten
-- SR/admission number is the update key for existing student records
-- new SR/admission numbers create new student records
+- add mode creates new student records only; duplicate SR/admission numbers are
+  blocked
+- update mode updates existing student records only and matches by Student ID
+  first, then SR/admission number
+- new rows with blank SR/admission numbers get temporary pending SR numbers
 - duplicate SR/admission numbers inside the same file are held for review
 - blank optional cells in update rows leave existing values unchanged
 - only approved valid rows are saved

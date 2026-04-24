@@ -11,6 +11,7 @@ import { updateStudentImportRowReviewAction } from "@/app/protected/imports/acti
 import type {
   ImportAnomalyCategory,
   ImportBatchDetail,
+  ImportMode,
   ImportRowDetail,
 } from "@/lib/import/types";
 
@@ -91,10 +92,12 @@ function RowReviewForm({
   row,
   batchId,
   canManage,
+  mode,
 }: {
   row: ImportRowDetail;
   batchId: string;
   canManage: boolean;
+  mode: ImportMode;
 }) {
   const [submitting, setSubmitting] = useState(false);
 
@@ -111,6 +114,7 @@ function RowReviewForm({
   return (
     <form action={handleSubmit} className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
       <input type="hidden" name="batchId" value={batchId} />
+      <input type="hidden" name="importMode" value={mode} />
       <input type="hidden" name="rowId" value={row.id} />
       <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto] md:items-end">
         <div>
@@ -206,9 +210,10 @@ type RowDetailCardProps = {
   row: ImportRowDetail;
   batch: ImportBatchDetail;
   canManage: boolean;
+  mode: ImportMode;
 };
 
-export function RowDetailCard({ row, batch, canManage }: RowDetailCardProps) {
+export function RowDetailCard({ row, batch, canManage, mode }: RowDetailCardProps) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -282,7 +287,7 @@ export function RowDetailCard({ row, batch, canManage }: RowDetailCardProps) {
       <RawDataPreview row={row} batch={batch} />
 
       <div className="mt-3">
-        <RowReviewForm row={row} batchId={batch.id} canManage={canManage} />
+        <RowReviewForm row={row} batchId={batch.id} canManage={canManage} mode={mode} />
       </div>
     </div>
   );

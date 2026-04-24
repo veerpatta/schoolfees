@@ -84,6 +84,7 @@ export function getStudentFormInput(formData: FormData): StudentFormInput {
 type ValidationOptions = {
   classIds: ReadonlySet<string>;
   routeIds: ReadonlySet<string>;
+  allowBlankAdmissionNo?: boolean;
 };
 
 export function validateStudentInput(
@@ -120,7 +121,7 @@ export function validateStudentInput(
     fieldErrors.classId = "Please choose a valid class.";
   }
 
-  if (!input.admissionNo) {
+  if (!input.admissionNo && !options.allowBlankAdmissionNo) {
     fieldErrors.admissionNo = "SR no is required.";
   }
 

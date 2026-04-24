@@ -82,7 +82,7 @@ Operational boundaries:
   Mode, with fee-head metadata and list maintenance collapsed by default.
 - `Students` is the canonical daily path for student master records,
   class/route assignment, student-specific fee profiles, special-case
-  overrides, and staged spreadsheet add/update work
+  overrides, quick add, bulk add, and staged safe bulk update work
 - `Payment Desk` is the only daily surface for posting payments and generating
   append-only receipts
 - `Transactions` is the read-only permanent record and download center for
@@ -129,9 +129,10 @@ Fully implemented core:
   as a live-edit path for policy/default changes
 - real-time dashboard, defaulters, and ledger modules
 - Student Master with add, detail, and edit workflows
-- Student Spreadsheet Import: CSV/XLSX upload, template download, column
-  mapping, dry-run validation, mixed add/update by SR number, row-level review,
-  batch tracking, and approved-valid-row-only save
+- Student Spreadsheet Import: separate Bulk Add and Bulk Update modes, XLSX
+  templates with current class/route names, auto column matching, advanced
+  mapping only when needed, dry-run validation, row-level review, batch
+  tracking, and approved-valid-row-only save
 - Fee Setup: simplified Basic Mode live setup for academic year, installment
   dates, flat late fee, new/old academic fee, class-wise annual tuition,
   route-wise annual transport fee, and review/publish; advanced fee-head,

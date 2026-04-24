@@ -80,8 +80,9 @@ Daily workflow boundary:
 - `Dashboard` is the staff-facing first overview for fee collection, blockers,
   follow-up, and safe shortcuts
 - `Students` is the staff-facing worksheet for student master records,
-  class/route assignment, student-specific fee profiles, special cases, and
-  staged spreadsheet add/update work
+  class/route assignment, student-specific fee profiles, special cases, quick
+  add, bulk add, and staged safe bulk update work. Student-specific fee
+  overrides belong here; school-wide defaults remain in Fee Setup.
 - `Payment Desk` is the only staff-facing workflow for collecting payments,
   posting through allocation, and generating append-only receipts
 - `Transactions` is read-only and owns permanent receipt records, dues,

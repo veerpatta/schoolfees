@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import type {
   ImportAnomalyCategory,
   ImportBatchDetail,
+  ImportMode,
   ImportRowDetail,
 } from "@/lib/import/types";
 
@@ -90,9 +91,10 @@ type AnomalyQueueProps = {
   batch: ImportBatchDetail;
   unresolvedRows: ImportRowDetail[];
   canManage: boolean;
+  mode?: ImportMode;
 };
 
-export function AnomalyQueue({ batch, unresolvedRows, canManage }: AnomalyQueueProps) {
+export function AnomalyQueue({ batch, unresolvedRows, canManage, mode = "add" }: AnomalyQueueProps) {
   const [activeTab, setActiveTab] = useState("all");
   const [submittingBulk, setSubmittingBulk] = useState(false);
 
@@ -115,6 +117,7 @@ export function AnomalyQueue({ batch, unresolvedRows, canManage }: AnomalyQueueP
     try {
       const formData = new FormData();
       formData.set("batchId", batch.id);
+      formData.set("importMode", mode);
       formData.set("reviewStatus", "skipped");
       formData.set("reviewNote", `Bulk skipped: ${activeConfig.label}`);
 
@@ -130,8 +133,8 @@ export function AnomalyQueue({ batch, unresolvedRows, canManage }: AnomalyQueueP
 
   return (
     <SectionCard
-      title="3. Issue queues"
-      description="Clear, hold, or skip each import issue before go-live. Use the tabs below to work through one queue at a time."
+      title="3. Rows needing correction"
+      description="Problem rows stay here. Clean rows do not need one-by-one approval."
     >
       <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
         {tabCounts.map((tab) => (
@@ -202,7 +205,7 @@ export function AnomalyQueue({ batch, unresolvedRows, canManage }: AnomalyQueueP
         ) : (
           <div className="space-y-3">
             {filteredRows.map((row) => (
-              <RowDetailCard key={row.id} row={row} batch={batch} canManage={canManage} />
+              <RowDetailCard key={row.id} row={row} batch={batch} canManage={canManage} mode={mode} />
             ))}
           </div>
         )}

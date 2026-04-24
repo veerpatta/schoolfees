@@ -3,6 +3,9 @@ import type { StudentStatus } from "@/lib/db/types";
 export const supportedImportFormats = ["csv", "xlsx"] as const;
 export type SupportedImportFormat = (typeof supportedImportFormats)[number];
 
+export const importModes = ["add", "update"] as const;
+export type ImportMode = (typeof importModes)[number];
+
 export const importBatchStatuses = [
   "uploaded",
   "validated",
@@ -46,6 +49,7 @@ export const importAnomalyCategories = [
 export type ImportAnomalyCategory = (typeof importAnomalyCategories)[number];
 
 export const importFieldKeys = [
+  "studentId",
   "fullName",
   "classLabel",
   "admissionNo",
@@ -103,6 +107,7 @@ export type NormalizedStudentImportOverride = {
 };
 
 export type NormalizedStudentImportRow = {
+  studentId: string | null;
   fullName: string;
   classId: string;
   classLabel: string;
@@ -155,6 +160,7 @@ export type ImportBatchSummary = {
 
 export type ImportBatchListItem = ImportBatchSummary & {
   id: string;
+  importMode: ImportMode;
   filename: string;
   sourceFormat: SupportedImportFormat;
   worksheetName: string | null;
@@ -210,6 +216,7 @@ export type ImportFieldDefinition = {
 };
 
 export type ImportPageData = {
+  mode: ImportMode;
   selectedBatch: ImportBatchDetail | null;
   recentBatches: ImportBatchListItem[];
   fieldDefinitions: readonly ImportFieldDefinition[];

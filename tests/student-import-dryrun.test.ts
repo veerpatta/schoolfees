@@ -29,6 +29,14 @@ const mapping = {
   otherAdjustmentAmount: "Other Amount",
 };
 
+const updateMapping = {
+  studentId: "Student ID",
+  fullName: "Student Name",
+  classLabel: "Class",
+  admissionNo: "SR No",
+  fatherName: "Father Name",
+};
+
 describe("student import dry-run", () => {
   it("keeps UAT-relevant fee-profile fields in the import mapping", () => {
     const keys = new Set(studentImportFieldDefinitions.map((field) => field.key));
@@ -66,6 +74,7 @@ describe("student import dry-run", () => {
         },
       ],
       mapping,
+      mode: "update",
       classes,
       routes,
       existingStudents: [
@@ -87,6 +96,188 @@ describe("student import dry-run", () => {
       duplicateStudentId: "student-1",
       normalizedPayload: {
         fatherName: null,
+      },
+    });
+  });
+
+  it("allows add rows with blank SR no and warns that a temporary SR no will be generated", () => {
+    const result = executeStudentImportDryRun({
+      mode: "add",
+      rows: [
+        {
+          id: "row-1",
+          rowIndex: 2,
+          rawPayload: {
+            "Student Name": "Asha Sharma",
+            Class: "Class 1",
+            "SR No": "",
+          },
+        },
+      ],
+      mapping,
+      classes,
+      routes,
+      existingStudents: [],
+      activeFeeSettingClassIds: new Set(["class-1"]),
+    });
+
+    expect(result.rows[0]).toMatchObject({
+      status: "valid",
+      operation: "create",
+      normalizedPayload: {
+        admissionNo: "",
+      },
+    });
+    expect(result.rows[0].warnings.join(" ")).toContain("temporary SR no");
+  });
+
+  it("blocks add rows that use an existing SR no", () => {
+    const result = executeStudentImportDryRun({
+      mode: "add",
+      rows: [
+        {
+          id: "row-1",
+          rowIndex: 2,
+          rawPayload: {
+            "Student Name": "Asha Sharma",
+            Class: "Class 1",
+            "SR No": "SR001",
+          },
+        },
+      ],
+      mapping,
+      classes,
+      routes,
+      existingStudents: [
+        {
+          id: "student-1",
+          admissionNo: "SR001",
+          fullName: "Asha Sharma",
+          classId: "class-1",
+          dateOfBirth: null,
+        },
+      ],
+      activeFeeSettingClassIds: new Set(["class-1"]),
+    });
+
+    expect(result.rows[0].status).toBe("duplicate");
+    expect(result.rows[0].errors[0]?.message).toContain("already exists");
+  });
+
+  it("warns on unknown routes in add mode and imports without route", () => {
+    const result = executeStudentImportDryRun({
+      mode: "add",
+      rows: [
+        {
+          id: "row-1",
+          rowIndex: 2,
+          rawPayload: {
+            "Student Name": "Asha Sharma",
+            Class: "Class 1",
+            "SR No": "SR040",
+            Route: "Unknown Route",
+          },
+        },
+      ],
+      mapping: { ...mapping, transportRouteLabel: "Route" },
+      classes,
+      routes,
+      existingStudents: [],
+      activeFeeSettingClassIds: new Set(["class-1"]),
+    });
+
+    expect(result.rows[0]).toMatchObject({
+      status: "valid",
+      normalizedPayload: {
+        transportRouteId: null,
+      },
+    });
+    expect(result.rows[0].warnings.join(" ")).toContain("without transport route");
+  });
+
+  it("matches update rows by Student ID before SR no", () => {
+    const result = executeStudentImportDryRun({
+      mode: "update",
+      rows: [
+        {
+          id: "row-1",
+          rowIndex: 2,
+          rawPayload: {
+            "Student ID": "student-2",
+            "Student Name": "Asha Sharma",
+            Class: "Class 1",
+            "SR No": "SR001",
+            "Father Name": "Updated Father",
+          },
+        },
+      ],
+      mapping: updateMapping,
+      classes,
+      routes,
+      existingStudents: [
+        {
+          id: "student-1",
+          admissionNo: "SR001",
+          fullName: "Asha Sharma",
+          classId: "class-1",
+          dateOfBirth: null,
+        },
+        {
+          id: "student-2",
+          admissionNo: "SR002",
+          fullName: "Asha Sharma",
+          classId: "class-1",
+          dateOfBirth: null,
+        },
+      ],
+      activeFeeSettingClassIds: new Set(["class-1"]),
+    });
+
+    expect(result.rows[0]).toMatchObject({
+      status: "valid",
+      operation: "update",
+      targetStudentId: "student-2",
+    });
+  });
+
+  it("treats blank update cells as no change when Student ID identifies the row", () => {
+    const result = executeStudentImportDryRun({
+      mode: "update",
+      rows: [
+        {
+          id: "row-1",
+          rowIndex: 2,
+          rawPayload: {
+            "Student ID": "student-1",
+            "Student Name": "",
+            Class: "",
+            "SR No": "",
+            "Father Name": "Updated Father",
+          },
+        },
+      ],
+      mapping: updateMapping,
+      classes,
+      routes,
+      existingStudents: [
+        {
+          id: "student-1",
+          admissionNo: "SR001",
+          fullName: "Asha Sharma",
+          classId: "class-1",
+          dateOfBirth: null,
+        },
+      ],
+      activeFeeSettingClassIds: new Set(["class-1"]),
+    });
+
+    expect(result.rows[0]).toMatchObject({
+      status: "valid",
+      targetStudentId: "student-1",
+      normalizedPayload: {
+        fullName: "Asha Sharma",
+        admissionNo: "SR001",
+        classId: "class-1",
       },
     });
   });

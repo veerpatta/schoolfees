@@ -50,6 +50,7 @@ export async function createStudentAction(
   const validated = validateStudentInput(input, {
     classIds: new Set(classOptions.map((option) => option.id)),
     routeIds: new Set(routeOptions.map((option) => option.id)),
+    allowBlankAdmissionNo: true,
   });
 
   if (!validated.ok) {

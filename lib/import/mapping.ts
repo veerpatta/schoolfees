@@ -8,6 +8,13 @@ import {
 
 export const studentImportFieldDefinitions: readonly ImportFieldDefinition[] = [
   {
+    key: "studentId",
+    label: "Student ID",
+    description: "Update mode only. Keep this value from the downloaded update file.",
+    required: false,
+    aliases: ["student id", "student_id", "id"],
+  },
+  {
     key: "fullName",
     label: "Student name",
     description: "Required. Maps the student full name.",
@@ -24,8 +31,8 @@ export const studentImportFieldDefinitions: readonly ImportFieldDefinition[] = [
   {
     key: "admissionNo",
     label: "SR no / admission no",
-    description: "Required. Used as the primary duplicate check.",
-    required: true,
+    description: "Recommended. Add mode can generate a temporary SR no when this is blank.",
+    required: false,
     aliases: ["sr no", "sr number", "admission no", "admission number", "adm no"],
   },
   {

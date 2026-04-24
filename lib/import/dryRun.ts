@@ -20,6 +20,7 @@ import { normalizeWorkbookClassLabel } from "@/lib/fees/workbook";
 import type {
   DryRunProcessedRow,
   ImportBatchSummary,
+  ImportMode,
   ImportIssue,
   ImportStoredRowInput,
   NormalizedStudentImportRow,
@@ -39,6 +40,7 @@ type ImportRouteReference = {
 };
 
 export type StudentImportDryRunContext = {
+  mode?: ImportMode;
   rows: ImportStoredRowInput[];
   mapping: StudentImportColumnMapping;
   classes: ImportClassReference[];
@@ -109,6 +111,7 @@ function hasAnyOverride(normalized: NormalizedStudentImportRow["overrides"]) {
 
 export function executeStudentImportDryRun({
   rows,
+  mode = "add",
   mapping,
   classes,
   routes,
@@ -117,11 +120,16 @@ export function executeStudentImportDryRun({
 }: StudentImportDryRunContext) {
   const classIds = new Set(classes.map((item) => item.id));
   const routeIds = new Set(routes.map((item) => item.id));
+  const existingById = new Map(existingStudents.map((student) => [student.id, student]));
+  const existingByAdmissionNo = new Map(
+    existingStudents.map((student) => [student.admissionNo.toLowerCase(), student]),
+  );
 
   const preliminaryRows: DryRunProcessedRow[] = rows.map((row) => {
     const errors: ImportIssue[] = [];
     const warnings: string[] = [];
 
+    const studentId = stringifyImportCell(getMappedCellValue(row.rawPayload, mapping, "studentId"));
     const fullName = stringifyImportCell(getMappedCellValue(row.rawPayload, mapping, "fullName"));
     const classLabel = stringifyImportCell(getMappedCellValue(row.rawPayload, mapping, "classLabel"));
     const admissionNo = stringifyImportCell(getMappedCellValue(row.rawPayload, mapping, "admissionNo"));
@@ -137,6 +145,21 @@ export function executeStudentImportDryRun({
     const feeProfileReason = stringifyImportCell(
       getMappedCellValue(row.rawPayload, mapping, "feeProfileReason"),
     );
+    const updateTarget =
+      mode === "update"
+        ? (studentId ? existingById.get(studentId) : null) ??
+          (admissionNo ? existingByAdmissionNo.get(admissionNo.toLowerCase()) : null) ??
+          null
+        : null;
+    const fallbackClass = updateTarget
+      ? classes.find((item) => item.id === updateTarget.classId) ?? null
+      : null;
+    const effectiveFullName = mode === "update" && !fullName
+      ? updateTarget?.fullName ?? ""
+      : fullName;
+    const effectiveAdmissionNo = mode === "update" && !admissionNo
+      ? updateTarget?.admissionNo ?? ""
+      : admissionNo;
 
     const matchedClass = findReferenceMatch(classes, classLabel);
     const matchedRoute = routeLabel ? findReferenceMatch(routes, routeLabel) : null;
@@ -198,15 +221,35 @@ export function executeStudentImportDryRun({
       "Late fee waiver",
     );
 
-    if (!admissionNo) {
+    if (!effectiveFullName) {
       errors.push({
-        code: "ERR_MISSING_ADMISSION_NO",
-        field: "admissionNo",
-        message: "SR no / admission no is missing.",
+        code: "ERR_MISSING_FULL_NAME",
+        field: "fullName",
+        message: "Student name is required.",
       });
     }
 
-    if (isPlaceholderValue(fullName)) {
+    if (!classLabel && !fallbackClass) {
+      errors.push({
+        code: "ERR_MISSING_CLASS",
+        field: "classLabel",
+        message: "Class is required.",
+      });
+    }
+
+    if (!effectiveAdmissionNo) {
+      if (mode === "update" && !studentId) {
+        errors.push({
+          code: "ERR_MISSING_STUDENT_ID_OR_ADMISSION_NO",
+          field: "admissionNo",
+          message: "Student ID or SR no is required for bulk update.",
+        });
+      } else if (mode === "add") {
+        warnings.push("WARN_MISSING_ADMISSION_NO: SR no is blank. A temporary SR no will be generated.");
+      }
+    }
+
+    if (isPlaceholderValue(effectiveFullName)) {
       errors.push({
         code: "ERR_PLACEHOLDER_FULL_NAME",
         field: "fullName",
@@ -214,7 +257,7 @@ export function executeStudentImportDryRun({
       });
     }
 
-    if (isPlaceholderValue(admissionNo)) {
+    if (isPlaceholderValue(effectiveAdmissionNo)) {
       errors.push({
         code: "ERR_PLACEHOLDER_ADMISSION_NO",
         field: "admissionNo",
@@ -222,7 +265,7 @@ export function executeStudentImportDryRun({
       });
     }
 
-    if (isPlaceholderValue(classLabel)) {
+    if (classLabel && isPlaceholderValue(classLabel)) {
       errors.push({
         code: "ERR_PLACEHOLDER_CLASS",
         field: "classLabel",
@@ -255,11 +298,15 @@ export function executeStudentImportDryRun({
     }
 
     if (!matchedRoute && routeLabel) {
-      errors.push({
-        code: "ERR_ROUTE_NOT_FOUND",
-        field: "transportRouteLabel",
-        message: `Transport route "${routeLabel}" could not be matched to an existing route.`,
-      });
+      if (mode === "add") {
+        warnings.push(`WARN_ROUTE_NOT_FOUND: Route "${routeLabel}" was not found. The student will be imported without transport route.`);
+      } else {
+        errors.push({
+          code: "ERR_ROUTE_NOT_FOUND",
+          field: "transportRouteLabel",
+          message: `Transport route "${routeLabel}" could not be matched to an existing route.`,
+        });
+      }
     }
 
     if (statusValue === "__invalid__") {
@@ -350,16 +397,16 @@ export function executeStudentImportDryRun({
 
     const studentValidation = validateStudentInput(
       {
-        fullName,
-        classId: matchedClass?.id ?? (classLabel ? "__invalid__" : ""),
-        admissionNo,
+        fullName: effectiveFullName,
+        classId: matchedClass?.id ?? fallbackClass?.id ?? (classLabel ? "__invalid__" : ""),
+        admissionNo: effectiveAdmissionNo,
         dateOfBirth: dateResult.value ?? "",
         fatherName,
         motherName,
         fatherPhone,
         motherPhone,
         address,
-        transportRouteId: matchedRoute?.id ?? (routeLabel ? "__invalid__" : ""),
+        transportRouteId: matchedRoute?.id ?? (mode === "add" ? "" : routeLabel ? "__invalid__" : ""),
         status: statusValue === "__invalid__" ? "__invalid__" : statusValue,
         studentTypeOverride:
           studentTypeOverride.value ?? (studentTypeOverride.error ? "__invalid__" : "existing"),
@@ -380,6 +427,7 @@ export function executeStudentImportDryRun({
       {
         classIds,
         routeIds,
+        allowBlankAdmissionNo: mode === "add",
       },
     );
 
@@ -393,7 +441,7 @@ export function executeStudentImportDryRun({
       }
     }
 
-    if (errors.length > 0 || !studentValidation.ok || !matchedClass) {
+    if (errors.length > 0 || !studentValidation.ok || (!matchedClass && !fallbackClass)) {
       return {
         rowId: row.id,
         rowIndex: row.rowIndex,
@@ -410,9 +458,10 @@ export function executeStudentImportDryRun({
     }
 
     const normalizedPayload: NormalizedStudentImportRow = {
+      studentId: studentId || null,
       fullName: studentValidation.data.fullName,
       classId: studentValidation.data.classId,
-      classLabel: matchedClass.label,
+      classLabel: matchedClass?.label ?? fallbackClass?.label ?? "",
       admissionNo: studentValidation.data.admissionNo,
       dateOfBirth: studentValidation.data.dateOfBirth,
       fatherName: studentValidation.data.fatherName,
@@ -463,7 +512,7 @@ export function executeStudentImportDryRun({
       rowIndex: row.rowIndex,
       rawPayload: row.rawPayload,
       normalizedPayload: errors.length === 0 ? normalizedPayload : null,
-      operation: "create",
+      operation: mode === "update" ? "update" : "create",
       status: errors.length === 0 ? ("valid" as const) : ("invalid" as const),
       errors,
       warnings,
@@ -473,7 +522,55 @@ export function executeStudentImportDryRun({
     };
   });
 
-  const rowsWithDuplicates = detectDuplicateRows(preliminaryRows, existingStudents);
+  const rowsWithResolvedUpdates = preliminaryRows.map((row) => {
+    if (mode !== "update" || row.status !== "valid" || !row.normalizedPayload) {
+      return row;
+    }
+
+    const targetById = row.normalizedPayload.studentId
+      ? existingById.get(row.normalizedPayload.studentId)
+      : null;
+    const targetBySr = row.normalizedPayload.admissionNo
+      ? existingByAdmissionNo.get(row.normalizedPayload.admissionNo.toLowerCase())
+      : null;
+    const target = targetById ?? targetBySr ?? null;
+
+    if (!target) {
+      return {
+        ...row,
+        status: "invalid" as const,
+        errors: [
+          ...row.errors,
+          {
+            code: "ERR_UPDATE_TARGET_NOT_FOUND",
+            field: "row" as const,
+            message: "No existing student matched this row by Student ID or SR no.",
+          },
+        ],
+      };
+    }
+
+    const changedFields = Object.entries(mapping).flatMap(([field, header]) => {
+      if (!header || field === "studentId" || field === "admissionNo") {
+        return [];
+      }
+
+      return stringifyImportCell(row.rawPayload[header]).length > 0 ? [field] : [];
+    });
+
+    return {
+      ...row,
+      operation: "update" as const,
+      targetStudentId: target.id,
+      duplicateStudentId: target.id,
+      changedFields,
+      warnings: changedFields.length === 0
+        ? [...row.warnings, "WARN_NO_CHANGES: No changed fields were found in this update row."]
+        : row.warnings,
+    };
+  });
+
+  const rowsWithDuplicates = detectDuplicateRows(rowsWithResolvedUpdates, existingStudents, { mode });
 
   return {
     rows: rowsWithDuplicates,

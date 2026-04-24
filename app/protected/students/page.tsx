@@ -68,8 +68,8 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
     <div className="space-y-6">
       <PageHeader
         eyebrow="Students"
-        title="Student Master + Fee Profile"
-        description="Use Students for student entry, class/route assignment, student-specific fee profiles, special cases, and spreadsheet add/update work."
+        title="Students"
+        description="Add students, manage student details, assign class/transport, and handle student-specific fee exceptions."
         actions={
           canWriteStudents ? (
             <div className="flex flex-wrap gap-2">
@@ -77,10 +77,13 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
                 <Link href="/protected/students/new">Add Student</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/protected/imports">Bulk Upload / Update</Link>
+                <Link href="/protected/imports?mode=add">Bulk Add Students</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/protected/imports/template">Download Template</Link>
+                <Link href="/protected/imports?mode=update">Bulk Update Existing Students</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/protected/imports/template?mode=add">Download Add Template</Link>
               </Button>
             </div>
           ) : (
@@ -90,32 +93,8 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
       />
 
       <SectionCard
-        title="Student workspace boundary"
-        description="Fee Setup remains the only place for school-wide defaults. Students is for student-specific records and overrides."
-      >
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-            <p className="font-semibold">Student Master</p>
-            <p className="mt-1 text-emerald-800">Name, SR no, class, route, contact, notes, and record status.</p>
-          </div>
-          <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-            <p className="font-semibold">Fee Profile</p>
-            <p className="mt-1 text-sky-800">New/existing, student overrides, discount, waiver, and special adjustments.</p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-            <p className="font-semibold text-slate-900">Bulk Work</p>
-            <p className="mt-1">CSV/XLSX uploads are staged, validated, reviewed, and linked back to import batches.</p>
-          </div>
-        </div>
-        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-          Before real data entry, use dummy students such as Test Student 001 and SR numbers like
-          TEST-SR-001. Do not post test payments against real student records.
-        </div>
-      </SectionCard>
-
-      <SectionCard
         title="Find students"
-        description="Use class shortcuts and filters together so the list updates from one place."
+        description="Search by student name, SR no, or phone, then narrow by class, route, or status."
       >
         <div className="space-y-4">
           <ClassTabs
@@ -149,11 +128,11 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
 
       <details className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-slate-900">
-          Import-ready field map
+          Advanced import field map
         </summary>
         <div className="border-t border-slate-200 p-4">
           <p className="mb-4 text-sm text-slate-600">
-            These normalized keys and aliases match the CSV/XLSX workbook import flow.
+            These technical keys are kept only for troubleshooting old spreadsheets.
           </p>
           <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
             {STUDENT_IMPORT_FIELDS.map((field) => (

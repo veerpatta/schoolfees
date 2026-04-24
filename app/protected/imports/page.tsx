@@ -8,6 +8,7 @@ import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/sessi
 type ImportsPageProps = {
   searchParams?: Promise<{
     batchId?: string;
+    mode?: string;
     notice?: string;
     error?: string;
   }>;
@@ -17,8 +18,9 @@ export default async function ImportsPage({ searchParams }: ImportsPageProps) {
   const staff = await requireStaffPermission("imports:view", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const selectedBatchId = resolvedSearchParams?.batchId?.trim() ?? "";
+  const mode = resolvedSearchParams?.mode === "update" ? "update" : "add";
   const [data, setup] = await Promise.all([
-    getStudentImportPageData(selectedBatchId || null),
+    getStudentImportPageData(selectedBatchId || null, mode),
     getSetupWizardData(),
   ]);
   const readiness = getOfficeWorkflowReadiness(setup, staff.appRole);

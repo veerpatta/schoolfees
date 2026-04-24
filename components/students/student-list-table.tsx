@@ -3,6 +3,7 @@ import Link from "next/link";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
+import { isPendingAdmissionNo } from "@/lib/students/constants";
 import type { StudentListItem } from "@/lib/students/types";
 
 import { StudentStatusBadge } from "./student-status-badge";
@@ -79,7 +80,14 @@ export function StudentListTable({
               <td className="px-4 py-3">
                 <p className="text-sm font-medium text-slate-900">{student.fullName}</p>
               </td>
-              <td className="px-4 py-3 text-sm text-slate-700">{student.admissionNo}</td>
+              <td className="px-4 py-3 text-sm text-slate-700">
+                <p>{student.admissionNo}</p>
+                {isPendingAdmissionNo(student.admissionNo) ? (
+                  <span className="mt-1 inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-800">
+                    SR pending
+                  </span>
+                ) : null}
+              </td>
               <td className="px-4 py-3 text-sm text-slate-700">{student.classLabel}</td>
               <td className="px-4 py-3 text-sm text-slate-700">{student.studentStatusLabel}</td>
               <td className="px-4 py-3 text-sm text-slate-700">{student.transportRouteLabel}</td>

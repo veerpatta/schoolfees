@@ -5,15 +5,16 @@ import { useState } from "react";
 import { SectionCard } from "@/components/admin/section-card";
 import { Button } from "@/components/ui/button";
 import { commitStudentImportBatchAction } from "@/app/protected/imports/actions";
-import type { ImportBatchDetail, ImportRowDetail } from "@/lib/import/types";
+import type { ImportBatchDetail, ImportMode, ImportRowDetail } from "@/lib/import/types";
 
 type ImportCommitCardProps = {
   batch: ImportBatchDetail;
   approvedRows: ImportRowDetail[];
   canManage: boolean;
+  mode: ImportMode;
 };
 
-export function ImportCommitCard({ batch, approvedRows, canManage }: ImportCommitCardProps) {
+export function ImportCommitCard({ batch, approvedRows, canManage, mode }: ImportCommitCardProps) {
   const [submitting, setSubmitting] = useState(false);
   const hasApprovedRows = approvedRows.length > 0;
   const isLocked = batch.status === "completed" || batch.status === "importing";
@@ -32,8 +33,10 @@ export function ImportCommitCard({ batch, approvedRows, canManage }: ImportCommi
 
   return (
     <SectionCard
-      title="4. Final approved import summary"
-      description="Only approved valid rows are saved. New SR numbers create students; matching SR numbers update existing students."
+      title="4. Import valid students"
+      description={mode === "update"
+        ? "Only approved valid rows update existing students. Blank cells are treated as no change."
+        : "Only approved valid rows create new students. Problem rows remain available for correction."}
     >
       <div className="space-y-4">
         {/* Summary boxes */}
@@ -69,6 +72,7 @@ export function ImportCommitCard({ batch, approvedRows, canManage }: ImportCommi
         {/* Import action */}
         <form action={handleSubmit}>
           <input type="hidden" name="batchId" value={batch.id} />
+          <input type="hidden" name="importMode" value={mode} />
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-slate-600">
               {isLocked
@@ -85,7 +89,7 @@ export function ImportCommitCard({ batch, approvedRows, canManage }: ImportCommi
                 ? "Importing…"
                 : isLocked
                   ? "Import complete"
-                  : `Import ${approvedRows.length} approved row${approvedRows.length === 1 ? "" : "s"}`}
+                  : "Import valid students"}
             </Button>
           </div>
         </form>

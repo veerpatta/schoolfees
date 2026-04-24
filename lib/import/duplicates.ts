@@ -1,4 +1,5 @@
 import type { DryRunProcessedRow } from "@/lib/import/types";
+import type { ImportMode } from "@/lib/import/types";
 
 export type ExistingStudentDuplicateRecord = {
   id: string;
@@ -6,6 +7,10 @@ export type ExistingStudentDuplicateRecord = {
   fullName: string;
   classId: string;
   dateOfBirth: string | null;
+};
+
+type DuplicateDetectionOptions = {
+  mode?: ImportMode;
 };
 
 function normalizeTextToken(value: string) {
@@ -22,7 +27,9 @@ function buildIdentityKey(parts: Array<string | null | undefined>) {
 export function detectDuplicateRows(
   rows: DryRunProcessedRow[],
   existingStudents: ExistingStudentDuplicateRecord[],
+  options: DuplicateDetectionOptions = {},
 ) {
+  const mode = options.mode ?? "add";
   const seenAdmissionNos = new Set<string>();
   const seenIdentityKeys = new Set<string>();
   const existingByAdmissionNo = new Map(
@@ -51,19 +58,21 @@ export function detectDuplicateRows(
     const errors = [...row.errors];
     let duplicateStudentId: string | null = row.duplicateStudentId;
 
-    if (seenAdmissionNos.has(normalizedAdmissionNo)) {
+    if (normalizedAdmissionNo && seenAdmissionNos.has(normalizedAdmissionNo)) {
       errors.push({
         code: "ERR_DUPLICATE_FILE_ADMISSION_NO",
         field: "admissionNo",
         message: `SR no ${row.normalizedPayload.admissionNo} appears more than once in this file.`,
       });
-    } else {
+    } else if (normalizedAdmissionNo) {
       seenAdmissionNos.add(normalizedAdmissionNo);
     }
 
-    const existingStudent = existingByAdmissionNo.get(normalizedAdmissionNo);
+    const existingStudent = normalizedAdmissionNo
+      ? existingByAdmissionNo.get(normalizedAdmissionNo)
+      : null;
 
-    if (existingStudent) {
+    if (existingStudent && !(mode === "update" && row.targetStudentId)) {
       duplicateStudentId = existingStudent.id;
     }
 
@@ -92,8 +101,20 @@ export function detectDuplicateRows(
       }
     }
 
+    if (mode === "add" && existingStudent) {
+      errors.push({
+        code: "ERR_DUPLICATE_DB_ADMISSION_NO",
+        field: "admissionNo",
+        message: `SR no ${row.normalizedPayload.admissionNo} already exists in Student Master.`,
+      });
+    }
+
     if (errors.length === row.errors.length) {
-      return existingStudent
+      if (mode === "update" && row.targetStudentId) {
+        return row;
+      }
+
+      return mode === "update" && existingStudent
         ? {
             ...row,
             operation: "update" as const,

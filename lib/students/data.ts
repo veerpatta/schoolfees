@@ -180,6 +180,33 @@ async function saveStudentFeeProfile(
   });
 }
 
+async function generatePendingAdmissionNo() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("students")
+    .select("admission_no")
+    .ilike("admission_no", "PENDING-SR-%");
+
+  if (error) {
+    throw new Error(`Unable to prepare temporary SR no: ${error.message}`);
+  }
+
+  const usedNumbers = new Set(
+    ((data ?? []) as Array<{ admission_no: string }>).flatMap((row) => {
+      const match = row.admission_no.match(/^PENDING-SR-(\d+)$/i);
+      return match ? [Number(match[1])] : [];
+    }),
+  );
+
+  for (let next = 1; next < 100000; next += 1) {
+    if (!usedNumbers.has(next)) {
+      return `PENDING-SR-${next.toString().padStart(4, "0")}`;
+    }
+  }
+
+  throw new Error("Unable to generate a temporary SR no. Please enter SR no manually.");
+}
+
 export async function getStudentFormOptions() {
   const options = await getMasterDataOptions();
 
@@ -388,27 +415,50 @@ export async function getStudentDetail(studentId: string) {
 
 export async function createStudent(payload: StudentValidatedInput) {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("students")
-    .insert({
-      full_name: payload.fullName,
-      class_id: payload.classId,
-      admission_no: payload.admissionNo,
-      date_of_birth: payload.dateOfBirth,
-      father_name: payload.fatherName,
-      mother_name: payload.motherName,
-      primary_phone: payload.fatherPhone,
-      secondary_phone: payload.motherPhone,
-      address: payload.address,
-      transport_route_id: payload.transportRouteId,
-      status: payload.status,
-      notes: payload.notes,
-    })
-    .select("id")
-    .single();
+  const shouldGenerateAdmissionNo = !payload.admissionNo;
+  let data: { id: string } | null = null;
+  let lastError: string | null = null;
 
-  if (error) {
-    throw new Error(error.message);
+  for (let attempt = 0; attempt < (shouldGenerateAdmissionNo ? 3 : 1); attempt += 1) {
+    const admissionNo = shouldGenerateAdmissionNo
+      ? await generatePendingAdmissionNo()
+      : payload.admissionNo;
+    const result = await supabase
+      .from("students")
+      .insert({
+        full_name: payload.fullName,
+        class_id: payload.classId,
+        admission_no: admissionNo,
+        date_of_birth: payload.dateOfBirth,
+        father_name: payload.fatherName,
+        mother_name: payload.motherName,
+        primary_phone: payload.fatherPhone,
+        secondary_phone: payload.motherPhone,
+        address: payload.address,
+        transport_route_id: payload.transportRouteId,
+        status: payload.status,
+        notes: payload.notes,
+      })
+      .select("id")
+      .single();
+
+    if (!result.error) {
+      data = result.data as { id: string };
+      break;
+    }
+
+    lastError = result.error.message;
+
+    if (
+      !shouldGenerateAdmissionNo ||
+      !result.error.message.toLowerCase().includes("admission")
+    ) {
+      throw new Error(result.error.message);
+    }
+  }
+
+  if (!data) {
+    throw new Error(lastError ?? "Unable to create student.");
   }
 
   const studentId = data.id as string;

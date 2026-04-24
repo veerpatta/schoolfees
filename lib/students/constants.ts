@@ -116,3 +116,7 @@ export const STUDENT_IMPORT_FIELDS: ReadonlyArray<{
     aliases: ["special case reason", "fee profile reason", "override reason"],
   },
 ];
+
+export function isPendingAdmissionNo(value: string | null | undefined) {
+  return Boolean(value?.trim().toUpperCase().startsWith("PENDING-SR-"));
+}

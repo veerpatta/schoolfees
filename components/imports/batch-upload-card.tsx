@@ -8,13 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { uploadStudentImportBatchAction } from "@/app/protected/imports/actions";
 import type { SupportedImportFormat } from "@/lib/import/types";
+import type { ImportMode } from "@/lib/import/types";
 
 type BatchUploadCardProps = {
   canManage: boolean;
+  mode: ImportMode;
   supportedFormats: readonly SupportedImportFormat[];
 };
 
-export function BatchUploadCard({ canManage, supportedFormats }: BatchUploadCardProps) {
+export function BatchUploadCard({ canManage, mode, supportedFormats }: BatchUploadCardProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -30,15 +32,20 @@ export function BatchUploadCard({ canManage, supportedFormats }: BatchUploadCard
 
   return (
     <SectionCard
-      title="1. Upload new batch"
-      description="Use one CSV or XLSX file per run. New SR numbers create students; matching SR numbers update existing students."
+      title="1. Upload batch"
+      description={mode === "update"
+        ? "Upload the edited existing-students file. Blank cells mean no change."
+        : "Upload the add-students file. Student name and class are enough to create a row."}
       actions={
         <Button asChild size="sm" variant="outline">
-          <Link href="/protected/imports/template">Download template</Link>
+          <Link href={`/protected/imports/template?mode=${mode}`}>
+            {mode === "update" ? "Download Existing Students for Update" : "Download Add Template"}
+          </Link>
         </Button>
       }
     >
       <form ref={formRef} action={handleSubmit} encType="multipart/form-data" className="space-y-4">
+        <input type="hidden" name="importMode" value={mode} />
         <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
           <div>
             <Label htmlFor="importFile">Spreadsheet file</Label>

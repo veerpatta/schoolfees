@@ -31,6 +31,7 @@ import type { StudentValidatedInput } from "@/lib/students/types";
 
 type ImportBatchRow = {
   id: string;
+  import_mode?: ImportBatchListItem["importMode"];
   filename: string;
   source_format: ImportBatchListItem["sourceFormat"];
   worksheet_name: string | null;
@@ -346,6 +347,14 @@ function toNormalizedPayload(value: unknown): NormalizedStudentImportRow | null 
   }
 
   if (
+    "studentId" in value &&
+    typeof value.studentId !== "string" &&
+    value.studentId !== null
+  ) {
+    return null;
+  }
+
+  if (
     typeof value.fullName !== "string" ||
     typeof value.classId !== "string" ||
     typeof value.classLabel !== "string" ||
@@ -355,6 +364,7 @@ function toNormalizedPayload(value: unknown): NormalizedStudentImportRow | null 
   }
 
   return {
+    studentId: typeof value.studentId === "string" ? value.studentId : null,
     fullName: value.fullName,
     classId: value.classId,
     classLabel: value.classLabel,
@@ -403,6 +413,7 @@ function summarizeImportRows(
 function toImportBatchListItem(row: ImportBatchRow): ImportBatchListItem {
   return {
     id: row.id,
+    importMode: row.import_mode === "update" ? "update" : "add",
     filename: row.filename,
     sourceFormat: row.source_format,
     worksheetName: row.worksheet_name,
@@ -473,7 +484,7 @@ async function getImportBatchById(batchId: string) {
   const { data, error } = await supabase
     .from("import_batches")
     .select(
-      "id, filename, source_format, worksheet_name, status, detected_headers, column_mapping, total_rows, valid_rows, invalid_rows, duplicate_rows, imported_rows, skipped_rows, failed_rows, validation_completed_at, import_completed_at, error_message, created_at, updated_at",
+      "id, import_mode, filename, source_format, worksheet_name, status, detected_headers, column_mapping, total_rows, valid_rows, invalid_rows, duplicate_rows, imported_rows, skipped_rows, failed_rows, validation_completed_at, import_completed_at, error_message, created_at, updated_at",
     )
     .eq("id", batchId)
     .maybeSingle();
@@ -560,12 +571,15 @@ async function upsertImportRows(
   }
 }
 
-export async function getStudentImportPageData(selectedBatchId?: string | null): Promise<ImportPageData> {
+export async function getStudentImportPageData(
+  selectedBatchId?: string | null,
+  mode: ImportBatchListItem["importMode"] = "add",
+): Promise<ImportPageData> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("import_batches")
     .select(
-      "id, filename, source_format, worksheet_name, status, detected_headers, column_mapping, total_rows, valid_rows, invalid_rows, duplicate_rows, imported_rows, skipped_rows, failed_rows, validation_completed_at, import_completed_at, error_message, created_at, updated_at",
+      "id, import_mode, filename, source_format, worksheet_name, status, detected_headers, column_mapping, total_rows, valid_rows, invalid_rows, duplicate_rows, imported_rows, skipped_rows, failed_rows, validation_completed_at, import_completed_at, error_message, created_at, updated_at",
     )
     .order("created_at", { ascending: false })
     .limit(BATCH_PAGE_SIZE);
@@ -579,6 +593,7 @@ export async function getStudentImportPageData(selectedBatchId?: string | null):
 
   if (!resolvedBatchId) {
     return {
+      mode,
       recentBatches,
       selectedBatch: null,
       fieldDefinitions: studentImportFieldDefinitions,
@@ -592,6 +607,7 @@ export async function getStudentImportPageData(selectedBatchId?: string | null):
   ]);
 
   return {
+    mode: batchRow?.import_mode === "update" ? "update" : mode,
     recentBatches,
     selectedBatch: batchRow ? toImportBatchDetail(batchRow, rowRecords) : null,
     fieldDefinitions: studentImportFieldDefinitions,
@@ -599,7 +615,10 @@ export async function getStudentImportPageData(selectedBatchId?: string | null):
   };
 }
 
-export async function createStudentImportBatch(file: File) {
+export async function createStudentImportBatch(
+  file: File,
+  mode: ImportBatchListItem["importMode"] = "add",
+) {
   const parsedFile = await parseStudentImportFile(file);
   const supabase = await createClient();
   const initialSummary: ImportBatchSummary = {
@@ -618,6 +637,7 @@ export async function createStudentImportBatch(file: File) {
     .from("import_batches")
     .insert({
       filename: parsedFile.filename,
+      import_mode: mode,
       source_format: parsedFile.sourceFormat,
       worksheet_name: parsedFile.worksheetName,
       file_size_bytes: parsedFile.fileSizeBytes,
@@ -698,6 +718,7 @@ export async function runStudentImportDryRun(batchId: string, mapping: StudentIm
   }
 
   const validationResult = executeStudentImportDryRun({
+    mode: batchRow.import_mode === "update" ? "update" : "add",
     rows: rowRecords.map((row) => ({
       id: row.id,
       rowIndex: row.row_index,

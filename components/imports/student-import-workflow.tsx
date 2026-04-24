@@ -42,6 +42,7 @@ export function StudentImportWorkflow({
   error,
 }: StudentImportWorkflowProps) {
   const selectedBatch = data.selectedBatch;
+  const mode = selectedBatch?.importMode ?? data.mode;
 
   const approvedRows =
     selectedBatch?.rows.filter(
@@ -60,8 +61,10 @@ export function StudentImportWorkflow({
     <div className="space-y-6">
       <PageHeader
         eyebrow="Students"
-        title="Bulk student upload / update"
-        description="Upload CSV/XLSX, map columns, review issues, then create new students or update matching SR numbers with full batch traceability."
+        title={mode === "update" ? "Bulk Update Existing Students" : "Bulk Add New Students"}
+        description={mode === "update"
+          ? "Download existing students, edit required fields, upload, preview changes, then update safely."
+          : "Upload student names and classes, review only problem rows, then import valid students."}
         actions={
           canManage ? (
             <StatusBadge label="Review and approval required" tone="accent" />
@@ -75,13 +78,14 @@ export function StudentImportWorkflow({
       {error ? <NoticeBlock message={error} tone="error" /> : null}
 
       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-        UAT import runs should use dummy rows only: Test Student 001, TEST-SR-001, and TEST
-        ROUTE. Matching SR numbers update existing students, so never reuse a real SR number for
-        testing.
+        {mode === "update"
+          ? "Bulk update matches by Student ID first and SR no second. Name alone is never used for automatic updates."
+          : "Bulk add can generate temporary SR numbers. Use the downloaded template so class and route names match the app."}
       </div>
 
       <BatchUploadCard
         canManage={canManage}
+        mode={mode}
         supportedFormats={data.supportedFormats}
       />
 
@@ -96,6 +100,7 @@ export function StudentImportWorkflow({
             batch={selectedBatch}
             fieldDefinitions={data.fieldDefinitions}
             canManage={canManage}
+            mode={mode}
           />
 
           <BatchSummaryCard batch={selectedBatch} />
@@ -104,12 +109,14 @@ export function StudentImportWorkflow({
             batch={selectedBatch}
             unresolvedRows={unresolvedQueue}
             canManage={canManage}
+            mode={mode}
           />
 
           <ImportCommitCard
             batch={selectedBatch}
             approvedRows={approvedRows}
             canManage={canManage}
+            mode={mode}
           />
         </>
       ) : null}

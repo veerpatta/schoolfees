@@ -62,8 +62,8 @@ Operational boundaries:
   route-wise annual transport fee, and review/publish. It opens in Basic Mode,
   with advanced fee-head and list maintenance collapsed by default.
 - `Students` is the daily surface for student master records, class/route
-  assignment, student-specific fee profiles, special cases, and spreadsheet
-  add/update work
+  assignment, student-specific fee profiles, special cases, quick add, bulk add,
+  and safe bulk update work
 - `Payment Desk` is the only daily surface for posting payments and generating
   append-only receipts
 - `Transactions` is the read-only permanent record and download center for
@@ -97,8 +97,10 @@ Main routes and modules in the repo today:
 - `app/protected/students/[studentId]/statement/page.tsx`
   printable master fee statement
 - `app/protected/imports/page.tsx`
-  Student bulk upload/update workflow with CSV/XLSX upload, template download,
-  dry-run, mapping, row review, and batch tracking
+  Student bulk add/update workflow with XLSX template download, CSV/XLSX upload,
+  auto-mapping, dry-run, rows needing correction, valid-row import, and batch
+  tracking. `/protected/imports?mode=add` is for new students;
+  `/protected/imports?mode=update` is for existing-student updates.
 - `docs/uat-test-plan.md`, `docs/test-data-setup.md`,
   `docs/before-real-data-checklist.md`, and
   `docs/samples/student-import-test-sample.csv`
@@ -292,8 +294,9 @@ Important current database behavior:
 - audit triggers capture inserts, updates, and deletes
 - append-only triggers block updates/deletes on receipts, payments, payment
   adjustments, and audit logs
-- import batches keep source filename, detected headers, row-level validation,
-  duplicate flags, and final imported-row traceability
+- import batches keep mode (`add` or `update`), source filename, detected
+  headers, row-level validation, duplicate flags, and final imported-row
+  traceability
 - `v_outstanding_summary` supports outstanding reporting
 - `v_installment_balances` supports legacy installment-level due tracking
 - `v_workbook_student_financials` supports workbook student-wise totals

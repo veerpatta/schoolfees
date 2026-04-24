@@ -33,10 +33,25 @@ function baseInput(overrides: Record<string, string> = {}) {
 }
 
 describe("student validation", () => {
-  it("requires only student name, SR no, class, record status, and new/existing profile", () => {
+  it("requires student name, SR no, class, record status, and new/existing profile by default", () => {
     const result = validateStudentInput(baseInput(), { classIds, routeIds });
 
     expect(result.ok).toBe(true);
+  });
+
+  it("allows blank SR no when the create workflow will generate a temporary SR no", () => {
+    const result = validateStudentInput(baseInput({ admissionNo: "" }), {
+      classIds,
+      routeIds,
+      allowBlankAdmissionNo: true,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        admissionNo: "",
+      },
+    });
   });
 
   it("reports the three main missing entry fields clearly", () => {

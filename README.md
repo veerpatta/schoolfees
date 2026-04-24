@@ -40,8 +40,8 @@ Primary daily areas:
   first overview screen for school-wide fee collection, pending dues, overdue
   follow-up, today receipts, attention items, and safe shortcuts
 - `Students`
-  student master, student-specific fee profiles, spreadsheet add/update, and
-  one-student workspace
+  student master, student-specific fee profiles, quick add, bulk add, safe
+  bulk update, and one-student workspace
 - `Fee Setup`
   the simplified Basic Mode fee sheet for the academic year: academic year,
   installment dates, basic fee rules, class fees, transport fees, and final
@@ -100,6 +100,14 @@ Dashboard is analytical and read-only. It does not post payments, edit student
 fee profiles, or change school-wide fee setup. Fee Setup remains the only
 school-wide fee setup editor, Students remains the student-specific profile and
 override editor, and Payment Desk remains the transaction posting surface.
+
+Students is intentionally office-simple by default. Manual add requires only
+student name and class; SR no is recommended, and blank SR numbers are saved as
+unique `PENDING-SR-0001` style temporary numbers until the office fills the real
+SR no. Bulk Add uses `/protected/imports?mode=add`; Bulk Update uses
+`/protected/imports?mode=update` and should start from the downloaded existing
+students template. Bulk Update matches Student ID first and SR no second; name
+alone is never used for automatic updates.
 
 Transactions is read-only. It shows permanent receipts, dues, installment
 status, defaulters, and exports, but it does not post payments or mutate
@@ -224,8 +232,9 @@ Implemented core:
 - protected admin workspace under `app/protected`
 - read-only dashboard with live fee collection, outstanding, class-wise, follow-up, and attention summaries
 - Student Master with list, add, detail, and edit flows
-- student spreadsheet import with CSV/XLSX upload, header mapping, dry-run
-  validation, duplicate detection, batch tracking, and valid-row-only save
+- student spreadsheet import with add/update modes, XLSX templates using real
+  class/route names, header auto-mapping, dry-run validation, duplicate
+  detection, batch tracking, and valid-row-only save
 - admin-only first-time setup wizard with academic-session selection, class and
   route master-data setup, school/class defaults, readiness checklist, and
   explicit go-live completion marker; once setup is marked complete, the wizard
