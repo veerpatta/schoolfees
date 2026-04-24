@@ -4,6 +4,7 @@ import type { PaymentMode } from "@/lib/db/types";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { looksLikeReceiptQuery, normalizePaymentDeskQuery } from "@/lib/payments/search";
 import { createClient } from "@/lib/supabase/server";
+import { getStudentDetail } from "@/lib/students/data";
 import {
   getWorkbookInstallmentBalances,
   getWorkbookStudentFinancials,
@@ -11,6 +12,7 @@ import {
 } from "@/lib/workbook/data";
 import type {
   InstallmentBalanceItem,
+  PaymentDeskIssue,
   PaymentEntryPageData,
   PaymentStudentOption,
   SelectedStudentSummary,
@@ -35,6 +37,28 @@ function mapStudentOptions(
     motherPhone: row.motherPhone,
     pendingAmount: row.outstandingAmount,
   }));
+}
+
+function buildStudentOption(payload: {
+  studentId: string;
+  studentName: string;
+  admissionNo: string;
+  classLabel: string;
+  fatherName: string | null;
+  fatherPhone: string | null;
+  motherPhone: string | null;
+  pendingAmount?: number;
+}): PaymentStudentOption {
+  return {
+    id: payload.studentId,
+    fullName: payload.studentName,
+    admissionNo: payload.admissionNo,
+    classLabel: payload.classLabel,
+    fatherName: payload.fatherName,
+    fatherPhone: payload.fatherPhone,
+    motherPhone: payload.motherPhone,
+    pendingAmount: payload.pendingAmount ?? 0,
+  };
 }
 
 function mapBreakdown(
@@ -93,6 +117,9 @@ export async function getPaymentEntryPageData(payload: {
   const workbookRows = await getWorkbookStudentFinancials({
     classId: payload.classId,
   });
+  const selectedWorkbookRows = payload.studentId
+    ? await getWorkbookStudentFinancials({ studentId: payload.studentId })
+    : [];
   const filteredWorkbookRows = normalizedQuery
     ? workbookRows.filter((row) => {
         const haystack = [
@@ -111,6 +138,7 @@ export async function getPaymentEntryPageData(payload: {
     : workbookRows;
 
   let studentOptions = mapStudentOptions(filteredWorkbookRows);
+  let selectedStudentIssue: PaymentDeskIssue | null = null;
 
   if (normalizedQuery && looksLikeReceiptQuery(normalizedQuery)) {
     const receiptMatches = await getWorkbookTransactions();
@@ -167,6 +195,7 @@ export async function getPaymentEntryPageData(payload: {
     return {
       studentOptions,
       selectedStudent: null,
+      selectedStudentIssue: null,
       searchQuery: normalizedQuery,
       classId: payload.classId ?? "",
       modeOptions: policy.acceptedPaymentModes,
@@ -176,13 +205,114 @@ export async function getPaymentEntryPageData(payload: {
     };
   }
 
-  const selectedFinancial =
-    workbookRows.find((row) => row.studentId === payload.studentId) ?? null;
+  const selectedFinancial = selectedWorkbookRows[0] ?? null;
 
-  if (!selectedFinancial) {
+  if (selectedFinancial) {
+    const breakdown = mapBreakdown(
+      await getWorkbookInstallmentBalances(selectedFinancial.studentId),
+    );
+    if (breakdown.length === 0) {
+      const selectedOption = buildStudentOption({
+        studentId: selectedFinancial.studentId,
+        studentName: selectedFinancial.studentName,
+        admissionNo: selectedFinancial.admissionNo,
+        classLabel: selectedFinancial.classLabel,
+        fatherName: selectedFinancial.fatherName,
+        fatherPhone: selectedFinancial.fatherPhone,
+        motherPhone: selectedFinancial.motherPhone,
+        pendingAmount: selectedFinancial.outstandingAmount,
+      });
+
+      if (!studentOptions.some((item) => item.id === selectedOption.id)) {
+        studentOptions = [selectedOption, ...studentOptions];
+      }
+
+      return {
+        studentOptions,
+        selectedStudent: null,
+        selectedStudentIssue: {
+          title: "Dues are not generated for this student yet.",
+          detail:
+            "Open Fee Setup / Refresh Dues to generate installment rows before posting a payment.",
+          actionLabel: "Refresh Dues",
+          actionHref: "/protected/fee-setup/generate",
+        },
+        searchQuery: normalizedQuery,
+        classId: payload.classId ?? "",
+        modeOptions: policy.acceptedPaymentModes,
+        policyNote: `${policy.academicSessionLabel} policy uses receipt prefix ${policy.receiptPrefix}, ${policy.lateFeeLabel.toLowerCase()}, and ${policy.acceptedPaymentModes.map((item) => item.label).join(", ")}.`,
+        recentReceipts,
+        todayCollection,
+      };
+    }
+
+    const selectedStudent = summarizeStudent(selectedFinancial, breakdown);
+    const selectedOption = buildStudentOption({
+      studentId: selectedStudent.id,
+      studentName: selectedStudent.fullName,
+      admissionNo: selectedStudent.admissionNo,
+      classLabel: selectedStudent.classLabel,
+      fatherName: selectedStudent.fatherName,
+      fatherPhone: selectedStudent.fatherPhone,
+      motherPhone: selectedStudent.motherPhone,
+      pendingAmount: selectedStudent.totalPending,
+    });
+
+    if (!studentOptions.some((item) => item.id === selectedOption.id)) {
+      studentOptions = [selectedOption, ...studentOptions];
+    }
+
+    return {
+      studentOptions,
+      selectedStudent,
+      selectedStudentIssue: null,
+      searchQuery: normalizedQuery,
+      classId: payload.classId ?? "",
+      modeOptions: policy.acceptedPaymentModes,
+      policyNote: `${policy.academicSessionLabel} policy uses receipt prefix ${policy.receiptPrefix}, ${policy.lateFeeLabel.toLowerCase()}, and ${policy.acceptedPaymentModes.map((item) => item.label).join(", ")}.`,
+      recentReceipts,
+      todayCollection,
+    };
+  }
+
+  const selectedStudentDetail = await getStudentDetail(payload.studentId);
+
+  if (selectedStudentDetail) {
+    const selectedOption = buildStudentOption({
+      studentId: selectedStudentDetail.id,
+      studentName: selectedStudentDetail.fullName,
+      admissionNo: selectedStudentDetail.admissionNo,
+      classLabel: selectedStudentDetail.classLabel,
+      fatherName: selectedStudentDetail.fatherName,
+      fatherPhone: selectedStudentDetail.fatherPhone,
+      motherPhone: selectedStudentDetail.motherPhone,
+    });
+
+    if (!studentOptions.some((item) => item.id === selectedOption.id)) {
+      studentOptions = [selectedOption, ...studentOptions];
+    }
+
+    selectedStudentIssue =
+      selectedStudentDetail.classSessionLabel !== policy.academicSessionLabel
+        ? {
+            title: "Selected student belongs to another academic session.",
+            detail:
+              `This student is in ${selectedStudentDetail.classSessionLabel || "a different session"}, but the active fee policy is ${policy.academicSessionLabel}. Open Fee Setup and make the same session active before dues or payments will appear.`,
+            actionLabel: "Open Fee Setup",
+            actionHref: "/protected/fee-setup",
+          }
+        : {
+            title: "Dues are not generated for this student yet.",
+            detail:
+              "Open Fee Setup / Refresh Dues to generate installment rows before posting a payment.",
+            actionLabel: "Refresh Dues",
+            actionHref: "/protected/fee-setup/generate",
+          };
+
     return {
       studentOptions,
       selectedStudent: null,
+      selectedStudentIssue,
       searchQuery: normalizedQuery,
       classId: payload.classId ?? "",
       modeOptions: policy.acceptedPaymentModes,
@@ -192,11 +322,16 @@ export async function getPaymentEntryPageData(payload: {
     };
   }
 
-  const breakdown = mapBreakdown(await getWorkbookInstallmentBalances(selectedFinancial.studentId));
-
   return {
     studentOptions,
-    selectedStudent: summarizeStudent(selectedFinancial, breakdown),
+    selectedStudent: null,
+    selectedStudentIssue: {
+      title: "Selected student could not be loaded.",
+      detail:
+        "Refresh the Payment Desk and try again, or open the student record to confirm the student exists and has fee data.",
+      actionLabel: "Open Students",
+      actionHref: "/protected/students",
+    },
     searchQuery: normalizedQuery,
     classId: payload.classId ?? "",
     modeOptions: policy.acceptedPaymentModes,

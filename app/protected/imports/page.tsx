@@ -2,6 +2,7 @@ import { WorkflowGuard } from "@/components/office/office-ui";
 import { StudentImportWorkflow } from "@/components/imports/student-import-workflow";
 import { createEmptyImportPageData, getStudentImportPageData } from "@/lib/import/data";
 import { getStudentImportWorkflowReadiness } from "@/lib/import/readiness";
+import { getStudentFormOptions } from "@/lib/students/data";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 type ImportsPageProps = {
@@ -20,6 +21,7 @@ export default async function ImportsPage({ searchParams }: ImportsPageProps) {
   const mode = resolvedSearchParams?.mode === "update" ? "update" : "add";
   let data = createEmptyImportPageData(mode);
   let importDataError: string | null = null;
+  const studentFormOptions = await getStudentFormOptions();
 
   try {
     data = await getStudentImportPageData(selectedBatchId || null, mode);
@@ -66,6 +68,8 @@ export default async function ImportsPage({ searchParams }: ImportsPageProps) {
       <StudentImportWorkflow
         data={data}
         canManage={canManageImports}
+        currentSessionLabel={studentFormOptions.currentSessionLabel}
+        sessionOptions={studentFormOptions.sessionOptions}
         notice={resolvedSearchParams?.notice?.trim() || null}
         error={resolvedSearchParams?.error?.trim() || null}
       />

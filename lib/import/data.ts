@@ -2,6 +2,7 @@ import "server-only";
 
 import { getMasterDataOptions } from "@/lib/master-data/data";
 import { createClient } from "@/lib/supabase/server";
+import { getFeePolicySummary } from "@/lib/fees/data";
 import { generateSessionLedgersAction } from "@/lib/fees/generator";
 import { createStudent, getStudentDetail, updateStudent } from "@/lib/students/data";
 import { buildAutoColumnMapping, validateColumnMapping } from "@/lib/import/mapping";
@@ -935,6 +936,19 @@ export async function createStudentImportBatch(
   if (mode === "add" && !resolvedTargetSessionLabel) {
     throw new Error("Select an academic year before bulk add upload.");
   }
+
+  if (resolvedTargetSessionLabel) {
+    const hasClassesForSession = masterOptions.classOptions.some(
+      (row) => row.sessionLabel === resolvedTargetSessionLabel,
+    );
+
+    if (!hasClassesForSession) {
+      throw new Error(
+        `No classes are saved for ${resolvedTargetSessionLabel}. Add the session classes first, then return to student import.`,
+      );
+    }
+  }
+
   const initialSummary: ImportBatchSummary = {
     totalRows: parsedFile.rows.length,
     validRows: 0,
@@ -1040,6 +1054,12 @@ export async function runStudentImportDryRun(batchId: string, mapping: StudentIm
   const classesForValidation = targetSessionLabel
     ? masterOptions.classOptions.filter((row) => row.sessionLabel === targetSessionLabel)
     : masterOptions.classOptions;
+
+  if (targetSessionLabel && classesForValidation.length === 0) {
+    throw new Error(
+      `No classes are saved for ${targetSessionLabel}. Add the session classes first, then return to student import.`,
+    );
+  }
 
   const validationResult = executeStudentImportDryRun({
     mode: batchRow.import_mode === "update" ? "update" : "add",
@@ -1484,12 +1504,14 @@ export async function commitStudentImportBatch(batchId: string) {
 
   const updatedRows: ImportRowDetail[] = [];
   const studentsToRegenerate = new Set<string>();
+  const affectedStudentIds = new Set<string>();
   let failedRows = 0;
   const mapping = toColumnMapping(batchRow.column_mapping);
   let createdCount = 0;
   let updatedCount = 0;
   let temporarySrGeneratedCount = 0;
   let ledgerSyncError: string | null = null;
+  const activePolicy = await getFeePolicySummary();
 
   for (const row of rows) {
     if (row.status !== "valid" || !row.normalizedPayload || row.reviewStatus !== "approved") {
@@ -1516,6 +1538,7 @@ export async function commitStudentImportBatch(batchId: string) {
         }
       }
       const importedOverrideId = await getActiveImportedOverrideId(importedStudentId);
+      affectedStudentIds.add(importedStudentId);
 
       if (shouldSyncDues(previousStudent, input)) {
         studentsToRegenerate.add(importedStudentId);
@@ -1579,11 +1602,33 @@ export async function commitStudentImportBatch(batchId: string) {
 
   const summary = summarizeImportRows(updatedRows, failedRows);
 
-  if (studentsToRegenerate.size > 0) {
+  const targetSessionLabel = batchRow.target_session_label?.trim() || null;
+  const activePolicySessionLabel = activePolicy.academicSessionLabel.trim();
+
+  if (targetSessionLabel && activePolicySessionLabel) {
+    const normalizedTargetSessionLabel = targetSessionLabel.toLowerCase();
+    const normalizedActiveSessionLabel = activePolicySessionLabel.toLowerCase();
+
+    if (normalizedTargetSessionLabel !== normalizedActiveSessionLabel) {
+      ledgerSyncError = `Selected academic session ${targetSessionLabel} is not the active fee policy session ${activePolicySessionLabel}. Open Fee Setup and make the same session active before dues and payments will reflect.`;
+    }
+  }
+
+  if (!ledgerSyncError && studentsToRegenerate.size > 0) {
     try {
-      await generateSessionLedgersAction({
+      const ledgerResult = await generateSessionLedgersAction({
         scopedStudentIds: [...studentsToRegenerate],
       });
+
+      if (
+        (createdCount > 0 || updatedCount > 0) &&
+        ledgerResult.affectedStudents === 0
+      ) {
+        ledgerSyncError =
+          targetSessionLabel && targetSessionLabel !== activePolicySessionLabel
+            ? `Selected academic session ${targetSessionLabel} is not the active fee policy session ${activePolicySessionLabel}. Open Fee Setup and make the same session active before dues and payments will reflect.`
+            : "Dues were not generated for the imported students. Check that the selected academic session is active and that class fee defaults exist for the imported classes.";
+      }
     } catch (error) {
       ledgerSyncError =
         error instanceof Error ? error.message : "Dues sync failed after import.";
@@ -1616,6 +1661,7 @@ export async function commitStudentImportBatch(batchId: string) {
     skippedCount: summary.skippedRows,
     temporarySrGeneratedCount,
     ledgerSyncError,
+    affectedStudentIds: [...affectedStudentIds],
     status: failedRows > 0 || ledgerSyncError ? "failed" : "completed",
   };
 }

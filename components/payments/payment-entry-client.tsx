@@ -86,6 +86,7 @@ export function PaymentEntryClient({
   const [remarks, setRemarks] = useState("");
 
   const selectedStudent = data.selectedStudent;
+  const selectedStudentIssue = data.selectedStudentIssue;
   const paymentAmount = Number(paymentAmountInput) || 0;
 
   const allocationPreview = useMemo(() => {
@@ -306,7 +307,23 @@ export function PaymentEntryClient({
         />
       ) : null}
 
-      {!selectedStudent ? (
+      {selectedStudentIssue && !selectedStudent ? (
+        <SectionCard
+          title={selectedStudentIssue.title}
+          description={selectedStudentIssue.detail}
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            {selectedStudentIssue.actionHref && selectedStudentIssue.actionLabel ? (
+              <Button asChild>
+                <Link href={selectedStudentIssue.actionHref}>{selectedStudentIssue.actionLabel}</Link>
+              </Button>
+            ) : null}
+            <Button asChild variant="outline">
+              <Link href="/protected/students">Open Students</Link>
+            </Button>
+          </div>
+        </SectionCard>
+      ) : !selectedStudent ? (
         <SectionCard
           title="Choose a student to continue"
           description="Dues, installment breakup, and the payment form will appear after a student is selected."

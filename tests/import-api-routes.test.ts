@@ -80,6 +80,11 @@ describe("student import api routes", () => {
     expect(response.status).toBe(200);
     expect(payload.batchId).toBe("batch-1");
     expect(getStudentImportBatchSummary).toHaveBeenCalledWith("batch-1");
+    expect(createStudentImportBatch).toHaveBeenCalledWith(
+      expect.any(File),
+      "add",
+      "2026-27",
+    );
   });
 
   it("commit route commits approved rows and returns final summary", async () => {
@@ -91,6 +96,7 @@ describe("student import api routes", () => {
       failedCount: 0,
       skippedCount: 0,
       temporarySrGeneratedCount: 1,
+      affectedStudentIds: ["student-1"],
       status: "completed",
     });
     getStudentImportBatchSummary.mockResolvedValue({
@@ -130,5 +136,8 @@ describe("student import api routes", () => {
     expect(response.status).toBe(200);
     expect(commitStudentImportBatch).toHaveBeenCalledWith("batch-2");
     expect(payload.result.createdCount).toBe(2);
+    expect(revalidatePath).toHaveBeenCalledWith("/protected/dashboard");
+    expect(revalidatePath).toHaveBeenCalledWith("/protected/ledger");
+    expect(revalidatePath).toHaveBeenCalledWith("/protected/students/student-1");
   });
 });

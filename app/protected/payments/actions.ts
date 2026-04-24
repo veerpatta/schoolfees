@@ -81,9 +81,10 @@ export async function submitPaymentEntryAction(
 ): Promise<PaymentEntryActionState> {
   try {
     await requireStaffPermission("payments:write");
+    const studentId = parseUuid(formData.get("studentId"), "Student");
 
     const receipt = await postStudentPayment({
-      studentId: parseUuid(formData.get("studentId"), "Student"),
+      studentId,
       paymentDate: parsePaymentDate(formData.get("paymentDate")),
       paymentMode: await parsePaymentMode(formData.get("paymentMode")),
       paymentAmount: parsePaymentAmount(formData.get("paymentAmount")),
@@ -92,20 +93,26 @@ export async function submitPaymentEntryAction(
       receivedBy: parseRequiredString(formData.get("receivedBy"), "Received by"),
     });
 
+    revalidatePath("/protected");
+    revalidatePath("/protected/dashboard");
     revalidatePath("/protected/payments");
     revalidatePath("/protected/collections");
     revalidatePath("/protected/finance-controls");
     revalidatePath("/protected/receipts");
+    revalidatePath("/protected/dues");
     revalidatePath("/protected/defaulters");
     revalidatePath("/protected/transactions");
-    revalidatePath("/protected");
+    revalidatePath("/protected/reports");
+    revalidatePath("/protected/ledger");
+    revalidatePath(`/protected/students/${studentId}`);
+    revalidatePath(`/protected/students/${studentId}/statement`);
 
     return {
       status: "success",
       message: `Payment posted successfully. Receipt ${receipt.receiptNumber} generated.`,
       receiptNumber: receipt.receiptNumber,
       receiptId: receipt.receiptId,
-      studentId: parseUuid(formData.get("studentId"), "Student"),
+      studentId,
     };
   } catch (error) {
     return toActionStateError(error);

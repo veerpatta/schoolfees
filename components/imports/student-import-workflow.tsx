@@ -12,6 +12,8 @@ import type { ImportPageData } from "@/lib/import/types";
 type StudentImportWorkflowProps = {
   data: ImportPageData;
   canManage: boolean;
+  currentSessionLabel: string | null;
+  sessionOptions: Array<{ value: string; label: string }>;
   notice: string | null;
   error: string | null;
 };
@@ -39,6 +41,8 @@ function NoticeBlock({
 export function StudentImportWorkflow({
   data,
   canManage,
+  currentSessionLabel,
+  sessionOptions,
   notice,
   error,
 }: StudentImportWorkflowProps) {
@@ -77,6 +81,8 @@ export function StudentImportWorkflow({
       <BatchUploadCard
         canManage={canManage}
         mode={mode}
+        currentSessionLabel={currentSessionLabel}
+        sessionOptions={sessionOptions}
         supportedFormats={data.supportedFormats}
       />
 

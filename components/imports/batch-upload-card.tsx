@@ -13,12 +13,21 @@ import type { ImportMode } from "@/lib/import/types";
 type BatchUploadCardProps = {
   canManage: boolean;
   mode: ImportMode;
+  currentSessionLabel: string | null;
+  sessionOptions: Array<{ value: string; label: string }>;
   supportedFormats: readonly SupportedImportFormat[];
 };
 
-export function BatchUploadCard({ canManage, mode, supportedFormats }: BatchUploadCardProps) {
+export function BatchUploadCard({
+  canManage,
+  mode,
+  currentSessionLabel,
+  sessionOptions,
+  supportedFormats,
+}: BatchUploadCardProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [submitting, setSubmitting] = useState(false);
+  const defaultSessionLabel = currentSessionLabel ?? sessionOptions[0]?.value ?? "";
 
   async function handleSubmit(formData: FormData) {
     setSubmitting(true);
@@ -46,7 +55,7 @@ export function BatchUploadCard({ canManage, mode, supportedFormats }: BatchUplo
     >
       <form ref={formRef} action={handleSubmit} encType="multipart/form-data" className="space-y-4">
         <input type="hidden" name="importMode" value={mode} />
-        <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+        <div className="grid gap-4 md:grid-cols-[1fr_220px_auto] md:items-end">
           <div>
             <Label htmlFor="importFile">Spreadsheet file</Label>
             <input
@@ -60,6 +69,27 @@ export function BatchUploadCard({ canManage, mode, supportedFormats }: BatchUplo
             />
             <p className="mt-2 text-xs text-slate-500">
               Supported formats: {supportedFormats.map((format) => format.toUpperCase()).join(", ")}. File size limit: 10 MB.
+            </p>
+          </div>
+          <div>
+            <Label htmlFor="sessionLabel">Academic session</Label>
+            <select
+              id="sessionLabel"
+              name="sessionLabel"
+              defaultValue={defaultSessionLabel}
+              disabled={!canManage || submitting}
+              className="mt-2 block w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+              required={mode === "add"}
+            >
+              <option value="">Use current session</option>
+              {sessionOptions.map((sessionOption) => (
+                <option key={sessionOption.value} value={sessionOption.value}>
+                  {sessionOption.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-2 text-xs text-slate-500">
+              The selected session is stored with the batch and used for validation and dues generation.
             </p>
           </div>
           <Button type="submit" disabled={!canManage || submitting}>

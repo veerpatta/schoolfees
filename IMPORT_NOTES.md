@@ -115,6 +115,12 @@ Current save behavior:
 - blank optional cells in update rows leave existing values unchanged
 - only approved valid rows are saved
 - imports create/update student master records and optional student fee profiles only
+- after a successful commit, the importer refreshes dues for the affected
+  students and revalidates dashboard, payment desk, transactions, reports,
+  defaulters, ledger, receipts, and student detail pages
+- if the selected academic session does not match the active fee-policy
+  session, the import still saves the student master rows but surfaces a clear
+  dues-sync warning until Fee Setup is aligned
 - payment history is outside import scope and remains append-only
 
 ## Import Anti-Patterns
@@ -137,4 +143,8 @@ Old spreadsheet conventions may reflect historical SOP, including:
 Those are historical reference only. Current import logic should align with the
 active rules in `SCHOOL_RULES.md` unless a user explicitly asks for historical
 data interpretation.
+
+For UAT, use a clearly isolated session such as `TEST-2026-27`, and make sure
+that session is the active fee-policy session before expecting dues or Payment
+Desk results to appear from imported students.
 

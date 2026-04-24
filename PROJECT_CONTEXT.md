@@ -313,6 +313,9 @@ Future agents should assume:
 - simple UI is preferred over a clever UI
 - records should be easy to verify later
 - imports should stay traceable and staged through `import_batches` / `import_rows`
+- post-import commits refresh dues for affected students and revalidate the
+  dashboard, payment, transactions, reports, defaulters, ledger, receipt, and
+  student-detail surfaces
 
 Payment-history rule:
 
@@ -353,6 +356,8 @@ Propagation expectations:
   prefix
 - role landing remains workbook-first: admin -> `Dashboard`, accountant ->
   `Payment Desk`, read_only_staff -> `Dashboard`
+- Payment Desk should surface a clear office-friendly dues-missing message when
+  a selected student has no generated workbook rows yet, instead of crashing
 - reports and receipts keep historical financial facts visible even after the
   current policy changes
 - paid, partially paid, or adjusted installment rows are never silently

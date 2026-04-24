@@ -20,6 +20,34 @@ function normalizeImportMode(value: FormDataEntryValue | string | null): ImportM
   return value === "update" ? "update" : "add";
 }
 
+function parseOptionalString(value: FormDataEntryValue | string | null) {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  return normalized.length > 0 ? normalized : null;
+}
+
+function revalidateImportPostCommit(studentIds: readonly string[] = []) {
+  revalidatePath("/protected");
+  revalidatePath("/protected/imports");
+  revalidatePath("/protected/students");
+  revalidatePath("/protected/dashboard");
+  revalidatePath("/protected/payments");
+  revalidatePath("/protected/transactions");
+  revalidatePath("/protected/dues");
+  revalidatePath("/protected/reports");
+  revalidatePath("/protected/defaulters");
+  revalidatePath("/protected/ledger");
+  revalidatePath("/protected/receipts");
+
+  for (const studentId of studentIds) {
+    if (!studentId) {
+      continue;
+    }
+
+    revalidatePath(`/protected/students/${studentId}`);
+    revalidatePath(`/protected/students/${studentId}/statement`);
+  }
+}
+
 function buildImportsUrl(
   batchId: string | null,
   notice?: string,
@@ -52,6 +80,7 @@ export async function uploadStudentImportBatchAction(formData: FormData) {
 
   const file = formData.get("importFile");
   const mode = normalizeImportMode(formData.get("importMode"));
+  const sessionLabel = parseOptionalString(formData.get("sessionLabel"));
   let batchId: string | null = null;
   let autoValidated = false;
 
@@ -60,7 +89,7 @@ export async function uploadStudentImportBatchAction(formData: FormData) {
       throw new Error("Please select a CSV or XLSX file to import.");
     }
 
-    const result = await createStudentImportBatch(file, mode);
+    const result = await createStudentImportBatch(file, mode, sessionLabel);
     batchId = result.batchId;
     autoValidated = result.autoValidated;
   } catch (error) {
@@ -216,21 +245,17 @@ export async function commitStudentImportBatchAction(formData: FormData) {
   const batchId =
     typeof formData.get("batchId") === "string" ? String(formData.get("batchId")) : "";
   const mode = normalizeImportMode(formData.get("importMode"));
+  let result: Awaited<ReturnType<typeof commitStudentImportBatch>> | null = null;
 
   try {
     if (!batchId) {
       throw new Error("Select an import batch before saving rows.");
     }
 
-    const result = await commitStudentImportBatch(batchId);
+    result = await commitStudentImportBatch(batchId);
 
     if (result.ledgerSyncError) {
-      revalidatePath("/protected/imports");
-      revalidatePath("/protected/students");
-      revalidatePath("/protected/dues");
-      revalidatePath("/protected/defaulters");
-      revalidatePath("/protected/reports");
-      revalidatePath("/protected/fee-setup");
+      revalidateImportPostCommit(result.affectedStudentIds);
       redirect(
         buildImportsUrl(
           batchId,
@@ -247,8 +272,7 @@ export async function commitStudentImportBatchAction(formData: FormData) {
     redirect(buildImportsUrl(batchId || null, undefined, message, mode));
   }
 
-  revalidatePath("/protected/imports");
-  revalidatePath("/protected/students");
+  revalidateImportPostCommit(result?.affectedStudentIds ?? []);
   redirect(
     buildImportsUrl(
       batchId,

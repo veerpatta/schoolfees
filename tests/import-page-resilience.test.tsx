@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getStudentImportPageData = vi.fn();
 const getStudentImportWorkflowReadiness = vi.fn();
+const getStudentFormOptions = vi.fn();
 const requireStaffPermission = vi.fn();
 const hasStaffPermission = vi.fn();
 
@@ -22,6 +23,10 @@ vi.mock("@/lib/import/data", async () => {
 
 vi.mock("@/lib/import/readiness", () => ({
   getStudentImportWorkflowReadiness,
+}));
+
+vi.mock("@/lib/students/data", () => ({
+  getStudentFormOptions,
 }));
 
 vi.mock("@/lib/supabase/session", () => ({
@@ -44,6 +49,10 @@ describe("imports page resilience", () => {
     vi.clearAllMocks();
     requireStaffPermission.mockResolvedValue({ appRole: "admin" });
     hasStaffPermission.mockReturnValue(true);
+    getStudentFormOptions.mockResolvedValue({
+      currentSessionLabel: "2026-27",
+      sessionOptions: [],
+    });
   });
 
   it("renders even when import data and readiness fail", async () => {

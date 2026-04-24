@@ -234,7 +234,8 @@ Implemented core:
 - Student Master with list, add, detail, and edit flows
 - student spreadsheet import with add/update modes, XLSX templates using real
   class/route names, header auto-mapping, dry-run validation, duplicate
-  detection, batch tracking, and valid-row-only save
+  detection, batch tracking, valid-row-only save, and post-commit dues refresh
+  for the affected students
 - admin-only first-time setup wizard with academic-session selection, class and
   route master-data setup, school/class defaults, readiness checklist, and
   explicit go-live completion marker; once setup is marked complete, the wizard

@@ -72,9 +72,17 @@ export type SelectedStudentSummary = {
   nextDueAmount: number | null;
 };
 
+export type PaymentDeskIssue = {
+  title: string;
+  detail: string;
+  actionLabel: string | null;
+  actionHref: string | null;
+};
+
 export type PaymentEntryPageData = {
   studentOptions: PaymentStudentOption[];
   selectedStudent: SelectedStudentSummary | null;
+  selectedStudentIssue: PaymentDeskIssue | null;
   searchQuery: string;
   classId: string;
   modeOptions: PaymentModeOption[];

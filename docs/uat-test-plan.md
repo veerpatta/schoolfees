@@ -89,6 +89,11 @@ receipts, payment adjustments, or audit logs directly.
 8. Confirm the payment appears in student ledger/history.
 9. Confirm posted payment and receipt rows cannot be directly edited.
 
+Important: imported students will only show dues and Payment Desk allocation
+when their session matches the active fee-policy session in Fee Setup. If you
+are testing with `TEST-2026-27`, make that session active before expecting
+dashboard, transactions, and payment posting results to appear.
+
 ## 6. Dues, Defaulters, Reports, And Exports
 
 1. Open Dues & Receipts.
