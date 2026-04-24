@@ -26,9 +26,9 @@ type AnomalyCategoryTabConfig = {
 const QUEUE_TABS: AnomalyCategoryTabConfig[] = [
   {
     key: "all",
-    label: "All unresolved",
+    label: "All blocking rows",
     categories: [],
-    description: "All rows with unresolved issues that still need office review.",
+    description: "Only rows with real blocking issues are shown here.",
     guidance: null,
     masterDataLink: null,
   },
@@ -47,7 +47,7 @@ const QUEUE_TABS: AnomalyCategoryTabConfig[] = [
     categories: ["unmapped-class", "unmapped-route"],
     description: "Match spreadsheet labels to existing classes and routes in School Setup Lists, then run the check again.",
     guidance:
-      "If a class or route from the spreadsheet does not exist yet, add it in School Setup Lists first. Then come back here and run the dry-run check again to clear these rows.",
+      "If a class or route from the spreadsheet does not exist yet, add it in School Setup Lists first. Then run row check again.",
     masterDataLink: "/protected/master-data",
   },
   {
@@ -66,15 +66,6 @@ const QUEUE_TABS: AnomalyCategoryTabConfig[] = [
     description: "Rows with values like XYZ, None, or other placeholders should be checked before approval.",
     guidance:
       "Common placeholders like 'XYZ', 'None', 'NA', and 'TBD' are detected automatically. Skip these rows and fix the source data, or approve with an office note if the value is intentional.",
-    masterDataLink: null,
-  },
-  {
-    key: "missing-sr",
-    label: "Missing SR No",
-    categories: ["missing-admission-no"],
-    description: "Rows with blank SR numbers where a temporary one will be assigned.",
-    guidance:
-      "Missing SR numbers are permitted but generate a warning. If approved, a temporary SR number will be assigned automatically.",
     masterDataLink: null,
   },
 ];
@@ -134,7 +125,7 @@ export function AnomalyQueue({ batch, unresolvedRows, canManage, mode = "add" }:
   return (
     <SectionCard
       title="3. Rows needing correction"
-      description="Problem rows stay here. Clean rows do not need one-by-one approval."
+      description="Only blocking rows stay here. Warning-only rows are still ready to import."
     >
       <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
         {tabCounts.map((tab) => (

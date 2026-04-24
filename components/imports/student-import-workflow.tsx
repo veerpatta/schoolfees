@@ -6,6 +6,7 @@ import { ColumnMappingCard } from "@/components/imports/column-mapping-card";
 import { BatchSummaryCard } from "@/components/imports/batch-summary-card";
 import { AnomalyQueue } from "@/components/imports/anomaly-queue";
 import { ImportCommitCard } from "@/components/imports/import-commit-card";
+import { isCorrectionQueueRow } from "@/lib/import/review";
 import type { ImportPageData } from "@/lib/import/types";
 
 type StudentImportWorkflowProps = {
@@ -45,13 +46,7 @@ export function StudentImportWorkflow({
   const mode = selectedBatch?.importMode ?? data.mode;
 
   const unresolvedQueue =
-    selectedBatch?.rows.filter(
-      (row) =>
-        row.status === "invalid" ||
-        row.status === "duplicate" ||
-        row.reviewStatus === "hold" ||
-        (row.status === "valid" && row.reviewStatus === "pending"),
-    ) ?? [];
+    selectedBatch?.rows.filter((row) => isCorrectionQueueRow(row)) ?? [];
 
   return (
     <div className="space-y-6">

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { executeStudentImportDryRun } from "@/lib/import/dryRun";
 import { studentImportFieldDefinitions } from "@/lib/import/mapping";
+import { deriveAnomalyCategoriesForRow, isCorrectionQueueRow } from "@/lib/import/review";
 
 const classes = [
   {
@@ -251,6 +252,46 @@ describe("student import dry-run", () => {
 
     expect(result.rows[0].status).toBe("valid");
     expect(result.rows[0].warnings.join(" ")).toContain("Father name is blank");
+    expect(
+      deriveAnomalyCategoriesForRow({
+        mode: "add",
+        status: result.rows[0].status,
+        errors: result.rows[0].errors,
+      }),
+    ).toEqual([]);
+    expect(
+      isCorrectionQueueRow({
+        status: result.rows[0].status,
+        reviewStatus: "approved",
+        anomalyCategories: [],
+      }),
+    ).toBe(false);
+  });
+
+  it("keeps add rows valid when DOB is invalid and shows a warning instead", () => {
+    const result = executeStudentImportDryRun({
+      mode: "add",
+      rows: [
+        {
+          id: "row-invalid-dob",
+          rowIndex: 2,
+          rawPayload: {
+            "Student Name": "Asha Sharma",
+            Class: "Class 1",
+            "SR No": "SR600",
+            DOB: "32/13/2026",
+          },
+        },
+      ],
+      mapping: { ...mapping, dateOfBirth: "DOB" },
+      classes,
+      routes,
+      existingStudents: [],
+      activeFeeSettingClassIds: new Set(["class-1"]),
+    });
+
+    expect(result.rows[0].status).toBe("valid");
+    expect(result.rows[0].warnings.join(" ")).toContain("DOB is invalid");
   });
 
   it("blocks add rows with unknown class labels", () => {
@@ -462,5 +503,15 @@ describe("student import dry-run", () => {
         },
       },
     });
+  });
+
+  it("treats pending valid rows with blocking anomaly categories as correction rows", () => {
+    expect(
+      isCorrectionQueueRow({
+        status: "valid",
+        reviewStatus: "pending",
+        anomalyCategories: ["unmapped-class"],
+      }),
+    ).toBe(true);
   });
 });

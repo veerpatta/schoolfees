@@ -4,7 +4,7 @@ import {
   workbookToXlsxBuffer,
   type UpdateTemplateStudent,
 } from "@/lib/import/templates";
-import { getStudentFormOptions } from "@/lib/students/data";
+import { getMasterDataOptions } from "@/lib/master-data/data";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
@@ -126,10 +126,15 @@ export async function GET(request: Request) {
     return xlsxResponse(workbookToXlsxBuffer(workbook), "student-update-template.xlsx");
   }
 
-  const { classOptions, routeOptions } = await getStudentFormOptions();
+  const { classOptions, routeOptions, currentSessionLabel } = await getMasterDataOptions();
+  const currentSessionClasses = currentSessionLabel
+    ? classOptions.filter((item) => item.sessionLabel === currentSessionLabel)
+    : classOptions;
+  const classesForTemplate = currentSessionClasses.length > 0 ? currentSessionClasses : classOptions;
+
   const workbook = buildAddStudentsTemplateWorkbook(
-    classOptions.map((item) => ({ label: item.label })),
-    routeOptions.map((item) => ({
+    classesForTemplate.map((item) => ({ label: item.label })),
+    routeOptions.filter((item) => item.isActive).map((item) => ({
       label: item.routeCode ? `${item.label} (${item.routeCode})` : item.label,
     })),
   );

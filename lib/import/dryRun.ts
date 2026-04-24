@@ -250,43 +250,31 @@ export function executeStudentImportDryRun({
     }
 
     if (isPlaceholderValue(effectiveFullName)) {
-      errors.push({
-        code: "ERR_PLACEHOLDER_FULL_NAME",
-        field: "fullName",
-        message: "Student name contains a placeholder value. Please review this row.",
-      });
+      warnings.push("WARN_PLACEHOLDER_FULL_NAME: Student name appears to be a placeholder value.");
     }
 
     if (isPlaceholderValue(effectiveAdmissionNo)) {
-      errors.push({
-        code: "ERR_PLACEHOLDER_ADMISSION_NO",
-        field: "admissionNo",
-        message: "SR no / admission no contains a placeholder value. Please review this row.",
-      });
+      warnings.push("WARN_PLACEHOLDER_ADMISSION_NO: SR no appears to be a placeholder value.");
     }
 
     if (classLabel && isPlaceholderValue(classLabel)) {
-      errors.push({
-        code: "ERR_PLACEHOLDER_CLASS",
-        field: "classLabel",
-        message: "Class contains a placeholder value. Please review this row.",
-      });
+      warnings.push("WARN_PLACEHOLDER_CLASS: Class appears to be a placeholder value.");
     }
 
     if (isPlaceholderValue(getMappedCellValue(row.rawPayload, mapping, "dateOfBirth"))) {
-      errors.push({
-        code: "ERR_PLACEHOLDER_DOB",
-        field: "dateOfBirth",
-        message: "DOB contains a placeholder value. Please review this row.",
-      });
+      warnings.push("WARN_PLACEHOLDER_DOB: DOB appears to be a placeholder value.");
     }
 
     if (dateResult.error) {
-      errors.push({
-        code: "ERR_INVALID_DOB",
-        field: "dateOfBirth",
-        message: dateResult.error,
-      });
+      if (mode === "add") {
+        warnings.push(`WARN_INVALID_DOB: ${dateResult.error} This row can still be imported.`);
+      } else {
+        errors.push({
+          code: "ERR_INVALID_DOB",
+          field: "dateOfBirth",
+          message: dateResult.error,
+        });
+      }
     }
 
     if (!matchedClass && classLabel) {
@@ -310,11 +298,15 @@ export function executeStudentImportDryRun({
     }
 
     if (statusValue === "__invalid__") {
-      errors.push({
-        code: "ERR_INVALID_STATUS",
-        field: "status",
-        message: "Status must be Active, Inactive, Left, or Graduated.",
-      });
+      if (mode === "add") {
+        warnings.push("WARN_INVALID_STATUS: Record status is invalid. Active will be used.");
+      } else {
+        errors.push({
+          code: "ERR_INVALID_STATUS",
+          field: "status",
+          message: "Status must be Active, Inactive, Left, or Graduated.",
+        });
+      }
     } else if (!stringifyImportCell(getMappedCellValue(row.rawPayload, mapping, "studentTypeOverride")) && mode === "add") {
       warnings.push("WARN_BLANK_STUDENT_TYPE: New/Old is blank. This is allowed and will default to Existing.");
     }
@@ -366,11 +358,15 @@ export function executeStudentImportDryRun({
     }
 
     if (studentTypeOverride.error) {
-      errors.push({
-        code: "ERR_INVALID_STUDENT_TYPE_OVERRIDE",
-        field: "studentTypeOverride",
-        message: studentTypeOverride.error,
-      });
+      if (mode === "add") {
+        warnings.push(`WARN_INVALID_STUDENT_TYPE: ${studentTypeOverride.error} Existing will be used.`);
+      } else {
+        errors.push({
+          code: "ERR_INVALID_STUDENT_TYPE_OVERRIDE",
+          field: "studentTypeOverride",
+          message: studentTypeOverride.error,
+        });
+      }
     }
 
     if (transportAppliesOverride.error) {
@@ -405,6 +401,13 @@ export function executeStudentImportDryRun({
       });
     }
 
+    const resolvedStatusValue =
+      mode === "add" && statusValue === "__invalid__" ? "active" : statusValue;
+    const resolvedStudentTypeOverride =
+      mode === "add"
+        ? studentTypeOverride.value ?? "existing"
+        : studentTypeOverride.value ?? (studentTypeOverride.error ? "__invalid__" : "existing");
+
     const studentValidation = validateStudentInput(
       {
         fullName: effectiveFullName,
@@ -417,9 +420,8 @@ export function executeStudentImportDryRun({
         motherPhone,
         address,
         transportRouteId: matchedRoute?.id ?? (mode === "add" ? "" : routeLabel ? "__invalid__" : ""),
-        status: statusValue === "__invalid__" ? "__invalid__" : statusValue,
-        studentTypeOverride:
-          studentTypeOverride.value ?? (studentTypeOverride.error ? "__invalid__" : "existing"),
+        status: resolvedStatusValue === "__invalid__" ? "__invalid__" : resolvedStatusValue,
+        studentTypeOverride: resolvedStudentTypeOverride,
         tuitionOverride:
           tuitionOverride.value !== null ? tuitionOverride.value.toString() : "",
         transportOverride:
@@ -457,7 +459,7 @@ export function executeStudentImportDryRun({
         rowIndex: row.rowIndex,
         rawPayload: row.rawPayload,
         normalizedPayload: null,
-        operation: "create",
+        operation: mode === "update" ? ("update" as const) : ("create" as const),
         status: "invalid" as const,
         errors,
         warnings,

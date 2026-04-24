@@ -146,7 +146,7 @@ function RowReviewForm({
           />
         </div>
         <Button type="submit" disabled={!canManage || row.status === "imported" || submitting}>
-          {submitting ? "Saving…" : "Save review"}
+          {submitting ? "Saving..." : "Save review"}
         </Button>
       </div>
     </form>
@@ -256,12 +256,12 @@ export function RowDetailCard({ row, batch, canManage, mode }: RowDetailCardProp
         <div className="mt-3 space-y-1 text-sm">
           {row.errors.map((issue) => (
             <p key={`${row.id}-${issue.code}-${issue.message}`} className="text-red-700">
-              ✕ {issue.message}
+              Error: {issue.message}
             </p>
           ))}
           {row.warnings.map((warning) => (
             <p key={`${row.id}-${warning}`} className="text-amber-700">
-              ⚠ {cleanWarningMessage(warning)}
+              Warning: {cleanWarningMessage(warning)}
             </p>
           ))}
         </div>
@@ -292,3 +292,4 @@ export function RowDetailCard({ row, batch, canManage, mode }: RowDetailCardProp
     </div>
   );
 }
+

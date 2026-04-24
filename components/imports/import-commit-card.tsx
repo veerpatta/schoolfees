@@ -51,14 +51,13 @@ export function ImportCommitCard({ batch, canManage, mode }: ImportCommitCardPro
         : "Only approved valid rows create new students. Problem rows remain available for correction."}
     >
       <div className="space-y-4">
-        {/* Summary boxes */}
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
             <p className="text-sm font-medium text-emerald-700">Ready to import</p>
             <p className="mt-1 text-2xl font-semibold text-emerald-900">{batch.reviewSummary.readyToImportRows}</p>
           </div>
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-center">
-            <p className="text-sm font-medium text-amber-700">Pending review</p>
+            <p className="text-sm font-medium text-amber-700">Pending decisions</p>
             <p className="mt-1 text-2xl font-semibold text-amber-900">{batch.reviewSummary.pendingRows}</p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center">
@@ -82,7 +81,6 @@ export function ImportCommitCard({ batch, canManage, mode }: ImportCommitCardPro
           </form>
         ) : null}
 
-        {/* What will happen */}
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
           <p className="font-semibold text-slate-900">What happens when you import:</p>
           <ul className="mt-2 list-inside list-disc space-y-1 text-slate-600">
@@ -91,12 +89,11 @@ export function ImportCommitCard({ batch, canManage, mode }: ImportCommitCardPro
             <li>Each imported student gets a permanent record linked back to this batch</li>
             <li>Blank optional cells in update rows leave existing values unchanged</li>
             <li>Class, route, or fee-profile changes trigger scoped dues regeneration for affected students</li>
-            <li>Unapproved rows (pending, held, skipped) stay in the QA queue for follow-up</li>
+            <li>Unapproved rows (pending, held, skipped) stay in Rows needing correction for follow-up</li>
             <li>You can edit imported students afterwards through the student edit page</li>
           </ul>
         </div>
 
-        {/* Import action */}
         <form action={handleSubmit}>
           <input type="hidden" name="batchId" value={batch.id} />
           <input type="hidden" name="importMode" value={mode} />
@@ -105,7 +102,7 @@ export function ImportCommitCard({ batch, canManage, mode }: ImportCommitCardPro
               {isLocked
                 ? batch.status === "completed"
                   ? "This batch is complete. Unresolved rows remain available for follow-up."
-                  : "Import is in progress…"
+                  : "Import is in progress..."
                 : "Import runs only for reviewed approved rows. This keeps risky rows pending for manual follow-up."}
             </p>
             <Button
@@ -113,7 +110,7 @@ export function ImportCommitCard({ batch, canManage, mode }: ImportCommitCardPro
               disabled={!canManage || !hasApprovedRows || isLocked || submitting}
             >
               {submitting
-                ? "Importing…"
+                ? "Importing..."
                 : isLocked
                   ? "Import complete"
                   : "Import valid students"}
