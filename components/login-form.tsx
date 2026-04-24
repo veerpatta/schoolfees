@@ -35,81 +35,86 @@ export function LoginForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card className="w-full max-w-md rounded-[32px] border-white/75 bg-white/92 shadow-[0_32px_90px_-50px_rgba(15,23,42,0.45)]">
-        <CardHeader className="space-y-3">
-          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-sky-100 bg-sky-50/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-sky-700">
+      <Card className="w-full rounded-lg border-slate-200 bg-white shadow-[0_24px_80px_-48px_rgba(15,23,42,0.4)]">
+        <CardHeader className="space-y-3 border-b border-slate-100 p-6 sm:p-7">
+          <div className="inline-flex w-fit items-center gap-2 rounded-md border border-sky-100 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
             <ShieldCheck className="size-3.5" />
-            Internal access
+            Internal staff access
           </div>
-          <CardTitle className="font-heading text-3xl leading-tight">
-            Sign in to the staff workspace
+          <CardTitle className="font-heading text-3xl leading-tight text-slate-950">
+            Sign in
           </CardTitle>
-          <CardDescription className="text-sm leading-6">
-            Use the invited school staff account for fee setup, collections,
-            dues follow-up, and receipt operations.
+          <CardDescription className="text-sm leading-6 text-slate-600">
+            Use your school staff email and password to open the admin
+            workspace.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form action={formAction}>
+        <CardContent className="p-6 sm:p-7">
+          <form action={formAction} className="space-y-6">
             <input type="hidden" name="next" value={next} />
-            <div className="flex flex-col gap-6">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
+            <div className="space-y-5">
+              <div className="grid gap-2.5">
+                <Label htmlFor="email" className="text-sm font-semibold">
+                  Staff email
+                </Label>
                 <div className="relative">
-                  <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-sky-700/65" />
+                  <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                   <Input
                     id="email"
                     name="email"
                     type="email"
-                    placeholder="accounts@school.example"
+                    placeholder="accounts@vpps.example"
                     required
-                    className="pl-11"
+                    autoComplete="email"
+                    className="h-12 pl-11"
                   />
                 </div>
               </div>
-              <div className="grid gap-2">
+              <div className="grid gap-2.5">
                 <div className="flex items-center justify-between gap-3">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password" className="text-sm font-semibold">
+                    Password
+                  </Label>
                   <Link
                     href="/auth/forgot-password"
-                    className="text-xs font-medium text-sky-700 transition hover:text-sky-900"
+                    className="text-sm font-medium text-sky-700 transition hover:text-sky-900"
                   >
                     Forgot password?
                   </Link>
                 </div>
                 <div className="relative">
-                  <LockKeyhole className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-sky-700/65" />
+                  <LockKeyhole className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                   <Input
                     id="password"
                     name="password"
                     type="password"
                     required
-                    className="pl-11"
+                    autoComplete="current-password"
+                    className="h-12 pl-11"
                   />
                 </div>
               </div>
               {state.message ? (
-                <p className="rounded-2xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-600">
+                <p
+                  aria-live="polite"
+                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm leading-6 text-red-700"
+                >
                   {state.message}
                 </p>
               ) : null}
               <Button
                 type="submit"
-                className="h-11 w-full justify-between px-4"
+                className="h-12 w-full justify-between px-4 text-base"
                 disabled={isPending}
               >
-                <span>{isPending ? "Signing in..." : "Open admin workspace"}</span>
+                <span>{isPending ? "Signing in..." : "Sign in"}</span>
                 <ArrowRight className="size-4" />
               </Button>
             </div>
-            <div className="mt-6 rounded-[24px] border border-sky-100/90 bg-sky-50/70 p-4 text-center">
-              <p className="text-sm text-slate-700">
-                Staff access is created internally by an admin. No public signup
-                is available.
-              </p>
-              <p className="mt-2 text-xs leading-5 text-slate-500">
-                If you cannot sign in, ask an admin to reset your password or
-                reactivate the staff account.
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm leading-6 text-slate-700">
+                Staff accounts are created by an admin. Public signup is not
+                available.
               </p>
             </div>
           </form>
