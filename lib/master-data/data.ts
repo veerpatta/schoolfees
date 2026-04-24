@@ -1,7 +1,11 @@
 import "server-only";
 
 import type { ClassStatus, PaymentMode } from "@/lib/db/types";
-import { formatPaymentModeLabel, normalizeFeeHeadId } from "@/lib/config/fee-rules";
+import {
+  formatPaymentModeLabel,
+  normalizeFeeHeadId,
+  parseAcademicSessionLabel,
+} from "@/lib/config/fee-rules";
 import {
   DEFAULT_FEE_HEAD_METADATA,
   parseFeeHeadCatalog,
@@ -86,6 +90,10 @@ function normalizeText(value: string | null | undefined) {
 
 function normalizeKey(value: string | null | undefined) {
   return normalizeText(value).toLowerCase();
+}
+
+function assertValidAcademicSessionLabel(sessionLabel: string) {
+  parseAcademicSessionLabel(sessionLabel);
 }
 
 function buildClassLabel(value: {
@@ -524,6 +532,8 @@ export async function createAcademicSession(payload: {
     throw new Error("Session label is required.");
   }
 
+  assertValidAcademicSessionLabel(label);
+
   const { count, error: duplicateError } = await supabase
     .from("academic_sessions")
     .select("id", { head: true, count: "exact" })
@@ -562,6 +572,8 @@ export async function updateAcademicSession(payload: {
   if (!label) {
     throw new Error("Session label is required.");
   }
+
+  assertValidAcademicSessionLabel(label);
 
   const { data: existing, error: existingError } = await supabase
     .from("academic_sessions")
@@ -673,6 +685,9 @@ export async function copyAcademicSessionSetup(payload: {
   if (!sourceSessionLabel || !targetSessionLabel) {
     throw new Error("Source and target session labels are required.");
   }
+
+  assertValidAcademicSessionLabel(sourceSessionLabel);
+  assertValidAcademicSessionLabel(targetSessionLabel);
 
   if (normalizeKey(sourceSessionLabel) === normalizeKey(targetSessionLabel)) {
     throw new Error("Choose a different target session label.");

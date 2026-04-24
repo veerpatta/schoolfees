@@ -16,6 +16,49 @@ const MONTH_NAMES = [
   "December",
 ] as const;
 
+const ACADEMIC_SESSION_PATTERN = /^(?:([a-z0-9]+)-)?(\d{4})-(\d{2})$/i;
+const TEST_SESSION_PREFIXES = new Set(["TEST", "UAT", "DEMO"]);
+
+function buildInvalidAcademicSessionError(academicSessionLabel: string) {
+  return new Error(
+    `Academic session "${academicSessionLabel}" is invalid. Use format like 2026-27 or TEST-2026-27.`,
+  );
+}
+
+export function parseAcademicSessionLabel(academicSessionLabel: string) {
+  const normalizedLabel = academicSessionLabel.trim();
+  const match = normalizedLabel.match(ACADEMIC_SESSION_PATTERN);
+
+  if (!match) {
+    throw buildInvalidAcademicSessionError(academicSessionLabel);
+  }
+
+  const prefix = (match[1] ?? "").toUpperCase();
+  const startYear = Number(match[2]);
+  const endYearSuffix = match[3] ?? "";
+  const expectedEndYearSuffix = (startYear + 1).toString().slice(-2);
+
+  if (!Number.isInteger(startYear) || endYearSuffix !== expectedEndYearSuffix) {
+    throw buildInvalidAcademicSessionError(academicSessionLabel);
+  }
+
+  return {
+    normalizedLabel,
+    prefix,
+    startYear,
+    endYearSuffix,
+  };
+}
+
+export function getAcademicSessionStartYear(academicSessionLabel: string) {
+  return parseAcademicSessionLabel(academicSessionLabel).startYear;
+}
+
+export function isTestAcademicSessionLabel(academicSessionLabel: string) {
+  const { prefix } = parseAcademicSessionLabel(academicSessionLabel);
+  return TEST_SESSION_PREFIXES.has(prefix);
+}
+
 export function getDefaultAcademicSessionLabel(referenceDate = new Date()) {
   const month = referenceDate.getUTCMonth();
   const year = referenceDate.getUTCFullYear();
@@ -115,12 +158,7 @@ export function buildInstallmentDueDate(
   academicSessionLabel: string,
   dueDateLabel: string,
 ) {
-  const [startYearRaw] = academicSessionLabel.split("-");
-  const startYear = Number(startYearRaw);
-
-  if (!Number.isInteger(startYear)) {
-    throw new Error(`Academic session "${academicSessionLabel}" is invalid.`);
-  }
+  const startYear = getAcademicSessionStartYear(academicSessionLabel);
 
   const absoluteMatch = dueDateLabel.trim().match(/^(\d{2})-(\d{2})-(\d{4})$/);
 

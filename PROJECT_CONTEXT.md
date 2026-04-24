@@ -28,7 +28,7 @@ records auditable and office-friendly.
 
 Current priority areas:
 
-- pre-go-live UAT with dummy data and a clearly named test academic session
+- pre-go-live UAT with dummy data and a clearly named test academic session (`TEST-2026-27`)
 - first-time setup / onboarding with readiness checks
 - student master
 - fee settings and session ledger recalculation

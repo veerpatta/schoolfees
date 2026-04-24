@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { ClassStatus } from "@/lib/db/types";
+import { parseAcademicSessionLabel } from "@/lib/config/fee-rules";
 import { previewLedgerGeneration } from "@/lib/fees/generator";
 import { getFeeSetupPageData } from "@/lib/fees/data";
 import {
@@ -526,6 +527,7 @@ export async function getSetupWizardData(): Promise<SetupWizardData> {
 
 export async function saveSetupPolicy(input: SaveSetupPolicyInput) {
   await assertSetupEditable("policy");
+  parseAcademicSessionLabel(input.academicSessionLabel);
   const setupData = await getFeeSetupPageData();
   const installmentSchedule = input.installmentDueDateLabels.map((dueDateLabel, index) => ({
     label: `Installment ${index + 1}`,
@@ -574,6 +576,8 @@ export async function saveSetupClasses(
   if (!academicSessionLabel.trim()) {
     throw new Error("Save the academic session before adding classes.");
   }
+
+  parseAcademicSessionLabel(academicSessionLabel);
 
   if (rows.length === 0) {
     throw new Error("Add at least one class row before saving.");

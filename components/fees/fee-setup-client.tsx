@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { isTestAcademicSessionLabel } from "@/lib/config/fee-rules";
 import type { ClassStatus } from "@/lib/db/types";
 import type {
   FeeHeadApplicationType,
@@ -132,6 +133,20 @@ function formatDateTime(value: string | null) {
     timeStyle: "short",
     timeZone: "Asia/Kolkata",
   }).format(parsed);
+}
+
+function isTestSessionLabel(label: string) {
+  const normalized = label.trim();
+
+  if (!normalized) {
+    return false;
+  }
+
+  try {
+    return isTestAcademicSessionLabel(normalized);
+  } catch {
+    return false;
+  }
 }
 
 function formatDateOnly(value: string) {
@@ -412,6 +427,7 @@ export function FeeSetupClient({
   }
 
   const sessionRows = masterData.sessions;
+  const selectedSessionIsTest = isTestSessionLabel(selectedSessionLabel);
   const selectedPolicySnapshot = data.policySnapshots.find(
     (item) => item.academicSessionLabel === selectedSessionLabel,
   );
@@ -621,12 +637,12 @@ export function FeeSetupClient({
             {selectedSessionLabel && selectedSessionLabel !== currentSessionLabel ? (
               <StatusBadge label={`Editing: ${selectedSessionLabel}`} tone="accent" />
             ) : null}
-            {selectedSessionLabel.startsWith("TEST") ? (
+            {selectedSessionIsTest ? (
               <StatusBadge label="Test session" tone="warning" />
             ) : null}
           </div>
 
-          {selectedSessionLabel.startsWith("TEST") ? (
+          {selectedSessionIsTest ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
               This is a test academic year. Do not mix real students or real payments into test
               records.
@@ -669,7 +685,7 @@ export function FeeSetupClient({
                       name="targetSessionLabel"
                       value={copyTargetSessionLabel}
                       onChange={(event) => setCopyTargetSessionLabel(event.target.value)}
-                      placeholder="2027-28"
+                      placeholder="TEST-2026-27"
                       className="mt-2"
                       required
                     />
@@ -698,7 +714,7 @@ export function FeeSetupClient({
                     name="sessionLabel"
                     value={newSessionLabel}
                     onChange={(event) => setNewSessionLabel(event.target.value)}
-                    placeholder="2027-28"
+                    placeholder="TEST-2026-27"
                     className="mt-2"
                     required
                   />
