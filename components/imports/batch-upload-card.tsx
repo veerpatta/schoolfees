@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState } from "react";
 
 import { SectionCard } from "@/components/admin/section-card";
@@ -30,7 +31,12 @@ export function BatchUploadCard({ canManage, supportedFormats }: BatchUploadCard
   return (
     <SectionCard
       title="1. Upload new batch"
-      description="Use one CSV or XLSX file per run. Files stay traceable by batch and row."
+      description="Use one CSV or XLSX file per run. New SR numbers create students; matching SR numbers update existing students."
+      actions={
+        <Button asChild size="sm" variant="outline">
+          <Link href="/protected/imports/template">Download template</Link>
+        </Button>
+      }
     >
       <form ref={formRef} action={handleSubmit} encType="multipart/form-data" className="space-y-4">
         <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">

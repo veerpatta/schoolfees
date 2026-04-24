@@ -61,6 +61,9 @@ Operational rule:
 Daily workflow boundary:
 
 - `Start Here` is the staff-facing first worksheet for blockers and shortcuts
+- `Students` is the staff-facing worksheet for student master records,
+  class/route assignment, student-specific fee profiles, special cases, and
+  staged spreadsheet add/update work
 - `Advanced` is the place for setup, school setup lists, finance controls,
   reports, staff, and settings
 - `Fee Setup` is the daily live fee-editing path for workbook values

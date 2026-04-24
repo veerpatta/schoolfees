@@ -59,9 +59,9 @@ export function StudentImportWorkflow({
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Imports"
-        title="Student import QA and anomaly resolution"
-        description="Upload CSV/XLSX, run dry-run QA, review anomalies, approve clean rows, and import only approved rows with full batch traceability."
+        eyebrow="Students"
+        title="Bulk student upload / update"
+        description="Upload CSV/XLSX, map columns, review issues, then create new students or update matching SR numbers with full batch traceability."
         actions={
           canManage ? (
             <StatusBadge label="Review and approval required" tone="accent" />

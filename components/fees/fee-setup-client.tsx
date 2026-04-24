@@ -1420,7 +1420,7 @@ export function FeeSetupClient({
           <ActionNotice state={routeState} />
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
             Transport pricing is independent of class tuition. The installment amount below is
-            derived from the selected session's current installment count.
+            derived from the selected session&apos;s current installment count.
           </div>
 
           {canEdit ? (

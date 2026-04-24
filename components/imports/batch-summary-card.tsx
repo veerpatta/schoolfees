@@ -92,6 +92,9 @@ type BatchSummaryCardProps = {
 };
 
 export function BatchSummaryCard({ batch }: BatchSummaryCardProps) {
+  const createRows = batch.rows.filter((row) => row.operation === "create").length;
+  const updateRows = batch.rows.filter((row) => row.operation === "update").length;
+
   return (
     <SectionCard
       title="Batch summary"
@@ -105,6 +108,11 @@ export function BatchSummaryCard({ batch }: BatchSummaryCardProps) {
         <SummaryCard label="Duplicates" value={batch.duplicateRows} className="border-amber-200 bg-amber-50" />
         <SummaryCard label="Imported" value={batch.importedRows} className="border-blue-200 bg-blue-50" />
         <SummaryCard label="Failed on save" value={batch.failedRows} />
+      </div>
+
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <SummaryCard label="New student rows" value={createRows} className="border-sky-200 bg-sky-50" />
+        <SummaryCard label="Existing student updates" value={updateRows} className="border-violet-200 bg-violet-50" />
       </div>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">

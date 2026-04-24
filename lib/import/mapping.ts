@@ -92,6 +92,13 @@ export const studentImportFieldDefinitions: readonly ImportFieldDefinition[] = [
     aliases: ["notes", "remarks", "comment", "comments"],
   },
   {
+    key: "feeProfileReason",
+    label: "Special-case reason",
+    description: "Optional reason for student-specific fee exceptions.",
+    required: false,
+    aliases: ["special case reason", "fee profile reason", "override reason", "concession reason"],
+  },
+  {
     key: "customTuitionFeeAmount",
     label: "Custom tuition fee",
     description: "Optional override. Whole number only.",

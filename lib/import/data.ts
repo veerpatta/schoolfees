@@ -2,10 +2,12 @@ import "server-only";
 
 import { getMasterDataOptions } from "@/lib/master-data/data";
 import { createClient } from "@/lib/supabase/server";
+import { generateSessionLedgersAction } from "@/lib/fees/generator";
+import { createStudent, getStudentDetail, updateStudent } from "@/lib/students/data";
 import { buildAutoColumnMapping, validateColumnMapping } from "@/lib/import/mapping";
 import { parseStudentImportFile } from "@/lib/import/parser";
 import { executeStudentImportDryRun } from "@/lib/import/dryRun";
-import { normalizeLookupToken } from "@/lib/import/validation";
+import { normalizeLookupToken, stringifyImportCell } from "@/lib/import/validation";
 import {
   studentImportFieldDefinitions,
 } from "@/lib/import/mapping";
@@ -14,15 +16,18 @@ import type {
   ImportBatchDetail,
   ImportBatchListItem,
   ImportBatchSummary,
+  ImportFieldKey,
   ImportIssue,
   ImportPageData,
   ImportRowDetail,
+  ImportRowOperation,
   ImportRowReviewStatus,
   NormalizedStudentImportOverride,
   NormalizedStudentImportRow,
   RawImportRowPayload,
   StudentImportColumnMapping,
 } from "@/lib/import/types";
+import type { StudentValidatedInput } from "@/lib/students/types";
 
 type ImportBatchRow = {
   id: string;
@@ -60,6 +65,9 @@ type ImportRowRecord = {
   errors: unknown;
   warnings: unknown;
   duplicate_student_id: string | null;
+  target_student_id: string | null;
+  import_operation: ImportRowOperation | null;
+  changed_fields: unknown;
   imported_student_id: string | null;
   imported_override_id: string | null;
 };
@@ -177,6 +185,18 @@ function toAnomalyCategories(value: unknown): ImportAnomalyCategory[] {
       entry === "missing-parent-fields" ||
       entry === "placeholder-values",
   );
+}
+
+function toImportOperation(value: unknown): ImportRowOperation {
+  return value === "update" ? "update" : "create";
+}
+
+function toChangedFields(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0);
 }
 
 function deriveAnomalyCategories(row: {
@@ -357,11 +377,16 @@ function toNormalizedPayload(value: unknown): NormalizedStudentImportRow | null 
         ? value.status
         : "active",
     notes: typeof value.notes === "string" ? value.notes : null,
+    feeProfileReason:
+      typeof value.feeProfileReason === "string" ? value.feeProfileReason : null,
     overrides: toNormalizedOverrides(value.overrides),
   };
 }
 
-function summarizeImportRows(rows: readonly Pick<ImportRowDetail, "status">[], failedRows = 0): ImportBatchSummary {
+function summarizeImportRows(
+  rows: readonly Pick<ImportRowDetail, "status" | "operation">[],
+  failedRows = 0,
+): ImportBatchSummary {
   return {
     totalRows: rows.length,
     validRows: rows.filter((row) => row.status === "valid").length,
@@ -370,6 +395,8 @@ function summarizeImportRows(rows: readonly Pick<ImportRowDetail, "status">[], f
     importedRows: rows.filter((row) => row.status === "imported").length,
     skippedRows: rows.filter((row) => row.status === "skipped").length,
     failedRows,
+    createRows: rows.filter((row) => row.operation === "create").length,
+    updateRows: rows.filter((row) => row.operation === "update").length,
   };
 }
 
@@ -408,6 +435,9 @@ function toImportRowDetail(row: ImportRowRecord): ImportRowDetail {
     errors: toImportIssues(row.errors),
     warnings: toWarnings(row.warnings),
     duplicateStudentId: row.duplicate_student_id,
+    targetStudentId: row.target_student_id,
+    operation: toImportOperation(row.import_operation),
+    changedFields: toChangedFields(row.changed_fields),
     importedStudentId: row.imported_student_id,
     importedOverrideId: row.imported_override_id,
   };
@@ -460,7 +490,7 @@ async function getImportRowsByBatchId(batchId: string) {
   const { data, error } = await supabase
     .from("import_rows")
     .select(
-      "id, batch_id, row_index, raw_payload, normalized_payload, status, review_status, review_note, reviewed_at, anomaly_categories, errors, warnings, duplicate_student_id, imported_student_id, imported_override_id",
+      "id, batch_id, row_index, raw_payload, normalized_payload, status, review_status, review_note, reviewed_at, anomaly_categories, errors, warnings, duplicate_student_id, target_student_id, import_operation, changed_fields, imported_student_id, imported_override_id",
     )
     .eq("batch_id", batchId)
     .order("row_index", { ascending: true });
@@ -509,6 +539,9 @@ async function upsertImportRows(
     errors: ImportIssue[];
     warnings: string[];
     duplicate_student_id: string | null;
+    target_student_id?: string | null;
+    import_operation?: ImportRowOperation;
+    changed_fields?: string[];
     imported_student_id?: string | null;
     imported_override_id?: string | null;
   }>,
@@ -577,6 +610,8 @@ export async function createStudentImportBatch(file: File) {
     importedRows: 0,
     skippedRows: 0,
     failedRows: 0,
+    createRows: 0,
+    updateRows: 0,
   };
 
   const { data, error } = await supabase
@@ -719,6 +754,9 @@ export async function runStudentImportDryRun(batchId: string, mapping: StudentIm
         errors: row.errors,
         warnings: row.warnings,
         duplicate_student_id: row.duplicateStudentId,
+        target_student_id: row.targetStudentId,
+        import_operation: row.operation,
+        changed_fields: row.changedFields,
         imported_student_id: null,
         imported_override_id: null,
       };
@@ -741,14 +779,149 @@ export async function runStudentImportDryRun(batchId: string, mapping: StudentIm
   });
 }
 
-function isDuplicateAdmissionNoError(message: string) {
-  const normalized = message.toLowerCase();
+function hasMappedValue(
+  row: ImportRowDetail,
+  mapping: StudentImportColumnMapping,
+  field: ImportFieldKey,
+) {
+  const header = mapping[field];
+
+  if (!header) {
+    return false;
+  }
+
+  const rawValue = row.rawPayload[header];
+
+  return stringifyImportCell(rawValue).length > 0;
+}
+
+function buildImportStudentInput(
+  row: ImportRowDetail,
+  mapping: StudentImportColumnMapping,
+  batchId: string,
+  existingStudent?: Awaited<ReturnType<typeof getStudentDetail>>,
+): StudentValidatedInput {
+  if (!row.normalizedPayload) {
+    throw new Error("Import row has no normalized student payload.");
+  }
+
+  const payload = row.normalizedPayload;
+  const existing = existingStudent ?? null;
+  const useExisting = row.operation === "update" && existing !== null;
+  const override = payload.overrides;
+
+  return {
+    fullName: payload.fullName,
+    classId: payload.classId,
+    admissionNo: payload.admissionNo,
+    dateOfBirth:
+      useExisting && !hasMappedValue(row, mapping, "dateOfBirth")
+        ? existing?.dateOfBirth ?? null
+        : payload.dateOfBirth,
+    fatherName:
+      useExisting && !hasMappedValue(row, mapping, "fatherName")
+        ? existing?.fatherName ?? null
+        : payload.fatherName,
+    motherName:
+      useExisting && !hasMappedValue(row, mapping, "motherName")
+        ? existing?.motherName ?? null
+        : payload.motherName,
+    fatherPhone:
+      useExisting && !hasMappedValue(row, mapping, "fatherPhone")
+        ? existing?.fatherPhone ?? null
+        : payload.fatherPhone,
+    motherPhone:
+      useExisting && !hasMappedValue(row, mapping, "motherPhone")
+        ? existing?.motherPhone ?? null
+        : payload.motherPhone,
+    address:
+      useExisting && !hasMappedValue(row, mapping, "address")
+        ? existing?.address ?? null
+        : payload.address,
+    transportRouteId:
+      useExisting && !hasMappedValue(row, mapping, "transportRouteLabel")
+        ? existing?.transportRouteId ?? null
+        : payload.transportRouteId,
+    status:
+      useExisting && !hasMappedValue(row, mapping, "status")
+        ? existing?.status ?? payload.status
+        : payload.status,
+    studentTypeOverride:
+      useExisting && !hasMappedValue(row, mapping, "studentTypeOverride")
+        ? existing?.studentTypeOverride ?? "existing"
+        : override.studentTypeOverride ?? "existing",
+    tuitionOverride:
+      useExisting && !hasMappedValue(row, mapping, "customTuitionFeeAmount")
+        ? existing?.tuitionOverride ?? null
+        : override.customTuitionFeeAmount,
+    transportOverride:
+      useExisting && !hasMappedValue(row, mapping, "customTransportFeeAmount")
+        ? existing?.transportOverride ?? null
+        : override.customTransportFeeAmount,
+    discountAmount:
+      useExisting && !hasMappedValue(row, mapping, "discountAmount")
+        ? existing?.discountAmount ?? 0
+        : override.discountAmount,
+    lateFeeWaiverAmount:
+      useExisting && !hasMappedValue(row, mapping, "lateFeeWaiverAmount")
+        ? existing?.lateFeeWaiverAmount ?? 0
+        : override.lateFeeWaiverAmount,
+    otherAdjustmentHead:
+      useExisting && !hasMappedValue(row, mapping, "otherAdjustmentHead")
+        ? existing?.otherAdjustmentHead ?? null
+        : override.otherAdjustmentHead,
+    otherAdjustmentAmount:
+      useExisting && !hasMappedValue(row, mapping, "otherAdjustmentAmount")
+        ? existing?.otherAdjustmentAmount ?? null
+        : override.otherAdjustmentAmount,
+    feeProfileReason:
+      useExisting && !hasMappedValue(row, mapping, "feeProfileReason")
+        ? existing?.overrideReason ?? `Imported from batch ${batchId} row ${row.rowIndex}`
+        : payload.feeProfileReason ?? `Imported from batch ${batchId} row ${row.rowIndex}`,
+    feeProfileNotes: row.reviewNote,
+    notes:
+      useExisting && !hasMappedValue(row, mapping, "notes")
+        ? existing?.notes ?? null
+        : payload.notes,
+  };
+}
+
+function shouldSyncDues(
+  previousStudent: Awaited<ReturnType<typeof getStudentDetail>>,
+  next: StudentValidatedInput,
+) {
+  if (!previousStudent) {
+    return next.status === "active" || next.status === "inactive";
+  }
+
+  const feeProfileChanged =
+    previousStudent.studentTypeOverride !== next.studentTypeOverride ||
+    previousStudent.tuitionOverride !== next.tuitionOverride ||
+    previousStudent.transportOverride !== next.transportOverride ||
+    previousStudent.discountAmount !== next.discountAmount ||
+    previousStudent.lateFeeWaiverAmount !== next.lateFeeWaiverAmount ||
+    previousStudent.otherAdjustmentHead !== next.otherAdjustmentHead ||
+    previousStudent.otherAdjustmentAmount !== next.otherAdjustmentAmount;
+  const routeOrClassChanged =
+    previousStudent.transportRouteId !== next.transportRouteId ||
+    previousStudent.classId !== next.classId;
 
   return (
-    normalized.includes("students_admission_no_key") ||
-    normalized.includes("duplicate key value") ||
-    normalized.includes("admission_no")
+    (routeOrClassChanged || feeProfileChanged) &&
+    (next.status === "active" || next.status === "inactive")
   );
+}
+
+async function getActiveImportedOverrideId(studentId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("student_fee_overrides")
+    .select("id")
+    .eq("student_id", studentId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  return data && typeof data.id === "string" ? data.id : null;
 }
 
 export async function updateStudentImportRowReview(
@@ -877,6 +1050,9 @@ async function updateImportRowAfterCommit(
         warnings: row.warnings,
       }),
       duplicate_student_id: duplicateStudentId,
+      target_student_id: row.targetStudentId,
+      import_operation: row.operation,
+      changed_fields: row.changedFields,
       imported_student_id: importedStudentId,
       imported_override_id: importedOverrideId,
     })
@@ -924,9 +1100,10 @@ export async function commitStudentImportBatch(batchId: string) {
     error_message: null,
   });
 
-  const supabase = await createClient();
   const updatedRows: ImportRowDetail[] = [];
+  const studentsToRegenerate = new Set<string>();
   let failedRows = 0;
+  const mapping = toColumnMapping(batchRow.column_mapping);
 
   for (const row of rows) {
     if (row.status !== "valid" || !row.normalizedPayload || row.reviewStatus !== "approved") {
@@ -935,49 +1112,20 @@ export async function commitStudentImportBatch(batchId: string) {
     }
 
     try {
-      const payload = row.normalizedPayload;
-      const { data, error } = await supabase
-        .rpc("import_student_batch_row", {
-          p_batch_id: batchId,
-          p_row_index: row.rowIndex,
-          p_full_name: payload.fullName,
-          p_class_id: payload.classId,
-          p_admission_no: payload.admissionNo,
-          p_date_of_birth: payload.dateOfBirth,
-          p_father_name: payload.fatherName,
-          p_mother_name: payload.motherName,
-          p_primary_phone: payload.fatherPhone,
-          p_secondary_phone: payload.motherPhone,
-          p_address: payload.address,
-          p_transport_route_id: payload.transportRouteId,
-          p_status: payload.status,
-          p_notes: payload.notes,
-          p_custom_tuition_fee_amount: payload.overrides.customTuitionFeeAmount,
-          p_custom_transport_fee_amount: payload.overrides.customTransportFeeAmount,
-          p_custom_books_fee_amount: payload.overrides.customBooksFeeAmount,
-          p_custom_admission_activity_misc_fee_amount:
-            payload.overrides.customAdmissionActivityMiscFeeAmount,
-          p_custom_other_fee_heads: payload.overrides.customOtherFeeHeads,
-          p_custom_late_fee_flat_amount: payload.overrides.customLateFeeFlatAmount,
-          p_discount_amount: payload.overrides.discountAmount,
-          p_student_type_override: payload.overrides.studentTypeOverride,
-          p_transport_applies_override: payload.overrides.transportAppliesOverride,
-          p_other_adjustment_head: payload.overrides.otherAdjustmentHead,
-          p_other_adjustment_amount: payload.overrides.otherAdjustmentAmount,
-          p_late_fee_waiver_amount: payload.overrides.lateFeeWaiverAmount,
-        })
-        .single();
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      const importedStudentId =
-        isRecord(data) && typeof data.student_id === "string" ? data.student_id : null;
-      const importedOverrideId =
-        isRecord(data) && typeof data.student_fee_override_id === "string"
-          ? data.student_fee_override_id
+      const previousStudent =
+        row.operation === "update" && row.targetStudentId
+          ? await getStudentDetail(row.targetStudentId)
           : null;
+      const input = buildImportStudentInput(row, mapping, batchId, previousStudent);
+      const importedStudentId =
+        row.operation === "update" && row.targetStudentId
+          ? await updateStudent(row.targetStudentId, input)
+          : await createStudent(input);
+      const importedOverrideId = await getActiveImportedOverrideId(importedStudentId);
+
+      if (shouldSyncDues(previousStudent, input)) {
+        studentsToRegenerate.add(importedStudentId);
+      }
 
       await updateImportRowAfterCommit(
         row,
@@ -993,51 +1141,13 @@ export async function commitStudentImportBatch(batchId: string) {
         ...row,
         status: "imported",
         duplicateStudentId: null,
+        targetStudentId: row.operation === "update" ? importedStudentId : row.targetStudentId,
         importedStudentId,
         importedOverrideId,
       });
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unexpected error while importing this row.";
-
-      if (isDuplicateAdmissionNoError(message)) {
-        const { data: duplicateStudent } = await supabase
-          .from("students")
-          .select("id")
-          .eq("admission_no", row.normalizedPayload.admissionNo)
-          .maybeSingle();
-
-        const duplicateIssue: ImportIssue = {
-          code: "ERR_DUPLICATE_DB_ADMISSION_NO",
-          field: "admissionNo",
-          message: `SR no ${row.normalizedPayload.admissionNo} already exists in the student master.`,
-        };
-        const duplicateErrors = [...row.errors, duplicateIssue];
-        const duplicateStudentId =
-          duplicateStudent && typeof duplicateStudent.id === "string"
-            ? duplicateStudent.id
-            : null;
-
-        await updateImportRowAfterCommit(
-          row,
-          "duplicate",
-          duplicateErrors,
-          duplicateStudentId,
-          null,
-          null,
-          "pending",
-        );
-
-        updatedRows.push({
-          ...row,
-          status: "duplicate",
-          errors: duplicateErrors,
-          duplicateStudentId,
-          importedStudentId: null,
-          importedOverrideId: null,
-        });
-        continue;
-      }
 
       failedRows += 1;
 
@@ -1072,6 +1182,12 @@ export async function commitStudentImportBatch(batchId: string) {
   }
 
   const summary = summarizeImportRows(updatedRows, failedRows);
+
+  if (studentsToRegenerate.size > 0) {
+    await generateSessionLedgersAction({
+      scopedStudentIds: [...studentsToRegenerate],
+    });
+  }
 
   await updateImportBatch(batchId, {
     status: failedRows > 0 ? "failed" : "completed",

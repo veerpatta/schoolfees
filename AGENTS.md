@@ -77,6 +77,9 @@ Operational boundaries:
   academic session, master fee heads, installment/session policy, standard
   concession planning, class-wise annual tuition, route-wise annual transport
   fee, and final review/publish
+- `Students` is the canonical daily path for student master records,
+  class/route assignment, student-specific fee profiles, special-case
+  overrides, and staged spreadsheet add/update work
 - `Dues & Receipts` is the workbook-style working area for receipt register,
   installment dues, class dues summary, overdue list, today’s receipts,
   today’s collection, and import issues
@@ -121,8 +124,9 @@ Fully implemented core:
   as a live-edit path for policy/default changes
 - real-time dashboard, defaulters, and ledger modules
 - Student Master with add, detail, and edit workflows
-- Student Spreadsheet Import: CSV/XLSX upload, column mapping, dry-run
-  validation, duplicate detection, batch tracking, and valid-row-only save
+- Student Spreadsheet Import: CSV/XLSX upload, template download, column
+  mapping, dry-run validation, mixed add/update by SR number, row-level review,
+  batch tracking, and approved-valid-row-only save
 - Fee Setup: staged workbook-style live setup for academic session, master fee
   heads, editable installment schedule, flat late fee, new/old academic fee,
   class-wise annual tuition, route-wise annual transport fee, and inline

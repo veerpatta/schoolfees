@@ -1712,6 +1712,15 @@ create table if not exists public.import_rows (
   normalized_payload jsonb,
   status text not null default 'pending'
     check (status in ('pending', 'valid', 'invalid', 'duplicate', 'imported', 'skipped')),
+  review_status text not null default 'pending'
+    check (review_status in ('pending', 'approved', 'hold', 'skipped')),
+  review_note text,
+  reviewed_at timestamptz,
+  anomaly_categories jsonb not null default '[]'::jsonb,
+  import_operation text not null default 'create'
+    check (import_operation in ('create', 'update')),
+  target_student_id uuid references public.students(id) on delete set null,
+  changed_fields jsonb not null default '[]'::jsonb,
   errors jsonb not null default '[]'::jsonb,
   warnings jsonb not null default '[]'::jsonb,
   duplicate_student_id uuid references public.students(id) on delete set null,
@@ -1726,6 +1735,10 @@ create table if not exists public.import_rows (
     check (jsonb_typeof(raw_payload) = 'object'),
   constraint import_rows_normalized_payload_object
     check (normalized_payload is null or jsonb_typeof(normalized_payload) = 'object'),
+  constraint import_rows_anomaly_categories_array
+    check (jsonb_typeof(anomaly_categories) = 'array'),
+  constraint import_rows_changed_fields_array
+    check (jsonb_typeof(changed_fields) = 'array'),
   constraint import_rows_errors_array
     check (jsonb_typeof(errors) = 'array'),
   constraint import_rows_warnings_array
@@ -1751,9 +1764,20 @@ create index if not exists idx_import_rows_duplicate_student
 on public.import_rows (duplicate_student_id)
 where duplicate_student_id is not null;
 
+create index if not exists idx_import_rows_target_student
+on public.import_rows (target_student_id)
+where target_student_id is not null;
+
 create index if not exists idx_import_rows_imported_student
 on public.import_rows (imported_student_id)
 where imported_student_id is not null;
+
+create index if not exists idx_import_rows_operation
+on public.import_rows (batch_id, import_operation);
+
+create index if not exists idx_import_rows_review_status
+on public.import_rows (batch_id, review_status)
+where review_status <> 'pending';
 
 drop trigger if exists set_updated_at_on_import_batches on public.import_batches;
 create trigger set_updated_at_on_import_batches

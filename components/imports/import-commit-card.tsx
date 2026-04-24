@@ -17,6 +17,8 @@ export function ImportCommitCard({ batch, approvedRows, canManage }: ImportCommi
   const [submitting, setSubmitting] = useState(false);
   const hasApprovedRows = approvedRows.length > 0;
   const isLocked = batch.status === "completed" || batch.status === "importing";
+  const approvedCreates = approvedRows.filter((row) => row.operation === "create").length;
+  const approvedUpdates = approvedRows.filter((row) => row.operation === "update").length;
 
   async function handleSubmit(formData: FormData) {
     setSubmitting(true);
@@ -31,7 +33,7 @@ export function ImportCommitCard({ batch, approvedRows, canManage }: ImportCommi
   return (
     <SectionCard
       title="4. Final approved import summary"
-      description="Only approved valid rows are imported. Pending, held, duplicate, and skipped rows remain in the batch trail."
+      description="Only approved valid rows are saved. New SR numbers create students; matching SR numbers update existing students."
     >
       <div className="space-y-4">
         {/* Summary boxes */}
@@ -54,10 +56,12 @@ export function ImportCommitCard({ batch, approvedRows, canManage }: ImportCommi
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
           <p className="font-semibold text-slate-900">What happens when you import:</p>
           <ul className="mt-2 list-inside list-disc space-y-1 text-slate-600">
-            <li>{approvedRows.length} approved row{approvedRows.length === 1 ? "" : "s"} will be written to the student master</li>
+            <li>{approvedCreates} row{approvedCreates === 1 ? "" : "s"} will create new student records</li>
+            <li>{approvedUpdates} row{approvedUpdates === 1 ? "" : "s"} will update existing students by SR no</li>
             <li>Each imported student gets a permanent record linked back to this batch</li>
+            <li>Blank optional cells in update rows leave existing values unchanged</li>
+            <li>Class, route, or fee-profile changes trigger scoped dues regeneration for affected students</li>
             <li>Unapproved rows (pending, held, skipped) stay in the QA queue for follow-up</li>
-            <li>Duplicate rows caught during save will be marked and remain for manual handling</li>
             <li>You can edit imported students afterwards through the student edit page</li>
           </ul>
         </div>

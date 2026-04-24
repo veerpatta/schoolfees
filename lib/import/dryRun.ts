@@ -85,6 +85,8 @@ function buildSummary(rows: readonly DryRunProcessedRow[]): ImportBatchSummary {
     importedRows: 0,
     skippedRows: 0,
     failedRows: 0,
+    createRows: rows.filter((row) => row.operation === "create").length,
+    updateRows: rows.filter((row) => row.operation === "update").length,
   };
 }
 
@@ -132,6 +134,9 @@ export function executeStudentImportDryRun({
       getMappedCellValue(row.rawPayload, mapping, "transportRouteLabel"),
     );
     const notes = stringifyImportCell(getMappedCellValue(row.rawPayload, mapping, "notes"));
+    const feeProfileReason = stringifyImportCell(
+      getMappedCellValue(row.rawPayload, mapping, "feeProfileReason"),
+    );
 
     const matchedClass = findReferenceMatch(classes, classLabel);
     const matchedRoute = routeLabel ? findReferenceMatch(routes, routeLabel) : null;
@@ -368,6 +373,8 @@ export function executeStudentImportDryRun({
         otherAdjustmentHead,
         otherAdjustmentAmount:
           otherAdjustmentAmount.value !== null ? otherAdjustmentAmount.value.toString() : "",
+        feeProfileReason,
+        feeProfileNotes: "",
         notes,
       },
       {
@@ -392,10 +399,13 @@ export function executeStudentImportDryRun({
         rowIndex: row.rowIndex,
         rawPayload: row.rawPayload,
         normalizedPayload: null,
+        operation: "create",
         status: "invalid" as const,
         errors,
         warnings,
         duplicateStudentId: null,
+        targetStudentId: null,
+        changedFields: [],
       };
     }
 
@@ -414,6 +424,7 @@ export function executeStudentImportDryRun({
       transportRouteLabel: matchedRoute?.label ?? null,
       status: studentValidation.data.status,
       notes: studentValidation.data.notes,
+      feeProfileReason: studentValidation.data.feeProfileReason,
       overrides: {
         customTuitionFeeAmount: tuitionOverride.value,
         customTransportFeeAmount: transportOverride.value,
@@ -452,10 +463,13 @@ export function executeStudentImportDryRun({
       rowIndex: row.rowIndex,
       rawPayload: row.rawPayload,
       normalizedPayload: errors.length === 0 ? normalizedPayload : null,
+      operation: "create",
       status: errors.length === 0 ? ("valid" as const) : ("invalid" as const),
       errors,
       warnings,
       duplicateStudentId: null,
+      targetStudentId: null,
+      changedFields: [],
     };
   });
 

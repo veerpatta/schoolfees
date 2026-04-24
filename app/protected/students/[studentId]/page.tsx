@@ -186,7 +186,7 @@ export default async function StudentDetailPage({
           </div>
         </SectionCard>
 
-        <SectionCard title="Resolved fee position" description="Current policy, next due, and override summary.">
+        <SectionCard title="Computed Fee Snapshot" description="Read-only current policy, class/route defaults, student overrides, next due, and outstanding position.">
           {financialSnapshot ? (
             <div className="space-y-4">
               <div className="flex flex-wrap gap-2">
@@ -243,7 +243,7 @@ export default async function StudentDetailPage({
       </SectionCard>
 
       {activeTab === "profile" ? (
-        <SectionCard title="Profile" description="Identity, family, and workbook student status details.">
+        <SectionCard title="Basic Details" description="Identity, family, class, route, and record status.">
           <div className="grid gap-5 lg:grid-cols-2">
             <dl className="space-y-3 text-sm text-slate-700">
               <div className="grid grid-cols-2 gap-2">
@@ -298,7 +298,7 @@ export default async function StudentDetailPage({
       ) : null}
 
       {activeTab === "fee-plan" && financialSnapshot ? (
-        <SectionCard title="Fee Plan" description="Resolved annual workbook fee breakup and override details.">
+        <SectionCard title="Fee Profile" description="Student-level fee profile and resolved annual workbook fee breakup. School-wide defaults stay in Fee Setup.">
           <div className="mb-4 flex flex-wrap gap-2">
             <ValueStatePill tone="policy">Policy-driven values</ValueStatePill>
             <ValueStatePill tone="calculated">Calculated totals</ValueStatePill>
@@ -358,11 +358,13 @@ export default async function StudentDetailPage({
               </tbody>
             </table>
           </div>
-          <div className="mt-4">
-            <Button asChild size="sm" variant="outline">
-              <Link href="/protected/fee-setup">Review fee overrides</Link>
-            </Button>
-          </div>
+          {canEditStudent ? (
+            <div className="mt-4">
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/protected/students/${student.id}/edit`}>Edit student fee profile</Link>
+              </Button>
+            </div>
+          ) : null}
         </SectionCard>
       ) : null}
 

@@ -40,7 +40,8 @@ Primary daily areas:
   first worksheet for blockers, today’s receipts, overdue follow-up, and
   continue-task shortcuts
 - `Students`
-  student master and one-student workspace
+  student master, student-specific fee profiles, spreadsheet add/update, and
+  one-student workspace
 - `Fee Setup`
   the staged live workbook-style fee sheet for academic session, master fee
   heads, session policy, class tuition, route transport fee, and final
@@ -127,7 +128,8 @@ The app now maps more closely to the school’s workbook flow:
 - `Payment Desk` behaves like the collection counter sheet
 - `Dues & Receipts` behaves like the working register for dues, receipts, and
   overdue follow-up
-- `Students` behaves like the student-wise detail sheet
+- `Students` behaves like the student master, student fee-profile, and bulk
+  student add/update sheet
 - `Fee Setup` behaves like the controlled live policy/default sheet with audit
   protection behind it, and it now behaves like the workbook `Fee_Setup` sheet
   for academic session and live fee values, organized as staged office work
@@ -267,7 +269,7 @@ Important current routes:
 - `app/protected/students/[studentId]/edit/page.tsx`
   student edit
 - `app/protected/imports/page.tsx`
-  student import workflow
+  student bulk upload/update workflow
 - `app/protected/setup/page.tsx`
   first-time setup wizard and go-live readiness checklist
 - `app/protected/fee-setup/page.tsx`

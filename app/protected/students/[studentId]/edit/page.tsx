@@ -61,6 +61,8 @@ export default async function EditStudentPage({ params }: EditStudentPageProps) 
             lateFeeWaiverAmount: student.lateFeeWaiverAmount.toString(),
             otherAdjustmentHead: student.otherAdjustmentHead ?? "",
             otherAdjustmentAmount: student.otherAdjustmentAmount?.toString() ?? "",
+            feeProfileReason: student.overrideReason ?? "Student Master workbook profile",
+            feeProfileNotes: student.overrideNotes ?? "",
             notes: student.notes ?? "",
           }}
           action={updateStudentAction.bind(null, student.id)}

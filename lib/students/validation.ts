@@ -75,6 +75,8 @@ export function getStudentFormInput(formData: FormData): StudentFormInput {
     lateFeeWaiverAmount: asTrimmedString(formData.get("lateFeeWaiverAmount")),
     otherAdjustmentHead: asTrimmedString(formData.get("otherAdjustmentHead")),
     otherAdjustmentAmount: asTrimmedString(formData.get("otherAdjustmentAmount")),
+    feeProfileReason: asTrimmedString(formData.get("feeProfileReason")),
+    feeProfileNotes: asTrimmedString(formData.get("feeProfileNotes")),
     notes: asTrimmedString(formData.get("notes")),
   };
 }
@@ -104,6 +106,9 @@ export function validateStudentInput(
   const discountAmount = parseOptionalWholeNumber(input.discountAmount);
   const lateFeeWaiverAmount = parseOptionalWholeNumber(input.lateFeeWaiverAmount);
   const otherAdjustmentAmount = parseOptionalWholeNumber(input.otherAdjustmentAmount);
+  const feeProfileReason =
+    normalizeNullableText(input.feeProfileReason, 180) ??
+    "Student Master workbook profile";
 
   if (!input.fullName) {
     fieldErrors.fullName = "Student name is required.";
@@ -209,6 +214,8 @@ export function validateStudentInput(
       lateFeeWaiverAmount: lateFeeWaiverAmount ?? 0,
       otherAdjustmentHead: normalizedOtherAdjustmentHead,
       otherAdjustmentAmount,
+      feeProfileReason,
+      feeProfileNotes: normalizeNullableText(input.feeProfileNotes, 1000),
       notes: normalizeNullableText(input.notes, 1000),
     },
   };

@@ -68,18 +68,46 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
     <div className="space-y-6">
       <PageHeader
         eyebrow="Students"
-        title="Student master"
-        description="Find students fast, filter the list, and open the right student record without extra clutter."
+        title="Student Master + Fee Profile"
+        description="Use Students for student entry, class/route assignment, student-specific fee profiles, special cases, and spreadsheet add/update work."
         actions={
           canWriteStudents ? (
-            <Button asChild>
-              <Link href="/protected/students/new">Add student</Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild>
+                <Link href="/protected/students/new">Add student</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/protected/imports">Bulk upload / update</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/protected/imports/template">Download template</Link>
+              </Button>
+            </div>
           ) : (
             <StatusBadge label="Read-only access" tone="warning" />
           )
         }
       />
+
+      <SectionCard
+        title="Student workspace boundary"
+        description="Fee Setup remains the only place for school-wide defaults. Students is for student-specific records and overrides."
+      >
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+            <p className="font-semibold">Student Master</p>
+            <p className="mt-1 text-emerald-800">Name, SR no, class, route, contact, notes, and record status.</p>
+          </div>
+          <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+            <p className="font-semibold">Fee Profile</p>
+            <p className="mt-1 text-sky-800">New/existing, student overrides, discount, waiver, and special adjustments.</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <p className="font-semibold text-slate-900">Bulk Work</p>
+            <p className="mt-1">CSV/XLSX uploads are staged, validated, reviewed, and linked back to import batches.</p>
+          </div>
+        </div>
+      </SectionCard>
 
       <SectionCard
         title="Find students"

@@ -2,9 +2,9 @@
 
 ## Status
 
-Student spreadsheet import is now implemented as a staged migration workflow.
-It should still be treated as a migration aid, not the product center of
-gravity.
+Student spreadsheet import is implemented as a staged Student workflow for
+bulk add and bulk update work. It supports ongoing office cleanup, but manual
+student entry and review still take priority over blind automation.
 
 Current import flow:
 
@@ -12,7 +12,7 @@ Current import flow:
 2. review or adjust column mapping
 3. run dry-run validation
 4. review row-level duplicates and errors
-5. import valid rows only
+5. save approved valid rows only
 6. keep the full batch/row trail for later review
 
 ## Planned Import Use Case
@@ -97,9 +97,12 @@ Practical expectation:
 Current save behavior:
 
 - existing students are never overwritten
-- duplicate SR/admission numbers are held in the batch and reported
-- only valid rows are saved
-- imports create student master records and optional fee overrides only
+- SR/admission number is the update key for existing student records
+- new SR/admission numbers create new student records
+- duplicate SR/admission numbers inside the same file are held for review
+- blank optional cells in update rows leave existing values unchanged
+- only approved valid rows are saved
+- imports create/update student master records and optional student fee profiles only
 - payment history is outside import scope and remains append-only
 
 ## Import Anti-Patterns

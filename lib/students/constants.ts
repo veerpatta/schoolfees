@@ -110,4 +110,9 @@ export const STUDENT_IMPORT_FIELDS: ReadonlyArray<{
     label: "Notes",
     aliases: ["notes", "remarks", "comment"],
   },
+  {
+    key: "fee_profile_reason",
+    label: "Special-case reason",
+    aliases: ["special case reason", "fee profile reason", "override reason"],
+  },
 ];

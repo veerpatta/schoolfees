@@ -28,6 +28,8 @@ export type StudentListItem = {
   studentStatusLabel: "New" | "Old";
   classLabel: string;
   transportRouteLabel: string;
+  hasFeeProfile: boolean;
+  feeProfileStatusLabel: string;
   fatherPhone: string | null;
   motherPhone: string | null;
   outstandingAmount: number;
@@ -83,6 +85,8 @@ export type StudentFormInput = {
   lateFeeWaiverAmount: string;
   otherAdjustmentHead: string;
   otherAdjustmentAmount: string;
+  feeProfileReason: string;
+  feeProfileNotes: string;
   notes: string;
 };
 
@@ -105,6 +109,8 @@ export type StudentValidatedInput = {
   lateFeeWaiverAmount: number;
   otherAdjustmentHead: string | null;
   otherAdjustmentAmount: number | null;
+  feeProfileReason: string;
+  feeProfileNotes: string | null;
   notes: string | null;
 };
 

@@ -65,11 +65,6 @@ export function detectDuplicateRows(
 
     if (existingStudent) {
       duplicateStudentId = existingStudent.id;
-      errors.push({
-        code: "ERR_DUPLICATE_DB_ADMISSION_NO",
-        field: "admissionNo",
-        message: `SR no ${row.normalizedPayload.admissionNo} already exists in the student master.`,
-      });
     }
 
     if (identityKey && row.normalizedPayload.dateOfBirth) {
@@ -86,7 +81,7 @@ export function detectDuplicateRows(
 
       const existingByNameClassDob = existingByIdentity.get(identityKey);
 
-      if (existingByNameClassDob) {
+      if (existingByNameClassDob && existingByNameClassDob.id !== existingStudent?.id) {
         duplicateStudentId = existingByNameClassDob.id;
         errors.push({
           code: "ERR_DUPLICATE_DB_NAME_CLASS_DOB",
@@ -98,7 +93,14 @@ export function detectDuplicateRows(
     }
 
     if (errors.length === row.errors.length) {
-      return row;
+      return existingStudent
+        ? {
+            ...row,
+            operation: "update" as const,
+            duplicateStudentId,
+            targetStudentId: existingStudent.id,
+          }
+        : row;
     }
 
     return {

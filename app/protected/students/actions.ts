@@ -137,7 +137,9 @@ export async function updateStudentAction(
       previousStudent.discountAmount !== validated.data.discountAmount ||
       previousStudent.lateFeeWaiverAmount !== validated.data.lateFeeWaiverAmount ||
       previousStudent.otherAdjustmentHead !== validated.data.otherAdjustmentHead ||
-      previousStudent.otherAdjustmentAmount !== validated.data.otherAdjustmentAmount;
+      previousStudent.otherAdjustmentAmount !== validated.data.otherAdjustmentAmount ||
+      previousStudent.overrideReason !== validated.data.feeProfileReason ||
+      previousStudent.overrideNotes !== validated.data.feeProfileNotes;
     const routeOrClassChanged =
       previousStudent.transportRouteId !== validated.data.transportRouteId ||
       previousStudent.classId !== validated.data.classId;

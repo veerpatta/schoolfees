@@ -175,8 +175,8 @@ async function saveStudentFeeProfile(
     discountAmount: payload.discountAmount,
     studentTypeOverride: payload.studentTypeOverride,
     transportAppliesOverride: existingOverride?.transport_applies_override ?? null,
-    reason: existingOverride?.reason ?? "Student Master workbook profile",
-    notes: existingOverride?.notes ?? null,
+    reason: payload.feeProfileReason,
+    notes: payload.feeProfileNotes,
   });
 }
 
@@ -236,22 +236,43 @@ export async function getStudents(filters: StudentListFilters) {
   const studentRows = (data ?? []) as StudentListRow[];
 
   let financialMap = new Map<string, StudentWorkbookFinancialRow>();
+  let overrideMap = new Map<string, StudentFeeOverrideRow>();
 
   if (studentRows.length > 0) {
-    const { data: financialsRaw, error: financialsError } = await supabase
-      .from("v_workbook_student_financials")
-      .select("student_id, student_status_label, outstanding_amount")
-      .in(
-        "student_id",
-        studentRows.map((row) => row.id),
-      );
+    const studentIds = studentRows.map((row) => row.id);
+    const [
+      { data: financialsRaw, error: financialsError },
+      { data: overridesRaw, error: overridesError },
+    ] = await Promise.all([
+      supabase
+        .from("v_workbook_student_financials")
+        .select("student_id, student_status_label, outstanding_amount")
+        .in("student_id", studentIds),
+      supabase
+        .from("student_fee_overrides")
+        .select(
+          "id, student_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, late_fee_waiver_amount, discount_amount, student_type_override, transport_applies_override, reason, notes",
+        )
+        .eq("is_active", true)
+        .in("student_id", studentIds),
+    ]);
 
     if (financialsError && !financialsError.message.includes("does not exist")) {
       throw new Error(`Unable to load workbook student list fields: ${financialsError.message}`);
     }
 
+    if (overridesError && !overridesError.message.includes("does not exist")) {
+      throw new Error(`Unable to load student fee profile fields: ${overridesError.message}`);
+    }
+
     financialMap = new Map(
       ((financialsRaw ?? []) as StudentWorkbookFinancialRow[]).map((row) => [row.student_id, row]),
+    );
+    overrideMap = new Map(
+      ((overridesRaw ?? []) as Array<StudentFeeOverrideRow & { student_id: string }>).map((row) => [
+        row.student_id,
+        row,
+      ]),
     );
   }
 
@@ -259,6 +280,15 @@ export async function getStudents(filters: StudentListFilters) {
     const classRef = toSingleRecord(row.class_ref);
     const routeRef = toSingleRecord(row.route_ref);
     const financial = financialMap.get(row.id) ?? null;
+    const override = overrideMap.get(row.id) ?? null;
+    const hasFeeException =
+      override !== null &&
+      (override.custom_tuition_fee_amount !== null ||
+        override.custom_transport_fee_amount !== null ||
+        override.discount_amount > 0 ||
+        override.late_fee_waiver_amount > 0 ||
+        override.other_adjustment_amount !== null ||
+        Boolean(override.other_adjustment_head?.trim()));
 
     return {
       id: row.id,
@@ -272,6 +302,12 @@ export async function getStudents(filters: StudentListFilters) {
           ? `${routeRef.route_name} (${routeRef.route_code})`
           : routeRef.route_name
         : "No Transport",
+      hasFeeProfile: Boolean(override),
+      feeProfileStatusLabel: hasFeeException
+        ? "Special case"
+        : override
+          ? "Standard profile"
+          : "Missing profile",
       fatherPhone: row.primary_phone,
       motherPhone: row.secondary_phone,
       outstandingAmount: financial?.outstanding_amount ?? 0,

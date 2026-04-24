@@ -205,11 +205,14 @@ export async function commitStudentImportBatchAction(formData: FormData) {
 
   revalidatePath("/protected/imports");
   revalidatePath("/protected/students");
+  revalidatePath("/protected/dues");
+  revalidatePath("/protected/defaulters");
+  revalidatePath("/protected/reports");
   revalidatePath("/protected/fee-setup");
   redirect(
     buildImportsUrl(
       batchId,
-      "Import finished. Approved clean rows are now in student master. Unapproved anomaly rows remain in the QA queue.",
+      "Import finished. Approved rows were saved to Student Master. Matching SR numbers updated existing students; unapproved rows remain in the QA queue.",
     ),
   );
 }

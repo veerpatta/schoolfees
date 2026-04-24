@@ -40,14 +40,14 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
   {
     href: "/protected/students",
     label: "Students",
-    description: "Student master, class-wise cleanup, and one-student workspace.",
+    description: "Student master, fee profiles, imports, and one-student workspace.",
     icon: UsersRound,
     requiredPermission: "students:view",
   },
   {
     href: "/protected/fee-setup",
     label: "Fee Setup",
-    description: "Live fee rules, defaults, overrides, and dues updates.",
+    description: "Live fee rules, school-wide defaults, and dues updates.",
     icon: ScrollText,
     requiredPermission: "fees:view",
     aliases: ["/protected/fee-structure"],
@@ -63,7 +63,7 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
   {
     href: "/protected/dues",
     label: "Dues & Receipts",
-    description: "Workbook-style dues, receipts, overdue follow-up, and import issues.",
+    description: "Workbook-style dues, receipts, and overdue follow-up.",
     icon: BookOpenCheck,
     requiredPermission: "receipts:view",
   },
@@ -93,13 +93,13 @@ const routeMetaItems: Array<
     match: "/protected/students",
     href: "/protected/students",
     label: "Students",
-    description: "Student master, class-wise cleanup, and one-student workspace.",
+    description: "Student master, fee profiles, imports, and one-student workspace.",
   },
   {
     match: "/protected/fee-setup",
     href: "/protected/fee-setup",
     label: "Fee Setup",
-    description: "Live fee rules, defaults, overrides, and dues updates.",
+    description: "Live fee rules, school-wide defaults, and dues updates.",
     aliases: ["/protected/fee-structure", "/protected/fee-setup/generate"],
   },
   {
@@ -113,7 +113,7 @@ const routeMetaItems: Array<
     match: "/protected/dues",
     href: "/protected/dues",
     label: "Dues & Receipts",
-    description: "Workbook-style tables for dues, receipts, overdue follow-up, and import issues.",
+    description: "Workbook-style tables for dues, receipts, and overdue follow-up.",
   },
   {
     match: "/protected/advanced",
@@ -165,9 +165,9 @@ const routeMetaItems: Array<
   },
   {
     match: "/protected/imports",
-    href: "/protected/dues",
-    label: "Import Issues",
-    description: "Workbook import review, row issues, and anomaly follow-up.",
+    href: "/protected/students",
+    label: "Student Imports",
+    description: "Student bulk upload, update, row issues, and anomaly follow-up.",
   },
   {
     match: "/protected/staff",
@@ -212,7 +212,7 @@ export function getProtectedNavigationItem(pathname: string) {
 }
 
 export function getDefaultProtectedHref(role: StaffRole) {
-  return role === "accountant" ? "/protected/payments" : "/protected/fee-setup";
+  return role === "accountant" ? "/protected/payments" : "/protected";
 }
 
 export function getVisibleProtectedNavigation(staffRole: StaffRole) {
@@ -333,8 +333,8 @@ export const advancedHubItems: AdvancedHubItem[] = [
   },
   {
     href: "/protected/imports",
-    label: "Imports",
-    description: "Workbook import review, validation, and issue queues.",
+    label: "Student Imports",
+    description: "Student upload, update, validation, and issue queues.",
     icon: UsersRound,
     requiredPermission: "imports:view",
   },

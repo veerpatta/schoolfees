@@ -35,6 +35,8 @@ type StudentFormValues = {
   lateFeeWaiverAmount: string;
   otherAdjustmentHead: string;
   otherAdjustmentAmount: string;
+  feeProfileReason: string;
+  feeProfileNotes: string;
   notes: string;
 };
 
@@ -85,7 +87,7 @@ export function StudentForm({
     <form action={formAction} className="space-y-6">
       <div className="flex flex-wrap gap-2">
         <ValueStatePill tone="editable">Student Master</ValueStatePill>
-        <ValueStatePill tone="policy">Workbook fee profile</ValueStatePill>
+        <ValueStatePill tone="policy">Student Fee Profile</ValueStatePill>
       </div>
 
       {state.message ? (
@@ -110,7 +112,7 @@ export function StudentForm({
         <div>
           <h3 className="text-sm font-semibold text-slate-950">Student details</h3>
           <p className="mt-1 text-sm text-slate-600">
-            Core identity and class placement. Student Master is not the daily payment screen.
+            Only student name, SR no, and class are required for daily entry.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -207,14 +209,14 @@ export function StudentForm({
 
       <div className="space-y-4">
         <div>
-          <h3 className="text-sm font-semibold text-slate-950">Workbook fee profile</h3>
+          <h3 className="text-sm font-semibold text-slate-950">Student Fee Profile</h3>
           <p className="mt-1 text-sm text-slate-600">
-            These fields feed the canonical student override layer used by AY 2026-27 workbook mode.
+            Student-specific exceptions only. School-wide class fees, route fees, installments, and receipt policy stay in Fee Setup.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <div>
-            <Label htmlFor="studentTypeOverride">Student status</Label>
+            <Label htmlFor="studentTypeOverride">New / Existing</Label>
             <select
               id="studentTypeOverride"
               name="studentTypeOverride"
@@ -341,6 +343,31 @@ export function StudentForm({
             {getFieldError(state, "otherAdjustmentAmount") ? (
               <p className="mt-1 text-xs text-red-600">{getFieldError(state, "otherAdjustmentAmount")}</p>
             ) : null}
+          </div>
+
+          <div className="md:col-span-2 xl:col-span-3">
+            <Label htmlFor="feeProfileReason">Special-case reason</Label>
+            <Input
+              id="feeProfileReason"
+              name="feeProfileReason"
+              defaultValue={initialValues.feeProfileReason}
+              className="mt-2"
+              placeholder="e.g. Approved concession, route exception, workbook correction"
+            />
+            {getFieldError(state, "feeProfileReason") ? (
+              <p className="mt-1 text-xs text-red-600">{getFieldError(state, "feeProfileReason")}</p>
+            ) : null}
+          </div>
+
+          <div className="md:col-span-2 xl:col-span-3">
+            <Label htmlFor="feeProfileNotes">Fee profile office notes</Label>
+            <textarea
+              id="feeProfileNotes"
+              name="feeProfileNotes"
+              defaultValue={initialValues.feeProfileNotes}
+              className={`${textAreaClassName} mt-2`}
+              placeholder="Optional reason details for accounts review"
+            />
           </div>
         </div>
       </div>

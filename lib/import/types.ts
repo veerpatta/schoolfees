@@ -30,6 +30,9 @@ export const importRowReviewStatuses = [
 ] as const;
 export type ImportRowReviewStatus = (typeof importRowReviewStatuses)[number];
 
+export const importRowOperations = ["create", "update"] as const;
+export type ImportRowOperation = (typeof importRowOperations)[number];
+
 export const importAnomalyCategories = [
   "missing-admission-no",
   "invalid-dob",
@@ -55,6 +58,7 @@ export const importFieldKeys = [
   "transportRouteLabel",
   "status",
   "notes",
+  "feeProfileReason",
   "customTuitionFeeAmount",
   "customTransportFeeAmount",
   "customBooksFeeAmount",
@@ -113,6 +117,7 @@ export type NormalizedStudentImportRow = {
   transportRouteLabel: string | null;
   status: StudentStatus;
   notes: string | null;
+  feeProfileReason: string | null;
   overrides: NormalizedStudentImportOverride;
 };
 
@@ -127,10 +132,13 @@ export type DryRunProcessedRow = {
   rowIndex: number;
   rawPayload: RawImportRowPayload;
   normalizedPayload: NormalizedStudentImportRow | null;
+  operation: ImportRowOperation;
   status: Extract<ImportRowStatus, "valid" | "invalid" | "duplicate">;
   errors: ImportIssue[];
   warnings: string[];
   duplicateStudentId: string | null;
+  targetStudentId: string | null;
+  changedFields: string[];
 };
 
 export type ImportBatchSummary = {
@@ -141,6 +149,8 @@ export type ImportBatchSummary = {
   importedRows: number;
   skippedRows: number;
   failedRows: number;
+  createRows?: number;
+  updateRows?: number;
 };
 
 export type ImportBatchListItem = ImportBatchSummary & {
@@ -168,6 +178,9 @@ export type ImportRowDetail = {
   errors: ImportIssue[];
   warnings: string[];
   duplicateStudentId: string | null;
+  targetStudentId: string | null;
+  operation: ImportRowOperation;
+  changedFields: string[];
   importedStudentId: string | null;
   importedOverrideId: string | null;
 };

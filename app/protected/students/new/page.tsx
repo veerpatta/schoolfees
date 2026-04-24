@@ -62,6 +62,8 @@ export default async function NewStudentPage() {
               lateFeeWaiverAmount: "0",
               otherAdjustmentHead: "",
               otherAdjustmentAmount: "",
+              feeProfileReason: "Student Master workbook profile",
+              feeProfileNotes: "",
               notes: "",
             }}
             action={createStudentAction}

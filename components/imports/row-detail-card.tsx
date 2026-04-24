@@ -216,6 +216,10 @@ export function RowDetailCard({ row, batch, canManage }: RowDetailCardProps) {
           Row {row.rowIndex}: {row.normalizedPayload?.fullName ?? getMappedDisplayValue(batch, row, "fullName")}
         </p>
         <div className="flex flex-wrap gap-2">
+          <StatusBadge
+            label={row.operation === "update" ? "Update existing" : "Create new"}
+            tone={row.operation === "update" ? "accent" : "neutral"}
+          />
           <StatusBadge label={getStatusLabel(row.status)} tone={getRowTone(row.status)} />
           <StatusBadge
             label={`Review: ${getStatusLabel(row.reviewStatus)}`}
@@ -259,14 +263,14 @@ export function RowDetailCard({ row, batch, canManage }: RowDetailCardProps) {
       ) : null}
 
       <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-600">
-        {row.duplicateStudentId ? (
-          <Link href={`/protected/students/${row.duplicateStudentId}/edit`} className="text-blue-700 underline">
-            Review matched existing student →
+        {row.targetStudentId || row.duplicateStudentId ? (
+          <Link href={`/protected/students/${row.targetStudentId ?? row.duplicateStudentId}/edit`} className="text-blue-700 underline">
+            Review matched existing student
           </Link>
         ) : null}
         {row.importedStudentId ? (
           <Link href={`/protected/students/${row.importedStudentId}/edit`} className="text-blue-700 underline">
-            Open imported student for edits →
+            Open saved student
           </Link>
         ) : null}
         {row.reviewedAt ? <span>Last reviewed: {formatShortDate(row.reviewedAt)}</span> : null}

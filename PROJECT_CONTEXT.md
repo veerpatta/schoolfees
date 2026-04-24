@@ -58,6 +58,9 @@ Operational boundaries:
   academic session, master fee heads, editable installment schedule, late fee,
   new/old academic fee, class-wise annual tuition, route-wise annual transport
   fee, and review/publish
+- `Students` is the daily surface for student master records, class/route
+  assignment, student-specific fee profiles, special cases, and spreadsheet
+  add/update work
 - `Dues & Receipts` is the workbook-style working area for receipt register,
   installment tracker, master fee statement shortcuts, class register,
   defaulters, today’s receipts, today’s collection, and import issues
@@ -86,7 +89,8 @@ Main routes and modules in the repo today:
 - `app/protected/students/[studentId]/statement/page.tsx`
   printable master fee statement
 - `app/protected/imports/page.tsx`
-  CSV/XLSX import workflow with dry-run, mapping, and batch tracking
+  Student bulk upload/update workflow with CSV/XLSX upload, template download,
+  dry-run, mapping, row review, and batch tracking
 - `app/protected/setup/page.tsx`
   admin-only first-time setup wizard for session selection, class and route
   setup, school/class defaults, and go-live readiness; once marked complete it
