@@ -15,9 +15,13 @@ import {
   buildWorkbookInstallmentCharges,
   isWorkbookSession,
 } from "@/lib/fees/workbook";
+import {
+  DEFAULT_FEE_HEAD_METADATA,
+  normalizeFeeHeadDefinition,
+  parseFeeHeadCatalog,
+} from "@/lib/fees/fee-heads";
 import type {
   ClassFeeDefault,
-  FeeHeadApplicationType,
   FeeHeadDefinition,
   FeePolicySnapshot,
   FeePolicySummary,
@@ -193,52 +197,6 @@ function parseCustomAmountMap(value: Record<string, unknown> | null) {
   }, {});
 }
 
-function normalizeFeeHeadApplicationType(value: unknown): FeeHeadApplicationType {
-  switch (value) {
-    case "installment_1_only":
-    case "split_across_installments":
-    case "optional_per_student":
-      return value;
-    default:
-      return "annual_fixed";
-  }
-}
-
-function parseCatalog(value: unknown) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value
-    .map((entry) => {
-      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
-        return null;
-      }
-
-      const id = typeof entry.id === "string" ? entry.id.trim() : "";
-      const label = typeof entry.label === "string" ? entry.label.trim() : "";
-
-      if (!label) {
-        return null;
-      }
-
-      return {
-        id: id || normalizeFeeHeadId(label),
-        label,
-        amount: toWholeNumber((entry as { amount?: unknown }).amount),
-        applicationType: normalizeFeeHeadApplicationType(
-          (entry as { applicationType?: unknown }).applicationType,
-        ),
-        isActive: (entry as { isActive?: unknown }).isActive !== false,
-        notes:
-          typeof (entry as { notes?: unknown }).notes === "string"
-            ? (entry as { notes?: string }).notes?.trim() || null
-            : null,
-      } satisfies FeeHeadDefinition;
-    })
-    .filter((entry): entry is FeeHeadDefinition => Boolean(entry));
-}
-
 function normalizeCatalog(
   catalog: FeeHeadDefinition[],
   discoveredIds: Iterable<string>,
@@ -246,19 +204,13 @@ function normalizeCatalog(
   const ordered = new Map<string, FeeHeadDefinition>();
 
   catalog.forEach((item) => {
-    const id = normalizeFeeHeadId(item.id || item.label);
-    if (!id || ordered.has(id)) {
+    const normalized = normalizeFeeHeadDefinition(item);
+
+    if (!normalized || ordered.has(normalized.id)) {
       return;
     }
 
-    ordered.set(id, {
-      id,
-      label: item.label.trim(),
-      amount: toWholeNumber(item.amount),
-      applicationType: normalizeFeeHeadApplicationType(item.applicationType),
-      isActive: item.isActive !== false,
-      notes: item.notes?.trim() || null,
-    });
+    ordered.set(normalized.id, normalized);
   });
 
   for (const rawId of discoveredIds) {
@@ -273,6 +225,7 @@ function normalizeCatalog(
       label: titleCaseFromKey(rawId),
       amount: 0,
       applicationType: "annual_fixed",
+      ...DEFAULT_FEE_HEAD_METADATA,
       isActive: true,
       notes: null,
     });
@@ -312,7 +265,7 @@ function toFeePolicySummary(
       label: formatPaymentModeLabel(value),
     })),
     receiptPrefix: row.receipt_prefix?.trim() || defaults.receiptPrefix,
-    customFeeHeads: parseCatalog(row.custom_fee_heads),
+    customFeeHeads: parseFeeHeadCatalog(row.custom_fee_heads),
     notes: row.notes ?? defaults.notes,
     isActive: row.is_active,
     updatedAt: row.updated_at,

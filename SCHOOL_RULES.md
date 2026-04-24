@@ -39,6 +39,10 @@ What is editable in the system right now:
   academic session label, 4-installment due dates, flat late fee, new student
   academic fee, old student academic fee, class-wise annual tuition, and
   route-wise annual transport fee
+- master fee-head metadata:
+  refundable flag, one-time/recurring frequency, mandatory flag, and
+  workbook-calculation inclusion flag, stored inside
+  `fee_policy_configs.custom_fee_heads`
 - academic sessions, classes, and routes as master data
 
 Operational rule:
@@ -48,11 +52,11 @@ Operational rule:
 - `/protected/setup` is for first-time go-live preparation only; after setup is
   marked complete, it should no longer be used as a live policy editing path
 - `/protected/fee-setup` is the primary daily live surface for the workbook
-  fee sheet: academic session, due dates, late fee, new/old academic fee,
-  class tuition, and route transport fee. `/protected/master-data` still
-  exists for direct admin maintenance of sessions, classes, and routes, but
-  Fee Setup is the preferred daily workflow because preview, audit, and safe
-  propagation stay attached there
+  fee sheet: academic session, master fee heads, due dates, late fee, new/old
+  academic fee, class tuition, route transport fee, and final review/publish.
+  `/protected/master-data` still exists for direct admin maintenance of
+  sessions, classes, and routes, but Fee Setup is the preferred daily workflow
+  because preview, audit, and safe propagation stay attached there
 
 Daily workflow boundary:
 
@@ -104,8 +108,12 @@ For Academic Session `2026-27`, workbook-mode behavior should match the school w
 - tuition override replaces class tuition for that student
 - transport override replaces route default for that student
 - books stay outside workbook-mode fee calculation
+- fee-head metadata is Phase 1 setup metadata only and does not change AY
+  `2026-27` workbook calculation unless explicitly changed later
 - workbook narrative notes are secondary to editable `Fee_Setup` values and formulas
 - stale workbook note conflict: one note says flat late fee Rs 3000, but editable AY `2026-27` setup and formulas use Rs 1000
+- standard concession profiles are Phase 1 planned/read-only setup copy;
+  approved student-specific concessions still use the existing override fields
 
 ## Ledger And Payment Rules
 

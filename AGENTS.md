@@ -74,9 +74,9 @@ Operational boundaries:
 - `Start Here` is the first daily worksheet for blockers, shortcuts, and
   continue-task links
 - `Fee Setup` is the canonical live path for workbook-style fee setup:
-  academic session, installment due dates, late fee, new/old academic fee,
-  class-wise annual tuition, route-wise annual transport fee, and dues update
-  review
+  academic session, master fee heads, installment/session policy, standard
+  concession planning, class-wise annual tuition, route-wise annual transport
+  fee, and final review/publish
 - `Dues & Receipts` is the workbook-style working area for receipt register,
   installment dues, class dues summary, overdue list, today’s receipts,
   today’s collection, and import issues
@@ -123,11 +123,11 @@ Fully implemented core:
 - Student Master with add, detail, and edit workflows
 - Student Spreadsheet Import: CSV/XLSX upload, column mapping, dry-run
   validation, duplicate detection, batch tracking, and valid-row-only save
-- Fee Setup: workbook-style live setup for academic session, editable
-  installment schedule, flat late fee, new/old academic fee, class-wise
-  annual tuition, route-wise annual transport fee, session-level fee heads,
-  and inline session/class/route maintenance on one cleaner page, with
-  impact preview and confirm-apply workflow
+- Fee Setup: staged workbook-style live setup for academic session, master fee
+  heads, editable installment schedule, flat late fee, new/old academic fee,
+  class-wise annual tuition, route-wise annual transport fee, and inline
+  session/class/route maintenance, with mandatory impact preview and
+  publish/apply workflow
 - AY `2026-27` workbook parity with `workbook_v1`, exact seeded class tuition,
   exact seeded annual route defaults, workbook student status, signed other
   adjustment, and late-fee-waiver support
@@ -300,7 +300,9 @@ Treat the live configuration model like this:
 
 - `fee_policy_configs` is the canonical source for active session label,
   installment schedule, late fee, receipt prefix, accepted payment modes, and
-  custom fee-head catalog.
+  custom fee-head catalog. Phase 1 fee-head metadata is JSON-backed in
+  `custom_fee_heads`: refundable flag, one-time/recurring frequency,
+  mandatory flag, and workbook-calculation inclusion flag.
 - `school_fee_defaults`, `fee_settings`, `transport_routes`, and
   `student_fee_overrides` are the editable default/override layers resolved
   beneath the canonical policy.
@@ -334,6 +336,9 @@ Propagation expectations:
   `read_only_staff` -> `Start Here`
 - receipts, payments, and payment adjustments remain historical facts after
   posting even if the current policy later changes
+- Standard concession profiles in Fee Setup are Phase 1 read-only planning
+  copy only; student discounts and approved exceptions continue through the
+  existing student override workflow.
 
 ## Active School Rules
 
@@ -351,6 +356,9 @@ Current active fee-policy defaults:
 - new student academic fee: Rs 1100
 - old student academic fee: Rs 500
 - books are excluded from workbook-mode fee calculation for AY `2026-27`
+- fee-head metadata does not change AY `2026-27` workbook calculation in Phase
+  1; the workbook base remains tuition, transport, academic fee, and signed
+  other adjustment
 
 Historical SOP values that may appear in old notes or workbooks but are not
 active rules:

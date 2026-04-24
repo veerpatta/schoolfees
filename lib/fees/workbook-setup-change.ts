@@ -149,7 +149,13 @@ function formatFeeHeadList(value: WorkbookFeeSetupFormPayload["customFeeHeads"])
   return value
     .map((item) => {
       const statusLabel = item.isActive ? "Active" : "Inactive";
-      return `${item.label} (${statusLabel}, Rs ${item.amount})`;
+      const mandatoryLabel = item.isMandatory ? "mandatory" : "optional";
+      const refundableLabel = item.isRefundable ? "refundable" : "non-refundable";
+      const workbookLabel = item.includeInWorkbookCalculation
+        ? "workbook flag on"
+        : "workbook flag off";
+
+      return `${item.label} (${statusLabel}, Rs ${item.amount}, ${item.chargeFrequency}, ${mandatoryLabel}, ${refundableLabel}, ${workbookLabel})`;
     })
     .join(", ");
 }

@@ -39,8 +39,8 @@ export default async function FeeSetupPage() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Fee Setup"
-        title="Fee setup"
-        description="Manage academic sessions, fee policy, class fees, route fees, fee heads, and the live review/apply step on one cleaner admin page."
+        title="Fee Setup"
+        description="Work through the school-office setup stages, then save a draft review and publish only after the audited impact preview is clear."
         actions={
           canEdit ? (
             <StatusBadge label="Admin editable" tone="good" />

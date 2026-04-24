@@ -2,7 +2,12 @@ import "server-only";
 
 import type { ClassStatus, PaymentMode } from "@/lib/db/types";
 import { formatPaymentModeLabel, normalizeFeeHeadId } from "@/lib/config/fee-rules";
-import type { FeeHeadApplicationType, FeeHeadDefinition } from "@/lib/fees/types";
+import {
+  DEFAULT_FEE_HEAD_METADATA,
+  parseFeeHeadCatalog,
+  serializeFeeHeadDefinition,
+} from "@/lib/fees/fee-heads";
+import type { FeeHeadDefinition } from "@/lib/fees/types";
 import { createClient } from "@/lib/supabase/server";
 
 type SessionRow = {
@@ -101,66 +106,7 @@ function buildClassLabel(value: {
   return parts.join(" - ");
 }
 
-function toWholeNumber(value: unknown) {
-  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
-    return 0;
-  }
-
-  return Math.trunc(value);
-}
-
-function normalizeFeeHeadApplicationType(value: unknown): FeeHeadApplicationType {
-  switch (value) {
-    case "installment_1_only":
-    case "split_across_installments":
-    case "optional_per_student":
-      return value;
-    default:
-      return "annual_fixed";
-  }
-}
-
-function parseFeeHeads(value: unknown) {
-  if (!Array.isArray(value)) {
-    return [] as FeeHeadDefinition[];
-  }
-
-  const seen = new Set<string>();
-
-  return value
-    .map((entry) => {
-      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
-        return null;
-      }
-
-      const record = entry as Record<string, unknown>;
-      const rawLabel = typeof record.label === "string" ? record.label : "";
-      const label = rawLabel.trim();
-
-      if (!label) {
-        return null;
-      }
-
-      const rawId = typeof record.id === "string" ? record.id : label;
-      const id = normalizeFeeHeadId(rawId);
-
-      if (!id || seen.has(id)) {
-        return null;
-      }
-
-      seen.add(id);
-
-      return {
-        id,
-        label,
-        amount: toWholeNumber(record.amount),
-        applicationType: normalizeFeeHeadApplicationType(record.applicationType),
-        isActive: record.isActive !== false,
-        notes: typeof record.notes === "string" ? record.notes.trim() || null : null,
-      } satisfies FeeHeadDefinition;
-    })
-    .filter((entry): entry is FeeHeadDefinition => Boolean(entry));
-}
+const parseFeeHeads = parseFeeHeadCatalog;
 
 function dedupeModes(value: PaymentMode[]) {
   return Array.from(new Set(value));
@@ -222,14 +168,9 @@ async function saveActivePolicy(policy: PolicyRow, payload: {
     new_student_academic_fee_amount: policy.new_student_academic_fee_amount ?? 1100,
     old_student_academic_fee_amount: policy.old_student_academic_fee_amount ?? 500,
     late_fee_flat_amount: policy.late_fee_flat_amount,
-    custom_fee_heads: (payload.customFeeHeads ?? parseFeeHeads(policy.custom_fee_heads)).map((item) => ({
-      id: item.id,
-      label: item.label,
-      amount: item.amount,
-      applicationType: item.applicationType,
-      isActive: item.isActive,
-      notes: item.notes,
-    })),
+    custom_fee_heads: (payload.customFeeHeads ?? parseFeeHeads(policy.custom_fee_heads)).map(
+      (item) => serializeFeeHeadDefinition(item),
+    ),
     accepted_payment_modes:
       payload.acceptedPaymentModes ?? dedupeModes(policy.accepted_payment_modes ?? []),
     receipt_prefix: policy.receipt_prefix,
@@ -249,11 +190,14 @@ async function saveActivePolicy(policy: PolicyRow, payload: {
 
 async function ensureSessionNotReferenced(sessionLabel: string) {
   const supabase = await createClient();
-  const [{ count: classCount, error: classError }, { count: policyCount, error: policyError }] =
+  const [
+    { data: classRows, count: classCount, error: classError },
+    { count: policyCount, error: policyError },
+  ] =
     await Promise.all([
       supabase
         .from("classes")
-        .select("id", { head: true, count: "exact" })
+        .select("id", { count: "exact" })
         .eq("session_label", sessionLabel),
       supabase
         .from("fee_policy_configs")
@@ -269,8 +213,85 @@ async function ensureSessionNotReferenced(sessionLabel: string) {
     throw new Error(policyError.message);
   }
 
-  if ((classCount ?? 0) > 0 || (policyCount ?? 0) > 0) {
-    throw new Error("This session already has saved classes or fee setup and cannot be deleted.");
+  if ((policyCount ?? 0) > 0) {
+    throw new Error(
+      "This session already has saved fee-policy snapshots and cannot be deleted. Archive it instead.",
+    );
+  }
+
+  const classIds = ((classRows ?? []) as Array<{ id: string }>).map((row) => row.id);
+
+  if ((classCount ?? 0) === 0 || classIds.length === 0) {
+    return;
+  }
+
+  const [
+    { data: studentRows, count: studentCount, error: studentError },
+    { data: installmentRows, count: installmentCount, error: installmentError },
+    { count: classDefaultCount, error: classDefaultError },
+  ] = await Promise.all([
+    supabase
+      .from("students")
+      .select("id", { count: "exact" })
+      .in("class_id", classIds),
+    supabase
+      .from("installments")
+      .select("id", { count: "exact" })
+      .in("class_id", classIds),
+    supabase
+      .from("fee_settings")
+      .select("id", { head: true, count: "exact" })
+      .in("class_id", classIds),
+  ]);
+
+  if (studentError) {
+    throw new Error(studentError.message);
+  }
+
+  if (installmentError) {
+    throw new Error(installmentError.message);
+  }
+
+  if (classDefaultError) {
+    throw new Error(classDefaultError.message);
+  }
+
+  const studentIds = ((studentRows ?? []) as Array<{ id: string }>).map((row) => row.id);
+  const installmentIds = ((installmentRows ?? []) as Array<{ id: string }>).map((row) => row.id);
+  const receiptCountResult =
+    studentIds.length > 0
+      ? await supabase
+          .from("receipts")
+          .select("id", { head: true, count: "exact" })
+          .in("student_id", studentIds)
+      : { count: 0, error: null };
+  const paymentCountResult =
+    installmentIds.length > 0
+      ? await supabase
+          .from("payments")
+          .select("id", { head: true, count: "exact" })
+          .in("installment_id", installmentIds)
+      : { count: 0, error: null };
+
+  if (receiptCountResult.error) {
+    throw new Error(receiptCountResult.error.message);
+  }
+
+  if (paymentCountResult.error) {
+    throw new Error(paymentCountResult.error.message);
+  }
+
+  if (
+    (classCount ?? 0) > 0 ||
+    (classDefaultCount ?? 0) > 0 ||
+    (studentCount ?? 0) > 0 ||
+    (installmentCount ?? 0) > 0 ||
+    (receiptCountResult.count ?? 0) > 0 ||
+    (paymentCountResult.count ?? 0) > 0
+  ) {
+    throw new Error(
+      "This session has saved setup, student, installment, receipt, or payment history and cannot be deleted. Archive it instead.",
+    );
   }
 }
 
@@ -1137,6 +1158,7 @@ export async function createFeeHead(label: string) {
         label: normalizedLabel,
         amount: 0,
         applicationType: "annual_fixed",
+        ...DEFAULT_FEE_HEAD_METADATA,
         isActive: true,
         notes: null,
       },

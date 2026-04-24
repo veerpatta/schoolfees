@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import type { ClassStatus } from "@/lib/db/types";
 import type {
   FeeHeadApplicationType,
+  FeeHeadChargeFrequency,
   FeeHeadDefinition,
   FeeSetupActionState,
   FeeSetupPageData,
@@ -207,13 +208,14 @@ function PreviewSummaryCard({ state }: { state: FeeSetupActionState }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-blue-700">
-            Review & Apply
+            Review, Lock & Publish
           </p>
           <h2 className="mt-2 font-heading text-xl font-semibold text-slate-950">
             Fee Setup Draft
           </h2>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            This draft is ready to go live. Only future or unpaid installment rows will change.
+            This draft is ready for publishing. Only future or unpaid installment rows will change;
+            paid, partial, or adjusted rows stay blocked for review.
           </p>
         </div>
         <StatusBadge label="Draft ready" tone="accent" />
@@ -293,6 +295,13 @@ function createWorkbookFormData(
     formData.append("feeHeadLabel", item.label);
     formData.append("feeHeadAmount", String(item.amount));
     formData.append("feeHeadApplicationType", item.applicationType);
+    formData.append("feeHeadIsRefundable", item.isRefundable ? "yes" : "no");
+    formData.append("feeHeadChargeFrequency", item.chargeFrequency);
+    formData.append("feeHeadIsMandatory", item.isMandatory ? "yes" : "no");
+    formData.append(
+      "feeHeadIncludeInWorkbookCalculation",
+      item.includeInWorkbookCalculation ? "yes" : "no",
+    );
     formData.append("feeHeadIsActive", item.isActive ? "yes" : "no");
     formData.append("feeHeadNotes", item.notes ?? "");
   });
@@ -319,6 +328,10 @@ function getFeeHeadApplicationLabel(value: FeeHeadApplicationType) {
     default:
       return "Annual fixed";
   }
+}
+
+function getFeeHeadChargeFrequencyLabel(value: FeeHeadChargeFrequency) {
+  return value === "recurring" ? "Recurring" : "One-time";
 }
 
 export function FeeSetupClient({
@@ -508,6 +521,10 @@ export function FeeSetupClient({
           label: "",
           amount: 0,
           applicationType: "annual_fixed",
+          isRefundable: false,
+          chargeFrequency: "one_time",
+          isMandatory: true,
+          includeInWorkbookCalculation: false,
           isActive: true,
           notes: null,
         },
@@ -555,13 +572,13 @@ export function FeeSetupClient({
 
       {previewDirty ? (
         <div className="rounded-[26px] border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm leading-6 text-amber-900">
-          The draft is now out of date. Save Draft again before you apply the live setup.
+          The draft is now out of date. Save Draft Review again before you publish the live setup.
         </div>
       ) : null}
 
       <SectionCard
         title="1. Academic Session"
-        description="Add, edit, archive, remove, select, or copy academic sessions here. Selecting a session on this page prepares the live switch, but the session becomes live only after Apply Live Setup."
+        description="Choose the session to work on, add a new session, or copy last year. Selecting a session here edits the draft target only; the live setup changes only after Publish Live Setup."
         actions={
           <div className="min-w-[240px]">
             <Label htmlFor="selected-session">Selected session</Label>
@@ -667,7 +684,7 @@ export function FeeSetupClient({
                 </div>
                 <p className="mt-2 text-xs leading-5 text-slate-500">
                   This copies the latest fee-policy snapshot and class fee rows into a new session.
-                  The copied session still goes live only after Apply Live Setup.
+                  The copied session still goes live only after Publish Live Setup.
                 </p>
                 <Button type="submit" className="mt-4" variant="outline" disabled={isSupportingPending}>
                   Copy Setup
@@ -762,7 +779,7 @@ export function FeeSetupClient({
                             variant={item.session_label === selectedSessionLabel ? "default" : "outline"}
                             onClick={() => switchSession(item.session_label)}
                           >
-                            Set Current
+                            Work on this session
                           </Button>
                           {canEdit ? (
                             <>
@@ -805,7 +822,7 @@ export function FeeSetupClient({
                                   );
                                 }}
                               >
-                                Remove
+                                Delete unused session
                               </Button>
                             </>
                           ) : null}
@@ -821,8 +838,218 @@ export function FeeSetupClient({
       </SectionCard>
 
       <SectionCard
-        title="2. Fee Policy"
-        description="Set the canonical policy values for the selected academic session. This section stays simple on purpose."
+        title="2. Master Fee Heads"
+        description="Maintain the selected session's fee-head building blocks. Phase 1 stores these details in the existing policy JSON; workbook AY 2026-27 calculations are unchanged."
+        actions={
+          canEdit ? (
+            <Button type="button" variant="outline" onClick={addFeeHeadRow}>
+              Add fee head
+            </Button>
+          ) : null
+        }
+      >
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
+            Books and optional fee-head metadata stay outside the AY 2026-27 workbook calculation
+            unless the school explicitly changes that rule later.
+          </div>
+
+          {form.customFeeHeads.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+              No extra fee heads are configured for this session yet.
+            </div>
+          ) : (
+            <div className="overflow-auto rounded-[26px] border border-slate-200 bg-white">
+              <table className="w-full min-w-[1540px] text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">Fee Head Name</th>
+                    <th className="px-4 py-3">Amount</th>
+                    <th className="px-4 py-3">Application Type</th>
+                    <th className="px-4 py-3">Frequency</th>
+                    <th className="px-4 py-3">Mandatory</th>
+                    <th className="px-4 py-3">Refundable</th>
+                    <th className="px-4 py-3">Workbook Calc</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Notes</th>
+                    <th className="px-4 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {form.customFeeHeads.map((item) => (
+                    <tr key={item.rowId} className="border-t border-slate-100 align-top">
+                      <td className="px-4 py-3">
+                        <Input
+                          value={item.label}
+                          onChange={(event) =>
+                            updateFeeHeadRow(item.rowId, {
+                              label: event.target.value,
+                              id:
+                                event.target.value
+                                  .toLowerCase()
+                                  .replace(/[^a-z0-9]+/g, "_")
+                                  .replace(/^_+|_+$/g, "") || item.id,
+                            })
+                          }
+                          disabled={!canEdit}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <Input
+                          type="number"
+                          min={0}
+                          value={item.amount}
+                          onChange={(event) =>
+                            updateFeeHeadRow(item.rowId, {
+                              amount: Number(event.target.value || 0),
+                            })
+                          }
+                          disabled={!canEdit}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={item.applicationType}
+                          onChange={(event) =>
+                            updateFeeHeadRow(item.rowId, {
+                              applicationType: event.target.value as FeeHeadApplicationType,
+                            })
+                          }
+                          className={selectClassName}
+                          disabled={!canEdit}
+                        >
+                          <option value="annual_fixed">
+                            {getFeeHeadApplicationLabel("annual_fixed")}
+                          </option>
+                          <option value="installment_1_only">
+                            {getFeeHeadApplicationLabel("installment_1_only")}
+                          </option>
+                          <option value="split_across_installments">
+                            {getFeeHeadApplicationLabel("split_across_installments")}
+                          </option>
+                          <option value="optional_per_student">
+                            {getFeeHeadApplicationLabel("optional_per_student")}
+                          </option>
+                        </select>
+                      </td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={item.chargeFrequency}
+                          onChange={(event) =>
+                            updateFeeHeadRow(item.rowId, {
+                              chargeFrequency: event.target.value as FeeHeadChargeFrequency,
+                            })
+                          }
+                          className={selectClassName}
+                          disabled={!canEdit}
+                        >
+                          <option value="one_time">
+                            {getFeeHeadChargeFrequencyLabel("one_time")}
+                          </option>
+                          <option value="recurring">
+                            {getFeeHeadChargeFrequencyLabel("recurring")}
+                          </option>
+                        </select>
+                      </td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={item.isMandatory ? "yes" : "no"}
+                          onChange={(event) =>
+                            updateFeeHeadRow(item.rowId, {
+                              isMandatory: event.target.value === "yes",
+                            })
+                          }
+                          className={selectClassName}
+                          disabled={!canEdit}
+                        >
+                          <option value="yes">Mandatory</option>
+                          <option value="no">Optional</option>
+                        </select>
+                      </td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={item.isRefundable ? "yes" : "no"}
+                          onChange={(event) =>
+                            updateFeeHeadRow(item.rowId, {
+                              isRefundable: event.target.value === "yes",
+                            })
+                          }
+                          className={selectClassName}
+                          disabled={!canEdit}
+                        >
+                          <option value="no">No</option>
+                          <option value="yes">Yes</option>
+                        </select>
+                      </td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={item.includeInWorkbookCalculation ? "yes" : "no"}
+                          onChange={(event) =>
+                            updateFeeHeadRow(item.rowId, {
+                              includeInWorkbookCalculation: event.target.value === "yes",
+                            })
+                          }
+                          className={selectClassName}
+                          disabled={!canEdit}
+                        >
+                          <option value="no">Excluded</option>
+                          <option value="yes">Included later</option>
+                        </select>
+                      </td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={item.isActive ? "yes" : "no"}
+                          onChange={(event) =>
+                            updateFeeHeadRow(item.rowId, {
+                              isActive: event.target.value === "yes",
+                            })
+                          }
+                          className={selectClassName}
+                          disabled={!canEdit}
+                        >
+                          <option value="yes">Active</option>
+                          <option value="no">Inactive</option>
+                        </select>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Input
+                          value={item.notes ?? ""}
+                          onChange={(event) =>
+                            updateFeeHeadRow(item.rowId, {
+                              notes: event.target.value || null,
+                            })
+                          }
+                          disabled={!canEdit}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        {canEdit ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => removeFeeHeadRow(item.rowId)}
+                          >
+                            Remove
+                          </Button>
+                        ) : (
+                          <StatusBadge
+                            label={item.isActive ? "Active" : "Inactive"}
+                            tone={item.isActive ? "good" : "warning"}
+                          />
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="3. Session Policy, Installments & Standard Concessions"
+        description="Set the canonical policy values for the selected academic session. Concession profiles are shown as planned Phase 2 structure only."
         actions={<StatusBadge label={selectedSessionLabel} tone="accent" />}
       >
         <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
@@ -959,11 +1186,33 @@ export function FeeSetupClient({
             </div>
           </div>
         </div>
+
+        <div className="mt-4 rounded-[26px] border border-dashed border-slate-300 bg-slate-50/80 p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-950">Standard Concessions</p>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Planned concession profiles are shown for office clarity only in Phase 1. Student
+                discounts and overrides continue to use the existing approved override workflow.
+              </p>
+            </div>
+            <StatusBadge label="Planned" tone="neutral" />
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {["Staff Ward", "RTE", "Sibling Discount", "Custom school-approved profile"].map(
+              (label) => (
+                <div key={label} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm">
+                  {label}
+                </div>
+              ),
+            )}
+          </div>
+        </div>
       </SectionCard>
 
       <SectionCard
-        title="3. Class Fees"
-        description="Manage classes for the selected session and set annual tuition in one fast grid."
+        title="4. Class-wise Fee Mapping"
+        description="Manage classes for the selected session and set annual tuition defaults in one reviewable grid."
         actions={
           <div className="w-full min-w-[240px] max-w-sm">
             <Label htmlFor="class-search">Search classes</Label>
@@ -1025,6 +1274,8 @@ export function FeeSetupClient({
                 <tr>
                   <th className="px-4 py-3">Class Name</th>
                   <th className="px-4 py-3">Annual Tuition Fee</th>
+                  <th className="px-4 py-3">Class Record</th>
+                  <th className="px-4 py-3">Saved Default</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Actions</th>
                 </tr>
@@ -1077,6 +1328,18 @@ export function FeeSetupClient({
                             updateClassAnnualTuition(row.label, Number(event.target.value || 0))
                           }
                           disabled={!canEdit}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadge
+                          label={row.hasClassRecord ? "Exists" : "Will be created"}
+                          tone={row.hasClassRecord ? "good" : "warning"}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadge
+                          label={row.hasSavedDefault ? "Saved" : "Pending default"}
+                          tone={row.hasSavedDefault ? "good" : "warning"}
                         />
                       </td>
                       <td className="px-4 py-3">
@@ -1138,8 +1401,8 @@ export function FeeSetupClient({
       </SectionCard>
 
       <SectionCard
-        title="4. Route Fees"
-        description="Keep transport routes easy to maintain and set the annual route fees in one list."
+        title="5. Route / Transport Fees"
+        description="Keep transport routes separate from class tuition and set annual route fees in one list."
         actions={
           <div className="w-full min-w-[240px] max-w-sm">
             <Label htmlFor="route-search">Search routes</Label>
@@ -1155,6 +1418,10 @@ export function FeeSetupClient({
       >
         <div className="space-y-4">
           <ActionNotice state={routeState} />
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
+            Transport pricing is independent of class tuition. The installment amount below is
+            derived from the selected session's current installment count.
+          </div>
 
           {canEdit ? (
             <form
@@ -1214,6 +1481,7 @@ export function FeeSetupClient({
                 <tr>
                   <th className="px-4 py-3">Route Name</th>
                   <th className="px-4 py-3">Annual Transport Fee</th>
+                  <th className="px-4 py-3">Derived Installment</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Actions</th>
                 </tr>
@@ -1270,6 +1538,9 @@ export function FeeSetupClient({
                           }
                           disabled={!canEdit}
                         />
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        Rs {Math.floor(row.annualFee / Math.max(form.installmentDates.length, 1))}
                       </td>
                       <td className="px-4 py-3">
                         {routeRecord && formId ? (
@@ -1329,150 +1600,13 @@ export function FeeSetupClient({
       </SectionCard>
 
       <SectionCard
-        title="5. Fee Heads"
-        description="Add session-level fee heads without turning this page into a complex rules engine."
-        actions={
-          canEdit ? (
-            <Button type="button" variant="outline" onClick={addFeeHeadRow}>
-              Add fee head
-            </Button>
-          ) : null
-        }
-      >
-        <div className="space-y-4">
-          {form.customFeeHeads.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
-              No extra fee heads are configured for this session yet.
-            </div>
-          ) : (
-            <div className="overflow-auto rounded-[26px] border border-slate-200 bg-white">
-              <table className="w-full min-w-[1080px] text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3">Fee Head Name</th>
-                    <th className="px-4 py-3">Amount</th>
-                    <th className="px-4 py-3">Application Type</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Notes</th>
-                    <th className="px-4 py-3">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {form.customFeeHeads.map((item) => (
-                    <tr key={item.rowId} className="border-t border-slate-100 align-top">
-                      <td className="px-4 py-3">
-                        <Input
-                          value={item.label}
-                          onChange={(event) =>
-                            updateFeeHeadRow(item.rowId, {
-                              label: event.target.value,
-                              id:
-                                event.target.value
-                                  .toLowerCase()
-                                  .replace(/[^a-z0-9]+/g, "_")
-                                  .replace(/^_+|_+$/g, "") || item.id,
-                            })
-                          }
-                          disabled={!canEdit}
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <Input
-                          type="number"
-                          min={0}
-                          value={item.amount}
-                          onChange={(event) =>
-                            updateFeeHeadRow(item.rowId, {
-                              amount: Number(event.target.value || 0),
-                            })
-                          }
-                          disabled={!canEdit}
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <select
-                          value={item.applicationType}
-                          onChange={(event) =>
-                            updateFeeHeadRow(item.rowId, {
-                              applicationType: event.target.value as FeeHeadApplicationType,
-                            })
-                          }
-                          className={selectClassName}
-                          disabled={!canEdit}
-                        >
-                          <option value="annual_fixed">
-                            {getFeeHeadApplicationLabel("annual_fixed")}
-                          </option>
-                          <option value="installment_1_only">
-                            {getFeeHeadApplicationLabel("installment_1_only")}
-                          </option>
-                          <option value="split_across_installments">
-                            {getFeeHeadApplicationLabel("split_across_installments")}
-                          </option>
-                          <option value="optional_per_student">
-                            {getFeeHeadApplicationLabel("optional_per_student")}
-                          </option>
-                        </select>
-                      </td>
-                      <td className="px-4 py-3">
-                        <select
-                          value={item.isActive ? "yes" : "no"}
-                          onChange={(event) =>
-                            updateFeeHeadRow(item.rowId, {
-                              isActive: event.target.value === "yes",
-                            })
-                          }
-                          className={selectClassName}
-                          disabled={!canEdit}
-                        >
-                          <option value="yes">Active</option>
-                          <option value="no">Inactive</option>
-                        </select>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Input
-                          value={item.notes ?? ""}
-                          onChange={(event) =>
-                            updateFeeHeadRow(item.rowId, {
-                              notes: event.target.value || null,
-                            })
-                          }
-                          disabled={!canEdit}
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        {canEdit ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => removeFeeHeadRow(item.rowId)}
-                          >
-                            Remove
-                          </Button>
-                        ) : (
-                          <StatusBadge
-                            label={item.isActive ? "Active" : "Inactive"}
-                            tone={item.isActive ? "good" : "warning"}
-                          />
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </SectionCard>
-
-      <SectionCard
-        title="6. Review & Save"
-        description="Use Save Draft to create a reviewed change batch, then apply it live only after checking the impact summary."
+        title="6. Review, Lock & Publish"
+        description="Use Save Draft Review to create an audited change batch, then publish live only after checking the impact summary."
       >
         <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-              Current session label: <strong>{selectedSessionLabel}</strong>
+              Draft session target: <strong>{selectedSessionLabel}</strong>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
               Installment count: <strong>{form.installmentDates.length}</strong>
@@ -1519,14 +1653,14 @@ export function FeeSetupClient({
                     onClick={() => submitFeeSetup("preview")}
                     disabled={!canEdit || isSaving}
                   >
-                    {isSaving ? "Saving..." : "Save Draft"}
+                    {isSaving ? "Saving..." : "Save Draft Review"}
                   </Button>
                   <Button
                     type="button"
                     onClick={() => submitFeeSetup("apply")}
                     disabled={!canApply || isSaving}
                   >
-                    {isSaving ? "Applying..." : "Apply Live Setup"}
+                    {isSaving ? "Publishing..." : "Publish Live Setup"}
                   </Button>
                 </>
               ) : (
@@ -1538,8 +1672,9 @@ export function FeeSetupClient({
             </div>
 
             <p className="mt-3 text-xs leading-5 text-slate-500">
-              Paid receipts, payments, adjustments, and audit logs remain append-only. Applied
-              changes still use the existing blocked-row protection for paid or partial dues.
+              Publishing keeps payments, receipts, adjustments, and audit logs append-only. Only
+              future or unpaid installment rows may change; paid, partial, or adjusted rows are
+              blocked and logged for review.
             </p>
             {selectedPolicySnapshot?.id ? (
               <p className="mt-2 text-xs leading-5 text-slate-500">

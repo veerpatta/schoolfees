@@ -7,7 +7,15 @@ import {
   createWorkbookFeeSetupPreview,
 } from "@/lib/fees/workbook-setup-change";
 import type { WorkbookFeeSetupFormPayload } from "@/lib/fees/workbook-setup";
-import type { FeeHeadApplicationType, FeeSetupActionState } from "@/lib/fees/types";
+import {
+  DEFAULT_FEE_HEAD_METADATA,
+  normalizeFeeHeadChargeFrequency,
+} from "@/lib/fees/fee-heads";
+import type {
+  FeeHeadApplicationType,
+  FeeHeadChargeFrequency,
+  FeeSetupActionState,
+} from "@/lib/fees/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 function parseRequiredString(value: FormDataEntryValue | null, label: string) {
@@ -80,11 +88,29 @@ function parseFeeHeadApplicationType(value: FormDataEntryValue | null): FeeHeadA
   }
 }
 
+function parseFeeHeadChargeFrequency(value: FormDataEntryValue | null): FeeHeadChargeFrequency {
+  return normalizeFeeHeadChargeFrequency((value ?? "").toString().trim());
+}
+
+function parseYesNo(value: FormDataEntryValue | null, defaultValue: boolean) {
+  const normalized = (value ?? "").toString().trim();
+
+  if (!normalized) {
+    return defaultValue;
+  }
+
+  return normalized === "yes";
+}
+
 function parseFeeHeadRows(formData: FormData) {
   const ids = formData.getAll("feeHeadId").map((value) => value.toString().trim());
   const labels = formData.getAll("feeHeadLabel").map((value) => value.toString().trim());
   const amounts = formData.getAll("feeHeadAmount");
   const applicationTypes = formData.getAll("feeHeadApplicationType");
+  const refundableValues = formData.getAll("feeHeadIsRefundable");
+  const chargeFrequencies = formData.getAll("feeHeadChargeFrequency");
+  const mandatoryValues = formData.getAll("feeHeadIsMandatory");
+  const workbookCalculationValues = formData.getAll("feeHeadIncludeInWorkbookCalculation");
   const activeValues = formData.getAll("feeHeadIsActive");
   const notes = formData.getAll("feeHeadNotes").map((value) => value.toString().trim());
 
@@ -92,6 +118,10 @@ function parseFeeHeadRows(formData: FormData) {
     ids.length !== labels.length ||
     labels.length !== amounts.length ||
     labels.length !== applicationTypes.length ||
+    labels.length !== refundableValues.length ||
+    labels.length !== chargeFrequencies.length ||
+    labels.length !== mandatoryValues.length ||
+    labels.length !== workbookCalculationValues.length ||
     labels.length !== activeValues.length ||
     labels.length !== notes.length
   ) {
@@ -115,7 +145,20 @@ function parseFeeHeadRows(formData: FormData) {
         label: parseRequiredString(labels[index] ?? null, "Fee head label"),
         amount: parseRequiredNonNegativeInt(amounts[index] ?? null, `${label} amount`),
         applicationType: parseFeeHeadApplicationType(applicationTypes[index] ?? null),
-        isActive: (activeValues[index] ?? "").toString().trim() !== "no",
+        isRefundable: parseYesNo(
+          refundableValues[index] ?? null,
+          DEFAULT_FEE_HEAD_METADATA.isRefundable,
+        ),
+        chargeFrequency: parseFeeHeadChargeFrequency(chargeFrequencies[index] ?? null),
+        isMandatory: parseYesNo(
+          mandatoryValues[index] ?? null,
+          DEFAULT_FEE_HEAD_METADATA.isMandatory,
+        ),
+        includeInWorkbookCalculation: parseYesNo(
+          workbookCalculationValues[index] ?? null,
+          DEFAULT_FEE_HEAD_METADATA.includeInWorkbookCalculation,
+        ),
+        isActive: parseYesNo(activeValues[index] ?? null, true),
         notes: notes[index] || null,
       };
     })
@@ -258,7 +301,7 @@ export async function saveWorkbookFeeSetupAction(
     return toPreviewState({
       batchId: previewResult.batchId,
       preview,
-      message: `Draft saved for review: ${preview.studentsAffected} students affected, ${preview.installmentsToUpdate + preview.installmentsToInsert + preview.installmentsToCancel} installment rows changing, and ${preview.blockedInstallments} rows held for review. Apply Live Setup only after checking the summary below.`,
+      message: `Draft review saved: ${preview.studentsAffected} students affected, ${preview.installmentsToUpdate + preview.installmentsToInsert + preview.installmentsToCancel} installment rows changing, and ${preview.blockedInstallments} rows held for review. Publish Live Setup only after checking the summary below.`,
     });
   } catch (error) {
     return toErrorState(error);

@@ -120,11 +120,17 @@ export type FeeHeadApplicationType =
   | "split_across_installments"
   | "optional_per_student";
 
+export type FeeHeadChargeFrequency = "one_time" | "recurring";
+
 export type FeeHeadDefinition = {
   id: string;
   label: string;
   amount: number;
   applicationType: FeeHeadApplicationType;
+  isRefundable: boolean;
+  chargeFrequency: FeeHeadChargeFrequency;
+  isMandatory: boolean;
+  includeInWorkbookCalculation: boolean;
   isActive: boolean;
   notes: string | null;
 };

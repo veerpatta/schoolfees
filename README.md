@@ -42,9 +42,9 @@ Primary daily areas:
 - `Students`
   student master and one-student workspace
 - `Fee Setup`
-  the live workbook-style fee sheet for academic session, due dates, late fee,
-  new/old academic fee, class tuition, route transport fee, and dues update
-  review
+  the staged live workbook-style fee sheet for academic session, master fee
+  heads, session policy, class tuition, route transport fee, and final
+  review/publish
 - `Payment Desk`
   counter posting, receipt printing, and next-payment shortcuts
 - `Dues & Receipts`
@@ -130,7 +130,7 @@ The app now maps more closely to the school’s workbook flow:
 - `Students` behaves like the student-wise detail sheet
 - `Fee Setup` behaves like the controlled live policy/default sheet with audit
   protection behind it, and it now behaves like the workbook `Fee_Setup` sheet
-  for academic session and live fee values
+  for academic session and live fee values, organized as staged office work
 - `Advanced` keeps the less-frequent admin tasks out of the daily path
 
 ## Canonical Configuration Model
@@ -139,7 +139,8 @@ Live fee configuration now follows one explicit model:
 
 - `fee_policy_configs` is the canonical source for the active academic session,
   installment schedule, late fee, receipt prefix, accepted payment modes, and
-  custom fee-head catalog.
+  custom fee-head catalog. Phase 1 fee-head metadata is stored in the existing
+  `custom_fee_heads` JSON payload rather than a separate table.
 - `school_fee_defaults`, `fee_settings`, `transport_routes`, and
   `student_fee_overrides` are the editable default/override layers resolved
   beneath that policy.
@@ -149,6 +150,9 @@ Live fee configuration now follows one explicit model:
 - `/protected/master-data` remains available for direct admin maintenance of
   sessions, classes, and routes, but live workbook fee values should be saved
   through fee setup so the preview/apply audit trail stays intact.
+- Standard concession profiles are shown as planned/read-only setup structure
+  in Phase 1; existing student override fields remain the active concession
+  mechanism.
 - `/protected/setup` is first-time go-live setup only. After setup is marked
   complete, the wizard stays readable but no longer acts as a live-edit path
   for policy/default changes.
@@ -190,10 +194,10 @@ Implemented core:
   route master-data setup, school/class defaults, readiness checklist, and
   explicit go-live completion marker; once setup is marked complete, the wizard
   stops acting as a live-edit path for fee policy/default changes
-- fee setup with a workbook-style one-page screen for academic session, 4 due
-  dates, flat late fee, new/old academic fee, class-wise annual tuition, and
-  route-wise annual transport fee, now with mandatory impact preview and
-  explicit confirm-apply workflow
+- fee setup with a staged workbook-style screen for academic session, master
+  fee heads, 4 due dates, flat late fee, new/old academic fee, class-wise
+  annual tuition, and route-wise annual transport fee, with mandatory impact
+  preview and explicit publish/apply workflow
 - AY `2026-27` workbook parity with `workbook_v1` fee calculation, seeded class
   tuition defaults, seeded annual route defaults, workbook student status,
   other adjustment, and late-fee-waiver support
@@ -411,6 +415,7 @@ Active defaults in docs and config:
 - new student academic fee: Rs 1100
 - old student academic fee: Rs 500
 - books are excluded from workbook-mode fee calculation for AY `2026-27`
+- Phase 1 fee-head metadata does not change AY `2026-27` workbook calculation
 
 Historical values that may appear in old notes or spreadsheets but are not
 current policy:

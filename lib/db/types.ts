@@ -157,6 +157,10 @@ export type FeePolicyConfigRecord = {
       | "installment_1_only"
       | "split_across_installments"
       | "optional_per_student";
+    isRefundable: boolean;
+    chargeFrequency: "one_time" | "recurring";
+    isMandatory: boolean;
+    includeInWorkbookCalculation: boolean;
     isActive: boolean;
     notes: string | null;
   }>;
