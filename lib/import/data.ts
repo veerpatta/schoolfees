@@ -661,6 +661,7 @@ async function updateImportBatch(
 }
 
 async function upsertImportRows(
+  batchId: string,
   rows: ReadonlyArray<{
     id: string;
     normalized_payload: NormalizedStudentImportRow | null;
@@ -682,7 +683,12 @@ async function upsertImportRows(
   const supabase = await createClient();
 
   for (const chunk of chunkArray(rows, IMPORT_ROW_WRITE_CHUNK_SIZE)) {
-    const { error } = await supabase.from("import_rows").upsert(chunk, {
+    const rowsWithBatchId = chunk.map((row) => ({
+      ...row,
+      batch_id: batchId,
+    }));
+
+    const { error } = await supabase.from("import_rows").upsert(rowsWithBatchId, {
       onConflict: "id",
       ignoreDuplicates: false,
     });
@@ -994,6 +1000,7 @@ export async function runStudentImportDryRun(batchId: string, mapping: StudentIm
   });
 
   await upsertImportRows(
+    batchId,
     validationResult.rows.map((row) => {
       const anomalyCategories = deriveAnomalyCategoriesForRow({
         mode: batchRow.import_mode === "update" ? "update" : "add",
