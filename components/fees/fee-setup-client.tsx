@@ -21,6 +21,7 @@ import {
   buildWorkbookClassSetupRows,
   buildWorkbookRouteSetupRows,
 } from "@/lib/fees/workbook-setup";
+import { formatInr } from "@/lib/helpers/currency";
 
 const selectClassName =
   "flex h-11 w-full rounded-xl border border-input/80 bg-white/88 px-3.5 py-2 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-[border-color,box-shadow,background-color] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-100 disabled:cursor-not-allowed disabled:opacity-50";
@@ -133,6 +134,23 @@ function formatDateTime(value: string | null) {
   }).format(parsed);
 }
 
+function formatDateOnly(value: string) {
+  if (!value) {
+    return "Not set";
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeZone: "Asia/Kolkata",
+  }).format(parsed);
+}
+
 function buildFeeHeadRow(item: FeeHeadDefinition, index: number): FeeHeadRow {
   return {
     ...item,
@@ -189,87 +207,6 @@ function ActionNotice({
   return (
     <div className={`rounded-2xl border px-4 py-3 text-sm ${toneClassName}`}>
       {state.message}
-    </div>
-  );
-}
-
-function PreviewSummaryCard({ state }: { state: FeeSetupActionState }) {
-  if (!state.preview) {
-    return null;
-  }
-
-  const preview = state.preview;
-  const installmentChanges =
-    preview.installmentsToInsert +
-    preview.installmentsToUpdate +
-    preview.installmentsToCancel;
-
-  return (
-    <div className="space-y-4 rounded-[28px] border border-blue-200 bg-blue-50/80 p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-blue-700">
-            Review, Lock & Publish
-          </p>
-          <h2 className="mt-2 font-heading text-xl font-semibold text-slate-950">
-            Fee Setup Draft
-          </h2>
-          <p className="mt-1 text-sm leading-6 text-slate-600">
-            This draft is ready for publishing. Only future or unpaid installment rows will change;
-            paid, partial, or adjusted rows stay blocked for review.
-          </p>
-        </div>
-        <StatusBadge label="Draft ready" tone="accent" />
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm">
-          Students affected: <strong>{preview.studentsAffected}</strong>
-        </div>
-        <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm">
-          Installment rows changing: <strong>{installmentChanges}</strong>
-        </div>
-        <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm">
-          Class rows to create: <strong>{preview.classRowsCreated ?? 0}</strong>
-        </div>
-        <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm">
-          Route rows to create: <strong>{preview.routeRowsCreated ?? 0}</strong>
-        </div>
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm">
-          Class rows to update: <strong>{preview.classRowsUpdated ?? 0}</strong>
-        </div>
-        <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm">
-          Route rows to update: <strong>{preview.routeRowsUpdated ?? 0}</strong>
-        </div>
-        <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm">
-          Students in scope: <strong>{preview.studentsInScope}</strong>
-        </div>
-        <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm">
-          Blocked rows: <strong>{preview.blockedInstallments}</strong>
-        </div>
-      </div>
-
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-600">
-          Changed items
-        </p>
-        <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
-          {preview.changedFields.map((item) => (
-            <div
-              key={item.field}
-              className="rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm"
-            >
-              <p className="font-medium text-slate-950">{item.label}</p>
-              <p className="mt-1 text-xs leading-5 text-slate-600">
-                {item.beforeValue} {"->"} {item.afterValue}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
@@ -333,6 +270,56 @@ function getFeeHeadApplicationLabel(value: FeeHeadApplicationType) {
 
 function getFeeHeadChargeFrequencyLabel(value: FeeHeadChargeFrequency) {
   return value === "recurring" ? "Recurring" : "One-time";
+}
+
+function ChecklistItem({ done, label }: { done: boolean; label: string }) {
+  return (
+    <div
+      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium ${
+        done
+          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+          : "border-slate-200 bg-white text-slate-600"
+      }`}
+    >
+      <span
+        className={`size-2 rounded-full ${done ? "bg-emerald-500" : "bg-slate-300"}`}
+      />
+      {label}
+    </div>
+  );
+}
+
+function AdvancedDetails({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-slate-900">
+        {title}
+        {description ? (
+          <span className="mt-1 block text-xs font-normal leading-5 text-slate-500">
+            {description}
+          </span>
+        ) : null}
+      </summary>
+      <div className="border-t border-slate-200 p-4">{children}</div>
+    </details>
+  );
+}
+
+function ReviewMetric({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
+      <p className="text-xs font-medium text-slate-500">{label}</p>
+      <p className="mt-1 font-semibold text-slate-950">{value}</p>
+    </div>
+  );
 }
 
 export function FeeSetupClient({
@@ -453,8 +440,21 @@ export function FeeSetupClient({
   const visibleRouteRows = normalizedRouteSearch
     ? routeRows.filter((row) => row.routeName.toLowerCase().includes(normalizedRouteSearch))
     : routeRows;
-  const totalActiveFeeHeads = form.customFeeHeads.filter((item) => item.isActive).length;
-  const canApply = canEdit && saveState.preview && !previewDirty;
+  const preview = saveState.preview;
+  const installmentChanges = preview
+    ? preview.installmentsToInsert +
+      preview.installmentsToUpdate +
+      preview.installmentsToCancel
+    : 0;
+  const canApply = canEdit && Boolean(preview) && !previewDirty;
+  const feeRulesEntered =
+    form.installmentDates.length > 0 &&
+    form.installmentDates.every(Boolean) &&
+    form.lateFeeFlatAmount >= 0 &&
+    form.newStudentAcademicFeeAmount >= 0 &&
+    form.oldStudentAcademicFeeAmount >= 0;
+  const classFeesEntered = classRows.length > 0;
+  const transportFeesEntered = routeRows.length > 0;
 
   function updateInstallmentDate(index: number, value: string) {
     setForm((current) => {
@@ -485,7 +485,9 @@ export function FeeSetupClient({
 
       return {
         ...current,
-        installmentDates: current.installmentDates.filter((_, currentIndex) => currentIndex !== index),
+        installmentDates: current.installmentDates.filter(
+          (_, currentIndex) => currentIndex !== index,
+        ),
       };
     });
     markDirty();
@@ -562,94 +564,79 @@ export function FeeSetupClient({
   return (
     <div className="space-y-6">
       <ActionNotice state={saveState} />
-      <PreviewSummaryCard state={saveState} />
 
       {!canEdit ? (
-        <div className="rounded-[26px] border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm leading-6 text-amber-900">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
           Only admins can change Fee Setup. Accountant and read-only staff can review the current
-          and saved session setup here.
+          and saved setup here.
         </div>
       ) : null}
 
       {previewDirty ? (
-        <div className="rounded-[26px] border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm leading-6 text-amber-900">
-          The draft is now out of date. Save Draft Review again before you publish the live setup.
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+          Changes were made after preview. Preview again before publishing.
         </div>
       ) : null}
 
-      <div className="rounded-[26px] border border-sky-200 bg-sky-50/90 px-4 py-3 text-sm leading-6 text-sky-900">
-        For trial runs, create or copy a test session named TEST-2026-27 before entering real
-        records. Do not change the actual AY 2026-27 defaults just to test the workflow.
+      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="flex flex-wrap gap-2">
+          <ChecklistItem done={Boolean(selectedSessionLabel)} label="Academic year selected" />
+          <ChecklistItem done={feeRulesEntered} label="Fee rules entered" />
+          <ChecklistItem done={classFeesEntered} label="Class fees entered" />
+          <ChecklistItem done={transportFeesEntered} label="Transport fees entered" />
+          <ChecklistItem done={saveState.status === "preview" && !previewDirty} label="Preview checked" />
+          <ChecklistItem done={saveState.status === "success"} label="Published" />
+        </div>
       </div>
 
       <SectionCard
-        title="1. Academic Session"
-        description="Choose the session to work on, add a new session, or copy last year. Selecting a session here edits the draft target only; the live setup changes only after Publish Live Setup."
+        title="1. Academic Year"
+        description="Choose the year to set up. Copy or create a year here; maintenance stays below."
         actions={
           <div className="min-w-[240px]">
-            <Label htmlFor="selected-session">Selected session</Label>
+            <Label htmlFor="selected-session">Academic year</Label>
             <select
               id="selected-session"
               value={selectedSessionLabel}
               onChange={(event) => switchSession(event.target.value)}
               className={`${selectClassName} mt-2`}
             >
-              {sessionRows.map((item) => (
-                <option key={item.id} value={item.session_label}>
-                  {item.session_label}
-                </option>
-              ))}
+              {sessionRows.length === 0 ? (
+                <option value="">Create Academic Year</option>
+              ) : (
+                sessionRows.map((item) => (
+                  <option key={item.id} value={item.session_label}>
+                    {item.session_label}
+                  </option>
+                ))
+              )}
             </select>
           </div>
         }
       >
         <div className="space-y-4">
           <ActionNotice state={sessionState} />
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge label={`Live session: ${currentSessionLabel}`} tone="good" />
+            {selectedSessionLabel && selectedSessionLabel !== currentSessionLabel ? (
+              <StatusBadge label={`Editing: ${selectedSessionLabel}`} tone="accent" />
+            ) : null}
+            {selectedSessionLabel.startsWith("TEST") ? (
+              <StatusBadge label="Test session" tone="warning" />
+            ) : null}
+          </div>
+
+          {selectedSessionLabel.startsWith("TEST") ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+              This is a test academic year. Do not mix real students or real payments into test
+              records.
+            </div>
+          ) : null}
 
           {canEdit ? (
             <div className="grid gap-4 xl:grid-cols-2">
               <form
-                className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const formData = new FormData(event.currentTarget);
-                  runSupportAction(actions.createSessionAction, sessionState, formData, setSessionState, {
-                    onSuccess: () => setNewSessionLabel(""),
-                  });
-                }}
-              >
-                <p className="text-sm font-semibold text-slate-950">Add session</p>
-                <div className="mt-3 grid gap-3 md:grid-cols-[1fr_140px]">
-                  <div>
-                    <Label htmlFor="new-session-label">Session label</Label>
-                    <Input
-                      id="new-session-label"
-                      name="sessionLabel"
-                      value={newSessionLabel}
-                      onChange={(event) => setNewSessionLabel(event.target.value)}
-                      placeholder="2027-28"
-                      className="mt-2"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label>Status</Label>
-                    <select name="sessionStatus" defaultValue="active" className={`${selectClassName} mt-2`}>
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                      <option value="archived">Archived</option>
-                    </select>
-                  </div>
-                </div>
-                <input type="hidden" name="isCurrentSession" value="no" />
-                <input type="hidden" name="sessionNotes" value="" />
-                <Button type="submit" className="mt-4" disabled={isSupportingPending}>
-                  Add
-                </Button>
-              </form>
-
-              <form
-                className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+                className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
                 onSubmit={(event) => {
                   event.preventDefault();
                   const formData = new FormData(event.currentTarget);
@@ -658,7 +645,7 @@ export function FeeSetupClient({
                   });
                 }}
               >
-                <p className="text-sm font-semibold text-slate-950">Copy setup</p>
+                <p className="text-sm font-semibold text-slate-950">Copy Previous Year</p>
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   <div>
                     <Label htmlFor="source-session-label">Copy from</Label>
@@ -676,7 +663,7 @@ export function FeeSetupClient({
                     </select>
                   </div>
                   <div>
-                    <Label htmlFor="target-session-label">New session</Label>
+                    <Label htmlFor="target-session-label">New academic year</Label>
                     <Input
                       id="target-session-label"
                       name="targetSessionLabel"
@@ -688,643 +675,548 @@ export function FeeSetupClient({
                     />
                   </div>
                 </div>
-                <p className="mt-2 text-xs leading-5 text-slate-500">
-                  This copies the latest fee-policy snapshot and class fee rows into a new session.
-                  The copied session still goes live only after Publish Live Setup.
-                </p>
                 <Button type="submit" className="mt-4" variant="outline" disabled={isSupportingPending}>
-                  Copy Setup
+                  Copy Previous Year
+                </Button>
+              </form>
+
+              <form
+                className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const formData = new FormData(event.currentTarget);
+                  runSupportAction(actions.createSessionAction, sessionState, formData, setSessionState, {
+                    onSuccess: () => setNewSessionLabel(""),
+                  });
+                }}
+              >
+                <p className="text-sm font-semibold text-slate-950">Create New Year</p>
+                <div className="mt-3">
+                  <Label htmlFor="new-session-label">Academic year</Label>
+                  <Input
+                    id="new-session-label"
+                    name="sessionLabel"
+                    value={newSessionLabel}
+                    onChange={(event) => setNewSessionLabel(event.target.value)}
+                    placeholder="2027-28"
+                    className="mt-2"
+                    required
+                  />
+                </div>
+                <input type="hidden" name="sessionStatus" value="active" />
+                <input type="hidden" name="isCurrentSession" value="no" />
+                <input type="hidden" name="sessionNotes" value="" />
+                <Button type="submit" className="mt-4" disabled={isSupportingPending}>
+                  Create New Year
                 </Button>
               </form>
             </div>
           ) : null}
 
-          <div className="overflow-auto rounded-[26px] border border-slate-200 bg-white">
-            <table className="w-full min-w-[860px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
-                <tr>
-                  <th className="px-4 py-3">Session</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Policy</th>
-                  <th className="px-4 py-3">Updated</th>
-                  <th className="px-4 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sessionRows.map((item) => {
-                  const formId = `session-row-${item.id}`;
-                  const snapshot = data.policySnapshots.find(
-                    (policy) => policy.academicSessionLabel === item.session_label,
-                  );
-
-                  return (
-                    <tr key={item.id} className="border-t border-slate-100 align-top">
-                      <td className="px-4 py-3">
-                        <form
-                          id={formId}
-                          onSubmit={(event) => {
-                            event.preventDefault();
-                            runSupportAction(
-                              actions.updateSessionAction,
-                              sessionState,
-                              new FormData(event.currentTarget),
-                              setSessionState,
-                            );
-                          }}
-                        >
-                          <input type="hidden" name="sessionId" value={item.id} />
-                          <input type="hidden" name="isCurrentSession" value={item.is_current ? "yes" : "no"} />
-                          <input type="hidden" name="sessionNotes" value={item.notes ?? ""} />
-                          <Input
-                            name="sessionLabel"
-                            defaultValue={item.session_label}
-                            disabled={!canEdit}
-                          />
-                        </form>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {item.session_label === currentSessionLabel ? (
-                            <StatusBadge label="Current" tone="good" />
-                          ) : null}
-                          {item.session_label === selectedSessionLabel ? (
-                            <StatusBadge label="Selected" tone="accent" />
-                          ) : null}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <select
-                          form={formId}
-                          name="sessionStatus"
-                          defaultValue={item.status}
-                          className={selectClassName}
-                          disabled={!canEdit}
-                        >
-                          <option value="active">Active</option>
-                          <option value="inactive">Inactive</option>
-                          <option value="archived">Archived</option>
-                        </select>
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {snapshot ? (
-                          <div className="space-y-1">
-                            <p className="font-medium text-slate-950">
-                              {snapshot.installmentCount} installments
-                            </p>
-                            <p>{snapshot.customFeeHeads.filter((head) => head.isActive).length} fee heads</p>
-                          </div>
-                        ) : (
-                          <span>No saved setup yet</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {formatDateTime(snapshot?.updatedAt ?? item.updated_at)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            type="button"
-                            variant={item.session_label === selectedSessionLabel ? "default" : "outline"}
-                            onClick={() => switchSession(item.session_label)}
-                          >
-                            Work on this session
-                          </Button>
-                          {canEdit ? (
-                            <>
-                              <Button type="submit" form={formId} variant="outline" disabled={isSupportingPending}>
-                                Save
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                disabled={isSupportingPending || item.status === "archived"}
-                                onClick={() => {
-                                  const formData = new FormData();
-                                  formData.set("sessionId", item.id);
-                                  formData.set("sessionLabel", item.session_label);
-                                  formData.set("sessionStatus", "archived");
-                                  formData.set("isCurrentSession", item.is_current ? "yes" : "no");
-                                  formData.set("sessionNotes", item.notes ?? "");
-                                  runSupportAction(
-                                    actions.updateSessionAction,
-                                    sessionState,
-                                    formData,
-                                    setSessionState,
-                                  );
-                                }}
-                              >
-                                Archive
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                disabled={isSupportingPending}
-                                onClick={() => {
-                                  const formData = new FormData();
-                                  formData.set("sessionId", item.id);
-                                  runSupportAction(
-                                    actions.deleteSessionAction,
-                                    sessionState,
-                                    formData,
-                                    setSessionState,
-                                  );
-                                }}
-                              >
-                                Delete unused session
-                              </Button>
-                            </>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </SectionCard>
-
-      <SectionCard
-        title="2. Master Fee Heads"
-        description="Maintain the selected session's fee-head building blocks. Phase 1 stores these details in the existing policy JSON; workbook AY 2026-27 calculations are unchanged."
-        actions={
-          canEdit ? (
-            <Button type="button" variant="outline" onClick={addFeeHeadRow}>
-              Add fee head
-            </Button>
-          ) : null
-        }
-      >
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
-            Books and optional fee-head metadata stay outside the AY 2026-27 workbook calculation
-            unless the school explicitly changes that rule later.
-          </div>
-
-          {form.customFeeHeads.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
-              No extra fee heads are configured for this session yet.
-            </div>
-          ) : (
-            <div className="overflow-auto rounded-[26px] border border-slate-200 bg-white">
-              <table className="w-full min-w-[1540px] text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
+          <AdvancedDetails
+            title="Advanced academic-year options"
+            description="Archive old sessions, delete unused sessions, and review saved setup metadata."
+          >
+            <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
+              <table className="w-full min-w-[940px] text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                   <tr>
-                    <th className="px-4 py-3">Fee Head Name</th>
-                    <th className="px-4 py-3">Amount</th>
-                    <th className="px-4 py-3">Application Type</th>
-                    <th className="px-4 py-3">Frequency</th>
-                    <th className="px-4 py-3">Mandatory</th>
-                    <th className="px-4 py-3">Refundable</th>
-                    <th className="px-4 py-3">Workbook Calc</th>
+                    <th className="px-4 py-3">Session</th>
                     <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Notes</th>
+                    <th className="px-4 py-3">Policy</th>
+                    <th className="px-4 py-3">Updated</th>
                     <th className="px-4 py-3">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {form.customFeeHeads.map((item) => (
-                    <tr key={item.rowId} className="border-t border-slate-100 align-top">
-                      <td className="px-4 py-3">
-                        <Input
-                          value={item.label}
-                          onChange={(event) =>
-                            updateFeeHeadRow(item.rowId, {
-                              label: event.target.value,
-                              id:
-                                event.target.value
-                                  .toLowerCase()
-                                  .replace(/[^a-z0-9]+/g, "_")
-                                  .replace(/^_+|_+$/g, "") || item.id,
-                            })
-                          }
-                          disabled={!canEdit}
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <Input
-                          type="number"
-                          min={0}
-                          value={item.amount}
-                          onChange={(event) =>
-                            updateFeeHeadRow(item.rowId, {
-                              amount: Number(event.target.value || 0),
-                            })
-                          }
-                          disabled={!canEdit}
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <select
-                          value={item.applicationType}
-                          onChange={(event) =>
-                            updateFeeHeadRow(item.rowId, {
-                              applicationType: event.target.value as FeeHeadApplicationType,
-                            })
-                          }
-                          className={selectClassName}
-                          disabled={!canEdit}
-                        >
-                          <option value="annual_fixed">
-                            {getFeeHeadApplicationLabel("annual_fixed")}
-                          </option>
-                          <option value="installment_1_only">
-                            {getFeeHeadApplicationLabel("installment_1_only")}
-                          </option>
-                          <option value="split_across_installments">
-                            {getFeeHeadApplicationLabel("split_across_installments")}
-                          </option>
-                          <option value="optional_per_student">
-                            {getFeeHeadApplicationLabel("optional_per_student")}
-                          </option>
-                        </select>
-                      </td>
-                      <td className="px-4 py-3">
-                        <select
-                          value={item.chargeFrequency}
-                          onChange={(event) =>
-                            updateFeeHeadRow(item.rowId, {
-                              chargeFrequency: event.target.value as FeeHeadChargeFrequency,
-                            })
-                          }
-                          className={selectClassName}
-                          disabled={!canEdit}
-                        >
-                          <option value="one_time">
-                            {getFeeHeadChargeFrequencyLabel("one_time")}
-                          </option>
-                          <option value="recurring">
-                            {getFeeHeadChargeFrequencyLabel("recurring")}
-                          </option>
-                        </select>
-                      </td>
-                      <td className="px-4 py-3">
-                        <select
-                          value={item.isMandatory ? "yes" : "no"}
-                          onChange={(event) =>
-                            updateFeeHeadRow(item.rowId, {
-                              isMandatory: event.target.value === "yes",
-                            })
-                          }
-                          className={selectClassName}
-                          disabled={!canEdit}
-                        >
-                          <option value="yes">Mandatory</option>
-                          <option value="no">Optional</option>
-                        </select>
-                      </td>
-                      <td className="px-4 py-3">
-                        <select
-                          value={item.isRefundable ? "yes" : "no"}
-                          onChange={(event) =>
-                            updateFeeHeadRow(item.rowId, {
-                              isRefundable: event.target.value === "yes",
-                            })
-                          }
-                          className={selectClassName}
-                          disabled={!canEdit}
-                        >
-                          <option value="no">No</option>
-                          <option value="yes">Yes</option>
-                        </select>
-                      </td>
-                      <td className="px-4 py-3">
-                        <select
-                          value={item.includeInWorkbookCalculation ? "yes" : "no"}
-                          onChange={(event) =>
-                            updateFeeHeadRow(item.rowId, {
-                              includeInWorkbookCalculation: event.target.value === "yes",
-                            })
-                          }
-                          className={selectClassName}
-                          disabled={!canEdit}
-                        >
-                          <option value="no">Excluded</option>
-                          <option value="yes">Included later</option>
-                        </select>
-                      </td>
-                      <td className="px-4 py-3">
-                        <select
-                          value={item.isActive ? "yes" : "no"}
-                          onChange={(event) =>
-                            updateFeeHeadRow(item.rowId, {
-                              isActive: event.target.value === "yes",
-                            })
-                          }
-                          className={selectClassName}
-                          disabled={!canEdit}
-                        >
-                          <option value="yes">Active</option>
-                          <option value="no">Inactive</option>
-                        </select>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Input
-                          value={item.notes ?? ""}
-                          onChange={(event) =>
-                            updateFeeHeadRow(item.rowId, {
-                              notes: event.target.value || null,
-                            })
-                          }
-                          disabled={!canEdit}
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        {canEdit ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => removeFeeHeadRow(item.rowId)}
-                          >
-                            Remove
-                          </Button>
-                        ) : (
-                          <StatusBadge
-                            label={item.isActive ? "Active" : "Inactive"}
-                            tone={item.isActive ? "good" : "warning"}
-                          />
-                        )}
+                  {sessionRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">
+                        Create Academic Year
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    sessionRows.map((item) => {
+                      const formId = `session-row-${item.id}`;
+                      const snapshot = data.policySnapshots.find(
+                        (policy) => policy.academicSessionLabel === item.session_label,
+                      );
+
+                      return (
+                        <tr key={item.id} className="border-t border-slate-100 align-top">
+                          <td className="px-4 py-3">
+                            <form
+                              id={formId}
+                              onSubmit={(event) => {
+                                event.preventDefault();
+                                runSupportAction(
+                                  actions.updateSessionAction,
+                                  sessionState,
+                                  new FormData(event.currentTarget),
+                                  setSessionState,
+                                );
+                              }}
+                            >
+                              <input type="hidden" name="sessionId" value={item.id} />
+                              <input type="hidden" name="isCurrentSession" value={item.is_current ? "yes" : "no"} />
+                              <input type="hidden" name="sessionNotes" value={item.notes ?? ""} />
+                              <Input
+                                name="sessionLabel"
+                                defaultValue={item.session_label}
+                                disabled={!canEdit}
+                              />
+                            </form>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {item.session_label === currentSessionLabel ? (
+                                <StatusBadge label="Live" tone="good" />
+                              ) : null}
+                              {item.session_label === selectedSessionLabel ? (
+                                <StatusBadge label="Selected" tone="accent" />
+                              ) : null}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              form={formId}
+                              name="sessionStatus"
+                              defaultValue={item.status}
+                              className={selectClassName}
+                              disabled={!canEdit}
+                            >
+                              <option value="active">Active</option>
+                              <option value="inactive">Inactive</option>
+                              <option value="archived">Archived</option>
+                            </select>
+                          </td>
+                          <td className="px-4 py-3 text-slate-600">
+                            {snapshot ? (
+                              <div className="space-y-1">
+                                <p className="font-medium text-slate-950">
+                                  {snapshot.installmentCount} installments
+                                </p>
+                                <p>{snapshot.customFeeHeads.filter((head) => head.isActive).length} fee heads</p>
+                              </div>
+                            ) : (
+                              <span>No saved setup yet</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600">
+                            {formatDateTime(snapshot?.updatedAt ?? item.updated_at)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                variant={item.session_label === selectedSessionLabel ? "default" : "outline"}
+                                onClick={() => switchSession(item.session_label)}
+                              >
+                                Work on this year
+                              </Button>
+                              {canEdit ? (
+                                <>
+                                  <Button type="submit" form={formId} variant="outline" disabled={isSupportingPending}>
+                                    Save session row
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={isSupportingPending || item.status === "archived"}
+                                    onClick={() => {
+                                      const formData = new FormData();
+                                      formData.set("sessionId", item.id);
+                                      formData.set("sessionLabel", item.session_label);
+                                      formData.set("sessionStatus", "archived");
+                                      formData.set("isCurrentSession", item.is_current ? "yes" : "no");
+                                      formData.set("sessionNotes", item.notes ?? "");
+                                      runSupportAction(
+                                        actions.updateSessionAction,
+                                        sessionState,
+                                        formData,
+                                        setSessionState,
+                                      );
+                                    }}
+                                  >
+                                    Archive old session
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={isSupportingPending}
+                                    onClick={() => {
+                                      const formData = new FormData();
+                                      formData.set("sessionId", item.id);
+                                      runSupportAction(
+                                        actions.deleteSessionAction,
+                                        sessionState,
+                                        formData,
+                                        setSessionState,
+                                      );
+                                    }}
+                                  >
+                                    Delete unused session only
+                                  </Button>
+                                </>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
-          )}
+          </AdvancedDetails>
         </div>
       </SectionCard>
 
       <SectionCard
-        title="3. Session Policy, Installments & Standard Concessions"
-        description="Set the canonical policy values for the selected academic session. Concession profiles are shown as planned Phase 2 structure only."
-        actions={<StatusBadge label={selectedSessionLabel} tone="accent" />}
+        title="2. Basic Fee Rules"
+        description="Set installment dates, late fee, and the annual academic fee for new and existing students."
       >
-        <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                Installments configured: <strong>{form.installmentDates.length}</strong>
+        <div className="space-y-5">
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-950">Installment Dates</p>
+                <p className="text-sm text-slate-600">These dates define this academic year&apos;s fee schedule.</p>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                Fee heads configured: <strong>{form.customFeeHeads.length}</strong>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                Selected session: <strong>{selectedSessionLabel}</strong>
-              </div>
+              {canEdit ? (
+                <Button type="button" variant="outline" onClick={addInstallmentDate}>
+                  Add installment
+                </Button>
+              ) : null}
             </div>
 
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-slate-950">Installment due dates</p>
-                  <p className="text-sm text-slate-600">
-                    Add or remove rows to change the installment count for this session.
-                  </p>
-                </div>
-                {canEdit ? (
-                  <Button type="button" variant="outline" onClick={addInstallmentDate}>
-                    Add installment
-                  </Button>
-                ) : null}
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                {form.installmentDates.map((value, index) => (
-                  <div key={`installment-${index}`} className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <Label htmlFor={`installment-date-${index}`}>Installment {index + 1}</Label>
-                      {canEdit && form.installmentDates.length > 1 ? (
-                        <Button type="button" variant="ghost" onClick={() => removeInstallmentDate(index)}>
-                          Remove
-                        </Button>
-                      ) : null}
-                    </div>
-                    <Input
-                      id={`installment-date-${index}`}
-                      type="date"
-                      value={value}
-                      onChange={(event) => updateInstallmentDate(index, event.target.value)}
-                      className="mt-2"
-                      disabled={!canEdit}
-                    />
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {form.installmentDates.map((value, index) => (
+                <div key={`installment-${index}`} className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label htmlFor={`installment-date-${index}`}>Installment {index + 1}</Label>
+                    {canEdit && form.installmentDates.length > 1 ? (
+                      <Button type="button" variant="ghost" onClick={() => removeInstallmentDate(index)}>
+                        Remove
+                      </Button>
+                    ) : null}
                   </div>
-                ))}
-              </div>
+                  <Input
+                    id={`installment-date-${index}`}
+                    type="date"
+                    value={value}
+                    onChange={(event) => updateInstallmentDate(index, event.target.value)}
+                    className="mt-2"
+                    disabled={!canEdit}
+                  />
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="rounded-[26px] border border-slate-200 bg-white p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-slate-950">Late fee</p>
-                <p className="text-sm text-slate-600">Keep it on or turn it off for this session.</p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!canEdit}
-                onClick={() => {
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <Label htmlFor="late-fee-amount">Late Fee</Label>
+              <Input
+                id="late-fee-amount"
+                type="number"
+                min={0}
+                value={form.lateFeeFlatAmount}
+                onChange={(event) => {
                   setForm((current) => ({
                     ...current,
-                    lateFeeFlatAmount: current.lateFeeFlatAmount > 0 ? 0 : 1000,
+                    lateFeeFlatAmount: Number(event.target.value || 0),
                   }));
                   markDirty();
                 }}
-              >
-                {form.lateFeeFlatAmount > 0 ? "Disable" : "Enable"}
-              </Button>
+                className="mt-2"
+                disabled={!canEdit}
+              />
             </div>
-
-            <div className="mt-4 space-y-4">
-              <div>
-                <Label htmlFor="late-fee-amount">Late fee amount</Label>
-                <Input
-                  id="late-fee-amount"
-                  type="number"
-                  min={0}
-                  value={form.lateFeeFlatAmount}
-                  onChange={(event) => {
-                    setForm((current) => ({
-                      ...current,
-                      lateFeeFlatAmount: Number(event.target.value || 0),
-                    }));
-                    markDirty();
-                  }}
-                  className="mt-2"
-                  disabled={!canEdit || form.lateFeeFlatAmount === 0}
-                />
-              </div>
-              <div>
-                <Label htmlFor="new-academic-fee">New student academic fee</Label>
-                <Input
-                  id="new-academic-fee"
-                  type="number"
-                  min={0}
-                  value={form.newStudentAcademicFeeAmount}
-                  onChange={(event) => {
-                    setForm((current) => ({
-                      ...current,
-                      newStudentAcademicFeeAmount: Number(event.target.value || 0),
-                    }));
-                    markDirty();
-                  }}
-                  className="mt-2"
-                  disabled={!canEdit}
-                />
-              </div>
-              <div>
-                <Label htmlFor="old-academic-fee">Old student academic fee</Label>
-                <Input
-                  id="old-academic-fee"
-                  type="number"
-                  min={0}
-                  value={form.oldStudentAcademicFeeAmount}
-                  onChange={(event) => {
-                    setForm((current) => ({
-                      ...current,
-                      oldStudentAcademicFeeAmount: Number(event.target.value || 0),
-                    }));
-                    markDirty();
-                  }}
-                  className="mt-2"
-                  disabled={!canEdit}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-[26px] border border-dashed border-slate-300 bg-slate-50/80 p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-slate-950">Standard Concessions</p>
-              <p className="mt-1 text-sm leading-6 text-slate-600">
-                Planned concession profiles are shown for office clarity only in Phase 1. Student
-                discounts and overrides continue to use the existing approved override workflow.
-              </p>
+              <Label htmlFor="new-academic-fee">New Student Annual/Academic Fee</Label>
+              <Input
+                id="new-academic-fee"
+                type="number"
+                min={0}
+                value={form.newStudentAcademicFeeAmount}
+                onChange={(event) => {
+                  setForm((current) => ({
+                    ...current,
+                    newStudentAcademicFeeAmount: Number(event.target.value || 0),
+                  }));
+                  markDirty();
+                }}
+                className="mt-2"
+                disabled={!canEdit}
+              />
             </div>
-            <StatusBadge label="Planned" tone="neutral" />
+            <div>
+              <Label htmlFor="old-academic-fee">Existing Student Annual/Academic Fee</Label>
+              <Input
+                id="old-academic-fee"
+                type="number"
+                min={0}
+                value={form.oldStudentAcademicFeeAmount}
+                onChange={(event) => {
+                  setForm((current) => ({
+                    ...current,
+                    oldStudentAcademicFeeAmount: Number(event.target.value || 0),
+                  }));
+                  markDirty();
+                }}
+                className="mt-2"
+                disabled={!canEdit}
+              />
+            </div>
           </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {["Staff Ward", "RTE", "Sibling Discount", "Custom school-approved profile"].map(
-              (label) => (
-                <div key={label} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm">
-                  {label}
+
+          <AdvancedDetails
+            title="Advanced fee-head options"
+            description="Most schools do not need this during normal yearly fee setup."
+          >
+            <div className="space-y-4">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+                Most schools do not need this during normal yearly fee setup. AY 2026-27 workbook
+                calculation still uses tuition, transport, academic fee, and signed other adjustment.
+              </div>
+              {canEdit ? (
+                <Button type="button" variant="outline" onClick={addFeeHeadRow}>
+                  Add fee head
+                </Button>
+              ) : null}
+              {form.customFeeHeads.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+                  No extra fee heads are configured for this session yet.
                 </div>
-              ),
-            )}
-          </div>
+              ) : (
+                <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
+                  <table className="w-full min-w-[1540px] text-left text-sm">
+                    <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                      <tr>
+                        <th className="px-4 py-3">Fee Head Name</th>
+                        <th className="px-4 py-3">Amount</th>
+                        <th className="px-4 py-3">Application Type</th>
+                        <th className="px-4 py-3">Frequency</th>
+                        <th className="px-4 py-3">Mandatory</th>
+                        <th className="px-4 py-3">Refundable</th>
+                        <th className="px-4 py-3">Workbook Calc</th>
+                        <th className="px-4 py-3">Status</th>
+                        <th className="px-4 py-3">Notes</th>
+                        <th className="px-4 py-3">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {form.customFeeHeads.map((item) => (
+                        <tr key={item.rowId} className="border-t border-slate-100 align-top">
+                          <td className="px-4 py-3">
+                            <Input
+                              value={item.label}
+                              onChange={(event) =>
+                                updateFeeHeadRow(item.rowId, {
+                                  label: event.target.value,
+                                  id:
+                                    event.target.value
+                                      .toLowerCase()
+                                      .replace(/[^a-z0-9]+/g, "_")
+                                      .replace(/^_+|_+$/g, "") || item.id,
+                                })
+                              }
+                              disabled={!canEdit}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Input
+                              type="number"
+                              min={0}
+                              value={item.amount}
+                              onChange={(event) =>
+                                updateFeeHeadRow(item.rowId, {
+                                  amount: Number(event.target.value || 0),
+                                })
+                              }
+                              disabled={!canEdit}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              value={item.applicationType}
+                              onChange={(event) =>
+                                updateFeeHeadRow(item.rowId, {
+                                  applicationType: event.target.value as FeeHeadApplicationType,
+                                })
+                              }
+                              className={selectClassName}
+                              disabled={!canEdit}
+                            >
+                              <option value="annual_fixed">
+                                {getFeeHeadApplicationLabel("annual_fixed")}
+                              </option>
+                              <option value="installment_1_only">
+                                {getFeeHeadApplicationLabel("installment_1_only")}
+                              </option>
+                              <option value="split_across_installments">
+                                {getFeeHeadApplicationLabel("split_across_installments")}
+                              </option>
+                              <option value="optional_per_student">
+                                {getFeeHeadApplicationLabel("optional_per_student")}
+                              </option>
+                            </select>
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              value={item.chargeFrequency}
+                              onChange={(event) =>
+                                updateFeeHeadRow(item.rowId, {
+                                  chargeFrequency: event.target.value as FeeHeadChargeFrequency,
+                                })
+                              }
+                              className={selectClassName}
+                              disabled={!canEdit}
+                            >
+                              <option value="one_time">
+                                {getFeeHeadChargeFrequencyLabel("one_time")}
+                              </option>
+                              <option value="recurring">
+                                {getFeeHeadChargeFrequencyLabel("recurring")}
+                              </option>
+                            </select>
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              value={item.isMandatory ? "yes" : "no"}
+                              onChange={(event) =>
+                                updateFeeHeadRow(item.rowId, {
+                                  isMandatory: event.target.value === "yes",
+                                })
+                              }
+                              className={selectClassName}
+                              disabled={!canEdit}
+                            >
+                              <option value="yes">Mandatory</option>
+                              <option value="no">Optional</option>
+                            </select>
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              value={item.isRefundable ? "yes" : "no"}
+                              onChange={(event) =>
+                                updateFeeHeadRow(item.rowId, {
+                                  isRefundable: event.target.value === "yes",
+                                })
+                              }
+                              className={selectClassName}
+                              disabled={!canEdit}
+                            >
+                              <option value="no">No</option>
+                              <option value="yes">Yes</option>
+                            </select>
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              value={item.includeInWorkbookCalculation ? "yes" : "no"}
+                              onChange={(event) =>
+                                updateFeeHeadRow(item.rowId, {
+                                  includeInWorkbookCalculation: event.target.value === "yes",
+                                })
+                              }
+                              className={selectClassName}
+                              disabled={!canEdit}
+                            >
+                              <option value="no">Excluded</option>
+                              <option value="yes">Included later</option>
+                            </select>
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              value={item.isActive ? "yes" : "no"}
+                              onChange={(event) =>
+                                updateFeeHeadRow(item.rowId, {
+                                  isActive: event.target.value === "yes",
+                                })
+                              }
+                              className={selectClassName}
+                              disabled={!canEdit}
+                            >
+                              <option value="yes">Active</option>
+                              <option value="no">Inactive</option>
+                            </select>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Input
+                              value={item.notes ?? ""}
+                              onChange={(event) =>
+                                updateFeeHeadRow(item.rowId, {
+                                  notes: event.target.value || null,
+                                })
+                              }
+                              disabled={!canEdit}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            {canEdit ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => removeFeeHeadRow(item.rowId)}
+                              >
+                                Remove
+                              </Button>
+                            ) : (
+                              <StatusBadge
+                                label={item.isActive ? "Active" : "Inactive"}
+                                tone={item.isActive ? "good" : "warning"}
+                              />
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </AdvancedDetails>
         </div>
       </SectionCard>
 
       <SectionCard
-        title="4. Class-wise Fee Mapping"
-        description="Manage classes for the selected session and set annual tuition defaults in one reviewable grid."
+        title="3. Class Fees"
+        description="Enter the annual tuition fee for each class."
         actions={
-          <div className="w-full min-w-[240px] max-w-sm">
-            <Label htmlFor="class-search">Search classes</Label>
-            <Input
-              id="class-search"
-              value={classSearch}
-              onChange={(event) => setClassSearch(event.target.value)}
-              placeholder="Type class name"
-              className="mt-2"
-            />
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="min-w-[220px]">
+              <Label htmlFor="class-search">Search</Label>
+              <Input
+                id="class-search"
+                value={classSearch}
+                onChange={(event) => setClassSearch(event.target.value)}
+                placeholder="Class name"
+                className="mt-2"
+              />
+            </div>
           </div>
         }
       >
         <div className="space-y-4">
           <ActionNotice state={classState} />
-
-          {canEdit ? (
-            <form
-              className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const formData = new FormData();
-                formData.set("sessionLabel", selectedSessionLabel);
-                formData.set("className", newClassName);
-                formData.set("section", "");
-                formData.set("streamName", "");
-                formData.set("sortOrder", String(classRows.length + 1));
-                formData.set("classStatus", "active");
-                formData.set("classNotes", "");
-                runSupportAction(actions.createClassAction, classState, formData, setClassState, {
-                  onSuccess: () => setNewClassName(""),
-                });
-              }}
-            >
-              <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-                <div>
-                  <Label htmlFor="new-class-name">Add class</Label>
-                  <Input
-                    id="new-class-name"
-                    value={newClassName}
-                    onChange={(event) => setNewClassName(event.target.value)}
-                    placeholder="Class 11 Humanities"
-                    className="mt-2"
-                    required
-                  />
-                </div>
-                <div className="flex items-end">
-                  <Button type="submit" disabled={isSupportingPending}>
-                    Add row
-                  </Button>
-                </div>
-              </div>
-            </form>
-          ) : null}
-
-          <div className="overflow-auto rounded-[26px] border border-slate-200 bg-white">
-            <table className="w-full min-w-[980px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
+          <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
+            <table className="w-full min-w-[560px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                 <tr>
-                  <th className="px-4 py-3">Class Name</th>
+                  <th className="px-4 py-3">Class</th>
                   <th className="px-4 py-3">Annual Tuition Fee</th>
-                  <th className="px-4 py-3">Class Record</th>
-                  <th className="px-4 py-3">Saved Default</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {visibleClassRows.map((row) => {
-                  const formId = row.classRecord ? `class-row-${row.classRecord.id}` : null;
-
-                  return (
-                    <tr key={`${selectedSessionLabel}-${row.label}`} className="border-t border-slate-100 align-top">
-                      <td className="px-4 py-3">
-                        {row.classRecord && formId ? (
-                          <form
-                            id={formId}
-                            onSubmit={(event) => {
-                              event.preventDefault();
-                              runSupportAction(
-                                actions.updateClassAction,
-                                classState,
-                                new FormData(event.currentTarget),
-                                setClassState,
-                              );
-                            }}
-                          >
-                            <input type="hidden" name="classId" value={row.classRecord.id} />
-                            <input type="hidden" name="sessionLabel" value={selectedSessionLabel} />
-                            <input type="hidden" name="section" value={row.classRecord.section ?? ""} />
-                            <input type="hidden" name="streamName" value={row.classRecord.stream_name ?? ""} />
-                            <input type="hidden" name="sortOrder" value={String(row.classRecord.sort_order)} />
-                            <input type="hidden" name="classNotes" value={row.classRecord.notes ?? ""} />
-                            <Input
-                              name="className"
-                              defaultValue={row.classRecord.class_name}
-                              disabled={!canEdit}
-                            />
-                          </form>
-                        ) : (
-                          <div>
-                            <p className="font-medium text-slate-950">{row.label}</p>
-                            <p className="mt-1 text-xs text-slate-500">Will be created on apply</p>
-                          </div>
-                        )}
-                      </td>
+                {visibleClassRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={2} className="px-4 py-6 text-center text-sm text-slate-500">
+                      No classes found. Add classes from School Lists or First-time Setup.
+                    </td>
+                  </tr>
+                ) : (
+                  visibleClassRows.map((row) => (
+                    <tr key={`${selectedSessionLabel}-${row.label}`} className="border-t border-slate-100">
+                      <td className="px-4 py-3 font-medium text-slate-950">{row.label}</td>
                       <td className="px-4 py-3">
                         <Input
                           type="number"
@@ -1336,87 +1228,192 @@ export function FeeSetupClient({
                           disabled={!canEdit}
                         />
                       </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge
-                          label={row.hasClassRecord ? "Exists" : "Will be created"}
-                          tone={row.hasClassRecord ? "good" : "warning"}
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge
-                          label={row.hasSavedDefault ? "Saved" : "Pending default"}
-                          tone={row.hasSavedDefault ? "good" : "warning"}
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        {row.classRecord && formId ? (
-                          <select
-                            form={formId}
-                            name="classStatus"
-                            defaultValue={row.classRecord.status}
-                            className={selectClassName}
-                            disabled={!canEdit}
-                          >
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                            <option value="archived">Archived</option>
-                          </select>
-                        ) : (
-                          <StatusBadge label="Pending create" tone="warning" />
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-2">
-                          {row.classRecord && formId ? (
-                            <>
-                              <Button type="submit" form={formId} variant="outline" disabled={!canEdit || isSupportingPending}>
-                                Save
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                disabled={!canEdit || isSupportingPending}
-                                onClick={() => {
-                                  const formData = new FormData();
-                                  formData.set("classId", row.classRecord!.id);
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <AdvancedDetails
+            title="Advanced class-list options"
+            description="Manage class list, status, and unused rows."
+          >
+            <div className="space-y-4">
+              {canEdit ? (
+                <form
+                  className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const formData = new FormData();
+                    formData.set("sessionLabel", selectedSessionLabel);
+                    formData.set("className", newClassName);
+                    formData.set("section", "");
+                    formData.set("streamName", "");
+                    formData.set("sortOrder", String(classRows.length + 1));
+                    formData.set("classStatus", "active");
+                    formData.set("classNotes", "");
+                    runSupportAction(actions.createClassAction, classState, formData, setClassState, {
+                      onSuccess: () => setNewClassName(""),
+                    });
+                  }}
+                >
+                  <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                    <div>
+                      <Label htmlFor="new-class-name">Manage class list</Label>
+                      <Input
+                        id="new-class-name"
+                        value={newClassName}
+                        onChange={(event) => setNewClassName(event.target.value)}
+                        placeholder="Class 11 Humanities"
+                        className="mt-2"
+                        required
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button type="submit" disabled={isSupportingPending}>
+                        Add class
+                      </Button>
+                    </div>
+                  </div>
+                </form>
+              ) : null}
+
+              <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
+                <table className="w-full min-w-[1040px] text-left text-sm">
+                  <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                    <tr>
+                      <th className="px-4 py-3">Class Name</th>
+                      <th className="px-4 py-3">Annual Tuition Fee</th>
+                      <th className="px-4 py-3">Class Record</th>
+                      <th className="px-4 py-3">Saved Default</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleClassRows.map((row) => {
+                      const formId = row.classRecord ? `class-row-${row.classRecord.id}` : null;
+
+                      return (
+                        <tr key={`${selectedSessionLabel}-${row.label}-advanced`} className="border-t border-slate-100 align-top">
+                          <td className="px-4 py-3">
+                            {row.classRecord && formId ? (
+                              <form
+                                id={formId}
+                                onSubmit={(event) => {
+                                  event.preventDefault();
                                   runSupportAction(
-                                    actions.deleteClassAction,
+                                    actions.updateClassAction,
                                     classState,
-                                    formData,
+                                    new FormData(event.currentTarget),
                                     setClassState,
                                   );
                                 }}
                               >
-                                Remove
-                              </Button>
-                            </>
-                          ) : (
-                            <span className="text-xs text-slate-500">
-                              Tuition will save when you apply the live setup.
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                                <input type="hidden" name="classId" value={row.classRecord.id} />
+                                <input type="hidden" name="sessionLabel" value={selectedSessionLabel} />
+                                <input type="hidden" name="section" value={row.classRecord.section ?? ""} />
+                                <input type="hidden" name="streamName" value={row.classRecord.stream_name ?? ""} />
+                                <input type="hidden" name="sortOrder" value={String(row.classRecord.sort_order)} />
+                                <input type="hidden" name="classNotes" value={row.classRecord.notes ?? ""} />
+                                <Input
+                                  name="className"
+                                  defaultValue={row.classRecord.class_name}
+                                  disabled={!canEdit}
+                                />
+                              </form>
+                            ) : (
+                              <div>
+                                <p className="font-medium text-slate-950">{row.label}</p>
+                                <p className="mt-1 text-xs text-slate-500">Will be created on apply</p>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">{formatInr(row.annualTuition)}</td>
+                          <td className="px-4 py-3">
+                            <StatusBadge
+                              label={row.hasClassRecord ? "Exists" : "Will be created"}
+                              tone={row.hasClassRecord ? "good" : "warning"}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <StatusBadge
+                              label={row.hasSavedDefault ? "Saved" : "Pending default"}
+                              tone={row.hasSavedDefault ? "good" : "warning"}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            {row.classRecord && formId ? (
+                              <select
+                                form={formId}
+                                name="classStatus"
+                                defaultValue={row.classRecord.status}
+                                className={selectClassName}
+                                disabled={!canEdit}
+                              >
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="archived">Archived</option>
+                              </select>
+                            ) : (
+                              <StatusBadge label="Pending create" tone="warning" />
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-2">
+                              {row.classRecord && formId ? (
+                                <>
+                                  <Button type="submit" form={formId} variant="outline" disabled={!canEdit || isSupportingPending}>
+                                    Save
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={!canEdit || isSupportingPending}
+                                    onClick={() => {
+                                      const formData = new FormData();
+                                      formData.set("classId", row.classRecord!.id);
+                                      runSupportAction(
+                                        actions.deleteClassAction,
+                                        classState,
+                                        formData,
+                                        setClassState,
+                                      );
+                                    }}
+                                  >
+                                    Remove
+                                  </Button>
+                                </>
+                              ) : (
+                                <span className="text-xs text-slate-500">
+                                  Tuition will save when you publish.
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </AdvancedDetails>
         </div>
       </SectionCard>
 
       <SectionCard
-        title="5. Route / Transport Fees"
-        description="Keep transport routes separate from class tuition and set annual route fees in one list."
+        title="4. Transport Fees"
+        description="Enter the annual transport fee for each route. Leave transport blank if the school is not using route fees."
         actions={
-          <div className="w-full min-w-[240px] max-w-sm">
-            <Label htmlFor="route-search">Search routes</Label>
+          <div className="min-w-[220px]">
+            <Label htmlFor="route-search">Search</Label>
             <Input
               id="route-search"
               value={routeSearch}
               onChange={(event) => setRouteSearch(event.target.value)}
-              placeholder="Type route name"
+              placeholder="Route name"
               className="mt-2"
             />
           </div>
@@ -1424,116 +1421,27 @@ export function FeeSetupClient({
       >
         <div className="space-y-4">
           <ActionNotice state={routeState} />
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
-            Transport pricing is independent of class tuition. The installment amount below is
-            derived from the selected session&apos;s current installment count.
-          </div>
-
-          {canEdit ? (
-            <form
-              className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const formData = new FormData();
-                formData.set("routeCode", newRouteCode);
-                formData.set("routeName", newRouteName);
-                formData.set(
-                  "defaultInstallmentAmount",
-                  String(Math.floor(0 / Math.max(form.installmentDates.length, 1))),
-                );
-                formData.set("routeIsActive", "yes");
-                formData.set("routeNotes", "");
-                runSupportAction(actions.createRouteAction, routeState, formData, setRouteState, {
-                  onSuccess: () => {
-                    setNewRouteName("");
-                    setNewRouteCode("");
-                  },
-                });
-              }}
-            >
-              <div className="grid gap-3 md:grid-cols-[180px_1fr_auto]">
-                <div>
-                  <Label htmlFor="new-route-code">Route code</Label>
-                  <Input
-                    id="new-route-code"
-                    value={newRouteCode}
-                    onChange={(event) => setNewRouteCode(event.target.value)}
-                    className="mt-2"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="new-route-name">Add route</Label>
-                  <Input
-                    id="new-route-name"
-                    value={newRouteName}
-                    onChange={(event) => setNewRouteName(event.target.value)}
-                    placeholder="Amet Bus"
-                    className="mt-2"
-                    required
-                  />
-                </div>
-                <div className="flex items-end">
-                  <Button type="submit" disabled={isSupportingPending}>
-                    Add row
-                  </Button>
-                </div>
-              </div>
-            </form>
-          ) : null}
-
-          <div className="overflow-auto rounded-[26px] border border-slate-200 bg-white">
-            <table className="w-full min-w-[980px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
+          <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
+            <table className="w-full min-w-[700px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                 <tr>
-                  <th className="px-4 py-3">Route Name</th>
+                  <th className="px-4 py-3">Route</th>
                   <th className="px-4 py-3">Annual Transport Fee</th>
-                  <th className="px-4 py-3">Derived Installment</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Actions</th>
+                  <th className="px-4 py-3">Per installment</th>
                 </tr>
               </thead>
               <tbody>
-                {visibleRouteRows.map((row) => {
-                  const routeRecord = row.routeRecord;
-                  const formId = routeRecord ? `route-row-${routeRecord.id}` : null;
-
-                  return (
-                    <tr key={row.routeName} className="border-t border-slate-100 align-top">
-                      <td className="px-4 py-3">
-                        {routeRecord && formId ? (
-                          <form
-                            id={formId}
-                            onSubmit={(event) => {
-                              event.preventDefault();
-                              runSupportAction(
-                                actions.updateRouteAction,
-                                routeState,
-                                new FormData(event.currentTarget),
-                                setRouteState,
-                              );
-                            }}
-                          >
-                            <input type="hidden" name="routeId" value={routeRecord.id} />
-                            <input type="hidden" name="routeCode" value={routeRecord.route_code ?? ""} />
-                            <input
-                              type="hidden"
-                              name="defaultInstallmentAmount"
-                              value={String(routeRecord.default_installment_amount)}
-                            />
-                            <input type="hidden" name="routeNotes" value={routeRecord.notes ?? ""} />
-                            <Input
-                              name="routeName"
-                              defaultValue={routeRecord.route_name}
-                              disabled={!canEdit}
-                            />
-                          </form>
-                        ) : (
-                          <div>
-                            <p className="font-medium text-slate-950">{row.routeName}</p>
-                            <p className="mt-1 text-xs text-slate-500">Will be created on apply</p>
-                          </div>
-                        )}
-                      </td>
+                {visibleRouteRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-6 text-center text-sm text-slate-500">
+                      No transport routes found. Add routes from School Lists, or leave transport
+                      blank if not used.
+                    </td>
+                  </tr>
+                ) : (
+                  visibleRouteRows.map((row) => (
+                    <tr key={row.routeName} className="border-t border-slate-100">
+                      <td className="px-4 py-3 font-medium text-slate-950">{row.routeName}</td>
                       <td className="px-4 py-3">
                         <Input
                           type="number"
@@ -1546,111 +1454,248 @@ export function FeeSetupClient({
                         />
                       </td>
                       <td className="px-4 py-3 text-slate-700">
-                        Rs {Math.floor(row.annualFee / Math.max(form.installmentDates.length, 1))}
+                        {formatInr(Math.floor(row.annualFee / Math.max(form.installmentDates.length, 1)))}
                       </td>
-                      <td className="px-4 py-3">
-                        {routeRecord && formId ? (
-                          <select
-                            form={formId}
-                            name="routeIsActive"
-                            defaultValue={routeRecord.is_active ? "yes" : "no"}
-                            className={selectClassName}
-                            disabled={!canEdit}
-                          >
-                            <option value="yes">Active</option>
-                            <option value="no">Inactive</option>
-                          </select>
-                        ) : (
-                          <StatusBadge label="Pending create" tone="warning" />
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-2">
-                          {routeRecord && formId ? (
-                            <>
-                              <Button type="submit" form={formId} variant="outline" disabled={!canEdit || isSupportingPending}>
-                                Save
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                disabled={!canEdit || isSupportingPending}
-                                onClick={() => {
-                                  const formData = new FormData();
-                                  formData.set("routeId", routeRecord.id);
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <AdvancedDetails
+            title="Advanced route-list options"
+            description="Manage route names, route codes, status, and unused routes."
+          >
+            <div className="space-y-4">
+              {canEdit ? (
+                <form
+                  className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const formData = new FormData();
+                    formData.set("routeCode", newRouteCode);
+                    formData.set("routeName", newRouteName);
+                    formData.set(
+                      "defaultInstallmentAmount",
+                      String(Math.floor(0 / Math.max(form.installmentDates.length, 1))),
+                    );
+                    formData.set("routeIsActive", "yes");
+                    formData.set("routeNotes", "");
+                    runSupportAction(actions.createRouteAction, routeState, formData, setRouteState, {
+                      onSuccess: () => {
+                        setNewRouteName("");
+                        setNewRouteCode("");
+                      },
+                    });
+                  }}
+                >
+                  <div className="grid gap-3 md:grid-cols-[180px_1fr_auto]">
+                    <div>
+                      <Label htmlFor="new-route-code">Route code</Label>
+                      <Input
+                        id="new-route-code"
+                        value={newRouteCode}
+                        onChange={(event) => setNewRouteCode(event.target.value)}
+                        className="mt-2"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="new-route-name">Manage route list</Label>
+                      <Input
+                        id="new-route-name"
+                        value={newRouteName}
+                        onChange={(event) => setNewRouteName(event.target.value)}
+                        placeholder="Amet Bus"
+                        className="mt-2"
+                        required
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button type="submit" disabled={isSupportingPending}>
+                        Add route
+                      </Button>
+                    </div>
+                  </div>
+                </form>
+              ) : null}
+
+              <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
+                <table className="w-full min-w-[980px] text-left text-sm">
+                  <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                    <tr>
+                      <th className="px-4 py-3">Route Name</th>
+                      <th className="px-4 py-3">Code</th>
+                      <th className="px-4 py-3">Annual Fee</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleRouteRows.map((row) => {
+                      const routeRecord = row.routeRecord;
+                      const formId = routeRecord ? `route-row-${routeRecord.id}` : null;
+
+                      return (
+                        <tr key={`${row.routeName}-advanced`} className="border-t border-slate-100 align-top">
+                          <td className="px-4 py-3">
+                            {routeRecord && formId ? (
+                              <form
+                                id={formId}
+                                onSubmit={(event) => {
+                                  event.preventDefault();
                                   runSupportAction(
-                                    actions.deleteRouteAction,
+                                    actions.updateRouteAction,
                                     routeState,
-                                    formData,
+                                    new FormData(event.currentTarget),
                                     setRouteState,
                                   );
                                 }}
                               >
-                                Remove
-                              </Button>
-                            </>
-                          ) : (
-                            <span className="text-xs text-slate-500">
-                              Route fee will save when you apply the live setup.
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                                <input type="hidden" name="routeId" value={routeRecord.id} />
+                                <input type="hidden" name="routeCode" value={routeRecord.route_code ?? ""} />
+                                <input
+                                  type="hidden"
+                                  name="defaultInstallmentAmount"
+                                  value={String(routeRecord.default_installment_amount)}
+                                />
+                                <input type="hidden" name="routeNotes" value={routeRecord.notes ?? ""} />
+                                <Input
+                                  name="routeName"
+                                  defaultValue={routeRecord.route_name}
+                                  disabled={!canEdit}
+                                />
+                              </form>
+                            ) : (
+                              <div>
+                                <p className="font-medium text-slate-950">{row.routeName}</p>
+                                <p className="mt-1 text-xs text-slate-500">Will be created on apply</p>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600">
+                            {routeRecord?.route_code ?? "-"}
+                          </td>
+                          <td className="px-4 py-3">{formatInr(row.annualFee)}</td>
+                          <td className="px-4 py-3">
+                            {routeRecord && formId ? (
+                              <select
+                                form={formId}
+                                name="routeIsActive"
+                                defaultValue={routeRecord.is_active ? "yes" : "no"}
+                                className={selectClassName}
+                                disabled={!canEdit}
+                              >
+                                <option value="yes">Active</option>
+                                <option value="no">Inactive</option>
+                              </select>
+                            ) : (
+                              <StatusBadge label="Pending create" tone="warning" />
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-2">
+                              {routeRecord && formId ? (
+                                <>
+                                  <Button type="submit" form={formId} variant="outline" disabled={!canEdit || isSupportingPending}>
+                                    Save
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={!canEdit || isSupportingPending}
+                                    onClick={() => {
+                                      const formData = new FormData();
+                                      formData.set("routeId", routeRecord.id);
+                                      runSupportAction(
+                                        actions.deleteRouteAction,
+                                        routeState,
+                                        formData,
+                                        setRouteState,
+                                      );
+                                    }}
+                                  >
+                                    Remove
+                                  </Button>
+                                </>
+                              ) : (
+                                <span className="text-xs text-slate-500">
+                                  Route fee will save when you publish.
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </AdvancedDetails>
         </div>
       </SectionCard>
 
       <SectionCard
-        title="6. Review, Lock & Publish"
-        description="Use Save Draft Review to create an audited change batch, then publish live only after checking the impact summary."
+        title="5. Review & Publish"
+        description="Preview the impact first, then publish only when the review looks correct."
       >
-        <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-              Draft session target: <strong>{selectedSessionLabel}</strong>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-              Installment count: <strong>{form.installmentDates.length}</strong>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-              Late fee:{" "}
-              <strong>{form.lateFeeFlatAmount > 0 ? `Rs ${form.lateFeeFlatAmount}` : "Disabled"}</strong>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-              New student academic fee: <strong>Rs {form.newStudentAcademicFeeAmount}</strong>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-              Old student academic fee: <strong>Rs {form.oldStudentAcademicFeeAmount}</strong>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-              Fee heads configured: <strong>{form.customFeeHeads.length}</strong>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-              Total classes configured: <strong>{classRows.length}</strong>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-              Total routes configured: <strong>{routeRows.length}</strong>
-            </div>
+        <div className="space-y-5">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <ReviewMetric label="Academic year" value={selectedSessionLabel || "Not selected"} />
+            <ReviewMetric label="Installment dates" value={form.installmentDates.map(formatDateOnly).join(", ")} />
+            <ReviewMetric label="Late fee" value={formatInr(form.lateFeeFlatAmount)} />
+            <ReviewMetric label="New student fee" value={formatInr(form.newStudentAcademicFeeAmount)} />
+            <ReviewMetric label="Existing student fee" value={formatInr(form.oldStudentAcademicFeeAmount)} />
+            <ReviewMetric label="Class fee rows" value={classRows.length} />
+            <ReviewMetric label="Transport routes" value={routeRows.length} />
+            <ReviewMetric label="Preview status" value={preview ? "Preview ready" : "Preview changes before publishing."} />
           </div>
 
-          <div className="rounded-[26px] border border-slate-200 bg-white p-5">
-            <p className="text-sm font-semibold text-slate-950">Due dates</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {form.installmentDates.map((item, index) => (
-                <StatusBadge
-                  key={`${item}-${index}`}
-                  label={`Installment ${index + 1}: ${item || "Not set"}`}
-                  tone="neutral"
-                />
-              ))}
+          {preview ? (
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <ReviewMetric label="Students affected" value={preview.studentsAffected} />
+                <ReviewMetric label="Installment rows changing" value={installmentChanges} />
+                <ReviewMetric label="Blocked rows" value={preview.blockedInstallments} />
+                <ReviewMetric label="Students in scope" value={preview.studentsInScope} />
+              </div>
+              <div className="mt-4">
+                <p className="text-sm font-semibold text-slate-950">Changed fields summary</p>
+                <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
+                  {preview.changedFields.length === 0 ? (
+                    <div className="rounded-xl border border-blue-100 bg-white px-4 py-3 text-sm text-slate-600">
+                      No changed fields in this preview.
+                    </div>
+                  ) : (
+                    preview.changedFields.map((item) => (
+                      <div
+                        key={item.field}
+                        className="rounded-xl border border-blue-100 bg-white px-4 py-3 text-sm"
+                      >
+                        <p className="font-medium text-slate-950">{item.label}</p>
+                        <p className="mt-1 text-xs leading-5 text-slate-600">
+                          {item.beforeValue} {"->"} {item.afterValue}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+              Preview changes before publishing.
+            </div>
+          )}
 
-            <div className="mt-5 flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+            <p className="max-w-3xl text-sm leading-6 text-slate-600">
+              Publishing keeps payments, receipts, adjustments, and audit logs append-only. Only
+              future or unpaid installment rows may change; paid, partial, or adjusted rows are
+              blocked and logged for review.
+            </p>
+            <div className="flex flex-wrap gap-2">
               {canEdit ? (
                 <>
                   <Button
@@ -1659,44 +1704,31 @@ export function FeeSetupClient({
                     onClick={() => submitFeeSetup("preview")}
                     disabled={!canEdit || isSaving}
                   >
-                    {isSaving ? "Saving..." : "Save Draft Review"}
+                    {isSaving ? "Previewing..." : "Preview Changes"}
                   </Button>
-                  <Button
-                    type="button"
-                    onClick={() => submitFeeSetup("apply")}
-                    disabled={!canApply || isSaving}
-                  >
-                    {isSaving ? "Publishing..." : "Publish Live Setup"}
-                  </Button>
+                  {preview ? (
+                    <Button
+                      type="button"
+                      onClick={() => submitFeeSetup("apply")}
+                      disabled={!canApply || isSaving}
+                    >
+                      {isSaving ? "Publishing..." : "Publish Fee Setup"}
+                    </Button>
+                  ) : null}
                 </>
               ) : (
                 <p className="text-sm leading-6 text-slate-600">
-                  View-only users can review the saved session setup, but only admins can save or
-                  apply changes.
+                  View-only users can review the setup. Only admins can publish changes.
                 </p>
               )}
             </div>
-
-            <p className="mt-3 text-xs leading-5 text-slate-500">
-              Publishing keeps payments, receipts, adjustments, and audit logs append-only. Only
-              future or unpaid installment rows may change; paid, partial, or adjusted rows are
-              blocked and logged for review.
-            </p>
-            {selectedPolicySnapshot?.id ? (
-              <p className="mt-2 text-xs leading-5 text-slate-500">
-                Last saved session snapshot: {formatDateTime(selectedPolicySnapshot.updatedAt ?? null)}
-              </p>
-            ) : null}
-            {totalActiveFeeHeads > 0 ? (
-              <p className="mt-2 text-xs leading-5 text-slate-500">
-                Active fee heads in this session:{" "}
-                {form.customFeeHeads
-                  .filter((item) => item.isActive)
-                  .map((item) => `${item.label} (${getFeeHeadApplicationLabel(item.applicationType)})`)
-                  .join(", ")}
-              </p>
-            ) : null}
           </div>
+
+          {selectedPolicySnapshot?.id ? (
+            <p className="text-xs leading-5 text-slate-500">
+              Last saved session snapshot: {formatDateTime(selectedPolicySnapshot.updatedAt ?? null)}
+            </p>
+          ) : null}
         </div>
       </SectionCard>
     </div>

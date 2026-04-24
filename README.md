@@ -43,28 +43,28 @@ Primary daily areas:
   student master, student-specific fee profiles, spreadsheet add/update, and
   one-student workspace
 - `Fee Setup`
-  the staged live workbook-style fee sheet for academic session, master fee
-  heads, session policy, class tuition, route transport fee, and final
-  review/publish
+  the simplified Basic Mode fee sheet for the academic year: academic year,
+  installment dates, basic fee rules, class fees, transport fees, and final
+  preview/publish. Advanced controls are collapsed by default.
 - `Payment Desk`
   counter posting only: select a student, review dues, collect payment, confirm
   allocation, and generate an append-only receipt
 - `Transactions`
   read-only permanent records, receipts, dues, installment tracker, defaulters,
   class register, today collection, import issues, and CSV downloads
-- `Advanced`
-  first-time setup, school setup lists, day close/corrections, detailed
-  reports/exports, staff, and settings
+- `Admin Tools`
+  rare admin/configuration work: staff, app settings, school lists, first-time
+  setup, and day close/corrections
 
 ## What Each Role Sees By Default
 
 - `admin`
-  lands on `Dashboard`; sees the simplified primary nav plus `Advanced`
+  lands on `Dashboard`; sees the simplified primary nav plus `Admin Tools`
 - `accountant`
   lands on `Payment Desk`; nav order prioritizes `Payment Desk` and
   `Transactions`, with Dashboard available as a read-only overview
 - `read_only_staff`
-  lands on `Dashboard`; keeps the simplified primary nav without `Advanced`
+  lands on `Dashboard`; keeps the simplified primary nav without `Admin Tools`
   while still retaining intended deep-link access to detailed read-only screens
   such as reports or imports when permissions allow
 
@@ -85,7 +85,7 @@ Do not change the real AY `2026-27` defaults just to test the workflow. Do not
 post test payments against real students, and do not mix dummy students or
 dummy receipts with production records.
 
-## Dashboard vs Advanced
+## Dashboard vs Admin Tools
 
 What belongs in `Dashboard`:
 
@@ -105,14 +105,13 @@ Transactions is read-only. It shows permanent receipts, dues, installment
 status, defaulters, and exports, but it does not post payments or mutate
 financial history.
 
-What belongs in `Advanced`:
+What belongs in `Admin Tools`:
 
-- first-time setup and go-live completion
-- school setup lists for sessions, classes, and routes
+- first-time setup and go-live completion, not yearly fee editing
+- school lists for sessions, classes, and routes
 - day close, correction review, and finance controls
-- detailed reports, exports, and print views
 - staff management
-- deployment/settings checks
+- app settings and deployment checks
 
 ## Live Changes vs Historically Locked Records
 
@@ -130,6 +129,11 @@ This is where admins:
 - review the impact first
 - save the live change only after the impact summary is visible
 - open dues update review for future and unpaid rows
+
+Fee Setup now opens in Basic Mode by default. The normal screen shows only
+Academic Year, Basic Fee Rules, Class Fees, Transport Fees, and Review &
+Publish. Fee-head metadata, session archive/delete, class-list maintenance, and
+route-list maintenance are still available but collapsed under advanced options.
 
 What remains append-only and historically locked:
 
@@ -161,8 +165,9 @@ The app now maps more closely to the schoolâ€™s workbook flow:
   student add/update sheet
 - `Fee Setup` behaves like the controlled live policy/default sheet with audit
   protection behind it, and it now behaves like the workbook `Fee_Setup` sheet
-  for academic session and live fee values, organized as staged office work
-- `Advanced` keeps the less-frequent admin tasks out of the daily path
+  for academic session and live fee values, organized as a simple Basic Mode
+  academic-year fee sheet
+- `Admin Tools` keeps the less-frequent admin tasks out of the daily path
 
 ## Canonical Configuration Model
 

@@ -74,13 +74,13 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
           canWriteStudents ? (
             <div className="flex flex-wrap gap-2">
               <Button asChild>
-                <Link href="/protected/students/new">Add student</Link>
+                <Link href="/protected/students/new">Add Student</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/protected/imports">Bulk upload / update</Link>
+                <Link href="/protected/imports">Bulk Upload / Update</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/protected/imports/template">Download template</Link>
+                <Link href="/protected/imports/template">Download Template</Link>
               </Button>
             </div>
           ) : (

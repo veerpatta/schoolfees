@@ -78,8 +78,8 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
   },
   {
     href: "/protected/advanced",
-    label: "Advanced",
-    description: "School setup, day close, exports, staff, and settings.",
+    label: "Admin Tools",
+    description: "Staff, settings, school lists, setup review, and rare admin tools.",
     icon: FolderCog,
     requiredPermission: "finance:view",
     visibleTo: ["admin", "accountant"],
@@ -134,19 +134,19 @@ const routeMetaItems: Array<
   {
     match: "/protected/advanced",
     href: "/protected/advanced",
-    label: "Advanced",
-    description: "School setup, day close, exports, staff, and settings.",
+    label: "Admin Tools",
+    description: "Staff, settings, school lists, setup review, and rare admin tools.",
   },
   {
     match: "/protected/setup",
     href: "/protected/advanced",
-    label: "Setup",
+    label: "First-time Setup",
     description: "First-time go-live preparation, readiness, and completion review.",
   },
   {
     match: "/protected/master-data",
     href: "/protected/advanced",
-    label: "School Setup Lists",
+    label: "School Lists",
     description: "Sessions, classes, and routes kept in one place for admin upkeep.",
   },
   {
@@ -157,9 +157,9 @@ const routeMetaItems: Array<
   },
   {
     match: "/protected/reports",
-    href: "/protected/advanced",
+    href: "/protected/transactions",
     label: "Reports & Exports",
-    description: "Advanced reports, print views, and CSV exports.",
+    description: "Detailed reports, print views, and CSV exports.",
   },
   {
     match: "/protected/ledger",
@@ -194,7 +194,7 @@ const routeMetaItems: Array<
   {
     match: "/protected/settings",
     href: "/protected/advanced",
-    label: "Settings",
+    label: "App Settings",
     description: "Deployment checks, active policy notes, and config audit history.",
   },
   {
@@ -291,14 +291,14 @@ export type AdvancedHubItem = {
 export const advancedHubItems: AdvancedHubItem[] = [
   {
     href: "/protected/setup",
-    label: "Setup",
+    label: "First-time Setup",
     description: "First-time go-live preparation, readiness, and completion review.",
     icon: ListChecks,
     requiredPermission: "settings:write",
   },
   {
     href: "/protected/master-data",
-    label: "School Setup Lists",
+    label: "School Lists",
     description: "Sessions, classes, routes, and other school setup lists in one place.",
     icon: BookText,
     requiredPermission: "settings:write",
@@ -311,13 +311,6 @@ export const advancedHubItems: AdvancedHubItem[] = [
     requiredPermission: "finance:view",
   },
   {
-    href: "/protected/reports",
-    label: "Reports & Exports",
-    description: "Advanced reports, exports, and print-friendly views.",
-    icon: ReceiptText,
-    requiredPermission: "reports:view",
-  },
-  {
     href: "/protected/staff",
     label: "Staff",
     description: "Staff accounts, role assignment, and password management.",
@@ -326,36 +319,46 @@ export const advancedHubItems: AdvancedHubItem[] = [
   },
   {
     href: "/protected/settings",
-    label: "Settings",
+    label: "App Settings",
     description: "Deployment checks, policy notes, and config audit history.",
     icon: Settings2,
     requiredPermission: "settings:view",
   },
+] as const;
+
+export const advancedAdditionalLinks: AdvancedHubItem[] = [
+  {
+    href: "/protected/reports",
+    label: "Reports & Exports",
+    description: "Detailed reports and CSV exports. Daily exports are also in Transactions.",
+    icon: ReceiptText,
+    requiredPermission: "reports:view",
+  },
   {
     href: "/protected/ledger",
     label: "Ledger",
-    description: "Append-only student ledger and adjustment review.",
+    description: "Deep link for append-only student ledger review.",
     icon: BookText,
     requiredPermission: "ledger:view",
   },
   {
     href: "/protected/receipts",
     label: "Receipts",
-    description: "Receipt lookup, reprints, and formal printable copies.",
+    description: "Deep link for receipt lookup and printable copies.",
     icon: ReceiptText,
     requiredPermission: "receipts:view",
   },
   {
     href: "/protected/defaulters",
     label: "Defaulters",
-    description: "Outstanding follow-up by class and route.",
+    description: "Deep link for outstanding follow-up.",
     icon: CircleAlert,
     requiredPermission: "defaulters:view",
   },
   {
     href: "/protected/imports",
     label: "Student Imports",
-    description: "Student upload, update, validation, and issue queues.",
+    description: "Bulk upload/update lives under Students.",
     icon: UsersRound,
     requiredPermission: "imports:view",
   },

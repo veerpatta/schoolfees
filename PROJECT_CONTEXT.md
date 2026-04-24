@@ -49,7 +49,7 @@ Primary daily navigation:
 - `Fee Setup`
 - `Payment Desk`
 - `Transactions`
-- `Advanced`
+- `Admin Tools`
 
 Operational boundaries:
 
@@ -58,9 +58,9 @@ Operational boundaries:
 - `Dashboard` is read-only and analytical; it links to existing workflows but
   does not post payments, edit student overrides, or change fee setup
 - `Fee Setup` is the canonical live path for the workbook-style fee sheet:
-  academic session, master fee heads, editable installment schedule, late fee,
-  new/old academic fee, class-wise annual tuition, route-wise annual transport
-  fee, and review/publish
+  academic year, installment dates, basic fee rules, class-wise annual tuition,
+  route-wise annual transport fee, and review/publish. It opens in Basic Mode,
+  with advanced fee-head and list maintenance collapsed by default.
 - `Students` is the daily surface for student master records, class/route
   assignment, student-specific fee profiles, special cases, and spreadsheet
   add/update work
@@ -69,8 +69,8 @@ Operational boundaries:
 - `Transactions` is the read-only permanent record and download center for
   receipt records, dues, installment tracker, defaulters, class register,
   today collection, import issues, and exports
-- `Advanced` keeps first-time setup, school setup lists, day close,
-  reports/exports, staff, and settings out of the main daily flow
+- `Admin Tools` keeps first-time setup, school lists, day close/corrections,
+  staff, and app settings out of the main daily flow
 - `Setup` remains first-time go-live preparation only and must not be reused
   as a live fee-editing surface after setup completion
 
@@ -107,21 +107,21 @@ Main routes and modules in the repo today:
   admin-only first-time setup wizard for session selection, class and route
   setup, school/class defaults, and go-live readiness; once marked complete it
   stays readable but is no longer a live-edit path for policy/default changes
+  and points yearly fee changes back to Fee Setup
 - `app/protected/fee-structure/page.tsx`
   alias route to fee setup area
 - `app/protected/fee-setup/page.tsx`
-  staged workbook-style fee setup screen for academic session, master fee
-  heads, editable installment schedule, late fee, new/old academic fee,
-  class-wise annual tuition, route-wise annual transport fee, and inline
-  session/class/route maintenance, with mandatory impact preview and
-  publish/apply flow; a changed academic session saves as a fresh fee-policy
-  snapshot instead of overwriting the prior year in place
+  simplified Basic Mode academic-year fee setup screen for academic year,
+  installment dates, late fee, new/old academic fee, class-wise annual tuition,
+  route-wise annual transport fee, and review/publish; advanced fee-head,
+  session, class-list, and route-list controls are collapsed while the
+  mandatory impact preview and publish/apply flow stays intact
 - `app/protected/fee-setup/generate/page.tsx`
   preview + safe recalculation workflow for unpaid and future session ledger
   installments, with paid/partial rows flagged for review
 - `app/protected/advanced/page.tsx`
-  secondary hub for setup, school setup lists, day close, reports, staff, and
-  settings
+  Admin Tools hub for rare admin/configuration tools: staff, app settings,
+  school lists, first-time setup, and day close/corrections
 - `app/protected/transactions/page.tsx`
   read-only Transactions workspace with posted receipts, student dues,
   installment tracker, class register, defaulters, today collection, import
@@ -335,8 +335,9 @@ Live fee configuration currently works like this:
   marked complete, live edits move to fee setup or master data depending on the
   change type
 - `/protected/fee-setup` is now the primary live surface for the active
-  workbook-style fee sheet: academic session label, due dates, late fee,
-  new/old academic fee, class tuition, and route transport fee.
+  workbook-style fee sheet: academic year, due dates, late fee, new/old
+  academic fee, class tuition, route transport fee, and review/publish. It is
+  Basic Mode by default, with advanced fee-head/session/list controls collapsed.
   `/protected/master-data` remains available for direct admin maintenance of
   sessions, classes, and routes, but Fee Setup is the workflow staff should use
   first for live fee values because preview and audit stay attached there

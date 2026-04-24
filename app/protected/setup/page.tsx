@@ -26,22 +26,29 @@ export default async function SetupPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Go-Live Setup"
-        title="First-time setup and collection readiness"
-        description="Use this admin-only wizard to initialize the active session, master data, fee defaults, ledger recalculation, and go-live checklist for Shri Veer Patta Senior Secondary School."
+        eyebrow="First-time Setup"
+        title="First-time Setup and Collection Readiness"
+        description="Use this only for first-time go-live preparation. For yearly fee changes, use Fee Setup."
         actions={
-          data.readiness.collectionDeskReady ? (
-            <div className="flex flex-col items-end gap-3 sm:flex-row sm:items-center">
+          <div className="flex flex-col items-end gap-3 sm:flex-row sm:items-center">
+            {data.setupLocked ? (
+              <StatusBadge label="Setup complete" tone="good" />
+            ) : data.readiness.collectionDeskReady ? (
               <StatusBadge label="Collection desk ready" tone="good" />
-              <Button asChild size="sm">
-                <Link href="/protected/collections">Open Collections</Link>
-              </Button>
-            </div>
-          ) : (
-            <StatusBadge label="Setup in progress" tone="warning" />
-          )
+            ) : (
+              <StatusBadge label="Setup in progress" tone="warning" />
+            )}
+            <Button asChild size="sm">
+              <Link href="/protected/fee-setup">Go to Fee Setup</Link>
+            </Button>
+          </div>
         }
       />
+
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+        Use this only for first-time go-live preparation. After setup is complete, yearly fee
+        changes must go through Fee Setup so preview, publish, and audit logging stay attached.
+      </div>
 
       <section className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
         <SectionCard

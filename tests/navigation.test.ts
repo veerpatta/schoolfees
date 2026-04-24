@@ -47,6 +47,17 @@ describe("office navigation", () => {
     expect(items.some((item) => item.href === "/protected/advanced")).toBe(false);
   });
 
+  it("labels the secondary admin hub as Admin Tools", () => {
+    const items = getVisibleProtectedNavigation("admin");
+    const adminTools = items.find((item) => item.href === "/protected/advanced");
+
+    expect(adminTools?.label).toBe("Admin Tools");
+    expect(getProtectedRouteMeta("/protected/advanced")).toMatchObject({
+      href: "/protected/advanced",
+      label: "Admin Tools",
+    });
+  });
+
   it("keeps Fee Setup visible in the simplified primary navigation", () => {
     const items = getVisibleProtectedNavigation("admin");
 
@@ -74,12 +85,27 @@ describe("office navigation", () => {
 
   it("keeps reports and imports discoverable through route meta for deep links", () => {
     expect(getProtectedRouteMeta("/protected/reports")).toMatchObject({
-      href: "/protected/advanced",
+      href: "/protected/transactions",
       label: "Reports & Exports",
     });
     expect(getProtectedRouteMeta("/protected/imports")).toMatchObject({
       href: "/protected/students",
       label: "Student Imports",
+    });
+  });
+
+  it("uses plain admin labels for setup, lists, and settings", () => {
+    expect(getProtectedRouteMeta("/protected/setup")).toMatchObject({
+      href: "/protected/advanced",
+      label: "First-time Setup",
+    });
+    expect(getProtectedRouteMeta("/protected/master-data")).toMatchObject({
+      href: "/protected/advanced",
+      label: "School Lists",
+    });
+    expect(getProtectedRouteMeta("/protected/settings")).toMatchObject({
+      href: "/protected/advanced",
+      label: "App Settings",
     });
   });
 

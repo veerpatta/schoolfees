@@ -68,7 +68,7 @@ Primary daily areas:
 - `Fee Setup`
 - `Payment Desk`
 - `Transactions`
-- `Advanced`
+- `Admin Tools`
 
 Operational boundaries:
 
@@ -77,9 +77,9 @@ Operational boundaries:
 - `Dashboard` is read-only and analytical; it links to existing workflows but
   does not post payments, edit student overrides, or change fee setup
 - `Fee Setup` is the canonical live path for workbook-style fee setup:
-  academic session, master fee heads, installment/session policy, standard
-  concession planning, class-wise annual tuition, route-wise annual transport
-  fee, and final review/publish
+  academic year, installment dates, basic fee rules, class-wise annual tuition,
+  route-wise annual transport fee, and final review/publish. It opens in Basic
+  Mode, with fee-head metadata and list maintenance collapsed by default.
 - `Students` is the canonical daily path for student master records,
   class/route assignment, student-specific fee profiles, special-case
   overrides, and staged spreadsheet add/update work
@@ -88,8 +88,8 @@ Operational boundaries:
 - `Transactions` is the read-only permanent record and download center for
   receipt records, dues, installment tracker, defaulters, class register,
   today collection, import issues, and exports
-- `Advanced` contains setup, school setup lists, day close/corrections,
-  reports/exports, staff, and settings
+- `Admin Tools` contains rare admin/configuration tools: first-time setup,
+  school lists, day close/corrections, staff, and app settings
 - `Setup` remains first-time go-live preparation only and must not be reused
   as a live fee-editing path after completion
 
@@ -122,7 +122,7 @@ Fully implemented core:
   for public use
 - protected admin workspace under `app/protected`
 - simplified workbook-style protected shell with `Dashboard`, `Students`,
-  `Fee Setup`, `Payment Desk`, `Transactions`, and `Advanced`
+  `Fee Setup`, `Payment Desk`, `Transactions`, and `Admin Tools`
 - admin-only first-time setup wizard with academic session selection, class and
   route setup, school/class defaults, readiness checklist, and explicit setup
   completion marker; once setup is marked complete, the wizard no longer serves
@@ -132,11 +132,11 @@ Fully implemented core:
 - Student Spreadsheet Import: CSV/XLSX upload, template download, column
   mapping, dry-run validation, mixed add/update by SR number, row-level review,
   batch tracking, and approved-valid-row-only save
-- Fee Setup: staged workbook-style live setup for academic session, master fee
-  heads, editable installment schedule, flat late fee, new/old academic fee,
-  class-wise annual tuition, route-wise annual transport fee, and inline
-  session/class/route maintenance, with mandatory impact preview and
-  publish/apply workflow
+- Fee Setup: simplified Basic Mode live setup for academic year, installment
+  dates, flat late fee, new/old academic fee, class-wise annual tuition,
+  route-wise annual transport fee, and review/publish; advanced fee-head,
+  session, class-list, and route-list controls are collapsed while the mandatory
+  impact preview and publish/apply workflow stays intact
 - AY `2026-27` workbook parity with `workbook_v1`, exact seeded class tuition,
   exact seeded annual route defaults, workbook student status, signed other
   adjustment, and late-fee-waiver support
@@ -208,7 +208,7 @@ content or Supabase sample code unless the user explicitly requests that.
 - fee setup actions: `app/protected/fee-setup/actions.ts`
 - fee recalculation: `app/protected/fee-setup/generate/page.tsx`
 - fee recalculation actions: `app/protected/fee-setup/generate/actions.ts`
-- advanced hub: `app/protected/advanced/page.tsx`
+- admin tools hub: `app/protected/advanced/page.tsx`
 - transactions workspace: `app/protected/transactions/page.tsx`
 - legacy dues alias: `app/protected/dues/page.tsx`
 - fee regeneration service: `lib/fees/regeneration.ts`
@@ -327,9 +327,10 @@ Treat the live configuration model like this:
 - `/protected/setup` is first-time go-live preparation. After setup completion,
   it becomes read-only for live policy/default edits.
 - `/protected/fee-setup` is now the primary live surface for the active
-  workbook-style fee sheet: academic session label, editable installment
-  schedule, workbook fee values, class tuition, route transport fees, and
-  session/class/route management plus session-level fee heads.
+  workbook-style fee sheet: academic year, installment dates, workbook fee
+  values, class tuition, route transport fees, and final review/publish.
+  Fee-head metadata, session maintenance, class-list maintenance, and route-list
+  maintenance stay available under collapsed advanced options.
   `/protected/master-data` remains
   available for direct admin maintenance of sessions, classes, routes, fee
   heads, and payment modes, but Fee Setup is the workflow staff should use

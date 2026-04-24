@@ -67,8 +67,10 @@ Operational rule:
 - `/protected/setup` is for first-time go-live preparation only; after setup is
   marked complete, it should no longer be used as a live policy editing path
 - `/protected/fee-setup` is the primary daily live surface for the workbook
-  fee sheet: academic session, master fee heads, due dates, late fee, new/old
-  academic fee, class tuition, route transport fee, and final review/publish.
+  fee sheet: academic year, due dates, late fee, new/old academic fee, class
+  tuition, route transport fee, and final review/publish. It opens in Basic
+  Mode by default; fee-head metadata and session/class/route maintenance are
+  collapsed under advanced options.
   `/protected/master-data` still exists for direct admin maintenance of
   sessions, classes, and routes, but Fee Setup is the preferred daily workflow
   because preview, audit, and safe propagation stay attached there
@@ -84,8 +86,8 @@ Daily workflow boundary:
   posting through allocation, and generating append-only receipts
 - `Transactions` is read-only and owns permanent receipt records, dues,
   installment tracker, defaulters, class register, and finance CSV downloads
-- `Advanced` is the place for setup, school setup lists, finance controls,
-  reports, staff, and settings
+- `Admin Tools` is the place for rare admin/configuration tools: first-time
+  setup, school lists, finance controls, staff, and app settings
 - `Fee Setup` is the daily live fee-editing path for workbook values
 
 ## System-Wide Propagation Rules
