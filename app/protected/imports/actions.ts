@@ -222,7 +222,24 @@ export async function commitStudentImportBatchAction(formData: FormData) {
       throw new Error("Select an import batch before saving rows.");
     }
 
-    await commitStudentImportBatch(batchId);
+    const result = await commitStudentImportBatch(batchId);
+
+    if (result.ledgerSyncError) {
+      revalidatePath("/protected/imports");
+      revalidatePath("/protected/students");
+      revalidatePath("/protected/dues");
+      revalidatePath("/protected/defaulters");
+      revalidatePath("/protected/reports");
+      revalidatePath("/protected/fee-setup");
+      redirect(
+        buildImportsUrl(
+          batchId,
+          `Students imported, but dues sync needs attention: ${result.ledgerSyncError}`,
+          undefined,
+          mode,
+        ),
+      );
+    }
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unable to complete the import batch.";

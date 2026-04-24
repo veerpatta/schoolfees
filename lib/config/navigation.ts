@@ -3,11 +3,9 @@ import {
   BarChart3,
   BookOpenCheck,
   BookText,
-  CircleAlert,
   ClipboardList,
   FolderCog,
   ListChecks,
-  ReceiptText,
   ScrollText,
   Settings2,
   ShieldCheck,
@@ -79,7 +77,7 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
   {
     href: "/protected/advanced",
     label: "Admin Tools",
-    description: "Staff, settings, school lists, setup review, and rare admin tools.",
+    description: "Rare setup, staff, correction, and troubleshooting tools.",
     icon: FolderCog,
     requiredPermission: "finance:view",
     visibleTo: ["admin", "accountant"],
@@ -135,7 +133,7 @@ const routeMetaItems: Array<
     match: "/protected/advanced",
     href: "/protected/advanced",
     label: "Admin Tools",
-    description: "Staff, settings, school lists, setup review, and rare admin tools.",
+    description: "Rare setup, staff, correction, and troubleshooting tools.",
   },
   {
     match: "/protected/setup",
@@ -182,8 +180,8 @@ const routeMetaItems: Array<
   {
     match: "/protected/imports",
     href: "/protected/students",
-    label: "Student Imports",
-    description: "Student bulk upload, update, row issues, and anomaly follow-up.",
+    label: "Import History",
+    description: "Legacy student import workflow, history, and troubleshooting.",
   },
   {
     match: "/protected/staff",
@@ -288,78 +286,89 @@ export type AdvancedHubItem = {
   requiredPermission: StaffPermission;
 };
 
-export const advancedHubItems: AdvancedHubItem[] = [
-  {
-    href: "/protected/setup",
-    label: "First-time Setup",
-    description: "First-time go-live preparation, readiness, and completion review.",
-    icon: ListChecks,
-    requiredPermission: "settings:write",
-  },
-  {
-    href: "/protected/master-data",
-    label: "School Lists",
-    description: "Sessions, classes, routes, and other school setup lists in one place.",
-    icon: BookText,
-    requiredPermission: "settings:write",
-  },
-  {
-    href: "/protected/finance-controls",
-    label: "Day Close & Corrections",
-    description: "Day-book review, refunds, correction review, and close controls.",
-    icon: ClipboardList,
-    requiredPermission: "finance:view",
-  },
-  {
-    href: "/protected/staff",
-    label: "Staff",
-    description: "Staff accounts, role assignment, and password management.",
-    icon: ShieldCheck,
-    requiredPermission: "staff:manage",
-  },
-  {
-    href: "/protected/settings",
-    label: "App Settings",
-    description: "Deployment checks, policy notes, and config audit history.",
-    icon: Settings2,
-    requiredPermission: "settings:view",
-  },
-] as const;
+export type AdvancedHubSection = {
+  title: string;
+  description: string;
+  items: readonly AdvancedHubItem[];
+};
 
-export const advancedAdditionalLinks: AdvancedHubItem[] = [
+export const advancedHubSections: readonly AdvancedHubSection[] = [
   {
-    href: "/protected/reports",
-    label: "Reports & Exports",
-    description: "Detailed reports and CSV exports. Daily exports are also in Transactions.",
-    icon: ReceiptText,
-    requiredPermission: "reports:view",
+    title: "Staff & Permissions",
+    description: "Internal staff accounts, roles, and password controls.",
+    items: [
+      {
+        href: "/protected/staff",
+        label: "Staff",
+        description: "Create internal staff accounts, assign roles, and reset passwords.",
+        icon: ShieldCheck,
+        requiredPermission: "staff:manage",
+      },
+    ],
   },
   {
-    href: "/protected/ledger",
-    label: "Ledger",
-    description: "Deep link for append-only student ledger review.",
-    icon: BookText,
-    requiredPermission: "ledger:view",
+    title: "School Settings",
+    description: "Global policy notes and deployment readiness for the school office.",
+    items: [
+      {
+        href: "/protected/settings",
+        label: "App Settings",
+        description: "Deployment checks, policy notes, and config audit history.",
+        icon: Settings2,
+        requiredPermission: "settings:view",
+      },
+    ],
   },
   {
-    href: "/protected/receipts",
-    label: "Receipts",
-    description: "Deep link for receipt lookup and printable copies.",
-    icon: ReceiptText,
-    requiredPermission: "receipts:view",
+    title: "Master Data",
+    description: "Sessions, classes, routes, and fee-head maintenance.",
+    items: [
+      {
+        href: "/protected/master-data",
+        label: "School Lists",
+        description: "Maintain academic sessions, classes, transport routes, fee heads, and payment modes.",
+        icon: BookText,
+        requiredPermission: "settings:write",
+      },
+    ],
   },
   {
-    href: "/protected/defaulters",
-    label: "Defaulters",
-    description: "Deep link for outstanding follow-up.",
-    icon: CircleAlert,
-    requiredPermission: "defaulters:view",
+    title: "Corrections & Day Close",
+    description: "Finance-office review, refunds, and close controls.",
+    items: [
+      {
+        href: "/protected/finance-controls",
+        label: "Day Close & Corrections",
+        description: "Review day-book totals, refund work, correction review, and close controls.",
+        icon: ClipboardList,
+        requiredPermission: "finance:view",
+      },
+    ],
   },
   {
-    href: "/protected/imports",
-    label: "Student Imports",
-    description: "Bulk upload/update lives under Students.",
-    icon: UsersRound,
-    requiredPermission: "imports:view",
+    title: "Import History / Troubleshooting",
+    description: "Keep the legacy import route available for review and issue tracing.",
+    items: [
+      {
+        href: "/protected/imports",
+        label: "Import History",
+        description: "Open the legacy student import workflow when you need history, row review, or troubleshooting.",
+        icon: UsersRound,
+        requiredPermission: "imports:view",
+      },
+    ],
+  },
+  {
+    title: "System Readiness",
+    description: "First-time go-live preparation and completion review.",
+    items: [
+      {
+        href: "/protected/setup",
+        label: "First-time Setup",
+        description: "Prepare the school for go-live, confirm readiness, and complete setup once.",
+        icon: ListChecks,
+        requiredPermission: "settings:write",
+      },
+    ],
   },
 ] as const;

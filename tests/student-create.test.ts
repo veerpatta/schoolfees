@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
 const insertPayloads: Array<Record<string, unknown>> = [];
+const upsertStudentFeeOverride = vi.fn(async () => undefined);
 
 vi.mock("server-only", () => ({}));
 
 vi.mock("@/lib/fees/data", () => ({
   getFeePolicySummary: vi.fn(async () => ({ customFeeHeads: [] })),
-  upsertStudentFeeOverride: vi.fn(async () => undefined),
+  upsertStudentFeeOverride,
 }));
 
 vi.mock("@/lib/master-data/data", () => ({
@@ -79,5 +80,6 @@ describe("createStudent", () => {
 
     expect(studentId).toBe("student-1");
     expect(insertPayloads.at(-1)?.admission_no).toBe("PENDING-SR-0002");
+    expect(upsertStudentFeeOverride).not.toHaveBeenCalled();
   });
 });

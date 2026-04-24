@@ -90,7 +90,7 @@ describe("office navigation", () => {
     });
     expect(getProtectedRouteMeta("/protected/imports")).toMatchObject({
       href: "/protected/students",
-      label: "Student Imports",
+      label: "Import History",
     });
   });
 

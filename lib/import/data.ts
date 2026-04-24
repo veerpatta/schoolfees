@@ -829,6 +829,18 @@ export async function getStudentImportPageData(
   };
 }
 
+export function createEmptyImportPageData(
+  mode: ImportBatchListItem["importMode"] = "add",
+): ImportPageData {
+  return {
+    mode,
+    selectedBatch: null,
+    recentBatches: [],
+    fieldDefinitions: studentImportFieldDefinitions,
+    supportedFormats: ["csv", "xlsx"],
+  };
+}
+
 function warningSummaryLabel(message: string) {
   const dividerIndex = message.indexOf(":");
   const cleaned = dividerIndex === -1 ? message : message.slice(dividerIndex + 1);
@@ -1477,6 +1489,7 @@ export async function commitStudentImportBatch(batchId: string) {
   let createdCount = 0;
   let updatedCount = 0;
   let temporarySrGeneratedCount = 0;
+  let ledgerSyncError: string | null = null;
 
   for (const row of rows) {
     if (row.status !== "valid" || !row.normalizedPayload || row.reviewStatus !== "approved") {
@@ -1567,13 +1580,18 @@ export async function commitStudentImportBatch(batchId: string) {
   const summary = summarizeImportRows(updatedRows, failedRows);
 
   if (studentsToRegenerate.size > 0) {
-    await generateSessionLedgersAction({
-      scopedStudentIds: [...studentsToRegenerate],
-    });
+    try {
+      await generateSessionLedgersAction({
+        scopedStudentIds: [...studentsToRegenerate],
+      });
+    } catch (error) {
+      ledgerSyncError =
+        error instanceof Error ? error.message : "Dues sync failed after import.";
+    }
   }
 
   await updateImportBatch(batchId, {
-    status: failedRows > 0 ? "failed" : "completed",
+    status: failedRows > 0 || ledgerSyncError ? "failed" : "completed",
     valid_rows: summary.validRows,
     invalid_rows: summary.invalidRows,
     duplicate_rows: summary.duplicateRows,
@@ -1582,8 +1600,9 @@ export async function commitStudentImportBatch(batchId: string) {
     failed_rows: summary.failedRows,
     summary,
     import_completed_at: new Date().toISOString(),
-    error_message:
-      failedRows > 0
+    error_message: ledgerSyncError
+      ? `Students were imported, but dues sync failed: ${ledgerSyncError}`
+      : failedRows > 0
         ? `${failedRows} row${failedRows === 1 ? "" : "s"} could not be saved during import.`
         : null,
   });
@@ -1596,6 +1615,7 @@ export async function commitStudentImportBatch(batchId: string) {
     failedCount: failedRows,
     skippedCount: summary.skippedRows,
     temporarySrGeneratedCount,
-    status: failedRows > 0 ? "failed" : "completed",
+    ledgerSyncError,
+    status: failedRows > 0 || ledgerSyncError ? "failed" : "completed",
   };
 }

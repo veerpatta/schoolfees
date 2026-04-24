@@ -113,6 +113,20 @@ function normalizeSessionKey(value: string) {
   return value.trim().toLowerCase();
 }
 
+function isRecoverableWorkbookLoadError(error: { message?: string } | null | undefined) {
+  if (!error?.message) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+
+  return (
+    message.includes("does not exist") ||
+    message.includes("permission denied for schema private") ||
+    message.includes("permission denied")
+  );
+}
+
 export function getClassOptionsForSession(
   classOptions: readonly StudentClassOption[],
   sessionLabel: string | null | undefined,
@@ -190,7 +204,7 @@ async function getStudentFeeOverrideRow(studentId: string) {
     .eq("is_active", true)
     .maybeSingle();
 
-  if (error && !error.message.includes("does not exist")) {
+  if (error && !isRecoverableWorkbookLoadError(error)) {
     throw new Error(`Unable to load student fee profile: ${error.message}`);
   }
 
@@ -202,6 +216,18 @@ async function saveStudentFeeProfile(
   payload: StudentValidatedInput,
   existingOverride: StudentFeeOverrideRow | null,
 ) {
+  const hasNewOverrideFields =
+    payload.tuitionOverride !== null ||
+    payload.transportOverride !== null ||
+    payload.lateFeeWaiverAmount > 0 ||
+    payload.discountAmount > 0 ||
+    payload.otherAdjustmentHead !== null ||
+    payload.otherAdjustmentAmount !== null;
+
+  if (!existingOverride && !hasNewOverrideFields) {
+    return;
+  }
+
   const policy = await getFeePolicySummary();
 
   await upsertStudentFeeOverride({
@@ -350,12 +376,28 @@ export async function getStudents(filters: StudentListFilters) {
         .in("student_id", studentIds),
     ]);
 
-    if (financialsError && !financialsError.message.includes("does not exist")) {
-      throw new Error(`Unable to load workbook student list fields: ${financialsError.message}`);
+    if (financialsError) {
+      if (isRecoverableWorkbookLoadError(financialsError)) {
+        console.warn(
+          "Student list workbook financial fields could not be loaded; falling back to base student data.",
+          financialsError.message,
+        );
+      } else {
+        throw new Error(
+          `Unable to load workbook student list fields: ${financialsError.message}`,
+        );
+      }
     }
 
-    if (overridesError && !overridesError.message.includes("does not exist")) {
-      throw new Error(`Unable to load student fee profile fields: ${overridesError.message}`);
+    if (overridesError) {
+      if (isRecoverableWorkbookLoadError(overridesError)) {
+        console.warn(
+          "Student fee profile fields could not be loaded; falling back to base student data.",
+          overridesError.message,
+        );
+      } else {
+        throw new Error(`Unable to load student fee profile fields: ${overridesError.message}`);
+      }
     }
 
     financialMap = new Map(
@@ -431,7 +473,7 @@ export async function getStudentDetail(studentId: string) {
     throw new Error(`Unable to load student: ${studentResult.error.message}`);
   }
 
-  if (financialResult.error && !financialResult.error.message.includes("does not exist")) {
+  if (financialResult.error && !isRecoverableWorkbookLoadError(financialResult.error)) {
     throw new Error(`Unable to load workbook student details: ${financialResult.error.message}`);
   }
 

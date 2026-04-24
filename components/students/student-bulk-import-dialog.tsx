@@ -25,6 +25,7 @@ type CommitResponse = {
     failedCount: number;
     skippedCount: number;
     temporarySrGeneratedCount: number;
+    ledgerSyncError: string | null;
     status: "completed" | "failed";
   };
   summary: ImportBatchDialogSummary;
@@ -420,16 +421,21 @@ export function StudentBulkImportDialogTrigger({
                       </Button>
                     </div>
 
-                    {commitResult ? (
-                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-                        <p className="font-semibold">Import complete</p>
-                        <p className="mt-1">
-                          Created: {commitResult.createdCount} | Updated: {commitResult.updatedCount} | Failed: {commitResult.failedCount} | Skipped: {commitResult.skippedCount}
-                        </p>
-                        <p className="mt-1">Temporary SR generated: {commitResult.temporarySrGeneratedCount}</p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <Button asChild size="sm" variant="outline">
-                            <Link href="/protected/students">Open Students list</Link>
+                {commitResult ? (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                    <p className="font-semibold">Import complete</p>
+                    <p className="mt-1">
+                      Created: {commitResult.createdCount} | Updated: {commitResult.updatedCount} | Failed: {commitResult.failedCount} | Skipped: {commitResult.skippedCount}
+                    </p>
+                    <p className="mt-1">Temporary SR generated: {commitResult.temporarySrGeneratedCount}</p>
+                    {commitResult.ledgerSyncError ? (
+                      <p className="mt-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+                        Students were imported, but dues sync failed: {commitResult.ledgerSyncError}
+                      </p>
+                    ) : null}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Button asChild size="sm" variant="outline">
+                        <Link href="/protected/students">Open Students list</Link>
                           </Button>
                           <Button asChild size="sm" variant="outline">
                             <Link href={`/protected/imports?mode=${summary.mode}&batchId=${summary.batchId}`}>

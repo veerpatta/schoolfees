@@ -17,7 +17,11 @@ import {
 } from "@/lib/students/data";
 import {
   EMPTY_STUDENT_FILTERS,
+  type StudentClassOption,
   type StudentListFilters,
+  type StudentListItem,
+  type StudentRouteOption,
+  type StudentSessionOption,
 } from "@/lib/students/types";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
@@ -62,14 +66,31 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
   const staff = await requireStaffPermission("students:view", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const parsedFilters = normalizeFilters(resolvedSearchParams);
-  const {
-    allClassOptions,
-    routeOptions,
-    sessionOptions,
-    resolvedSessionLabel,
-  } = await getStudentFormOptions({
-    sessionLabel: parsedFilters.sessionLabel || null,
-  });
+  let allClassOptions: StudentClassOption[] = [];
+  let routeOptions: StudentRouteOption[] = [];
+  let sessionOptions: StudentSessionOption[] = [];
+  let resolvedSessionLabel = parsedFilters.sessionLabel || "";
+  let formLoadWarning: string | null = null;
+
+  try {
+    const formOptions = await getStudentFormOptions({
+      sessionLabel: parsedFilters.sessionLabel || null,
+    });
+
+    allClassOptions = formOptions.allClassOptions;
+    routeOptions = formOptions.routeOptions;
+    sessionOptions = formOptions.sessionOptions;
+    resolvedSessionLabel = formOptions.resolvedSessionLabel;
+  } catch (error) {
+    formLoadWarning =
+      error instanceof Error
+        ? `Student filters could not be loaded safely: ${error.message}`
+        : "Student filters could not be loaded safely.";
+    sessionOptions = parsedFilters.sessionLabel
+      ? [{ value: parsedFilters.sessionLabel, label: parsedFilters.sessionLabel }]
+      : [];
+  }
+
   const filters = {
     ...parsedFilters,
     sessionLabel:
@@ -80,8 +101,21 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
   if (filters.classId && !validClassIdSet.has(filters.classId)) {
     filters.classId = EMPTY_STUDENT_FILTERS.classId;
   }
-  const students = await getStudents(filters);
+  let students: StudentListItem[] = [];
+  let studentLoadWarning: string | null = null;
+
+  try {
+    students = await getStudents(filters);
+  } catch (error) {
+    studentLoadWarning =
+      error instanceof Error
+        ? `Students could not be loaded safely: ${error.message}`
+        : "Students could not be loaded safely.";
+  }
   const canWriteStudents = hasStaffPermission(staff, "students:write");
+  const loadWarnings = [formLoadWarning, studentLoadWarning].filter(
+    (value): value is string => Boolean(value),
+  );
 
   const hasFilters = Boolean(
     filters.query ||
@@ -147,6 +181,21 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
           />
         </div>
       </SectionCard>
+
+      {loadWarnings.length > 0 ? (
+        <SectionCard
+          title="Load warning"
+          description="Some student workspace data could not be loaded safely. The page is still available."
+        >
+          <div className="space-y-2 text-sm text-amber-900">
+            {loadWarnings.map((warning) => (
+              <p key={warning} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                {warning}
+              </p>
+            ))}
+          </div>
+        </SectionCard>
+      ) : null}
 
       <SectionCard
         title="Student list"
