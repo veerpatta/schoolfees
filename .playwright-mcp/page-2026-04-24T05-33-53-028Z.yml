@@ -1,0 +1,73 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e134]
+  - generic [ref=e136]:
+    - generic [ref=e137]:
+      - generic [ref=e138]:
+        - generic [ref=e139]:
+          - generic [ref=e140]:
+            - img "Shri Veer Patta Senior Secondary School logo" [ref=e142]
+            - generic [ref=e143]:
+              - paragraph [ref=e144]: Internal Admin
+              - heading "Veer Patta Fee Admin" [level=2] [ref=e145]
+              - paragraph [ref=e146]: Shri Veer Patta Senior Secondary School
+          - link "Back to overview" [ref=e147] [cursor=pointer]:
+            - /url: /
+            - img
+            - text: Back to overview
+        - paragraph [ref=e148]: Staff fee office
+        - heading "Sign in to manage VPPS fees with a clear daily workspace." [level=1] [ref=e149]
+        - paragraph [ref=e150]: Shri Veer Patta Senior Secondary School uses this internal app for fee setup, collections, dues follow-up, receipts, and staff-only account access.
+        - generic [ref=e151]:
+          - generic [ref=e152]:
+            - paragraph [ref=e153]: Session
+            - paragraph [ref=e154]: 2026-27
+          - generic [ref=e155]:
+            - paragraph [ref=e156]: Late Fee
+            - paragraph [ref=e157]: ₹1,000
+          - generic [ref=e158]:
+            - paragraph [ref=e159]: Receipts
+            - paragraph [ref=e160]: SVP
+        - generic [ref=e161]:
+          - generic [ref=e162]:
+            - img [ref=e164]
+            - heading "Staff-only access" [level=2] [ref=e167]
+            - paragraph [ref=e168]: Admin, accounts, and read-only staff roles stay separated.
+          - generic [ref=e169]:
+            - img [ref=e171]
+            - heading "Payment desk" [level=2] [ref=e174]
+            - paragraph [ref=e175]: Post collections, check dues, and reprint receipts quickly.
+          - generic [ref=e176]:
+            - img [ref=e178]
+            - heading "Receipt trail" [level=2] [ref=e180]
+            - paragraph [ref=e181]: Payments and receipts remain traceable after posting.
+      - generic [ref=e183]:
+        - img [ref=e184]
+        - paragraph [ref=e186]: "Due dates: 20-04-2026, 20-07-2026, 20-10-2026, 20-01-2027. Payment modes: Cash, UPI, Bank transfer, Cheque."
+    - generic [ref=e191]:
+      - generic [ref=e192]:
+        - generic [ref=e193]:
+          - img [ref=e194]
+          - text: Internal staff access
+        - generic [ref=e197]: Sign in
+        - generic [ref=e198]: Use your school staff email and password to open the admin workspace.
+      - generic [ref=e200]:
+        - generic [ref=e201]:
+          - generic [ref=e202]:
+            - generic [ref=e203]: Staff email
+            - generic [ref=e204]:
+              - img
+              - textbox "Staff email" [ref=e205]:
+                - /placeholder: accounts@vpps.example
+          - generic [ref=e206]:
+            - generic [ref=e207]:
+              - generic [ref=e208]: Password
+              - link "Forgot password?" [ref=e209] [cursor=pointer]:
+                - /url: /auth/forgot-password
+            - generic [ref=e210]:
+              - img
+              - textbox "Password" [ref=e211]
+          - paragraph [ref=e216]: Invalid login credentials
+          - button "Sign in" [ref=e212] [cursor=pointer]:
+            - generic [ref=e213]: Sign in
+            - img
+        - paragraph [ref=e215]: Staff accounts are created by an admin. Public signup is not available.

@@ -1,0 +1,114 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e9]:
+          - generic [ref=e10]: Internal Admin Application
+          - generic [ref=e11]:
+            - img "Shri Veer Patta Senior Secondary School logo" [ref=e13]
+            - generic [ref=e14]:
+              - paragraph [ref=e15]: Internal Admin
+              - heading "Veer Patta Fee Admin" [level=2] [ref=e16]
+              - paragraph [ref=e17]: Shri Veer Patta Senior Secondary School
+          - heading "Modern school fee operations for staff who need speed, clarity, and audit control." [level=1] [ref=e18]
+          - paragraph [ref=e19]: Shri Veer Patta Senior Secondary School uses this internal workspace for student master maintenance, fee setup, ledger recalculation, payment entry, receipts, and workbook migration. It is not a parent portal.
+          - generic [ref=e20]:
+            - link "Staff sign in" [ref=e21] [cursor=pointer]:
+              - /url: /auth/login
+              - text: Staff sign in
+              - img
+            - link "Open workspace" [ref=e22] [cursor=pointer]:
+              - /url: /protected
+          - generic [ref=e23]:
+            - generic [ref=e24]:
+              - paragraph [ref=e25]: Late fee
+              - generic [ref=e26]: ₹1,000
+              - paragraph [ref=e27]: Flat default across collection and ledger workflows.
+            - generic [ref=e28]:
+              - paragraph [ref=e29]: Installments
+              - generic [ref=e30]: 4 windows
+              - paragraph [ref=e31]: 20-04-2026, 20-07-2026, 20-10-2026, 20-01-2027
+            - generic [ref=e32]:
+              - paragraph [ref=e33]: Access model
+              - generic [ref=e34]: Internal only
+              - paragraph [ref=e35]: Invited staff accounts, not parent-facing access.
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - generic [ref=e39]:
+              - heading "Operational posture" [level=2] [ref=e40]
+              - paragraph [ref=e41]: The product stays narrow on purpose so staff can adopt it safely and quickly.
+            - generic [ref=e43]:
+              - generic [ref=e44]:
+                - img [ref=e46]
+                - paragraph [ref=e49]: Internal by design
+                - paragraph [ref=e50]: Built for office and accounts staff, with no public or parent-facing access paths.
+              - generic [ref=e51]:
+                - img [ref=e53]
+                - paragraph [ref=e55]: Workbook-friendly operations
+                - paragraph [ref=e56]: Keeps staff on familiar fee, dues, and receipt workflows while gradually replacing spreadsheets.
+              - generic [ref=e57]:
+                - img [ref=e59]
+                - paragraph [ref=e62]: Fast collection desk UX
+                - paragraph [ref=e63]: Modern blue-and-white shell with clear navigation, quick scanning, and smooth interactions.
+          - generic [ref=e64]:
+            - generic [ref=e65]:
+              - generic [ref=e66]:
+                - heading "Environment readiness" [level=2] [ref=e67]
+                - paragraph [ref=e68]: The public shell can load now, but staff sign-in requires the Supabase values.
+              - generic [ref=e70]: Env configured
+            - paragraph [ref=e72]:
+              - text: "Required values:"
+              - code [ref=e73]: NEXT_PUBLIC_SUPABASE_URL
+              - text: and
+              - code [ref=e74]: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+              - text: . Add them in
+              - code [ref=e75]: .env.local
+              - text: for local work and again in Vercel for deployment.
+      - generic [ref=e76]:
+        - generic [ref=e77]:
+          - generic [ref=e79]:
+            - heading "What ships in this workspace" [level=2] [ref=e80]
+            - paragraph [ref=e81]: The core internal work areas are separated into clear modules with workbook-friendly navigation.
+          - generic [ref=e83]:
+            - link "Student master Maintain admission numbers, class mapping, session status, and source tracking for migrated records." [ref=e84] [cursor=pointer]:
+              - /url: /protected/students
+              - img [ref=e86]
+              - paragraph [ref=e90]: Student master
+              - paragraph [ref=e91]: Maintain admission numbers, class mapping, session status, and source tracking for migrated records.
+            - link "Workbook imports Bring spreadsheet data into controlled batches so verification happens class by class instead of all at once." [ref=e92] [cursor=pointer]:
+              - /url: /protected/imports
+              - img [ref=e94]
+              - paragraph [ref=e96]: Workbook imports
+              - paragraph [ref=e97]: Bring spreadsheet data into controlled batches so verification happens class by class instead of all at once.
+            - link "Collection desk Record payments, receipt references, modes, and timestamps from a single internal counter workflow." [ref=e98] [cursor=pointer]:
+              - /url: /protected/collections
+              - img [ref=e100]
+              - paragraph [ref=e103]: Collection desk
+              - paragraph [ref=e104]: Record payments, receipt references, modes, and timestamps from a single internal counter workflow.
+            - link "Audit and reports Prepare outstanding, ledger, and day-book style outputs that can be checked against workbook totals." [ref=e105] [cursor=pointer]:
+              - /url: /protected/reports
+              - img [ref=e107]
+              - paragraph [ref=e109]: Audit and reports
+              - paragraph [ref=e110]: Prepare outstanding, ledger, and day-book style outputs that can be checked against workbook totals.
+        - generic [ref=e111]:
+          - generic [ref=e113]:
+            - heading "Suggested rollout path" [level=2] [ref=e114]
+            - paragraph [ref=e115]: Use a controlled rollout so workbook and app totals can be reconciled without cutting over blindly.
+          - list [ref=e117]:
+            - listitem [ref=e118]:
+              - generic [ref=e119]: "1"
+              - generic [ref=e120]: Create the Supabase project and run the starter SQL schema.
+            - listitem [ref=e121]:
+              - generic [ref=e122]: "2"
+              - generic [ref=e123]: Invite or create the first admin staff account, then disable open signups.
+            - listitem [ref=e124]:
+              - generic [ref=e125]: "3"
+              - generic [ref=e126]: Prepare student master CSV batches from the workbook.
+            - listitem [ref=e127]:
+              - generic [ref=e128]: "4"
+              - generic [ref=e129]: Seed class-wise fee structures before generating ledgers.
+            - listitem [ref=e130]:
+              - generic [ref=e131]: "5"
+              - generic [ref=e132]: Start collections in the app and reconcile totals daily during migration.
+      - generic [ref=e133]: "Current school policy is loaded from the canonical config service for session 2026-27: late fee flat rs 1000, due dates 20-04-2026 / 20-07-2026 / 20-10-2026 / 20-01-2027, and receipt prefix SVP."
+  - alert [ref=e134]

@@ -87,6 +87,7 @@ function formatSavedAt(value: string | null) {
   return new Date(value).toLocaleString("en-IN", {
     dateStyle: "medium",
     timeStyle: "short",
+    timeZone: "Asia/Kolkata",
   });
 }
 

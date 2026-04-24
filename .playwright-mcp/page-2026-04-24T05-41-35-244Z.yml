@@ -1,0 +1,290 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e5]:
+    - banner [ref=e6]:
+      - generic [ref=e8]:
+        - generic [ref=e9]:
+          - generic [ref=e10]:
+            - img "Shri Veer Patta Senior Secondary School logo" [ref=e14]
+            - paragraph [ref=e15]: Shri Veer Patta SSS
+            - heading "Dashboard" [level=1] [ref=e16]
+            - paragraph [ref=e17]: Fee collection overview for the current academic session.
+          - generic [ref=e18]:
+            - generic [ref=e19]: Admin
+            - generic [ref=e20]: raj@vpps.co.in
+            - link "Change password" [ref=e21] [cursor=pointer]:
+              - /url: /protected/password
+            - button "Sign out" [ref=e23] [cursor=pointer]:
+              - img
+              - text: Sign out
+        - navigation [ref=e24]:
+          - link "Dashboard" [ref=e25] [cursor=pointer]:
+            - /url: /protected/dashboard
+            - img [ref=e27]
+            - generic [ref=e29]: Dashboard
+          - link "Students" [ref=e30] [cursor=pointer]:
+            - /url: /protected/students
+            - img [ref=e32]
+            - generic [ref=e36]: Students
+          - link "Fee Setup" [ref=e37] [cursor=pointer]:
+            - /url: /protected/fee-setup
+            - img [ref=e39]
+            - generic [ref=e42]: Fee Setup
+          - link "Payment Desk" [ref=e43] [cursor=pointer]:
+            - /url: /protected/payments
+            - img [ref=e45]
+            - generic [ref=e48]: Payment Desk
+          - link "Transactions" [ref=e49] [cursor=pointer]:
+            - /url: /protected/transactions
+            - img [ref=e51]
+            - generic [ref=e54]: Transactions
+          - link "Advanced" [ref=e55] [cursor=pointer]:
+            - /url: /protected/advanced
+            - img [ref=e57]
+            - generic [ref=e68]: Advanced
+    - main [ref=e69]:
+      - generic [ref=e70]:
+        - generic [ref=e71]:
+          - generic [ref=e72]:
+            - paragraph [ref=e73]: Dashboard
+            - heading "Dashboard" [level=1] [ref=e74]
+            - paragraph [ref=e75]: Fee collection overview for the current academic session
+          - generic [ref=e77]:
+            - generic [ref=e78]:
+              - generic [ref=e79]: Session 2026-27
+              - generic [ref=e80]: "Installment 2: 20 Jul 2026"
+            - generic [ref=e81]:
+              - link "Add student" [ref=e82] [cursor=pointer]:
+                - /url: /protected/students/new
+                - img
+                - text: Add student
+              - link "Open Payment Desk" [ref=e83] [cursor=pointer]:
+                - /url: /protected/payments
+                - img
+                - text: Open Payment Desk
+              - link "Bulk Upload" [ref=e84] [cursor=pointer]:
+                - /url: /protected/imports
+                - img
+                - text: Bulk Upload
+              - link "Transactions" [ref=e85] [cursor=pointer]:
+                - /url: /protected/transactions
+                - img
+                - text: Transactions
+        - generic [ref=e86]:
+          - generic [ref=e87]:
+            - generic [ref=e88]:
+              - heading "No fee data yet" [level=2] [ref=e89]
+              - paragraph [ref=e90]: Start with test students and fee setup, then use the payment desk for posted receipts.
+            - generic [ref=e92]: Start testing
+          - generic [ref=e94]:
+            - link "Add student" [ref=e95] [cursor=pointer]:
+              - /url: /protected/students/new
+            - link "Bulk upload students" [ref=e96] [cursor=pointer]:
+              - /url: /protected/imports
+            - link "Open Fee Setup" [ref=e97] [cursor=pointer]:
+              - /url: /protected/fee-setup
+            - link "Download template" [ref=e98] [cursor=pointer]:
+              - /url: /protected/imports/template
+        - generic [ref=e99]:
+          - generic [ref=e100]:
+            - paragraph [ref=e101]: Total Students
+            - generic [ref=e102]: "0"
+            - paragraph [ref=e103]: Students included in the current fee position.
+          - generic [ref=e104]:
+            - paragraph [ref=e105]: Total Expected Fees
+            - generic [ref=e106]: ₹0
+            - paragraph [ref=e107]: Current session expected fee total.
+          - generic [ref=e108]:
+            - paragraph [ref=e109]: Total Collected
+            - generic [ref=e110]: ₹0
+            - paragraph [ref=e111]: 0% of expected fees collected.
+          - generic [ref=e112]:
+            - paragraph [ref=e113]: Total Pending
+            - generic [ref=e114]: ₹0
+            - paragraph [ref=e115]: 0 students still have dues.
+          - generic [ref=e116]:
+            - paragraph [ref=e117]: Overdue Amount
+            - generic [ref=e118]: ₹0
+            - paragraph [ref=e119]: 0 overdue installments.
+          - generic [ref=e120]:
+            - paragraph [ref=e121]: Today's Collection
+            - generic [ref=e122]: ₹0
+            - paragraph [ref=e123]: Posted through receipt records today.
+          - generic [ref=e124]:
+            - paragraph [ref=e125]: Receipts Today
+            - generic [ref=e126]: "0"
+            - paragraph [ref=e127]: Receipts posted for the current school day.
+          - generic [ref=e128]:
+            - paragraph [ref=e129]: Collection Rate
+            - generic [ref=e130]: 0%
+            - paragraph [ref=e131]: Collected amount divided by expected amount.
+        - generic [ref=e132]:
+          - generic [ref=e133]:
+            - generic [ref=e134]:
+              - generic [ref=e135]:
+                - heading "Collection progress" [level=2] [ref=e136]
+                - paragraph [ref=e137]: ₹0 collected out of ₹0 expected. ₹0 is still pending.
+              - generic [ref=e139]: 0% collected
+            - generic [ref=e142]:
+              - generic [ref=e143]:
+                - paragraph [ref=e144]: 0%
+                - paragraph [ref=e145]: Current session collection rate
+              - generic [ref=e146]:
+                - generic [ref=e147]:
+                  - paragraph [ref=e148]: Collected
+                  - paragraph [ref=e149]: ₹0
+                - generic [ref=e150]:
+                  - paragraph [ref=e151]: Pending
+                  - paragraph [ref=e152]: ₹0
+          - generic [ref=e154]:
+            - generic [ref=e156]:
+              - heading "Today's activity" [level=2] [ref=e157]
+              - paragraph [ref=e158]: Collection posted at the payment desk for the current school day.
+            - generic [ref=e160]:
+              - generic [ref=e161]:
+                - paragraph [ref=e162]: Today's collection
+                - paragraph [ref=e163]: ₹0
+                - paragraph [ref=e164]: 0 receipts posted today.
+              - paragraph [ref=e166]: No payment-mode breakup yet for today.
+        - generic [ref=e167]:
+          - generic [ref=e168]:
+            - generic [ref=e169]:
+              - generic [ref=e170]:
+                - heading "Collection trend" [level=2] [ref=e171]
+                - paragraph [ref=e172]: Recent receipt totals by payment date.
+              - img [ref=e174]
+            - paragraph [ref=e178]: Collection trend will appear after receipts are posted.
+          - generic [ref=e179]:
+            - generic [ref=e180]:
+              - generic [ref=e181]:
+                - heading "Class-wise pending" [level=2] [ref=e182]
+                - paragraph [ref=e183]: Highest pending classes appear first.
+              - img [ref=e185]
+            - paragraph [ref=e190]: Class-wise pending dues will appear after student fee data is ready.
+          - generic [ref=e191]:
+            - generic [ref=e192]:
+              - generic [ref=e193]:
+                - heading "Collected vs pending" [level=2] [ref=e194]
+                - paragraph [ref=e195]: Simple split of the current fee position.
+              - img [ref=e197]
+            - generic [ref=e207]:
+              - generic [ref=e208]:
+                - paragraph [ref=e209]: Collected
+                - paragraph [ref=e210]: ₹0
+              - generic [ref=e211]:
+                - paragraph [ref=e212]: Pending
+                - paragraph [ref=e213]: ₹0
+          - generic [ref=e214]:
+            - generic [ref=e215]:
+              - generic [ref=e216]:
+                - heading "Installment status" [level=2] [ref=e217]
+                - paragraph [ref=e218]: Expected, collected, and pending totals by installment.
+              - img [ref=e220]
+            - paragraph [ref=e226]: Installment status will appear after ledgers are generated.
+        - generic [ref=e227]:
+          - generic [ref=e229]:
+            - heading "Class-wise fee position" [level=2] [ref=e230]
+            - paragraph [ref=e231]: Sorted by highest pending amount so the office can decide where to follow up first.
+          - table [ref=e234]:
+            - rowgroup [ref=e235]:
+              - row "Class Students Expected Collected Pending Overdue Collection %" [ref=e236]:
+                - columnheader "Class" [ref=e237]
+                - columnheader "Students" [ref=e238]
+                - columnheader "Expected" [ref=e239]
+                - columnheader "Collected" [ref=e240]
+                - columnheader "Pending" [ref=e241]
+                - columnheader "Overdue" [ref=e242]
+                - columnheader "Collection %" [ref=e243]
+            - rowgroup [ref=e244]:
+              - row "No class-wise fee position is available yet." [ref=e245]:
+                - cell "No class-wise fee position is available yet." [ref=e246]
+        - generic [ref=e247]:
+          - generic [ref=e248]:
+            - generic [ref=e250]:
+              - heading "Follow-up queue" [level=2] [ref=e251]
+              - paragraph [ref=e252]: Overdue students and highest pending balances for office follow-up.
+            - paragraph [ref=e255]: No follow-up students found in the current dashboard data.
+          - generic [ref=e256]:
+            - generic [ref=e258]:
+              - heading "Latest receipts" [level=2] [ref=e259]
+              - paragraph [ref=e260]: Recent posted receipts for quick verification and printing.
+            - paragraph [ref=e263]: Latest receipts will appear after payment posting starts.
+        - generic [ref=e264]:
+          - generic [ref=e266]:
+            - heading "Attention needed" [level=2] [ref=e267]
+            - paragraph [ref=e268]: Setup, import, and dues-update items that may need office or admin review.
+          - generic [ref=e270]:
+            - generic [ref=e272]:
+              - img [ref=e273]
+              - generic [ref=e275]:
+                - paragraph [ref=e276]: Finish setup before posting payments.
+                - paragraph [ref=e277]: Clear the remaining setup blockers before opening the collection desk for live posting.
+                - link "Go to Setup" [ref=e278] [cursor=pointer]:
+                  - /url: /protected/setup
+                  - text: Go to Setup
+                  - img [ref=e279]
+            - generic [ref=e282]:
+              - img [ref=e283]
+              - generic [ref=e285]:
+                - paragraph [ref=e286]: Fee setup review is pending
+                - paragraph [ref=e287]: Workbook Fee Setup for Workbook Fee Setup is saved for review but not live yet.
+                - link "Open Fee Setup" [ref=e288] [cursor=pointer]:
+                  - /url: /protected/fee-setup
+                  - text: Open Fee Setup
+                  - img [ref=e289]
+            - generic [ref=e292]:
+              - img [ref=e293]
+              - generic [ref=e295]:
+                - paragraph [ref=e296]: Dashboard data is limited
+                - paragraph [ref=e297]: Some dashboard sections could not be loaded. Existing posting and setup rules were not changed.
+                - link "Open reports" [ref=e298] [cursor=pointer]:
+                  - /url: /protected/reports
+                  - text: Open reports
+                  - img [ref=e299]
+            - generic [ref=e302]:
+              - img [ref=e303]
+              - generic [ref=e305]:
+                - paragraph [ref=e306]: No fee data yet
+                - paragraph [ref=e307]: Add or upload test students before relying on collection totals.
+                - link "Add student" [ref=e308] [cursor=pointer]:
+                  - /url: /protected/students/new
+                  - text: Add student
+                  - img [ref=e309]
+            - generic [ref=e312]:
+              - img [ref=e313]
+              - generic [ref=e315]:
+                - paragraph [ref=e316]: No receipts posted yet
+                - paragraph [ref=e317]: Today and trend sections will fill in after payments are posted at the Payment Desk.
+                - link "Open Payment Desk" [ref=e318] [cursor=pointer]:
+                  - /url: /protected/payments
+                  - text: Open Payment Desk
+                  - img [ref=e319]
+        - generic [ref=e321]:
+          - generic [ref=e323]:
+            - heading "Next best actions" [level=2] [ref=e324]
+            - paragraph [ref=e325]: Shortcuts only. Dashboard does not post payments or edit fee setup.
+          - generic [ref=e327]:
+            - link "Add student" [ref=e328] [cursor=pointer]:
+              - /url: /protected/students/new
+              - img [ref=e329]
+              - text: Add student
+            - link "Upload spreadsheet" [ref=e333] [cursor=pointer]:
+              - /url: /protected/imports
+              - img [ref=e334]
+              - text: Upload spreadsheet
+            - link "Review defaulters" [ref=e337] [cursor=pointer]:
+              - /url: /protected/defaulters
+              - img [ref=e338]
+              - text: Review defaulters
+            - link "Payment Desk" [ref=e340] [cursor=pointer]:
+              - /url: /protected/payments
+              - img [ref=e341]
+              - text: Payment Desk
+            - link "Fee Setup" [ref=e344] [cursor=pointer]:
+              - /url: /protected/fee-setup
+              - img [ref=e345]
+              - text: Fee Setup
+            - link "Export reports" [ref=e348] [cursor=pointer]:
+              - /url: /protected/reports
+              - img [ref=e349]
+              - text: Export reports
+  - alert [ref=e351]
