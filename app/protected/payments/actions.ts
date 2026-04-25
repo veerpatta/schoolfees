@@ -8,10 +8,8 @@ import { postStudentPayment, toFriendlyPaymentPostingError } from "@/lib/payment
 import type { PaymentEntryActionState } from "@/lib/payments/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import {
-  hasPreparedDues,
+  prepareDuesForStudentsAutomatically,
   revalidateCoreFinancePaths,
-  summarizeDuesPreparationIssues,
-  syncStudentDuesAsSystem,
 } from "@/lib/system-sync/finance-sync";
 
 function parseRequiredString(value: FormDataEntryValue | null, fieldLabel: string) {
@@ -114,18 +112,20 @@ export async function repairPaymentDeskStudentDuesAction(formData: FormData) {
   await requireStaffPermission("payments:write");
   const studentId = parseUuid(formData.get("studentId"), "Student");
 
-  const result = await syncStudentDuesAsSystem([studentId]);
-  const issueSummary = summarizeDuesPreparationIssues(result.skippedStudents);
-  const noticeParts = hasPreparedDues(result)
+  const result = await prepareDuesForStudentsAutomatically({
+    studentIds: [studentId],
+    reason: "Payment Desk manual repair",
+  });
+  const noticeParts = result.readyForPaymentCount > 0 && result.duesNeedAttentionCount === 0
     ? [
-        `Dues prepared: ${result.installmentsToInsert} prepared`,
-        `${result.installmentsToUpdate} updated`,
-        `${result.installmentsToCancel} cancelled`,
-        `${result.lockedInstallments} kept for review`,
+        `Dues prepared: ${result.inserted} prepared`,
+        `${result.updated} updated`,
+        `${result.cancelled} cancelled`,
+        `${result.protected} kept for review`,
       ]
     : [
         "Dues could not be prepared",
-        issueSummary || "Check Fee Setup for this class and year.",
+        result.reasonSummary || "Check Fee Setup for this class and year.",
       ];
 
   const params = new URLSearchParams({

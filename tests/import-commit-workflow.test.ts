@@ -121,16 +121,13 @@ vi.mock("@/lib/fees/generator", () => ({
 }));
 
 vi.mock("@/lib/system-sync/finance-sync", () => ({
-  hasPreparedDues: vi.fn((result) => result.affectedStudents > 0 || result.installmentsToInsert > 0),
-  summarizeDuesPreparationIssues: vi.fn(() => ""),
-  syncAfterBulkStudentImport: vi.fn(async (studentIds: string[]) => {
+  prepareDuesForStudentsAutomatically: vi.fn(async (payload: { studentIds: string[] }) => {
+    const studentIds = payload.studentIds;
     await generateSessionLedgersAction({ scopedStudentIds: studentIds });
     return {
-      affectedStudents: studentIds.length,
-      installmentsToInsert: 4,
-      installmentsToUpdate: 0,
-      installmentsToCancel: 0,
-      lockedInstallments: 0,
+      readyForPaymentCount: studentIds.length,
+      duesNeedAttentionCount: 0,
+      reasonSummary: null,
     };
   }),
 }));

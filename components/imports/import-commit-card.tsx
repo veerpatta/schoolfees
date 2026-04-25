@@ -88,7 +88,7 @@ export function ImportCommitCard({ batch, canManage, mode }: ImportCommitCardPro
             <li>{approvedUpdates} row{approvedUpdates === 1 ? "" : "s"} will update existing students by Student ID or SR no</li>
             <li>Each imported student gets a permanent record linked back to this batch</li>
             <li>Blank optional cells in update rows leave existing values unchanged</li>
-            <li>Class, route, or fee-profile changes trigger scoped dues regeneration for affected students</li>
+            <li>Class, route, or fee-profile changes prepare dues for affected students</li>
             <li>Unapproved rows (pending, held, skipped) stay in Rows needing correction for follow-up</li>
             <li>You can edit imported students afterwards through the student edit page</li>
           </ul>
@@ -101,7 +101,7 @@ export function ImportCommitCard({ batch, canManage, mode }: ImportCommitCardPro
             <p className="text-sm text-slate-600">
               {isLocked
                 ? batch.status === "completed"
-                  ? "This batch is complete. Unresolved rows remain available for follow-up."
+                  ? "Students imported. Unresolved rows remain available for follow-up."
                   : "Import is in progress..."
                 : "Import runs only for reviewed approved rows. This keeps risky rows pending for manual follow-up."}
             </p>
@@ -112,7 +112,7 @@ export function ImportCommitCard({ batch, canManage, mode }: ImportCommitCardPro
               {submitting
                 ? "Importing..."
                 : isLocked
-                  ? "Import complete"
+                  ? "Students imported"
                   : "Import valid students"}
             </Button>
           </div>

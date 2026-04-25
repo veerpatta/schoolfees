@@ -114,20 +114,20 @@ export function buildOfficeWorkflowReadiness(
     input.hasFeeDefaults && input.hasStudents
       ? buildReadyGuard("recalculate_ledgers", {
           title: input.ledgerReady
-            ? "Ledger recalculation is up to date."
-            : "Ledger recalculation is ready.",
+            ? "Dues preparation is up to date."
+            : "Dues preparation is ready.",
           detail: input.ledgerReady
-            ? "Students and resolved fee defaults are already in sync for the current session."
-            : "Students and resolved fee defaults are available for preview.",
+            ? "Students and fee defaults are already updated for the current session."
+            : "Students and fee defaults are available for review.",
         })
       : buildGuard("recalculate_ledgers", role, {
-          title: "Students and fee defaults are required before recalculation.",
+          title: "Students and fee defaults are required before dues can be prepared.",
           adminDetail:
             !input.hasStudents
-              ? "Import or add students first, then preview ledger recalculation."
-              : "Configure school and class fee defaults first, then preview ledger recalculation.",
+              ? "Import or add students first, then review dues preparation."
+              : "Configure school and class fee defaults first, then review dues preparation.",
           nonAdminDetail:
-            "Ledger recalculation is waiting on admin setup or student import.",
+            "Dues preparation is waiting on admin setup or student import.",
           actionLabel: !input.hasStudents ? "Import students" : "Configure fee defaults",
           actionHref: !input.hasStudents ? "/protected/imports" : "/protected/fee-setup",
         });
@@ -135,7 +135,7 @@ export function buildOfficeWorkflowReadiness(
   const postPayments = input.collectionDeskReady
     ? buildReadyGuard("post_payments", {
         title: "Payment posting is ready.",
-        detail: "Setup, student import, and ledger preparation are complete for collection work.",
+        detail: "Setup, student import, and dues preparation are complete for collection work.",
       })
     : buildGuard("post_payments", role, {
         title: "Finish setup before posting payments.",

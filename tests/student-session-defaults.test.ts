@@ -12,6 +12,12 @@ vi.mock("@/lib/master-data/data", () => ({
   getMasterDataOptions: vi.fn(),
 }));
 
+vi.mock("@/lib/fees/data", () => ({
+  getFeePolicySummary: vi.fn(async () => ({
+    academicSessionLabel: "2026-27",
+  })),
+}));
+
 describe("student session defaults", () => {
   beforeEach(() => {
     vi.clearAllMocks();

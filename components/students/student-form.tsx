@@ -1,8 +1,7 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 import { ValueStatePill } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
@@ -72,18 +71,10 @@ export function StudentForm({
   initialValues,
   action,
 }: StudentFormProps) {
-  const router = useRouter();
   const [state, formAction, isPending] = useActionState(
     action,
     INITIAL_STUDENT_FORM_ACTION_STATE,
   );
-
-  useEffect(() => {
-    if (state.status === "success" && state.studentId) {
-      router.push(`/protected/students/${state.studentId}`);
-      router.refresh();
-    }
-  }, [router, state.status, state.studentId]);
 
   const disableSubmit = classOptions.length === 0;
 
@@ -103,6 +94,16 @@ export function StudentForm({
           }
         >
           {state.message}
+          {state.status === "success" && state.studentId ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button asChild size="sm">
+                <Link href={`/protected/payments?studentId=${state.studentId}`}>Open Payment Desk</Link>
+              </Button>
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/protected/students/${state.studentId}`}>Open student</Link>
+              </Button>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

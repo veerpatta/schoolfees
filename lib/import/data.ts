@@ -4,9 +4,7 @@ import { getMasterDataOptions } from "@/lib/master-data/data";
 import { createClient } from "@/lib/supabase/server";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import {
-  hasPreparedDues,
-  summarizeDuesPreparationIssues,
-  syncAfterBulkStudentImport,
+  prepareDuesForStudentsAutomatically,
 } from "@/lib/system-sync/finance-sync";
 import { createStudent, getStudentDetail, updateStudent } from "@/lib/students/data";
 import { shouldSyncStudentDuesForChange } from "@/lib/students/dues-sync";
@@ -1610,22 +1608,14 @@ export async function commitStudentImportBatch(batchId: string) {
 
   if (!ledgerSyncError && studentsToRegenerate.size > 0) {
     try {
-      const ledgerResult = await syncAfterBulkStudentImport([...studentsToRegenerate]);
-      const preparedStudentIds = new Set<string>();
-
-      if (hasPreparedDues(ledgerResult)) {
-        studentsToRegenerate.forEach((studentId) => preparedStudentIds.add(studentId));
-      }
-
-      const skippedStudents = ledgerResult.skippedStudents ?? [];
-
-      skippedStudents.forEach((student) => {
-        preparedStudentIds.delete(student.studentId);
+      const duesResult = await prepareDuesForStudentsAutomatically({
+        studentIds: [...studentsToRegenerate],
+        reason: "Student import",
       });
 
-      duesReadyCount = preparedStudentIds.size;
-      duesAttentionCount = Math.max(studentsToRegenerate.size - duesReadyCount, 0);
-      duesReasonSummary = summarizeDuesPreparationIssues(skippedStudents) || null;
+      duesReadyCount = duesResult.readyForPaymentCount;
+      duesAttentionCount = duesResult.duesNeedAttentionCount;
+      duesReasonSummary = duesResult.reasonSummary;
 
       if (
         (createdCount > 0 || updatedCount > 0) &&

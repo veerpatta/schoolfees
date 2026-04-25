@@ -19,10 +19,8 @@ import {
 import { getStudentFormInput, validateStudentInput } from "@/lib/students/validation";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import {
-  hasPreparedDues,
-  syncAfterStudentChange,
+  prepareDuesForStudentsAutomatically,
   revalidateFinanceSurfaces,
-  summarizeDuesPreparationIssues,
 } from "@/lib/system-sync/finance-sync";
 
 function mapWriteErrorToState(message: string): StudentFormActionState {
@@ -74,17 +72,17 @@ export async function createStudentAction(
     let syncMessage = "";
 
     if (isDuesSyncRelevantStatus(validated.data.status)) {
-      const syncResult = await syncAfterStudentChange(studentId);
-      const issueSummary = summarizeDuesPreparationIssues(syncResult.skippedStudents);
+      const duesResult = await prepareDuesForStudentsAutomatically({
+        studentIds: [studentId],
+        reason: "Student added",
+      });
 
-      if (hasPreparedDues(syncResult) && syncResult.skippedStudents.length === 0) {
-        syncMessage = "Student added and dues prepared.";
-      } else if (issueSummary) {
-        syncMessage = `Student saved, but dues could not be prepared. ${issueSummary}`;
-      } else {
-        syncMessage =
-          "Student saved, but dues could not be prepared. Check Fee Setup for this class and year.";
-      }
+      syncMessage = buildStudentDuesMessage({
+        action: "added",
+        readyForPaymentCount: duesResult.readyForPaymentCount,
+        duesNeedAttentionCount: duesResult.duesNeedAttentionCount,
+        reasonSummary: duesResult.reasonSummary,
+      });
     } else {
       revalidateFinanceSurfaces({ studentIds: [studentId] });
     }
@@ -144,17 +142,17 @@ export async function updateStudentAction(
     let syncMessage = "";
 
     if (shouldSyncDues) {
-      const syncResult = await syncAfterStudentChange(updatedStudentId);
-      const issueSummary = summarizeDuesPreparationIssues(syncResult.skippedStudents);
+      const duesResult = await prepareDuesForStudentsAutomatically({
+        studentIds: [updatedStudentId],
+        reason: "Student updated",
+      });
 
-      if (hasPreparedDues(syncResult) && syncResult.skippedStudents.length === 0) {
-        syncMessage = " Fee records updated.";
-      } else if (issueSummary) {
-        syncMessage = ` Student saved, but dues could not be prepared. ${issueSummary}`;
-      } else {
-        syncMessage =
-          " Student saved, but dues could not be prepared. Check Fee Setup for this class and year.";
-      }
+      syncMessage = ` ${buildStudentDuesMessage({
+        action: "updated",
+        readyForPaymentCount: duesResult.readyForPaymentCount,
+        duesNeedAttentionCount: duesResult.duesNeedAttentionCount,
+        reasonSummary: duesResult.reasonSummary,
+      })}`;
     } else {
       revalidateFinanceSurfaces({ studentIds: [updatedStudentId] });
     }
@@ -172,6 +170,24 @@ export async function updateStudentAction(
   }
 }
 
+function buildStudentDuesMessage(payload: {
+  action: "added" | "updated";
+  readyForPaymentCount: number;
+  duesNeedAttentionCount: number;
+  reasonSummary: string | null;
+}) {
+  if (payload.duesNeedAttentionCount === 0 && payload.readyForPaymentCount > 0) {
+    return payload.action === "added"
+      ? "Student added and dues prepared. Open Payment Desk to collect payment."
+      : "Student updated and fee records updated.";
+  }
+
+  const savedVerb = payload.action === "added" ? "saved" : "updated";
+  return `Student ${savedVerb}, but dues could not be prepared. ${
+    payload.reasonSummary ?? "Check Fee Setup for this class and year."
+  }`;
+}
+
 export async function archiveStudentAction(formData: FormData) {
   await requireStaffPermission("students:write");
   const studentId = (formData.get("studentId") ?? "").toString().trim();
@@ -181,7 +197,10 @@ export async function archiveStudentAction(formData: FormData) {
   }
 
   await archiveStudent(studentId);
-  await syncAfterStudentChange(studentId);
+  await prepareDuesForStudentsAutomatically({
+    studentIds: [studentId],
+    reason: "Student withdrawn",
+  });
   revalidateFinanceSurfaces({ studentIds: [studentId] });
 }
 

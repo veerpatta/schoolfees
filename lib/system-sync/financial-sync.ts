@@ -38,6 +38,21 @@ export type FinancialSyncResult = LedgerGenerationResult & {
   warnings: string[];
 };
 
+export type AutomaticDuesPreparationResult = {
+  preparedStudentIds: string[];
+  attentionStudentIds: string[];
+  skippedStudents: LedgerSkippedStudent[];
+  inserted: number;
+  updated: number;
+  cancelled: number;
+  protected: number;
+  readyForPaymentCount: number;
+  duesNeedAttentionCount: number;
+  officeSummary: string;
+  reasonSummary: string | null;
+  raw: FinancialSyncResult;
+};
+
 export type SystemSyncHealth = {
   activeFeePolicySession: string;
   activeFeePolicyCalculationModel: string;
@@ -209,6 +224,46 @@ export function hasPreparedDues(result: LedgerGenerationResult) {
     result.existingInstallments > 0 ||
     result.affectedStudents > 0
   );
+}
+
+export function toAutomaticDuesPreparationResult(
+  requestedStudentIds: readonly string[],
+  result: FinancialSyncResult,
+): AutomaticDuesPreparationResult {
+  const requestedIds = [...new Set(requestedStudentIds.filter(Boolean))];
+  const skippedIds = new Set(result.skippedStudents.map((student) => student.studentId));
+  const reasonSummary = summarizeDuesPreparationIssues(result.skippedStudents) || null;
+  const preparedStudentIds = hasPreparedDues(result)
+    ? requestedIds.filter((studentId) => !skippedIds.has(studentId))
+    : [];
+  const attentionStudentIds = requestedIds.filter((studentId) => !preparedStudentIds.includes(studentId));
+  const changedRows =
+    result.installmentsToInsert +
+    result.installmentsToUpdate +
+    result.installmentsToCancel;
+  const protectedLabel =
+    result.lockedInstallments > 0
+      ? ` ${result.lockedInstallments} row${result.lockedInstallments === 1 ? "" : "s"} kept for review.`
+      : "";
+  const officeSummary =
+    attentionStudentIds.length === 0
+      ? `Dues prepared for ${preparedStudentIds.length} student${preparedStudentIds.length === 1 ? "" : "s"}. ${changedRows} fee record${changedRows === 1 ? "" : "s"} updated.${protectedLabel}`.trim()
+      : `Dues prepared for ${preparedStudentIds.length} student${preparedStudentIds.length === 1 ? "" : "s"}. ${attentionStudentIds.length} need attention.${reasonSummary ? ` ${reasonSummary}` : ""}`.trim();
+
+  return {
+    preparedStudentIds,
+    attentionStudentIds,
+    skippedStudents: result.skippedStudents,
+    inserted: result.installmentsToInsert,
+    updated: result.installmentsToUpdate,
+    cancelled: result.installmentsToCancel,
+    protected: result.lockedInstallments,
+    readyForPaymentCount: preparedStudentIds.length,
+    duesNeedAttentionCount: attentionStudentIds.length,
+    officeSummary,
+    reasonSummary,
+    raw: result,
+  };
 }
 
 function buildEmptySyncResult(reason: string, warnings: string[] = []): FinancialSyncResult {

@@ -36,7 +36,7 @@ export function StudentListTable({
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200">
+    <div className="rounded-xl border border-slate-200">
       <table className="min-w-full divide-y divide-slate-200">
         <thead className="bg-slate-50">
           <tr>
@@ -57,12 +57,6 @@ export function StudentListTable({
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
               Outstanding
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Next due
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Fee exception
             </th>
             <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600">
               Actions
@@ -93,24 +87,6 @@ export function StudentListTable({
               </td>
               <td className="px-4 py-3 text-sm font-medium text-slate-900">
                 {formatInr(student.outstandingAmount)}
-              </td>
-              <td className="px-4 py-3 text-sm text-slate-700">
-                <p>{student.nextDueLabel ?? "-"}</p>
-                <p className="text-xs text-slate-500">
-                  {student.nextDueDate ?? "-"} | {formatInr(student.nextDueAmount ?? 0)}
-                </p>
-              </td>
-              <td className="px-4 py-3">
-                <StatusBadge
-                  label={student.feeProfileStatusLabel}
-                  tone={
-                    student.feeProfileStatusLabel === "Special case"
-                      ? "warning"
-                      : student.hasFeeProfile
-                        ? "good"
-                        : "accent"
-                  }
-                />
               </td>
               <td className="px-4 py-3 text-right">
                 <div className="flex justify-end gap-2">

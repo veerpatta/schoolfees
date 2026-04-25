@@ -14,6 +14,8 @@ import {
   syncAfterStudentChange as syncAfterStudentChangeLegacy,
   syncSessionFinancials,
   syncStudentFinancials,
+  toAutomaticDuesPreparationResult,
+  type AutomaticDuesPreparationResult,
   type FinancialSyncResult,
   type SystemSyncHealth,
 } from "@/lib/system-sync/financial-sync";
@@ -28,6 +30,7 @@ export {
   syncStudentFinancials,
 };
 export type { FinancialSyncResult, SystemSyncHealth };
+export type { AutomaticDuesPreparationResult };
 export { getLiveDataHealth } from "@/lib/system-sync/live-data-health";
 export type { LiveDataHealth } from "@/lib/system-sync/live-data-health";
 
@@ -44,6 +47,20 @@ export async function syncStudentDuesAsSystem(studentIds: readonly string[]) {
     reason: "Prepare student dues",
     useSystemClient: true,
   });
+}
+
+export async function prepareDuesForStudentsAutomatically(payload: {
+  studentIds: readonly string[];
+  reason?: string;
+  useSystemClient?: boolean;
+}) {
+  const result = await syncStudentFinancials({
+    studentIds: payload.studentIds,
+    reason: payload.reason ?? "Automatic dues preparation",
+    useSystemClient: payload.useSystemClient ?? true,
+  });
+
+  return toAutomaticDuesPreparationResult(payload.studentIds, result);
 }
 
 export async function syncSessionDues(sessionLabel: string) {

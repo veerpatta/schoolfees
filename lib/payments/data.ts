@@ -6,9 +6,7 @@ import { looksLikeReceiptQuery, normalizePaymentDeskQuery } from "@/lib/payments
 import { createClient } from "@/lib/supabase/server";
 import { getStudentDetail } from "@/lib/students/data";
 import {
-  hasPreparedDues,
-  summarizeDuesPreparationIssues,
-  syncStudentDuesAsSystem,
+  prepareDuesForStudentsAutomatically,
 } from "@/lib/system-sync/finance-sync";
 import {
   getWorkbookInstallmentBalances,
@@ -404,17 +402,19 @@ async function tryAutoPrepareSelectedStudentDues(payload: {
     };
   }
 
-  const syncResult = await syncStudentDuesAsSystem([student.id]);
-  const issueSummary = summarizeDuesPreparationIssues(syncResult.skippedStudents);
+  const duesResult = await prepareDuesForStudentsAutomatically({
+    studentIds: [student.id],
+    reason: "Payment Desk selected student",
+  });
 
-  if (hasPreparedDues(syncResult) && syncResult.skippedStudents.length === 0) {
+  if (duesResult.readyForPaymentCount > 0 && duesResult.duesNeedAttentionCount === 0) {
     return null;
   }
 
   return {
     title: "Dues could not be prepared.",
     detail:
-      issueSummary ||
+      duesResult.reasonSummary ||
       "Fee Setup is incomplete for this class/year. Check class fee amount, installment dates, and active session.",
     actionLabel: "Open Fee Setup",
     actionHref: "/protected/fee-setup",

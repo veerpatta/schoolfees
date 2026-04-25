@@ -8,7 +8,7 @@ const getWorkbookStudentFinancials = vi.fn();
 const getWorkbookInstallmentBalances = vi.fn();
 const getWorkbookTransactions = vi.fn();
 const createClient = vi.fn();
-const syncStudentDuesAsSystem = vi.fn();
+const prepareDuesForStudentsAutomatically = vi.fn();
 
 vi.mock("@/lib/fees/data", () => ({
   getFeePolicySummary,
@@ -29,11 +29,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 vi.mock("@/lib/system-sync/finance-sync", () => ({
-  hasPreparedDues: vi.fn((result) => result.installmentsToInsert > 0 || result.affectedStudents > 0),
-  summarizeDuesPreparationIssues: vi.fn((rows) =>
-    Array.isArray(rows) && rows[0]?.reasonMessage ? rows[0].reasonMessage : "",
-  ),
-  syncStudentDuesAsSystem,
+  prepareDuesForStudentsAutomatically,
 }));
 
 describe("payment entry data", () => {
@@ -60,10 +56,10 @@ describe("payment entry data", () => {
     createClient.mockResolvedValue({
       from: vi.fn(() => emptyStudentQuery),
     });
-    syncStudentDuesAsSystem.mockResolvedValue({
-      affectedStudents: 1,
-      installmentsToInsert: 4,
-      skippedStudents: [],
+    prepareDuesForStudentsAutomatically.mockResolvedValue({
+      readyForPaymentCount: 1,
+      duesNeedAttentionCount: 0,
+      reasonSummary: null,
     });
   });
 
@@ -299,7 +295,10 @@ describe("payment entry data", () => {
       autoPrepareMissingDues: true,
     });
 
-    expect(syncStudentDuesAsSystem).toHaveBeenCalledWith(["student-2"]);
+    expect(prepareDuesForStudentsAutomatically).toHaveBeenCalledWith({
+      studentIds: ["student-2"],
+      reason: "Payment Desk selected student",
+    });
     expect(data.selectedStudent?.id).toBe("student-2");
     expect(data.selectedStudentIssue).toBeNull();
   });

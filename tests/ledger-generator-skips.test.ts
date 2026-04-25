@@ -163,4 +163,74 @@ describe("ledger generator skip reasons", () => {
         "This student is in TEST-2026-27, but Fee Setup is active for 2026-27.",
     });
   });
+
+  it("missing_route_fee_shows_reason", async () => {
+    getFeeSetupPageData.mockResolvedValue({
+      ...setupData,
+      classDefaults: [
+        {
+          id: "fee-1",
+          classId: "class-1",
+          sessionLabel: "2026-27",
+          annualTuitionFee: 12000,
+        },
+      ],
+      transportDefaults: [
+        {
+          id: "route-1",
+          routeName: "Route X",
+          routeCode: "RX",
+          defaultInstallmentAmount: 0,
+          annualFeeAmount: null,
+          isActive: true,
+        },
+      ],
+    });
+    createClient.mockResolvedValue({
+      from(table: string) {
+        if (table === "students") {
+          return {
+            select: () =>
+              queryResult([
+                {
+                  id: "student-route",
+                  admission_no: "PENDING-SR-0003",
+                  full_name: "Route Student",
+                  class_id: "class-1",
+                  transport_route_id: "route-1",
+                  status: "active",
+                  class_ref: {
+                    class_name: "Class 1",
+                    section: null,
+                    stream_name: null,
+                    session_label: "2026-27",
+                    status: "active",
+                  },
+                },
+              ]),
+          };
+        }
+
+        if (table === "installments") {
+          return {
+            select: () => queryResult([]),
+            insert: vi.fn(),
+            update: vi.fn(),
+          };
+        }
+
+        throw new Error(`Unexpected table ${table}`);
+      },
+    });
+
+    const { generateSessionLedgersAction } = await import("@/lib/fees/generator");
+    const result = await generateSessionLedgersAction({ scopedStudentIds: ["student-route"] });
+
+    expect(result.installmentsToInsert).toBe(0);
+    expect(result.skippedStudents[0]).toMatchObject({
+      studentId: "student-route",
+      reasonCode: "ROUTE_FEE_MISSING",
+      reasonMessage: "Route fee is missing for Route X.",
+    });
+  });
 });

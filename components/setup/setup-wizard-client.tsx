@@ -1079,8 +1079,7 @@ export function SetupWizardClient({
 
           <div className="flex items-center justify-between gap-4">
             <SectionHint>
-              A class default row is required for each class before session ledgers can be fully
-              generated.
+              A class default row is required for each class before dues can be prepared.
             </SectionHint>
             <Button
               type="submit"
@@ -1122,7 +1121,7 @@ export function SetupWizardClient({
                 value={completionNotes}
                 onChange={(event) => setCompletionNotes(event.target.value)}
                 className={`${textAreaClassName} mt-2`}
-                placeholder="Optional note, for example: office checked import template and ledger sync on 22 April."
+                placeholder="Optional note, for example: office checked import template and dues preparation on 22 April."
               />
             </div>
           </div>
@@ -1141,7 +1140,7 @@ export function SetupWizardClient({
 
           <div className="flex items-center justify-between gap-4">
             <SectionHint>
-              This confirmation does not rewrite any ledger or payment history. It only stores the
+              This confirmation does not rewrite any fee or payment history. It only stores the
               office review marker.
             </SectionHint>
             <Button

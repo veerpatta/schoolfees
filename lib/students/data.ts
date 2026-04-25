@@ -314,7 +314,8 @@ export async function getStudentFormOptions(payload?: {
   sessionLabel?: string | null;
 }) {
   const options = await getMasterDataOptions();
-  const policySessionLabel = options.currentSessionLabel || "";
+  const policy = await getFeePolicySummary();
+  const policySessionLabel = policy.academicSessionLabel || "";
   const currentSessionLabel = options.currentSessionLabel || "";
   const academicSessionsCurrentLabel = await (async () => {
     const supabase = await createClient();
@@ -351,12 +352,14 @@ export async function getStudentFormOptions(payload?: {
     Boolean(policySessionLabel && academicSessionsCurrentLabel) &&
     normalizeSessionKey(policySessionLabel) !== normalizeSessionKey(academicSessionsCurrentLabel);
 
-  const routeOptions: StudentRouteOption[] = options.routeOptions.map((row) => ({
-    id: row.id,
-    label: row.label,
-    routeCode: row.routeCode,
-    isActive: row.isActive,
-  }));
+  const routeOptions: StudentRouteOption[] = options.routeOptions
+    .filter((row) => row.isActive)
+    .map((row) => ({
+      id: row.id,
+      label: row.label,
+      routeCode: row.routeCode,
+      isActive: row.isActive,
+    }));
 
   return {
     currentSessionLabel: options.currentSessionLabel,

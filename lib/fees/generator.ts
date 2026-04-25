@@ -106,6 +106,7 @@ export type LedgerSkippedStudentReasonCode =
   | "SESSION_MISMATCH"
   | "ACTIVE_FEE_SETUP_MISSING"
   | "CLASS_FEE_MISSING"
+  | "ROUTE_FEE_MISSING"
   | "CLASS_INACTIVE"
   | "STUDENT_NOT_ACTIVE"
   | "FEE_SETUP_INCOMPLETE"
@@ -227,6 +228,15 @@ function buildClassLabel(value: {
   return [value.class_name, value.section ? `Section ${value.section}` : "", value.stream_name ?? ""]
     .filter(Boolean)
     .join(" - ");
+}
+
+function isNoTransportRoute(value: { routeName?: string | null; routeCode?: string | null }) {
+  const normalized = `${value.routeName ?? ""} ${value.routeCode ?? ""}`
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+
+  return normalized === "notransport" || normalized === "none" || normalized === "noroute";
 }
 
 function toSkippedStudent(
@@ -578,6 +588,23 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
           student,
           "CLASS_FEE_MISSING",
           `${buildClassLabel(toSingleRecord(student.class_ref))} does not have a fee amount in Fee Setup for ${activeFeeSetupSession}.`,
+        ),
+      );
+      continue;
+    }
+
+    if (
+      student.transport_route_id &&
+      routeDefault &&
+      !isNoTransportRoute(routeDefault) &&
+      routeDefault.annualFeeAmount === null &&
+      routeDefault.defaultInstallmentAmount <= 0
+    ) {
+      skippedStudents.push(
+        toSkippedStudent(
+          student,
+          "ROUTE_FEE_MISSING",
+          `Route fee is missing for ${routeDefault.routeName}.`,
         ),
       );
       continue;

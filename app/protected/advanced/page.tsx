@@ -134,7 +134,7 @@ export default async function AdvancedPage() {
               </div>
             </div>
             <div>
-              <p className="font-semibold text-slate-950">Database readiness checks</p>
+            <p className="font-semibold text-slate-950">Payment preview setup</p>
               <div className="mt-3 space-y-2 text-sm text-slate-700">
                 {databaseObjectStatuses.map((status) => (
                   <div key={status.key} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
