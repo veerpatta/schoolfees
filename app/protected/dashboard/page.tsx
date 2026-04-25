@@ -32,6 +32,8 @@ import { cn } from "@/lib/utils";
 
 import {
   repairCurrentSessionDuesAction,
+  repairPaymentDeskDataAction,
+  syncCurrentSessionAction,
   syncDashboardNowAction,
 } from "./actions";
 
@@ -594,9 +596,13 @@ function SystemSyncHealthPanel({
 }) {
   const rows = [
     ["Active session", health.activeSession],
+    ["Fee Setup session", health.academicSessionsCurrentSession],
+    ["Sessions match", health.sessionsMatch ? "Yes" : "No"],
     ["Students in active session", health.rawStudentsInActiveSession],
+    ["Students shown by default", health.studentsShownInDefaultWorkspace],
     ["Students with fee rows", health.studentsWithFinancialRows],
     ["Missing dues rows", health.studentsMissingInstallmentRows],
+    ["Missing dues total", health.studentsMissingDues],
     ["No class fee setting", health.studentsWithNoFeeSetting],
     ["Wrong/inactive session", health.studentsInInactiveOrWrongSession],
     ["Classes without fee settings", health.classesWithoutFeeSettings],
@@ -633,12 +639,12 @@ function SystemSyncHealthPanel({
                   Generate Missing Dues
                 </Button>
               </form>
-              <form action={repairCurrentSessionDuesAction}>
+              <form action={syncCurrentSessionAction}>
                 <Button type="submit" size="sm" variant="outline">
                   Sync Current Session
                 </Button>
               </form>
-              <form action={repairCurrentSessionDuesAction}>
+              <form action={repairPaymentDeskDataAction}>
                 <Button type="submit" size="sm" variant="outline">
                   Repair Payment Desk Data
                 </Button>
@@ -739,9 +745,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </div>
       ) : null}
 
-      {!data.emptyState.hasFinancialData ? (
+      {!data.emptyState.hasStudents ? (
         <SectionCard
-          title="No fee data yet"
+          title="No students yet"
           description="Start with test students and fee setup, then use the payment desk for posted receipts."
           className="border-sky-100 bg-sky-50/70"
           actions={<StatusBadge label="Start testing" tone="accent" />}
@@ -758,6 +764,28 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             </Button>
             <Button asChild variant="outline">
               <Link href="/protected/imports/template">Download template</Link>
+            </Button>
+          </div>
+        </SectionCard>
+      ) : !data.emptyState.hasFinancialData ? (
+        <SectionCard
+          title="Students found, dues missing"
+          description="Students exist in the active fee setup session, but dues have not been generated yet."
+          className="border-amber-100 bg-amber-50/70"
+          actions={<StatusBadge label="Repair needed" tone="warning" />}
+        >
+          <div className="grid gap-3 md:grid-cols-4">
+            <Button asChild variant="outline">
+              <Link href="/protected/dashboard#system-sync-health">Generate Missing Dues</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/protected/students">Open Students</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/protected/payments">Open Payment Desk</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/protected/fee-setup">Open Fee Setup</Link>
             </Button>
           </div>
         </SectionCard>

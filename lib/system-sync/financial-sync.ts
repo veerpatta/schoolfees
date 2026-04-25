@@ -33,16 +33,21 @@ export type FinancialSyncResult = LedgerGenerationResult & {
 
 export type SystemSyncHealth = {
   activeSession: string;
+  academicSessionsCurrentSession: string | null;
+  sessionsMatch: boolean;
   rawStudentsInActiveSession: number;
+  studentsShownInDefaultWorkspace: number;
   studentsWithFinancialRows: number;
   studentsMissingFinancialRows: number;
   studentsMissingInstallmentRows: number;
   studentsWithNoFeeSetting: number;
   studentsInInactiveOrWrongSession: number;
+  studentsMissingDues: number;
   classesWithoutFeeSettings: number;
   routesWithoutAnnualFees: number;
   paymentDeskReady: boolean;
   dashboardReady: boolean;
+  warnings: string[];
 };
 
 function toSingleRecord<T>(value: T | T[] | null) {
@@ -167,16 +172,25 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
   const supabase = await createClient();
   const policy = await getFeePolicySummary();
   const activeSession = sessionLabel?.trim() || policy.academicSessionLabel;
+  const warnings: string[] = [];
 
-  const { data: studentRowsRaw, error: studentsError } = await supabase
-    .from("students")
-    .select("id, status, class_id, transport_route_id, class_ref:classes(id, session_label)");
+  let studentRows: StudentSessionRow[] = [];
+  try {
+    const { data: studentRowsRaw, error: studentsError } = await supabase
+      .from("students")
+      .select("id, status, class_id, transport_route_id, class_ref:classes(id, session_label)");
 
-  if (studentsError) {
-    throw new Error(`Unable to load sync health students: ${studentsError.message}`);
+    if (studentsError) {
+      throw new Error(studentsError.message);
+    }
+
+    studentRows = (studentRowsRaw ?? []) as StudentSessionRow[];
+  } catch (error) {
+    warnings.push(
+      `Unable to load sync health students: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
-  const studentRows = (studentRowsRaw ?? []) as StudentSessionRow[];
   const activeSessionStudents = studentRows.filter((row) => {
     const classRef = toSingleRecord(row.class_ref);
     return classRef?.session_label === activeSession && row.status === "active";
@@ -190,78 +204,106 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
         .filter((value): value is string => Boolean(value)),
     ),
   ];
+  const academicSessionsCurrentSession = policy.academicSessionLabel;
+  const sessionsMatch =
+    academicSessionsCurrentSession.trim().toLowerCase() === activeSession.trim().toLowerCase();
 
-  const [
-    activeSessionClassRows,
-    studentsWithFinancialRows,
-    installmentRows,
-    feeSettingRows,
-    routesWithoutAnnualFees,
-  ] = await Promise.all([
-    supabase
-      .from("classes")
-      .select("id")
-      .eq("session_label", activeSession)
-      .eq("is_active", true),
-    activeSessionStudentIds.length > 0
-      ? getCount(
+  const activeSessionClassRows = await supabase
+    .from("classes")
+    .select("id")
+    .eq("session_label", activeSession)
+    .eq("status", "active");
+
+  if (activeSessionClassRows.error) {
+    warnings.push(`Unable to load classes for sync health: ${activeSessionClassRows.error.message}`);
+  }
+
+  let studentsWithFinancialRows = 0;
+  let installmentRowsData: Array<{ student_id: string }> = [];
+  let feeSettingRowsData: Array<{ class_id: string }> = [];
+  let routesWithoutAnnualFees = 0;
+
+  try {
+    studentsWithFinancialRows = activeSessionStudentIds.length > 0
+      ? await getCount(
           supabase
             .from("v_workbook_student_financials")
             .select("student_id", { count: "exact", head: true })
             .in("student_id", activeSessionStudentIds),
           "students with workbook rows",
         )
-      : 0,
-    activeSessionStudentIds.length > 0
-      ? supabase
-          .from("installments")
-          .select("student_id")
-          .in("student_id", activeSessionStudentIds)
-          .neq("status", "cancelled")
-      : Promise.resolve({ data: [], error: null }),
-    activeSessionClassIds.length > 0
-      ? supabase
-          .from("fee_settings")
-          .select("class_id")
-          .eq("is_active", true)
-          .in("class_id", activeSessionClassIds)
-      : Promise.resolve({ data: [], error: null }),
-    activeRouteIds.length > 0
-      ? getCount(
-          supabase
-            .from("transport_routes")
-            .select("id", { count: "exact", head: true })
-            .in("id", activeRouteIds)
-            .or("annual_fee_amount.is.null,annual_fee_amount.eq.0"),
-          "routes without annual fees",
-        )
-      : 0,
-  ]);
-
-  if ("error" in feeSettingRows && feeSettingRows.error) {
-    throw new Error(`Unable to load fee settings for sync health: ${feeSettingRows.error.message}`);
+      : 0;
+  } catch (error) {
+    warnings.push(
+      `Unable to count workbook student rows: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
-  if ("error" in installmentRows && installmentRows.error) {
-    throw new Error(`Unable to load installment rows for sync health: ${installmentRows.error.message}`);
+  try {
+    if (activeSessionStudentIds.length > 0) {
+      const { data, error } = await supabase
+        .from("installments")
+        .select("student_id")
+        .in("student_id", activeSessionStudentIds)
+        .neq("status", "cancelled");
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      installmentRowsData = (data ?? []) as Array<{ student_id: string }>;
+    }
+  } catch (error) {
+    warnings.push(
+      `Unable to load installment rows for sync health: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
-  if (activeSessionClassRows.error) {
-    throw new Error(`Unable to load classes for sync health: ${activeSessionClassRows.error.message}`);
+  try {
+    if (activeSessionClassIds.length > 0) {
+      const { data, error } = await supabase
+        .from("fee_settings")
+        .select("class_id")
+        .eq("is_active", true)
+        .in("class_id", activeSessionClassIds);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      feeSettingRowsData = (data ?? []) as Array<{ class_id: string }>;
+    }
+  } catch (error) {
+    warnings.push(
+      `Unable to load fee settings for sync health: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
-  const feeSettingClassIds = new Set(
-    ((feeSettingRows.data ?? []) as Array<{ class_id: string }>).map((row) => row.class_id),
-  );
+  try {
+    if (activeRouteIds.length > 0) {
+      routesWithoutAnnualFees = await getCount(
+        supabase
+          .from("transport_routes")
+          .select("id", { count: "exact", head: true })
+          .in("id", activeRouteIds)
+          .or("annual_fee_amount.is.null,annual_fee_amount.eq.0"),
+        "routes without annual fees",
+      );
+    }
+  } catch (error) {
+    warnings.push(
+      `Unable to count routes without annual fees: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  const feeSettingClassIds = new Set(feeSettingRowsData.map((row) => row.class_id));
   const activeClassIds = new Set(
     [
-      ...((activeSessionClassRows.data ?? []) as Array<{ id: string }>).map((row) => row.id),
+      ...(activeSessionClassRows.data ?? []).map((row) => row.id),
       ...activeSessionClassIds,
-    ],
+    ] as string[],
   );
-  const installmentStudentIds = new Set(
-    ((installmentRows.data ?? []) as Array<{ student_id: string }>).map((row) => row.student_id),
-  );
+  const installmentStudentIds = new Set(installmentRowsData.map((row) => row.student_id));
   const studentsWithNoFeeSetting = activeSessionStudents.filter(
     (row) => !feeSettingClassIds.has(row.class_id),
   ).length;
@@ -273,6 +315,7 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
     activeSessionStudents.length - studentsWithFinancialRows,
     0,
   );
+  const studentsMissingDues = Math.max(studentsMissingFinancialRows, studentsMissingInstallmentRows);
   const studentsInInactiveOrWrongSession = studentRows.filter((row) => {
     const classRef = toSingleRecord(row.class_ref);
     return row.status === "active" && classRef?.session_label !== activeSession;
@@ -280,12 +323,16 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
 
   return {
     activeSession,
+    academicSessionsCurrentSession,
+    sessionsMatch,
     rawStudentsInActiveSession: activeSessionStudents.length,
+    studentsShownInDefaultWorkspace: activeSessionStudents.length,
     studentsWithFinancialRows,
     studentsMissingFinancialRows,
     studentsMissingInstallmentRows,
     studentsWithNoFeeSetting,
     studentsInInactiveOrWrongSession,
+    studentsMissingDues,
     classesWithoutFeeSettings: [...activeClassIds].filter((classId) => !feeSettingClassIds.has(classId)).length,
     routesWithoutAnnualFees,
     paymentDeskReady:
@@ -295,5 +342,6 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
     dashboardReady:
       activeSessionStudents.length === 0 ||
       (studentsMissingFinancialRows === 0 && studentsWithNoFeeSetting === 0),
+    warnings,
   };
 }

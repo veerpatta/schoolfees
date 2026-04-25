@@ -94,6 +94,13 @@ export type DashboardPageData = {
   systemSyncHealth: SystemSyncHealth | null;
 };
 
+type ActiveStudentRow = {
+  studentId: string;
+  classId: string;
+  sessionLabel: string;
+  classLabel: string;
+};
+
 function getSchoolDateStamp(referenceDate = new Date()) {
   return new Intl.DateTimeFormat("sv-SE", {
     timeZone: "Asia/Kolkata",
@@ -105,6 +112,32 @@ function getSchoolDateStamp(referenceDate = new Date()) {
 
 function toErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function toSingleRecord<T>(value: T | T[] | null) {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return value;
+}
+
+function buildClassLabel(value: {
+  class_name: string;
+  section: string | null;
+  stream_name: string | null;
+}) {
+  const parts = [value.class_name];
+
+  if (value.section) {
+    parts.push(`Section ${value.section}`);
+  }
+
+  if (value.stream_name) {
+    parts.push(value.stream_name);
+  }
+
+  return parts.join(" - ");
 }
 
 async function optionalLoad<T>(
@@ -282,6 +315,7 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
 
   const policy = await getFeePolicySummary();
   const [
+    activeStudents,
     financialRows,
     installmentRows,
     overdueInstallments,
@@ -293,6 +327,60 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
     ledgerAlerts,
     setupAlerts,
   ] = await Promise.all([
+    optionalLoad(
+      "active students",
+      async () => {
+        const supabase = await createClient();
+        const { data, error } = await supabase
+          .from("students")
+          .select(
+            "id, class_id, status, class_ref:classes(id, session_label, class_name, section, stream_name)",
+          )
+          .eq("status", "active")
+          .eq("class_ref.session_label", policy.academicSessionLabel);
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        return ((data ?? []) as Array<{
+          id: string;
+          class_id: string;
+          class_ref:
+            | {
+                id: string;
+                session_label: string;
+                class_name: string;
+                section: string | null;
+                stream_name: string | null;
+              }
+            | Array<{
+                id: string;
+                session_label: string;
+                class_name: string;
+                section: string | null;
+                stream_name: string | null;
+              }>
+            | null;
+        }>)
+          .map((row) => {
+            const classRef = toSingleRecord(row.class_ref);
+            if (!classRef) {
+              return null;
+            }
+
+            return {
+              studentId: row.id,
+              classId: row.class_id,
+              sessionLabel: classRef.session_label,
+              classLabel: buildClassLabel(classRef),
+            } satisfies ActiveStudentRow;
+          })
+          .filter((row): row is ActiveStudentRow => Boolean(row));
+      },
+      [],
+      warnings,
+    ),
     optionalLoad("workbook student financials", () => getWorkbookStudentFinancials(), [], warnings),
     optionalLoad("workbook installment balances", () => getWorkbookInstallmentRows(), [], warnings),
     optionalLoad(
@@ -317,11 +405,12 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
 
   const summary = buildDashboardSummary({
     financialRows,
+    studentRows: activeStudents,
     installmentRows,
     overdueInstallments,
     transactions,
     todayTransactions,
-    rawStudentCount: systemSyncHealth?.rawStudentsInActiveSession,
+    rawStudentCount: activeStudents.length,
   });
 
   const paidStudents = financialRows.filter((row) => row.statusLabel === "PAID").length;
@@ -366,11 +455,20 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
   if (!summary.emptyState.hasStudents) {
     alerts.push({
       key: "no-students",
-      title: "No fee data yet",
+      title: "No students yet",
       detail: "Add or upload test students before relying on collection totals.",
       tone: "info",
       actionHref: "/protected/students/new",
       actionLabel: "Add student",
+    });
+  } else if (!summary.emptyState.hasFinancialData) {
+    alerts.push({
+      key: "dues-missing",
+      title: "Students found, dues missing",
+      detail: "Students exist in the active fee setup session, but dues are not generated yet.",
+      tone: "warning",
+      actionHref: "/protected/dashboard#system-sync-health",
+      actionLabel: "Generate Missing Dues",
     });
   }
 

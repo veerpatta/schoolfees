@@ -127,6 +127,7 @@ describe("dashboard summary", () => {
   it("returns zeroed KPI and empty-state values with no source data", () => {
     const summary = buildDashboardSummary({
       financialRows: [],
+      studentRows: [],
       installmentRows: [],
       overdueInstallments: [],
       transactions: [],
@@ -161,6 +162,12 @@ describe("dashboard summary", () => {
     const summary = buildDashboardSummary({
       rawStudentCount: 40,
       financialRows: [],
+      studentRows: Array.from({ length: 40 }, (_, index) => ({
+        studentId: `student-${index + 1}`,
+        classId: "class-1",
+        sessionLabel: "2026-27",
+        classLabel: "Class 1",
+      })),
       installmentRows: [],
       overdueInstallments: [],
       transactions: [],
@@ -177,6 +184,7 @@ describe("dashboard summary", () => {
       financialRows: [
         student({
           studentId: "student-1",
+          classId: "class-1",
           classLabel: "Class 1",
           totalDue: 1500,
           totalPaid: 500,
@@ -185,6 +193,7 @@ describe("dashboard summary", () => {
         }),
         student({
           studentId: "student-2",
+          classId: "class-2",
           admissionNo: "SR-2",
           studentName: "Second Student",
           classLabel: "Class 2",
@@ -193,6 +202,20 @@ describe("dashboard summary", () => {
           outstandingAmount: 2000,
           statusLabel: "OVERDUE",
         }),
+      ],
+      studentRows: [
+        {
+          studentId: "student-1",
+          classId: "class-1",
+          sessionLabel: "2026-27",
+          classLabel: "Class 1",
+        },
+        {
+          studentId: "student-2",
+          classId: "class-2",
+          sessionLabel: "2026-27",
+          classLabel: "Class 2",
+        },
       ],
       installmentRows: [
         installment({ studentId: "student-1", paidAmount: 500, pendingAmount: 1000 }),
@@ -230,9 +253,34 @@ describe("dashboard summary", () => {
     expect(summary.kpis.totalPending).toBe(3000);
     expect(summary.kpis.overdueAmount).toBe(2000);
     expect(summary.classSummary[0]?.classLabel).toBe("Class 2");
+    expect(summary.classSummary[0]?.totalStudents).toBe(1);
     expect(summary.installmentSummary[0]?.pendingAmount).toBe(3000);
     expect(summary.collectionTrend).toHaveLength(2);
     expect(summary.followUpQueue[0]?.studentName).toBe("Second Student");
+  });
+
+  it("keeps class rows visible even when dues are missing", () => {
+    const summary = buildDashboardSummary({
+      financialRows: [],
+      studentRows: [
+        {
+          studentId: "student-1",
+          classId: "class-1",
+          sessionLabel: "2026-27",
+          classLabel: "Class 1",
+        },
+      ],
+      installmentRows: [],
+      overdueInstallments: [],
+      transactions: [],
+      todayTransactions: [],
+      rawStudentCount: 1,
+    });
+
+    expect(summary.kpis.totalStudents).toBe(1);
+    expect(summary.classSummary[0]?.classLabel).toBe("Class 1");
+    expect(summary.classSummary[0]?.totalStudents).toBe(1);
+    expect(summary.classSummary[0]?.expectedAmount).toBe(0);
   });
 
   it("formats payment mode labels for dashboard display", () => {

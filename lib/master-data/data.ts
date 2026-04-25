@@ -122,6 +122,16 @@ function dedupeModes(value: PaymentMode[]) {
 
 async function getCurrentSessionLabel() {
   const supabase = await createClient();
+  const { data: policy, error: policyError } = await supabase
+    .from("fee_policy_configs")
+    .select("academic_session_label")
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (!policyError && policy?.academic_session_label) {
+    return policy.academic_session_label as string;
+  }
+
   const { data, error } = await supabase
     .from("academic_sessions")
     .select("session_label")
@@ -129,21 +139,11 @@ async function getCurrentSessionLabel() {
     .eq("status", "active")
     .maybeSingle();
 
-  if (!error && data?.session_label) {
-    return data.session_label as string;
-  }
-
-  const { data: policy, error: policyError } = await supabase
-    .from("fee_policy_configs")
-    .select("academic_session_label")
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (policyError) {
+  if (error) {
     return null;
   }
 
-  return normalizeText(policy?.academic_session_label) || null;
+  return normalizeText(data?.session_label) || null;
 }
 
 async function getActivePolicy() {

@@ -236,9 +236,10 @@ export async function getPaymentEntryPageData(payload: {
   const normalizedQuery = normalizePaymentDeskQuery(payload.searchQuery);
   const workbookRows = await getWorkbookStudentFinancials({
     classId: payload.classId,
+    sessionLabel: policy.academicSessionLabel,
   });
   const selectedWorkbookRows = payload.studentId
-    ? await getWorkbookStudentFinancials({ studentId: payload.studentId })
+    ? await getWorkbookStudentFinancials({ studentId: payload.studentId, sessionLabel: policy.academicSessionLabel })
     : [];
   const filteredWorkbookRows = normalizedQuery
     ? workbookRows.filter((row) => {

@@ -28,6 +28,7 @@ export type DashboardRecentPayment = {
 };
 
 export type DashboardClassSummaryRow = {
+  classId: string;
   sessionLabel: string;
   classLabel: string;
   totalStudents: number;
@@ -86,6 +87,12 @@ export type DashboardEmptyState = {
 
 export type DashboardSummaryInput = {
   financialRows: WorkbookStudentFinancial[];
+  studentRows: Array<{
+    studentId: string;
+    classId: string;
+    sessionLabel: string;
+    classLabel: string;
+  }>;
   installmentRows: WorkbookInstallmentBalance[];
   overdueInstallments: WorkbookInstallmentBalance[];
   transactions: WorkbookTransaction[];
@@ -163,15 +170,16 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
   };
 
   const overdueByClass = input.overdueInstallments.reduce((acc, row) => {
-    const key = `${row.sessionLabel}::${row.classLabel}`;
+    const key = `${row.sessionLabel}::${row.classId}`;
     acc.set(key, (acc.get(key) ?? 0) + row.pendingAmount);
     return acc;
   }, new Map<string, number>());
 
-  const classMap = input.financialRows.reduce(
+  const classMap = input.studentRows.reduce(
     (acc, row) => {
-      const key = `${row.sessionLabel}::${row.classLabel}`;
+      const key = `${row.sessionLabel}::${row.classId}`;
       const existing = acc.get(key) ?? {
+        classId: row.classId,
         sessionLabel: row.sessionLabel,
         classLabel: row.classLabel,
         totalStudents: 0,
@@ -184,11 +192,6 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
       };
 
       existing.totalStudents += 1;
-      existing.expectedAmount += row.totalDue;
-      existing.collectedAmount += row.totalPaid;
-      existing.pendingAmount += row.outstandingAmount;
-      existing.overdueStudents += Number(row.statusLabel === "OVERDUE");
-      existing.studentsWithPending += Number(row.outstandingAmount > 0);
       acc.set(key, existing);
       return acc;
     },
@@ -197,6 +200,30 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
       Omit<DashboardClassSummaryRow, "collectionRate">
     >(),
   );
+
+  for (const row of input.financialRows) {
+    const key = `${row.sessionLabel}::${row.classId}`;
+    const existing = classMap.get(key) ?? {
+      classId: row.classId,
+      sessionLabel: row.sessionLabel,
+      classLabel: row.classLabel,
+      totalStudents: 0,
+      expectedAmount: 0,
+      collectedAmount: 0,
+      pendingAmount: 0,
+      overdueAmount: 0,
+      overdueStudents: 0,
+      studentsWithPending: 0,
+    };
+
+    existing.classLabel = row.classLabel;
+    existing.expectedAmount += row.totalDue;
+    existing.collectedAmount += row.totalPaid;
+    existing.pendingAmount += row.outstandingAmount;
+    existing.overdueStudents += Number(row.statusLabel === "OVERDUE");
+    existing.studentsWithPending += Number(row.outstandingAmount > 0);
+    classMap.set(key, existing);
+  }
 
   const classSummary = Array.from(classMap.entries())
     .map(([key, row]) => ({

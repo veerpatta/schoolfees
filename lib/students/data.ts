@@ -311,6 +311,23 @@ export async function getStudentFormOptions(payload?: {
   sessionLabel?: string | null;
 }) {
   const options = await getMasterDataOptions();
+  const policySessionLabel = options.currentSessionLabel || "";
+  const currentSessionLabel = options.currentSessionLabel || "";
+  const academicSessionsCurrentLabel = await (async () => {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("academic_sessions")
+      .select("session_label")
+      .eq("is_current", true)
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (error) {
+      return null;
+    }
+
+    return data?.session_label?.trim() || null;
+  })();
 
   const allClassOptions: StudentClassOption[] = options.classOptions.map((row) => ({
     id: row.id,
@@ -318,16 +335,18 @@ export async function getStudentFormOptions(payload?: {
     sessionLabel: row.sessionLabel,
   }));
   const requestedSessionLabel = payload?.sessionLabel?.trim() ?? "";
-  const resolvedSessionLabel =
-    requestedSessionLabel || options.currentSessionLabel || "";
+  const resolvedSessionLabel = requestedSessionLabel || policySessionLabel || currentSessionLabel || "";
   const classOptions = getClassOptionsForSession(
     allClassOptions,
     resolvedSessionLabel || null,
   );
   const sessionOptions = buildStudentSessionOptions(
     allClassOptions,
-    options.currentSessionLabel,
+    policySessionLabel || academicSessionsCurrentLabel,
   );
+  const sessionMismatch =
+    Boolean(policySessionLabel && academicSessionsCurrentLabel) &&
+    normalizeSessionKey(policySessionLabel) !== normalizeSessionKey(academicSessionsCurrentLabel);
 
   const routeOptions: StudentRouteOption[] = options.routeOptions.map((row) => ({
     id: row.id,
@@ -338,6 +357,9 @@ export async function getStudentFormOptions(payload?: {
 
   return {
     currentSessionLabel: options.currentSessionLabel,
+    policySessionLabel,
+    academicSessionsCurrentLabel,
+    sessionMismatch,
     resolvedSessionLabel,
     sessionOptions,
     allClassOptions,

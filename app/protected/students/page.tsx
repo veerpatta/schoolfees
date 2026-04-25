@@ -58,7 +58,7 @@ function normalizeFilters(
       : EMPTY_STUDENT_FILTERS.transportRouteId,
     status: validStatuses.has(rawStatus)
       ? (rawStatus as StudentListFilters["status"])
-      : EMPTY_STUDENT_FILTERS.status,
+      : ("active" as StudentListFilters["status"]),
   };
 }
 
@@ -66,6 +66,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
   const staff = await requireStaffPermission("students:view", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const parsedFilters = normalizeFilters(resolvedSearchParams);
+  let formOptions: Awaited<ReturnType<typeof getStudentFormOptions>> | null = null;
   let allClassOptions: StudentClassOption[] = [];
   let routeOptions: StudentRouteOption[] = [];
   let sessionOptions: StudentSessionOption[] = [];
@@ -73,7 +74,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
   let formLoadWarning: string | null = null;
 
   try {
-    const formOptions = await getStudentFormOptions({
+    formOptions = await getStudentFormOptions({
       sessionLabel: parsedFilters.sessionLabel || null,
     });
 
@@ -128,6 +129,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
           filters.sessionLabel !== resolvedSessionLabel,
       ),
   );
+  const activeCount = students.filter((student) => student.status === "active").length;
 
   return (
     <div className="space-y-6">
@@ -189,6 +191,23 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
         </div>
       </SectionCard>
 
+      {formOptions?.sessionMismatch ? (
+        <SectionCard
+          title="Working session mismatch"
+          description="Fee Setup and academic session master are not pointing to the same working session."
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <p>
+              Defaulting finance workflows to Fee Setup session{" "}
+              <strong>{formOptions.policySessionLabel || resolvedSessionLabel}</strong>.
+            </p>
+            <Button asChild variant="outline">
+              <Link href="/protected/fee-setup">Align Working Session with Fee Setup</Link>
+            </Button>
+          </div>
+        </SectionCard>
+      ) : null}
+
       {loadWarnings.length > 0 ? (
         <SectionCard
           title="Load warning"
@@ -206,7 +225,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
 
       <SectionCard
         title="Students_Master"
-        description={`${students.length} workbook row${students.length === 1 ? "" : "s"} found. Calculated columns are read-only and come from Fee Setup plus Payment Ledger.`}
+        description={`${activeCount} active student${activeCount === 1 ? "" : "s"} found. Calculated columns are read-only and come from Fee Setup plus Payment Ledger.`}
       >
         <StudentListTable
           students={students}
