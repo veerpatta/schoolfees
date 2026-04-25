@@ -8,8 +8,7 @@ import { StudentBulkImportDialogTrigger } from "@/components/students/student-bu
 import { StudentFilters } from "@/components/students/student-filters";
 import { StudentListTable } from "@/components/students/student-list-table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { STUDENT_IMPORT_FIELDS, STUDENT_STATUSES } from "@/lib/students/constants";
+import { STUDENT_STATUSES } from "@/lib/students/constants";
 import {
   getClassOptionsForSession,
   getStudentFormOptions,
@@ -139,26 +138,35 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
         description="Add students, manage student details, assign class/transport, and handle student-specific fee exceptions."
         actions={
           canWriteStudents ? (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button asChild>
                 <Link href={`/protected/students/new?sessionLabel=${encodeURIComponent(filters.sessionLabel)}`}>
                   Add Student
                 </Link>
               </Button>
-              <StudentBulkImportDialogTrigger
-                sessionOptions={sessionOptions}
-                defaultSessionLabel={filters.sessionLabel}
-              />
-              <Button asChild variant="outline">
-                <Link href={`/protected/imports/template?mode=add&sessionLabel=${encodeURIComponent(filters.sessionLabel)}`}>
-                  Download Template
-                </Link>
-              </Button>
-              <Button asChild variant="outline">
-              <Link href="/protected/imports/template?mode=update">
-                  Download Update Template
-                </Link>
-              </Button>
+              <details className="relative">
+                <summary className="inline-flex h-9 cursor-pointer list-none items-center justify-center rounded-lg border border-input bg-white px-4 py-2 text-sm font-semibold shadow-sm hover:bg-accent">
+                  More
+                </summary>
+                <div className="absolute right-0 z-20 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
+                  <div className="grid gap-2">
+                    <StudentBulkImportDialogTrigger
+                      sessionOptions={sessionOptions}
+                      defaultSessionLabel={filters.sessionLabel}
+                    />
+                    <Button asChild variant="outline">
+                      <Link href={`/protected/imports/template?mode=add&sessionLabel=${encodeURIComponent(filters.sessionLabel)}`}>
+                        Download Add Template
+                      </Link>
+                    </Button>
+                    <Button asChild variant="outline">
+                      <Link href="/protected/imports/template?mode=update">
+                        Download Update Template
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </details>
             </div>
           ) : (
             <StatusBadge label="Read-only access" tone="warning" />
@@ -225,7 +233,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
 
       <SectionCard
         title="Student list"
-        description={`${activeCount} active student${activeCount === 1 ? "" : "s"} found. Fee and dues columns come from Fee Setup and posted receipts.`}
+        description={`${activeCount} active student${activeCount === 1 ? "" : "s"} found.`}
       >
         <StudentListTable
           students={students}
@@ -234,30 +242,6 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
         />
       </SectionCard>
 
-      <details className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-slate-900">
-          Import column names
-        </summary>
-        <div className="border-t border-slate-200 p-4">
-          <p className="mb-4 text-sm text-slate-600">
-            These column names are kept only for import troubleshooting.
-          </p>
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-            {STUDENT_IMPORT_FIELDS.map((field) => (
-              <div key={field.key} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-sm font-semibold text-slate-900">{field.label}</p>
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {field.aliases.map((alias) => (
-                    <Badge key={`${field.key}-${alias}`} variant="outline" className="text-[11px]">
-                      {alias}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </details>
     </div>
   );
 }

@@ -62,7 +62,7 @@ export default async function DefaultersPage({
       <PageHeader
         eyebrow="Defaulters"
         title="Outstanding follow-up register"
-        description={`Workbook-style overdue list for class-wise and route-wise follow-up. Active session policy: ${policy.academicSessionLabel}.`}
+        description={`Phone-ready overdue list for ${policy.academicSessionLabel}.`}
         actions={
           <StatusBadge
             label={`${data.rows.length} row${data.rows.length === 1 ? "" : "s"} listed`}
@@ -189,7 +189,7 @@ export default async function DefaultersPage({
 
       <SectionCard
         title="Defaulter list"
-        description="Phone-ready overdue list with current due, paid, outstanding, and next-follow-up details."
+        description="Phone-ready overdue list with only the fields needed for follow-up."
       >
         <div className="overflow-x-auto rounded-xl border border-slate-200">
           <table className="w-full min-w-full text-left text-sm">
@@ -197,27 +197,16 @@ export default async function DefaultersPage({
               <tr>
                 <th className="px-4 py-3">Student</th>
                 <th className="px-4 py-3">Class</th>
-                <th className="px-4 py-3">SR no</th>
-                <th className="px-4 py-3">Father</th>
                 <th className="px-4 py-3">Phone</th>
-                <th className="px-4 py-3">Route</th>
-                <th className="px-4 py-3">Total due</th>
-                <th className="px-4 py-3">Paid</th>
-                <th className="px-4 py-3">Outstanding</th>
-                <th className="px-4 py-3">Late fee</th>
-                <th className="px-4 py-3">Next due date</th>
-                <th className="px-4 py-3">Next due amount</th>
-                <th className="px-4 py-3">Last payment</th>
-                <th className="px-4 py-3">Discount</th>
-                <th className="px-4 py-3">Waiver</th>
-                <th className="px-4 py-3">Overdue installments</th>
-                <th className="px-4 py-3">Follow-up</th>
+                <th className="px-4 py-3">Pending</th>
+                <th className="px-4 py-3">Status / Next due</th>
+                <th className="px-4 py-3">Action</th>
               </tr>
             </thead>
             <tbody>
               {data.rows.length === 0 ? (
                 <tr>
-                  <td colSpan={16} className="px-4 py-6 text-center text-slate-500">
+                  <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
                     No defaulters found for the selected filters.
                   </td>
                 </tr>
@@ -229,23 +218,24 @@ export default async function DefaultersPage({
                   >
                     <td className="px-4 py-3 font-medium text-slate-900">{row.fullName}</td>
                     <td className="px-4 py-3">{row.classLabel}</td>
-                    <td className="px-4 py-3">{row.admissionNo}</td>
-                    <td className="px-4 py-3">{row.fatherName ?? "-"}</td>
                     <td className="px-4 py-3">{row.fatherPhone ?? "-"}</td>
-                    <td className="px-4 py-3">{row.transportRouteLabel}</td>
-                    <td className="px-4 py-3">{formatInr(row.totalDue)}</td>
-                    <td className="px-4 py-3">{formatInr(row.totalPaid)}</td>
                     <td className="px-4 py-3 font-medium text-slate-900">
                       {formatInr(row.totalPending)}
                     </td>
-                    <td className="px-4 py-3">{formatInr(row.lateFee)}</td>
-                    <td className="px-4 py-3">{formatShortDate(row.nextDueDate)}</td>
-                    <td className="px-4 py-3">{formatInr(row.nextDueAmount ?? 0)}</td>
-                    <td className="px-4 py-3">{formatShortDate(row.lastPaymentDate)}</td>
-                    <td className="px-4 py-3">{formatInr(row.discountApplied)}</td>
-                    <td className="px-4 py-3">{formatInr(row.lateFeeWaived)}</td>
-                    <td className="px-4 py-3">{row.overdueInstallments}</td>
-                    <td className="px-4 py-3 capitalize">{row.followUpStatus}</td>
+                    <td className="px-4 py-3">
+                      <div className="capitalize">{row.followUpStatus}</div>
+                      <div className="text-xs text-slate-500">
+                        {formatShortDate(row.nextDueDate)} · {formatInr(row.nextDueAmount ?? 0)}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/protected/students/${row.studentId}`}
+                        className="text-sm font-semibold text-sky-700 hover:text-sky-900"
+                      >
+                        View
+                      </Link>
+                    </td>
                   </tr>
                 ))
               )}

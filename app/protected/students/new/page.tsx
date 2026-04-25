@@ -30,7 +30,7 @@ export default async function NewStudentPage({ searchParams }: NewStudentPagePro
       <PageHeader
         eyebrow="Students"
         title="Add student"
-        description="Enter the student details and any fee exceptions used for AY 2026-27 desk work."
+        description="Enter the student details needed for the school register."
       />
 
       {!readiness.addStudent.isReady ? (
@@ -44,7 +44,7 @@ export default async function NewStudentPage({ searchParams }: NewStudentPagePro
 
       <SectionCard
         title="Student details"
-        description="Use clean SR no, class, student status, and fee-profile details before the first payment is posted."
+        description="Add the main student details first. Fee exceptions and extra parent details are optional."
       >
         {readiness.addStudent.isReady ? (
           <StudentForm

@@ -41,10 +41,10 @@ export function StudentListTable({
         <thead className="bg-slate-50">
           <tr>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Student
+              SR no
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              SR no
+              Student name
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
               Class
@@ -66,9 +66,6 @@ export function StudentListTable({
         <tbody className="divide-y divide-slate-100 bg-white">
           {students.map((student) => (
             <tr key={student.id} className="align-top">
-              <td className="px-4 py-3">
-                <p className="text-sm font-medium text-slate-900">{student.fullName}</p>
-              </td>
               <td className="px-4 py-3 text-sm text-slate-700">
                 <p>{student.admissionNo}</p>
                 {isPendingAdmissionNo(student.admissionNo) ? (
@@ -76,6 +73,9 @@ export function StudentListTable({
                     SR pending
                   </span>
                 ) : null}
+              </td>
+              <td className="px-4 py-3">
+                <p className="text-sm font-medium text-slate-900">{student.fullName}</p>
               </td>
               <td className="px-4 py-3 text-sm text-slate-700">{student.classLabel}</td>
               <td className="px-4 py-3 text-sm text-slate-700">{student.transportRouteLabel}</td>

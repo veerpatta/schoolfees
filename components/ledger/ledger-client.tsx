@@ -6,7 +6,6 @@ import { MetricCard } from "@/components/admin/metric-card";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { AutoSubmitForm } from "@/components/office/auto-submit-form";
-import { ValueStatePill } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -82,18 +81,7 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
   return (
     <div className="space-y-6">
       <SectionCard
-        title="Field guide"
-        description="Ledger rows stay append-only. Payment history is locked, adjustments are explicit review items, and values here are calculated from posted records."
-      >
-        <div className="flex flex-wrap gap-2">
-          <ValueStatePill tone="locked">Locked payment history</ValueStatePill>
-          <ValueStatePill tone="review">Adjustment review</ValueStatePill>
-          <ValueStatePill tone="calculated">Calculated totals</ValueStatePill>
-        </div>
-      </SectionCard>
-
-      <SectionCard
-        title="1. Search and open student ledger"
+        title="Search student"
         description="Use name or SR no to open one student's payment and adjustment timeline."
       >
         <AutoSubmitForm action="/protected/ledger" method="get" className="space-y-4">
@@ -134,7 +122,7 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
           description="Payment history, adjustments, and correction form will appear after selecting a student."
         >
           <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-            This ledger is append-only. Use adjustments to correct balances without editing old payment rows.
+            Select a student to view payment history and corrections.
           </p>
         </SectionCard>
       ) : (
@@ -163,7 +151,7 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
           </section>
 
           <SectionCard
-            title="2. Filter ledger entries"
+            title="Filter entries"
             description="Use these filters to narrow the visible payment and adjustment rows for this student."
           >
             <AutoSubmitForm action="/protected/ledger" method="get" className="space-y-4">
@@ -198,8 +186,8 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
           </SectionCard>
 
           <SectionCard
-            title="3. Payment history (append-only)"
-            description="Original payment rows are never edited or deleted. Corrections appear as linked adjustment rows below."
+            title="Payment history"
+            description="Posted payments and linked corrections in newest-first order."
             actions={<StatusBadge label="Newest first" tone="good" />}
           >
             {selectedStudent.payments.length === 0 ? (
@@ -208,7 +196,7 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
               </p>
             ) : (
               <div className="overflow-x-auto rounded-xl border border-slate-200">
-                <table className="w-full min-w-[980px] text-left text-sm">
+                <table className="w-full min-w-[760px] text-left text-sm">
                   <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                     <tr>
                       <th className="px-4 py-3">Posted on</th>
@@ -385,7 +373,7 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
               </p>
             ) : (
               <div className="overflow-x-auto rounded-xl border border-slate-200">
-                <table className="w-full min-w-[980px] text-left text-sm">
+                <table className="w-full min-w-[760px] text-left text-sm">
                   <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                     <tr>
                       <th className="px-4 py-3">Added on</th>

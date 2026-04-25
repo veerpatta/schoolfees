@@ -70,8 +70,8 @@ export function SchoolBrand({
 
       {variant === "icon" ? null : (
         <div className="min-w-0">
-          <p className={style.eyebrow}>Internal Admin</p>
-          <h2 className={style.title}>Veer Patta Fee Admin</h2>
+          <p className={style.eyebrow}>School Office</p>
+          <h2 className={style.title}>Fee Management System</h2>
           <p className={style.subtitle}>Shri Veer Patta Senior Secondary School</p>
         </div>
       )}

@@ -205,12 +205,12 @@ export default async function StudentDetailPage({
           </div>
         </SectionCard>
 
-        <SectionCard title="Fee summary" description="Read-only current setup, class/route defaults, student overrides, next due, and outstanding position.">
+        <SectionCard title="Fee summary" description="Current fees, next due, and outstanding position.">
           {financialSnapshot ? (
             <div className="space-y-4">
               <div className="flex flex-wrap gap-2">
                 <ValueStatePill tone="policy">From Fee Setup</ValueStatePill>
-                <ValueStatePill tone="calculated">Calculated fee records</ValueStatePill>
+                <ValueStatePill tone="calculated">Dues prepared</ValueStatePill>
                 {financialSnapshot.activeOverrideReason ? (
                   <ValueStatePill tone="review">Override active</ValueStatePill>
                 ) : null}
@@ -248,7 +248,7 @@ export default async function StudentDetailPage({
               </div>
             </div>
           ) : (
-            <p className="text-sm text-slate-600">Financial snapshot is not available yet.</p>
+            <p className="text-sm text-slate-600">Fee summary is not available yet.</p>
           )}
         </SectionCard>
       </section>
@@ -327,10 +327,10 @@ export default async function StudentDetailPage({
       ) : null}
 
       {activeTab === "fee-plan" && financialSnapshot ? (
-        <SectionCard title="Fee Profile" description="Student-level fee exceptions and resolved annual fee breakup. School-wide defaults stay in Fee Setup.">
+        <SectionCard title="Fee exceptions" description="Student-level fee exceptions and annual fee breakup. School-wide defaults stay in Fee Setup.">
           <div className="mb-4 flex flex-wrap gap-2">
             <ValueStatePill tone="policy">From Fee Setup</ValueStatePill>
-            <ValueStatePill tone="calculated">Calculated totals</ValueStatePill>
+            <ValueStatePill tone="calculated">Fee summary</ValueStatePill>
           </div>
 
           <div className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -400,7 +400,7 @@ export default async function StudentDetailPage({
       {activeTab === "dues" ? (
         <SectionCard title="Dues" description="Current dues position for the student.">
           <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full min-w-[1180px] text-left text-sm">
+            <table className="w-full min-w-[820px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                 <tr>
                   <th className="px-4 py-3">Installment</th>
@@ -445,12 +445,12 @@ export default async function StudentDetailPage({
       ) : null}
 
       {activeTab === "payments" && ledger ? (
-        <SectionCard title="Payments" description="Posted payment rows stay append-only and visible here in newest-first order.">
+        <SectionCard title="Payments" description="Posted payment history in newest-first order.">
           <div className="mb-4 flex flex-wrap gap-2">
             <ValueStatePill tone="locked">Locked payment history</ValueStatePill>
           </div>
           <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full min-w-[980px] text-left text-sm">
+            <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                 <tr>
                   <th className="px-4 py-3">Posted at</th>
@@ -492,7 +492,7 @@ export default async function StudentDetailPage({
       {activeTab === "receipts" ? (
         <SectionCard title="Receipts" description="Latest receipts and quick print/open actions for this student.">
           <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full min-w-[1080px] text-left text-sm">
+            <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                 <tr>
                   <th className="px-4 py-3">Receipt</th>
@@ -545,7 +545,7 @@ export default async function StudentDetailPage({
       ) : null}
 
       {activeTab === "history" ? (
-        <SectionCard title="Audit / History" description="High-level history summary without exposing risky finance edits.">
+        <SectionCard title="History" description="High-level record history.">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Created</p>
@@ -576,11 +576,11 @@ export default async function StudentDetailPage({
       ) : null}
 
       {canEditStudent && deletionSafety ? (
-        <SectionCard
-          title="Admin record action"
-          description="Use delete only for wrong records. Withdraw students when posted receipts must stay permanently."
-        >
-          <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
+        <details className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-900">
+            Record actions
+          </summary>
+          <div className="grid gap-4 border-t border-slate-200 p-4 lg:grid-cols-[1fr_auto] lg:items-start">
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
               <p>
                 Receipts: {deletionSafety.receiptCount}, payments: {deletionSafety.paymentCount},
@@ -601,9 +601,9 @@ export default async function StudentDetailPage({
               <p className="mt-2">
                 {deletionSafety.hardDeleteAllowed
                   ? deletionSafety.generatedDuesDeleteAllowed
-                    ? "Only unpaid prepared dues are linked. Admin can delete this wrong record and its unpaid prepared dues."
-                    : "No finance rows are linked, so admin can delete this wrong record."
-                  : "Cannot delete because payment history exists. Withdraw student instead."}
+                    ? "Only unpaid dues are linked. Admin can delete this wrong record and its unpaid dues."
+                    : "No finance records are linked, so admin can delete this wrong record."
+                  : "Receipts stay saved in history. Withdraw student instead of deleting."}
               </p>
             </div>
             <div className="flex flex-wrap gap-2 lg:justify-end">
@@ -638,7 +638,7 @@ export default async function StudentDetailPage({
               ) : null}
             </div>
           </div>
-        </SectionCard>
+        </details>
       ) : null}
     </div>
   );

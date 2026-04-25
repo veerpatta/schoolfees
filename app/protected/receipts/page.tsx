@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { MetricCard } from "@/components/admin/metric-card";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { AutoSubmitForm } from "@/components/office/auto-submit-form";
@@ -36,7 +35,6 @@ export default async function ReceiptsPage({ searchParams }: ReceiptsPageProps) 
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const query = (resolvedSearchParams?.query ?? "").trim();
   const receipts = await getReceiptsList(query);
-  const totalAmount = receipts.reduce((sum, row) => sum + row.totalAmount, 0);
   const canPrintReceipts = hasStaffPermission(staff, "receipts:print");
 
   return (
@@ -44,14 +42,8 @@ export default async function ReceiptsPage({ searchParams }: ReceiptsPageProps) 
       <PageHeader
         eyebrow="Receipts"
         title="Receipts and reprints"
-        description="Search issued receipts, open formal printable copies, and verify payment details for desk and audit use."
+        description="Search receipts and open printable copies."
       />
-
-      <section className="grid gap-4 md:grid-cols-3">
-        <MetricCard title="Receipt records" value={receipts.length} hint="Latest entries in this filtered view" />
-        <MetricCard title="Amount in view" value={formatInr(totalAmount)} hint="Sum of listed receipts" />
-        <MetricCard title="Search" value={query || "All receipts"} hint="Filter by receipt no or reference no" />
-      </section>
 
       <SectionCard title="Receipt lookup" description="Search by receipt number or reference number.">
         <AutoSubmitForm action="/protected/receipts" method="get" className="flex flex-col gap-3 sm:flex-row">
@@ -73,7 +65,7 @@ export default async function ReceiptsPage({ searchParams }: ReceiptsPageProps) 
         title="Recent receipts"
         description={
           canPrintReceipts
-            ? "Linked directly to append-only payment entries."
+            ? `${receipts.length} receipt${receipts.length === 1 ? "" : "s"} in this view.`
             : "Open receipt details for verification. Print controls stay hidden for your role."
         }
       >
@@ -87,15 +79,13 @@ export default async function ReceiptsPage({ searchParams }: ReceiptsPageProps) 
                 <th className="px-4 py-3">Class</th>
                 <th className="px-4 py-3">Mode</th>
                 <th className="px-4 py-3">Amount</th>
-                <th className="px-4 py-3">Reference</th>
-                <th className="px-4 py-3">Received by</th>
                 <th className="px-4 py-3">Action</th>
               </tr>
             </thead>
             <tbody>
               {receipts.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-6 text-center text-slate-500">
+                  <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
                     No receipts found for this filter.
                   </td>
                 </tr>
@@ -111,8 +101,6 @@ export default async function ReceiptsPage({ searchParams }: ReceiptsPageProps) 
                       <td className="px-4 py-3">{receipt.classLabel}</td>
                       <td className="px-4 py-3">{paymentModeLabel(receipt.paymentMode)}</td>
                       <td className="px-4 py-3">{formatInr(receipt.totalAmount)}</td>
-                      <td className="px-4 py-3">{receipt.referenceNumber ?? "-"}</td>
-                      <td className="px-4 py-3">{receipt.receivedBy ?? "-"}</td>
                       <td className="px-4 py-3">
                         <Button asChild variant="outline" size="sm">
                           <Link href={`/protected/receipts/${receipt.id}`}>

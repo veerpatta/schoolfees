@@ -4,31 +4,31 @@
 
 @layer base {
   :root {
-    --background: 210 100% 99%;
-    --foreground: 218 54% 14%;
+    --background: 210 20% 98%;
+    --foreground: 222 42% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 218 54% 14%;
+    --card-foreground: 222 42% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 218 54% 14%;
-    --primary: 217 91% 60%;
+    --popover-foreground: 222 42% 12%;
+    --primary: 217 82% 52%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 210 90% 96%;
-    --secondary-foreground: 218 54% 14%;
-    --muted: 210 50% 96%;
+    --secondary: 214 32% 94%;
+    --secondary-foreground: 222 42% 12%;
+    --muted: 214 32% 95%;
     --muted-foreground: 217 17% 42%;
-    --accent: 208 100% 95%;
-    --accent-foreground: 218 54% 14%;
+    --accent: 213 55% 94%;
+    --accent-foreground: 222 42% 12%;
     --destructive: 0 71% 45%;
     --destructive-foreground: 0 0% 98%;
-    --border: 210 38% 88%;
-    --input: 210 38% 88%;
-    --ring: 217 91% 60%;
+    --border: 214 26% 88%;
+    --input: 214 26% 88%;
+    --ring: 217 82% 52%;
     --chart-1: 217 91% 60%;
     --chart-2: 200 94% 50%;
     --chart-3: 221 83% 53%;
     --chart-4: 188 86% 43%;
     --chart-5: 221 70% 42%;
-    --radius: 1.125rem;
+    --radius: 0.75rem;
   }
 }
 
@@ -44,10 +44,7 @@
   body {
     @apply min-h-screen bg-background text-foreground;
     font-family: var(--font-manrope), sans-serif;
-    background-image:
-      radial-gradient(circle at top left, rgba(59, 130, 246, 0.14), transparent 26%),
-      radial-gradient(circle at top right, rgba(14, 165, 233, 0.12), transparent 24%),
-      linear-gradient(180deg, #f7fbff 0%, #eef5ff 44%, #f8fbff 100%);
+    background-image: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
   }
 
   ::selection {
@@ -61,10 +58,7 @@
   }
 
   .glass-panel {
-    @apply border backdrop-blur-xl;
-    border-color: rgb(255 255 255 / 0.75);
-    background-color: rgb(255 255 255 / 0.82);
-    box-shadow: 0 22px 60px -36px rgba(15, 23, 42, 0.35);
+    @apply border border-slate-200 bg-white shadow-sm;
   }
 
   .brand-grid {

@@ -82,7 +82,7 @@ export function StudentForm({
     <form action={formAction} className="space-y-6">
       <div className="flex flex-wrap gap-2">
         <ValueStatePill tone="editable">Student Master</ValueStatePill>
-        <ValueStatePill tone="policy">Fee Profile</ValueStatePill>
+        <ValueStatePill tone="policy">Fee exceptions</ValueStatePill>
       </div>
 
       {state.message ? (
@@ -279,22 +279,22 @@ export function StudentForm({
               <FieldError message={getFieldError(state, "lateFeeWaiverAmount")} />
             </div>
             <div>
-              <Label htmlFor="otherAdjustmentHead">Other fee / adjustment head</Label>
+              <Label htmlFor="otherAdjustmentHead">Other adjustment</Label>
               <Input id="otherAdjustmentHead" name="otherAdjustmentHead" defaultValue={initialValues.otherAdjustmentHead} className="mt-2" placeholder="e.g. Uniform adj." />
               <FieldError message={getFieldError(state, "otherAdjustmentHead")} />
             </div>
             <div>
-              <Label htmlFor="otherAdjustmentAmount">Other fee / adjustment amount</Label>
+              <Label htmlFor="otherAdjustmentAmount">Other adjustment amount</Label>
               <Input id="otherAdjustmentAmount" name="otherAdjustmentAmount" type="number" defaultValue={initialValues.otherAdjustmentAmount} className="mt-2" placeholder="Positive or negative" />
               <FieldError message={getFieldError(state, "otherAdjustmentAmount")} />
             </div>
             <div className="md:col-span-2 xl:col-span-3">
-              <Label htmlFor="feeProfileReason">Special-case reason</Label>
-              <Input id="feeProfileReason" name="feeProfileReason" defaultValue={initialValues.feeProfileReason} className="mt-2" placeholder="e.g. Approved concession, route exception, workbook correction" />
+              <Label htmlFor="feeProfileReason">Reason</Label>
+              <Input id="feeProfileReason" name="feeProfileReason" defaultValue={initialValues.feeProfileReason} className="mt-2" placeholder="e.g. Approved concession or route exception" />
               <FieldError message={getFieldError(state, "feeProfileReason")} />
             </div>
             <div className="md:col-span-2 xl:col-span-3">
-              <Label htmlFor="feeProfileNotes">Fee profile office notes</Label>
+              <Label htmlFor="feeProfileNotes">Advanced notes</Label>
               <textarea id="feeProfileNotes" name="feeProfileNotes" defaultValue={initialValues.feeProfileNotes} className={`${textAreaClassName} mt-2`} placeholder="Optional reason details for accounts review" />
             </div>
           </div>
@@ -320,7 +320,7 @@ export function StudentForm({
         </div>
       </details>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap gap-2 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:-mx-5 md:px-5">
         <Button type="submit" disabled={disableSubmit || isPending}>
           {isPending
             ? mode === "add"

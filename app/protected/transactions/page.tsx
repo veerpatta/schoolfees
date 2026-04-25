@@ -208,28 +208,18 @@ function TransactionsTable({
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
           <tr>
             <th className="px-4 py-3">Date</th>
-            <th className="px-4 py-3">Receipt / Ref</th>
+            <th className="px-4 py-3">Receipt no</th>
             <th className="px-4 py-3">Student</th>
-            <th className="px-4 py-3">SR no</th>
             <th className="px-4 py-3">Class</th>
-            <th className="px-4 py-3">Payment mode</th>
-            <th className="px-4 py-3">Reference</th>
+            <th className="px-4 py-3">Mode</th>
             <th className="px-4 py-3">Amount</th>
-            <th className="px-4 py-3">Received by</th>
-            <th className="px-4 py-3">Father</th>
-            <th className="px-4 py-3">Phone</th>
-            <th className="px-4 py-3">Route</th>
-            <th className="px-4 py-3">Total paid</th>
-            <th className="px-4 py-3">Outstanding</th>
-            <th className="px-4 py-3">Discount</th>
-            <th className="px-4 py-3">Late fee waived</th>
-            <th className="px-4 py-3">Actions</th>
+            <th className="px-4 py-3">Action</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={16} className="px-4 py-6 text-center text-slate-500">
+              <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
                 No transactions found for this view.
               </td>
             </tr>
@@ -241,19 +231,9 @@ function TransactionsTable({
                   <div className="font-medium text-slate-900">{row.receiptNumber}</div>
                 </td>
                 <td className="px-4 py-3">{row.studentName}</td>
-                <td className="px-4 py-3">{row.admissionNo}</td>
                 <td className="px-4 py-3">{row.classLabel}</td>
                 <td className="px-4 py-3">{formatPaymentModeLabel(row.paymentMode)}</td>
-                <td className="px-4 py-3">{row.referenceNumber ?? "-"}</td>
                 <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.totalAmount)}</td>
-                <td className="px-4 py-3">{row.receivedBy ?? "-"}</td>
-                <td className="px-4 py-3">{row.fatherName ?? "-"}</td>
-                <td className="px-4 py-3">{row.fatherPhone ?? "-"}</td>
-                <td className="px-4 py-3">{row.transportRouteLabel}</td>
-                <td className="px-4 py-3">{formatInr(row.currentTotalPaid)}</td>
-                <td className="px-4 py-3">{formatInr(row.currentOutstanding)}</td>
-                <td className="px-4 py-3">{formatInr(row.discountApplied)}</td>
-                <td className="px-4 py-3">{formatInr(row.lateFeeWaived)}</td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
                     <Button asChild size="sm" variant="outline">
@@ -757,7 +737,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
       <PageHeader
         eyebrow="Finance records"
         title="Transactions"
-        description="Permanent receipt records, dues tracker, defaulters, and exportable finance views."
+        description="What financial activity happened?"
         actions={
           <div className="flex flex-wrap gap-2">
             {canExport ? (
@@ -931,7 +911,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
           title={activeMeta.title}
           description={
             workbook.view === "transactions"
-              ? "Latest posted records newest first with current workbook balance context."
+              ? "Latest posted records newest first."
               : "Receipt register with print, student, and payment desk shortcuts."
           }
         >
@@ -942,7 +922,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
       {workbook.view === "installments" ? (
         <SectionCard
           title="Dues tracker"
-          description="Student-wise workbook tracker with pending installment columns and next due details."
+          description="Student-wise dues tracker with pending installments and next due details."
         >
           <InstallmentTrackerTable rows={workbook.rows} />
         </SectionCard>
@@ -960,7 +940,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
       {workbook.view === "class_register" ? (
         <SectionCard
           title="Class register"
-          description="Workbook-style class register with fee breakup and compact receipt history."
+          description="Class register with dues status, paid, pending, and actions."
         >
           <ClassRegisterTable rows={workbook.rows} />
         </SectionCard>

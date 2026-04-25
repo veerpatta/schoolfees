@@ -23,7 +23,7 @@ export function SectionCard({
     <section
       id={id}
       className={cn(
-        "glass-panel rounded-[28px] p-5 md:p-6",
+        "glass-panel rounded-xl p-4 md:p-5",
         className,
       )}
     >

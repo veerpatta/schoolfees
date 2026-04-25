@@ -676,7 +676,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       <PageHeader
         eyebrow="Dashboard"
         title="Dashboard"
-        description="Fee collection overview for the current academic session"
+        description="Today collection, pending dues, students, and follow-up."
         actions={
           <div className="space-y-3">
             <div className="flex flex-wrap justify-start gap-2 sm:justify-end">
@@ -751,76 +751,35 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         />
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          title="Active Students"
-          value={data.kpis.totalStudents}
-          hint="Active students in the Fee Setup working session."
-        />
-        <MetricCard
-          title="Total Expected Fees"
-          value={formatInr(data.kpis.totalExpectedFees)}
-          hint="Current session expected fee total."
-        />
-        <MetricCard
-          title="Total Collected"
-          value={formatInr(data.kpis.totalCollected)}
-          hint={`${formatPercent(data.kpis.collectionRate)} of expected fees collected.`}
-        />
-        <MetricCard
-          title="Total Pending"
-          value={formatInr(data.kpis.totalPending)}
-          hint={`${data.studentsWithPending} student${data.studentsWithPending === 1 ? "" : "s"} still have dues.`}
-        />
-        <MetricCard
-          title="Amount to Refund"
-          value={formatInr(data.totalRefundDue)}
-          hint="Credit/refund due from revised fee records. No cash refund is processed here."
-        />
-        <MetricCard
-          title="Overdue Amount"
-          value={formatInr(data.kpis.overdueAmount)}
-          hint={`${data.overdueInstallmentCount} overdue installment${data.overdueInstallmentCount === 1 ? "" : "s"}.`}
-        />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <MetricCard
           title="Today's Collection"
           value={formatInr(data.kpis.todaysCollection)}
-          hint="Posted through receipt records today."
+          hint="Collected at the Payment Desk today."
+        />
+        <MetricCard
+          title="Pending Dues"
+          value={formatInr(data.kpis.totalPending)}
+          hint={`${data.studentsWithPending} student${data.studentsWithPending === 1 ? "" : "s"} need follow-up.`}
+        />
+        <MetricCard
+          title="Active Students"
+          value={data.kpis.totalStudents}
+          hint="Students in this academic year."
         />
         <MetricCard
           title="Receipts Today"
           value={data.kpis.receiptsToday}
-          hint="Receipts posted for the current school day."
+          hint="Receipts saved today."
         />
         <MetricCard
-          title="Collection Rate"
-          value={formatPercent(data.kpis.collectionRate)}
-          hint="Collected amount divided by expected amount."
+          title="Follow-up"
+          value={data.followUpQueue.length}
+          hint="Students needing fee follow-up."
         />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.75fr)]">
-        <ProgressCard
-          collected={data.kpis.totalCollected}
-          expected={data.kpis.totalExpectedFees}
-          pending={data.kpis.totalPending}
-          rate={data.kpis.collectionRate}
-        />
-        <TodayCard
-          amount={data.kpis.todaysCollection}
-          receiptCount={data.kpis.receiptsToday}
-          modes={data.todayPaymentModeBreakdown}
-        />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-2">
-        <SectionCard
-          title="Collection trend"
-          description="Recent receipt totals by payment date."
-          actions={<BarChart3 className="size-5 text-sky-600" />}
-        >
-          <TrendChart rows={data.collectionTrend} />
-        </SectionCard>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
         <SectionCard
           title="Class-wise pending"
           description="Highest pending classes appear first."
@@ -829,73 +788,94 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <ClassPendingChart rows={maxChartCards} />
         </SectionCard>
         <SectionCard
-          title="Collected vs pending"
-          description="Simple split of the current fee position."
-          actions={<IndianRupee className="size-5 text-emerald-600" />}
-        >
-          <BreakdownCard
-            collected={data.kpis.totalCollected}
-            pending={data.kpis.totalPending}
-          />
-        </SectionCard>
-        <SectionCard
-          title="Installment status"
-          description="Expected, collected, and pending totals by installment."
-          actions={<CalendarClock className="size-5 text-blue-600" />}
-        >
-          <InstallmentStatus rows={data.installmentSummary} />
-        </SectionCard>
-      </div>
-
-      <SectionCard
-        title="Class-wise fee position"
-        description="Sorted by highest pending amount so the office can decide where to follow up first."
-      >
-        <ClassSummaryTable rows={data.classSummary} />
-      </SectionCard>
-
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-        <SectionCard
-          title="Follow-up queue"
-          description="Overdue students and highest pending balances for office follow-up."
-        >
-          <FollowUpQueue rows={data.followUpQueue} canPostPayments={canPostPayments} />
-        </SectionCard>
-        <SectionCard
-          title="Latest receipts"
-          description="Recent posted receipts for quick verification and printing."
+          title="Recent receipts"
+          description="Latest receipts saved by the office."
         >
           <RecentReceipts rows={data.recentPayments} />
         </SectionCard>
       </div>
 
       <SectionCard
-        title="Attention needed"
-        description="Setup, import, and dues-update items that may need office or admin review."
+        title="Follow-up queue"
+        description="Students with overdue or high pending balances."
       >
-        <AlertsPanel alerts={data.alerts} />
+        <FollowUpQueue rows={data.followUpQueue} canPostPayments={canPostPayments} />
       </SectionCard>
 
-      <SectionCard
-        title="Next best actions"
-        description="Shortcuts only. Dashboard does not post payments or edit fee setup."
-      >
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-          {nextActions.map((action) => {
-            const Icon = action.icon;
-            return (
-              <Link
-                key={action.href}
-                href={action.href}
-                className="group rounded-2xl border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-sky-50"
-              >
-                <Icon className="mb-3 size-5 text-sky-700 transition group-hover:text-sky-800" />
-                {action.label}
-              </Link>
-            );
-          })}
+      <details className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-900">
+          More dashboard details
+        </summary>
+        <div className="grid gap-6 border-t border-slate-200 p-4 xl:grid-cols-2">
+          <ProgressCard
+            collected={data.kpis.totalCollected}
+            expected={data.kpis.totalExpectedFees}
+            pending={data.kpis.totalPending}
+            rate={data.kpis.collectionRate}
+          />
+          <TodayCard
+            amount={data.kpis.todaysCollection}
+            receiptCount={data.kpis.receiptsToday}
+            modes={data.todayPaymentModeBreakdown}
+          />
+          <SectionCard
+            title="Collection trend"
+            description="Recent receipt totals by payment date."
+            actions={<BarChart3 className="size-5 text-sky-600" />}
+          >
+            <TrendChart rows={data.collectionTrend} />
+          </SectionCard>
+          <SectionCard
+            title="Collected vs pending"
+            description="Simple split of the current fee position."
+            actions={<IndianRupee className="size-5 text-emerald-600" />}
+          >
+            <BreakdownCard
+              collected={data.kpis.totalCollected}
+              pending={data.kpis.totalPending}
+            />
+          </SectionCard>
+          <SectionCard
+            title="Installment status"
+            description="Expected, collected, and pending totals by installment."
+            actions={<CalendarClock className="size-5 text-blue-600" />}
+          >
+            <InstallmentStatus rows={data.installmentSummary} />
+          </SectionCard>
+          <SectionCard
+            title="Class-wise fee position"
+            description="Sorted by highest pending amount."
+          >
+            <ClassSummaryTable rows={data.classSummary} />
+          </SectionCard>
+        <SectionCard
+          title="Attention needed"
+          description="Setup, import, and dues-update items that may need review."
+        >
+          <AlertsPanel alerts={data.alerts} />
+        </SectionCard>
+          <SectionCard
+            title="Next best actions"
+            description="Shortcuts only. Dashboard does not post payments or edit fee setup."
+          >
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {nextActions.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <Link
+                    key={action.href}
+                    href={action.href}
+                    className="group rounded-lg border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-800 transition hover:border-sky-200 hover:bg-sky-50"
+                  >
+                    <Icon className="mb-3 size-5 text-sky-700 transition group-hover:text-sky-800" />
+                    {action.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </SectionCard>
         </div>
-      </SectionCard>
+      </details>
     </div>
   );
 }

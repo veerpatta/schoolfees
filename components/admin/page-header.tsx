@@ -20,7 +20,7 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "glass-panel flex flex-col gap-4 rounded-[30px] p-5 sm:flex-row sm:items-start sm:justify-between sm:p-6",
+        "glass-panel flex flex-col gap-4 rounded-xl p-4 sm:flex-row sm:items-start sm:justify-between sm:p-5",
         className,
       )}
     >

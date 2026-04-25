@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  advancedHubSections,
   getDefaultProtectedHref,
   getProtectedRouteMeta,
   getVisibleProtectedNavigation,
@@ -56,6 +57,14 @@ describe("office navigation", () => {
       href: "/protected/advanced",
       label: "Admin Tools",
     });
+  });
+
+  it("keeps technical fee troubleshooting admin-only inside Admin Tools", () => {
+    const item = advancedHubSections
+      .flatMap((section) => section.items)
+      .find((entry) => entry.label === "Fee Data Troubleshooting");
+
+    expect(item?.requiredPermission).toBe("fees:write");
   });
 
   it("keeps Fee Setup visible in the simplified primary navigation", () => {

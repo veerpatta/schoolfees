@@ -31,7 +31,7 @@ export default async function AdvancedPage() {
       ...section,
       items: section.items.filter((item) => hasStaffPermission(staff, item.requiredPermission)),
     }))
-    .filter((section) => section.items.length > 0);
+    .filter((section) => section.items.length > 0 && section.title !== "Fee Data Troubleshooting");
 
   return (
     <div className="space-y-6">
@@ -47,17 +47,18 @@ export default async function AdvancedPage() {
         Payment Desk, and Transactions.
       </div>
 
-      <SectionCard
-        id="fee-data-troubleshooting"
-        title="Fee Data Troubleshooting"
-        description="Use these actions only when students or dues are missing from Dashboard, Payment Desk, Transactions, or reports."
-        actions={
-          <StatusBadge
-            label={feeDataHealth.dashboardReady && feeDataHealth.paymentDeskReady ? "Ready" : "Needs attention"}
-            tone={feeDataHealth.dashboardReady && feeDataHealth.paymentDeskReady ? "good" : "warning"}
-          />
-        }
-      >
+      {canRepairFeeData ? (
+        <SectionCard
+          id="fee-data-troubleshooting"
+          title="Fee Data Troubleshooting"
+          description="Use these actions only when students or dues are missing from Dashboard, Payment Desk, Transactions, or reports."
+          actions={
+            <StatusBadge
+              label={feeDataHealth.dashboardReady && feeDataHealth.paymentDeskReady ? "Ready" : "Needs attention"}
+              tone={feeDataHealth.dashboardReady && feeDataHealth.paymentDeskReady ? "good" : "warning"}
+            />
+          }
+        >
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -87,7 +88,6 @@ export default async function AdvancedPage() {
           </div>
         </div>
 
-        {canRepairFeeData ? (
           <div className="mt-4 flex flex-wrap gap-2">
             <form action={repairCurrentSessionDuesAction}>
               <Button type="submit">Prepare missing dues</Button>
@@ -113,11 +113,6 @@ export default async function AdvancedPage() {
               </Button>
             </form>
           </div>
-        ) : (
-          <p className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-            You can view this status, but only admins can run fee data repair actions.
-          </p>
-        )}
 
         <details className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
           <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-slate-900">
@@ -152,7 +147,8 @@ export default async function AdvancedPage() {
             </div>
           </div>
         </details>
-      </SectionCard>
+        </SectionCard>
+      ) : null}
 
       <div className="grid gap-5 xl:grid-cols-2">
         {visibleSections.map((section) => (

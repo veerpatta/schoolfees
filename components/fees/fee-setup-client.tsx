@@ -607,7 +607,7 @@ export function FeeSetupClient({
 
       <SectionCard
         title="1. Academic Year"
-        description="Choose the year to set up. Copy or create a year here; maintenance stays below."
+        description="Choose the year for this fee setup."
         actions={
           <div className="min-w-[240px]">
             <Label htmlFor="selected-session">Academic year</Label>
@@ -731,7 +731,7 @@ export function FeeSetupClient({
 
           <AdvancedDetails
             title="Advanced academic-year options"
-            description="Archive old sessions, delete unused sessions, and review saved setup metadata."
+            description="Old-year maintenance and saved setup details."
           >
             <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
               <table className="w-full min-w-full text-left text-sm">
@@ -739,7 +739,7 @@ export function FeeSetupClient({
                   <tr>
                     <th className="px-4 py-3">Session</th>
                     <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Policy</th>
+                    <th className="px-4 py-3">Saved setup</th>
                     <th className="px-4 py-3">Updated</th>
                     <th className="px-4 py-3">Actions</th>
                   </tr>
@@ -1707,9 +1707,8 @@ export function FeeSetupClient({
 
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
             <p className="max-w-3xl text-sm leading-6 text-slate-600">
-              Publishing keeps payments, receipts, adjustments, and audit logs append-only. Only
-              future or unpaid dues may change; paid, partial, or adjusted rows are
-              kept for review.
+              Publishing updates future or unpaid dues only. Receipts stay saved in
+              history, and paid or adjusted rows are kept for review.
             </p>
             <div className="flex flex-wrap gap-2">
               {canEdit ? (
@@ -1742,7 +1741,7 @@ export function FeeSetupClient({
 
           {selectedPolicySnapshot?.id ? (
             <p className="text-xs leading-5 text-slate-500">
-              Last saved session snapshot: {formatDateTime(selectedPolicySnapshot.updatedAt ?? null)}
+              Last saved fee setup: {formatDateTime(selectedPolicySnapshot.updatedAt ?? null)}
             </p>
           ) : null}
         </div>

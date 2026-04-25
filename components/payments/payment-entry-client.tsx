@@ -84,7 +84,7 @@ function ActionNotice({
       {state.message}
       {state.status === "error" && state.diagnostic && canViewDiagnostics ? (
         <details className="mt-2 rounded border border-red-200 bg-white/70 px-2 py-2 text-xs text-red-900">
-          <summary className="cursor-pointer font-medium">Admin diagnostic</summary>
+          <summary className="cursor-pointer font-medium">Technical details</summary>
           <dl className="mt-2 grid gap-1 sm:grid-cols-2">
             <div>Reason: {state.diagnostic.reason}</div>
             <div>Student: {state.diagnostic.studentId ?? "Not set"}</div>
@@ -104,10 +104,10 @@ function ActionNotice({
                   ? "Yes"
                   : "No"}
             </div>
-            <div>Database code: {state.diagnostic.rawRpcErrorCode ?? "None"}</div>
+            <div>Update code: {state.diagnostic.rawRpcErrorCode ?? "None"}</div>
           </dl>
           {state.diagnostic.rawRpcErrorMessage ? (
-            <p className="mt-2 break-words">Database message: {state.diagnostic.rawRpcErrorMessage}</p>
+            <p className="mt-2 break-words">Update message: {state.diagnostic.rawRpcErrorMessage}</p>
           ) : null}
         </details>
       ) : null}
@@ -677,8 +677,8 @@ export function PaymentEntryClient({
           ) : null}
 
           <SectionCard
-            title="3. Student Fee Summary"
-            description="Desk view for parent contact, workbook status, and route before posting the next receipt."
+            title="Selected student"
+            description="Class, route, and contact details for the selected student."
           >
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
@@ -717,8 +717,8 @@ export function PaymentEntryClient({
           </SectionCard>
 
           <SectionCard
-            title="4. Installment Dues"
-            description="Review installment-level dues and payment status before saving the next receipt."
+            title="Dues summary"
+            description="Installment-level dues before saving the next receipt."
             actions={
               <div className="flex flex-wrap items-center gap-2">
                 <ValueStatePill tone="policy">From Fee Setup</ValueStatePill>
@@ -778,9 +778,9 @@ export function PaymentEntryClient({
           </SectionCard>
 
           <SectionCard
-            title="5. Collect Payment"
-            description="Payments are append-only. If correction is needed later, use adjustment entries instead of editing history."
-            actions={<ValueStatePill tone="locked">Locked history after posting</ValueStatePill>}
+            title="Collect Payment"
+            description="Enter amount, mode, date, and reference, then confirm payment."
+            actions={<ValueStatePill tone="locked">Receipt saved after posting</ValueStatePill>}
           >
             {!canPost ? (
               <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">

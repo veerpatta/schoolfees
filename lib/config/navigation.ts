@@ -39,21 +39,21 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
   {
     href: "/protected/dashboard",
     label: "Dashboard",
-    description: "School fee overview, collection progress, and follow-up alerts.",
+    description: "Today collection, dues, students, and follow-up.",
     icon: BarChart3,
     requiredPermission: "dashboard:view",
   },
   {
     href: "/protected/students",
     label: "Students",
-    description: "Student master, fee profiles, imports, and one-student workspace.",
+    description: "Student register and fee exceptions.",
     icon: UsersRound,
     requiredPermission: "students:view",
   },
   {
     href: "/protected/fee-setup",
     label: "Fee Setup",
-    description: "Live fee rules, school-wide defaults, and dues updates.",
+    description: "Academic year fees and installment dates.",
     icon: ScrollText,
     requiredPermission: "fees:view",
     aliases: ["/protected/fee-structure"],
@@ -61,7 +61,7 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
   {
     href: "/protected/payments",
     label: "Payment Desk",
-    description: "Counter entry, receipt generation, and daily collection shortcuts.",
+    description: "Collect payments and print receipts.",
     icon: BadgeIndianRupee,
     requiredPermission: "payments:view",
     aliases: ["/protected/collections"],
@@ -69,7 +69,7 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
   {
     href: "/protected/transactions",
     label: "Transactions",
-    description: "Permanent records, receipts, dues, installment tracker, defaulters, and exports.",
+    description: "Receipts, dues, defaulters, and exports.",
     icon: BookOpenCheck,
     requiredPermission: "receipts:view",
     aliases: ["/protected/dues", "/protected/receipts", "/protected/defaulters", "/protected/ledger"],
@@ -77,7 +77,7 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
   {
     href: "/protected/advanced",
     label: "Admin Tools",
-    description: "Rare setup, staff, correction, and troubleshooting tools.",
+    description: "Setup, corrections, and system checks.",
     icon: FolderCog,
     requiredPermission: "finance:view",
     visibleTo: ["admin", "accountant"],
@@ -112,21 +112,21 @@ const routeMetaItems: Array<
     match: "/protected/fee-setup",
     href: "/protected/fee-setup",
     label: "Fee Setup",
-    description: "Live fee rules, school-wide defaults, and dues updates.",
+    description: "Academic year fees and installment dates.",
     aliases: ["/protected/fee-structure", "/protected/fee-setup/generate"],
   },
   {
     match: "/protected/payments",
     href: "/protected/payments",
     label: "Payment Desk",
-    description: "Counter posting, receipt printing, and fast daily collection work.",
+    description: "Collect payments and print receipts.",
     aliases: ["/protected/collections"],
   },
   {
     match: "/protected/transactions",
     href: "/protected/transactions",
     label: "Transactions",
-    description: "Permanent receipt records, dues, installment tracker, defaulters, and exportable finance views.",
+    description: "Financial activity, receipts, dues, defaulters, and exports.",
     aliases: ["/protected/dues", "/protected/receipts", "/protected/defaulters", "/protected/ledger"],
   },
   {
@@ -181,7 +181,7 @@ const routeMetaItems: Array<
     match: "/protected/imports",
     href: "/protected/advanced",
     label: "Import History",
-    description: "Legacy student import workflow, history, and troubleshooting.",
+    description: "Student spreadsheet upload history and review.",
   },
   {
     match: "/protected/staff",
@@ -193,7 +193,7 @@ const routeMetaItems: Array<
     match: "/protected/settings",
     href: "/protected/advanced",
     label: "App Settings",
-    description: "Deployment checks, active policy notes, and config audit history.",
+    description: "School settings, system checks, and change history.",
   },
   {
     match: "/protected/password",
@@ -308,25 +308,25 @@ export const advancedHubSections: readonly AdvancedHubSection[] = [
   },
   {
     title: "School Settings",
-    description: "Global policy notes and deployment readiness for the school office.",
+    description: "School settings and system checks.",
     items: [
       {
         href: "/protected/settings",
         label: "App Settings",
-        description: "Deployment checks, policy notes, and config audit history.",
+        description: "School settings, system checks, and change history.",
         icon: Settings2,
         requiredPermission: "settings:view",
       },
     ],
   },
   {
-    title: "Master Data",
-    description: "Sessions, classes, routes, and fee-head maintenance.",
+    title: "School Lists",
+    description: "Sessions, classes, routes, and payment lists.",
     items: [
       {
         href: "/protected/master-data",
         label: "School Lists",
-        description: "Maintain academic sessions, classes, transport routes, fee heads, and payment modes.",
+        description: "Maintain sessions, classes, routes, fee heads, and payment modes.",
         icon: BookText,
         requiredPermission: "settings:write",
       },
@@ -346,13 +346,13 @@ export const advancedHubSections: readonly AdvancedHubSection[] = [
     ],
   },
   {
-    title: "Import History / Troubleshooting",
-    description: "Keep the legacy import route available for review and issue tracing.",
+    title: "Import History",
+    description: "Spreadsheet upload history and row review.",
     items: [
       {
         href: "/protected/imports",
         label: "Import History",
-        description: "Open the legacy student import workflow when you need history, row review, or troubleshooting.",
+        description: "Review spreadsheet uploads, row results, and saved batches.",
         icon: UsersRound,
         requiredPermission: "imports:view",
       },
@@ -365,9 +365,9 @@ export const advancedHubSections: readonly AdvancedHubSection[] = [
       {
         href: "/protected/advanced#fee-data-troubleshooting",
         label: "Fee Data Troubleshooting",
-        description: "Prepare missing dues, update fee records for this year, and fix Payment Desk dues.",
+        description: "Prepare missing dues, update fee records, and fix Payment Desk dues.",
         icon: FolderCog,
-        requiredPermission: "finance:view",
+        requiredPermission: "fees:write",
       },
     ],
   },

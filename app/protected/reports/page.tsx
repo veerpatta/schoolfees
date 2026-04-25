@@ -667,7 +667,7 @@ function MetricsSection({ report }: { report: ReportData }) {
             hint="Import batches matching the current date filters"
           />
           <MetricCard
-            title="Workbook rows"
+            title="Checked rows"
             value={report.metrics.totalRows}
             hint="Total staged rows across the listed batches"
           />

@@ -37,7 +37,7 @@ export default async function EditStudentPage({ params }: EditStudentPageProps) 
 
       <SectionCard
         title="Student details"
-        description="Keep record corrections and fee-profile changes clear and traceable."
+        description="Keep record corrections and fee exceptions clear."
       >
         {hasSessionMismatch ? (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

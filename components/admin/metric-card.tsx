@@ -8,7 +8,7 @@ type MetricCardProps = {
 
 export function MetricCard({ title, value, hint }: MetricCardProps) {
   return (
-    <div className="glass-panel rounded-[26px] p-5">
+    <div className="glass-panel rounded-xl p-4">
       <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-sky-700/75">
         {title}
       </p>

@@ -19,9 +19,30 @@ describe("read-only UX audit implementation", () => {
     expect(filters).not.toContain("Apply filters");
     expect(page).toContain('("active" as StudentListFilters["status"])');
     expect(page).toContain("Add Student");
+    expect(page).toContain("More");
     expect(bulkDialog).toContain("Bulk Add Students");
     expect(bulkDialog).toContain("Bulk Update Existing Students");
-    expect(page).toContain("Download Template");
+    expect(page).toContain("Download Add Template");
+    expect(page).not.toContain("Import column names");
+  });
+
+  it("login stays minimal and staff-safe", () => {
+    const layout = readRepoFile("app/auth/layout.tsx");
+    const login = readRepoFile("components/login-form.tsx");
+    const notice = readRepoFile("components/auth/auth-config-notice.tsx");
+    const authError = readRepoFile("app/auth/error.tsx");
+    const combined = [layout, login, notice, authError].join("\n");
+
+    expect(layout).toContain("Shri Veer Patta Senior Secondary School");
+    expect(layout).toContain("Fee Management System");
+    expect(layout).toContain("For school office use only");
+    expect(login).toContain("Email / Username");
+    expect(login).toContain("Forgot password?");
+    expect(combined).toContain("Sign-in is temporarily unavailable");
+    expect(combined).not.toContain("Back to overview");
+    expect(combined).not.toContain("Supabase");
+    expect(combined).not.toContain("NEXT_PUBLIC");
+    expect(combined).not.toContain("Vercel");
   });
 
   it("read-only finance filters no longer need manual apply buttons", () => {
@@ -68,7 +89,7 @@ describe("read-only UX audit implementation", () => {
     expect(advanced).toContain("Prepare missing dues");
     expect(advanced).toContain("Update fee records for this year");
     expect(advanced).toContain("Fix Payment Desk dues");
-    expect(navigation).toContain("Fee Data Troubleshooting");
+    expect(navigation).toContain('requiredPermission: "fees:write"');
   });
 
   it("uses office-friendly wording on daily pages", () => {
@@ -94,6 +115,20 @@ describe("read-only UX audit implementation", () => {
     expect(combined).not.toContain("RPC");
     expect(combined).not.toContain("schema");
     expect(combined).not.toContain("migration");
+    expect(combined).not.toContain("append-only");
+  });
+
+  it("daily tables expose compact default columns", () => {
+    const studentsTable = readRepoFile("components/students/student-list-table.tsx");
+    const transactions = readRepoFile("app/protected/transactions/page.tsx");
+    const defaulters = readRepoFile("app/protected/defaulters/page.tsx");
+
+    expect(studentsTable).toContain("SR no");
+    expect(studentsTable).toContain("Student name");
+    expect(transactions).toContain("Receipt no");
+    expect(transactions).not.toContain("Receipt / Ref");
+    expect(defaulters).toContain("Status / Next due");
+    expect(defaulters).toContain("Phone-ready overdue list with only the fields needed for follow-up.");
   });
 
   it("write actions still revalidate finance surfaces", () => {

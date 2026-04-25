@@ -56,10 +56,10 @@ export function StudentImportWorkflow({
     <div className="space-y-6">
       <PageHeader
         eyebrow="Students"
-        title="Advanced Import History"
+        title="Import History"
         description={mode === "update"
-          ? "Technical import dashboard for batch history, troubleshooting, and update-mode review."
-          : "Technical import dashboard for batch history, troubleshooting, and add-mode review."}
+          ? "Batch history and review for student update spreadsheets."
+          : "Batch history and review for student add spreadsheets."}
         actions={
           canManage ? (
             <StatusBadge label="Fast upload flow" tone="accent" />
