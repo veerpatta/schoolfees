@@ -734,7 +734,7 @@ export function FeeSetupClient({
             description="Archive old sessions, delete unused sessions, and review saved setup metadata."
           >
             <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
-              <table className="w-full min-w-[940px] text-left text-sm">
+              <table className="w-full min-w-full text-left text-sm">
                 <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                   <tr>
                     <th className="px-4 py-3">Session</th>
@@ -1005,7 +1005,7 @@ export function FeeSetupClient({
                 </div>
               ) : (
                 <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
-                  <table className="w-full min-w-[1540px] text-left text-sm">
+                  <table className="w-full min-w-full text-left text-sm">
                     <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                       <tr>
                         <th className="px-4 py-3">Fee Head Name</th>
@@ -1215,7 +1215,7 @@ export function FeeSetupClient({
         <div className="space-y-4">
           <ActionNotice state={classState} />
           <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
-            <table className="w-full min-w-[560px] text-left text-sm">
+            <table className="w-full min-w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                 <tr>
                   <th className="px-4 py-3">Class</th>
@@ -1296,7 +1296,7 @@ export function FeeSetupClient({
               ) : null}
 
               <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
-                <table className="w-full min-w-[1040px] text-left text-sm">
+                <table className="w-full min-w-full text-left text-sm">
                   <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                     <tr>
                       <th className="px-4 py-3">Class Name</th>
@@ -1438,7 +1438,7 @@ export function FeeSetupClient({
         <div className="space-y-4">
           <ActionNotice state={routeState} />
           <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
-            <table className="w-full min-w-[700px] text-left text-sm">
+            <table className="w-full min-w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                 <tr>
                   <th className="px-4 py-3">Route</th>
@@ -1537,7 +1537,7 @@ export function FeeSetupClient({
               ) : null}
 
               <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
-                <table className="w-full min-w-[980px] text-left text-sm">
+                <table className="w-full min-w-full text-left text-sm">
                   <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                     <tr>
                       <th className="px-4 py-3">Route Name</th>

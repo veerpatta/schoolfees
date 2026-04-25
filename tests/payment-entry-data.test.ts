@@ -45,6 +45,7 @@ describe("payment entry data", () => {
       in: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
       order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
       then: vi.fn((resolve) => resolve({ data: [], error: null })),
     };
     createClient.mockResolvedValue({

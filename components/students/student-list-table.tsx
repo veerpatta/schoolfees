@@ -37,7 +37,7 @@ export function StudentListTable({
 
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200">
-      <table className="min-w-[1080px] divide-y divide-slate-200">
+      <table className="min-w-full divide-y divide-slate-200">
         <thead className="bg-slate-50">
           <tr>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">

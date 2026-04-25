@@ -26,6 +26,9 @@ type CommitResponse = {
     skippedCount: number;
     temporarySrGeneratedCount: number;
     ledgerSyncError: string | null;
+    duesReadyCount: number;
+    duesAttentionCount: number;
+    duesReasonSummary: string | null;
     status: "completed" | "failed";
   };
   summary: ImportBatchDialogSummary;
@@ -207,7 +210,7 @@ export function StudentBulkImportDialogTrigger({
 
     setSummary(payload.summary);
     setCommitResult(payload.result);
-    setStatusText("Import complete");
+    setStatusText(payload.result.ledgerSyncError ? "Dues need attention" : "Students imported and dues prepared");
     router.refresh();
   }
 
@@ -422,21 +425,43 @@ export function StudentBulkImportDialogTrigger({
                     </div>
 
                 {commitResult ? (
-                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-                    <p className="font-semibold">Import complete</p>
+                  <div
+                    className={`rounded-xl border p-3 text-sm ${
+                      commitResult.ledgerSyncError
+                        ? "border-amber-200 bg-amber-50 text-amber-950"
+                        : "border-emerald-200 bg-emerald-50 text-emerald-900"
+                    }`}
+                  >
+                    <p className="font-semibold">
+                      {commitResult.ledgerSyncError
+                        ? "Students imported, but dues need attention"
+                        : "Students imported and dues prepared"}
+                    </p>
                     <p className="mt-1">
                       Created: {commitResult.createdCount} | Updated: {commitResult.updatedCount} | Failed: {commitResult.failedCount} | Skipped: {commitResult.skippedCount}
                     </p>
                     <p className="mt-1">Temporary SR generated: {commitResult.temporarySrGeneratedCount}</p>
+                    <p className="mt-1">
+                      Ready for payment: {commitResult.duesReadyCount} | Dues not prepared: {commitResult.duesAttentionCount}
+                    </p>
                     {commitResult.ledgerSyncError ? (
-                      <p className="mt-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
-                        Students were imported, but dues sync failed: {commitResult.ledgerSyncError}
-                      </p>
+                      <div className="mt-2 rounded-lg border border-amber-300 bg-white/70 px-3 py-2 text-amber-950">
+                        <p className="font-medium">Dues could not be prepared.</p>
+                        <p className="mt-1">{commitResult.duesReasonSummary ?? commitResult.ledgerSyncError}</p>
+                      </div>
                     ) : null}
                     <div className="mt-2 flex flex-wrap gap-2">
                       <Button asChild size="sm" variant="outline">
                         <Link href="/protected/students">Open Students list</Link>
-                          </Button>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href="/protected/payments">Open Payment Desk</Link>
+                      </Button>
+                      {commitResult.ledgerSyncError ? (
+                        <Button asChild size="sm" variant="outline">
+                          <Link href="/protected/fee-setup">Open Fee Setup</Link>
+                        </Button>
+                      ) : null}
                           <Button asChild size="sm" variant="outline">
                             <Link href={`/protected/imports?mode=${summary.mode}&batchId=${summary.batchId}`}>
                               Import history

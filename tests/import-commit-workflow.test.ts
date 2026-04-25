@@ -121,6 +121,8 @@ vi.mock("@/lib/fees/generator", () => ({
 }));
 
 vi.mock("@/lib/system-sync/finance-sync", () => ({
+  hasPreparedDues: vi.fn((result) => result.affectedStudents > 0 || result.installmentsToInsert > 0),
+  summarizeDuesPreparationIssues: vi.fn(() => ""),
   syncAfterBulkStudentImport: vi.fn(async (studentIds: string[]) => {
     await generateSessionLedgersAction({ scopedStudentIds: studentIds });
     return {
@@ -206,5 +208,7 @@ describe("student import commit workflow", () => {
     });
     expect(result.affectedStudentIds).toEqual(["student-1"]);
     expect(result.status).toBe("completed");
+    expect(result.duesReadyCount).toBe(1);
+    expect(result.duesAttentionCount).toBe(0);
   });
 });

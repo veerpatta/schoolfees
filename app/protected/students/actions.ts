@@ -19,8 +19,10 @@ import {
 import { getStudentFormInput, validateStudentInput } from "@/lib/students/validation";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import {
+  hasPreparedDues,
   syncAfterStudentChange,
   revalidateFinanceSurfaces,
+  summarizeDuesPreparationIssues,
 } from "@/lib/system-sync/finance-sync";
 
 function mapWriteErrorToState(message: string): StudentFormActionState {
@@ -73,15 +75,23 @@ export async function createStudentAction(
     if (isDuesSyncRelevantStatus(validated.data.status)) {
       await requireStaffPermission("fees:write");
       const syncResult = await syncAfterStudentChange(studentId);
+      const issueSummary = summarizeDuesPreparationIssues(syncResult.skippedStudents);
 
-      syncMessage = ` Dues generated: ${syncResult.installmentsToInsert} insert, ${syncResult.installmentsToUpdate} update, ${syncResult.installmentsToCancel} cancel, ${syncResult.lockedInstallments} blocked for review.`;
+      if (hasPreparedDues(syncResult) && syncResult.skippedStudents.length === 0) {
+        syncMessage = " Student added and dues prepared.";
+      } else if (issueSummary) {
+        syncMessage = ` Student saved, but dues could not be prepared. ${issueSummary}`;
+      } else {
+        syncMessage =
+          " Student saved, but dues could not be prepared. Check Fee Setup for this class and year.";
+      }
     } else {
       revalidateFinanceSurfaces({ studentIds: [studentId] });
     }
 
     return {
       status: "success",
-      message: `Student record created successfully.${syncMessage}`,
+      message: syncMessage || "Student record created successfully.",
       fieldErrors: {},
       studentId,
     };
@@ -135,15 +145,23 @@ export async function updateStudentAction(
     if (shouldSyncDues) {
       await requireStaffPermission("fees:write");
       const syncResult = await syncAfterStudentChange(updatedStudentId);
+      const issueSummary = summarizeDuesPreparationIssues(syncResult.skippedStudents);
 
-      syncMessage = ` Workbook dues sync completed: ${syncResult.installmentsToInsert} insert, ${syncResult.installmentsToUpdate} update, ${syncResult.installmentsToCancel} cancel, ${syncResult.lockedInstallments} blocked for review.`;
+      if (hasPreparedDues(syncResult) && syncResult.skippedStudents.length === 0) {
+        syncMessage = " Fee records updated.";
+      } else if (issueSummary) {
+        syncMessage = ` Student saved, but dues could not be prepared. ${issueSummary}`;
+      } else {
+        syncMessage =
+          " Student saved, but dues could not be prepared. Check Fee Setup for this class and year.";
+      }
     } else {
       revalidateFinanceSurfaces({ studentIds: [updatedStudentId] });
     }
 
     return {
       status: "success",
-      message: `Student record updated successfully.${syncMessage}`,
+      message: syncMessage ? `Student record updated successfully.${syncMessage}` : "Student record updated successfully.",
       fieldErrors: {},
       studentId: updatedStudentId,
     };
@@ -163,6 +181,7 @@ export async function archiveStudentAction(formData: FormData) {
   }
 
   await archiveStudent(studentId);
+  await syncAfterStudentChange(studentId);
   revalidateFinanceSurfaces({ studentIds: [studentId] });
 }
 

@@ -150,7 +150,7 @@ export default async function DefaultersPage({
           description="These active students are not treated as defaulters yet. Prepare dues before collection or follow-up."
         >
           <div className="overflow-x-auto rounded-xl border border-amber-200">
-            <table className="w-full min-w-[980px] text-left text-sm">
+            <table className="w-full min-w-full text-left text-sm">
               <thead className="bg-amber-50 text-xs uppercase tracking-wide text-amber-800">
                 <tr>
                   <th className="px-4 py-3">Student</th>
@@ -192,7 +192,7 @@ export default async function DefaultersPage({
         description="Phone-ready overdue list with current due, paid, outstanding, and next-follow-up details."
       >
         <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full min-w-[1700px] text-left text-sm">
+          <table className="w-full min-w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
               <tr>
                 <th className="px-4 py-3">Student</th>
@@ -259,7 +259,7 @@ export default async function DefaultersPage({
         description="Use this view for transport follow-up and route-level reconciliation work."
       >
         <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full min-w-[980px] text-left text-sm">
+          <table className="w-full min-w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
               <tr>
                 <th className="px-4 py-3">Route</th>
@@ -320,7 +320,7 @@ export default async function DefaultersPage({
         description="Operational student list grouped by route for office calls and overdue follow-up."
       >
         <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full min-w-[1500px] text-left text-sm">
+          <table className="w-full min-w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
               <tr>
                 <th className="px-4 py-3">Route</th>

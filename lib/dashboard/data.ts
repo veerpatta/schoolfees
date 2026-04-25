@@ -9,7 +9,6 @@ import { createClient } from "@/lib/supabase/server";
 import {
   getRawActiveSessionStudentCount,
   getRawClassStudentSummary,
-  getSystemSyncHealth,
   type SystemSyncHealth,
 } from "@/lib/system-sync/finance-sync";
 import {
@@ -325,7 +324,6 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
     overdueInstallments,
     transactions,
     todayTransactions,
-    systemSyncHealth,
     configAlerts,
     importAlerts,
     ledgerAlerts,
@@ -406,14 +404,13 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
       [],
       warnings,
     ),
-    optionalLoad("receipt activity", () => getWorkbookTransactions(), [], warnings),
+    optionalLoad("receipt activity", () => getWorkbookTransactions({ limit: 20 }), [], warnings),
     optionalLoad(
       "today receipt activity",
       () => getWorkbookTransactions({ todayOnly: true }),
       [],
       warnings,
     ),
-    optionalLoad("system sync health", getSystemSyncHealth, null, warnings),
     optionalLoad("fee setup review alerts", getConfigChangeAlerts, [], warnings),
     optionalLoad("student import alerts", getImportIssueAlerts, [], warnings),
     optionalLoad("dues update alerts", getLedgerReviewAlerts, [], warnings),
@@ -451,22 +448,6 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
       tone: "warning",
       actionHref: "/protected/reports",
       actionLabel: "Open reports",
-    });
-  }
-
-  if (
-    systemSyncHealth &&
-    systemSyncHealth.rawStudentsInActiveSession > 0 &&
-    (systemSyncHealth.studentsMissingInstallmentRows > 0 ||
-      systemSyncHealth.studentsMissingFinancialRows > 0)
-  ) {
-    alerts.unshift({
-      key: "missing-dues",
-      title: "Dues need preparation",
-      detail: `${systemSyncHealth.rawStudentsInActiveSession} students found, but dues are not prepared for ${Math.max(systemSyncHealth.studentsMissingInstallmentRows, systemSyncHealth.studentsMissingFinancialRows)} student${Math.max(systemSyncHealth.studentsMissingInstallmentRows, systemSyncHealth.studentsMissingFinancialRows) === 1 ? "" : "s"}.`,
-      tone: "warning",
-      actionHref: "/protected/advanced#fee-data-troubleshooting",
-      actionLabel: "Open Fee Data Troubleshooting",
     });
   }
 
@@ -534,6 +515,6 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
     partlyPaidStudents,
     overdueStudents,
     notStartedStudents,
-    systemSyncHealth,
+    systemSyncHealth: null,
   };
 }

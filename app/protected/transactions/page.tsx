@@ -204,7 +204,7 @@ function TransactionsTable({
 }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200">
-      <table className="w-full min-w-[1520px] text-left text-sm">
+      <table className="w-full min-w-full text-left text-sm">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
           <tr>
             <th className="px-4 py-3">Date</th>
@@ -279,7 +279,7 @@ function TransactionsTable({
 function InstallmentTrackerTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200">
-      <table className="w-full min-w-[1640px] text-left text-sm">
+      <table className="w-full min-w-full text-left text-sm">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
           <tr>
             <th className="px-4 py-3">Student</th>
@@ -358,7 +358,7 @@ function InstallmentTrackerTable({ rows }: { rows: OfficeWorkbookStudentRow[] })
 function StudentDuesTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200">
-      <table className="w-full min-w-[1320px] text-left text-sm">
+      <table className="w-full min-w-full text-left text-sm">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
           <tr>
             <th className="px-4 py-3">Student</th>
@@ -437,7 +437,7 @@ function StudentDuesTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
 function ClassRegisterTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200">
-      <table className="w-full min-w-[2080px] text-left text-sm">
+      <table className="w-full min-w-full text-left text-sm">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
           <tr>
             <th className="px-4 py-3">Student</th>
@@ -533,7 +533,7 @@ function ClassRegisterTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
 function DefaultersTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200">
-      <table className="w-full min-w-[1640px] text-left text-sm">
+      <table className="w-full min-w-full text-left text-sm">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
           <tr>
             <th className="px-4 py-3">Student</th>
@@ -609,7 +609,7 @@ function CollectionTable({
 }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200">
-      <table className="w-full min-w-[720px] text-left text-sm">
+      <table className="w-full min-w-full text-left text-sm">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
           <tr>
             <th className="px-4 py-3">Date</th>
@@ -654,7 +654,7 @@ function ImportIssuesTable({
 }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200">
-      <table className="w-full min-w-[1260px] text-left text-sm">
+      <table className="w-full min-w-full text-left text-sm">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
           <tr>
             <th className="px-4 py-3">Row</th>

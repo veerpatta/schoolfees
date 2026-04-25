@@ -110,6 +110,11 @@ export type StudentDeletionSafety = {
   receiptCount: number;
   paymentCount: number;
   adjustmentCount: number;
+  refundRequestCount: number;
+  blockedInstallmentCount: number;
+  ledgerRegenerationRowCount: number;
+  importReferenceCount: number;
+  feeOverrideCount: number;
   auditLogCount: number;
   sessionLabel: string;
   admissionNo: string;

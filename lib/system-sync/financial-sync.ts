@@ -4,6 +4,7 @@ import { getFeePolicySummary } from "@/lib/fees/data";
 import {
   generateSessionLedgersAction,
   type LedgerGenerationResult,
+  type LedgerSkippedStudent,
 } from "@/lib/fees/generator";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateCoreFinancePaths } from "@/lib/system-sync/finance-revalidation";
@@ -171,8 +172,12 @@ function buildLedgerWarnings(result: LedgerGenerationResult) {
   }
 
   if (result.studentsMissingSettings > 0) {
-    warnings.push("One or more students belong to a class with no active fee setting.");
+    warnings.push("One or more students belong to a class with no fee amount in Fee Setup.");
   }
+
+  result.skippedStudents.forEach((student) => {
+    warnings.push(student.reasonMessage);
+  });
 
   if (
     result.scopedStudents > 0 &&
@@ -184,7 +189,26 @@ function buildLedgerWarnings(result: LedgerGenerationResult) {
     warnings.push("No dues changed. The student may already be synced or may need Fee Setup review.");
   }
 
-  return warnings;
+  return [...new Set(warnings)];
+}
+
+export function summarizeDuesPreparationIssues(skippedStudents: readonly LedgerSkippedStudent[]) {
+  const reasonMessages = [...new Set(skippedStudents.map((student) => student.reasonMessage))];
+
+  if (reasonMessages.length === 0) {
+    return "";
+  }
+
+  return reasonMessages.slice(0, 3).join(" ");
+}
+
+export function hasPreparedDues(result: LedgerGenerationResult) {
+  return (
+    result.installmentsToInsert > 0 ||
+    result.installmentsToUpdate > 0 ||
+    result.existingInstallments > 0 ||
+    result.affectedStudents > 0
+  );
 }
 
 function buildEmptySyncResult(reason: string, warnings: string[] = []): FinancialSyncResult {
@@ -203,6 +227,8 @@ function buildEmptySyncResult(reason: string, warnings: string[] = []): Financia
     expectedScheduledInstallments: 0,
     affectedStudents: 0,
     blockedInstallmentsForReview: [],
+    skippedStudents: [],
+    errors: [],
     reason,
     warnings,
   };
@@ -460,7 +486,7 @@ export async function syncStudentFinancials(payload: {
 
   if (studentIds.length === 0) {
     revalidateCoreFinancePaths();
-    return buildEmptySyncResult(payload.reason, ["No student IDs were supplied for dues sync."]);
+    return buildEmptySyncResult(payload.reason, ["No students selected."]);
   }
 
   const result = await generateSessionLedgersAction({ scopedStudentIds: studentIds });
@@ -482,7 +508,7 @@ export async function syncSessionFinancials(payload: {
     requestedSession.toLowerCase() !== policy.academicSessionLabel.trim().toLowerCase()
   ) {
     warnings.push(
-      `Skipped dues sync for ${requestedSession} because the active Fee Setup session is ${policy.academicSessionLabel}. Make that session active first.`,
+      `Dues were not prepared because ${requestedSession} is not active in Fee Setup. The active year is ${policy.academicSessionLabel}.`,
     );
     revalidateCoreFinancePaths();
     return buildEmptySyncResult(payload.reason, warnings);
@@ -703,7 +729,7 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
             .from("v_workbook_student_financials")
             .select("student_id", { count: "exact", head: true })
             .in("student_id", activeSessionStudentIds),
-          "students with workbook rows",
+          "students with prepared fee records",
         )
       : 0;
   } catch (error) {

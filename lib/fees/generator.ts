@@ -8,15 +8,25 @@ import type { FeeSetupPageData } from "@/lib/fees/types";
 
 type GeneratorStudentRow = {
   id: string;
+  admission_no: string;
+  full_name: string;
   class_id: string;
   transport_route_id: string | null;
   status: "active" | "inactive" | "left" | "graduated";
   class_ref:
     | {
+        class_name: string;
+        section: string | null;
+        stream_name: string | null;
         session_label: string;
+        status: string;
       }
     | Array<{
+        class_name: string;
+        section: string | null;
+        stream_name: string | null;
         session_label: string;
+        status: string;
       }>
     | null;
 };
@@ -91,6 +101,27 @@ export type BlockedInstallmentForReview = {
   actionNeeded: "update" | "cancel";
 };
 
+export type LedgerSkippedStudentReasonCode =
+  | "SESSION_MISMATCH"
+  | "ACTIVE_FEE_SETUP_MISSING"
+  | "CLASS_FEE_MISSING"
+  | "CLASS_INACTIVE"
+  | "STUDENT_NOT_ACTIVE"
+  | "FEE_SETUP_INCOMPLETE"
+  | "NO_INSTALLMENT_DATES"
+  | "DATABASE_ERROR"
+  | "UNKNOWN";
+
+export type LedgerSkippedStudent = {
+  studentId: string;
+  admissionNo: string;
+  fullName: string;
+  classLabel: string;
+  sessionLabel: string;
+  reasonCode: LedgerSkippedStudentReasonCode;
+  reasonMessage: string;
+};
+
 type LedgerSyncPlan = {
   academicSessionLabel: string;
   totalActiveStudents: number;
@@ -103,13 +134,22 @@ type LedgerSyncPlan = {
   installmentsToUpdate: PlannedExistingUpdate[];
   installmentsToCancel: CancelPlan[];
   blockedInstallmentsForReview: BlockedInstallmentForReview[];
+  skippedStudents: LedgerSkippedStudent[];
+  warnings: string[];
+  errors: string[];
   expectedScheduledInstallments: number;
   affectedStudents: number;
 };
 
 export type LedgerGenerationPreview = Omit<
   LedgerSyncPlan,
-  "installmentsToInsert" | "installmentsToUpdate" | "installmentsToCancel" | "blockedInstallmentsForReview"
+  | "installmentsToInsert"
+  | "installmentsToUpdate"
+  | "installmentsToCancel"
+  | "blockedInstallmentsForReview"
+  | "skippedStudents"
+  | "warnings"
+  | "errors"
 > & {
   installmentsToInsert: number;
   installmentsToUpdate: number;
@@ -119,6 +159,9 @@ export type LedgerGenerationPreview = Omit<
 
 export type LedgerGenerationResult = LedgerGenerationPreview & {
   blockedInstallmentsForReview: BlockedInstallmentForReview[];
+  skippedStudents: LedgerSkippedStudent[];
+  warnings: string[];
+  errors: string[];
 };
 
 type LedgerPlanOptions = {
@@ -162,6 +205,57 @@ function differs(existing: ExistingInstallmentRow, next: PlannedInstallment) {
     existing.late_fee_flat_amount !== next.late_fee_flat_amount ||
     existing.status !== "scheduled"
   );
+}
+
+function normalizeSessionLabel(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function buildClassLabel(value: {
+  class_name?: string | null;
+  section?: string | null;
+  stream_name?: string | null;
+} | null) {
+  if (!value?.class_name) {
+    return "Unknown class";
+  }
+
+  return [value.class_name, value.section ? `Section ${value.section}` : "", value.stream_name ?? ""]
+    .filter(Boolean)
+    .join(" - ");
+}
+
+function toSkippedStudent(
+  student: GeneratorStudentRow,
+  reasonCode: LedgerSkippedStudentReasonCode,
+  reasonMessage: string,
+): LedgerSkippedStudent {
+  const classRef = toSingleRecord(student.class_ref);
+
+  return {
+    studentId: student.id,
+    admissionNo: student.admission_no,
+    fullName: student.full_name,
+    classLabel: buildClassLabel(classRef),
+    sessionLabel: classRef?.session_label ?? "Not set",
+    reasonCode,
+    reasonMessage,
+  };
+}
+
+function dedupeSkippedStudents(rows: LedgerSkippedStudent[]) {
+  const seen = new Set<string>();
+
+  return rows.filter((row) => {
+    const key = `${row.studentId}:${row.reasonCode}`;
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
 }
 
 function addToAmountMap(map: Map<string, number>, installmentId: string, amount: number) {
@@ -241,7 +335,9 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
 
   let studentsQuery = supabase
     .from("students")
-    .select("id, class_id, transport_route_id, status, class_ref:classes(session_label)");
+    .select(
+      "id, admission_no, full_name, class_id, transport_route_id, status, class_ref:classes(class_name, section, stream_name, session_label, status)",
+    );
 
   if (scopedStudentIdSet) {
     studentsQuery = studentsQuery.in("id", [...scopedStudentIdSet]);
@@ -257,9 +353,66 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
 
   const loadedStudents = (studentsRaw ?? []) as GeneratorStudentRow[];
   const activeStudents = loadedStudents.filter((student) => student.status === "active");
+  const activeFeeSetupSession = setupData.globalPolicy.academicSessionLabel.trim();
+  const skippedStudents: LedgerSkippedStudent[] = [];
+  const warnings: string[] = [];
+  const errors: string[] = [];
+
+  if (!activeFeeSetupSession) {
+    warnings.push("Fee Setup is incomplete for this year.");
+    loadedStudents.forEach((student) => {
+      skippedStudents.push(
+        toSkippedStudent(
+          student,
+          "ACTIVE_FEE_SETUP_MISSING",
+          "Fee Setup is incomplete for this year.",
+        ),
+      );
+    });
+  }
+
+  if (setupData.globalPolicy.installmentSchedule.length === 0) {
+    warnings.push("Fee Setup has no installment dates for this year.");
+    loadedStudents.forEach((student) => {
+      skippedStudents.push(
+        toSkippedStudent(
+          student,
+          "NO_INSTALLMENT_DATES",
+          "Fee Setup has no installment dates for this year.",
+        ),
+      );
+    });
+  }
+
   const sessionStudents = loadedStudents.filter((student) => {
     const classRef = toSingleRecord(student.class_ref);
-    return classRef?.session_label === setupData.globalPolicy.academicSessionLabel;
+    const classSessionMatches =
+      normalizeSessionLabel(classRef?.session_label) === normalizeSessionLabel(activeFeeSetupSession);
+    const classIsActive = classRef?.status === "active";
+
+    if (!classSessionMatches) {
+      skippedStudents.push(
+        toSkippedStudent(
+          student,
+          "SESSION_MISMATCH",
+          `This student is in ${classRef?.session_label || "another year"}, but Fee Setup is active for ${activeFeeSetupSession || "this year"}.`,
+        ),
+      );
+      return false;
+    }
+
+    if (!classIsActive) {
+      skippedStudents.push(
+        toSkippedStudent(
+          student,
+          "CLASS_INACTIVE",
+          `${buildClassLabel(classRef)} is inactive, so dues were not prepared.`,
+        ),
+      );
+      return false;
+    }
+
+    return true;
   });
   const scopedStudents = scopedStudentIdSet
     ? sessionStudents.filter((student) => scopedStudentIdSet.has(student.id))
@@ -335,6 +488,14 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
 
   for (const student of scopedStudents) {
     if (student.status !== "active") {
+      skippedStudents.push(
+        toSkippedStudent(
+          student,
+          "STUDENT_NOT_ACTIVE",
+          "This student is not active, so dues were not prepared.",
+        ),
+      );
+
       existingInstallments
         .filter((row) => row.student_id === student.id)
         .forEach((row) => {
@@ -396,12 +557,41 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
     const discountAmount = studentOverride?.discountAmount ?? 0;
     const feeSettingId = classDefault?.id ?? null;
 
+    if (setupData.globalPolicy.installmentSchedule.length === 0) {
+      skippedStudents.push(
+        toSkippedStudent(
+          student,
+          "NO_INSTALLMENT_DATES",
+          "Fee Setup has no installment dates for this year.",
+        ),
+      );
+      continue;
+    }
+
+    if (!feeSettingId) {
+      skippedStudents.push(
+        toSkippedStudent(
+          student,
+          "CLASS_FEE_MISSING",
+          `${buildClassLabel(toSingleRecord(student.class_ref))} does not have a fee amount in Fee Setup for ${activeFeeSetupSession}.`,
+        ),
+      );
+      continue;
+    }
+
     if (
       !isMeaningfulResolvedConfig({
         annualTotal: resolved.breakdown.annualTotal,
         feeSettingId,
       })
     ) {
+      skippedStudents.push(
+        toSkippedStudent(
+          student,
+          "FEE_SETUP_INCOMPLETE",
+          `Fee Setup is incomplete for ${buildClassLabel(toSingleRecord(student.class_ref))} in ${activeFeeSetupSession}.`,
+        ),
+      );
       continue;
     }
 
@@ -560,6 +750,9 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
     installmentsToUpdate,
     installmentsToCancel,
     blockedInstallmentsForReview,
+    skippedStudents: dedupeSkippedStudents(skippedStudents),
+    warnings,
+    errors,
     expectedScheduledInstallments,
     affectedStudents: affectedStudentIds.size,
   };
@@ -590,6 +783,9 @@ export async function previewLedgerGenerationDetailed(
   return {
     ...summarizePlan(plan),
     blockedInstallmentsForReview: plan.blockedInstallmentsForReview,
+    skippedStudents: plan.skippedStudents,
+    warnings: plan.warnings,
+    errors: plan.errors,
   };
 }
 
@@ -635,5 +831,8 @@ export async function generateSessionLedgersAction(
   return {
     ...summarizePlan(plan),
     blockedInstallmentsForReview: plan.blockedInstallmentsForReview,
+    skippedStudents: plan.skippedStudents,
+    warnings: plan.warnings,
+    errors: plan.errors,
   };
 }

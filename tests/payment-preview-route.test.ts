@@ -45,7 +45,7 @@ describe("payment preview route", () => {
 
     expect(response.status).toBe(503);
     expect(payload.error).toBe(
-      "Payment preview needs a database update. Ask an admin to check System Readiness.",
+      "Payment preview needs a database update. Ask an admin to open Admin Tools > System checks.",
     );
   });
 

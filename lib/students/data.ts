@@ -378,7 +378,8 @@ export async function getStudents(filters: StudentListFilters) {
       "id, admission_no, full_name, date_of_birth, status, primary_phone, secondary_phone, updated_at, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code)",
     )
     .eq("class_ref.status", "active")
-    .order("full_name", { ascending: true });
+    .order("full_name", { ascending: true })
+    .limit(100);
 
   if (filters.query) {
     query = query.ilike("full_name", `%${filters.query}%`);
@@ -724,6 +725,22 @@ async function countRows(
   return count ?? 0;
 }
 
+async function countImportStudentReferences(studentId: string) {
+  const supabase = await createClient();
+  const { count, error } = await supabase
+    .from("import_rows")
+    .select("id", { count: "exact", head: true })
+    .or(
+      `target_student_id.eq.${studentId},duplicate_student_id.eq.${studentId},imported_student_id.eq.${studentId}`,
+    );
+
+  if (error) {
+    throw new Error(`Unable to check import rows: ${error.message}`);
+  }
+
+  return count ?? 0;
+}
+
 export async function getStudentDeletionSafety(studentId: string): Promise<StudentDeletionSafety | null> {
   const student = await getStudentDetail(studentId);
 
@@ -736,19 +753,29 @@ export async function getStudentDeletionSafety(studentId: string): Promise<Stude
     receiptCount,
     paymentCount,
     adjustmentCount,
+    refundRequestCount,
+    blockedInstallmentCount,
+    ledgerRegenerationRowCount,
+    importReferenceCount,
+    feeOverrideCount,
     auditLogCount,
   ] = await Promise.all([
     countRows("installments", studentId),
     countRows("receipts", studentId),
     countRows("payments", studentId),
     countRows("payment_adjustments", studentId),
+    countRows("refund_requests", studentId).catch(() => 0),
+    countRows("config_change_blocked_installments", studentId).catch(() => 0),
+    countRows("ledger_regeneration_rows", studentId).catch(() => 0),
+    countImportStudentReferences(studentId).catch(() => 0),
+    countRows("student_fee_overrides", studentId).catch(() => 0),
     countRows("audit_logs", studentId, "record_id").catch(() => 0),
   ]);
   const deletePolicy = getStudentDeletePolicy({
     installmentCount,
     receiptCount,
     paymentCount,
-    adjustmentCount,
+    adjustmentCount: adjustmentCount + refundRequestCount,
     sessionLabel: student.classSessionLabel,
     admissionNo: student.admissionNo,
     fullName: student.fullName,
@@ -764,6 +791,11 @@ export async function getStudentDeletionSafety(studentId: string): Promise<Stude
     receiptCount,
     paymentCount,
     adjustmentCount,
+    refundRequestCount,
+    blockedInstallmentCount,
+    ledgerRegenerationRowCount,
+    importReferenceCount,
+    feeOverrideCount,
     auditLogCount,
     sessionLabel: student.classSessionLabel,
     admissionNo: student.admissionNo,
@@ -800,11 +832,32 @@ export async function hardDeleteStudent(studentId: string, options: { forceTestR
 
   if (!safety.hardDeleteAllowed && !(options.forceTestRecord && safety.canForceDeleteTestRecord)) {
     throw new Error(
-      "This student has posted financial history. Archive / withdraw the student so old records stay valid.",
+      "Cannot delete because payment history exists. Withdraw student instead.",
+    );
+  }
+
+  if (
+    safety.refundRequestCount > 0 ||
+    safety.blockedInstallmentCount > 0 ||
+    safety.ledgerRegenerationRowCount > 0
+  ) {
+    throw new Error(
+      "Cannot delete because this student is linked to fee review records. Withdraw student instead.",
     );
   }
 
   const supabase = createAdminClient();
+  if (safety.installmentCount > 0) {
+    const { error: installmentDeleteError } = await supabase
+      .from("installments")
+      .delete()
+      .eq("student_id", studentId);
+
+    if (installmentDeleteError) {
+      throw new Error(`Unable to remove unpaid prepared dues: ${installmentDeleteError.message}`);
+    }
+  }
+
   const { error } = await supabase.from("students").delete().eq("id", studentId);
 
   if (error) {

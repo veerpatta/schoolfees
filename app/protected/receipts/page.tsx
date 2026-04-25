@@ -78,7 +78,7 @@ export default async function ReceiptsPage({ searchParams }: ReceiptsPageProps) 
         }
       >
         <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full min-w-[1100px] text-left text-sm">
+          <table className="w-full min-w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
               <tr>
                 <th className="px-4 py-3">Receipt no</th>

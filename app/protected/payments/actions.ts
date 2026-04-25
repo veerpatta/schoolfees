@@ -8,7 +8,9 @@ import { postStudentPayment, toFriendlyPaymentPostingError } from "@/lib/payment
 import type { PaymentEntryActionState } from "@/lib/payments/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import {
+  hasPreparedDues,
   revalidateCoreFinancePaths,
+  summarizeDuesPreparationIssues,
   syncStudentDues,
 } from "@/lib/system-sync/finance-sync";
 
@@ -113,24 +115,18 @@ export async function repairPaymentDeskStudentDuesAction(formData: FormData) {
   const studentId = parseUuid(formData.get("studentId"), "Student");
 
   const result = await syncStudentDues([studentId]);
-  const noticeParts = [
-    `Dues update: ${result.installmentsToInsert} prepared`,
-    `${result.installmentsToUpdate} updated`,
-    `${result.installmentsToCancel} cancelled`,
-    `${result.lockedInstallments} kept for review`,
-  ];
-
-  if (result.studentsMissingSettings > 0) {
-    noticeParts.push("class fee setup is missing");
-  }
-
-  if (result.scopedStudents === 0 || result.studentsInAcademicSession === 0) {
-    noticeParts.push("student is not in the active Fee Setup session");
-  }
-
-  for (const warning of result.warnings) {
-    noticeParts.push(warning);
-  }
+  const issueSummary = summarizeDuesPreparationIssues(result.skippedStudents);
+  const noticeParts = hasPreparedDues(result)
+    ? [
+        `Dues prepared: ${result.installmentsToInsert} prepared`,
+        `${result.installmentsToUpdate} updated`,
+        `${result.installmentsToCancel} cancelled`,
+        `${result.lockedInstallments} kept for review`,
+      ]
+    : [
+        "Dues could not be prepared",
+        issueSummary || "Check Fee Setup for this class and year.",
+      ];
 
   const params = new URLSearchParams({
     studentId,

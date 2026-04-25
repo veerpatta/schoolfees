@@ -560,27 +560,34 @@ export default async function StudentDetailPage({
       {canEditStudent && deletionSafety ? (
         <SectionCard
           title="Admin record action"
-          description="Use delete only for wrong no-history records. Use archive / withdraw when finance records must stay valid."
+          description="Use delete only for wrong records. Withdraw students when posted receipts must stay permanently."
         >
           <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
               <p>
                 Receipts: {deletionSafety.receiptCount}, payments: {deletionSafety.paymentCount},
-                installments: {deletionSafety.installmentCount}, adjustments: {deletionSafety.adjustmentCount}.
+                prepared dues: {deletionSafety.installmentCount}, adjustments: {deletionSafety.adjustmentCount},
+                refunds: {deletionSafety.refundRequestCount}.
               </p>
+              {deletionSafety.blockedInstallmentCount > 0 ||
+              deletionSafety.ledgerRegenerationRowCount > 0 ? (
+                <p className="mt-2 text-amber-700">
+                  Fee review records are linked to this student. Withdraw student instead of deleting.
+                </p>
+              ) : null}
               <p className="mt-2">
                 {deletionSafety.hardDeleteAllowed
                   ? deletionSafety.generatedDuesDeleteAllowed
-                    ? "Only generated dues are linked. Admin can delete this wrong record and its unpaid generated dues."
+                    ? "Only unpaid prepared dues are linked. Admin can delete this wrong record and its unpaid prepared dues."
                     : "No finance rows are linked, so admin can delete this wrong record."
-                  : "Posted finance history exists, so archive keeps old receipts and records true."}
+                  : "Cannot delete because payment history exists. Withdraw student instead."}
               </p>
             </div>
             <div className="flex flex-wrap gap-2 lg:justify-end">
               <form action={archiveStudentAction}>
                 <input type="hidden" name="studentId" value={student.id} />
                 <Button type="submit" variant="outline">
-                  Archive / Withdraw student
+                  Withdraw student
                 </Button>
               </form>
               {deletionSafety.hardDeleteAllowed || deletionSafety.canForceDeleteTestRecord ? (
@@ -590,7 +597,7 @@ export default async function StudentDetailPage({
                     <input type="hidden" name="forceTestRecord" value="yes" />
                   ) : null}
                   <label className="text-xs font-medium text-slate-600" htmlFor="confirmDelete">
-                    Type SR {deletionSafety.admissionNo} to confirm delete
+                    Type SR {deletionSafety.admissionNo} to confirm Delete wrong student
                   </label>
                   <input
                     id="confirmDelete"
@@ -601,8 +608,8 @@ export default async function StudentDetailPage({
                   />
                   <Button type="submit" variant="destructive">
                     {deletionSafety.generatedDuesDeleteAllowed
-                      ? "Delete wrong record and unpaid dues"
-                      : "Delete wrong record"}
+                      ? "Delete wrong student and unpaid dues"
+                      : "Delete wrong student"}
                   </Button>
                 </form>
               ) : null}

@@ -83,7 +83,7 @@ export function toFriendlyPaymentPreviewError(error: unknown) {
     normalized.includes("pgrst202") ||
     normalized.includes("42883")
   ) {
-    return "Payment preview needs a database update. Ask an admin to check System Readiness.";
+    return "Payment preview needs a database update. Ask an admin to open Admin Tools > System checks.";
   }
 
   if (
@@ -91,7 +91,7 @@ export function toFriendlyPaymentPreviewError(error: unknown) {
     normalized.includes("permission denied for schema private") ||
     normalized.includes("permission denied for function workbook_installment_snapshot")
   ) {
-    return "Payment preview needs a database update. Ask an admin to check System Readiness.";
+    return "Payment preview needs a database update. Ask an admin to open Admin Tools > System checks.";
   }
 
   if (normalized.includes("no pending dues")) {
@@ -152,7 +152,7 @@ export function toFriendlyPaymentPostingError(error: unknown) {
     normalized.includes("pgrst202") ||
     normalized.includes("42883")
   ) {
-    return "Payment posting needs a database update. Ask an admin to check System Readiness.";
+    return "Payment posting needs a database update. Ask an admin to open Admin Tools > System checks.";
   }
 
   return "Unable to save payment right now. Please check the student, dues, amount, and payment mode.";
@@ -237,7 +237,8 @@ async function getBasePaymentStudentOptions(payload: {
     .eq("status", "active")
     .eq("class_ref.session_label", policy.academicSessionLabel)
     .eq("class_ref.status", "active")
-    .order("full_name", { ascending: true });
+    .order("full_name", { ascending: true })
+    .limit(80);
 
   if (payload.classId) {
     query = query.eq("class_ref.id", payload.classId);
@@ -344,13 +345,21 @@ export async function getPaymentEntryPageData(payload: {
 }): Promise<PaymentEntryPageData> {
   const policy = await getFeePolicySummary();
   const normalizedQuery = normalizePaymentDeskQuery(payload.searchQuery);
-  const workbookRows = await getWorkbookStudentFinancials({
-    classId: payload.classId,
-    sessionLabel: policy.academicSessionLabel,
-  });
-  const selectedWorkbookRows = payload.studentId
-    ? await getWorkbookStudentFinancials({ studentId: payload.studentId, sessionLabel: policy.academicSessionLabel })
-    : [];
+  const shouldLoadWorkbookList = !payload.studentId;
+  const [workbookRows, selectedWorkbookRows] = await Promise.all([
+    shouldLoadWorkbookList
+      ? getWorkbookStudentFinancials({
+          classId: payload.classId,
+          sessionLabel: policy.academicSessionLabel,
+        })
+      : Promise.resolve([]),
+    payload.studentId
+      ? getWorkbookStudentFinancials({
+          studentId: payload.studentId,
+          sessionLabel: policy.academicSessionLabel,
+        })
+      : Promise.resolve([]),
+  ]);
   const filteredWorkbookRows = normalizedQuery
     ? workbookRows.filter((row) => {
         const haystack = [
@@ -384,7 +393,7 @@ export async function getPaymentEntryPageData(payload: {
   }
 
   if (normalizedQuery && looksLikeReceiptQuery(normalizedQuery)) {
-    const receiptMatches = await getWorkbookTransactions();
+    const receiptMatches = await getWorkbookTransactions({ limit: 30, query: normalizedQuery });
     const seenIds = new Set(studentOptions.map((item) => item.id));
 
     receiptMatches
@@ -397,7 +406,9 @@ export async function getPaymentEntryPageData(payload: {
           return;
         }
 
-        const financial = workbookRows.find((item) => item.studentId === row.studentId);
+        const financial =
+          workbookRows.find((item) => item.studentId === row.studentId) ??
+          selectedWorkbookRows.find((item) => item.studentId === row.studentId);
 
         studentOptions = [
           {
@@ -417,7 +428,7 @@ export async function getPaymentEntryPageData(payload: {
   }
 
   const [recentTransactions, todayTransactions] = await Promise.all([
-    getWorkbookTransactions(),
+    getWorkbookTransactions({ limit: 6 }),
     getWorkbookTransactions({ todayOnly: true }),
   ]);
 

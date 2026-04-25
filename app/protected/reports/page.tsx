@@ -697,7 +697,7 @@ function ReportTables({ report }: { report: ReportData }) {
           description={reportDefinitions[report.key].tableDescription}
         >
           <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full min-w-[1200px] text-left text-sm">
+            <table className="w-full min-w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                 <tr>
                   <th className="px-4 py-3">Student</th>
@@ -784,7 +784,7 @@ function ReportTables({ report }: { report: ReportData }) {
             description={reportDefinitions[report.key].tableDescription}
           >
             <div className="overflow-x-auto rounded-xl border border-slate-200">
-              <table className="w-full min-w-[760px] text-left text-sm">
+              <table className="w-full min-w-full text-left text-sm">
                 <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                   <tr>
                     <th className="px-4 py-3">Payment date</th>
@@ -840,7 +840,7 @@ function ReportTables({ report }: { report: ReportData }) {
           description={reportDefinitions[report.key].tableDescription}
         >
           <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full min-w-[1320px] text-left text-sm">
+            <table className="w-full min-w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                 <tr>
                   <th className="px-4 py-3">Entry type</th>
@@ -916,7 +916,7 @@ function ReportTables({ report }: { report: ReportData }) {
           description={reportDefinitions[report.key].tableDescription}
         >
           <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full min-w-[1280px] text-left text-sm">
+            <table className="w-full min-w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                 <tr>
                   <th className="px-4 py-3">Receipt no</th>
@@ -973,7 +973,7 @@ function ReportTables({ report }: { report: ReportData }) {
             description="Use this table to compare batch totals before drilling into a selected batch."
           >
             <div className="overflow-x-auto rounded-xl border border-slate-200">
-              <table className="w-full min-w-[1140px] text-left text-sm">
+              <table className="w-full min-w-full text-left text-sm">
                 <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                   <tr>
                     <th className="px-4 py-3">Batch</th>
@@ -1023,7 +1023,7 @@ function ReportTables({ report }: { report: ReportData }) {
             description={reportDefinitions[report.key].tableDescription}
           >
             <div className="overflow-x-auto rounded-xl border border-slate-200">
-              <table className="w-full min-w-[1280px] text-left text-sm">
+              <table className="w-full min-w-full text-left text-sm">
                 <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                   <tr>
                     <th className="px-4 py-3">Row</th>

@@ -90,7 +90,8 @@ describe("source of truth audit fixes", () => {
     expect(dashboardPage).toContain("Open Fee Data Troubleshooting");
     expect(dashboardPage).not.toContain("Live Data Health");
     expect(dashboardActions).toContain("alignWorkingSessionWithFeeSetupAction");
-    expect(dashboardData).toContain('optionalLoad("system sync health", getSystemSyncHealth, null, warnings)');
+    expect(dashboardData).toContain("systemSyncHealth: null");
+    expect(dashboardData).not.toContain('optionalLoad("system sync health", getSystemSyncHealth, null, warnings)');
   });
 
   it("repair_actions_preserve_student_session_and_payment_history", () => {

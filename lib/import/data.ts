@@ -3,7 +3,11 @@ import "server-only";
 import { getMasterDataOptions } from "@/lib/master-data/data";
 import { createClient } from "@/lib/supabase/server";
 import { getFeePolicySummary } from "@/lib/fees/data";
-import { syncAfterBulkStudentImport } from "@/lib/system-sync/finance-sync";
+import {
+  hasPreparedDues,
+  summarizeDuesPreparationIssues,
+  syncAfterBulkStudentImport,
+} from "@/lib/system-sync/finance-sync";
 import { createStudent, getStudentDetail, updateStudent } from "@/lib/students/data";
 import { shouldSyncStudentDuesForChange } from "@/lib/students/dues-sync";
 import { buildAutoColumnMapping, validateColumnMapping } from "@/lib/import/mapping";
@@ -1486,6 +1490,9 @@ export async function commitStudentImportBatch(batchId: string) {
   let updatedCount = 0;
   let temporarySrGeneratedCount = 0;
   let ledgerSyncError: string | null = null;
+  let duesReadyCount = 0;
+  let duesAttentionCount = 0;
+  let duesReasonSummary: string | null = null;
   const activePolicy = await getFeePolicySummary();
 
   for (const row of rows) {
@@ -1592,19 +1599,35 @@ export async function commitStudentImportBatch(batchId: string) {
   if (!ledgerSyncError && studentsToRegenerate.size > 0) {
     try {
       const ledgerResult = await syncAfterBulkStudentImport([...studentsToRegenerate]);
+      const preparedStudentIds = new Set<string>();
+
+      if (hasPreparedDues(ledgerResult)) {
+        studentsToRegenerate.forEach((studentId) => preparedStudentIds.add(studentId));
+      }
+
+      const skippedStudents = ledgerResult.skippedStudents ?? [];
+
+      skippedStudents.forEach((student) => {
+        preparedStudentIds.delete(student.studentId);
+      });
+
+      duesReadyCount = preparedStudentIds.size;
+      duesAttentionCount = Math.max(studentsToRegenerate.size - duesReadyCount, 0);
+      duesReasonSummary = summarizeDuesPreparationIssues(skippedStudents) || null;
 
       if (
         (createdCount > 0 || updatedCount > 0) &&
-        ledgerResult.affectedStudents === 0
+        duesReadyCount === 0
       ) {
         ledgerSyncError =
-          targetSessionLabel && targetSessionLabel !== activePolicySessionLabel
+          duesReasonSummary ??
+          (targetSessionLabel && targetSessionLabel !== activePolicySessionLabel
             ? `Selected academic session ${targetSessionLabel} is not the active fee policy session ${activePolicySessionLabel}. Open Fee Setup and make the same session active before dues and payments will reflect.`
-            : "Dues were not generated for the imported students. Check that the selected academic session is active and that class fee defaults exist for the imported classes.";
+            : "Dues were not prepared for the imported students. Check that the selected academic year is active and class fees are saved in Fee Setup.");
       }
     } catch (error) {
       ledgerSyncError =
-        error instanceof Error ? error.message : "Dues sync failed after import.";
+        error instanceof Error ? error.message : "Dues could not be prepared after import.";
     }
   }
 
@@ -1619,7 +1642,7 @@ export async function commitStudentImportBatch(batchId: string) {
     summary,
     import_completed_at: new Date().toISOString(),
     error_message: ledgerSyncError
-      ? `Students were imported, but dues sync failed: ${ledgerSyncError}`
+      ? `Students were imported, but dues could not be prepared: ${ledgerSyncError}`
       : failedRows > 0
         ? `${failedRows} row${failedRows === 1 ? "" : "s"} could not be saved during import.`
         : null,
@@ -1634,6 +1657,9 @@ export async function commitStudentImportBatch(batchId: string) {
     skippedCount: summary.skippedRows,
     temporarySrGeneratedCount,
     ledgerSyncError,
+    duesReadyCount,
+    duesAttentionCount,
+    duesReasonSummary,
     affectedStudentIds: [...affectedStudentIds],
     status: failedRows > 0 || ledgerSyncError ? "failed" : "completed",
   };
