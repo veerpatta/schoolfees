@@ -2,64 +2,58 @@
 
 ## Purpose
 
-This repo is the internal fee management admin app for one school:
-Shri Veer Patta Senior Secondary School.
+This repo is the internal fee-management admin app for one school:
+**Shri Veer Patta Senior Secondary School (VPPS / Veer Patta School)**.
 
-Common school names used in conversation or docs:
+It is an internal office/accounts/admin tool.
 
-- Shri Veer Patta Senior Secondary School
-- Veer Patta School
-- VPPS
+It is **not**:
 
-This is an internal office/accounts/admin tool. It is not a parent portal and
-it is not a multi-school SaaS product.
+- a parent portal
+- a public self-service product
+- a multi-school SaaS platform
 
-## Read These First
-
-When starting work, read these root docs before making product decisions:
+## Read First Before Product Decisions
 
 1. `AGENTS.md`
 2. `PROJECT_CONTEXT.md`
 3. `MVP_SCOPE.md`
 4. `SCHOOL_RULES.md`
 5. `IMPORT_NOTES.md`
-
-Use them together:
-
-- `AGENTS.md` for fast repo and workflow guidance
-- `PROJECT_CONTEXT.md` for current architecture, modules, and real file
-  locations
-- `MVP_SCOPE.md` for what belongs in the product now
-- `SCHOOL_RULES.md` for fee and audit rules
-- `IMPORT_NOTES.md` for spreadsheet migration background and future import work
+6. `ROADMAP.md`
+7. `UAT_CHECKLIST.md`
 
 ## Product Identity
 
-Primary goals:
+Primary working goals:
 
 - student master
-- fee settings
-- session ledger recalculation
-- payment entry
-- append-only ledger behavior
-- printable receipts
-- dashboard
-- defaulters reporting
-- staged spreadsheet import
-- internal staff login and access control
+- fee setup
+- automated dues/installment updates
+- payment posting
+- append-only financial history
+- receipts and print
+- dashboard analytics
+- defaulters follow-up
+- exports for office operations
+- staged import + staff RBAC
 
 Primary product qualities:
 
-- simple office-friendly UI
-- reliable workflows over flashy design
-- clear auditability
-- gradual migration from workbook-based work
-- explicit, correction-safe financial history
-- safe UAT with dummy data before real student records are entered
+- automation-first office workflow
+- non-technical staff clarity
+- reliable and auditable financial operations
+- correction-safe append-only history
+
+## Source-of-Truth Rule
+
+**Students + Fee Setup are the source of truth.**
+
+Dashboard, dues, pending totals, defaulters, Payment Desk projections,
+Transactions, and Exports should derive from these sources without manual sync
+steps for normal staff.
 
 ## Simplified Workspace Truth
-
-The protected workspace now follows a workbook-style operating model.
 
 Primary daily areas:
 
@@ -68,30 +62,20 @@ Primary daily areas:
 - `Fee Setup`
 - `Payment Desk`
 - `Transactions`
+- `Defaulters`
+- `Exports`
 - `Admin Tools`
 
 Operational boundaries:
 
-- `Dashboard` is the first daily overview for fee collection, pending dues,
-  overdue follow-up, today receipts, attention items, and safe shortcuts
-- `Dashboard` is read-only and analytical; it links to existing workflows but
-  does not post payments, edit student overrides, or change fee setup
-- `Fee Setup` is the canonical live path for workbook-style fee setup:
-  academic year, installment dates, basic fee rules, class-wise annual tuition,
-  route-wise annual transport fee, and final review/publish. It opens in Basic
-  Mode, with fee-head metadata and list maintenance collapsed by default.
-- `Students` is the canonical daily path for student master records,
-  class/route assignment, student-specific fee profiles, special-case
-  overrides, quick add, bulk add, and staged safe bulk update work
-- `Payment Desk` is the only daily surface for posting payments and generating
-  append-only receipts
-- `Transactions` is the read-only permanent record and download center for
-  receipt records, dues, installment tracker, defaulters, class register,
-  today collection, import issues, and exports
-- `Admin Tools` contains rare admin/configuration tools: first-time setup,
-  school lists, day close/corrections, staff, and app settings
-- `Setup` remains first-time go-live preparation only and must not be reused
-  as a live fee-editing path after completion
+- `Dashboard` is read-only analytics + shortcuts
+- `Students` owns student master and student-level exceptions
+- `Fee Setup` is canonical live policy/default editing path
+- `Payment Desk` is the only payment posting path
+- `Transactions` is read-only financial record center
+- `Defaulters` is top-level daily follow-up workspace
+- `Exports` is top-level XLSX download center
+- `Admin Tools` contains rare setup/config/troubleshooting tasks
 
 Default role landing:
 
@@ -101,418 +85,96 @@ Default role landing:
 
 ## Non-Goals
 
-Unless a user explicitly asks otherwise, do not steer the app toward:
+Unless explicitly requested, do not steer toward:
 
-- parent-facing features
-- public self-service flows
-- generic SaaS multi-tenant architecture
-- tutorial/demo pages replacing the current school app
-- complex abstractions with weak operational value
-- history-rewriting finance workflows
+- parent-facing capabilities
+- public onboarding/payment flows
+- multi-tenant abstractions
+- history-rewriting payment workflows
+- demo/tutorial replacement of school workflows
 
-## Current Repo Snapshot
+## Hard Safety Rules
 
-This file reflects the repo state on April 23, 2026.
+1. Never reset real data without explicit instruction.
+2. Never post test payments against real students.
+3. Preserve append-only behavior for payments/receipts/adjustments/audit logs.
+4. Use `TEST-2026-27` (or staging/local) for UAT.
+5. Do not expose `SUPABASE_SERVICE_ROLE_KEY` in browser code.
+6. Keep public signup disabled.
+7. Avoid hidden alternate edit paths outside intended modules.
+8. Keep staff-facing copy office-friendly and low-jargon.
 
-Fully implemented core:
+## Active School Policy Defaults (AY 2026-27)
 
-- branded landing page at `app/page.tsx`
-- auth flow under `app/auth` with login, forgot password, update password,
-  confirm route, error route, and a sign-up route that should remain disabled
-  for public use
-- protected admin workspace under `app/protected`
-- simplified workbook-style protected shell with `Dashboard`, `Students`,
-  `Fee Setup`, `Payment Desk`, `Transactions`, and `Admin Tools`
-- admin-only first-time setup wizard with academic session selection, class and
-  route setup, school/class defaults, readiness checklist, and explicit setup
-  completion marker; once setup is marked complete, the wizard no longer serves
-  as a live-edit path for policy/default changes
-- real-time dashboard, defaulters, and ledger modules
-- Student Master with add, detail, and edit workflows
-- Student Spreadsheet Import: separate Bulk Add and Bulk Update modes, XLSX
-  templates with current class/route names, auto column matching, advanced
-  mapping only when needed, dry-run validation, row-level review, batch
-  tracking, and approved-valid-row-only save
-- Fee Setup: simplified Basic Mode live setup for academic year, installment
-  dates, flat late fee, new/old academic fee, class-wise annual tuition,
-  route-wise annual transport fee, and review/publish; advanced fee-head,
-  session, class-list, and route-list controls are collapsed while the mandatory
-  impact preview and publish/apply workflow stays intact
-- AY `2026-27` workbook parity with `workbook_v1`, exact seeded class tuition,
-  exact seeded annual route defaults, workbook student status, signed other
-  adjustment, and late-fee-waiver support
-- Ledger Recalculation workflow for previewing and applying safe
-  unpaid/future-installment inserts, updates, and cancellations while flagging
-  paid or partially paid rows for manual review
-- Payment Entry: append-only posting via RPC, with receipts generated as linked
-  financial records
-- read-only Transactions workspace for posted receipts, student dues,
-  installment tracker, class register, defaulters, today collection, import
-  issues, and CSV exports; legacy `/protected/dues` links redirect there
-- Ledger: chronological per-student history with linked adjustment entries
-- Receipts: receipt list plus workbook-aligned printable per-receipt view
-- printable master fee statement route at
-  `/protected/students/[studentId]/statement`
-- Reports: on-page filterable tables for Outstanding, Daily Collection, Receipt
-  Register, Student Ledger, and Import Verification, plus working CSV export at
-  `/protected/reports/export`
-- Master Data Management: admin CRUD for academic sessions, classes, transport
-  routes, custom fee heads, and payment modes under `/protected/master-data`,
-  with in-use delete guards and active/current session markers; the same
-  supporting list editor is also embedded in the daily Fee Setup screen so the
-  workbook workflow stays in one place
-- Deployment Settings Validator showing env checks, policy notes, and recent
-  config-change batch history
-- UAT docs and dummy student import sample under `docs/` for safe testing
-  before real data entry
-- explicit access-denied route under `app/protected/access-denied`
-- internal staff management under `app/protected/staff` with role assignment,
-  activation toggles, password resets, and initial password handling
-- self password change under `app/protected/password`
-- append-only behavior enforced by RPCs and DB triggers on receipts, payments,
-  payment_adjustments, and audit_logs
-- 17 tracked migrations covering schema, fee setup, config preview/apply,
-  payments, RBAC alignment, import workflow, setup progress, ledger
-  regeneration, and finance-office controls
-- Role-Based Access Control (RBAC): `public.staff_role` enum and RLS policies
-  enforce `admin`, `accountant`, and `read_only_staff` at the database layer
-
-Incomplete or deferred:
-
-- PDF receipts: printable HTML view exists but no server-side PDF generation
-- advanced report export to PDF is not implemented
-- automated bank reconciliation is not implemented
-- testing infrastructure exists, and initial unit tests for fee rules have been written in `tests/fee-rules.test.ts`.
-
-Do not replace the existing school-branded landing page with generic tutorial
-content or Supabase sample code unless the user explicitly requests that.
-
-## Key Real Paths
-
-- landing page: `app/page.tsx`
-- auth routes: `app/auth/*`
-- login action: `app/auth/login/actions.ts`
-- protected layout and dashboard: `app/protected/layout.tsx`,
-  `app/protected/page.tsx`, `app/protected/dashboard/page.tsx`
-- students list: `app/protected/students/page.tsx`
-- student add: `app/protected/students/new/page.tsx`
-- student detail: `app/protected/students/[studentId]/page.tsx`
-- student master statement: `app/protected/students/[studentId]/statement/page.tsx`
-- student edit: `app/protected/students/[studentId]/edit/page.tsx`
-- student actions: `app/protected/students/actions.ts`
-- imports: `app/protected/imports/page.tsx`
-- import actions: `app/protected/imports/actions.ts`
-- setup wizard: `app/protected/setup/page.tsx`
-- setup actions: `app/protected/setup/actions.ts`
-- fee settings alias: `app/protected/fee-structure/page.tsx`
-- fee setup: `app/protected/fee-setup/page.tsx`
-- fee setup actions: `app/protected/fee-setup/actions.ts`
-- fee recalculation: `app/protected/fee-setup/generate/page.tsx`
-- fee recalculation actions: `app/protected/fee-setup/generate/actions.ts`
-- admin tools hub: `app/protected/advanced/page.tsx`
-- transactions workspace: `app/protected/transactions/page.tsx`
-- legacy dues alias: `app/protected/dues/page.tsx`
-- fee regeneration service: `lib/fees/regeneration.ts`
-- payment entry: `app/protected/payments/page.tsx`
-- payment actions: `app/protected/payments/actions.ts`
-- collections alias to payments: `app/protected/collections/page.tsx`
-- ledger: `app/protected/ledger/page.tsx`
-- ledger actions: `app/protected/ledger/actions.ts`
-- receipts: `app/protected/receipts/page.tsx`
-- printable receipt: `app/protected/receipts/[receiptId]/page.tsx`
-- defaulters: `app/protected/defaulters/page.tsx`
-- reports: `app/protected/reports/page.tsx`
-- reports CSV export: `app/protected/reports/export/route.ts`
-- master data: `app/protected/master-data/page.tsx`
-- master data actions: `app/protected/master-data/actions.ts`
-- access denied page: `app/protected/access-denied/page.tsx`
-- staff management: `app/protected/staff/page.tsx`
-- staff actions: `app/protected/staff/actions.ts`
-- self password change: `app/protected/password/page.tsx`
-- password actions: `app/protected/password/actions.ts`
-- settings: `app/protected/settings/page.tsx`
-- admin shell/components: `components/admin/*`
-- student UI: `components/students/*`
-- import UI: `components/imports/*`
-- fee UI: `components/fees/*`
-- setup UI: `components/setup/*`
-- payment UI: `components/payments/*`
-- ledger UI: `components/ledger/*`
-- receipt UI: `components/receipts/*`
-- report UI: `components/reports/*`
-- master data UI: `components/master-data/*`
-- staff UI: `components/staff/*`
-- bootstrap seed script: `scripts/bootstrap-staff.mjs`
-- fee rules: `lib/config/fee-rules.ts`
-- canonical fee policy service: `lib/fees/policy.ts`
-- config-change audit helper: `lib/fees/change-log.ts`
-- setup/readiness service: `lib/setup/data.ts`
-- master-data service: `lib/master-data/data.ts`
-- school profile: `lib/config/school.ts`
-- navigation: `lib/config/navigation.ts`
-- roles + permissions: `lib/auth/roles.ts`
-- session/permission helpers: `lib/supabase/session.ts`
-- server-only admin helper: `lib/supabase/admin.ts`
-- env helpers: `lib/env.ts`
-- tests/fee-rules.test.ts: unit tests for session labeling, fee normalization, and installment due-dates
-- schema: `supabase/schema.sql`
-- schema notes: `supabase/schema/*`
-- migrations: `supabase/migrations/*`
-- tests setup only: `tests/setup.ts`
-
-## Tech Stack
-
-- Next.js App Router
-- React 19
-- TypeScript
-- Tailwind CSS
-- shadcn/ui primitives
-- Supabase auth + database
-- Vercel deployment target
-
-Current package baseline worth preserving:
-
-- `next`: `16.2.4`
-- `react`: `19.2.5`
-- `react-dom`: `19.2.5`
-- `@supabase/supabase-js`: `2.104.0`
-- `@supabase/ssr`: `0.10.2`
-- `vitest`: `4.1.5`
-
-Canonical Supabase helpers live in `utils/supabase`.
-App code should usually import from `lib/supabase/*`.
-
-## Operating Rules For Agents
-
-1. Keep this app internal-admin first.
-2. Favor clear, dependable office workflows over flashy design.
-3. Preserve auditability on student, fee, collection, and import data.
-4. Never treat historical payments as editable facts.
-5. Use adjustment or reversal-style entries instead of rewriting history.
-6. Keep correction flows explicit and traceable.
-7. Avoid delete-heavy workflows for operational records.
-8. Keep route contracts under `app/auth` and `app/protected` stable.
-9. Keep `SUPABASE_SERVICE_ROLE_KEY` server-only.
-10. Preserve school-specific branding and terminology.
-11. Keep public signup disabled; bootstrap staff accounts through a server-only
-    flow or admin-only management workflow.
-12. Preserve `public.users` sync with auth metadata for RBAC and audit
-    visibility.
-13. Prefer reporting and operational clarity over clever abstractions.
-
-Important nuance:
-
-- The current schema allows updates on master and due-schedule tables.
-- Do not interpret that as permission to build history-rewriting UI.
-- Payments, receipts, payment adjustments, and audit logs should stay
-  append-only at the workflow and data-model level.
-
-## Canonical Configuration Truth
-
-Treat the live configuration model like this:
-
-- `fee_policy_configs` is the canonical source for active session label,
-  installment schedule, late fee, receipt prefix, accepted payment modes, and
-  custom fee-head catalog. Phase 1 fee-head metadata is JSON-backed in
-  `custom_fee_heads`: refundable flag, one-time/recurring frequency,
-  mandatory flag, and workbook-calculation inclusion flag.
-- `school_fee_defaults`, `fee_settings`, `transport_routes`, and
-  `student_fee_overrides` are the editable default/override layers resolved
-  beneath the canonical policy.
-- live workbook fee setup edits should go through `/protected/fee-setup`, not
-  setup or master-data shortcuts, because fee setup creates
-  `config_change_batches`, shows impact preview, applies only after
-  confirmation, and then runs ledger-safe propagation; when the academic
-  session changes, the save flow creates a fresh fee-policy snapshot for the
-  new session instead of rewriting the prior year in place.
-- `/protected/setup` is first-time go-live preparation. After setup completion,
-  it becomes read-only for live policy/default edits.
-- `/protected/fee-setup` is now the primary live surface for the active
-  workbook-style fee sheet: academic year, installment dates, workbook fee
-  values, class tuition, route transport fees, and final review/publish.
-  Fee-head metadata, session maintenance, class-list maintenance, and route-list
-  maintenance stay available under collapsed advanced options.
-  `/protected/master-data` remains
-  available for direct admin maintenance of sessions, classes, routes, fee
-  heads, and payment modes, but Fee Setup is the workflow staff should use
-  first for live fee values because preview, audit, and propagation stay
-  attached there.
-
-Propagation expectations:
-
-- dashboard, payments, reports, defaulters, settings, setup readiness, and
-  landing/auth policy copy should all read the active policy through the same
-  canonical service
-- payment entry must enforce the current accepted payment modes and receipt
-  prefix
-- role landing and simplified navigation should stay workbook-first:
-  `admin` -> `Dashboard`, `accountant` -> `Payment Desk`,
-  `read_only_staff` -> `Dashboard`
-- receipts, payments, and payment adjustments remain historical facts after
-  posting even if the current policy later changes
-- Standard concession profiles in Fee Setup are Phase 1 read-only planning
-  copy only; student discounts and approved exceptions continue through the
-  existing student override workflow.
-
-## Active School Rules
-
-Current active fee-policy defaults:
-
-- late fee: flat Rs 1000
-- installment due dates: 20 April, 20 July, 20 October, 20 January
-- default installment count: 4
-- Class 12 Science annual fee default: Rs 38000
-- accepted payment modes: Cash, UPI, Bank transfer, Cheque
+- late fee: `₹1000`
+- installment due dates: `20-04-2026`, `20-07-2026`, `20-10-2026`, `20-01-2027`
+- new student academic fee: `₹1100`
+- existing student academic fee: `₹500`
+- class 12 science tuition default: `₹38000`
 - receipt prefix: `SVP`
-- app mode: `internal-admin`
-- active academic session: `2026-27`
-- active fee engine: `workbook_v1`
-- new student academic fee: Rs 1100
-- old student academic fee: Rs 500
-- books are excluded from workbook-mode fee calculation for AY `2026-27`
-- fee-head metadata does not change AY `2026-27` workbook calculation in Phase
-  1; the workbook base remains tuition, transport, academic fee, and signed
-  other adjustment
+- books excluded from workbook-mode calculation unless changed explicitly
 
-Historical SOP values that may appear in old notes or workbooks but are not
-active rules:
+## Conventional Discount Policies (Current)
 
-- due dates on the 10th
-- late fee at Rs 50 per day
-- stale workbook note showing flat late fee Rs 3000 while AY `2026-27` setup and formulas use Rs 1000
+- RTE -> tuition = `₹0`
+- Staff Child -> tuition = `50%`
+- 3rd Child Policy -> tuition = `₹6000`
 
-If old workbook data or staff notes conflict with current policy, current
-policy wins unless the user explicitly asks for historical-rule handling.
+Rules:
 
-## Current Data And Audit Context
+- tuition-only policy impact
+- max two active conventional policies per student/year
+- compute candidates and apply lowest tuition
+- assignment is year-scoped and audited
+- family grouping supports sibling policy logic
 
-Current core tables in `supabase/schema.sql`:
+## Technical Notes To Preserve
 
-- `users`
-- `classes`
-- `transport_routes`
-- `students`
-- `import_batches`
-- `import_rows`
-- `fee_settings`
-- `fee_policy_configs`
-- `config_change_batches`
-- `config_change_blocked_installments`
-- `ledger_regeneration_batches`
-- `ledger_regeneration_rows`
-- `setup_progress`
-- `school_fee_defaults`
-- `student_fee_overrides`
-- `installments`
-- `receipts`
-- `payments`
-- `payment_adjustments`
-- `audit_logs`
+Implemented/fixed paths to respect:
 
-Current operational posture:
+- `/protected` role redirect should never loop to itself
+- session parser supports `2026-27`, `TEST-2026-27`, `UAT-2026-27`,
+  `DEMO-2026-27`
+- import rows must carry `batch_id`
+- payment preview and post use date-aware workbook snapshot alignment
+- payment posting includes idempotency/locking protections
+- `v_student_financial_state` supports pending vs credit/refund projection
+- conventional discount policy tables + assignments are in schema
 
-- RLS is enabled on core tables
-- audit triggers exist on core tables
-- spreadsheet imports are staged and traceable by batch and row
-- payments, receipts, payment adjustments, and audit logs are append-only
-- no delete policies exist for core operational finance tables
-- `public.v_outstanding_summary` exists for reporting
-- `public.v_installment_balances` exists for installment due tracking
-- `public.v_workbook_student_financials` exists for workbook student-wise totals
-- `public.v_workbook_installment_balances` exists for workbook installment tracking
+## Key Paths
 
-Preserve:
-
-- `created_at` / `updated_at`
-- `created_by` / `updated_by`
-- auditable correction history
-- imported-row and batch traceability
-- receipt and payment chronology
-
-## Auth And Env Context
-
-Current auth/environment expectations:
-
-- `proxy.ts` protects `/protected` routes and refreshes auth cookies for SSR
-- run UAT with dummy data before real student records are entered; recommended
-  test session label is `TEST-2026-27`
-- server actions handle login/logout and key account-management flows
-- keep `NEXT_PUBLIC_SITE_URL` explicitly set in production
-- keep the service role key out of browser code
-- `.env.example` and `.env.local.example` are part of the contract and must be
-  updated when env requirements change
-
-Required env variables today:
-
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-- `NEXT_PUBLIC_SITE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `NEXT_PUBLIC_SCHOOL_NAME`
-- `NEXT_PUBLIC_APP_MODE`
-
-Bootstrap/runtime-only password env vars used by `scripts/bootstrap-staff.mjs`:
-
-- `BOOTSTRAP_MAIN_ADMIN_PASSWORD`
-- `BOOTSTRAP_ACCOUNTS_PASSWORD`
-- `BOOTSTRAP_STAFF_PASSWORD`
-
-## Change Control
-
-If fee rules change, update together:
-
+- `app/protected/dashboard/page.tsx`
+- `app/protected/students/*`
+- `app/protected/fee-setup/*`
+- `app/protected/payments/*`
+- `app/protected/transactions/*`
+- `app/protected/defaulters/page.tsx`
+- `app/protected/exports/*`
+- `app/protected/advanced/page.tsx`
+- `lib/config/navigation.ts`
 - `lib/config/fee-rules.ts`
-- relevant UI under `app/protected/settings`
-- `README.md`
-- `AGENTS.md`
-- `SCHOOL_RULES.md`
-- `PROJECT_CONTEXT.md` if the default behavior summary changes
-
-If env or auth wiring changes, update together:
-
-- `.env.example`
-- `.env.local.example`
-- `app/auth/*`
-- `components/login-form.tsx`
-- `app/protected/settings/page.tsx`
-- `utils/supabase/*`
-- `lib/supabase/*`
-- `lib/env.ts`
-- `proxy.ts`
-- `README.md`
-- `PROJECT_CONTEXT.md`
-- `AGENTS.md`
-
-If schema intent changes, update together:
-
+- `lib/fees/policy.ts`
 - `supabase/schema.sql`
-- relevant `supabase/migrations/*`
-- affected UI/workflows
-- `README.md`
-- `PROJECT_CONTEXT.md`
-- `AGENTS.md`
-
-If staff-management behavior changes, update together:
-
-- `scripts/bootstrap-staff.mjs`
-- `lib/staff-management/data.ts`
-- `app/protected/staff/*`
-- `app/protected/password/*`
-- `.env.example`
-- `.env.local.example`
-- `README.md`
-- `PROJECT_CONTEXT.md`
-- `AGENTS.md`
+- `supabase/migrations/*`
 
 ## Delivery Guidance
 
-Prefer this order when adding or changing product behavior:
+When changing behavior, prefer this order:
 
-1. make the data rule explicit
-2. make the workflow safe
-3. make the UI clear
-4. make the reporting auditable
-5. add polish only after the workflow is reliable
+1. data rule
+2. workflow safety
+3. staff clarity
+4. reporting/auditability
+5. visual polish
 
-When in doubt, choose the option that reduces staff confusion and preserves an
-audit trail.
+## Validation Guidance For Agents
+
+When requested to validate, run:
+
+- `npm run typecheck`
+- `npm run lint`
+- `npm run test`
+- `npm run build`
+
+If environment constraints block a command, report exactly what blocked it and
+what was run successfully.

@@ -1,449 +1,241 @@
 # PROJECT_CONTEXT.md
 
-## One-Line Summary
+## Product Context (Current)
 
-This repo is a Next.js + Supabase internal fee management app for one school:
-Shri Veer Patta Senior Secondary School.
+This repo is the internal fee-management system for **one school**:
+Shri Veer Patta Senior Secondary School (VPPS / Veer Patta School).
 
-## Names And Audience
-
-School names you may see:
-
-- Shri Veer Patta Senior Secondary School
-- Veer Patta School
-- VPPS
-
-Primary users:
+Audience:
 
 - office staff
-- accounts staff
-- admin staff
+- accounts team
+- school admins
 
-This is not a parent portal and not a general-purpose school ERP.
+Not targeted:
 
-## Current Product Direction
+- parent self-service
+- public portal use
+- multi-tenant SaaS use cases
 
-The app exists to replace workbook-based fee work gradually while keeping
-records auditable and office-friendly.
+## Product Direction: Automation-First Office Workflow
 
-Current priority areas:
+The current pivot is to make the app behave like a safer, faster workbook
+replacement.
 
-- pre-go-live UAT with dummy data and a clearly named test academic session (`TEST-2026-27`)
-- first-time setup / onboarding with readiness checks
-- student master
-- fee settings and session ledger recalculation
-- payment entry and receipts
-- ledger and adjustment entries
-- defaulters and outstanding reporting
-- filterable report tables with CSV export
-- staged spreadsheet import (implemented)
+Operational principle:
 
-## Simplified Workspace Model
+- **Students + Fee Setup are the source of truth**
+- dues/installments/pending/credit-refund/defaulters/dashboard/exports should
+  refresh from those sources
+- normal staff should not need manual ledger sync or database terms
 
-The protected workspace now follows a simplified workbook-style layout.
+## Workspace Structure (Daily)
 
-Primary daily navigation:
+Primary top-level modules:
 
-- `Dashboard`
-- `Students`
-- `Fee Setup`
-- `Payment Desk`
-- `Transactions`
-- `Admin Tools`
+1. `Dashboard`
+2. `Students`
+3. `Fee Setup`
+4. `Payment Desk`
+5. `Transactions`
+6. `Defaulters`
+7. `Exports`
+8. `Admin Tools`
 
-Operational boundaries:
+Role landing defaults:
 
-- `Dashboard` is the first daily overview for fee collection, pending dues,
-  overdue follow-up, today receipts, attention items, and safe shortcuts
-- `Dashboard` is read-only and analytical; it links to existing workflows but
-  does not post payments, edit student overrides, or change fee setup
-- `Fee Setup` is the canonical live path for the workbook-style fee sheet:
-  academic year, installment dates, basic fee rules, class-wise annual tuition,
-  route-wise annual transport fee, and review/publish. It opens in Basic Mode,
-  with advanced fee-head and list maintenance collapsed by default.
-- `Students` is the daily surface for student master records, class/route
-  assignment, student-specific fee profiles, special cases, quick add, bulk add,
-  and safe bulk update work
-- `Payment Desk` is the only daily surface for posting payments and generating
-  append-only receipts
-- `Transactions` is the read-only permanent record and download center for
-  receipt records, dues, installment tracker, defaulters, class register,
-  today collection, import issues, and exports
-- `Admin Tools` keeps first-time setup, school lists, day close/corrections,
-  staff, and app settings out of the main daily flow
-- `Setup` remains first-time go-live preparation only and must not be reused
-  as a live fee-editing surface after setup completion
+- `admin` -> `Dashboard`
+- `accountant` -> `Payment Desk`
+- `read_only_staff` -> `Dashboard`
 
-## Current Repo Structure
+## Module Responsibilities
 
-Main routes and modules in the repo today:
+### Dashboard
 
-- `app/page.tsx`
-  school-branded internal app landing page
-- `app/auth/*`
-  login, password reset/recovery, auth confirmation, and error screens
-- `app/protected/page.tsx`
-  protected routing entry point that redirects accountants to Payment Desk and
-  admins/read-only staff to Dashboard
-- `app/protected/dashboard/page.tsx`
-  read-only fee collection dashboard with KPI cards, chart-like analytics,
-  class-wise dues, follow-up queue, latest receipts, and attention items
-- `app/protected/students/page.tsx`
-  student master list
-- `app/protected/students/new/page.tsx`
-  add student form
-- `app/protected/students/[studentId]/page.tsx`
-  student detail and workbook workspace view
-- `app/protected/students/[studentId]/statement/page.tsx`
-  printable master fee statement
-- `app/protected/imports/page.tsx`
-  Student bulk add/update workflow with XLSX template download, CSV/XLSX upload,
-  auto-mapping, dry-run, rows needing correction, valid-row import, and batch
-  tracking. `/protected/imports?mode=add` is for new students;
-  `/protected/imports?mode=update` is for existing-student updates.
-- `docs/uat-test-plan.md`, `docs/test-data-setup.md`,
-  `docs/before-real-data-checklist.md`, and
-  `docs/samples/student-import-test-sample.csv`
-  manual UAT and safe dummy-data guidance before real data entry
-- `app/protected/setup/page.tsx`
-  admin-only first-time setup wizard for session selection, class and route
-  setup, school/class defaults, and go-live readiness; once marked complete it
-  stays readable but is no longer a live-edit path for policy/default changes
-  and points yearly fee changes back to Fee Setup
-- `app/protected/fee-structure/page.tsx`
-  alias route to fee setup area
-- `app/protected/fee-setup/page.tsx`
-  simplified Basic Mode academic-year fee setup screen for academic year,
-  installment dates, late fee, new/old academic fee, class-wise annual tuition,
-  route-wise annual transport fee, and review/publish; advanced fee-head,
-  session, class-list, and route-list controls are collapsed while the
-  mandatory impact preview and publish/apply flow stays intact
-- `app/protected/fee-setup/generate/page.tsx`
-  preview + safe recalculation workflow for unpaid and future session ledger
-  installments, with paid/partial rows flagged for review
-- `app/protected/advanced/page.tsx`
-  Admin Tools hub for rare admin/configuration tools: staff, app settings,
-  school lists, first-time setup, and day close/corrections
-- `app/protected/transactions/page.tsx`
-  read-only Transactions workspace with posted receipts, student dues,
-  installment tracker, class register, defaulters, today collection, import
-  issues, and CSV exports
-- `app/protected/dues/page.tsx`
-  legacy compatibility redirect to `/protected/transactions`
-- `app/protected/payments/page.tsx`
-  payment entry desk (also served at /collections)
-- `app/protected/collections/page.tsx`
-  alias to payments page
-- `app/protected/ledger/page.tsx`
-  per-student chronological ledger with adjustment entry
-- `app/protected/receipts/page.tsx`
-  receipt list view
-- `app/protected/receipts/[receiptId]/page.tsx`
-  workbook-aligned printable receipt view
-- `app/protected/defaulters/page.tsx`
-  defaulters and outstanding summary
-- `app/protected/reports/page.tsx`
-  five filterable on-page report tables
-- `app/protected/reports/export/route.ts`
-  CSV download API endpoint for all report types
-- `app/protected/master-data/page.tsx`
-  admin CRUD for academic sessions, classes, transport routes, custom fee
-  heads, and payment modes, with safe disable/delete guards; Fee Setup now
-  carries the simplified daily session/class/route workflow directly, while
-  master data remains available for broader admin maintenance
-- `app/protected/settings/page.tsx`
-  deployment readiness checks, active policy notes, and recent config-change
-  batch history
-- `app/protected/access-denied/page.tsx`
-  explicit permission-denied screen inside the protected shell
-- `app/protected/staff/page.tsx`
-  admin-only staff account creation, role updates, password resets, and account activation control
-- `app/protected/password/page.tsx`
-  logged-in staff password change
-- `components/admin/*`
-  dashboard shell, cards, nav, page headers, loading and error boundaries
-- `components/staff/*`
-  staff management and password forms
-- `lib/config/*`
-  fallback school defaults, fee rules, navigation
-- `lib/fees/policy.ts`
-  server-only canonical fee policy/config service used across fee setup,
-  generation, payments, settings, and policy notes
-- `lib/fees/change-log.ts`
-  server-only config-change audit helper for recent preview/apply batch history
-- `lib/fees/regeneration.ts`
-  server-only ledger recalculation service with preview/apply batch logging
-- `lib/master-data/data.ts`
-  server-only centralized source for session/class/route/fee-head/payment-mode
-  options and in-use guardrails for master CRUD flows
-- `lib/setup/data.ts`
-  server-only first-time setup data, readiness, and completion-state service
-- `lib/auth/roles.ts`
-  role model and permission map
-- `lib/staff-management/data.ts`
-  server-only staff bootstrap and admin account-management helpers
-- `lib/supabase/session.ts`
-  server-side session, role resolution, and permission guards
-- `lib/env.ts`
-  environment variable helpers and placeholder guards
-- `supabase/schema.sql`
-  schema, audit triggers, RLS, reporting views
-- `supabase/schema/*`
-  reserved for future split schema/reference files
-- `supabase/migrations/*`
-  ordered SQL migration files for Supabase CLI workflows (currently 16)
-- `scripts/bootstrap-staff.mjs`
-  one-time server-only seed script for initial staff accounts
+Read-only analytics and attention hub:
 
-## Tech Stack
+- expected/collected/pending/collection %
+- active students
+- receipts today/month
+- class analysis
+- top defaulters/recent payments/attention cards
 
-- Next.js App Router
-- TypeScript
-- React 19
-- Tailwind CSS
-- shadcn/ui primitives
-- Supabase for auth and database
-- Vercel for deployment
+### Students
 
-Current package context worth preserving:
+Student master and student-level fee logic:
 
-- `next`: `16.2.4`
-- `react`: `19.2.5`
-- `react-dom`: `19.2.5`
-- `@supabase/supabase-js`: `2.104.0`
-- `@supabase/ssr`: `0.10.2`
-- `vitest`: present for test infrastructure; initial unit tests for fee rules have been written in `tests/fee-rules.test.ts`
+- add/edit/detail
+- pending SR auto-generation when SR blank
+- class/route/session-aware behavior
+- student-specific overrides and discount assignments
+- bulk add/update import entry points
+- dues preparation trigger after student changes/import
 
-## Supabase Wiring
+### Fee Setup
 
-Canonical helper implementations:
+Canonical policy/default editor by academic year:
 
-- `utils/supabase/client.ts`
-- `utils/supabase/server.ts`
-- `utils/supabase/middleware.ts`
+- installment dates
+- late fee
+- new/existing academic fee
+- class tuition
+- transport annual fees
+- preview then publish
+- protects paid/partial/adjusted rows during downstream update
 
-Stable app import paths:
+### Payment Desk
 
-- `lib/supabase/client.ts`
-- `lib/supabase/server.ts`
-- `lib/supabase/proxy.ts`
-- `lib/supabase/admin.ts`
-- `lib/supabase/session.ts`
+Only posting surface for collections:
 
-Auth/session expectations:
+- class-first + student selection
+- amount preview and posting
+- receipt generation and print links
+- duplicate prevention/idempotency and lock-aware posting
+- missing-dues diagnostics with fallback prep
+- pending vs credit/refund indicators where projected
 
-- keep `proxy.ts` active
-- use server-side auth checks for protected pages
-- keep proxy redirects scoped to `/protected`
-- use `lib/supabase/session.ts` for database-backed role-aware session checks
-- keep public signup disabled
-- bootstrap initial staff accounts through a server-only script or admin flow
-- keep `public.users` synchronized from `auth.users` metadata for RBAC and audit visibility
-- never expose `SUPABASE_SERVICE_ROLE_KEY` in browser code
+### Transactions
 
-Current local public Supabase project context:
+Read-only financial records:
 
-- project ref: `lsdrvovwybzspcvbdcir`
-- `NEXT_PUBLIC_SUPABASE_URL=https://lsdrvovwybzspcvbdcir.supabase.co`
+- receipts
+- dues/installments
+- class register
+- history views
+- exports links and context-preserving back paths
 
-Current site URL behavior:
+### Defaulters
 
-- prefer explicit `NEXT_PUBLIC_SITE_URL`
-- fall back to `VERCEL_PROJECT_PRODUCTION_URL`
-- then fall back to `VERCEL_URL`
-- use browser origin during client-side local flows when needed
-- production should still set `NEXT_PUBLIC_SITE_URL` explicitly
+Daily follow-up list:
 
-## Current Domain Model
+- rank by pending and overdue pressure
+- filter by class/route/days/search
 
-Important current tables:
+### Exports
 
-- `users`
+Top-level office XLSX center:
+
+- students
+- dues
+- payments
+- conventional discount reports
+
+### Admin Tools
+
+Rare/config-only area:
+
+- first-time setup
+- master data
+- staff and permissions
+- day close/corrections
+- settings/system checks
+- import history
+
+## Active AY 2026-27 Policy Values
+
+- session: `2026-27`
+- late fee: `₹1000` (flat)
+- installment due dates:
+  - `20-04-2026`
+  - `20-07-2026`
+  - `20-10-2026`
+  - `20-01-2027`
+- new student academic fee: `₹1100`
+- existing student academic fee: `₹500`
+- class 12 science annual tuition default: `₹38000`
+- receipt prefix: `SVP`
+- books excluded from workbook-mode fee calculation by default
+
+## Conventional Discount Policies (Current)
+
+Current policy set:
+
+- RTE -> tuition = 0
+- Staff Child -> tuition = 50%
+- 3rd Child Policy -> tuition = 6000
+
+Rules:
+
+- tuition-only impact
+- max 2 active conventional policies/student/year
+- lowest candidate tuition wins
+- manual override remains separate
+- year-scoped + auditable assignments
+- family grouping support for sibling logic
+
+## Architecture Decisions (Current)
+
+- Next.js App Router + TypeScript + React 19
+- Supabase auth + Postgres + RLS
+- append-only financial chronology for posted transactions
+- policy/default management via explicit preview/apply workflow
+- RBAC enforced in app + DB layer
+
+Key implementation assets:
+
+- `lib/config/navigation.ts` (top-level workspace/nav + default landing)
+- `lib/config/fee-rules.ts` (session parsing, default schedules, core labels)
+- `lib/fees/policy.ts` (canonical active policy source)
+- `lib/fees/regeneration.ts` (safe dues recalculation)
+- `app/protected/*` (daily module routes)
+- `supabase/schema.sql` + `supabase/migrations/*`
+
+## Important Database Objects
+
+Core tables/views/functions in active docs and workflows:
+
+- `fee_policy_configs`
+- `fee_settings`
+- `students`
 - `classes`
 - `transport_routes`
-- `students`
-- `import_batches`
-- `import_rows`
-- `fee_settings`
-- `fee_policy_configs`
-- `config_change_batches`
-- `config_change_blocked_installments`
-- `ledger_regeneration_batches`
-- `ledger_regeneration_rows`
-- `setup_progress`
-- `school_fee_defaults`
-- `student_fee_overrides`
 - `installments`
 - `receipts`
 - `payments`
 - `payment_adjustments`
-- `audit_logs`
+- `refund_requests`
+- `student_fee_overrides`
+- `conventional_discount_policies`
+- `student_conventional_discount_assignments`
+- `student_family_groups`
+- `student_family_members`
+- `import_batches`
+- `import_rows`
+- `v_workbook_student_financials`
+- `v_workbook_installment_balances`
+- `v_student_financial_state`
+- `preview_workbook_payment_allocation`
+- `post_student_payment`
+- `private.workbook_installment_snapshot`
 
-Important current enums:
+## Recent Major Technical Changes (Documented)
 
-- `staff_role`
-- `class_status`
-- `student_status`
-- `installment_status`
-- `payment_mode`
-- `adjustment_type`
-- `audit_action`
+Implemented in branch history:
 
-Important current database behavior:
+- protected root redirect flow hardened to avoid self-loop behavior
+- session parser accepts canonical and prefixed test labels
+- import row upsert path fixed for required `batch_id`
+- dashboard student count logic decoupled from workbook-row-only assumptions
+- class active filter shifted to `classes.status`
+- payment desk dues prep + diagnostics improved
+- `post_student_payment` receipt number ambiguity fixed
+- payment preview/posting aligned with payment-date workbook snapshot
+- student financial state projection view introduced for pending vs credit/refund
+- conventional discount policy system added
+- Defaulters + Exports promoted to top-level daily navigation
 
-- audit triggers capture inserts, updates, and deletes
-- append-only triggers block updates/deletes on receipts, payments, payment
-  adjustments, and audit logs
-- import batches keep mode (`add` or `update`), source filename, detected
-  headers, row-level validation, duplicate flags, and final imported-row
-  traceability
-- `v_outstanding_summary` supports outstanding reporting
-- `v_installment_balances` supports legacy installment-level due tracking
-- `v_workbook_student_financials` supports workbook student-wise totals
-- `v_workbook_installment_balances` supports workbook installment tracking
-- ledger regeneration batches and row previews support safe recalculation
-- no delete policies exist for operational finance tables
+## Known Pitfalls / Operational Cautions
 
-## Product And Data Constraints
+- do not test on real students/payments inside live AY `2026-27`
+- use `TEST-2026-27` or staging/local for UAT
+- avoid hidden alternative editing paths outside Students/Fee Setup/Payment Desk
+- keep technical wording collapsed on staff-facing pages
+- preserve append-only payment/receipt behavior in every change
 
-Future agents should assume:
+## Current Verification Status Language
 
-- the app is internal-admin first
-- history matters more than convenience edits
-- simple UI is preferred over a clever UI
-- records should be easy to verify later
-- imports should stay traceable and staged through `import_batches` / `import_rows`
-- post-import commits refresh dues for affected students and revalidate the
-  dashboard, payment, transactions, reports, defaulters, ledger, receipt, and
-  student-detail surfaces
+Use these labels in docs/tasks:
 
-Payment-history rule:
-
-- do not build direct historical payment editing flows
-- use explicit adjustments/reversals instead
-- preserve the original receipt trail
-
-## Canonical Configuration Behavior
-
-Live fee configuration currently works like this:
-
-- `fee_policy_configs` is the canonical source for active session label,
-  installment schedule, late fee, receipt prefix, accepted payment modes, and
-  custom fee-head catalog. Phase 1 fee-head metadata remains inside the
-  `custom_fee_heads` JSON payload instead of a separate table.
-- `school_fee_defaults`, `fee_settings`, `transport_routes`, and
-  `student_fee_overrides` are the editable default/override layers beneath the
-  canonical policy
-- live workbook fee setup edits should run through `/protected/fee-setup`,
-  which creates a preview batch, records changed fields, applies only after
-  explicit confirmation, and then runs ledger-safe propagation
-- `/protected/setup` is first-time go-live preparation only; once setup is
-  marked complete, live edits move to fee setup or master data depending on the
-  change type
-- `/protected/fee-setup` is now the primary live surface for the active
-  workbook-style fee sheet: academic year, due dates, late fee, new/old
-  academic fee, class tuition, route transport fee, and review/publish. It is
-  Basic Mode by default, with advanced fee-head/session/list controls collapsed.
-  `/protected/master-data` remains available for direct admin maintenance of
-  sessions, classes, and routes, but Fee Setup is the workflow staff should use
-  first for live fee values because preview and audit stay attached there
-
-Propagation expectations:
-
-- dashboard, payments, reports, defaulters, settings, setup readiness, and
-  landing/auth policy copy all consume the same canonical policy service
-- payment entry enforces the current accepted payment modes and current receipt
-  prefix
-- role landing remains workbook-first: admin -> `Dashboard`, accountant ->
-  `Payment Desk`, read_only_staff -> `Dashboard`
-- Payment Desk should surface a clear office-friendly dues-missing message when
-  a selected student has no generated workbook rows yet, instead of crashing
-- reports and receipts keep historical financial facts visible even after the
-  current policy changes
-- paid, partially paid, or adjusted installment rows are never silently
-  rewritten by config apply; blocked rows are logged for manual review
-- Standard concession profiles are shown as Phase 1 read-only planning copy in
-  Fee Setup; student override logic remains unchanged.
-
-## Current Defaults
-
-Current defaults from config and project docs:
-
-- active academic session: `2026-27`
-- fee engine: `workbook_v1`
-- late fee: flat Rs 1000
-- due dates: 20-04-2026, 20-07-2026, 20-10-2026, 20-01-2027
-- default installment count: 4
-- new student academic fee: Rs 1100
-- old student academic fee: Rs 500
-- Class 12 Science annual fee default: Rs 38000
-- payment modes: Cash, UPI, Bank transfer, Cheque
-- receipt prefix: `SVP`
-- school display name default: `Shri Veer Patta Senior Secondary School`
-- app mode: `internal-admin`
-- books are excluded from workbook-mode fee calculation for AY `2026-27`
-- fee-head metadata is not wired into AY `2026-27` workbook calculation in
-  Phase 1
-
-Historical values that should be treated as old reference only:
-
-- due dates on the 10th
-- late fee at Rs 50/day
-- stale workbook note showing flat late fee Rs 3000 while editable AY 2026-27 setup uses Rs 1000
-
-## Working Style Expectations
-
-Prefer:
-
-- incremental workflow improvements
-- correction-safe data modeling
-- school-specific terminology
-- practical reporting
-- documentation updates when policy or schema intent changes
-
-Avoid:
-
-- SaaS-first abstractions
-- parent-facing assumptions
-- destructive cleanup flows
-## Roadmap
-
-### Phase 1: Stabilization & Hardening
-- [x] Master data CRUD for sessions, classes, and routes.
-- [x] Role-based access control (RBAC) at database and UI levels.
-- [x] Staged spreadsheet import workflow.
-- [x] Fee generation and preview logic.
-- [x] Comprehensive error, loading, and empty states.
-- [x] Robust environment variable validation.
-
-### Phase 2: Canonical Configuration & Safe Propagation
-- [x] Canonical live fee policy service used across fee setup, payments,
-  reports, dashboard, settings, and setup readiness.
-- [x] Preview/apply workflow for live policy/default changes.
-- [x] Ledger-safe propagation that only updates future or unpaid installment
-  rows.
-- [x] Blocked-row logging for paid, partial, or adjusted installment rows that
-  need manual review.
-- [x] Protected-shell access-denied screen and clearer permission-denied
-  behavior.
-- [x] Live config audit visibility in settings through recent config-change
-  batch history.
-
-### Operational Rollout (Manual / Deployment)
-- [ ] Initial server setup and migration application.
-- [ ] Bootstrap initial staff accounts.
-- [ ] Manual import of existing student workbooks.
-- [ ] Training for accounts staff on payment entry and receipt printing.
-
-### Phase 3: Enhanced Reporting & Print
-- [x] Print-optimized Student Ledger view.
-- [ ] Server-side PDF generation for receipts.
-- [ ] Bulk receipt printing for installment periods.
-- [ ] PDF export for reports (Defaulters, Daily Collection, Outstanding).
-- [ ] Monthly collection email/SMS notification integration (Future).
-
-### Phase 4: Financial Extensions
-- [ ] Integrated bank reconciliation module.
-- [ ] Expense tracking (petty cash, staff salary).
-- [ ] Inventory management (uniforms, books).
-- [ ] Multi-session history migration for older years.
+- **Implemented in current branch**: confirmed by code/schema/migration presence
+- **Pending browser/UAT verification**: implemented but needs environment run-through
+- **Planned next**: not shipped yet

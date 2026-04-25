@@ -1,73 +1,51 @@
 # Before Real Data Checklist
 
-Use this checklist immediately before entering actual student records for
-Shri Veer Patta Senior Secondary School.
+Run this immediately before entering real student records.
 
-## Route And Role Checks
+## 1) Access + Routing
 
-- [ ] `/protected` lands safely for admin, accountant, and read-only staff.
-- [ ] Admin lands on Students.
-- [ ] Accountant lands on Payment Desk.
-- [ ] Read-only staff lands on Students.
-- [ ] Read-only staff cannot save student, import, fee setup, or payment forms.
-- [ ] Accountant cannot change school-wide setup/policy if permissions disallow it.
+- [ ] `/protected` lands by role (admin Dashboard, accountant Payment Desk, read_only Dashboard).
+- [ ] No `/protected` redirect loop.
+- [ ] Read-only staff cannot save fee/student/payment changes.
 
-## UAT Session Checks
+## 2) Session + UAT Hygiene
 
-- [ ] Test academic session `TEST-2026-27` exists if UAT was performed.
-- [ ] Test session is clearly separate from real AY `2026-27`.
-- [ ] Test students use dummy names and SR numbers only.
-- [ ] No real receipts or real parent payments were posted during UAT.
-- [ ] Test session is archived, ignored, or isolated before real go-live.
+- [ ] `TEST-2026-27` (or other test session) is isolated from real workflow.
+- [ ] No dummy students mixed into live 2026-27 operations.
+- [ ] No test payments were posted against real students.
 
-## Fee Setup Checks
+## 3) Fee Setup Verification
 
-- [ ] Fee Setup can preview and publish the test setup.
-- [ ] Class defaults are correct.
-- [ ] Route defaults are correct.
-- [ ] Installment schedule is correct.
-- [ ] Flat late fee is correct.
-- [ ] New/old student academic fees are correct.
-- [ ] Paid or partially paid rows are not silently rewritten by setup changes.
-- [ ] Final actual AY `2026-27` fee values are confirmed before production data entry.
+- [ ] AY `2026-27` is confirmed as active real session.
+- [ ] Late fee is `₹1000`.
+- [ ] Due dates are 20-Apr, 20-Jul, 20-Oct, 20-Jan.
+- [ ] New student academic fee is `₹1100`.
+- [ ] Existing student academic fee is `₹500`.
+- [ ] Class 12 science tuition default is `₹38000`.
+- [ ] Receipt prefix is `SVP`.
 
-## Students And Import Checks
+## 4) Students + Dues Automation
 
-- [ ] Manual Add Student works with only student name, SR number, and class.
-- [ ] Student edit works for class, route, contact, record status, and notes.
-- [ ] Student Fee Profile supports new/existing, overrides, discount, waiver,
-      other adjustment, reason, and notes.
-- [ ] Student-specific fee override changes update scoped dues safely.
-- [ ] Bulk import dry-run catches invalid rows.
-- [ ] Bulk import keeps row-level validation issues visible.
-- [ ] Bulk update by SR number works.
-- [ ] Blank optional update cells preserve existing values.
+- [ ] Add/edit student triggers expected dues preparation behavior.
+- [ ] Route and fee-exception changes propagate safely.
+- [ ] Conventional discount assignment behavior is validated.
 
-## Payment And Receipt Checks
+## 5) Payment + Receipt Safety
 
-- [ ] Payment Desk searches and selects the correct student.
-- [ ] Accepted payment modes match Fee Setup.
-- [ ] Receipt prefix matches Fee Setup.
-- [ ] Receipt print/open works.
-- [ ] Student ledger shows posted payments chronologically.
-- [ ] Posted payments, receipts, adjustments, and audit logs remain append-only.
+- [ ] Payment Desk posting works with current payment modes.
+- [ ] Reference number remains optional for all payment modes.
+- [ ] Receipt open/print works.
+- [ ] Posted payment/receipt rows remain append-only.
 
-## Dues And Reports Checks
+## 6) Daily Operations Surfaces
 
-- [ ] Dues & Receipts match expected UAT numbers.
-- [ ] Defaulters match expected outstanding balances.
-- [ ] Outstanding report matches expected balances.
-- [ ] Daily Collection report matches test receipts.
-- [ ] Receipt Register export works.
-- [ ] Student Ledger report works.
-- [ ] Import Verification report shows staged/imported rows.
+- [ ] Dashboard totals are sane.
+- [ ] Defaulters ranking/filter behavior is usable for follow-up.
+- [ ] Exports produce required office XLSX files.
+- [ ] Transactions records and filters are readable and stable.
 
-## Final Go-Live Gate
+## 7) Security + Operational Hygiene
 
-- [ ] No real data has been entered before UAT sign-off.
-- [ ] No dummy data is present in the real working session.
-- [ ] Staff understand the operating pattern:
-      Fee Setup for defaults, Students for student records and student-specific
-      overrides, Payment Desk for transactions, Dues/Reports for verification.
-- [ ] Actual AY `2026-27` settings are correct.
-- [ ] Initial real import file has been reviewed before upload.
+- [ ] Shared admin passwords rotated after UAT.
+- [ ] No passwords/secrets stored in repo docs/prompts.
+- [ ] Staff know the daily flow: Students + Fee Setup -> auto updates -> Payment Desk -> Transactions/Defaulters/Exports.
