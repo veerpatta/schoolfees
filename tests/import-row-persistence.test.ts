@@ -102,6 +102,12 @@ describe("import row persistence", () => {
           status: "active",
           notes: null,
           feeProfileReason: null,
+          conventionalDiscounts: {
+            policyIds: [],
+            policyLabels: [],
+            familyGroup: null,
+            notes: null,
+          },
           overrides: {
             customTuitionFeeAmount: null,
             customTransportFeeAmount: null,

@@ -104,6 +104,7 @@ type ConfigPayloadByScope = {
   class_defaults: ClassDefaultsChangePayload;
   transport_defaults: TransportDefaultsChangePayload;
   student_override: StudentOverrideChangePayload;
+  conventional_discount_policy: never;
   workbook_setup: never;
 };
 
@@ -689,6 +690,8 @@ function buildScopeLabel(scope: ConfigChangeScope) {
       return "Transport defaults";
     case "student_override":
       return "Student override";
+    case "conventional_discount_policy":
+      return "Conventional discount policy";
     case "workbook_setup":
       return "Workbook Fee Setup";
     default:
