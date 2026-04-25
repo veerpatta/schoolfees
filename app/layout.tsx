@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Manrope, Sora } from "next/font/google";
 
 import { schoolProfile } from "@/lib/config/school";
 import { getSiteUrl } from "@/lib/env";
@@ -25,18 +24,6 @@ export const metadata: Metadata = {
   ],
 };
 
-const manrope = Manrope({
-  variable: "--font-manrope",
-  display: "swap",
-  subsets: ["latin"],
-});
-
-const sora = Sora({
-  variable: "--font-sora",
-  display: "swap",
-  subsets: ["latin"],
-});
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -44,9 +31,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${manrope.variable} ${sora.variable} font-sans antialiased`}
-      >
+      <body className="antialiased">
         {children}
       </body>
     </html>
