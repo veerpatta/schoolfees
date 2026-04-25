@@ -1,79 +1,68 @@
 # Test Data Setup Guide
 
-This guide explains how to prepare dummy data before real student data entry.
-Use it for local, staging, or carefully isolated production UAT.
+Prepare dummy data safely before real go-live usage.
 
-## Recommended Test Session
+## Use a Dedicated Test Session
 
-Use this academic session label:
+Recommended label:
 
 ```text
 TEST-2026-27
 ```
 
-Do not change the real active AY `2026-27` defaults for trial runs. The real
-AY `2026-27` policy remains:
+Also supported by parser (if needed):
 
-- late fee: Rs 1000
-- due dates: 20-04-2026, 20-07-2026, 20-10-2026, 20-01-2027
-- new student academic fee: Rs 1100
-- old student academic fee: Rs 500
-- Class 12 Science annual fee: Rs 38000
-- books excluded from workbook-mode calculation
+- `UAT-2026-27`
+- `DEMO-2026-27`
 
-## Dummy Naming Rules
+Do not repurpose live AY `2026-27` data for tests.
 
-Never use real student names, real SR numbers, real parent phone numbers, or
-real home addresses during UAT.
+## Keep Live AY 2026-27 Baseline Intact
 
-Use values like:
+Current live policy intent:
 
-- student name: `Test Student 001`
-- SR number: `TEST-SR-001`
-- father phone: `9999999999`
-- mother phone: `9999999999`
-- route: `TEST ROUTE`
-- notes: `Dummy UAT record only`
+- late fee: `₹1000`
+- due dates: `20-04-2026`, `20-07-2026`, `20-10-2026`, `20-01-2027`
+- new student academic fee: `₹1100`
+- existing student academic fee: `₹500`
+- class 12 science tuition: `₹38000`
+- receipt prefix: `SVP`
 
-## Test Classes And Routes
+## Dummy Data Naming Rules
 
-If you need dedicated test master data, keep it clearly marked:
+Use clearly fake values:
 
-- `TEST CLASS 1`
-- `TEST CLASS 12 SCIENCE`
-- `TEST ROUTE`
+- `Test Student 001`
+- `Test Student 002`
+- `TEST-SR-001`
+- `TEST-SR-002`
+- `9999999999` placeholder phones
 
-If you use existing classes or routes, keep all students and SR numbers clearly
-marked as test data so they can be identified before go-live.
+Never use real student names, real SRs, or real family contact details in UAT.
 
-## Setup Steps
+## Recommended UAT Sequence
 
-1. Log in as admin.
-2. Open Fee Setup.
-3. Create or copy an academic session named `TEST-2026-27`.
-4. Add any clearly marked test classes and routes needed for the run.
-5. Enter test-only fee defaults.
-6. Save Draft Review.
-7. Review the impact preview.
-8. Publish only when the preview is expected.
-9. Open Students and create dummy students manually or through import.
-10. Keep all UAT payments on dummy students only.
+1. Configure `TEST-2026-27` in Fee Setup.
+2. Add dummy classes/routes if required (prefix with `TEST`).
+3. Add dummy students manually and via import.
+4. Validate dues preparation.
+5. Post test payments only for dummy students.
+6. Validate receipt printing, defaulters, exports.
 
-## Import Sample
+## Conventional Discount Test Set
 
-Use `docs/samples/student-import-test-sample.csv` as a safe starting point. It
-contains dummy students and dummy SR numbers only.
+Include at least one dummy student for each policy:
 
-## After Testing
+- RTE
+- Staff Child
+- 3rd Child
 
-Before real go-live:
+And one combined-policy case to verify “lowest tuition wins”.
 
-1. Export or screenshot any UAT evidence the school wants to keep.
-2. Archive or clearly stop using `TEST-2026-27`.
-3. Confirm no dummy students are mixed into the real AY `2026-27` working set.
-4. Confirm actual AY `2026-27` values in Fee Setup.
-5. Confirm staff are trained on the final workflow.
+## After UAT Before Live Use
 
-Do not mix test data with real production data. If UAT was done in a local or
-staging database, reset that environment through normal database tooling only.
-This repo intentionally does not add a production reset button.
+1. Export/save UAT evidence.
+2. Stop using test session for live operations.
+3. Confirm no dummy records in live AY workflow.
+4. Rotate shared admin passwords.
+5. Ensure no secrets/passwords were saved in repo/docs/prompts.
