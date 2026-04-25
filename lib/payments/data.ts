@@ -90,6 +90,20 @@ export class PaymentPostingRpcError extends Error {
   }
 }
 
+export class DuplicatePaymentWarning extends Error {
+  receiptId: string;
+  receiptNumber: string;
+
+  constructor(receipt: { id: string; receiptNumber: string }) {
+    super(
+      "A similar payment was just recorded. Open the latest receipt or start a new payment if this is intentional.",
+    );
+    this.name = "DuplicatePaymentWarning";
+    this.receiptId = receipt.id;
+    this.receiptNumber = receipt.receiptNumber;
+  }
+}
+
 export function toFriendlyPaymentPreviewError(error: unknown) {
   const rawMessage =
     error instanceof Error
@@ -134,6 +148,10 @@ export function toFriendlyPaymentPreviewError(error: unknown) {
 }
 
 export function toFriendlyPaymentPostingError(error: unknown) {
+  if (error instanceof DuplicatePaymentWarning) {
+    return error.message;
+  }
+
   if (
     error instanceof PaymentPostingPreflightError ||
     error instanceof PaymentPostingRpcError
@@ -266,21 +284,6 @@ function buildClassLabel(value: {
   return parts.join(" - ");
 }
 
-function mapStudentOptions(
-  rows: Awaited<ReturnType<typeof getWorkbookStudentFinancials>>,
-): PaymentStudentOption[] {
-  return rows.map((row) => ({
-    id: row.studentId,
-    fullName: row.studentName,
-    admissionNo: row.admissionNo,
-    classLabel: row.classLabel,
-    fatherName: row.fatherName,
-    fatherPhone: row.fatherPhone,
-    motherPhone: row.motherPhone,
-    pendingAmount: row.outstandingAmount,
-  }));
-}
-
 function buildStudentOption(payload: {
   studentId: string;
   studentName: string;
@@ -289,7 +292,7 @@ function buildStudentOption(payload: {
   fatherName: string | null;
   fatherPhone: string | null;
   motherPhone: string | null;
-  pendingAmount?: number;
+  pendingAmount?: number | null;
 }): PaymentStudentOption {
   return {
     id: payload.studentId,
@@ -299,7 +302,7 @@ function buildStudentOption(payload: {
     fatherName: payload.fatherName,
     fatherPhone: payload.fatherPhone,
     motherPhone: payload.motherPhone,
-    pendingAmount: payload.pendingAmount ?? 0,
+    pendingAmount: payload.pendingAmount ?? null,
   };
 }
 
@@ -347,7 +350,7 @@ async function getBasePaymentStudentOptions(payload: {
         fatherName: row.father_name,
         fatherPhone: row.primary_phone,
         motherPhone: row.secondary_phone,
-        pendingAmount: payload.pendingByStudentId.get(row.id) ?? 0,
+        pendingAmount: payload.pendingByStudentId.get(row.id) ?? null,
       });
     })
     .filter((row) => {
@@ -680,14 +683,7 @@ export async function getPaymentEntryPageData(payload: {
 }): Promise<PaymentEntryPageData> {
   const policy = await getFeePolicySummary();
   const normalizedQuery = normalizePaymentDeskQuery(payload.searchQuery);
-  const shouldLoadWorkbookList = !payload.studentId;
-  const [workbookRows, selectedWorkbookRows] = await Promise.all([
-    shouldLoadWorkbookList
-      ? getWorkbookStudentFinancials({
-          classId: payload.classId,
-          sessionLabel: policy.academicSessionLabel,
-        })
-      : Promise.resolve([]),
+  const [selectedWorkbookRows] = await Promise.all([
     payload.studentId
       ? getWorkbookStudentFinancials({
           studentId: payload.studentId,
@@ -695,37 +691,13 @@ export async function getPaymentEntryPageData(payload: {
         })
       : Promise.resolve([]),
   ]);
-  const filteredWorkbookRows = normalizedQuery
-    ? workbookRows.filter((row) => {
-        const haystack = [
-          row.studentName,
-          row.admissionNo,
-          row.fatherName ?? "",
-          row.fatherPhone ?? "",
-          row.motherPhone ?? "",
-          row.classLabel,
-        ]
-          .join(" ")
-          .toLowerCase();
-
-        return haystack.includes(normalizedQuery.toLowerCase());
-      })
-    : workbookRows;
-
-  const pendingByStudentId = new Map(
-    workbookRows.map((row) => [row.studentId, row.outstandingAmount]),
-  );
   let studentOptions = await getBasePaymentStudentOptions({
     classId: payload.classId,
     normalizedQuery,
     selectedStudentId: payload.studentId,
-    pendingByStudentId,
+    pendingByStudentId: new Map(),
   });
   let selectedStudentIssue: PaymentDeskIssue | null = null;
-
-  if (studentOptions.length === 0 && filteredWorkbookRows.length > 0) {
-    studentOptions = mapStudentOptions(filteredWorkbookRows);
-  }
 
   if (normalizedQuery && looksLikeReceiptQuery(normalizedQuery)) {
     const receiptMatches = await getWorkbookTransactions({ limit: 30, query: normalizedQuery });
@@ -742,7 +714,6 @@ export async function getPaymentEntryPageData(payload: {
         }
 
         const financial =
-          workbookRows.find((item) => item.studentId === row.studentId) ??
           selectedWorkbookRows.find((item) => item.studentId === row.studentId);
 
         studentOptions = [
@@ -773,6 +744,9 @@ export async function getPaymentEntryPageData(payload: {
     studentId: row.studentId,
     studentLabel: `${row.studentName} (${row.admissionNo})`,
     totalAmount: row.totalAmount,
+    paymentMode: row.paymentMode,
+    paymentDate: row.paymentDate,
+    createdAt: row.createdAt,
   }));
 
   const todayCollection = {
@@ -982,6 +956,18 @@ export async function postStudentPayment(payload: {
     paymentDate: payload.paymentDate,
     paymentAmount: payload.paymentAmount,
   });
+  const duplicateReceipt = await findLikelyDuplicateReceipt({
+    studentId: payload.studentId,
+    paymentDate: payload.paymentDate,
+    paymentMode: payload.paymentMode,
+    paymentAmount: payload.paymentAmount,
+    referenceNumber: payload.referenceNumber,
+  });
+
+  if (duplicateReceipt) {
+    throw new DuplicatePaymentWarning(duplicateReceipt);
+  }
+
   const { data, error } = await supabase.rpc("post_student_payment", {
     p_student_id: payload.studentId,
     p_payment_date: payload.paymentDate,
@@ -1019,7 +1005,56 @@ export async function postStudentPayment(payload: {
     receiptId: row.receipt_id,
     receiptNumber: row.receipt_number,
     allocatedTotal: row.allocated_total,
+    remainingBalance: Math.max((preflightDiagnostic.previewPendingAmount ?? 0) - payload.paymentAmount, 0),
   };
+}
+
+async function findLikelyDuplicateReceipt(payload: {
+  studentId: string;
+  paymentDate: string;
+  paymentMode: PaymentMode;
+  paymentAmount: number;
+  referenceNumber: string | null;
+}) {
+  try {
+    const supabase = await createClient();
+    const recentCutoff = new Date(Date.now() - 60_000).toISOString();
+    let query = supabase
+      .from("receipts")
+      .select("id, receipt_number")
+      .eq("student_id", payload.studentId)
+      .eq("payment_date", payload.paymentDate)
+      .eq("payment_mode", payload.paymentMode)
+      .eq("total_amount", payload.paymentAmount)
+      .gte("created_at", recentCutoff)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (payload.referenceNumber) {
+      query = query.eq("reference_number", payload.referenceNumber);
+    } else {
+      query = query.is("reference_number", null);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      return null;
+    }
+
+    const row = (data ?? [])[0] as { id?: string; receipt_number?: string } | undefined;
+
+    if (!row?.id || !row.receipt_number) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      receiptNumber: row.receipt_number,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function getPaymentDateAwareInstallmentBalances(payload: {

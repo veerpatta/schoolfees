@@ -47,6 +47,25 @@ function clientWithRpc(counts: number[], rpc: ReturnType<typeof vi.fn>) {
   };
 }
 
+function duplicateReceiptQuery() {
+  return {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    gte: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    is: vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "00000000-0000-4000-8000-000000000301",
+          receipt_number: "SVP20260425-0001",
+        },
+      ],
+      error: null,
+    }),
+  };
+}
+
 describe("payment submit preflight", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -209,5 +228,56 @@ describe("payment submit preflight", () => {
       receiptNumber: "SVP20260425-0001",
       allocatedTotal: 1500,
     });
+  });
+
+  it("likely duplicate payment returns a friendly warning without posting again", async () => {
+    const postRpc = vi.fn();
+    const previewRpc = vi.fn().mockResolvedValue({
+      data: [
+        {
+          installment_id: "00000000-0000-4000-8000-000000000101",
+          installment_no: 1,
+          installment_label: "Installment 1",
+          due_date: "2026-04-20",
+          total_charge: 1500,
+          paid_amount: 0,
+          adjustment_amount: 0,
+          raw_late_fee: 0,
+          waiver_applied: 0,
+          final_late_fee: 0,
+          pending_amount: 1500,
+          balance_status: "pending",
+        },
+      ],
+      error: null,
+    });
+    const countClient = clientWithRpc([4], vi.fn());
+    const previewClient = clientWithRpc([], previewRpc);
+    const duplicateClient = {
+      from: vi.fn(() => duplicateReceiptQuery()),
+    };
+
+    createClient
+      .mockResolvedValueOnce({ rpc: postRpc, from: vi.fn() })
+      .mockResolvedValueOnce(countClient)
+      .mockResolvedValueOnce(previewClient)
+      .mockResolvedValueOnce(duplicateClient);
+
+    const { postStudentPayment } = await import("@/lib/payments/data");
+
+    await expect(
+      postStudentPayment({
+        studentId: "00000000-0000-4000-8000-000000000001",
+        paymentDate: "2026-04-25",
+        paymentMode: "cash",
+        paymentAmount: 1500,
+        referenceNumber: null,
+        remarks: null,
+        receivedBy: "Admin",
+      }),
+    ).rejects.toThrow(
+      "A similar payment was just recorded. Open the latest receipt or start a new payment if this is intentional.",
+    );
+    expect(postRpc).not.toHaveBeenCalled();
   });
 });

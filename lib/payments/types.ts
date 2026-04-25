@@ -1,11 +1,15 @@
 import type { PaymentMode } from "@/lib/db/types";
 
 export type PaymentEntryActionState = {
-  status: "idle" | "error" | "success";
+  status: "idle" | "error" | "success" | "duplicate";
   message: string | null;
   receiptNumber: string | null;
   receiptId: string | null;
   studentId: string | null;
+  amountReceived?: number | null;
+  paymentDate?: string | null;
+  paymentMode?: PaymentMode | null;
+  remainingBalance?: number | null;
   diagnostic?: PaymentPostingDiagnostic | null;
 };
 
@@ -15,6 +19,10 @@ export const INITIAL_PAYMENT_ENTRY_ACTION_STATE: PaymentEntryActionState = {
   receiptNumber: null,
   receiptId: null,
   studentId: null,
+  amountReceived: null,
+  paymentDate: null,
+  paymentMode: null,
+  remainingBalance: null,
   diagnostic: null,
 };
 
@@ -42,7 +50,7 @@ export type PaymentStudentOption = {
   fatherName: string | null;
   fatherPhone: string | null;
   motherPhone: string | null;
-  pendingAmount: number;
+  pendingAmount: number | null;
 };
 
 export type InstallmentBalanceItem = {
@@ -112,6 +120,9 @@ export type PaymentEntryPageData = {
     studentId: string;
     studentLabel: string;
     totalAmount: number;
+    paymentMode: string;
+    paymentDate: string;
+    createdAt: string | null;
   }>;
   todayCollection: {
     receiptCount: number;

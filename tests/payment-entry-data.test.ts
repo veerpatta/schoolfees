@@ -144,6 +144,52 @@ describe("payment entry data", () => {
     expect(data.studentOptions[0]?.id).toBe("student-1");
   });
 
+  it("does not load workbook dues for every student before a student is selected", async () => {
+    const studentQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      then: vi.fn((resolve) =>
+        resolve({
+          data: [
+            {
+              id: "student-3",
+              full_name: "Counter Student",
+              admission_no: "SR-3",
+              father_name: null,
+              primary_phone: null,
+              secondary_phone: null,
+              class_ref: {
+                id: "class-1",
+                session_label: "2026-27",
+                class_name: "Class 1",
+                section: null,
+                stream_name: null,
+                status: "active",
+              },
+            },
+          ],
+          error: null,
+        }),
+      ),
+    };
+    createClient.mockResolvedValue({
+      from: vi.fn(() => studentQuery),
+    });
+
+    const { getPaymentEntryPageData } = await import("@/lib/payments/data");
+    const data = await getPaymentEntryPageData({
+      studentId: null,
+      searchQuery: "",
+      classId: "class-1",
+    });
+
+    expect(getWorkbookStudentFinancials).not.toHaveBeenCalled();
+    expect(data.studentOptions).toHaveLength(1);
+    expect(data.studentOptions[0]?.pendingAmount).toBeNull();
+  });
+
   it("shows a recovery message when a student exists but dues are not generated", async () => {
     getWorkbookStudentFinancials.mockResolvedValue([]);
     getStudentDetail.mockResolvedValue({

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 import { MetricCard } from "@/components/admin/metric-card";
@@ -12,10 +12,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { buildPaymentAllocation } from "@/lib/payments/allocation";
+import { buildPaymentQuickAmounts } from "@/lib/payments/workflow";
 import {
-  buildPaymentDeskSuccessActions,
-  buildPaymentQuickAmounts,
-} from "@/lib/payments/workflow";
+  buildPaymentConfirmationSummary,
+  buildStudentSelectLabel,
+  resetPaymentDraftForNextPayment,
+  shouldBlockClientSubmission,
+  validatePaymentDraft,
+} from "@/lib/payments/payment-desk-workflow";
 import type {
   InstallmentBalanceItem,
   PaymentEntryActionState,
@@ -48,6 +52,12 @@ const selectClassName =
 const textAreaClassName =
   "flex min-h-[88px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
+function createClientRequestId() {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 function ActionNotice({ state }: { state: PaymentEntryActionState }) {
   if (!state.message) {
     return null;
@@ -58,6 +68,8 @@ function ActionNotice({ state }: { state: PaymentEntryActionState }) {
       className={
         state.status === "error"
           ? "rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+          : state.status === "duplicate"
+            ? "rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
           : "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
       }
     >
@@ -109,8 +121,7 @@ export function PaymentEntryClient({
     submitPaymentEntryAction,
     initialState,
   );
-  const [paymentAmountInput, setPaymentAmountInput] = useState("0");
-  const [isReviewing, setIsReviewing] = useState(false);
+  const [paymentAmountInput, setPaymentAmountInput] = useState("");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [dateAwareBreakdown, setDateAwareBreakdown] = useState<InstallmentBalanceItem[] | null>(null);
@@ -120,6 +131,14 @@ export function PaymentEntryClient({
   const [referenceNumber, setReferenceNumber] = useState("");
   const [receivedBy, setReceivedBy] = useState(defaultReceivedBy);
   const [remarks, setRemarks] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
+  const [isLockedAfterSuccess, setIsLockedAfterSuccess] = useState(false);
+  const [clientRequestId, setClientRequestId] = useState(createClientRequestId);
+  const submittingRef = useRef(false);
+  const amountInputRef = useRef<HTMLInputElement>(null);
 
   const selectedStudent = data.selectedStudent;
   const selectedStudentIssue = data.selectedStudentIssue;
@@ -217,26 +236,130 @@ export function PaymentEntryClient({
   );
   const unallocatedAmount = Math.max(paymentAmount - allocatedPreviewTotal, 0);
   const receiptHref = state.receiptId ? `/protected/receipts/${state.receiptId}` : null;
-  const paymentSearchHref = data.classId
-    ? `/protected/payments?classId=${data.classId}`
-    : "/protected/payments";
-  const successActions =
-    state.status === "success" &&
-    state.receiptId &&
-    state.studentId
-      ? buildPaymentDeskSuccessActions({
-          receiptId: state.receiptId,
-          studentId: state.studentId,
-          nextPaymentHref: paymentSearchHref,
-          transactionsHref: "/protected/transactions",
-        })
-      : [];
   const selectedPaymentModeLabel =
     data.modeOptions.find((modeOption) => modeOption.value === paymentMode)?.label ?? paymentMode;
+  const draftValidation = validatePaymentDraft({
+    selectedStudent,
+    amountInput: paymentAmountInput,
+    paymentDate,
+    paymentMode,
+    paymentModeLabel: selectedPaymentModeLabel,
+    referenceNumber,
+    receivedBy,
+    previewTotalPending,
+  });
+  const confirmationSummary = buildPaymentConfirmationSummary({
+    selectedStudent,
+    amountInput: paymentAmountInput,
+    paymentDate,
+    paymentMode,
+    paymentModeLabel: selectedPaymentModeLabel,
+    referenceNumber,
+    receivedBy,
+    previewTotalPending,
+  });
+  const remainingAfterPayment =
+    draftValidation.ok ? draftValidation.remainingBalance : previewTotalPending;
+  const latestReceipt = data.recentReceipts[0] ?? null;
+  const latestPayment = state.status === "success" && state.receiptId && state.receiptNumber
+    ? {
+        id: state.receiptId,
+        receiptNumber: state.receiptNumber,
+        studentLabel: selectedStudent
+          ? `${selectedStudent.fullName} (${selectedStudent.admissionNo})`
+          : "Selected student",
+        totalAmount: state.amountReceived ?? paymentAmount,
+        paymentMode: selectedPaymentModeLabel,
+        paymentDate: state.paymentDate ?? paymentDate,
+        createdAt: null,
+      }
+    : latestReceipt
+      ? {
+          id: latestReceipt.id,
+          receiptNumber: latestReceipt.receiptNumber,
+          studentLabel: latestReceipt.studentLabel,
+          totalAmount: latestReceipt.totalAmount,
+          paymentMode: latestReceipt.paymentMode,
+          paymentDate: latestReceipt.paymentDate,
+          createdAt: latestReceipt.createdAt,
+        }
+      : null;
   const whatsappCopy =
     state.status === "success" && state.receiptNumber && selectedStudent
       ? `Dear Parent, payment of ${formatInr(paymentAmount)} has been received for ${selectedStudent.fullName} (${selectedStudent.classLabel}). Receipt No: ${state.receiptNumber}. Thank you - Shri Veer Patta Senior Secondary School.`
       : "";
+
+  useEffect(() => {
+    if (selectedStudent) {
+      amountInputRef.current?.focus();
+    }
+  }, [selectedStudent?.id, selectedStudent]);
+
+  useEffect(() => {
+    submittingRef.current = false;
+
+    if (state.status === "success") {
+      setIsConfirmOpen(false);
+      setIsSuccessOpen(true);
+      setIsDuplicateOpen(false);
+      setIsLockedAfterSuccess(true);
+      setFormError(null);
+      return;
+    }
+
+    if (state.status === "duplicate") {
+      setIsConfirmOpen(false);
+      setIsSuccessOpen(false);
+      setIsDuplicateOpen(true);
+      setFormError(null);
+      return;
+    }
+
+    if (state.status === "error") {
+      setIsConfirmOpen(false);
+      setFormError(state.message);
+    }
+  }, [state]);
+
+  function openConfirmationDialog() {
+    const validation = validatePaymentDraft({
+      selectedStudent,
+      amountInput: paymentAmountInput,
+      paymentDate,
+      paymentMode,
+      paymentModeLabel: selectedPaymentModeLabel,
+      referenceNumber,
+      receivedBy,
+      previewTotalPending,
+    });
+
+    if (!validation.ok) {
+      setFormError(validation.message);
+      setIsConfirmOpen(false);
+      return;
+    }
+
+    setFormError(null);
+    setIsConfirmOpen(true);
+  }
+
+  function handleCollectAnotherPayment() {
+    const resetValues = resetPaymentDraftForNextPayment({
+      keepPaymentMode: paymentMode,
+      defaultReceivedBy,
+    });
+
+    setPaymentAmountInput(resetValues.amountInput);
+    setReferenceNumber(resetValues.referenceNumber);
+    setRemarks(resetValues.remarks);
+    setPaymentMode(resetValues.paymentMode as typeof paymentMode);
+    setReceivedBy(resetValues.receivedBy);
+    setClientRequestId(createClientRequestId());
+    setIsLockedAfterSuccess(false);
+    setIsSuccessOpen(false);
+    setIsDuplicateOpen(false);
+    setCopyStatus("idle");
+  }
 
   return (
     <div className="space-y-6">
@@ -351,10 +474,26 @@ export function PaymentEntryClient({
         </SectionCard>
 
         <SectionCard
-          title="Continue task"
-          description="Resume the last student or receipt without searching again."
+          title="Latest payment"
+          description="Small confirmation area for the last receipt saved at the desk."
         >
-          <OfficeRecentActions />
+          {latestPayment ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-950">
+              <p className="font-semibold">{latestPayment.receiptNumber}</p>
+              <div className="mt-2 grid gap-1 text-slate-700">
+                <span>{latestPayment.studentLabel}</span>
+                <span>{formatInr(latestPayment.totalAmount)} by {latestPayment.paymentMode}</span>
+                <span>{latestPayment.createdAt ?? latestPayment.paymentDate}</span>
+              </div>
+              <div className="mt-3">
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/protected/receipts/${latestPayment.id}`}>Open receipt</Link>
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <OfficeRecentActions />
+          )}
         </SectionCard>
       </section>
 
@@ -386,12 +525,18 @@ export function PaymentEntryClient({
                 <option value="">Select student</option>
                 {data.studentOptions.map((student) => (
                   <option key={student.id} value={student.id}>
-                    {student.fullName} ({student.admissionNo}) - {student.classLabel} - pending {formatInr(student.pendingAmount)}
+                    {buildStudentSelectLabel(student)}
                   </option>
                 ))}
               </select>
             </div>
           </div>
+          {selectedStudent ? (
+            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
+              Selected student: <span className="font-semibold">{selectedStudent.fullName}</span>{" "}
+              ({selectedStudent.admissionNo}) - {selectedStudent.classLabel}
+            </div>
+          ) : null}
         </AutoSubmitForm>
       </SectionCard>
 
@@ -585,40 +730,41 @@ export function PaymentEntryClient({
                   : "You have view-only access for payment entry. Contact admin staff for posting access."}
               </p>
             ) : null}
-            <form action={formAction} className="space-y-4">
+            <form
+              action={formAction}
+              className="space-y-4"
+              onSubmit={(event) => {
+                if (!isConfirmOpen) {
+                  event.preventDefault();
+                  openConfirmationDialog();
+                  return;
+                }
+
+                if (
+                  shouldBlockClientSubmission({
+                    isSubmitting: submittingRef.current || pending,
+                    isLockedAfterSuccess,
+                  })
+                ) {
+                  event.preventDefault();
+                  return;
+                }
+
+                submittingRef.current = true;
+              }}
+            >
               <ActionNotice state={state} />
-              {state.status === "success" && receiptHref ? (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900">
-                  <p className="font-semibold">Receipt generated.</p>
-                  <div className="mt-2 grid gap-2 text-sm md:grid-cols-3">
-                    <span>Receipt: {state.receiptNumber}</span>
-                    <span>Amount: {formatInr(paymentAmount)}</span>
-                    <span>Student: {selectedStudent.fullName}</span>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {successActions.map((action) => (
-                      <Button key={`${action.label}-${action.href}`} asChild size="sm" variant="outline">
-                        <Link href={action.href}>{action.label}</Link>
-                      </Button>
-                    ))}
-                    {whatsappCopy ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={async () => {
-                          await navigator.clipboard.writeText(whatsappCopy);
-                          setCopyStatus("copied");
-                        }}
-                      >
-                        {copyStatus === "copied" ? "Copied text" : "Copy confirmation text"}
-                      </Button>
-                    ) : null}
-                  </div>
+              {formError ? (
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {formError}
                 </div>
               ) : null}
-              <fieldset disabled={!canPost} className="space-y-4 disabled:opacity-70">
+              <fieldset
+                disabled={!canPost || isLockedAfterSuccess}
+                className="space-y-4 disabled:opacity-70"
+              >
                 <input type="hidden" name="studentId" value={selectedStudent.id} />
+                <input type="hidden" name="clientRequestId" value={clientRequestId} />
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   <div>
@@ -630,7 +776,7 @@ export function PaymentEntryClient({
                       value={paymentDate}
                       onChange={(event) => {
                         setPaymentDate(event.target.value);
-                        setIsReviewing(false);
+                        setFormError(null);
                       }}
                       className="mt-2"
                       required
@@ -648,7 +794,7 @@ export function PaymentEntryClient({
                       value={paymentAmountInput}
                       onChange={(event) => {
                         setPaymentAmountInput(event.target.value);
-                        setIsReviewing(false);
+                        setFormError(null);
                       }}
                       required
                     />
@@ -661,7 +807,7 @@ export function PaymentEntryClient({
                           variant={quickAmount.key === "custom" ? "ghost" : "outline"}
                           disabled={quickAmount.disabled}
                           onClick={() => {
-                            setIsReviewing(false);
+                            setFormError(null);
                             if (quickAmount.amount === null) {
                               setPaymentAmountInput("");
                               return;
@@ -684,7 +830,7 @@ export function PaymentEntryClient({
                       value={paymentMode}
                       onChange={(event) => {
                         setPaymentMode(event.target.value as typeof paymentMode);
-                        setIsReviewing(false);
+                        setFormError(null);
                       }}
                       required
                     >
@@ -705,7 +851,7 @@ export function PaymentEntryClient({
                       value={referenceNumber}
                       onChange={(event) => {
                         setReferenceNumber(event.target.value);
-                        setIsReviewing(false);
+                        setFormError(null);
                       }}
                     />
                   </div>
@@ -718,7 +864,7 @@ export function PaymentEntryClient({
                       value={receivedBy}
                       onChange={(event) => {
                         setReceivedBy(event.target.value);
-                        setIsReviewing(false);
+                        setFormError(null);
                       }}
                       required
                     />
@@ -735,7 +881,7 @@ export function PaymentEntryClient({
                     value={remarks}
                     onChange={(event) => {
                       setRemarks(event.target.value);
-                      setIsReviewing(false);
+                      setFormError(null);
                     }}
                   />
                 </div>
@@ -796,66 +942,120 @@ export function PaymentEntryClient({
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-                  <p className="text-sm font-semibold text-blue-950">6. Review & Confirm</p>
-                  {isReviewing ? (
-                    <div className="mt-3 space-y-3 text-sm text-blue-950">
-                      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-                        <span>Student: {selectedStudent.fullName}</span>
-                        <span>SR no: {selectedStudent.admissionNo}</span>
-                        <span>Class: {selectedStudent.classLabel}</span>
-                        <span>Amount: {formatInr(paymentAmount)}</span>
-                        <span>Mode: {selectedPaymentModeLabel}</span>
-                        <span>Date: {paymentDate}</span>
-                        <span>Allocated: {formatInr(allocatedPreviewTotal)}</span>
-                        <span>Unallocated: {formatInr(unallocatedAmount)}</span>
-                      </div>
-                      <p className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-blue-950">
-                        Date-adjusted pending before payment: {formatInr(previewTotalPending)}
-                      </p>
-                      <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
-                        This will generate an append-only receipt and cannot be edited later.
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="mt-2 text-sm text-blue-900">
-                      Review the amount, payment mode, date, and allocation before generating the receipt.
-                    </p>
-                  )}
-                </div>
-
                 <div className="flex items-center justify-end gap-2">
-                  {!isReviewing ? (
-                    <Button
-                      type="button"
-                      disabled={
-                        !canPost ||
-                        previewUnavailable ||
-                        previewTotalPending <= 0 ||
-                        paymentAmount <= 0 ||
-                        paymentAmount > previewTotalPending
-                      }
-                      onClick={() => setIsReviewing(true)}
-                    >
-                      Review Payment
-                    </Button>
-                  ) : (
-                    <Button
-                      type="submit"
-                      disabled={
-                        !canPost ||
-                        pending ||
-                        previewUnavailable ||
-                        previewTotalPending <= 0 ||
-                        paymentAmount <= 0 ||
-                        paymentAmount > previewTotalPending
-                      }
-                    >
-                      {pending ? "Generating receipt..." : "Confirm & Generate Receipt"}
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    disabled={
+                      !canPost ||
+                      isLockedAfterSuccess ||
+                      previewUnavailable ||
+                      previewTotalPending <= 0
+                    }
+                    onClick={openConfirmationDialog}
+                  >
+                    Confirm Payment
+                  </Button>
                 </div>
               </fieldset>
+
+              {isConfirmOpen && confirmationSummary ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
+                  <div className="w-full max-w-xl rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
+                    <h2 className="text-lg font-semibold text-slate-950">Confirm Payment</h2>
+                    <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                      <span>Student name: {confirmationSummary.studentName}</span>
+                      <span>SR/admission no: {confirmationSummary.admissionNo}</span>
+                      <span>Class: {confirmationSummary.classLabel}</span>
+                      <span>Payment amount: {formatInr(confirmationSummary.amount)}</span>
+                      <span>Payment date: {confirmationSummary.paymentDate}</span>
+                      <span>Payment mode: {confirmationSummary.paymentModeLabel}</span>
+                      <span>Reference number: {confirmationSummary.referenceNumber ?? "Not entered"}</span>
+                      <span>Received by: {confirmationSummary.receivedBy}</span>
+                      <span>Remaining balance: {formatInr(confirmationSummary.remainingBalance)}</span>
+                    </div>
+                    <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                      This will save the receipt once. Posted receipts stay in history.
+                    </p>
+                    <div className="mt-5 flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsConfirmOpen(false)}
+                        disabled={pending}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={pending || submittingRef.current}>
+                        {pending ? "Posting payment..." : "Generate Receipt"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {isSuccessOpen && state.status === "success" && receiptHref ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
+                  <div className="w-full max-w-xl rounded-xl border border-emerald-200 bg-white p-5 shadow-xl">
+                    <h2 className="text-lg font-semibold text-slate-950">Payment Successful</h2>
+                    <p className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+                      Receipt has been saved.
+                    </p>
+                    <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                      <span>Receipt number: {state.receiptNumber}</span>
+                      <span>Student name: {selectedStudent.fullName}</span>
+                      <span>Amount received: {formatInr(state.amountReceived ?? paymentAmount)}</span>
+                      <span>Payment date: {state.paymentDate ?? paymentDate}</span>
+                      <span>Payment mode: {selectedPaymentModeLabel}</span>
+                      <span>Remaining balance: {formatInr(state.remainingBalance ?? remainingAfterPayment)}</span>
+                    </div>
+                    <div className="mt-5 flex flex-wrap justify-end gap-2">
+                      <Button asChild variant="outline">
+                        <Link href={receiptHref}>Print Receipt</Link>
+                      </Button>
+                      <Button asChild variant="outline">
+                        <Link href={receiptHref}>Open Receipt</Link>
+                      </Button>
+                      <Button type="button" onClick={handleCollectAnotherPayment}>
+                        Collect Another Payment
+                      </Button>
+                      {whatsappCopy ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={async () => {
+                            await navigator.clipboard.writeText(whatsappCopy);
+                            setCopyStatus("copied");
+                          }}
+                        >
+                          {copyStatus === "copied" ? "Copied text" : "Copy confirmation text"}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {isDuplicateOpen && state.status === "duplicate" && state.receiptId ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
+                  <div className="w-full max-w-lg rounded-xl border border-amber-200 bg-white p-5 shadow-xl">
+                    <h2 className="text-lg font-semibold text-slate-950">
+                      Similar payment already recorded
+                    </h2>
+                    <p className="mt-3 text-sm text-slate-700">{state.message}</p>
+                    <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                      Latest receipt: {state.receiptNumber}
+                    </p>
+                    <div className="mt-5 flex flex-wrap justify-end gap-2">
+                      <Button asChild variant="outline">
+                        <Link href={`/protected/receipts/${state.receiptId}`}>Open latest receipt</Link>
+                      </Button>
+                      <Button type="button" onClick={handleCollectAnotherPayment}>
+                        Start new payment
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </form>
           </SectionCard>
         </>

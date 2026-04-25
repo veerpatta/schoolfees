@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { PaymentMode } from "@/lib/db/types";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import {
+  DuplicatePaymentWarning,
   getPaymentPostingDiagnostic,
   postStudentPayment,
   toFriendlyPaymentPostingError,
@@ -71,12 +72,31 @@ function parsePaymentDate(value: FormDataEntryValue | null) {
 }
 
 function toActionStateError(error: unknown): PaymentEntryActionState {
+  if (error instanceof DuplicatePaymentWarning) {
+    return {
+      status: "duplicate",
+      message: error.message,
+      receiptNumber: error.receiptNumber,
+      receiptId: error.receiptId,
+      studentId: null,
+      amountReceived: null,
+      paymentDate: null,
+      paymentMode: null,
+      remainingBalance: null,
+      diagnostic: null,
+    };
+  }
+
   return {
     status: "error",
     message: toFriendlyPaymentPostingError(error),
     receiptNumber: null,
     receiptId: null,
     studentId: null,
+    amountReceived: null,
+    paymentDate: null,
+    paymentMode: null,
+    remainingBalance: null,
     diagnostic: getPaymentPostingDiagnostic(error),
   };
 }
@@ -88,12 +108,15 @@ export async function submitPaymentEntryAction(
   try {
     await requireStaffPermission("payments:write");
     const studentId = parseUuid(formData.get("studentId"), "Student");
+    const paymentDate = parsePaymentDate(formData.get("paymentDate"));
+    const paymentMode = await parsePaymentMode(formData.get("paymentMode"));
+    const paymentAmount = parsePaymentAmount(formData.get("paymentAmount"));
 
     const receipt = await postStudentPayment({
       studentId,
-      paymentDate: parsePaymentDate(formData.get("paymentDate")),
-      paymentMode: await parsePaymentMode(formData.get("paymentMode")),
-      paymentAmount: parsePaymentAmount(formData.get("paymentAmount")),
+      paymentDate,
+      paymentMode,
+      paymentAmount,
       referenceNumber: (formData.get("referenceNumber") ?? "").toString().trim() || null,
       remarks: (formData.get("remarks") ?? "").toString().trim() || null,
       receivedBy: parseRequiredString(formData.get("receivedBy"), "Received by"),
@@ -107,6 +130,10 @@ export async function submitPaymentEntryAction(
       receiptNumber: receipt.receiptNumber,
       receiptId: receipt.receiptId,
       studentId,
+      amountReceived: paymentAmount,
+      paymentDate,
+      paymentMode,
+      remainingBalance: Math.max((receipt.remainingBalance ?? 0), 0),
       diagnostic: null,
     };
   } catch (error) {

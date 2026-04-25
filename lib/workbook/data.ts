@@ -112,6 +112,7 @@ type ReceiptRow = {
   id: string;
   receipt_number: string;
   payment_date: string;
+  created_at: string | null;
   payment_mode: "cash" | "upi" | "bank_transfer" | "cheque";
   total_amount: number;
   reference_number: string | null;
@@ -205,6 +206,7 @@ export type WorkbookTransaction = {
   receiptId: string;
   receiptNumber: string;
   paymentDate: string;
+  createdAt?: string | null;
   paymentMode: string;
   referenceNumber: string | null;
   receivedBy?: string | null;
@@ -502,7 +504,7 @@ export async function getWorkbookTransactions(filters?: {
   let query = supabase
     .from("receipts")
     .select(
-      "id, receipt_number, payment_date, payment_mode, total_amount, reference_number, received_by, student_id, student_ref:students(id, full_name, admission_no, father_name, primary_phone, transport_route_id, class_ref:classes(id, session_label, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code))",
+      "id, receipt_number, payment_date, created_at, payment_mode, total_amount, reference_number, received_by, student_id, student_ref:students(id, full_name, admission_no, father_name, primary_phone, transport_route_id, class_ref:classes(id, session_label, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code))",
     )
     .order("payment_date", { ascending: false })
     .order("created_at", { ascending: false });
@@ -558,6 +560,7 @@ export async function getWorkbookTransactions(filters?: {
         receiptId: row.id,
         receiptNumber: row.receipt_number,
         paymentDate: row.payment_date,
+        createdAt: row.created_at ?? null,
         paymentMode: row.payment_mode,
         referenceNumber: row.reference_number,
         receivedBy: row.received_by ?? null,
