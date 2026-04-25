@@ -1,6 +1,9 @@
 import type { NextRequest } from "next/server";
 
-import { getPaymentDateAwareInstallmentBalances } from "@/lib/payments/data";
+import {
+  getPaymentDateAwareInstallmentBalances,
+  toFriendlyPaymentPreviewError,
+} from "@/lib/payments/data";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 const UUID_PATTERN =
@@ -31,16 +34,15 @@ export async function GET(request: NextRequest) {
   try {
     const rows = await getPaymentDateAwareInstallmentBalances({ studentId, paymentDate });
 
-    return Response.json({ rows });
+    return Response.json({
+      rows,
+      notice: rows.length === 0 ? "No pending dues for selected payment date." : null,
+    });
   } catch (error) {
+    const friendlyError = toFriendlyPaymentPreviewError(error);
     return Response.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unable to refresh pending dues for the selected payment date.",
-      },
-      { status: 500 },
+      { error: friendlyError },
+      { status: 503 },
     );
   }
 }

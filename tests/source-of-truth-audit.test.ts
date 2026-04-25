@@ -56,8 +56,10 @@ describe("source of truth audit fixes", () => {
     const migration = readRepoFile("supabase/migrations/20260425090000_payment_date_workbook_preview.sql");
 
     expect(paymentData).toContain("preview_workbook_payment_allocation");
+    expect(paymentData).toContain("Payment preview database function is missing. Apply latest Supabase migrations.");
     expect(previewRoute).toContain("getPaymentDateAwareInstallmentBalances");
     expect(paymentClient).toContain("/protected/payments/preview");
+    expect(paymentClient).toContain("previewUnavailable");
     expect(paymentClient).toContain("previewTotalPending");
     expect(migration).toContain("private.workbook_installment_snapshot(p_student_id, p_payment_date, true)");
   });
@@ -76,13 +78,41 @@ describe("source of truth audit fixes", () => {
     const financialSync = readRepoFile("lib/system-sync/financial-sync.ts");
     const dashboardPage = readRepoFile("app/protected/dashboard/page.tsx");
     const dashboardActions = readRepoFile("app/protected/dashboard/actions.ts");
+    const dashboardData = readRepoFile("lib/dashboard/data.ts");
 
     expect(financialSync).toContain("activeStudentsBySession");
+    expect(financialSync).toContain("generateMissingSessionDues");
     expect(financialSync).toContain("workbookFinancialRowsBySession");
     expect(financialSync).toContain("importBatchesByTargetSessionStatus");
     expect(financialSync).toContain("classSessionMismatchStudents");
+    expect(financialSync).toContain("requiredDatabaseObjectsStatus");
     expect(financialSync).toContain("alignAcademicCurrentSessionWithFeeSetup");
     expect(dashboardPage).toContain("Align Working Session with Fee Setup");
+    expect(dashboardPage).toContain("Live Data Health");
     expect(dashboardActions).toContain("alignWorkingSessionWithFeeSetupAction");
+    expect(dashboardData).toContain('optionalLoad("system sync health", getSystemSyncHealth, null, warnings)');
+  });
+
+  it("repair_actions_preserve_student_session_and_payment_history", () => {
+    const financialSync = readRepoFile("lib/system-sync/financial-sync.ts");
+    const dashboardActions = readRepoFile("app/protected/dashboard/actions.ts");
+    const verifyScript = readRepoFile("scripts/verify-live-fee-health.mjs");
+
+    const alignFunction = financialSync.slice(
+      financialSync.indexOf("export async function alignAcademicCurrentSessionWithFeeSetup"),
+    );
+
+    expect(alignFunction).toContain('.from("academic_sessions")');
+    expect(alignFunction).not.toContain('.from("students").update');
+    expect(alignFunction).not.toContain('.from("classes").update');
+    expect(alignFunction).not.toContain('.from("payments")');
+    expect(alignFunction).not.toContain('.from("receipts")');
+    expect(alignFunction).not.toContain('.from("audit_logs")');
+    expect(financialSync).toContain("studentsMissingInstallments.map((row) => row.studentId)");
+    expect(financialSync).toContain("generateSessionLedgersAction({ scopedStudentIds: studentIds })");
+    expect(dashboardActions).toContain("payment preview migration is not applied");
+    expect(verifyScript).not.toContain(".insert(");
+    expect(verifyScript).not.toContain(".update(");
+    expect(verifyScript).not.toContain(".delete(");
   });
 });

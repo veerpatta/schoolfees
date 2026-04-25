@@ -66,6 +66,97 @@ type PaymentStudentBaseRow = {
     | null;
 };
 
+export function toFriendlyPaymentPreviewError(error: unknown) {
+  const rawMessage =
+    error instanceof Error
+      ? error.message
+      : typeof error === "object" && error !== null && "message" in error
+        ? `${"code" in error ? String(error.code) : ""} ${String(error.message)}`
+        : String(error);
+  const normalized = rawMessage.toLowerCase();
+
+  if (
+    normalized.includes("payment preview database function is missing") ||
+    normalized.includes("preview_workbook_payment_allocation") ||
+    normalized.includes("could not find the function") ||
+    normalized.includes("pgrst202") ||
+    normalized.includes("42883")
+  ) {
+    return "Payment preview database function is missing. Apply latest Supabase migrations.";
+  }
+
+  if (
+    normalized.includes("private.workbook_installment_snapshot") ||
+    normalized.includes("permission denied for schema private") ||
+    normalized.includes("permission denied for function workbook_installment_snapshot")
+  ) {
+    return "Payment preview database helper is not ready. Apply latest Supabase migrations.";
+  }
+
+  if (normalized.includes("no pending dues")) {
+    return "No pending dues for selected payment date.";
+  }
+
+  if (normalized.includes("dues") || normalized.includes("installment")) {
+    return "Dues not generated for this student.";
+  }
+
+  if (normalized.includes("session")) {
+    return "Selected student belongs to another session. Align the working session with Fee Setup before posting.";
+  }
+
+  return "Unable to refresh payment preview. Check Live Data Health and apply latest migrations if needed.";
+}
+
+export function toFriendlyPaymentPostingError(error: unknown) {
+  const rawMessage =
+    error instanceof Error
+      ? error.message
+      : typeof error === "object" && error !== null && "message" in error
+        ? `${"code" in error ? String(error.code) : ""} ${String(error.message)}`
+        : String(error);
+  const normalized = rawMessage.toLowerCase();
+
+  if (
+    normalized.includes("cannot exceed") ||
+    normalized.includes("exceed total pending") ||
+    normalized.includes("amount exceeds")
+  ) {
+    return "Payment amount exceeds pending amount for the selected payment date.";
+  }
+
+  if (normalized.includes("no pending dues") || normalized.includes("total_outstanding")) {
+    return "No pending dues are available for this student.";
+  }
+
+  if (normalized.includes("selected student was not found")) {
+    return "Selected student could not be found. Refresh Payment Desk and select the student again.";
+  }
+
+  if (normalized.includes("dues") || normalized.includes("installment")) {
+    return "Dues not generated for this student.";
+  }
+
+  if (normalized.includes("session")) {
+    return "Selected student belongs to another session. Align the working session with Fee Setup before posting.";
+  }
+
+  if (normalized.includes("permission") || normalized.includes("not have permission")) {
+    return "You do not have permission to post payments.";
+  }
+
+  if (
+    normalized.includes("post_student_payment") ||
+    normalized.includes("could not find the function") ||
+    normalized.includes("pgrst202") ||
+    normalized.includes("42883")
+  ) {
+    return "Payment posting database function is missing. Apply latest Supabase migrations.";
+  }
+
+  return "Unable to save payment right now. Please check the student, dues, amount, and payment mode.";
+}
+
 function toSingleRecord<T>(value: T | T[] | null) {
   if (Array.isArray(value)) {
     return value[0] ?? null;
@@ -517,7 +608,7 @@ export async function postStudentPayment(payload: {
   });
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(toFriendlyPaymentPostingError(error));
   }
 
   const row = Array.isArray(data)
@@ -546,7 +637,7 @@ export async function getPaymentDateAwareInstallmentBalances(payload: {
   });
 
   if (error) {
-    throw new Error(`Unable to preview selected payment date: ${error.message}`);
+    throw new Error(toFriendlyPaymentPreviewError(error));
   }
 
   return ((data ?? []) as PaymentPreviewRpcRow[]).map((row) => ({

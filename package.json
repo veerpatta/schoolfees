@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run typecheck",
     "bootstrap:staff": "node scripts/bootstrap-staff.mjs",
+    "verify:fee-health": "node scripts/verify-live-fee-health.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

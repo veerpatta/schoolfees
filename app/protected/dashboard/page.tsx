@@ -620,32 +620,35 @@ function SystemSyncHealthPanel({
   canRepair: boolean;
 }) {
   const rows = [
-    ["Fee Setup active session", health.activeSession],
-    ["Academic current session", health.academicSessionsCurrentSession ?? "Not set"],
-    ["Sessions match", health.sessionsMatch ? "Yes" : "No"],
+    ["Active Fee Setup session", health.activeFeePolicySession],
+    ["Fee calculation model", health.activeFeePolicyCalculationModel],
+    ["Current academic session", health.academicCurrentSession ?? "Not set"],
+    ["Sessions match", health.sessionMismatch ? "No" : "Yes"],
     ["Students in active session", health.rawStudentsInActiveSession],
-    ["Students shown by default", health.studentsShownInDefaultWorkspace],
-    ["Students with fee rows", health.studentsWithFinancialRows],
-    ["Missing dues rows", health.studentsMissingInstallmentRows],
-    ["Missing dues total", health.studentsMissingDues],
-    ["No class fee setting", health.studentsWithNoFeeSetting],
-    ["Wrong/inactive session", health.studentsInInactiveOrWrongSession],
+    ["Workbook financial rows", health.workbookFinancialRowCount],
+    ["Students missing dues", health.studentsMissingDues],
     ["Classes without fee settings", health.classesWithoutFeeSettings],
-    ["Routes without annual fees", health.routesWithoutAnnualFees],
+    ["Payment preview function", health.paymentPreviewReady ? "Ready" : "Missing / not ready"],
+    ["Payment Desk readiness", health.paymentDeskReady ? "Ready" : "Needs repair"],
+    ["Dashboard readiness", health.dashboardReady ? "Ready" : "Needs repair"],
   ] as const;
+  const databaseObjectStatuses = Object.values(health.requiredDatabaseObjectsStatus);
 
   const needsRepair =
+    health.sessionMismatch ||
     health.studentsMissingInstallmentRows > 0 ||
     health.studentsMissingFinancialRows > 0 ||
     health.studentsWithNoFeeSetting > 0 ||
+    !health.paymentPreviewReady ||
+    databaseObjectStatuses.some((status) => !status.usable) ||
     !health.paymentDeskReady ||
     !health.dashboardReady;
 
   return (
     <SectionCard
       id="system-sync-health"
-      title="System Sync Health"
-      description="Admin check for whether Student Master and Fee Setup are feeding Dashboard, Payment Desk, Transactions, and reports."
+      title="Live Data Health"
+      description="Admin check for whether Fee Setup, Student Master, dues, and required database objects are ready for Dashboard, Payment Desk, Transactions, and reports."
       actions={
         <div className="flex flex-wrap gap-2">
           <StatusBadge
@@ -701,7 +704,17 @@ function SystemSyncHealthPanel({
       </div>
       {health.rawStudentsInActiveSession > 0 && health.studentsMissingInstallmentRows > 0 ? (
         <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          {health.rawStudentsInActiveSession} students found, but dues are not generated for {health.studentsMissingInstallmentRows} student{health.studentsMissingInstallmentRows === 1 ? "" : "s"}.
+          Students exist but dues are missing. {health.rawStudentsInActiveSession} students found, but dues are not generated for {health.studentsMissingInstallmentRows} student{health.studentsMissingInstallmentRows === 1 ? "" : "s"}.
+        </p>
+      ) : null}
+      {health.sessionMismatch ? (
+        <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Academic current session differs from Fee Setup session. Align the working session before expecting live dues and Payment Desk lists to match.
+        </p>
+      ) : null}
+      {!health.paymentPreviewReady ? (
+        <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+          Payment preview migration is not applied. Apply latest Supabase migrations before using the Payment Desk preview.
         </p>
       ) : null}
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -766,6 +779,20 @@ function SystemSyncHealthPanel({
                 </div>
               ))
             )}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="font-semibold text-slate-950">Required database objects</p>
+          <div className="mt-3 space-y-2 text-sm text-slate-700">
+            {databaseObjectStatuses.map((status) => (
+              <div key={status.key} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span>{status.objectName}</span>
+                  <StatusBadge label={status.usable ? "Ready" : "Missing"} tone={status.usable ? "good" : "warning"} />
+                </div>
+                <p className="mt-1 text-xs text-slate-500">{status.message}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>

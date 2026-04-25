@@ -85,6 +85,7 @@ export function PaymentEntryClient({
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [dateAwareBreakdown, setDateAwareBreakdown] = useState<InstallmentBalanceItem[] | null>(null);
   const [previewNotice, setPreviewNotice] = useState<string | null>(null);
+  const [previewUnavailable, setPreviewUnavailable] = useState(false);
   const [paymentMode, setPaymentMode] = useState(data.modeOptions[0]?.value ?? "cash");
   const [referenceNumber, setReferenceNumber] = useState("");
   const [receivedBy, setReceivedBy] = useState(defaultReceivedBy);
@@ -111,6 +112,7 @@ export function PaymentEntryClient({
     if (!selectedStudent) {
       setDateAwareBreakdown(null);
       setPreviewNotice(null);
+      setPreviewUnavailable(false);
       return;
     }
 
@@ -132,7 +134,7 @@ export function PaymentEntryClient({
           throw new Error(payload?.error ?? "Unable to refresh payment preview.");
         }
 
-        return response.json() as Promise<{ rows: InstallmentBalanceItem[] }>;
+        return response.json() as Promise<{ rows: InstallmentBalanceItem[]; notice?: string | null }>;
       })
       .then((payload) => {
         if (!isActive) {
@@ -140,7 +142,10 @@ export function PaymentEntryClient({
         }
 
         setDateAwareBreakdown(payload.rows);
-        setPreviewNotice("Pending amount and late fee are recalculated for the selected payment date.");
+        setPreviewUnavailable(false);
+        setPreviewNotice(
+          payload.notice ?? "Pending amount and late fee are recalculated for the selected payment date.",
+        );
       })
       .catch((error) => {
         if (!isActive) {
@@ -148,6 +153,7 @@ export function PaymentEntryClient({
         }
 
         setDateAwareBreakdown(null);
+        setPreviewUnavailable(true);
         setPreviewNotice(error instanceof Error ? error.message : "Unable to refresh payment preview.");
       });
 
@@ -716,7 +722,13 @@ export function PaymentEntryClient({
                     Amount is auto-allocated from oldest pending installment to newest. Final late fee and pending amount are recalculated for the selected payment date.
                   </p>
                   {previewNotice ? (
-                    <p className="mt-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+                    <p
+                      className={
+                        previewUnavailable
+                          ? "mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+                          : "mt-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-900"
+                      }
+                    >
                       {previewNotice}
                     </p>
                   ) : null}
@@ -794,6 +806,7 @@ export function PaymentEntryClient({
                       type="button"
                       disabled={
                         !canPost ||
+                        previewUnavailable ||
                         previewTotalPending <= 0 ||
                         paymentAmount <= 0 ||
                         paymentAmount > previewTotalPending
@@ -808,6 +821,7 @@ export function PaymentEntryClient({
                       disabled={
                         !canPost ||
                         pending ||
+                        previewUnavailable ||
                         previewTotalPending <= 0 ||
                         paymentAmount <= 0 ||
                         paymentAmount > previewTotalPending

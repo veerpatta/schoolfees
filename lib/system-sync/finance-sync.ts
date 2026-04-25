@@ -5,6 +5,7 @@ import {
   getSystemSyncHealth as getLegacySystemSyncHealth,
   getRawActiveSessionStudentCount as getLegacyRawActiveSessionStudentCount,
   getRawClassStudentSummary as getLegacyRawClassStudentSummary,
+  generateMissingSessionDues,
   revalidateFinanceSurfaces,
   syncAfterFeeSetupChange,
   syncAfterStudentBulkImport as syncAfterStudentBulkImportLegacy,
@@ -19,6 +20,8 @@ import { revalidateCoreFinancePaths } from "@/lib/system-sync/finance-revalidati
 export { revalidateCoreFinancePaths };
 export { revalidateFinanceSurfaces, syncSessionFinancials, syncStudentFinancials };
 export type { FinancialSyncResult, SystemSyncHealth };
+export { getLiveDataHealth } from "@/lib/system-sync/live-data-health";
+export type { LiveDataHealth } from "@/lib/system-sync/live-data-health";
 
 export async function syncStudentDues(studentIds: readonly string[]) {
   return syncStudentFinancials({
@@ -58,7 +61,7 @@ export async function syncAfterFeeSetupChangeForSession(sessionLabel: string) {
 }
 
 export async function repairMissingDues(sessionLabel: string) {
-  return syncSessionFinancials({
+  return generateMissingSessionDues({
     sessionLabel,
     reason: "Repair missing dues",
   });

@@ -38,15 +38,23 @@ export type FinancialSyncResult = LedgerGenerationResult & {
 };
 
 export type SystemSyncHealth = {
+  activeFeePolicySession: string;
+  activeFeePolicyCalculationModel: string;
+  academicCurrentSession: string | null;
+  sessionMismatch: boolean;
   activeSession: string;
   academicSessionsCurrentSession: string | null;
   sessionsMatch: boolean;
   activeStudentsBySession: SessionCountRow[];
   workbookFinancialRowsBySession: SessionCountRow[];
+  importBatchesByTargetSession: ImportBatchSessionStatusRow[];
   importBatchesByTargetSessionStatus: ImportBatchSessionStatusRow[];
   studentsMissingInstallments: MissingInstallmentStudentRow[];
+  studentsOutsideActiveFeeSession: StudentSessionMismatchRow[];
   classSessionMismatchStudents: StudentSessionMismatchRow[];
+  classesMissingFeeSettings: ClassFeeSettingGapRow[];
   classRowsWithoutFeeSettings: ClassFeeSettingGapRow[];
+  workbookFinancialRowCount: number;
   rawStudentsInActiveSession: number;
   studentsShownInDefaultWorkspace: number;
   studentsWithFinancialRows: number;
@@ -57,10 +65,36 @@ export type SystemSyncHealth = {
   studentsMissingDues: number;
   classesWithoutFeeSettings: number;
   routesWithoutAnnualFees: number;
+  requiredDatabaseObjectsStatus: RequiredDatabaseObjectsStatus;
+  paymentPreviewReady: boolean;
   paymentDeskReady: boolean;
   dashboardReady: boolean;
   warnings: string[];
   errors: string[];
+};
+
+export type DatabaseObjectStatusKey =
+  | "vWorkbookStudentFinancials"
+  | "vWorkbookInstallmentBalances"
+  | "previewWorkbookPaymentAllocation"
+  | "postStudentPayment"
+  | "privateWorkbookInstallmentSnapshot";
+
+export type DatabaseObjectStatus = {
+  key: DatabaseObjectStatusKey;
+  label: string;
+  objectName: string;
+  required: boolean;
+  usable: boolean;
+  message: string;
+};
+
+export type RequiredDatabaseObjectsStatus = {
+  vWorkbookStudentFinancials: DatabaseObjectStatus;
+  vWorkbookInstallmentBalances: DatabaseObjectStatus;
+  previewWorkbookPaymentAllocation: DatabaseObjectStatus;
+  postStudentPayment: DatabaseObjectStatus;
+  privateWorkbookInstallmentSnapshot: DatabaseObjectStatus;
 };
 
 export type SessionCountRow = {
@@ -199,6 +233,144 @@ function toSessionCountRows(map: Map<string, number>) {
     .sort((left, right) => left.sessionLabel.localeCompare(right.sessionLabel));
 }
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function normalizeDatabaseError(error: { message?: string; code?: string } | null | undefined) {
+  const message = error?.message ?? "";
+  const code = error?.code ?? "";
+  return `${code} ${message}`.trim().toLowerCase();
+}
+
+function isMissingDatabaseObjectError(error: { message?: string; code?: string } | null | undefined) {
+  const normalized = normalizeDatabaseError(error);
+
+  return (
+    normalized.includes("pgrst202") ||
+    normalized.includes("42883") ||
+    normalized.includes("42p01") ||
+    normalized.includes("could not find the function") ||
+    normalized.includes("does not exist") ||
+    (normalized.includes("relation") && normalized.includes("does not exist"))
+  );
+}
+
+function hasPrivateSnapshotAccessError(error: { message?: string; code?: string } | null | undefined) {
+  const normalized = normalizeDatabaseError(error);
+
+  return (
+    normalized.includes("private.workbook_installment_snapshot") ||
+    normalized.includes("permission denied for schema private") ||
+    normalized.includes("permission denied for function workbook_installment_snapshot")
+  );
+}
+
+function objectStatus(
+  key: DatabaseObjectStatusKey,
+  payload: {
+    label: string;
+    objectName: string;
+    usable: boolean;
+    message: string;
+  },
+): DatabaseObjectStatus {
+  return {
+    key,
+    required: true,
+    ...payload,
+  };
+}
+
+async function getRequiredDatabaseObjectsStatus(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+): Promise<RequiredDatabaseObjectsStatus> {
+  const zeroUuid = "00000000-0000-0000-0000-000000000000";
+  const today = new Date().toISOString().slice(0, 10);
+
+  const workbookStudentFinancials = await supabase
+    .from("v_workbook_student_financials")
+    .select("student_id", { count: "exact", head: true });
+  const vWorkbookStudentFinancials = objectStatus("vWorkbookStudentFinancials", {
+    label: "Workbook student financials view",
+    objectName: "public.v_workbook_student_financials",
+    usable: !workbookStudentFinancials.error,
+    message: workbookStudentFinancials.error
+      ? `View check failed: ${workbookStudentFinancials.error.message}`
+      : "View is available.",
+  });
+
+  const workbookInstallmentBalances = await supabase
+    .from("v_workbook_installment_balances")
+    .select("installment_id", { count: "exact", head: true });
+  const vWorkbookInstallmentBalances = objectStatus("vWorkbookInstallmentBalances", {
+    label: "Workbook installment balances view",
+    objectName: "public.v_workbook_installment_balances",
+    usable: !workbookInstallmentBalances.error,
+    message: workbookInstallmentBalances.error
+      ? `View check failed: ${workbookInstallmentBalances.error.message}`
+      : "View is available.",
+  });
+
+  const previewProbe = await supabase.rpc("preview_workbook_payment_allocation", {
+    p_student_id: zeroUuid,
+    p_payment_date: today,
+  });
+  const previewMissing = isMissingDatabaseObjectError(previewProbe.error);
+  const previewPrivateSnapshotProblem = hasPrivateSnapshotAccessError(previewProbe.error);
+  const previewWorkbookPaymentAllocation = objectStatus("previewWorkbookPaymentAllocation", {
+    label: "Payment preview function",
+    objectName: "public.preview_workbook_payment_allocation(uuid, date)",
+    usable: !previewProbe.error,
+    message: !previewProbe.error
+      ? "Date-aware payment preview function is available."
+      : previewMissing
+        ? "Payment preview database function is missing. Apply latest Supabase migrations."
+        : `Payment preview function check failed: ${previewProbe.error.message}`,
+  });
+
+  const postPaymentProbe = await supabase.rpc("post_student_payment", {
+    p_student_id: zeroUuid,
+    p_payment_date: today,
+    p_payment_mode: "cash",
+    p_total_amount: 1,
+    p_reference_number: null,
+    p_remarks: "readiness check only",
+    p_received_by: "system-readiness",
+    p_receipt_prefix: "SVP",
+  });
+  const postPaymentMissing = isMissingDatabaseObjectError(postPaymentProbe.error);
+  const postStudentPayment = objectStatus("postStudentPayment", {
+    label: "Payment posting function",
+    objectName: "public.post_student_payment",
+    usable: !postPaymentMissing,
+    message: postPaymentMissing
+      ? `Payment posting function is missing: ${postPaymentProbe.error?.message ?? "unknown error"}`
+      : "Payment posting function exists. Readiness check did not create a payment.",
+  });
+
+  const privateWorkbookInstallmentSnapshot = objectStatus("privateWorkbookInstallmentSnapshot", {
+    label: "Workbook installment snapshot helper",
+    objectName: "private.workbook_installment_snapshot",
+    usable:
+      !previewPrivateSnapshotProblem &&
+      (vWorkbookInstallmentBalances.usable || previewWorkbookPaymentAllocation.usable),
+    message: previewPrivateSnapshotProblem
+      ? "Workbook snapshot helper is missing or not usable from the preview function."
+      : vWorkbookInstallmentBalances.usable || previewWorkbookPaymentAllocation.usable
+        ? "Workbook snapshot helper is reachable through public workbook views/functions."
+        : "Workbook snapshot helper could not be verified through public workbook objects.",
+  });
+
+  return {
+    vWorkbookStudentFinancials,
+    vWorkbookInstallmentBalances,
+    previewWorkbookPaymentAllocation,
+    postStudentPayment,
+    privateWorkbookInstallmentSnapshot,
+  };
+}
+
 export async function getRawActiveSessionStudentCount(sessionLabel: string) {
   const supabase = await createClient();
   const normalizedSession = sessionLabel.trim();
@@ -322,6 +494,24 @@ export async function syncSessionFinancials(payload: {
   return buildSyncResult(result, payload.reason, [...warnings, ...buildLedgerWarnings(result)]);
 }
 
+export async function generateMissingSessionDues(payload: {
+  sessionLabel: string;
+  reason: string;
+}) {
+  const health = await getSystemSyncHealth(payload.sessionLabel);
+  const studentIds = health.studentsMissingInstallments.map((row) => row.studentId);
+
+  if (studentIds.length === 0) {
+    revalidateCoreFinancePaths();
+    return buildEmptySyncResult(payload.reason, ["No active students are missing dues."]);
+  }
+
+  const result = await generateSessionLedgersAction({ scopedStudentIds: studentIds });
+  revalidateCoreFinancePaths(studentIds);
+
+  return buildSyncResult(result, payload.reason, buildLedgerWarnings(result));
+}
+
 export async function syncAfterStudentChange(payload: { studentId: string }) {
   return syncStudentFinancials({
     studentIds: [payload.studentId],
@@ -351,8 +541,49 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
   const supabase = await createClient();
   const policy = await getFeePolicySummary();
   const activeSession = sessionLabel?.trim() || policy.academicSessionLabel;
+  const activeFeePolicyCalculationModel = policy.calculationModel ?? "unknown";
   const warnings: string[] = [];
   const errors: string[] = [];
+  let requiredDatabaseObjectsStatus: RequiredDatabaseObjectsStatus;
+
+  try {
+    requiredDatabaseObjectsStatus = await getRequiredDatabaseObjectsStatus(supabase);
+  } catch (error) {
+    const message = `Unable to check required database objects: ${getErrorMessage(error)}`;
+    warnings.push(message);
+    requiredDatabaseObjectsStatus = {
+      vWorkbookStudentFinancials: objectStatus("vWorkbookStudentFinancials", {
+        label: "Workbook student financials view",
+        objectName: "public.v_workbook_student_financials",
+        usable: false,
+        message,
+      }),
+      vWorkbookInstallmentBalances: objectStatus("vWorkbookInstallmentBalances", {
+        label: "Workbook installment balances view",
+        objectName: "public.v_workbook_installment_balances",
+        usable: false,
+        message,
+      }),
+      previewWorkbookPaymentAllocation: objectStatus("previewWorkbookPaymentAllocation", {
+        label: "Payment preview function",
+        objectName: "public.preview_workbook_payment_allocation(uuid, date)",
+        usable: false,
+        message,
+      }),
+      postStudentPayment: objectStatus("postStudentPayment", {
+        label: "Payment posting function",
+        objectName: "public.post_student_payment",
+        usable: false,
+        message,
+      }),
+      privateWorkbookInstallmentSnapshot: objectStatus("privateWorkbookInstallmentSnapshot", {
+        label: "Workbook installment snapshot helper",
+        objectName: "private.workbook_installment_snapshot",
+        usable: false,
+        message,
+      }),
+    };
+  }
 
   let studentRows: StudentSessionRow[] = [];
   try {
@@ -611,21 +842,63 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
       (classRef?.session_label !== activeSession || classRef?.status !== "active")
     );
   }).length;
+  const importBatchesByTargetSession = [...importBatchSessionStatusMap.values()].sort(
+    (left, right) =>
+      (left.targetSessionLabel ?? "").localeCompare(right.targetSessionLabel ?? "") ||
+      left.status.localeCompare(right.status),
+  );
+  const classesWithoutFeeSettings = [...activeClassIds].filter(
+    (classId) => !feeSettingClassIds.has(classId),
+  ).length;
+  const paymentPreviewReady =
+    requiredDatabaseObjectsStatus.previewWorkbookPaymentAllocation.usable &&
+    requiredDatabaseObjectsStatus.privateWorkbookInstallmentSnapshot.usable;
+  const paymentDeskReady =
+    paymentPreviewReady &&
+    requiredDatabaseObjectsStatus.postStudentPayment.usable &&
+    activeSessionStudents.length > 0 &&
+    studentsMissingInstallmentRows === 0 &&
+    studentsWithNoFeeSetting === 0;
+  const dashboardReady =
+    requiredDatabaseObjectsStatus.vWorkbookStudentFinancials.usable &&
+    requiredDatabaseObjectsStatus.vWorkbookInstallmentBalances.usable &&
+    (activeSessionStudents.length === 0 ||
+      (studentsMissingFinancialRows === 0 && studentsWithNoFeeSetting === 0));
+
+  if (!sessionsMatch) {
+    warnings.push("Academic current session differs from Fee Setup session.");
+  }
+
+  if (activeSessionStudents.length > 0 && studentsMissingInstallmentRows > 0) {
+    warnings.push("Students exist but dues are missing.");
+  }
+
+  if (classRowsWithoutFeeSettings.length > 0) {
+    warnings.push("Class fees are missing for these classes.");
+  }
+
+  if (!paymentPreviewReady) {
+    warnings.push("Payment preview migration is not applied or is not usable.");
+  }
 
   return {
+    activeFeePolicySession: activeSession,
+    activeFeePolicyCalculationModel,
+    academicCurrentSession: academicSessionsCurrentSession,
+    sessionMismatch: !sessionsMatch,
     activeSession,
     academicSessionsCurrentSession,
     sessionsMatch,
     activeStudentsBySession: toSessionCountRows(activeStudentsBySessionMap),
     workbookFinancialRowsBySession: toSessionCountRows(workbookFinancialRowsBySessionMap),
-    importBatchesByTargetSessionStatus: [...importBatchSessionStatusMap.values()].sort(
-      (left, right) =>
-        (left.targetSessionLabel ?? "").localeCompare(right.targetSessionLabel ?? "") ||
-        left.status.localeCompare(right.status),
-    ),
+    importBatchesByTargetSession,
+    importBatchesByTargetSessionStatus: importBatchesByTargetSession,
     studentsMissingInstallments,
+    studentsOutsideActiveFeeSession: classSessionMismatchStudents,
     classSessionMismatchStudents,
+    classesMissingFeeSettings: classRowsWithoutFeeSettings,
     classRowsWithoutFeeSettings,
+    workbookFinancialRowCount: studentsWithFinancialRows,
     rawStudentsInActiveSession: activeSessionStudents.length,
     studentsShownInDefaultWorkspace: activeSessionStudents.length,
     studentsWithFinancialRows,
@@ -634,15 +907,12 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
     studentsWithNoFeeSetting,
     studentsInInactiveOrWrongSession,
     studentsMissingDues,
-    classesWithoutFeeSettings: [...activeClassIds].filter((classId) => !feeSettingClassIds.has(classId)).length,
+    classesWithoutFeeSettings,
     routesWithoutAnnualFees,
-    paymentDeskReady:
-      activeSessionStudents.length > 0 &&
-      studentsMissingInstallmentRows === 0 &&
-      studentsWithNoFeeSetting === 0,
-    dashboardReady:
-      activeSessionStudents.length === 0 ||
-      (studentsMissingFinancialRows === 0 && studentsWithNoFeeSetting === 0),
+    requiredDatabaseObjectsStatus,
+    paymentPreviewReady,
+    paymentDeskReady,
+    dashboardReady,
     warnings,
     errors,
   };

@@ -3250,6 +3250,10 @@ $$;
 
 grant execute on function public.preview_workbook_payment_allocation(uuid, date) to authenticated;
 
+grant usage on schema private to authenticated;
+grant execute on function private.normalize_workbook_class_label(text, text) to authenticated;
+grant execute on function private.workbook_installment_snapshot(uuid, date, boolean) to authenticated;
+
 drop view if exists public.v_workbook_student_financials;
 
 create or replace view public.v_workbook_student_financials
@@ -4153,6 +4157,10 @@ as $$
 $$;
 
 grant execute on function public.preview_workbook_payment_allocation(uuid, date) to authenticated;
+
+grant usage on schema private to authenticated;
+grant execute on function private.normalize_workbook_class_label(text, text) to authenticated;
+grant execute on function private.workbook_installment_snapshot(uuid, date, boolean) to authenticated;
 
 drop view if exists public.v_workbook_student_financials;
 

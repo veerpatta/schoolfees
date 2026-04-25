@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import type { PaymentMode } from "@/lib/db/types";
 import { getFeePolicySummary } from "@/lib/fees/data";
-import { postStudentPayment } from "@/lib/payments/data";
+import { postStudentPayment, toFriendlyPaymentPostingError } from "@/lib/payments/data";
 import type { PaymentEntryActionState } from "@/lib/payments/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import {
@@ -67,27 +67,9 @@ function parsePaymentDate(value: FormDataEntryValue | null) {
 }
 
 function toActionStateError(error: unknown): PaymentEntryActionState {
-  const rawMessage =
-    error instanceof Error
-      ? error.message
-      : "Unable to save payment right now. Please try again.";
-  const normalized = rawMessage.toLowerCase();
-  const friendlyMessage =
-    normalized.includes("cannot exceed") || normalized.includes("exceed total pending")
-      ? "Payment amount exceeds pending dues for the selected payment date. Refresh the preview or reduce the amount before posting."
-      : normalized.includes("no pending dues")
-        ? "No pending dues are available for the selected payment date. Generate dues, change the payment date, or refresh the selected student before posting."
-      : normalized.includes("allocate")
-        ? "Payment could not be allocated to the student's dues. Refresh dues and try again."
-        : normalized.includes("dues")
-          ? "Payment could not be posted against the selected dues. Refresh dues and try again."
-          : normalized.includes("receipt")
-            ? "Payment could not generate a receipt. Please try again or contact admin."
-            : "Unable to save payment right now. Please check the student, dues, amount, and payment mode.";
-
   return {
     status: "error",
-    message: friendlyMessage,
+    message: toFriendlyPaymentPostingError(error),
     receiptNumber: null,
     receiptId: null,
     studentId: null,
