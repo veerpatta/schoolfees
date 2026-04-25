@@ -926,7 +926,7 @@ export async function applyWorkbookFeeSetupBatch(
     return {
       preview: previewSummary,
       applied: applySummary,
-      message: `Fee Setup saved: ${applySummary.classRowsCreated} class rows created, ${applySummary.classRowsUpdated} class rows updated, ${applySummary.routeRowsCreated} route rows created, ${applySummary.routeRowsUpdated} route rows updated, and ${ledgerResult.lockedInstallments} blocked rows marked for review.`,
+      message: `Fee Setup saved: ${applySummary.classRowsCreated} class rows created, ${applySummary.classRowsUpdated} class rows updated, ${applySummary.routeRowsCreated} route rows created, ${applySummary.routeRowsUpdated} route rows updated, and ${ledgerResult.lockedInstallments} rows kept for review.`,
     };
   } catch (errorValue) {
     const message =

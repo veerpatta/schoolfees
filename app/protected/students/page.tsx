@@ -151,12 +151,12 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
               />
               <Button asChild variant="outline">
                 <Link href={`/protected/imports/template?mode=add&sessionLabel=${encodeURIComponent(filters.sessionLabel)}`}>
-                  Download Add Template
+                  Download Template
                 </Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/protected/imports/template?mode=update">
-                  Download Existing Students Update Template
+              <Link href="/protected/imports/template?mode=update">
+                  Download Update Template
                 </Link>
               </Button>
             </div>
@@ -194,7 +194,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
       {formOptions?.sessionMismatch ? (
         <SectionCard
           title="Working session mismatch"
-          description="Fee Setup and academic session master are not pointing to the same working session."
+            description="Fee Setup and student lists are not pointing to the same academic year."
         >
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             <p>
@@ -202,7 +202,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
               <strong>{formOptions.policySessionLabel || resolvedSessionLabel}</strong>.
             </p>
             <Button asChild variant="outline">
-              <Link href="/protected/fee-setup">Align Working Session with Fee Setup</Link>
+              <Link href="/protected/fee-setup">Open Fee Setup</Link>
             </Button>
           </div>
         </SectionCard>
@@ -224,8 +224,8 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
       ) : null}
 
       <SectionCard
-        title="Students_Master"
-        description={`${activeCount} active student${activeCount === 1 ? "" : "s"} found. Calculated columns are read-only and come from Fee Setup plus Payment Ledger.`}
+        title="Student list"
+        description={`${activeCount} active student${activeCount === 1 ? "" : "s"} found. Fee and dues columns come from Fee Setup and posted receipts.`}
       >
         <StudentListTable
           students={students}
@@ -236,17 +236,16 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
 
       <details className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-slate-900">
-          Advanced import field map
+          Import column names
         </summary>
         <div className="border-t border-slate-200 p-4">
           <p className="mb-4 text-sm text-slate-600">
-            These technical keys are kept only for troubleshooting old spreadsheets.
+            These column names are kept only for import troubleshooting.
           </p>
           <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
             {STUDENT_IMPORT_FIELDS.map((field) => (
               <div key={field.key} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <p className="text-sm font-semibold text-slate-900">{field.label}</p>
-                <p className="mt-1 text-xs text-slate-600">Key: {field.key}</p>
                 <div className="mt-2 flex flex-wrap gap-1">
                   {field.aliases.map((alias) => (
                     <Badge key={`${field.key}-${alias}`} variant="outline" className="text-[11px]">

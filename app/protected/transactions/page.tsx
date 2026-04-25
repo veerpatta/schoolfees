@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { AutoSubmitForm } from "@/components/office/auto-submit-form";
 import { ClassTabs, ValueStatePill, WorkflowGuard } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
@@ -305,7 +306,7 @@ function InstallmentTrackerTable({ rows }: { rows: OfficeWorkbookStudentRow[] })
           {rows.length === 0 ? (
             <tr>
               <td colSpan={18} className="px-4 py-6 text-center text-slate-500">
-                No installment tracker rows found.
+                No dues tracker rows found.
               </td>
             </tr>
           ) : (
@@ -332,7 +333,7 @@ function InstallmentTrackerTable({ rows }: { rows: OfficeWorkbookStudentRow[] })
                 <td className="px-4 py-3">{formatInr(row.lateFeeWaiverAmount)}</td>
                 <td className="px-4 py-3">
                   <ValueStatePill tone={getStatusTone(row.statusLabel)} className="normal-case tracking-normal">
-                    {row.duesStatus === "missing_dues" ? "Dues not generated" : row.statusLabel || "-"}
+                    {row.duesStatus === "missing_dues" ? "Dues not prepared" : row.statusLabel || "-"}
                   </ValueStatePill>
                 </td>
                 <td className="px-4 py-3">
@@ -405,12 +406,12 @@ function StudentDuesTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
                 <td className="px-4 py-3">
                   <div>
                     {row.duesStatus === "missing_dues"
-                      ? "Dues not generated"
+                      ? "Dues not prepared"
                       : row.nextDueLabel ?? "No pending dues"}
                   </div>
                   <div className="text-xs text-slate-500">
                     {row.duesStatus === "missing_dues"
-                      ? "Generate dues before collection"
+                      ? "Prepare dues before collection"
                       : row.nextDueDate ? `${formatShortDate(row.nextDueDate)} | ${formatInr(row.nextDueAmount ?? 0)}` : "-"}
                   </div>
                 </td>
@@ -486,7 +487,7 @@ function ClassRegisterTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
                 <td className="px-4 py-3">{formatInr(row.nextDueAmount ?? 0)}</td>
                 <td className="px-4 py-3">
                   <ValueStatePill tone={getStatusTone(row.statusLabel)} className="normal-case tracking-normal">
-                    {row.duesStatus === "missing_dues" ? "Dues not generated" : row.statusLabel || "-"}
+                    {row.duesStatus === "missing_dues" ? "Dues not prepared" : row.statusLabel || "-"}
                   </ValueStatePill>
                 </td>
                 <td className="px-4 py-3">{formatOptionalDate(row.lastPaymentDate)}</td>
@@ -714,7 +715,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
   const fromDate = normalizeDate(resolvedSearchParams?.fromDate);
   const toDate = normalizeDate(resolvedSearchParams?.toDate);
   const paymentMode = normalizePaymentMode(resolvedSearchParams?.paymentMode);
-  const [workbook, setup, { routeOptions }, policy] = await Promise.all([
+  const [workbook, setup, { routeOptions, sessionOptions }, policy] = await Promise.all([
     getOfficeWorkbookData({
       view: activeView,
       classId,
@@ -756,7 +757,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
       <PageHeader
         eyebrow="Finance records"
         title="Transactions"
-        description="Permanent receipt records, dues, installment tracker, defaulters, and exportable finance views."
+        description="Permanent receipt records, dues tracker, defaulters, and exportable finance views."
         actions={
           <div className="flex flex-wrap gap-2">
             {canExport ? (
@@ -805,7 +806,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
             activeClassId={classId}
             query={{ view: activeView, ...preservedQuery }}
           />
-          <form action="/protected/transactions" method="get" className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <AutoSubmitForm action="/protected/transactions" method="get" className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
             <input type="hidden" name="view" value={activeView} />
             {classId ? <input type="hidden" name="classId" value={classId} /> : null}
             <div className="xl:col-span-2">
@@ -819,6 +820,24 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                 className="mt-2 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
                 placeholder="Student, SR no, receipt no, phone"
               />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" htmlFor="transactions-session">
+                Academic year
+              </label>
+              <select
+                id="transactions-session"
+                name="sessionLabel"
+                defaultValue={sessionLabel}
+                className="mt-2 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+              >
+                <option value="">Current year</option>
+                {sessionOptions.map((session) => (
+                  <option key={session.value} value={session.value}>
+                    {session.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" htmlFor="transactions-route">
@@ -881,14 +900,13 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
               />
             </div>
             <div className="flex items-end gap-2 xl:col-span-6">
-              <Button type="submit" size="sm">Apply filters</Button>
               <Button asChild size="sm" variant="outline">
                 <Link href={buildOfficeWorkbookHref({ view: activeView, classId: "", sessionLabel: "" })}>
                   Reset
                 </Link>
               </Button>
             </div>
-          </form>
+          </AutoSubmitForm>
         </div>
       </SectionCard>
 
@@ -923,7 +941,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
 
       {workbook.view === "installments" ? (
         <SectionCard
-          title="Installment tracker"
+          title="Dues tracker"
           description="Student-wise workbook tracker with pending installment columns and next due details."
         >
           <InstallmentTrackerTable rows={workbook.rows} />

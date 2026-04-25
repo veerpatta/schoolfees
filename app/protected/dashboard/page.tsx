@@ -10,7 +10,6 @@ import {
   ClipboardList,
   IndianRupee,
   ReceiptText,
-  Upload,
   UsersRound,
 } from "lucide-react";
 
@@ -20,7 +19,6 @@ import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { CopyReminderButton } from "@/components/dashboard/copy-reminder-button";
 import { Button } from "@/components/ui/button";
-import type { StaffRole } from "@/lib/auth/roles";
 import { getDashboardPageData, type DashboardAlert } from "@/lib/dashboard/data";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
@@ -29,14 +27,6 @@ import {
   requireStaffPermission,
 } from "@/lib/supabase/session";
 import { cn } from "@/lib/utils";
-
-import {
-  alignWorkingSessionWithFeeSetupAction,
-  repairCurrentSessionDuesAction,
-  repairPaymentDeskDataAction,
-  syncCurrentSessionAction,
-  syncDashboardNowAction,
-} from "./actions";
 
 function formatPercent(value: number) {
   return `${value}%`;
@@ -78,10 +68,8 @@ function getAlertIcon(tone: DashboardAlert["tone"]) {
 }
 
 function ActionButtons({
-  staffRole,
   canWriteStudents,
 }: {
-  staffRole: StaffRole;
   canWriteStudents: boolean;
 }) {
   return (
@@ -107,14 +95,6 @@ function ActionButtons({
           Open Payment Desk
         </Link>
       </Button>
-      {staffRole !== "accountant" ? (
-        <Button asChild variant="outline">
-          <Link href="/protected/imports">
-            <Upload className="size-4" />
-            Bulk Upload
-          </Link>
-        </Button>
-      ) : null}
       <Button asChild variant="outline">
         <Link href="/protected/transactions">
           <ReceiptText className="size-4" />
@@ -295,7 +275,7 @@ function ClassPendingChart({
             </div>
             <p className="text-sm font-semibold text-slate-950 sm:text-right">
               {row.studentsWithGeneratedDues === 0 && row.totalStudents > 0
-                ? "Not generated"
+                ? "Not prepared"
                 : formatInr(row.pendingAmount)}
             </p>
           </div>
@@ -440,7 +420,7 @@ function ClassSummaryTable({
                 <td className="px-4 py-3">{row.totalStudents}</td>
                 <td className="px-4 py-3">
                   {row.studentsWithGeneratedDues === 0 && row.totalStudents > 0
-                    ? "Not generated"
+                    ? "Not prepared"
                     : formatInr(row.expectedAmount)}
                 </td>
                 <td className="px-4 py-3">{formatInr(row.collectedAmount)}</td>
@@ -451,7 +431,7 @@ function ClassSummaryTable({
                     <span>{formatPercent(row.collectionRate)}</span>
                     {row.missingDuesStudents > 0 ? (
                       <StatusBadge
-                        label={`${row.missingDuesStudents} missing dues`}
+                        label={`${row.missingDuesStudents} dues not prepared`}
                         tone="warning"
                       />
                     ) : null}
@@ -612,29 +592,13 @@ function AlertsPanel({ alerts }: { alerts: DashboardAlert[] }) {
   );
 }
 
-function SystemSyncHealthPanel({
+function FeeDataAttentionBanner({
   health,
-  canRepair,
 }: {
   health: NonNullable<Awaited<ReturnType<typeof getDashboardPageData>>["systemSyncHealth"]>;
-  canRepair: boolean;
 }) {
-  const rows = [
-    ["Active Fee Setup session", health.activeFeePolicySession],
-    ["Fee calculation model", health.activeFeePolicyCalculationModel],
-    ["Current academic session", health.academicCurrentSession ?? "Not set"],
-    ["Sessions match", health.sessionMismatch ? "No" : "Yes"],
-    ["Students in active session", health.rawStudentsInActiveSession],
-    ["Workbook financial rows", health.workbookFinancialRowCount],
-    ["Students missing dues", health.studentsMissingDues],
-    ["Classes without fee settings", health.classesWithoutFeeSettings],
-    ["Payment preview function", health.paymentPreviewReady ? "Ready" : "Missing / not ready"],
-    ["Payment Desk readiness", health.paymentDeskReady ? "Ready" : "Needs repair"],
-    ["Dashboard readiness", health.dashboardReady ? "Ready" : "Needs repair"],
-  ] as const;
   const databaseObjectStatuses = Object.values(health.requiredDatabaseObjectsStatus);
-
-  const needsRepair =
+  const needsAttention =
     health.sessionMismatch ||
     health.studentsMissingInstallmentRows > 0 ||
     health.studentsMissingFinancialRows > 0 ||
@@ -644,201 +608,31 @@ function SystemSyncHealthPanel({
     !health.paymentDeskReady ||
     !health.dashboardReady;
 
+  if (!needsAttention) {
+    return null;
+  }
+
   return (
     <SectionCard
-      id="system-sync-health"
-      title="Live Data Health"
-      description="Admin check for whether Fee Setup, Student Master, dues, and required database objects are ready for Dashboard, Payment Desk, Transactions, and reports."
+      title="Fee records need attention"
+      description="Some fee records need attention. Open Admin Tools to check and prepare missing dues."
+      className="border-amber-100 bg-amber-50/70"
       actions={
         <div className="flex flex-wrap gap-2">
-          <StatusBadge
-            label={needsRepair ? "Needs attention" : "Ready"}
-            tone={needsRepair ? "warning" : "good"}
-          />
-          {canRepair ? (
-            <>
-              <form action={syncDashboardNowAction}>
-                <Button type="submit" size="sm" variant="outline">
-                  Sync Dashboard Now
-                </Button>
-              </form>
-              <form action={repairCurrentSessionDuesAction}>
-                <Button type="submit" size="sm">
-                  Generate Missing Dues
-                </Button>
-              </form>
-              <form action={syncCurrentSessionAction}>
-                <Button type="submit" size="sm" variant="outline">
-                  Sync Current Session
-                </Button>
-              </form>
-              <form action={alignWorkingSessionWithFeeSetupAction}>
-                <Button type="submit" size="sm" variant="outline">
-                  Align Working Session with Fee Setup
-                </Button>
-              </form>
-              <form action={repairPaymentDeskDataAction}>
-                <Button type="submit" size="sm" variant="outline">
-                  Repair Payment Desk Data
-                </Button>
-              </form>
-              <Button asChild size="sm" variant="outline">
-                <Link href="/protected/students">
-                  Open Students Missing Dues
-                </Link>
-              </Button>
-            </>
-          ) : null}
+          <StatusBadge label="Needs attention" tone="warning" />
+          <Button asChild size="sm">
+            <Link href="/protected/advanced#fee-data-troubleshooting">
+              Open Fee Data Troubleshooting
+            </Link>
+          </Button>
         </div>
       }
     >
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {rows.map(([label, value]) => (
-          <div key={label} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-              {label}
-            </p>
-            <p className="mt-2 font-semibold text-slate-950">{value}</p>
-          </div>
-        ))}
-      </div>
-      {health.rawStudentsInActiveSession > 0 && health.studentsMissingInstallmentRows > 0 ? (
-        <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Students exist but dues are missing. {health.rawStudentsInActiveSession} students found, but dues are not generated for {health.studentsMissingInstallmentRows} student{health.studentsMissingInstallmentRows === 1 ? "" : "s"}.
-        </p>
-      ) : null}
-      {health.sessionMismatch ? (
-        <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Academic current session differs from Fee Setup session. Align the working session before expecting live dues and Payment Desk lists to match.
-        </p>
-      ) : null}
-      {!health.paymentPreviewReady ? (
-        <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
-          Payment preview migration is not applied. Apply latest Supabase migrations before using the Payment Desk preview.
-        </p>
-      ) : null}
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="font-semibold text-slate-950">Active students by session</p>
-          <div className="mt-3 space-y-2 text-sm text-slate-700">
-            {health.activeStudentsBySession.length === 0 ? (
-              <p className="text-slate-500">No active students found.</p>
-            ) : (
-              health.activeStudentsBySession.map((row) => (
-                <div key={row.sessionLabel} className="flex justify-between gap-3">
-                  <span>{row.sessionLabel}</span>
-                  <span className="font-semibold text-slate-950">{row.count}</span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="font-semibold text-slate-950">Workbook financial rows by session</p>
-          <div className="mt-3 space-y-2 text-sm text-slate-700">
-            {health.workbookFinancialRowsBySession.length === 0 ? (
-              <p className="text-slate-500">No workbook financial rows found.</p>
-            ) : (
-              health.workbookFinancialRowsBySession.map((row) => (
-                <div key={row.sessionLabel} className="flex justify-between gap-3">
-                  <span>{row.sessionLabel}</span>
-                  <span className="font-semibold text-slate-950">{row.count}</span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="font-semibold text-slate-950">Import batches by target session</p>
-          <div className="mt-3 space-y-2 text-sm text-slate-700">
-            {health.importBatchesByTargetSessionStatus.length === 0 ? (
-              <p className="text-slate-500">No import batches found.</p>
-            ) : (
-              health.importBatchesByTargetSessionStatus.slice(0, 8).map((row) => (
-                <div
-                  key={`${row.targetSessionLabel ?? "not-set"}-${row.status}`}
-                  className="flex justify-between gap-3"
-                >
-                  <span>{row.targetSessionLabel ?? "Not set"} / {row.status}</span>
-                  <span className="font-semibold text-slate-950">{row.count}</span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="font-semibold text-slate-950">Classes without fee settings</p>
-          <div className="mt-3 space-y-2 text-sm text-slate-700">
-            {health.classRowsWithoutFeeSettings.length === 0 ? (
-              <p className="text-slate-500">No class fee-setting gaps found.</p>
-            ) : (
-              health.classRowsWithoutFeeSettings.slice(0, 8).map((row) => (
-                <div key={row.classId} className="flex justify-between gap-3">
-                  <span>{row.classLabel}</span>
-                  <span className="text-slate-500">{row.sessionLabel}</span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="font-semibold text-slate-950">Required database objects</p>
-          <div className="mt-3 space-y-2 text-sm text-slate-700">
-            {databaseObjectStatuses.map((status) => (
-              <div key={status.key} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span>{status.objectName}</span>
-                  <StatusBadge label={status.usable ? "Ready" : "Missing"} tone={status.usable ? "good" : "warning"} />
-                </div>
-                <p className="mt-1 text-xs text-slate-500">{status.message}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      {health.studentsMissingInstallments.length > 0 || health.classSessionMismatchStudents.length > 0 ? (
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-            <p className="font-semibold text-amber-950">Students with dues not generated</p>
-            <div className="mt-3 space-y-2 text-sm text-amber-900">
-              {health.studentsMissingInstallments.slice(0, 8).map((row) => (
-                <p key={row.studentId}>
-                  {row.fullName} ({row.admissionNo || "No SR"}) - {row.sessionLabel}
-                </p>
-              ))}
-              {health.studentsMissingInstallments.length > 8 ? (
-                <p>{health.studentsMissingInstallments.length - 8} more students need review.</p>
-              ) : null}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-            <p className="font-semibold text-amber-950">Students outside Fee Setup session</p>
-            <div className="mt-3 space-y-2 text-sm text-amber-900">
-              {health.classSessionMismatchStudents.length === 0 ? (
-                <p>No class/session mismatch found.</p>
-              ) : (
-                health.classSessionMismatchStudents.slice(0, 8).map((row) => (
-                  <p key={row.studentId}>
-                    {row.fullName} ({row.admissionNo || "No SR"}) - class session {row.sessionLabel}, Fee Setup {row.feeSetupSessionLabel}
-                  </p>
-                ))
-              )}
-              {health.classSessionMismatchStudents.length > 8 ? (
-                <p>{health.classSessionMismatchStudents.length - 8} more students need review.</p>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      ) : null}
-      {health.errors.length > 0 || health.warnings.length > 0 ? (
-        <div className="mt-4 space-y-2 text-sm text-amber-900">
-          {[...health.errors, ...health.warnings].map((message) => (
-            <p key={message} className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-              {message}
-            </p>
-          ))}
-        </div>
-      ) : null}
+      <p className="text-sm leading-6 text-amber-950">
+        {health.studentsMissingInstallmentRows > 0
+          ? `${health.studentsMissingInstallmentRows} student${health.studentsMissingInstallmentRows === 1 ? "" : "s"} have dues not prepared.`
+          : "Open Admin Tools for the detailed fee data status and follow-up actions."}
+      </p>
     </SectionCard>
   );
 }
@@ -855,17 +649,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const data = await getDashboardPageData({ staffRole: staff.appRole });
   const canWriteStudents = hasStaffPermission(staff, "students:write");
   const canPostPayments = hasStaffPermission(staff, "payments:write");
-  const canRepairFinance = hasStaffPermission(staff, "fees:write");
-  const canViewImports = hasStaffPermission(staff, "imports:view");
   const canViewReports = hasStaffPermission(staff, "reports:view");
   const maxChartCards = data.classSummary.slice(0, 8);
   const nextActions = [
     canWriteStudents
       ? { href: "/protected/students/new", label: "Add student", icon: UsersRound }
       : { href: "/protected/students", label: "Open students", icon: UsersRound },
-    canViewImports
-      ? { href: "/protected/imports", label: "Upload spreadsheet", icon: Upload }
-      : null,
     { href: "/protected/defaulters", label: "Review defaulters", icon: CircleAlert },
     { href: "/protected/payments", label: "Payment Desk", icon: BadgeIndianRupee },
     { href: "/protected/fee-setup", label: "Fee Setup", icon: ClipboardList },
@@ -899,7 +688,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 />
               ) : null}
             </div>
-            <ActionButtons staffRole={staff.appRole} canWriteStudents={canWriteStudents} />
+            <ActionButtons canWriteStudents={canWriteStudents} />
           </div>
         }
       />
@@ -922,7 +711,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               <Link href="/protected/students/new">Add student</Link>
             </Button>
             <Button asChild variant="outline">
-              <Link href="/protected/imports">Bulk upload students</Link>
+              <Link href="/protected/students">Bulk add students</Link>
             </Button>
             <Button asChild variant="outline">
               <Link href="/protected/fee-setup">Open Fee Setup</Link>
@@ -937,11 +726,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           title="Students found, dues missing"
           description="Students exist in the active fee setup session, but dues have not been generated yet."
           className="border-amber-100 bg-amber-50/70"
-          actions={<StatusBadge label="Repair needed" tone="warning" />}
+          actions={<StatusBadge label="Needs attention" tone="warning" />}
         >
           <div className="grid gap-3 md:grid-cols-4">
             <Button asChild variant="outline">
-              <Link href="/protected/dashboard#system-sync-health">Generate Missing Dues</Link>
+              <Link href="/protected/advanced#fee-data-troubleshooting">Prepare missing dues</Link>
             </Button>
             <Button asChild variant="outline">
               <Link href="/protected/students">Open Students</Link>
@@ -957,9 +746,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       ) : null}
 
       {data.systemSyncHealth ? (
-        <SystemSyncHealthPanel
+        <FeeDataAttentionBanner
           health={data.systemSyncHealth}
-          canRepair={canRepairFinance}
         />
       ) : null}
 

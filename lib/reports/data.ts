@@ -621,7 +621,7 @@ async function getActiveSessionBaseReportStudents(filters: ReportFilters) {
         }),
         transportRouteLabel: buildRouteLabel(routeRef),
         installmentNo: 0,
-        installmentLabel: "Dues not generated",
+        installmentLabel: "Dues not prepared",
         dueDate: "",
         amountDue: 0,
         paymentsTotal: 0,
@@ -1242,7 +1242,7 @@ async function getImportVerificationReportData(
 
   if (batchesError) {
     throw new Error(
-      `Unable to load import verification batches: ${batchesError.message}`,
+      `Unable to load import review batches: ${batchesError.message}`,
     );
   }
 
@@ -1285,7 +1285,7 @@ async function getImportVerificationReportData(
 
   if (detailRowsError) {
     throw new Error(
-      `Unable to load import verification detail rows: ${detailRowsError.message}`,
+      `Unable to load import review detail rows: ${detailRowsError.message}`,
     );
   }
 
@@ -1616,7 +1616,7 @@ export { formatPaymentModeLabel };
 export function getReportAuditNote(reportKey: ReportKey) {
   switch (reportKey) {
     case "outstanding":
-      return "Totals come from workbook installment balances after the selected due-date, class, and session filters; active students without generated dues are flagged separately.";
+      return "Totals come from prepared dues after the selected due-date, class, and session filters; active students without prepared dues are flagged separately.";
     case "daily-collection":
       return "Summary totals come from posted receipts grouped by payment date and payment mode.";
     case "student-ledger":

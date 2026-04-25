@@ -77,12 +77,13 @@ export function toFriendlyPaymentPreviewError(error: unknown) {
 
   if (
     normalized.includes("payment preview database function is missing") ||
+    normalized.includes("payment preview needs a database update") ||
     normalized.includes("preview_workbook_payment_allocation") ||
     normalized.includes("could not find the function") ||
     normalized.includes("pgrst202") ||
     normalized.includes("42883")
   ) {
-    return "Payment preview database function is missing. Apply latest Supabase migrations.";
+    return "Payment preview needs a database update. Ask an admin to check System Readiness.";
   }
 
   if (
@@ -90,7 +91,7 @@ export function toFriendlyPaymentPreviewError(error: unknown) {
     normalized.includes("permission denied for schema private") ||
     normalized.includes("permission denied for function workbook_installment_snapshot")
   ) {
-    return "Payment preview database helper is not ready. Apply latest Supabase migrations.";
+    return "Payment preview needs a database update. Ask an admin to check System Readiness.";
   }
 
   if (normalized.includes("no pending dues")) {
@@ -98,14 +99,14 @@ export function toFriendlyPaymentPreviewError(error: unknown) {
   }
 
   if (normalized.includes("dues") || normalized.includes("installment")) {
-    return "Dues not generated for this student.";
+    return "Dues are not prepared for this student.";
   }
 
   if (normalized.includes("session")) {
     return "Selected student belongs to another session. Align the working session with Fee Setup before posting.";
   }
 
-  return "Unable to refresh payment preview. Check Live Data Health and apply latest migrations if needed.";
+  return "Unable to refresh payment preview. Ask an admin to check Fee Data Status.";
 }
 
 export function toFriendlyPaymentPostingError(error: unknown) {
@@ -134,7 +135,7 @@ export function toFriendlyPaymentPostingError(error: unknown) {
   }
 
   if (normalized.includes("dues") || normalized.includes("installment")) {
-    return "Dues not generated for this student.";
+    return "Dues are not prepared for this student.";
   }
 
   if (normalized.includes("session")) {
@@ -151,7 +152,7 @@ export function toFriendlyPaymentPostingError(error: unknown) {
     normalized.includes("pgrst202") ||
     normalized.includes("42883")
   ) {
-    return "Payment posting database function is missing. Apply latest Supabase migrations.";
+    return "Payment posting needs a database update. Ask an admin to check System Readiness.";
   }
 
   return "Unable to save payment right now. Please check the student, dues, amount, and payment mode.";
@@ -473,10 +474,10 @@ export async function getPaymentEntryPageData(payload: {
         studentOptions,
         selectedStudent: null,
         selectedStudentIssue: {
-          title: "Dues are not generated for this student yet.",
+          title: "Dues are not prepared for this student.",
           detail:
-            "Student exists, but dues are not generated yet. Generate dues for this student before posting payment.",
-          actionLabel: "Generate Dues for this Student",
+            "Student exists, but dues are not prepared yet. Prepare dues for this student before posting payment.",
+          actionLabel: "Prepare dues now",
           actionHref: null,
           repairStudentId: selectedFinancial.studentId,
         },
@@ -545,10 +546,10 @@ export async function getPaymentEntryPageData(payload: {
             actionHref: "/protected/fee-setup",
           }
         : {
-            title: "Dues are not generated for this student yet.",
+            title: "Dues are not prepared for this student.",
             detail:
-              "Student exists, but dues are not generated yet. Generate dues for this student before posting payment.",
-            actionLabel: "Generate Dues for this Student",
+              "Student exists, but dues are not prepared yet. Prepare dues for this student before posting payment.",
+            actionLabel: "Prepare dues now",
             actionHref: null,
             repairStudentId: selectedStudentDetail.id,
           };

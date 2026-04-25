@@ -6,6 +6,7 @@ import Link from "next/link";
 import { MetricCard } from "@/components/admin/metric-card";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { AutoSubmitForm } from "@/components/office/auto-submit-form";
 import { ClassTabs, OfficeRecentActions, OfficeRecentTracker, ValueStatePill, WorkflowGuard } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -332,8 +333,8 @@ export function PaymentEntryClient({
         title="2. Select Student"
         description="Use SR no, student name, phone number, or receipt number to reach the right student quickly."
       >
-        <form action="/protected/payments" method="get" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto]">
+        <AutoSubmitForm action="/protected/payments" method="get" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
             {data.classId ? <input type="hidden" name="classId" value={data.classId} /> : null}
             <div>
               <Label htmlFor="payment-student-query">Search</Label>
@@ -352,7 +353,6 @@ export function PaymentEntryClient({
                 name="studentId"
                 defaultValue={selectedStudent?.id ?? ""}
                 className={`${selectClassName} mt-2`}
-                required
               >
                 <option value="">Select student</option>
                 {data.studentOptions.map((student) => (
@@ -362,13 +362,8 @@ export function PaymentEntryClient({
                 ))}
               </select>
             </div>
-            <div className="flex items-end">
-              <Button type="submit" className="w-full md:w-auto">
-                Continue with this student
-              </Button>
-            </div>
           </div>
-        </form>
+        </AutoSubmitForm>
       </SectionCard>
 
       {workflowGuard ? (
@@ -493,7 +488,7 @@ export function PaymentEntryClient({
             description="Review installment-level dues and payment status before saving the next receipt."
             actions={
               <div className="flex flex-wrap items-center gap-2">
-                <ValueStatePill tone="policy">Policy-driven</ValueStatePill>
+                <ValueStatePill tone="policy">From Fee Setup</ValueStatePill>
                 {previewTotalPending > 0 ? (
                   <StatusBadge label="Pending dues" tone="warning" />
                 ) : (

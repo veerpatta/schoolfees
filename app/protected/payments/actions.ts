@@ -114,10 +114,10 @@ export async function repairPaymentDeskStudentDuesAction(formData: FormData) {
 
   const result = await syncStudentDues([studentId]);
   const noticeParts = [
-    `Dues repair: ${result.installmentsToInsert} inserted`,
+    `Dues update: ${result.installmentsToInsert} prepared`,
     `${result.installmentsToUpdate} updated`,
     `${result.installmentsToCancel} cancelled`,
-    `${result.lockedInstallments} protected`,
+    `${result.lockedInstallments} kept for review`,
   ];
 
   if (result.studentsMissingSettings > 0) {

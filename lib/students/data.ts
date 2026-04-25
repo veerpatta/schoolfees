@@ -485,7 +485,7 @@ export async function getStudents(filters: StudentListFilters) {
         ? "Generated"
         : duesStatus === "session_mismatch"
           ? "Session mismatch"
-          : "Dues not generated";
+          : "Dues not prepared";
     const hasFeeException =
       override !== null &&
       (override.custom_tuition_fee_amount !== null ||

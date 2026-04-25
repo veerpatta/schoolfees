@@ -30,7 +30,7 @@ export default async function NewStudentPage({ searchParams }: NewStudentPagePro
       <PageHeader
         eyebrow="Students"
         title="Add student"
-        description="Enter the student master and workbook fee-profile details used for AY 2026-27 desk work."
+        description="Enter the student details and any fee exceptions used for AY 2026-27 desk work."
       />
 
       {!readiness.addStudent.isReady ? (
@@ -70,7 +70,7 @@ export default async function NewStudentPage({ searchParams }: NewStudentPagePro
               lateFeeWaiverAmount: "0",
               otherAdjustmentHead: "",
               otherAdjustmentAmount: "",
-              feeProfileReason: "Student Master workbook profile",
+              feeProfileReason: "Student fee profile",
               feeProfileNotes: "",
               notes: "",
             }}

@@ -179,7 +179,7 @@ const routeMetaItems: Array<
   },
   {
     match: "/protected/imports",
-    href: "/protected/students",
+    href: "/protected/advanced",
     label: "Import History",
     description: "Legacy student import workflow, history, and troubleshooting.",
   },
@@ -355,6 +355,19 @@ export const advancedHubSections: readonly AdvancedHubSection[] = [
         description: "Open the legacy student import workflow when you need history, row review, or troubleshooting.",
         icon: UsersRound,
         requiredPermission: "imports:view",
+      },
+    ],
+  },
+  {
+    title: "Fee Data Troubleshooting",
+    description: "Prepare missing dues and fix fee records when daily pages need attention.",
+    items: [
+      {
+        href: "/protected/advanced#fee-data-troubleshooting",
+        label: "Fee Data Troubleshooting",
+        description: "Prepare missing dues, update fee records for this year, and fix Payment Desk dues.",
+        icon: FolderCog,
+        requiredPermission: "finance:view",
       },
     ],
   },

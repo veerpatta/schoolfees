@@ -23,7 +23,7 @@ export async function repairCurrentSessionDuesAction() {
 
   redirect(
     dashboardUrl(
-      `Dues repair completed: ${result.installmentsToInsert} inserted, ${result.installmentsToUpdate} updated, ${result.installmentsToCancel} cancelled, ${result.lockedInstallments} protected rows left for review.`,
+      `Missing dues prepared: ${result.installmentsToInsert} prepared, ${result.installmentsToUpdate} updated, ${result.installmentsToCancel} cancelled, ${result.lockedInstallments} rows kept for review.`,
     ),
   );
 }
@@ -41,7 +41,7 @@ export async function syncCurrentSessionAction() {
 
   redirect(
     dashboardUrl(
-      `Current session sync completed for ${policy.academicSessionLabel}: ${result.installmentsToInsert} inserted, ${result.installmentsToUpdate} updated, ${result.installmentsToCancel} cancelled, ${result.lockedInstallments} protected rows left for review.`,
+      `Fee records updated for ${policy.academicSessionLabel}: ${result.installmentsToInsert} prepared, ${result.installmentsToUpdate} updated, ${result.installmentsToCancel} cancelled, ${result.lockedInstallments} rows kept for review.`,
     ),
   );
 }
@@ -54,7 +54,7 @@ export async function repairPaymentDeskDataAction() {
   if (!health.requiredDatabaseObjectsStatus.previewWorkbookPaymentAllocation.usable) {
     redirect(
       dashboardUrl(
-        "Payment Desk cannot be repaired yet: payment preview migration is not applied. Apply latest Supabase migrations.",
+        "Payment Desk dues cannot be fixed yet: a database update is pending.",
       ),
     );
   }
@@ -62,7 +62,7 @@ export async function repairPaymentDeskDataAction() {
   if (!health.requiredDatabaseObjectsStatus.postStudentPayment.usable) {
     redirect(
       dashboardUrl(
-        "Payment Desk cannot be repaired yet: payment posting database function is missing. Apply latest Supabase migrations.",
+        "Payment Desk dues cannot be fixed yet: a database update is pending.",
       ),
     );
   }
@@ -71,7 +71,7 @@ export async function repairPaymentDeskDataAction() {
     revalidateFinanceSurfaces();
     redirect(
       dashboardUrl(
-        `Payment Desk data checked for ${policy.academicSessionLabel}: required functions are ready and no missing-dues students were found.`,
+        `Payment Desk dues checked for ${policy.academicSessionLabel}: no students with unprepared dues were found.`,
       ),
     );
   }
@@ -79,7 +79,7 @@ export async function repairPaymentDeskDataAction() {
   if (health.studentsMissingInstallments.length === 0 && health.studentsWithNoFeeSetting > 0) {
     redirect(
       dashboardUrl(
-        `Payment Desk cannot generate dues yet: class fees are missing for ${health.classesWithoutFeeSettings} class${health.classesWithoutFeeSettings === 1 ? "" : "es"}. Open Fee Setup and fill class-wise annual tuition first.`,
+        `Payment Desk cannot prepare dues yet: class fees are missing for ${health.classesWithoutFeeSettings} class${health.classesWithoutFeeSettings === 1 ? "" : "es"}. Open Fee Setup and fill class-wise annual tuition first.`,
       ),
     );
   }
@@ -89,7 +89,7 @@ export async function repairPaymentDeskDataAction() {
   revalidateFinanceSurfaces();
   redirect(
     dashboardUrl(
-      `Payment Desk data repaired for ${policy.academicSessionLabel}: ${result.installmentsToInsert} inserted, ${result.installmentsToUpdate} updated, ${result.installmentsToCancel} cancelled, ${result.lockedInstallments} protected rows left for review.`,
+      `Payment Desk dues fixed for ${policy.academicSessionLabel}: ${result.installmentsToInsert} prepared, ${result.installmentsToUpdate} updated, ${result.installmentsToCancel} cancelled, ${result.lockedInstallments} rows kept for review.`,
     ),
   );
 }

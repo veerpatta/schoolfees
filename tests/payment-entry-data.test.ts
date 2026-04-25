@@ -174,7 +174,7 @@ describe("payment entry data", () => {
     });
 
     expect(data.selectedStudent).toBeNull();
-    expect(data.selectedStudentIssue?.title).toContain("Dues are not generated");
+    expect(data.selectedStudentIssue?.title).toContain("Dues are not prepared");
     expect(data.selectedStudentIssue?.actionHref).toBeNull();
     expect(data.selectedStudentIssue?.repairStudentId).toBe("student-2");
   });

@@ -89,7 +89,7 @@ describe("office navigation", () => {
       label: "Reports & Exports",
     });
     expect(getProtectedRouteMeta("/protected/imports")).toMatchObject({
-      href: "/protected/students",
+      href: "/protected/advanced",
       label: "Import History",
     });
   });

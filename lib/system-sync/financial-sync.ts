@@ -325,7 +325,7 @@ async function getRequiredDatabaseObjectsStatus(
     message: !previewProbe.error
       ? "Date-aware payment preview function is available."
       : previewMissing
-        ? "Payment preview database function is missing. Apply latest Supabase migrations."
+        ? "Payment preview needs a database update."
         : `Payment preview function check failed: ${previewProbe.error.message}`,
   });
 
@@ -878,7 +878,7 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
   }
 
   if (!paymentPreviewReady) {
-    warnings.push("Payment preview migration is not applied or is not usable.");
+    warnings.push("Payment preview needs a database update.");
   }
 
   return {
@@ -962,7 +962,7 @@ export async function alignAcademicCurrentSessionWithFeeSetup() {
         session_label: activeSession,
         status: "active",
         is_current: true,
-        notes: "Created by System Sync Health to align the working session with Fee Setup.",
+          notes: "Created by Fee Data Status to align the working session with Fee Setup.",
       });
 
     if (error) {

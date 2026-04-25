@@ -833,7 +833,7 @@ export function SetupWizardClient({
 
           <div className="flex items-center justify-between gap-4">
             <SectionHint>
-              Annual route fee is the workbook source of truth. The installment amount is kept only
+                    Annual route fee is the current school setup. The installment amount is kept only
               as a legacy compatibility field derived from the annual fee and active installment count.
             </SectionHint>
             <div className="flex items-center gap-2">

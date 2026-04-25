@@ -1391,7 +1391,7 @@ export async function applyConfigChangeBatch(batchId: string) {
     return {
       preview: previewSummary,
       applied: applySummary,
-      message: `Applied ${currentContext.targetLabel}: ${ledgerResult.installmentsToInsert} inserts, ${ledgerResult.installmentsToUpdate} updates, ${ledgerResult.installmentsToCancel} cancellations, and ${ledgerResult.lockedInstallments} blocked rows marked for review.`,
+      message: `Applied ${currentContext.targetLabel}: ${ledgerResult.installmentsToInsert} prepared, ${ledgerResult.installmentsToUpdate} updates, ${ledgerResult.installmentsToCancel} cancellations, and ${ledgerResult.lockedInstallments} rows kept for review.`,
     };
   } catch (errorValue) {
     const message =

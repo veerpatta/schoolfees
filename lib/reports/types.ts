@@ -63,9 +63,9 @@ export const reportDefinitions: Record<
     printFriendly: true,
   },
   "import-verification": {
-    title: "Import Verification",
+    title: "Import Review",
     description:
-      "Batch summary and row-level import status for checking workbook migration results.",
+      "Batch summary and row-level import status for checking import results.",
     tableTitle: "Import detail rows",
     tableDescription:
       "Selected batch row outcomes with errors, duplicates, and imported records visible.",

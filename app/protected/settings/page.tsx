@@ -293,7 +293,7 @@ export default async function SettingsPage() {
                       Cancels: <strong>{batch.summary.installmentsToCancel}</strong>
                     </div>
                     <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                      Blocked rows: <strong>{batch.blockedInstallmentCount}</strong>
+                  Rows kept for review: <strong>{batch.blockedInstallmentCount}</strong>
                     </div>
                   </div>
                 ) : null}

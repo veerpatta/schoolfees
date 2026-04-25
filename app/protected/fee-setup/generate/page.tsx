@@ -19,8 +19,8 @@ export default async function GenerateLedgerPage() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Fee Setup"
-        title="Review dues update"
-        description="Check how the current Fee Setup will update future and unpaid installment rows before you save the dues update."
+        title="Check dues update"
+        description="Check how the current Fee Setup will update future and unpaid dues before you save the dues update."
       />
 
       {!readiness.recalculateLedgers.isReady ? (

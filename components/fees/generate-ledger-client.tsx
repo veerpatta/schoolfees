@@ -121,7 +121,7 @@ export function GenerateLedgerClient({ initialState, action }: GenerateLedgerCli
             <span>Dues update review</span>
           </CardTitle>
           <CardDescription>
-            Review how the current Fee Setup affects future and unpaid installment rows before
+            Check how the current Fee Setup affects future and unpaid dues before
             saving the dues update. Rows with payments, partial payments, or adjustments stay
             untouched and are flagged for manual review.
           </CardDescription>
@@ -284,7 +284,7 @@ export function GenerateLedgerClient({ initialState, action }: GenerateLedgerCli
                     Working...
                   </>
                 ) : (
-                  "Review dues update"
+                  "Check dues update"
                 )}
               </Button>
 

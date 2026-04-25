@@ -37,8 +37,8 @@ describe("source of truth audit fixes", () => {
     expect(defaultersData).toContain("getActiveSessionStudents");
     expect(defaultersData).toContain("missingDuesRows");
     expect(defaultersData).toContain("!generatedStudentIds.has(row.studentId)");
-    expect(defaultersPage).toContain("Students with dues not generated");
-    expect(defaultersPage).toContain("Dues not generated");
+    expect(defaultersPage).toContain("Students whose dues are not prepared");
+    expect(defaultersPage).toContain("Dues not prepared");
   });
 
   it("import_status_change_to_active_generates_dues", () => {
@@ -56,7 +56,7 @@ describe("source of truth audit fixes", () => {
     const migration = readRepoFile("supabase/migrations/20260425090000_payment_date_workbook_preview.sql");
 
     expect(paymentData).toContain("preview_workbook_payment_allocation");
-    expect(paymentData).toContain("Payment preview database function is missing. Apply latest Supabase migrations.");
+    expect(paymentData).toContain("Payment preview needs a database update.");
     expect(previewRoute).toContain("getPaymentDateAwareInstallmentBalances");
     expect(paymentClient).toContain("/protected/payments/preview");
     expect(paymentClient).toContain("previewUnavailable");
@@ -69,7 +69,7 @@ describe("source of truth audit fixes", () => {
     const transactionsExport = readRepoFile("app/protected/transactions/export/route.ts");
 
     expect(officeDues).toContain('"missing_dues" as const');
-    expect(officeDues).toContain('"Dues not generated"');
+    expect(officeDues).toContain('"Dues not prepared"');
     expect(transactionsExport).toContain('"Dues status"');
     expect(transactionsExport).toContain("row.duesStatusLabel");
   });
@@ -87,8 +87,8 @@ describe("source of truth audit fixes", () => {
     expect(financialSync).toContain("classSessionMismatchStudents");
     expect(financialSync).toContain("requiredDatabaseObjectsStatus");
     expect(financialSync).toContain("alignAcademicCurrentSessionWithFeeSetup");
-    expect(dashboardPage).toContain("Align Working Session with Fee Setup");
-    expect(dashboardPage).toContain("Live Data Health");
+    expect(dashboardPage).toContain("Open Fee Data Troubleshooting");
+    expect(dashboardPage).not.toContain("Live Data Health");
     expect(dashboardActions).toContain("alignWorkingSessionWithFeeSetupAction");
     expect(dashboardData).toContain('optionalLoad("system sync health", getSystemSyncHealth, null, warnings)');
   });
@@ -110,7 +110,7 @@ describe("source of truth audit fixes", () => {
     expect(alignFunction).not.toContain('.from("audit_logs")');
     expect(financialSync).toContain("studentsMissingInstallments.map((row) => row.studentId)");
     expect(financialSync).toContain("generateSessionLedgersAction({ scopedStudentIds: studentIds })");
-    expect(dashboardActions).toContain("payment preview migration is not applied");
+    expect(dashboardActions).toContain("a database update is pending");
     expect(verifyScript).not.toContain(".insert(");
     expect(verifyScript).not.toContain(".update(");
     expect(verifyScript).not.toContain(".delete(");

@@ -133,21 +133,21 @@ export default async function DefaultersPage({
 
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-700">
-            Dues not generated
+            Dues not prepared
           </p>
           <div className="mt-3 text-2xl font-semibold tracking-tight text-amber-950">
             {data.metrics.missingDuesStudents}
           </div>
           <p className="mt-2 text-sm leading-6 text-amber-900">
-            Active students visible for repair, not counted as true defaulters.
+            Active students whose dues need preparation, not counted as true defaulters.
           </p>
         </div>
       </section>
 
       {data.missingDuesRows.length > 0 ? (
         <SectionCard
-          title="Students with dues not generated"
-          description="These active students are not treated as defaulters yet. Generate dues before collection or follow-up."
+          title="Students whose dues are not prepared"
+          description="These active students are not treated as defaulters yet. Prepare dues before collection or follow-up."
         >
           <div className="overflow-x-auto rounded-xl border border-amber-200">
             <table className="w-full min-w-[980px] text-left text-sm">
@@ -159,7 +159,7 @@ export default async function DefaultersPage({
                   <th className="px-4 py-3">Father</th>
                   <th className="px-4 py-3">Phone</th>
                   <th className="px-4 py-3">Route</th>
-                  <th className="px-4 py-3">Repair</th>
+                  <th className="px-4 py-3">Dues</th>
                 </tr>
               </thead>
               <tbody>
@@ -176,7 +176,7 @@ export default async function DefaultersPage({
                         className="text-xs font-medium text-blue-700 hover:underline"
                         href={`/protected/payments?studentId=${row.studentId}`}
                       >
-                        Open repair
+                        Prepare dues
                       </Link>
                     </td>
                   </tr>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { AutoSubmitForm } from "@/components/office/auto-submit-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,7 +25,7 @@ export function DefaulterFilters({
   routeOptions,
 }: DefaulterFiltersProps) {
   return (
-    <form method="get" className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <AutoSubmitForm method="get" className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       <div>
         <Label htmlFor="classId">Class</Label>
         <select
@@ -87,11 +88,10 @@ export function DefaulterFilters({
       </div>
 
       <div className="flex items-end gap-2 md:col-span-2 xl:col-span-4">
-        <Button type="submit">Apply filters</Button>
         <Button type="button" variant="outline" asChild>
           <Link href="/protected/defaulters">Clear</Link>
         </Button>
       </div>
-    </form>
+    </AutoSubmitForm>
   );
 }

@@ -41,7 +41,7 @@ export function ImportDashboard({ recentBatches, selectedBatch }: ImportDashboar
     <SectionCard title="Upload history" description="Recent uploads and import progress.">
       {recentBatches.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-600">
-          No import batches yet. Upload the first spreadsheet to begin staged migration.
+        No import batches yet. Upload the first spreadsheet to begin staged import.
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200">

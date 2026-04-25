@@ -168,7 +168,7 @@ function toStudentRows(
         : "generated" as const,
     duesStatusLabel:
       generatedStudentIds && !generatedStudentIds.has(row.studentId)
-        ? "Dues not generated"
+        ? "Dues not prepared"
         : "Generated",
     receiptHistory: (historyMap.get(row.studentId) ?? []).slice(0, 3),
   }));

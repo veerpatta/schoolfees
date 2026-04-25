@@ -3,6 +3,7 @@ import Link from "next/link";
 import { MetricCard } from "@/components/admin/metric-card";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
+import { AutoSubmitForm } from "@/components/office/auto-submit-form";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
 import { getReceiptsList } from "@/lib/receipts/data";
@@ -53,17 +54,19 @@ export default async function ReceiptsPage({ searchParams }: ReceiptsPageProps) 
       </section>
 
       <SectionCard title="Receipt lookup" description="Search by receipt number or reference number.">
-        <form action="/protected/receipts" method="get" className="flex gap-3">
+        <AutoSubmitForm action="/protected/receipts" method="get" className="flex flex-col gap-3 sm:flex-row">
           <input
             name="query"
             defaultValue={query}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
             placeholder="e.g. SVP20260421-0001 or UPI reference"
           />
-          <button className="inline-flex h-9 items-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white">
-            Search
-          </button>
-        </form>
+          {query ? (
+            <Button asChild variant="outline">
+              <Link href="/protected/receipts">Clear</Link>
+            </Button>
+          ) : null}
+        </AutoSubmitForm>
       </SectionCard>
 
       <SectionCard

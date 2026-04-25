@@ -6,8 +6,6 @@ import { formatInr } from "@/lib/helpers/currency";
 import { isPendingAdmissionNo } from "@/lib/students/constants";
 import type { StudentListItem } from "@/lib/students/types";
 
-import { StudentStatusBadge } from "./student-status-badge";
-
 type StudentListTableProps = {
   students: StudentListItem[];
   hasFilters: boolean;
@@ -39,7 +37,7 @@ export function StudentListTable({
 
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200">
-      <table className="min-w-[1800px] divide-y divide-slate-200">
+      <table className="min-w-[1080px] divide-y divide-slate-200">
         <thead className="bg-slate-50">
           <tr>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
@@ -52,52 +50,10 @@ export function StudentListTable({
               Class
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              DOB
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Father / phone
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Mother phone
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              New / Old
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
               Transport
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Fee exceptions
-            </th>
-            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Tuition
-            </th>
-            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Transport fee
-            </th>
-            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Academic fee
-            </th>
-            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Gross
-            </th>
-            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Discount
-            </th>
-            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Base total
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Installments
-            </th>
-            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Paid
-            </th>
-            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Late fee
-            </th>
-            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Total due
+              Dues status
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
               Outstanding
@@ -106,16 +62,7 @@ export function StudentListTable({
               Next due
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Status
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Dues
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Last payment
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Flags
+              Fee exception
             </th>
             <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600">
               Actions
@@ -137,57 +84,12 @@ export function StudentListTable({
                 ) : null}
               </td>
               <td className="px-4 py-3 text-sm text-slate-700">{student.classLabel}</td>
-              <td className="px-4 py-3 text-sm text-slate-700">{student.dateOfBirth ?? "-"}</td>
-              <td className="px-4 py-3 text-sm text-slate-700">{student.fatherPhone || "-"}</td>
-              <td className="px-4 py-3 text-sm text-slate-700">{student.motherPhone || "-"}</td>
-              <td className="px-4 py-3 text-sm text-slate-700">{student.studentStatusLabel}</td>
               <td className="px-4 py-3 text-sm text-slate-700">{student.transportRouteLabel}</td>
               <td className="px-4 py-3">
                 <StatusBadge
-                  label={student.feeProfileStatusLabel}
-                  tone={
-                    student.feeProfileStatusLabel === "Special case"
-                      ? "warning"
-                      : student.hasFeeProfile
-                        ? "good"
-                        : "accent"
-                  }
+                  label={student.duesStatus === "generated" ? student.statusLabel || "Prepared" : "Dues not prepared"}
+                  tone={student.duesStatus === "generated" ? "good" : "warning"}
                 />
-              </td>
-              <td className="px-4 py-3 text-right text-sm text-slate-700">
-                {formatInr(student.tuitionFee)}
-              </td>
-              <td className="px-4 py-3 text-right text-sm text-slate-700">
-                {formatInr(student.transportFee)}
-              </td>
-              <td className="px-4 py-3 text-right text-sm text-slate-700">
-                {formatInr(student.academicFee)}
-              </td>
-              <td className="px-4 py-3 text-right text-sm text-slate-700">
-                {formatInr(student.grossBaseBeforeDiscount)}
-              </td>
-              <td className="px-4 py-3 text-right text-sm text-slate-700">
-                {formatInr(student.discountAmount)}
-              </td>
-              <td className="px-4 py-3 text-right text-sm text-slate-700">
-                {formatInr(student.baseTotalDue)}
-              </td>
-              <td className="px-4 py-3 text-xs text-slate-700">
-                <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                  <span>I1 {formatInr(student.installment1Base)}</span>
-                  <span>I2 {formatInr(student.installment2Base)}</span>
-                  <span>I3 {formatInr(student.installment3Base)}</span>
-                  <span>I4 {formatInr(student.installment4Base)}</span>
-                </div>
-              </td>
-              <td className="px-4 py-3 text-right text-sm text-slate-700">
-                {formatInr(student.totalPaid)}
-              </td>
-              <td className="px-4 py-3 text-right text-sm text-slate-700">
-                {formatInr(student.lateFeeTotal)}
-              </td>
-              <td className="px-4 py-3 text-right text-sm text-slate-700">
-                {formatInr(student.totalDue)}
               </td>
               <td className="px-4 py-3 text-sm font-medium text-slate-900">
                 {formatInr(student.outstandingAmount)}
@@ -199,63 +101,16 @@ export function StudentListTable({
                 </p>
               </td>
               <td className="px-4 py-3">
-                {student.statusLabel ? (
-                  <StatusBadge
-                    label={student.statusLabel}
-                    tone={
-                      student.statusLabel === "PAID"
+                <StatusBadge
+                  label={student.feeProfileStatusLabel}
+                  tone={
+                    student.feeProfileStatusLabel === "Special case"
+                      ? "warning"
+                      : student.hasFeeProfile
                         ? "good"
-                        : student.statusLabel === "OVERDUE"
-                          ? "warning"
-                          : "accent"
-                    }
-                  />
-                ) : (
-                  <StudentStatusBadge status={student.status} />
-                )}
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex flex-col gap-2">
-                  <StatusBadge
-                    label={student.duesStatusLabel}
-                    tone={student.duesStatus === "generated" ? "good" : "warning"}
-                  />
-                  {student.duesStatus !== "generated" ? (
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={`/protected/payments?studentId=${student.id}`}>
-                        Generate dues
-                      </Link>
-                    </Button>
-                  ) : null}
-                </div>
-              </td>
-              <td className="px-4 py-3 text-sm text-slate-700">
-                <p>{student.lastPaymentDate ?? "-"}</p>
-                <p className="text-xs text-slate-500">
-                  {formatInr(student.lastPaymentAmount)}
-                </p>
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex flex-wrap gap-1">
-                  {student.duplicateSrFlag ? (
-                    <StatusBadge label="Duplicate SR" tone="warning" />
-                  ) : null}
-                  {student.missingDobFlag ? (
-                    <StatusBadge label="DOB missing" tone="accent" />
-                  ) : null}
-                  {student.missingClassFlag ? (
-                    <StatusBadge label="Class missing" tone="warning" />
-                  ) : null}
-                  {student.missingStatusFlag ? (
-                    <StatusBadge label="Status missing" tone="warning" />
-                  ) : null}
-                  {!student.duplicateSrFlag &&
-                  !student.missingDobFlag &&
-                  !student.missingClassFlag &&
-                  !student.missingStatusFlag ? (
-                    <span className="text-xs text-slate-500">No blocking flags</span>
-                  ) : null}
-                </div>
+                        : "accent"
+                  }
+                />
               </td>
               <td className="px-4 py-3 text-right">
                 <div className="flex justify-end gap-2">

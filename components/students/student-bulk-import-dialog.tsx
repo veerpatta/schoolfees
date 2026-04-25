@@ -416,7 +416,7 @@ export function StudentBulkImportDialogTrigger({
                       </Button>
                       <Button asChild variant="outline">
                         <Link href={`/protected/imports?mode=${summary.mode}&batchId=${summary.batchId}`}>
-                          Open advanced import details
+                          Import history
                         </Link>
                       </Button>
                     </div>
@@ -439,7 +439,7 @@ export function StudentBulkImportDialogTrigger({
                           </Button>
                           <Button asChild size="sm" variant="outline">
                             <Link href={`/protected/imports?mode=${summary.mode}&batchId=${summary.batchId}`}>
-                              Open Advanced Import Details
+                              Import history
                             </Link>
                           </Button>
                         </div>

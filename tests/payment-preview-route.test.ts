@@ -45,7 +45,7 @@ describe("payment preview route", () => {
 
     expect(response.status).toBe(503);
     expect(payload.error).toBe(
-      "Payment preview database function is missing. Apply latest Supabase migrations.",
+      "Payment preview needs a database update. Ask an admin to check System Readiness.",
     );
   });
 

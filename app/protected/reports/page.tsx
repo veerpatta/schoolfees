@@ -4,6 +4,7 @@ import { MetricCard } from "@/components/admin/metric-card";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { AutoSubmitForm } from "@/components/office/auto-submit-form";
 import { WorkflowGuard } from "@/components/office/office-ui";
 import { PrintReportButton } from "@/components/reports/print-report-button";
 import { Button } from "@/components/ui/button";
@@ -111,7 +112,7 @@ function ReportCatalog({
   return (
     <SectionCard
       title="Report list"
-      description="Keep the report list small, practical, and easy for staff to trust."
+      description="Choose one report. Filters update the table automatically."
       className="print:hidden"
     >
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -166,7 +167,7 @@ function ReportFiltersSection({
   return (
     <SectionCard
       title="Filters and output"
-      description="Use only the filters staff actually need, then export the same table to CSV."
+      description="Filters update the table automatically. Export and print remain manual."
       actions={
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
@@ -249,7 +250,7 @@ function OutstandingFilters({
   routeOptions: Array<{ id: string; label: string; routeCode: string | null }>;
 }) {
   return (
-    <form action="/protected/reports" method="get" className="space-y-4">
+    <AutoSubmitForm action="/protected/reports" method="get" className="space-y-4">
       <input type="hidden" name="report" value="outstanding" />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <SharedClassAndSessionFilters
@@ -294,10 +295,7 @@ function OutstandingFilters({
           />
         </div>
       </div>
-      <div className="flex items-center justify-end">
-        <Button type="submit">Update view</Button>
-      </div>
-    </form>
+    </AutoSubmitForm>
   );
 }
 
@@ -317,7 +315,7 @@ function CollectionFilters({
   report: "daily-collection" | "receipt-register";
 }) {
   return (
-    <form action="/protected/reports" method="get" className="space-y-4">
+    <AutoSubmitForm action="/protected/reports" method="get" className="space-y-4">
       <input type="hidden" name="report" value={report} />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <SharedClassAndSessionFilters
@@ -378,10 +376,7 @@ function CollectionFilters({
           </select>
         </div>
       </div>
-      <div className="flex items-center justify-end">
-        <Button type="submit">Update view</Button>
-      </div>
-    </form>
+    </AutoSubmitForm>
   );
 }
 
@@ -408,7 +403,7 @@ function LedgerFilters({
   selectedStudentId: string;
 }) {
   return (
-    <form action="/protected/reports" method="get" className="space-y-4">
+    <AutoSubmitForm action="/protected/reports" method="get" className="space-y-4">
       <input type="hidden" name="report" value="student-ledger" />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <SharedClassAndSessionFilters
@@ -495,10 +490,7 @@ function LedgerFilters({
           </select>
         </div>
       </div>
-      <div className="flex items-center justify-end">
-        <Button type="submit">Update view</Button>
-      </div>
-    </form>
+    </AutoSubmitForm>
   );
 }
 
@@ -516,7 +508,7 @@ function ImportFilters({
   selectedBatchId: string;
 }) {
   return (
-    <form action="/protected/reports" method="get" className="space-y-4">
+    <AutoSubmitForm action="/protected/reports" method="get" className="space-y-4">
       <input type="hidden" name="report" value="import-verification" />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <SharedClassAndSessionFilters
@@ -561,10 +553,7 @@ function ImportFilters({
           />
         </div>
       </div>
-      <div className="flex items-center justify-end">
-        <Button type="submit">Update view</Button>
-      </div>
-    </form>
+    </AutoSubmitForm>
   );
 }
 

@@ -991,7 +991,7 @@ export function FeeSetupClient({
           >
             <div className="space-y-4">
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-                Most schools do not need this during normal yearly fee setup. AY 2026-27 workbook
+                Most schools do not need this during normal yearly fee setup. AY 2026-27 fee
                 calculation still uses tuition, transport, academic fee, and signed other adjustment.
               </div>
               {canEdit ? (
@@ -1014,7 +1014,7 @@ export function FeeSetupClient({
                         <th className="px-4 py-3">Frequency</th>
                         <th className="px-4 py-3">Mandatory</th>
                         <th className="px-4 py-3">Refundable</th>
-                        <th className="px-4 py-3">Workbook Calc</th>
+                        <th className="px-4 py-3">Fee calculation</th>
                         <th className="px-4 py-3">Status</th>
                         <th className="px-4 py-3">Notes</th>
                         <th className="px-4 py-3">Actions</th>
@@ -1672,8 +1672,8 @@ export function FeeSetupClient({
             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <ReviewMetric label="Students affected" value={preview.studentsAffected} />
-                <ReviewMetric label="Installment rows changing" value={installmentChanges} />
-                <ReviewMetric label="Blocked rows" value={preview.blockedInstallments} />
+                <ReviewMetric label="Dues rows changing" value={installmentChanges} />
+                <ReviewMetric label="Rows kept for review" value={preview.blockedInstallments} />
                 <ReviewMetric label="Students in scope" value={preview.studentsInScope} />
               </div>
               <div className="mt-4">
@@ -1708,8 +1708,8 @@ export function FeeSetupClient({
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
             <p className="max-w-3xl text-sm leading-6 text-slate-600">
               Publishing keeps payments, receipts, adjustments, and audit logs append-only. Only
-              future or unpaid installment rows may change; paid, partial, or adjusted rows are
-              blocked and logged for review.
+              future or unpaid dues may change; paid, partial, or adjusted rows are
+              kept for review.
             </p>
             <div className="flex flex-wrap gap-2">
               {canEdit ? (
@@ -1728,7 +1728,7 @@ export function FeeSetupClient({
                       onClick={() => submitFeeSetup("apply")}
                       disabled={!canApply || isSaving}
                     >
-                      {isSaving ? "Syncing..." : "Publish & Sync All"}
+                      {isSaving ? "Publishing..." : "Publish Fee Setup"}
                     </Button>
                   ) : null}
                 </>

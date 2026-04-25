@@ -138,7 +138,7 @@ export default async function StudentDetailPage({
       <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <SectionCard
           title="Student workspace"
-          description="Keep workbook identity, dues, and action shortcuts together on one staff screen."
+          description="Keep student identity, dues, and action shortcuts together on one staff screen."
         >
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
@@ -197,12 +197,12 @@ export default async function StudentDetailPage({
           </div>
         </SectionCard>
 
-        <SectionCard title="Computed Fee Snapshot" description="Read-only current policy, class/route defaults, student overrides, next due, and outstanding position.">
+        <SectionCard title="Fee summary" description="Read-only current setup, class/route defaults, student overrides, next due, and outstanding position.">
           {financialSnapshot ? (
             <div className="space-y-4">
               <div className="flex flex-wrap gap-2">
-                <ValueStatePill tone="policy">Policy-driven</ValueStatePill>
-                <ValueStatePill tone="calculated">Calculated dues</ValueStatePill>
+                <ValueStatePill tone="policy">From Fee Setup</ValueStatePill>
+                <ValueStatePill tone="calculated">Calculated fee records</ValueStatePill>
                 {financialSnapshot.activeOverrideReason ? (
                   <ValueStatePill tone="review">Override active</ValueStatePill>
                 ) : null}
@@ -224,7 +224,7 @@ export default async function StudentDetailPage({
                 ) : null}
                 {financialSnapshot.resolvedBreakdown.booksExcludedFromWorkbook ? (
                   <p className="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
-                    Books are kept outside workbook-mode calculation for AY 2026-27.
+                    Books are kept outside fee calculation for AY 2026-27.
                   </p>
                 ) : null}
               </div>
@@ -254,7 +254,7 @@ export default async function StudentDetailPage({
       </SectionCard>
 
       {activeTab === "profile" ? (
-        <SectionCard title="Basic Details" description="Identity, family, class, route, and record status.">
+        <SectionCard title="Basic Details" description="Identity, family, class, and route.">
           <div className="grid gap-5 lg:grid-cols-2">
             <dl className="space-y-3 text-sm text-slate-700">
               <div className="grid grid-cols-2 gap-2">
@@ -309,9 +309,9 @@ export default async function StudentDetailPage({
       ) : null}
 
       {activeTab === "fee-plan" && financialSnapshot ? (
-        <SectionCard title="Fee Profile" description="Student-level fee profile and resolved annual workbook fee breakup. School-wide defaults stay in Fee Setup.">
+        <SectionCard title="Fee Profile" description="Student-level fee exceptions and resolved annual fee breakup. School-wide defaults stay in Fee Setup.">
           <div className="mb-4 flex flex-wrap gap-2">
-            <ValueStatePill tone="policy">Policy-driven values</ValueStatePill>
+            <ValueStatePill tone="policy">From Fee Setup</ValueStatePill>
             <ValueStatePill tone="calculated">Calculated totals</ValueStatePill>
           </div>
 
@@ -380,7 +380,7 @@ export default async function StudentDetailPage({
       ) : null}
 
       {activeTab === "dues" ? (
-        <SectionCard title="Dues / Installments" description="Current workbook installment position for the student.">
+        <SectionCard title="Dues" description="Current dues position for the student.">
           <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="w-full min-w-[1180px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">

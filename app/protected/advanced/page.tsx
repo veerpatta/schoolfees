@@ -3,13 +3,28 @@ import Link from "next/link";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { Button } from "@/components/ui/button";
 import { advancedHubSections } from "@/lib/config/navigation";
+import { getFeePolicySummary } from "@/lib/fees/data";
+import { getSystemSyncHealth } from "@/lib/system-sync/finance-sync";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/lib/supabase/session";
+
+import {
+  alignWorkingSessionWithFeeSetupAction,
+  repairCurrentSessionDuesAction,
+  repairPaymentDeskDataAction,
+  syncCurrentSessionAction,
+  syncDashboardNowAction,
+} from "../dashboard/actions";
 
 export default async function AdvancedPage() {
   const staff = await requireAnyStaffPermission(["finance:view", "settings:view"], {
     onDenied: "redirect",
   });
+  const canRepairFeeData = hasStaffPermission(staff, "fees:write");
+  const policy = await getFeePolicySummary();
+  const feeDataHealth = await getSystemSyncHealth(policy.academicSessionLabel);
+  const databaseObjectStatuses = Object.values(feeDataHealth.requiredDatabaseObjectsStatus);
 
   const visibleSections = advancedHubSections
     .map((section) => ({
@@ -31,6 +46,113 @@ export default async function AdvancedPage() {
         These tools are rarely needed. Daily work should stay in Dashboard, Students, Fee Setup,
         Payment Desk, and Transactions.
       </div>
+
+      <SectionCard
+        id="fee-data-troubleshooting"
+        title="Fee Data Troubleshooting"
+        description="Use these actions only when students or dues are missing from Dashboard, Payment Desk, Transactions, or reports."
+        actions={
+          <StatusBadge
+            label={feeDataHealth.dashboardReady && feeDataHealth.paymentDeskReady ? "Ready" : "Needs attention"}
+            tone={feeDataHealth.dashboardReady && feeDataHealth.paymentDeskReady ? "good" : "warning"}
+          />
+        }
+      >
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Fee Setup year
+            </p>
+            <p className="mt-2 font-semibold text-slate-950">{feeDataHealth.activeFeePolicySession}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Students this year
+            </p>
+            <p className="mt-2 font-semibold text-slate-950">{feeDataHealth.rawStudentsInActiveSession}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Dues not prepared
+            </p>
+            <p className="mt-2 font-semibold text-slate-950">{feeDataHealth.studentsMissingDues}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Payment Desk
+            </p>
+            <p className="mt-2 font-semibold text-slate-950">
+              {feeDataHealth.paymentDeskReady ? "Ready" : "Needs attention"}
+            </p>
+          </div>
+        </div>
+
+        {canRepairFeeData ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <form action={repairCurrentSessionDuesAction}>
+              <Button type="submit">Prepare missing dues</Button>
+            </form>
+            <form action={syncCurrentSessionAction}>
+              <Button type="submit" variant="outline">
+                Update fee records for this year
+              </Button>
+            </form>
+            <form action={alignWorkingSessionWithFeeSetupAction}>
+              <Button type="submit" variant="outline">
+                Align year with Fee Setup
+              </Button>
+            </form>
+            <form action={repairPaymentDeskDataAction}>
+              <Button type="submit" variant="outline">
+                Fix Payment Desk dues
+              </Button>
+            </form>
+            <form action={syncDashboardNowAction}>
+              <Button type="submit" variant="outline">
+                Refresh Dashboard totals
+              </Button>
+            </form>
+          </div>
+        ) : (
+          <p className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            You can view this status, but only admins can run fee data repair actions.
+          </p>
+        )}
+
+        <details className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-slate-900">
+            Technical details
+          </summary>
+          <div className="grid gap-4 border-t border-slate-200 p-4 lg:grid-cols-2">
+            <div>
+              <p className="font-semibold text-slate-950">Setup status</p>
+              <div className="mt-3 space-y-2 text-sm text-slate-700">
+                <p>Current school setup year: {feeDataHealth.academicCurrentSession ?? "Not set"}</p>
+                <p>Fee Setup year: {feeDataHealth.activeFeePolicySession}</p>
+                <p>Classes without fee settings: {feeDataHealth.classesWithoutFeeSettings}</p>
+                <p>Prepared dues records: {feeDataHealth.workbookFinancialRowCount}</p>
+              </div>
+            </div>
+            <div>
+              <p className="font-semibold text-slate-950">Database readiness checks</p>
+              <div className="mt-3 space-y-2 text-sm text-slate-700">
+                {databaseObjectStatuses.map((status) => (
+                  <div key={status.key} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span>{status.objectName}</span>
+                      <StatusBadge
+                        label={status.usable ? "Ready" : "Database update pending"}
+                        tone={status.usable ? "good" : "warning"}
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">{status.message}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </details>
+      </SectionCard>
 
       <div className="grid gap-5 xl:grid-cols-2">
         {visibleSections.map((section) => (

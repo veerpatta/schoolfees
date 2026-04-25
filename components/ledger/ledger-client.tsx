@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { MetricCard } from "@/components/admin/metric-card";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { AutoSubmitForm } from "@/components/office/auto-submit-form";
 import { ValueStatePill } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,8 +96,8 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
         title="1. Search and open student ledger"
         description="Use name or SR no to open one student's payment and adjustment timeline."
       >
-        <form action="/protected/ledger" method="get" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto]">
+        <AutoSubmitForm action="/protected/ledger" method="get" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
             <div>
               <Label htmlFor="ledger-search-query">Search student</Label>
               <Input
@@ -114,7 +115,6 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
                 name="studentId"
                 defaultValue={selectedStudent?.id ?? ""}
                 className={`${selectClassName} mt-2`}
-                required
               >
                 <option value="">Select student</option>
                 {data.studentOptions.map((student) => (
@@ -124,13 +124,8 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
                 ))}
               </select>
             </div>
-            <div className="flex items-end">
-              <Button type="submit" className="w-full md:w-auto">
-                Open ledger
-              </Button>
-            </div>
           </div>
-        </form>
+        </AutoSubmitForm>
       </SectionCard>
 
       {!selectedStudent ? (
@@ -171,10 +166,10 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
             title="2. Filter ledger entries"
             description="Use these filters to narrow the visible payment and adjustment rows for this student."
           >
-            <form action="/protected/ledger" method="get" className="space-y-4">
+            <AutoSubmitForm action="/protected/ledger" method="get" className="space-y-4">
               <input type="hidden" name="studentId" value={selectedStudent.id} />
               <input type="hidden" name="query" value={data.searchQuery} />
-              <div className="grid gap-4 md:grid-cols-[1fr_220px_auto]">
+              <div className="grid gap-4 md:grid-cols-[1fr_220px]">
                 <div>
                   <Label htmlFor="ledger-entry-query">Search inside ledger</Label>
                   <Input
@@ -198,13 +193,8 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
                     <option value="adjustments">Adjustments only</option>
                   </select>
                 </div>
-                <div className="flex items-end">
-                  <Button type="submit" className="w-full md:w-auto">
-                    Apply filters
-                  </Button>
-                </div>
               </div>
-            </form>
+            </AutoSubmitForm>
           </SectionCard>
 
           <SectionCard

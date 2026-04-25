@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { AutoSubmitForm } from "@/components/office/auto-submit-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,7 +29,7 @@ export function StudentFilters({
   routeOptions,
 }: StudentFiltersProps) {
   return (
-    <form method="get" className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+    <AutoSubmitForm method="get" className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
       <div className="xl:col-span-2">
         <Label htmlFor="query">Search</Label>
         <Input
@@ -110,11 +111,10 @@ export function StudentFilters({
       </div>
 
       <div className="flex items-end gap-2 xl:col-span-6">
-        <Button type="submit">Apply filters</Button>
         <Button type="button" variant="outline" asChild>
           <Link href="/protected/students">Clear</Link>
         </Button>
       </div>
-    </form>
+    </AutoSubmitForm>
   );
 }

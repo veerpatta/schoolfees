@@ -462,11 +462,11 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
   ) {
     alerts.unshift({
       key: "missing-dues",
-      title: "Repair / Generate Missing Dues",
-      detail: `${systemSyncHealth.rawStudentsInActiveSession} students found, but dues are not generated for ${Math.max(systemSyncHealth.studentsMissingInstallmentRows, systemSyncHealth.studentsMissingFinancialRows)} student${Math.max(systemSyncHealth.studentsMissingInstallmentRows, systemSyncHealth.studentsMissingFinancialRows) === 1 ? "" : "s"}.`,
+      title: "Dues need preparation",
+      detail: `${systemSyncHealth.rawStudentsInActiveSession} students found, but dues are not prepared for ${Math.max(systemSyncHealth.studentsMissingInstallmentRows, systemSyncHealth.studentsMissingFinancialRows)} student${Math.max(systemSyncHealth.studentsMissingInstallmentRows, systemSyncHealth.studentsMissingFinancialRows) === 1 ? "" : "s"}.`,
       tone: "warning",
-      actionHref: "/protected/dashboard#system-sync-health",
-      actionLabel: "Generate Missing Dues",
+      actionHref: "/protected/advanced#fee-data-troubleshooting",
+      actionLabel: "Open Fee Data Troubleshooting",
     });
   }
 
@@ -483,10 +483,10 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
     alerts.push({
       key: "dues-missing",
       title: "Students found, dues missing",
-      detail: "Students exist in the active fee setup session, but dues are not generated yet.",
+      detail: "Students exist in the active fee setup session, but dues are not prepared yet.",
       tone: "warning",
-      actionHref: "/protected/dashboard#system-sync-health",
-      actionLabel: "Generate Missing Dues",
+      actionHref: "/protected/advanced#fee-data-troubleshooting",
+      actionLabel: "Prepare missing dues",
     });
   }
 
