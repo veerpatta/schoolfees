@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getFeeSetupPageData } from "@/lib/fees/data";
 import { resolveStudentPolicyBreakdown } from "@/lib/fees/policy";
@@ -167,7 +168,10 @@ export type LedgerGenerationResult = LedgerGenerationPreview & {
 type LedgerPlanOptions = {
   setupData?: FeeSetupPageData;
   scopedStudentIds?: string[];
+  useAdminClient?: boolean;
 };
+
+type LedgerClient = Awaited<ReturnType<typeof createClient>> | ReturnType<typeof createAdminClient>;
 
 function toSingleRecord<T>(value: T | T[] | null) {
   if (Array.isArray(value)) {
@@ -327,7 +331,7 @@ function summarizePlan(plan: LedgerSyncPlan): LedgerGenerationPreview {
 }
 
 async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<LedgerSyncPlan> {
-  const supabase = await createClient();
+  const supabase: LedgerClient = options.useAdminClient ? createAdminClient() : await createClient();
   const setupData = options.setupData ?? (await getFeeSetupPageData());
   const scopedStudentIdSet = options.scopedStudentIds
     ? new Set(options.scopedStudentIds)
@@ -792,7 +796,7 @@ export async function previewLedgerGenerationDetailed(
 export async function generateSessionLedgersAction(
   options: LedgerPlanOptions = {},
 ): Promise<LedgerGenerationResult> {
-  const supabase = await createClient();
+  const supabase: LedgerClient = options.useAdminClient ? createAdminClient() : await createClient();
   const plan = await buildLedgerSyncPlan(options);
 
   if (plan.installmentsToInsert.length > 0) {

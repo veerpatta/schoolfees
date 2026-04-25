@@ -269,6 +269,15 @@ function normalizeDatabaseError(error: { message?: string; code?: string } | nul
   return `${code} ${message}`.trim().toLowerCase();
 }
 
+function isNoTransportRoute(value: { route_name?: string | null; route_code?: string | null }) {
+  const normalized = `${value.route_name ?? ""} ${value.route_code ?? ""}`
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+
+  return normalized === "notransport" || normalized === "none" || normalized === "noroute";
+}
+
 function isMissingDatabaseObjectError(error: { message?: string; code?: string } | null | undefined) {
   const normalized = normalizeDatabaseError(error);
 
@@ -481,6 +490,7 @@ export async function getRawClassStudentSummary(
 export async function syncStudentFinancials(payload: {
   studentIds: readonly string[];
   reason: string;
+  useSystemClient?: boolean;
 }) {
   const studentIds = [...new Set(payload.studentIds.filter(Boolean))];
 
@@ -489,7 +499,10 @@ export async function syncStudentFinancials(payload: {
     return buildEmptySyncResult(payload.reason, ["No students selected."]);
   }
 
-  const result = await generateSessionLedgersAction({ scopedStudentIds: studentIds });
+  const result = await generateSessionLedgersAction({
+    scopedStudentIds: studentIds,
+    useAdminClient: payload.useSystemClient,
+  });
   revalidateCoreFinancePaths(studentIds);
 
   return buildSyncResult(result, payload.reason, buildLedgerWarnings(result));
@@ -498,6 +511,7 @@ export async function syncStudentFinancials(payload: {
 export async function syncSessionFinancials(payload: {
   sessionLabel: string;
   reason: string;
+  useSystemClient?: boolean;
 }) {
   const policy = await getFeePolicySummary();
   const requestedSession = payload.sessionLabel.trim();
@@ -514,7 +528,9 @@ export async function syncSessionFinancials(payload: {
     return buildEmptySyncResult(payload.reason, warnings);
   }
 
-  const result = await generateSessionLedgersAction();
+  const result = await generateSessionLedgersAction({
+    useAdminClient: payload.useSystemClient,
+  });
   revalidateCoreFinancePaths();
 
   return buildSyncResult(result, payload.reason, [...warnings, ...buildLedgerWarnings(result)]);
@@ -523,6 +539,7 @@ export async function syncSessionFinancials(payload: {
 export async function generateMissingSessionDues(payload: {
   sessionLabel: string;
   reason: string;
+  useSystemClient?: boolean;
 }) {
   const health = await getSystemSyncHealth(payload.sessionLabel);
   const studentIds = health.studentsMissingInstallments.map((row) => row.studentId);
@@ -532,7 +549,10 @@ export async function generateMissingSessionDues(payload: {
     return buildEmptySyncResult(payload.reason, ["No active students are missing dues."]);
   }
 
-  const result = await generateSessionLedgersAction({ scopedStudentIds: studentIds });
+  const result = await generateSessionLedgersAction({
+    scopedStudentIds: studentIds,
+    useAdminClient: payload.useSystemClient,
+  });
   revalidateCoreFinancePaths(studentIds);
 
   return buildSyncResult(result, payload.reason, buildLedgerWarnings(result));
@@ -542,6 +562,7 @@ export async function syncAfterStudentChange(payload: { studentId: string }) {
   return syncStudentFinancials({
     studentIds: [payload.studentId],
     reason: "Student Master changed",
+    useSystemClient: true,
   });
 }
 
@@ -549,6 +570,7 @@ export async function syncAfterStudentBulkImport(payload: { studentIds: readonly
   return syncStudentFinancials({
     studentIds: payload.studentIds,
     reason: "Student import changed Student Master",
+    useSystemClient: true,
   });
 }
 
@@ -805,14 +827,22 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
 
   try {
     if (activeRouteIds.length > 0) {
-      routesWithoutAnnualFees = await getCount(
-        supabase
-          .from("transport_routes")
-          .select("id", { count: "exact", head: true })
-          .in("id", activeRouteIds)
-          .or("annual_fee_amount.is.null,annual_fee_amount.eq.0"),
-        "routes without annual fees",
-      );
+      const { data, error } = await supabase
+        .from("transport_routes")
+        .select("id, route_name, route_code, annual_fee_amount")
+        .in("id", activeRouteIds)
+        .or("annual_fee_amount.is.null,annual_fee_amount.eq.0");
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      routesWithoutAnnualFees = ((data ?? []) as Array<{
+        id: string;
+        route_name: string | null;
+        route_code: string | null;
+        annual_fee_amount: number | null;
+      }>).filter((row) => !isNoTransportRoute(row)).length;
     }
   } catch (error) {
     warnings.push(

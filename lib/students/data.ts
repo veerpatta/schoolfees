@@ -247,6 +247,7 @@ async function saveStudentFeeProfile(
   existingOverride: StudentFeeOverrideRow | null,
 ) {
   const hasNewOverrideFields =
+    payload.studentTypeOverride !== null ||
     payload.tuitionOverride !== null ||
     payload.transportOverride !== null ||
     payload.lateFeeWaiverAmount > 0 ||
@@ -278,6 +279,7 @@ async function saveStudentFeeProfile(
     transportAppliesOverride: existingOverride?.transport_applies_override ?? null,
     reason: payload.feeProfileReason,
     notes: payload.feeProfileNotes,
+    useAdminClient: true,
   });
 }
 

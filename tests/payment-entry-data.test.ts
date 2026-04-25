@@ -8,6 +8,7 @@ const getWorkbookStudentFinancials = vi.fn();
 const getWorkbookInstallmentBalances = vi.fn();
 const getWorkbookTransactions = vi.fn();
 const createClient = vi.fn();
+const syncStudentDuesAsSystem = vi.fn();
 
 vi.mock("@/lib/fees/data", () => ({
   getFeePolicySummary,
@@ -25,6 +26,14 @@ vi.mock("@/lib/workbook/data", () => ({
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient,
+}));
+
+vi.mock("@/lib/system-sync/finance-sync", () => ({
+  hasPreparedDues: vi.fn((result) => result.installmentsToInsert > 0 || result.affectedStudents > 0),
+  summarizeDuesPreparationIssues: vi.fn((rows) =>
+    Array.isArray(rows) && rows[0]?.reasonMessage ? rows[0].reasonMessage : "",
+  ),
+  syncStudentDuesAsSystem,
 }));
 
 describe("payment entry data", () => {
@@ -50,6 +59,11 @@ describe("payment entry data", () => {
     };
     createClient.mockResolvedValue({
       from: vi.fn(() => emptyStudentQuery),
+    });
+    syncStudentDuesAsSystem.mockResolvedValue({
+      affectedStudents: 1,
+      installmentsToInsert: 4,
+      skippedStudents: [],
     });
   });
 
@@ -178,5 +192,115 @@ describe("payment entry data", () => {
     expect(data.selectedStudentIssue?.title).toContain("Dues are not prepared");
     expect(data.selectedStudentIssue?.actionHref).toBeNull();
     expect(data.selectedStudentIssue?.repairStudentId).toBe("student-2");
+  });
+
+  it("auto-prepares selected active student dues once when Payment Desk can post", async () => {
+    let financialCallCount = 0;
+    getWorkbookStudentFinancials.mockImplementation(async (filters?: { studentId?: string }) => {
+      if (!filters?.studentId) {
+        return [];
+      }
+
+      financialCallCount += 1;
+      return financialCallCount >= 2
+        ? [
+            {
+              studentId: "student-2",
+              admissionNo: "SR-2",
+              studentName: "Test Student",
+              fatherName: "Father",
+              motherName: null,
+              fatherPhone: "8888888888",
+              motherPhone: null,
+              recordStatus: "active",
+              classId: "class-1",
+              sessionLabel: "2026-27",
+              className: "Class 1",
+              classLabel: "Class 1",
+              sortOrder: 1,
+              transportRouteId: null,
+              transportRouteName: null,
+              transportRouteCode: null,
+              studentStatusCode: "existing",
+              studentStatusLabel: "Old",
+              tuitionFee: 1000,
+              transportFee: 0,
+              academicFee: 500,
+              otherAdjustmentHead: null,
+              otherAdjustmentAmount: 0,
+              grossBaseBeforeDiscount: 1500,
+              discountAmount: 0,
+              lateFeeWaiverAmount: 0,
+              lateFeeTotal: 0,
+              totalDue: 1500,
+              totalPaid: 0,
+              outstandingAmount: 1500,
+              nextDueDate: "2026-04-20",
+              nextDueAmount: 1500,
+              nextDueLabel: "Installment 1",
+              lastPaymentDate: null,
+              inst1Pending: 1500,
+              inst2Pending: 0,
+              inst3Pending: 0,
+              inst4Pending: 0,
+              statusLabel: "NOT STARTED",
+              overrideReason: null,
+            },
+          ]
+        : [];
+    });
+    getWorkbookInstallmentBalances.mockResolvedValue([
+      {
+        installmentId: "inst-1",
+        installmentNo: 1,
+        installmentLabel: "Installment 1",
+        dueDate: "2026-04-20",
+        baseCharge: 1500,
+        paidAmount: 0,
+        adjustmentAmount: 0,
+        rawLateFee: 0,
+        waiverApplied: 0,
+        finalLateFee: 0,
+        totalCharge: 1500,
+        pendingAmount: 1500,
+        balanceStatus: "pending",
+      },
+    ]);
+    getStudentDetail.mockResolvedValue({
+      id: "student-2",
+      admissionNo: "SR-2",
+      fullName: "Test Student",
+      classLabel: "Class 1",
+      classSessionLabel: "2026-27",
+      status: "active",
+    });
+    const studentQuery = {
+      select: vi.fn().mockReturnThis(),
+      in: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      then: vi.fn((resolve) => resolve({ data: [], error: null })),
+    };
+    const installmentCountQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      neq: vi.fn().mockResolvedValue({ count: 0, error: null }),
+    };
+    createClient.mockResolvedValue({
+      from: vi.fn((table: string) => (table === "installments" ? installmentCountQuery : studentQuery)),
+    });
+
+    const { getPaymentEntryPageData } = await import("@/lib/payments/data");
+    const data = await getPaymentEntryPageData({
+      studentId: "student-2",
+      searchQuery: "",
+      classId: "class-1",
+      autoPrepareMissingDues: true,
+    });
+
+    expect(syncStudentDuesAsSystem).toHaveBeenCalledWith(["student-2"]);
+    expect(data.selectedStudent?.id).toBe("student-2");
+    expect(data.selectedStudentIssue).toBeNull();
   });
 });

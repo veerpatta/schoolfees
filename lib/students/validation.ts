@@ -85,6 +85,7 @@ type ValidationOptions = {
   classIds: ReadonlySet<string>;
   routeIds: ReadonlySet<string>;
   allowBlankAdmissionNo?: boolean;
+  sessionLabel?: string | null;
 };
 
 export function validateStudentInput(
@@ -118,7 +119,9 @@ export function validateStudentInput(
   if (!input.classId) {
     fieldErrors.classId = "Class is required.";
   } else if (!options.classIds.has(input.classId)) {
-    fieldErrors.classId = "Please choose a valid class.";
+    fieldErrors.classId = options.sessionLabel
+      ? `Please choose an active class for ${options.sessionLabel}.`
+      : "Please choose a valid class.";
   }
 
   if (!input.admissionNo && !options.allowBlankAdmissionNo) {

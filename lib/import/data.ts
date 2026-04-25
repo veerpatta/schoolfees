@@ -931,15 +931,27 @@ export async function createStudentImportBatch(
 ) {
   const parsedFile = await parseStudentImportFile(file);
   const masterOptions = await getMasterDataOptions();
+  const activePolicy = await getFeePolicySummary();
   const supabase = await createClient();
   const normalizedTargetSessionLabel = targetSessionLabel?.trim() ?? "";
   const resolvedTargetSessionLabel =
     mode === "add"
-      ? normalizedTargetSessionLabel || masterOptions.currentSessionLabel || ""
+      ? normalizedTargetSessionLabel || activePolicy.academicSessionLabel || masterOptions.currentSessionLabel || ""
       : normalizedTargetSessionLabel;
 
   if (mode === "add" && !resolvedTargetSessionLabel) {
     throw new Error("Select an academic year before bulk add upload.");
+  }
+
+  if (
+    mode === "add" &&
+    resolvedTargetSessionLabel &&
+    activePolicy.academicSessionLabel &&
+    resolvedTargetSessionLabel.toLowerCase() !== activePolicy.academicSessionLabel.toLowerCase()
+  ) {
+    throw new Error(
+      `Bulk Add is limited to the active Fee Setup session ${activePolicy.academicSessionLabel}. Switch Fee Setup or choose that session before upload.`,
+    );
   }
 
   if (resolvedTargetSessionLabel) {

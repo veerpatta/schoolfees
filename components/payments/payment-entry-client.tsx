@@ -381,7 +381,7 @@ export function PaymentEntryClient({
           description={selectedStudentIssue.detail}
         >
           <div className="flex flex-wrap items-center gap-2">
-            {selectedStudentIssue.repairStudentId && selectedStudentIssue.actionLabel ? (
+            {selectedStudentIssue.repairStudentId && selectedStudentIssue.actionLabel && canPost ? (
               <form action={repairPaymentDeskStudentDuesAction}>
                 <input type="hidden" name="studentId" value={selectedStudentIssue.repairStudentId} />
                 <Button type="submit">{selectedStudentIssue.actionLabel}</Button>

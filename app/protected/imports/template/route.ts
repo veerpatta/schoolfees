@@ -4,6 +4,7 @@ import {
   workbookToXlsxBuffer,
   type UpdateTemplateStudent,
 } from "@/lib/import/templates";
+import { getFeePolicySummary } from "@/lib/fees/data";
 import { getMasterDataOptions } from "@/lib/master-data/data";
 import { createClient } from "@/lib/supabase/server";
 import { requireAnyStaffPermission } from "@/lib/supabase/session";
@@ -140,8 +141,11 @@ export async function GET(request: Request) {
     return xlsxResponse(workbookToXlsxBuffer(workbook), "student-update-template.xlsx");
   }
 
-  const { classOptions, routeOptions, currentSessionLabel } = await getMasterDataOptions();
-  const targetSessionLabel = normalizedSessionLabel || currentSessionLabel || "";
+  const [{ classOptions, routeOptions }, policy] = await Promise.all([
+    getMasterDataOptions(),
+    getFeePolicySummary(),
+  ]);
+  const targetSessionLabel = normalizedSessionLabel || policy.academicSessionLabel || "";
   const sessionClasses = targetSessionLabel
     ? classOptions.filter((item) => item.sessionLabel === targetSessionLabel)
     : classOptions;

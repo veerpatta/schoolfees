@@ -90,4 +90,18 @@ describe("student validation", () => {
       },
     });
   });
+
+  it("rejects a class outside the active Fee Setup session set", () => {
+    const result = validateStudentInput(baseInput({ classId: "class-test" }), {
+      classIds,
+      routeIds,
+      sessionLabel: "2026-27",
+    });
+
+    expect(result.ok).toBe(false);
+
+    if (!result.ok) {
+      expect(result.fieldErrors.classId).toBe("Please choose an active class for 2026-27.");
+    }
+  });
 });

@@ -48,7 +48,8 @@ describe("read-only UX audit implementation", () => {
 
     expect(paymentDesk).toContain("AutoSubmitForm");
     expect(paymentDesk).not.toContain("Continue with this student");
-    expect(paymentData).toContain("Prepare dues now");
+    expect(paymentData).toContain("tryAutoPrepareSelectedStudentDues");
+    expect(paymentData).toContain("Prepare dues again");
     expect(paymentDesk).toContain("/protected/payments/preview");
     expect(ledger).toContain("AutoSubmitForm");
     expect(ledger).not.toContain("Open ledger");

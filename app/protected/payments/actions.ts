@@ -11,7 +11,7 @@ import {
   hasPreparedDues,
   revalidateCoreFinancePaths,
   summarizeDuesPreparationIssues,
-  syncStudentDues,
+  syncStudentDuesAsSystem,
 } from "@/lib/system-sync/finance-sync";
 
 function parseRequiredString(value: FormDataEntryValue | null, fieldLabel: string) {
@@ -111,10 +111,10 @@ export async function submitPaymentEntryAction(
 }
 
 export async function repairPaymentDeskStudentDuesAction(formData: FormData) {
-  await requireStaffPermission("fees:write");
+  await requireStaffPermission("payments:write");
   const studentId = parseUuid(formData.get("studentId"), "Student");
 
-  const result = await syncStudentDues([studentId]);
+  const result = await syncStudentDuesAsSystem([studentId]);
   const issueSummary = summarizeDuesPreparationIssues(result.skippedStudents);
   const noticeParts = hasPreparedDues(result)
     ? [

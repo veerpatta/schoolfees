@@ -80,6 +80,47 @@ describe("createStudent", () => {
 
     expect(studentId).toBe("student-1");
     expect(insertPayloads.at(-1)?.admission_no).toBe("PENDING-SR-0002");
-    expect(upsertStudentFeeOverride).not.toHaveBeenCalled();
+    expect(upsertStudentFeeOverride).toHaveBeenCalledWith(
+      expect.objectContaining({
+        studentId: "student-1",
+        studentTypeOverride: "existing",
+        useAdminClient: true,
+      }),
+    );
+  });
+
+  it("persists New student status even when it is the only fee-profile value", async () => {
+    const { createStudent } = await import("@/lib/students/data");
+
+    await createStudent({
+      fullName: "New Student",
+      classId: "class-1",
+      admissionNo: "SR-NEW",
+      dateOfBirth: null,
+      fatherName: null,
+      motherName: null,
+      fatherPhone: null,
+      motherPhone: null,
+      address: null,
+      transportRouteId: null,
+      status: "active",
+      studentTypeOverride: "new",
+      tuitionOverride: null,
+      transportOverride: null,
+      discountAmount: 0,
+      lateFeeWaiverAmount: 0,
+      otherAdjustmentHead: null,
+      otherAdjustmentAmount: null,
+      feeProfileReason: "Student fee profile",
+      feeProfileNotes: null,
+      notes: null,
+    });
+
+    expect(upsertStudentFeeOverride).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        studentTypeOverride: "new",
+        useAdminClient: true,
+      }),
+    );
   });
 });

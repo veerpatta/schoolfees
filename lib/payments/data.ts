@@ -6,6 +6,11 @@ import { looksLikeReceiptQuery, normalizePaymentDeskQuery } from "@/lib/payments
 import { createClient } from "@/lib/supabase/server";
 import { getStudentDetail } from "@/lib/students/data";
 import {
+  hasPreparedDues,
+  summarizeDuesPreparationIssues,
+  syncStudentDuesAsSystem,
+} from "@/lib/system-sync/finance-sync";
+import {
   getWorkbookInstallmentBalances,
   getWorkbookStudentFinancials,
   getWorkbookTransactions,
@@ -338,10 +343,90 @@ function summarizeStudent(
   };
 }
 
+async function countNonCancelledInstallments(studentId: string) {
+  const supabase = await createClient();
+  const { count, error } = await supabase
+    .from("installments")
+    .select("id", { count: "exact", head: true })
+    .eq("student_id", studentId)
+    .neq("status", "cancelled");
+
+  if (error) {
+    throw new Error(`Unable to check prepared dues: ${error.message}`);
+  }
+
+  return count ?? 0;
+}
+
+async function tryAutoPrepareSelectedStudentDues(payload: {
+  studentId: string;
+  policySessionLabel: string;
+}): Promise<PaymentDeskIssue | null> {
+  const student = await getStudentDetail(payload.studentId);
+
+  if (!student) {
+    return {
+      title: "Selected student could not be loaded.",
+      detail: "Refresh Payment Desk and select the student again.",
+      actionLabel: "Open Students",
+      actionHref: "/protected/students",
+    };
+  }
+
+  if (student.status !== "active") {
+    return {
+      title: "Dues were not prepared.",
+      detail: "This student is not active, so new dues were not prepared.",
+      actionLabel: "Open student record",
+      actionHref: `/protected/students/${student.id}`,
+    };
+  }
+
+  if (student.classSessionLabel !== payload.policySessionLabel) {
+    return {
+      title: "Selected student belongs to another academic session.",
+      detail:
+        `This student is in ${student.classSessionLabel || "another year"}, but Fee Setup is active for ${payload.policySessionLabel}.`,
+      actionLabel: "Open Fee Setup",
+      actionHref: "/protected/fee-setup",
+    };
+  }
+
+  const nonCancelledInstallments = await countNonCancelledInstallments(student.id);
+
+  if (nonCancelledInstallments > 0) {
+    return {
+      title: "Fee records need admin review.",
+      detail:
+        "Dues records already exist, but Payment Desk could not load payable balances. Ask an admin to run Fee Data Status before posting.",
+      actionLabel: "Open Fee Data Status",
+      actionHref: "/protected/advanced",
+    };
+  }
+
+  const syncResult = await syncStudentDuesAsSystem([student.id]);
+  const issueSummary = summarizeDuesPreparationIssues(syncResult.skippedStudents);
+
+  if (hasPreparedDues(syncResult) && syncResult.skippedStudents.length === 0) {
+    return null;
+  }
+
+  return {
+    title: "Dues could not be prepared.",
+    detail:
+      issueSummary ||
+      "Fee Setup is incomplete for this class/year. Check class fee amount, installment dates, and active session.",
+    actionLabel: "Open Fee Setup",
+    actionHref: "/protected/fee-setup",
+    repairStudentId: student.id,
+  };
+}
+
 export async function getPaymentEntryPageData(payload: {
   studentId: string | null;
   searchQuery: string;
   classId?: string;
+  autoPrepareMissingDues?: boolean;
 }): Promise<PaymentEntryPageData> {
   const policy = await getFeePolicySummary();
   const normalizedQuery = normalizePaymentDeskQuery(payload.searchQuery);
@@ -466,6 +551,22 @@ export async function getPaymentEntryPageData(payload: {
       await getWorkbookInstallmentBalances(selectedFinancial.studentId),
     );
     if (breakdown.length === 0) {
+      if (payload.autoPrepareMissingDues) {
+        const autoPrepareIssue = await tryAutoPrepareSelectedStudentDues({
+          studentId: selectedFinancial.studentId,
+          policySessionLabel: policy.academicSessionLabel,
+        });
+
+        if (!autoPrepareIssue) {
+          return getPaymentEntryPageData({
+            ...payload,
+            autoPrepareMissingDues: false,
+          });
+        }
+
+        selectedStudentIssue = autoPrepareIssue;
+      }
+
       const selectedOption = buildStudentOption({
         studentId: selectedFinancial.studentId,
         studentName: selectedFinancial.studentName,
@@ -484,14 +585,15 @@ export async function getPaymentEntryPageData(payload: {
       return {
         studentOptions,
         selectedStudent: null,
-        selectedStudentIssue: {
-          title: "Dues are not prepared for this student.",
-          detail:
-            "Student exists, but dues are not prepared yet. Prepare dues for this student before posting payment.",
-          actionLabel: "Prepare dues now",
-          actionHref: null,
-          repairStudentId: selectedFinancial.studentId,
-        },
+        selectedStudentIssue:
+          selectedStudentIssue ?? {
+            title: "Dues are not prepared for this student.",
+            detail:
+              "Student exists, but dues are not prepared yet. Payment Desk can repair this only when Fee Setup is complete.",
+            actionLabel: "Prepare dues again",
+            actionHref: null,
+            repairStudentId: selectedFinancial.studentId,
+          },
         searchQuery: normalizedQuery,
         classId: payload.classId ?? "",
         modeOptions: policy.acceptedPaymentModes,
@@ -533,6 +635,22 @@ export async function getPaymentEntryPageData(payload: {
   const selectedStudentDetail = await getStudentDetail(payload.studentId);
 
   if (selectedStudentDetail) {
+    if (payload.autoPrepareMissingDues) {
+      const autoPrepareIssue = await tryAutoPrepareSelectedStudentDues({
+        studentId: selectedStudentDetail.id,
+        policySessionLabel: policy.academicSessionLabel,
+      });
+
+      if (!autoPrepareIssue) {
+        return getPaymentEntryPageData({
+          ...payload,
+          autoPrepareMissingDues: false,
+        });
+      }
+
+      selectedStudentIssue = autoPrepareIssue;
+    }
+
     const selectedOption = buildStudentOption({
       studentId: selectedStudentDetail.id,
       studentName: selectedStudentDetail.fullName,
@@ -548,7 +666,8 @@ export async function getPaymentEntryPageData(payload: {
     }
 
     selectedStudentIssue =
-      selectedStudentDetail.classSessionLabel !== policy.academicSessionLabel
+      selectedStudentIssue ??
+      (selectedStudentDetail.classSessionLabel !== policy.academicSessionLabel
         ? {
             title: "Selected student belongs to another academic session.",
             detail:
@@ -559,11 +678,11 @@ export async function getPaymentEntryPageData(payload: {
         : {
             title: "Dues are not prepared for this student.",
             detail:
-              "Student exists, but dues are not prepared yet. Prepare dues for this student before posting payment.",
-            actionLabel: "Prepare dues now",
+              "Student exists, but dues are not prepared yet. Payment Desk can repair this only when Fee Setup is complete.",
+            actionLabel: "Prepare dues again",
             actionHref: null,
             repairStudentId: selectedStudentDetail.id,
-          };
+          });
 
     return {
       studentOptions,

@@ -110,7 +110,8 @@ describe("source of truth audit fixes", () => {
     expect(alignFunction).not.toContain('.from("receipts")');
     expect(alignFunction).not.toContain('.from("audit_logs")');
     expect(financialSync).toContain("studentsMissingInstallments.map((row) => row.studentId)");
-    expect(financialSync).toContain("generateSessionLedgersAction({ scopedStudentIds: studentIds })");
+    expect(financialSync).toContain("scopedStudentIds: studentIds");
+    expect(financialSync).toContain("useAdminClient: payload.useSystemClient");
     expect(dashboardActions).toContain("a database update is pending");
     expect(verifyScript).not.toContain(".insert(");
     expect(verifyScript).not.toContain(".update(");

@@ -1198,8 +1198,13 @@ export async function upsertStudentFeeOverride(payload: {
   transportAppliesOverride: boolean | null;
   reason: string;
   notes: string | null;
+  useAdminClient?: boolean;
 }) {
-  const supabase = await createClient();
+  const supabase = await getReadClient(payload.useAdminClient);
+
+  if (!supabase) {
+    throw new Error("Supabase environment is not configured.");
+  }
   const { data: student, error: studentError } = await supabase
     .from("students")
     .select("id, class_id")

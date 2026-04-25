@@ -38,9 +38,8 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
   const classId = normalizeStudentId(resolvedSearchParams?.classId);
   const repairNotice = (resolvedSearchParams?.repairNotice ?? "").trim();
 
-  const [staff, data, setup, { classOptions }] = await Promise.all([
+  const [staff, setup, { classOptions }] = await Promise.all([
     requireStaffPermission("payments:view", { onDenied: "redirect" }),
-    getPaymentEntryPageData({ searchQuery, studentId, classId: classId ?? undefined }),
     getSetupWizardData(),
     getStudentFormOptions(),
   ]);
@@ -48,6 +47,12 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
   const readiness = getOfficeWorkflowReadiness(setup, staff.appRole);
   const canPostPayments =
     hasStaffPermission(staff, "payments:write") && readiness.postPayments.isReady;
+  const data = await getPaymentEntryPageData({
+    searchQuery,
+    studentId,
+    classId: classId ?? undefined,
+    autoPrepareMissingDues: canPostPayments,
+  });
 
   return (
     <div className="space-y-6">

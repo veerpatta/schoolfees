@@ -38,6 +38,14 @@ export async function syncStudentDues(studentIds: readonly string[]) {
   });
 }
 
+export async function syncStudentDuesAsSystem(studentIds: readonly string[]) {
+  return syncStudentFinancials({
+    studentIds,
+    reason: "Prepare student dues",
+    useSystemClient: true,
+  });
+}
+
 export async function syncSessionDues(sessionLabel: string) {
   return syncSessionFinancials({
     sessionLabel,
@@ -72,6 +80,7 @@ export async function repairMissingDues(sessionLabel: string) {
   return generateMissingSessionDues({
     sessionLabel,
     reason: "Repair missing dues",
+    useSystemClient: true,
   });
 }
 

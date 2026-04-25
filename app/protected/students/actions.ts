@@ -51,12 +51,13 @@ export async function createStudentAction(
 ): Promise<StudentFormActionState> {
   await requireStaffPermission("students:write");
   const input = getStudentFormInput(formData);
-  const { allClassOptions, routeOptions } = await getStudentFormOptions();
+  const { classOptions, routeOptions, resolvedSessionLabel } = await getStudentFormOptions();
 
   const validated = validateStudentInput(input, {
-    classIds: new Set(allClassOptions.map((option) => option.id)),
+    classIds: new Set(classOptions.map((option) => option.id)),
     routeIds: new Set(routeOptions.map((option) => option.id)),
     allowBlankAdmissionNo: true,
+    sessionLabel: resolvedSessionLabel,
   });
 
   if (!validated.ok) {
@@ -73,17 +74,16 @@ export async function createStudentAction(
     let syncMessage = "";
 
     if (isDuesSyncRelevantStatus(validated.data.status)) {
-      await requireStaffPermission("fees:write");
       const syncResult = await syncAfterStudentChange(studentId);
       const issueSummary = summarizeDuesPreparationIssues(syncResult.skippedStudents);
 
       if (hasPreparedDues(syncResult) && syncResult.skippedStudents.length === 0) {
-        syncMessage = " Student added and dues prepared.";
+        syncMessage = "Student added and dues prepared.";
       } else if (issueSummary) {
-        syncMessage = ` Student saved, but dues could not be prepared. ${issueSummary}`;
+        syncMessage = `Student saved, but dues could not be prepared. ${issueSummary}`;
       } else {
         syncMessage =
-          " Student saved, but dues could not be prepared. Check Fee Setup for this class and year.";
+          "Student saved, but dues could not be prepared. Check Fee Setup for this class and year.";
       }
     } else {
       revalidateFinanceSurfaces({ studentIds: [studentId] });
@@ -109,11 +109,12 @@ export async function updateStudentAction(
 ): Promise<StudentFormActionState> {
   await requireStaffPermission("students:write");
   const input = getStudentFormInput(formData);
-  const { allClassOptions, routeOptions } = await getStudentFormOptions();
+  const { classOptions, routeOptions, resolvedSessionLabel } = await getStudentFormOptions();
 
   const validated = validateStudentInput(input, {
-    classIds: new Set(allClassOptions.map((option) => option.id)),
+    classIds: new Set(classOptions.map((option) => option.id)),
     routeIds: new Set(routeOptions.map((option) => option.id)),
+    sessionLabel: resolvedSessionLabel,
   });
 
   if (!validated.ok) {
@@ -143,7 +144,6 @@ export async function updateStudentAction(
     let syncMessage = "";
 
     if (shouldSyncDues) {
-      await requireStaffPermission("fees:write");
       const syncResult = await syncAfterStudentChange(updatedStudentId);
       const issueSummary = summarizeDuesPreparationIssues(syncResult.skippedStudents);
 
