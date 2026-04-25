@@ -57,6 +57,8 @@ export type StudentListItem = {
   nextDueDate: string | null;
   nextDueAmount: number | null;
   statusLabel: "" | "PAID" | "NOT STARTED" | "OVERDUE" | "PARTLY PAID";
+  duesStatus: "generated" | "missing_dues" | "needs_repair" | "session_mismatch" | "class_fee_missing";
+  duesStatusLabel: string;
   lastPaymentDate: string | null;
   lastPaymentAmount: number;
   duplicateSrFlag: boolean;

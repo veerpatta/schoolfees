@@ -19,6 +19,7 @@ import type {
 type StudentJoinClass = {
   id: string;
   session_label: string;
+  status: string;
   class_name: string;
   section: string | null;
   stream_name: string | null;
@@ -370,11 +371,13 @@ export async function getStudentFormOptions(payload?: {
 
 export async function getStudents(filters: StudentListFilters) {
   const supabase = await createClient();
+  const policy = await getFeePolicySummary();
   let query = supabase
     .from("students")
     .select(
-      "id, admission_no, full_name, date_of_birth, status, primary_phone, secondary_phone, updated_at, class_ref:classes(id, session_label, class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code)",
+      "id, admission_no, full_name, date_of_birth, status, primary_phone, secondary_phone, updated_at, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code)",
     )
+    .eq("class_ref.status", "active")
     .order("full_name", { ascending: true });
 
   if (filters.query) {
@@ -469,6 +472,20 @@ export async function getStudents(filters: StudentListFilters) {
     const routeRef = toSingleRecord(row.route_ref);
     const financial = financialMap.get(row.id) ?? null;
     const override = overrideMap.get(row.id) ?? null;
+    const classSessionLabel = classRef?.session_label ?? "";
+    const duesStatus =
+      financial
+        ? "generated"
+        : classSessionLabel &&
+            normalizeSessionKey(classSessionLabel) !== normalizeSessionKey(policy.academicSessionLabel)
+          ? "session_mismatch"
+          : "missing_dues";
+    const duesStatusLabel =
+      duesStatus === "generated"
+        ? "Generated"
+        : duesStatus === "session_mismatch"
+          ? "Session mismatch"
+          : "Dues not generated";
     const hasFeeException =
       override !== null &&
       (override.custom_tuition_fee_amount !== null ||
@@ -519,6 +536,8 @@ export async function getStudents(filters: StudentListFilters) {
       nextDueDate: financial?.next_due_date ?? null,
       nextDueAmount: financial?.next_due_amount ?? null,
       statusLabel: financial?.status_label ?? "",
+      duesStatus,
+      duesStatusLabel,
       lastPaymentDate: financial?.last_payment_date ?? null,
       lastPaymentAmount: financial?.last_payment_amount ?? 0,
       duplicateSrFlag: Boolean(financial?.duplicate_sr_flag),

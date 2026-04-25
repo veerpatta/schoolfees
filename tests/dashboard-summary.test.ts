@@ -262,24 +262,28 @@ describe("dashboard summary", () => {
   it("keeps class rows visible even when dues are missing", () => {
     const summary = buildDashboardSummary({
       financialRows: [],
-      studentRows: [
+      studentRows: [],
+      classRows: [
         {
-          studentId: "student-1",
           classId: "class-1",
           sessionLabel: "2026-27",
           classLabel: "Class 1",
+          sortOrder: 1,
+          activeStudentCount: 40,
         },
       ],
       installmentRows: [],
       overdueInstallments: [],
       transactions: [],
       todayTransactions: [],
-      rawStudentCount: 1,
+      rawStudentCount: 40,
     });
 
-    expect(summary.kpis.totalStudents).toBe(1);
+    expect(summary.kpis.totalStudents).toBe(40);
     expect(summary.classSummary[0]?.classLabel).toBe("Class 1");
-    expect(summary.classSummary[0]?.totalStudents).toBe(1);
+    expect(summary.classSummary[0]?.totalStudents).toBe(40);
+    expect(summary.classSummary[0]?.studentsWithGeneratedDues).toBe(0);
+    expect(summary.classSummary[0]?.missingDuesStudents).toBe(40);
     expect(summary.classSummary[0]?.expectedAmount).toBe(0);
   });
 

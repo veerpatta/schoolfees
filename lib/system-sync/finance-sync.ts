@@ -2,6 +2,8 @@ import "server-only";
 
 import {
   getSystemSyncHealth as getLegacySystemSyncHealth,
+  getRawActiveSessionStudentCount as getLegacyRawActiveSessionStudentCount,
+  getRawClassStudentSummary as getLegacyRawClassStudentSummary,
   revalidateFinanceSurfaces,
   syncAfterFeeSetupChange,
   syncAfterStudentBulkImport as syncAfterStudentBulkImportLegacy,
@@ -63,4 +65,12 @@ export async function repairMissingDues(sessionLabel: string) {
 
 export async function getSystemSyncHealth(sessionLabel?: string) {
   return getLegacySystemSyncHealth(sessionLabel);
+}
+
+export async function getRawActiveSessionStudentCount(sessionLabel: string) {
+  return getLegacyRawActiveSessionStudentCount(sessionLabel);
+}
+
+export async function getRawClassStudentSummary(sessionLabel: string) {
+  return getLegacyRawClassStudentSummary(sessionLabel);
 }

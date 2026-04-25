@@ -1,8 +1,10 @@
 import "server-only";
 
+import { getFeePolicySummary } from "@/lib/fees/data";
 import { getReportsPageData, normalizeReportFilters } from "@/lib/reports/data";
 import type { ImportVerificationDetailRow } from "@/lib/reports/types";
 import type { OfficeWorkbookView } from "@/lib/office/workbook";
+import { createClient } from "@/lib/supabase/server";
 import {
   getWorkbookClassOptions,
   getWorkbookStudentFinancials,
@@ -32,12 +34,64 @@ export type OfficeWorkbookCollectionRow = {
 };
 
 export type OfficeWorkbookStudentRow = WorkbookStudentFinancial & {
+  duesStatus: "generated" | "missing_dues";
+  duesStatusLabel: string;
   receiptHistory: Array<{
     receiptNumber: string;
     paymentDate: string;
     totalAmount: number;
   }>;
 };
+
+type BaseOfficeStudentRow = {
+  id: string;
+  admission_no: string;
+  full_name: string;
+  date_of_birth: string | null;
+  father_name: string | null;
+  mother_name: string | null;
+  primary_phone: string | null;
+  secondary_phone: string | null;
+  status: string;
+  class_id: string;
+  transport_route_id: string | null;
+  class_ref: {
+    id: string;
+    session_label: string;
+    class_name: string;
+    section: string | null;
+    stream_name: string | null;
+    sort_order: number;
+  } | Array<{
+    id: string;
+    session_label: string;
+    class_name: string;
+    section: string | null;
+    stream_name: string | null;
+    sort_order: number;
+  }> | null;
+  route_ref: {
+    route_name: string;
+    route_code: string | null;
+  } | Array<{
+    route_name: string;
+    route_code: string | null;
+  }> | null;
+};
+
+function toSingleRecord<T>(value: T | T[] | null) {
+  return Array.isArray(value) ? value[0] ?? null : value;
+}
+
+function buildClassLabel(value: {
+  class_name: string;
+  section: string | null;
+  stream_name: string | null;
+}) {
+  return [value.class_name, value.section ? `Section ${value.section}` : "", value.stream_name ?? ""]
+    .filter(Boolean)
+    .join(" - ");
+}
 
 export type OfficeWorkbookSummary = {
   studentCount: number;
@@ -107,8 +161,87 @@ function toStudentRows(
 
   return students.map((row) => ({
     ...row,
+    duesStatus: "generated" as const,
+    duesStatusLabel: "Generated",
     receiptHistory: (historyMap.get(row.studentId) ?? []).slice(0, 3),
   }));
+}
+
+async function getBaseOfficeStudents(filters: OfficeWorkbookFilters) {
+  const policy = await getFeePolicySummary();
+  const sessionLabel = filters.sessionLabel || policy.academicSessionLabel;
+  const supabase = await createClient();
+  let query = supabase
+    .from("students")
+    .select(
+      "id, admission_no, full_name, date_of_birth, father_name, mother_name, primary_phone, secondary_phone, status, class_id, transport_route_id, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name, sort_order), route_ref:transport_routes(route_name, route_code)",
+    )
+    .eq("status", "active")
+    .eq("class_ref.session_label", sessionLabel)
+    .eq("class_ref.status", "active")
+    .order("full_name", { ascending: true });
+
+  if (filters.classId) {
+    query = query.eq("class_id", filters.classId);
+  }
+
+  if (filters.routeId) {
+    query = query.eq("transport_route_id", filters.routeId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Unable to load source students: ${error.message}`);
+  }
+
+  return ((data ?? []) as BaseOfficeStudentRow[]).map((row): WorkbookStudentFinancial => {
+    const classRef = toSingleRecord(row.class_ref);
+    const routeRef = toSingleRecord(row.route_ref);
+    return {
+      studentId: row.id,
+      admissionNo: row.admission_no,
+      studentName: row.full_name,
+      dateOfBirth: row.date_of_birth,
+      fatherName: row.father_name,
+      motherName: row.mother_name,
+      fatherPhone: row.primary_phone,
+      motherPhone: row.secondary_phone,
+      recordStatus: row.status,
+      classId: row.class_id,
+      sessionLabel,
+      className: classRef?.class_name ?? "Unknown class",
+      classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
+      sortOrder: classRef?.sort_order ?? 999,
+      transportRouteId: row.transport_route_id,
+      transportRouteName: routeRef?.route_name ?? null,
+      transportRouteCode: routeRef?.route_code ?? null,
+      studentStatusCode: "existing",
+      studentStatusLabel: "Old",
+      tuitionFee: 0,
+      transportFee: 0,
+      academicFee: 0,
+      otherAdjustmentHead: null,
+      otherAdjustmentAmount: 0,
+      grossBaseBeforeDiscount: 0,
+      discountAmount: 0,
+      lateFeeWaiverAmount: 0,
+      lateFeeTotal: 0,
+      totalDue: 0,
+      totalPaid: 0,
+      outstandingAmount: 0,
+      nextDueDate: null,
+      nextDueAmount: null,
+      nextDueLabel: null,
+      lastPaymentDate: null,
+      inst1Pending: 0,
+      inst2Pending: 0,
+      inst3Pending: 0,
+      inst4Pending: 0,
+      statusLabel: "",
+      overrideReason: null,
+    };
+  });
 }
 
 function buildSummary(rows: WorkbookStudentFinancial[]): OfficeWorkbookSummary {
@@ -271,10 +404,19 @@ export async function getOfficeWorkbookData(
         }),
         getWorkbookTransactions(sharedFilters),
       ]);
+      const baseStudents =
+        filters.view === "class_register" || filters.view === "student_dues"
+          ? await getBaseOfficeStudents(filters)
+          : [];
+      const generatedStudentIds = new Set(students.map((row) => row.studentId));
+      const sourceAwareStudents = [
+        ...students,
+        ...baseStudents.filter((row) => !generatedStudentIds.has(row.studentId)),
+      ];
       const filteredRows =
         filters.view === "defaulters"
           ? students.filter((row) => row.statusLabel === "OVERDUE")
-          : students;
+          : sourceAwareStudents;
       const visibleRows = filterStudentRows(filteredRows, filters);
 
       return {

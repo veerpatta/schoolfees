@@ -7,6 +7,8 @@ import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
 import { getSetupWizardData } from "@/lib/setup/data";
 import { createClient } from "@/lib/supabase/server";
 import {
+  getRawActiveSessionStudentCount,
+  getRawClassStudentSummary,
   getSystemSyncHealth,
   type SystemSyncHealth,
 } from "@/lib/system-sync/finance-sync";
@@ -316,6 +318,8 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
   const policy = await getFeePolicySummary();
   const [
     activeStudents,
+    rawStudentCount,
+    rawClassSummary,
     financialRows,
     installmentRows,
     overdueInstallments,
@@ -334,10 +338,11 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
         const { data, error } = await supabase
           .from("students")
           .select(
-            "id, class_id, status, class_ref:classes(id, session_label, class_name, section, stream_name)",
+            "id, class_id, status, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name)",
           )
           .eq("status", "active")
-          .eq("class_ref.session_label", policy.academicSessionLabel);
+          .eq("class_ref.session_label", policy.academicSessionLabel)
+          .eq("class_ref.status", "active");
 
         if (error) {
           throw new Error(error.message);
@@ -381,6 +386,18 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
       [],
       warnings,
     ),
+    optionalLoad(
+      "raw active student count",
+      () => getRawActiveSessionStudentCount(policy.academicSessionLabel),
+      0,
+      warnings,
+    ),
+    optionalLoad(
+      "raw class student summary",
+      () => getRawClassStudentSummary(policy.academicSessionLabel),
+      [],
+      warnings,
+    ),
     optionalLoad("workbook student financials", () => getWorkbookStudentFinancials(), [], warnings),
     optionalLoad("workbook installment balances", () => getWorkbookInstallmentRows(), [], warnings),
     optionalLoad(
@@ -406,11 +423,12 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
   const summary = buildDashboardSummary({
     financialRows,
     studentRows: activeStudents,
+    classRows: rawClassSummary,
     installmentRows,
     overdueInstallments,
     transactions,
     todayTransactions,
-    rawStudentCount: activeStudents.length,
+    rawStudentCount: rawStudentCount || activeStudents.length,
   });
 
   const paidStudents = financialRows.filter((row) => row.statusLabel === "PAID").length;

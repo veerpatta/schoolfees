@@ -19,6 +19,7 @@ type PaymentsPageProps = {
     query?: string;
     studentId?: string;
     classId?: string;
+    repairNotice?: string;
   }>;
 };
 
@@ -35,6 +36,7 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
   const searchQuery = (resolvedSearchParams?.query ?? "").trim();
   const studentId = normalizeStudentId(resolvedSearchParams?.studentId);
   const classId = normalizeStudentId(resolvedSearchParams?.classId);
+  const repairNotice = (resolvedSearchParams?.repairNotice ?? "").trim();
 
   const [staff, data, setup, { classOptions }] = await Promise.all([
     requireStaffPermission("payments:view", { onDenied: "redirect" }),
@@ -68,6 +70,12 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
           actionLabel={readiness.postPayments.actionLabel}
           actionHref={readiness.postPayments.actionHref}
         />
+      ) : null}
+
+      {repairNotice ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {repairNotice}
+        </div>
       ) : null}
 
       <PaymentEntryClient

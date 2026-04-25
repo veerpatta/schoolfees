@@ -11,6 +11,7 @@ import { revalidateCoreFinancePaths } from "@/lib/system-sync/finance-revalidati
 type StudentClassJoin = {
   id: string;
   session_label: string;
+  status: string;
 };
 
 type StudentSessionRow = {
@@ -48,6 +49,15 @@ export type SystemSyncHealth = {
   paymentDeskReady: boolean;
   dashboardReady: boolean;
   warnings: string[];
+  errors: string[];
+};
+
+export type RawClassStudentSummaryRow = {
+  classId: string;
+  sessionLabel: string;
+  classLabel: string;
+  sortOrder: number;
+  activeStudentCount: number;
 };
 
 function toSingleRecord<T>(value: T | T[] | null) {
@@ -80,6 +90,30 @@ function buildSyncResult(
   };
 }
 
+function buildLedgerWarnings(result: LedgerGenerationResult) {
+  const warnings: string[] = [];
+
+  if (result.scopedStudents === 0 || result.studentsInAcademicSession === 0) {
+    warnings.push("No matching active student was found in the active Fee Setup session.");
+  }
+
+  if (result.studentsMissingSettings > 0) {
+    warnings.push("One or more students belong to a class with no active fee setting.");
+  }
+
+  if (
+    result.scopedStudents > 0 &&
+    result.installmentsToInsert === 0 &&
+    result.installmentsToUpdate === 0 &&
+    result.installmentsToCancel === 0 &&
+    result.lockedInstallments === 0
+  ) {
+    warnings.push("No dues changed. The student may already be synced or may need Fee Setup review.");
+  }
+
+  return warnings;
+}
+
 function buildEmptySyncResult(reason: string, warnings: string[] = []): FinancialSyncResult {
   return {
     academicSessionLabel: "",
@@ -101,6 +135,97 @@ function buildEmptySyncResult(reason: string, warnings: string[] = []): Financia
   };
 }
 
+function buildClassLabel(value: {
+  class_name: string;
+  section: string | null;
+  stream_name: string | null;
+}) {
+  return [value.class_name, value.section ? `Section ${value.section}` : "", value.stream_name ?? ""]
+    .filter(Boolean)
+    .join(" - ");
+}
+
+export async function getRawActiveSessionStudentCount(sessionLabel: string) {
+  const supabase = await createClient();
+  const normalizedSession = sessionLabel.trim();
+
+  if (!normalizedSession) {
+    return 0;
+  }
+
+  const { count, error } = await supabase
+    .from("students")
+    .select("id, class_ref:classes!inner(id)", { count: "exact", head: true })
+    .eq("status", "active")
+    .eq("class_ref.session_label", normalizedSession)
+    .eq("class_ref.status", "active");
+
+  if (error) {
+    throw new Error(`Unable to count active-session students: ${error.message}`);
+  }
+
+  return count ?? 0;
+}
+
+export async function getRawClassStudentSummary(
+  sessionLabel: string,
+): Promise<RawClassStudentSummaryRow[]> {
+  const supabase = await createClient();
+  const normalizedSession = sessionLabel.trim();
+
+  if (!normalizedSession) {
+    return [];
+  }
+
+  const { data: classesRaw, error: classesError } = await supabase
+    .from("classes")
+    .select("id, class_name, section, stream_name, sort_order")
+    .eq("session_label", normalizedSession)
+    .eq("status", "active")
+    .order("sort_order", { ascending: true })
+    .order("class_name", { ascending: true });
+
+  if (classesError) {
+    throw new Error(`Unable to load active class summary: ${classesError.message}`);
+  }
+
+  const classes = (classesRaw ?? []) as Array<{
+    id: string;
+    class_name: string;
+    section: string | null;
+    stream_name: string | null;
+    sort_order: number;
+  }>;
+
+  if (classes.length === 0) {
+    return [];
+  }
+
+  const classIds = classes.map((row) => row.id);
+  const { data: studentsRaw, error: studentsError } = await supabase
+    .from("students")
+    .select("class_id")
+    .eq("status", "active")
+    .in("class_id", classIds);
+
+  if (studentsError) {
+    throw new Error(`Unable to load active class student counts: ${studentsError.message}`);
+  }
+
+  const countsByClassId = ((studentsRaw ?? []) as Array<{ class_id: string }>).reduce(
+    (acc, row) => acc.set(row.class_id, (acc.get(row.class_id) ?? 0) + 1),
+    new Map<string, number>(),
+  );
+
+  return classes.map((row) => ({
+    classId: row.id,
+    sessionLabel: normalizedSession,
+    classLabel: buildClassLabel(row),
+    sortOrder: row.sort_order,
+    activeStudentCount: countsByClassId.get(row.id) ?? 0,
+  }));
+}
+
 export async function syncStudentFinancials(payload: {
   studentIds: readonly string[];
   reason: string;
@@ -115,7 +240,7 @@ export async function syncStudentFinancials(payload: {
   const result = await generateSessionLedgersAction({ scopedStudentIds: studentIds });
   revalidateCoreFinancePaths(studentIds);
 
-  return buildSyncResult(result, payload.reason);
+  return buildSyncResult(result, payload.reason, buildLedgerWarnings(result));
 }
 
 export async function syncSessionFinancials(payload: {
@@ -140,7 +265,7 @@ export async function syncSessionFinancials(payload: {
   const result = await generateSessionLedgersAction();
   revalidateCoreFinancePaths();
 
-  return buildSyncResult(result, payload.reason, warnings);
+  return buildSyncResult(result, payload.reason, [...warnings, ...buildLedgerWarnings(result)]);
 }
 
 export async function syncAfterStudentChange(payload: { studentId: string }) {
@@ -173,12 +298,13 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
   const policy = await getFeePolicySummary();
   const activeSession = sessionLabel?.trim() || policy.academicSessionLabel;
   const warnings: string[] = [];
+  const errors: string[] = [];
 
   let studentRows: StudentSessionRow[] = [];
   try {
     const { data: studentRowsRaw, error: studentsError } = await supabase
       .from("students")
-      .select("id, status, class_id, transport_route_id, class_ref:classes(id, session_label)");
+      .select("id, status, class_id, transport_route_id, class_ref:classes(id, session_label, status)");
 
     if (studentsError) {
       throw new Error(studentsError.message);
@@ -186,14 +312,18 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
 
     studentRows = (studentRowsRaw ?? []) as StudentSessionRow[];
   } catch (error) {
-    warnings.push(
+    errors.push(
       `Unable to load sync health students: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 
   const activeSessionStudents = studentRows.filter((row) => {
     const classRef = toSingleRecord(row.class_ref);
-    return classRef?.session_label === activeSession && row.status === "active";
+    return (
+      classRef?.session_label === activeSession &&
+      classRef.status === "active" &&
+      row.status === "active"
+    );
   });
   const activeSessionStudentIds = activeSessionStudents.map((row) => row.id);
   const activeSessionClassIds = [...new Set(activeSessionStudents.map((row) => row.class_id))];
@@ -204,8 +334,27 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
         .filter((value): value is string => Boolean(value)),
     ),
   ];
-  const academicSessionsCurrentSession = policy.academicSessionLabel;
+  let academicSessionsCurrentSession: string | null = null;
+  try {
+    const { data, error } = await supabase
+      .from("academic_sessions")
+      .select("session_label")
+      .eq("is_current", true)
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    academicSessionsCurrentSession = data?.session_label?.trim() || null;
+  } catch (error) {
+    warnings.push(
+      `Unable to load academic current session: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
   const sessionsMatch =
+    academicSessionsCurrentSession !== null &&
     academicSessionsCurrentSession.trim().toLowerCase() === activeSession.trim().toLowerCase();
 
   const activeSessionClassRows = await supabase
@@ -318,7 +467,10 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
   const studentsMissingDues = Math.max(studentsMissingFinancialRows, studentsMissingInstallmentRows);
   const studentsInInactiveOrWrongSession = studentRows.filter((row) => {
     const classRef = toSingleRecord(row.class_ref);
-    return row.status === "active" && classRef?.session_label !== activeSession;
+    return (
+      row.status === "active" &&
+      (classRef?.session_label !== activeSession || classRef?.status !== "active")
+    );
   }).length;
 
   return {
@@ -343,5 +495,6 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
       activeSessionStudents.length === 0 ||
       (studentsMissingFinancialRows === 0 && studentsWithNoFeeSetting === 0),
     warnings,
+    errors,
   };
 }

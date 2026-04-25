@@ -332,7 +332,7 @@ function InstallmentTrackerTable({ rows }: { rows: OfficeWorkbookStudentRow[] })
                 <td className="px-4 py-3">{formatInr(row.lateFeeWaiverAmount)}</td>
                 <td className="px-4 py-3">
                   <ValueStatePill tone={getStatusTone(row.statusLabel)} className="normal-case tracking-normal">
-                    {row.statusLabel || "-"}
+                    {row.duesStatus === "missing_dues" ? "Dues not generated" : row.statusLabel || "-"}
                   </ValueStatePill>
                 </td>
                 <td className="px-4 py-3">
@@ -403,9 +403,15 @@ function StudentDuesTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
                 <td className="px-4 py-3">{formatInr(row.totalPaid)}</td>
                 <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.outstandingAmount)}</td>
                 <td className="px-4 py-3">
-                  <div>{row.nextDueLabel ?? "No pending dues"}</div>
+                  <div>
+                    {row.duesStatus === "missing_dues"
+                      ? "Dues not generated"
+                      : row.nextDueLabel ?? "No pending dues"}
+                  </div>
                   <div className="text-xs text-slate-500">
-                    {row.nextDueDate ? `${formatShortDate(row.nextDueDate)} | ${formatInr(row.nextDueAmount ?? 0)}` : "-"}
+                    {row.duesStatus === "missing_dues"
+                      ? "Generate dues before collection"
+                      : row.nextDueDate ? `${formatShortDate(row.nextDueDate)} | ${formatInr(row.nextDueAmount ?? 0)}` : "-"}
                   </div>
                 </td>
                 <td className="px-4 py-3">
@@ -480,7 +486,7 @@ function ClassRegisterTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
                 <td className="px-4 py-3">{formatInr(row.nextDueAmount ?? 0)}</td>
                 <td className="px-4 py-3">
                   <ValueStatePill tone={getStatusTone(row.statusLabel)} className="normal-case tracking-normal">
-                    {row.statusLabel || "-"}
+                    {row.duesStatus === "missing_dues" ? "Dues not generated" : row.statusLabel || "-"}
                   </ValueStatePill>
                 </td>
                 <td className="px-4 py-3">{formatOptionalDate(row.lastPaymentDate)}</td>

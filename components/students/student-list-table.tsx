@@ -109,6 +109,9 @@ export function StudentListTable({
               Status
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+              Dues
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
               Last payment
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
@@ -210,6 +213,21 @@ export function StudentListTable({
                 ) : (
                   <StudentStatusBadge status={student.status} />
                 )}
+              </td>
+              <td className="px-4 py-3">
+                <div className="flex flex-col gap-2">
+                  <StatusBadge
+                    label={student.duesStatusLabel}
+                    tone={student.duesStatus === "generated" ? "good" : "warning"}
+                  />
+                  {student.duesStatus !== "generated" ? (
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/protected/payments?studentId=${student.id}`}>
+                        Generate dues
+                      </Link>
+                    </Button>
+                  ) : null}
+                </div>
               </td>
               <td className="px-4 py-3 text-sm text-slate-700">
                 <p>{student.lastPaymentDate ?? "-"}</p>

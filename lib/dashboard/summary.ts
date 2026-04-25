@@ -32,6 +32,8 @@ export type DashboardClassSummaryRow = {
   sessionLabel: string;
   classLabel: string;
   totalStudents: number;
+  studentsWithGeneratedDues: number;
+  missingDuesStudents: number;
   expectedAmount: number;
   collectedAmount: number;
   pendingAmount: number;
@@ -92,6 +94,13 @@ export type DashboardSummaryInput = {
     classId: string;
     sessionLabel: string;
     classLabel: string;
+  }>;
+  classRows?: Array<{
+    classId: string;
+    sessionLabel: string;
+    classLabel: string;
+    sortOrder: number;
+    activeStudentCount: number;
   }>;
   installmentRows: WorkbookInstallmentBalance[];
   overdueInstallments: WorkbookInstallmentBalance[];
@@ -183,6 +192,8 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
         sessionLabel: row.sessionLabel,
         classLabel: row.classLabel,
         totalStudents: 0,
+        studentsWithGeneratedDues: 0,
+        missingDuesStudents: 0,
         expectedAmount: 0,
         collectedAmount: 0,
         pendingAmount: 0,
@@ -201,13 +212,15 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
     >(),
   );
 
-  for (const row of input.financialRows) {
+  for (const row of input.classRows ?? []) {
     const key = `${row.sessionLabel}::${row.classId}`;
     const existing = classMap.get(key) ?? {
       classId: row.classId,
       sessionLabel: row.sessionLabel,
       classLabel: row.classLabel,
       totalStudents: 0,
+      studentsWithGeneratedDues: 0,
+      missingDuesStudents: 0,
       expectedAmount: 0,
       collectedAmount: 0,
       pendingAmount: 0,
@@ -217,6 +230,29 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
     };
 
     existing.classLabel = row.classLabel;
+    existing.totalStudents = Math.max(existing.totalStudents, row.activeStudentCount);
+    classMap.set(key, existing);
+  }
+
+  for (const row of input.financialRows) {
+    const key = `${row.sessionLabel}::${row.classId}`;
+    const existing = classMap.get(key) ?? {
+      classId: row.classId,
+      sessionLabel: row.sessionLabel,
+      classLabel: row.classLabel,
+      totalStudents: 0,
+      studentsWithGeneratedDues: 0,
+      missingDuesStudents: 0,
+      expectedAmount: 0,
+      collectedAmount: 0,
+      pendingAmount: 0,
+      overdueAmount: 0,
+      overdueStudents: 0,
+      studentsWithPending: 0,
+    };
+
+    existing.classLabel = row.classLabel;
+    existing.studentsWithGeneratedDues += 1;
     existing.expectedAmount += row.totalDue;
     existing.collectedAmount += row.totalPaid;
     existing.pendingAmount += row.outstandingAmount;
@@ -229,6 +265,7 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
     .map(([key, row]) => ({
       ...row,
       overdueAmount: overdueByClass.get(key) ?? 0,
+      missingDuesStudents: Math.max(row.totalStudents - row.studentsWithGeneratedDues, 0),
       collectionRate: calculatePercentage(row.collectedAmount, row.expectedAmount),
     }))
     .sort((left, right) => {

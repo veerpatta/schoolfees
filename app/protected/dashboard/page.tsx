@@ -265,7 +265,13 @@ function TrendChart({
 function ClassPendingChart({
   rows,
 }: {
-  rows: Array<{ classLabel: string; pendingAmount: number; collectionRate: number }>;
+  rows: Array<{
+    classLabel: string;
+    pendingAmount: number;
+    collectionRate: number;
+    totalStudents: number;
+    studentsWithGeneratedDues: number;
+  }>;
 }) {
   const chartRows = rows.slice(0, 8);
   const maxPending = Math.max(...chartRows.map((row) => row.pendingAmount), 0);
@@ -287,7 +293,9 @@ function ClassPendingChart({
               />
             </div>
             <p className="text-sm font-semibold text-slate-950 sm:text-right">
-              {formatInr(row.pendingAmount)}
+              {row.studentsWithGeneratedDues === 0 && row.totalStudents > 0
+                ? "Not generated"
+                : formatInr(row.pendingAmount)}
             </p>
           </div>
         ))
@@ -399,6 +407,8 @@ function ClassSummaryTable({
     pendingAmount: number;
     overdueAmount: number;
     collectionRate: number;
+    studentsWithGeneratedDues: number;
+    missingDuesStudents: number;
   }>;
 }) {
   return (
@@ -427,11 +437,25 @@ function ClassSummaryTable({
               <tr key={row.classLabel} className="border-t border-slate-100">
                 <td className="px-4 py-3 font-medium text-slate-950">{row.classLabel}</td>
                 <td className="px-4 py-3">{row.totalStudents}</td>
-                <td className="px-4 py-3">{formatInr(row.expectedAmount)}</td>
+                <td className="px-4 py-3">
+                  {row.studentsWithGeneratedDues === 0 && row.totalStudents > 0
+                    ? "Not generated"
+                    : formatInr(row.expectedAmount)}
+                </td>
                 <td className="px-4 py-3">{formatInr(row.collectedAmount)}</td>
                 <td className="px-4 py-3 font-semibold text-slate-950">{formatInr(row.pendingAmount)}</td>
                 <td className="px-4 py-3 text-amber-800">{formatInr(row.overdueAmount)}</td>
-                <td className="px-4 py-3">{formatPercent(row.collectionRate)}</td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span>{formatPercent(row.collectionRate)}</span>
+                    {row.missingDuesStudents > 0 ? (
+                      <StatusBadge
+                        label={`${row.missingDuesStudents} missing dues`}
+                        tone="warning"
+                      />
+                    ) : null}
+                  </div>
+                </td>
               </tr>
             ))
           )}
@@ -674,6 +698,15 @@ function SystemSyncHealthPanel({
           {health.rawStudentsInActiveSession} students found, but dues are not generated for {health.studentsMissingInstallmentRows} student{health.studentsMissingInstallmentRows === 1 ? "" : "s"}.
         </p>
       ) : null}
+      {health.errors.length > 0 || health.warnings.length > 0 ? (
+        <div className="mt-4 space-y-2 text-sm text-amber-900">
+          {[...health.errors, ...health.warnings].map((message) => (
+            <p key={message} className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+              {message}
+            </p>
+          ))}
+        </div>
+      ) : null}
     </SectionCard>
   );
 }
@@ -800,9 +833,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          title="Total Students"
+          title="Active Students"
           value={data.kpis.totalStudents}
-          hint="Students included in the current fee position."
+          hint="Active students in the Fee Setup working session."
         />
         <MetricCard
           title="Total Expected Fees"

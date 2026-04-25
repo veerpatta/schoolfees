@@ -38,7 +38,7 @@ describe("system sync health", () => {
               status: "active",
               class_id: "class-1",
               transport_route_id: null,
-              class_ref: { id: "class-1", session_label: "2026-27" },
+              class_ref: { id: "class-1", session_label: "2026-27", status: "active" },
             },
           ],
           error: null,
@@ -67,6 +67,15 @@ describe("system sync health", () => {
       then: vi.fn((resolve) => resolve({ count: 0, error: null })),
     };
 
+    const academicSessionQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: { session_label: "2026-27" },
+        error: null,
+      }),
+    };
+
     createClient.mockResolvedValue({
       from: vi.fn((table: string) => {
         if (table === "students") return studentQuery;
@@ -74,6 +83,7 @@ describe("system sync health", () => {
         if (table === "installments") return installmentQuery;
         if (table === "fee_settings") return feeSettingQuery;
         if (table === "transport_routes") return routeQuery;
+        if (table === "academic_sessions") return academicSessionQuery;
         if (table === "v_workbook_student_financials") {
           return {
             select: vi.fn().mockReturnThis(),

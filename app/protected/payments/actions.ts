@@ -126,7 +126,30 @@ export async function repairPaymentDeskStudentDuesAction(formData: FormData) {
   await requireStaffPermission("fees:write");
   const studentId = parseUuid(formData.get("studentId"), "Student");
 
-  await syncStudentDues([studentId]);
+  const result = await syncStudentDues([studentId]);
+  const noticeParts = [
+    `Dues repair: ${result.installmentsToInsert} inserted`,
+    `${result.installmentsToUpdate} updated`,
+    `${result.installmentsToCancel} cancelled`,
+    `${result.lockedInstallments} protected`,
+  ];
 
-  redirect(`/protected/payments?studentId=${studentId}`);
+  if (result.studentsMissingSettings > 0) {
+    noticeParts.push("class fee setup is missing");
+  }
+
+  if (result.scopedStudents === 0 || result.studentsInAcademicSession === 0) {
+    noticeParts.push("student is not in the active Fee Setup session");
+  }
+
+  for (const warning of result.warnings) {
+    noticeParts.push(warning);
+  }
+
+  const params = new URLSearchParams({
+    studentId,
+    repairNotice: noticeParts.join("; "),
+  });
+
+  redirect(`/protected/payments?${params.toString()}`);
 }

@@ -38,6 +38,7 @@ type PaymentStudentBaseRow = {
         class_name: string;
         section: string | null;
         stream_name: string | null;
+        status: string;
       }
     | Array<{
         id: string;
@@ -45,6 +46,7 @@ type PaymentStudentBaseRow = {
         class_name: string;
         section: string | null;
         stream_name: string | null;
+        status: string;
       }>
     | null;
 };
@@ -123,10 +125,11 @@ async function getBasePaymentStudentOptions(payload: {
   let query = supabase
     .from("students")
     .select(
-      "id, full_name, admission_no, father_name, primary_phone, secondary_phone, class_ref:classes!inner(id, session_label, class_name, section, stream_name)",
+      "id, full_name, admission_no, father_name, primary_phone, secondary_phone, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name)",
     )
-    .in("status", ["active", "inactive"])
+    .eq("status", "active")
     .eq("class_ref.session_label", policy.academicSessionLabel)
+    .eq("class_ref.status", "active")
     .order("full_name", { ascending: true });
 
   if (payload.classId) {
