@@ -4,8 +4,10 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  buildPaymentDeskSearchIndex,
   buildPaymentConfirmationSummary,
   buildStudentSelectLabel,
+  filterPaymentDeskStudents,
   resetPaymentDraftForNextPayment,
   shouldBlockClientSubmission,
   validatePaymentDraft,
@@ -108,7 +110,7 @@ describe("payment desk cashier workflow", () => {
     ).toEqual({ ok: false, message: "Wait for the dues preview to finish refreshing." });
   });
 
-  it("payment_confirm_requires_reference_for_non_cash", () => {
+  it("payment_reference_optional_for_all_modes", () => {
     expect(
       validatePaymentDraft({
         selectedStudent,
@@ -119,11 +121,11 @@ describe("payment desk cashier workflow", () => {
         referenceNumber: "",
         receivedBy: "Office Staff",
         previewTotalPending: 4000,
-        referenceRequired: true,
       }),
     ).toEqual({
-      ok: false,
-      message: "Reference number is required for UPI, bank transfer, and cheque payments.",
+      ok: true,
+      amount: 1500,
+      remainingBalance: 2500,
     });
   });
 
@@ -164,19 +166,78 @@ describe("payment desk cashier workflow", () => {
     });
   });
 
-  it("student labels avoid fake dues before selection", () => {
+  it("student labels stay short and show SR no", () => {
     expect(
       buildStudentSelectLabel({
         id: "student-1",
         fullName: "Asha Sharma",
         admissionNo: "SR-1",
+        classId: "class-1",
         classLabel: "Class 1",
         fatherName: null,
         fatherPhone: null,
         motherPhone: null,
+        studentStatus: "active",
         pendingAmount: null,
       }),
-    ).toContain("dues load after selection");
+    ).toBe("Asha Sharma — SR: SR-1");
+  });
+
+  it("payment_search_matches_name_sr_father_phone", () => {
+    const students = [
+      {
+        id: "s1",
+        fullName: "Asha Sharma",
+        admissionNo: "SR-001",
+        classId: "c1",
+        classLabel: "Class 1",
+        fatherName: "Ramesh Sharma",
+        fatherPhone: "9999999999",
+        motherPhone: null,
+        studentStatus: "active",
+      },
+      {
+        id: "s2",
+        fullName: "Bhavesh Patel",
+        admissionNo: "SR-099",
+        classId: "c1",
+        classLabel: "Class 1",
+        fatherName: "Mahesh Patel",
+        fatherPhone: "8888888888",
+        motherPhone: null,
+        studentStatus: "active",
+      },
+    ];
+    const searchIndex = buildPaymentDeskSearchIndex(students);
+
+    expect(filterPaymentDeskStudents({ students, searchIndex, selectedClassId: "c1", query: "SR-099" })).toHaveLength(1);
+    expect(filterPaymentDeskStudents({ students, searchIndex, selectedClassId: "c1", query: "Asha" })).toHaveLength(1);
+    expect(filterPaymentDeskStudents({ students, searchIndex, selectedClassId: "c1", query: "Ramesh" })).toHaveLength(1);
+    expect(filterPaymentDeskStudents({ students, searchIndex, selectedClassId: "c1", query: "8888" })).toHaveLength(1);
+  });
+
+  it("payment_search_not_limited_to_first_80", () => {
+    const students = Array.from({ length: 120 }, (_, index) => ({
+      id: `s-${index + 1}`,
+      fullName: `Student ${String(index + 1).padStart(3, "0")}`,
+      admissionNo: `SR-${String(index + 1).padStart(3, "0")}`,
+      classId: "c1",
+      classLabel: "Class 1",
+      fatherName: null,
+      fatherPhone: null,
+      motherPhone: null,
+      studentStatus: "active",
+    }));
+    const searchIndex = buildPaymentDeskSearchIndex(students);
+    const matches = filterPaymentDeskStudents({
+      students,
+      searchIndex,
+      selectedClassId: "c1",
+      query: "SR-120",
+      limit: 200,
+    });
+
+    expect(matches.map((item) => item.admissionNo)).toContain("SR-120");
   });
 
   it("payment desk component contains the required cashier dialogs and locked states", () => {

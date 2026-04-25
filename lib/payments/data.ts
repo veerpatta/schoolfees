@@ -2,22 +2,19 @@ import "server-only";
 
 import type { PaymentMode } from "@/lib/db/types";
 import { getFeePolicySummary } from "@/lib/fees/data";
-import { looksLikeReceiptQuery, normalizePaymentDeskQuery } from "@/lib/payments/search";
 import { createClient } from "@/lib/supabase/server";
 import { getStudentDetail } from "@/lib/students/data";
 import {
   prepareDuesForStudentsAutomatically,
 } from "@/lib/system-sync/finance-sync";
-import {
-  getWorkbookInstallmentBalances,
-  getWorkbookStudentFinancials,
-} from "@/lib/workbook/data";
+import { getWorkbookStudentFinancials } from "@/lib/workbook/data";
 import type {
   InstallmentBalanceItem,
+  PaymentDeskStudentSummary,
   PaymentDeskIssue,
   PaymentEntryPageData,
+  PaymentStudentIndexItem,
   PaymentPostingDiagnostic,
-  PaymentStudentOption,
   SelectedStudentSummary,
 } from "@/lib/payments/types";
 
@@ -348,61 +345,30 @@ function buildClassLabel(value: {
   return parts.join(" - ");
 }
 
-function escapeIlikePattern(value: string) {
-  return value.replace(/[\\%_]/g, (match) => `\\${match}`);
-}
+function toStudentIndexItem(row: PaymentStudentBaseRow): PaymentStudentIndexItem | null {
+  const classRef = toSingleRecord(row.class_ref);
 
-function compareStudentSearchPriority(query: string) {
-  const normalizedQuery = query.toLowerCase();
+  if (!classRef) {
+    return null;
+  }
 
-  return (left: PaymentStudentOption, right: PaymentStudentOption) => {
-    const score = (item: PaymentStudentOption) => {
-      const admission = item.admissionNo.toLowerCase();
-      const name = item.fullName.toLowerCase();
-      const phone = `${item.fatherPhone ?? ""} ${item.motherPhone ?? ""}`;
-
-      if (admission === normalizedQuery) return 0;
-      if (admission.startsWith(normalizedQuery)) return 1;
-      if (phone.includes(normalizedQuery)) return 2;
-      if (name.startsWith(normalizedQuery)) return 3;
-      return 4;
-    };
-
-    return score(left) - score(right) || left.fullName.localeCompare(right.fullName);
-  };
-}
-
-function buildStudentOption(payload: {
-  studentId: string;
-  studentName: string;
-  admissionNo: string;
-  classLabel: string;
-  fatherName: string | null;
-  fatherPhone: string | null;
-  motherPhone: string | null;
-  pendingAmount?: number | null;
-}): PaymentStudentOption {
   return {
-    id: payload.studentId,
-    fullName: payload.studentName,
-    admissionNo: payload.admissionNo,
-    classLabel: payload.classLabel,
-    fatherName: payload.fatherName,
-    fatherPhone: payload.fatherPhone,
-    motherPhone: payload.motherPhone,
-    pendingAmount: payload.pendingAmount ?? null,
+    id: row.id,
+    fullName: row.full_name,
+    admissionNo: row.admission_no,
+    classId: classRef.id,
+    classLabel: buildClassLabel(classRef),
+    fatherName: row.father_name,
+    fatherPhone: row.primary_phone,
+    motherPhone: row.secondary_phone,
+    studentStatus: "active",
   };
 }
 
-async function getBasePaymentStudentOptions(payload: {
-  classId?: string;
-  normalizedQuery: string;
-  selectedStudentId?: string | null;
-  pendingByStudentId: Map<string, number>;
-}) {
+export async function getPaymentDeskStudentIndex() {
   const policy = await getFeePolicySummary();
   const supabase = await createClient();
-  let query = supabase
+  const { data, error } = await supabase
     .from("students")
     .select(
       "id, full_name, admission_no, father_name, primary_phone, secondary_phone, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name)",
@@ -412,66 +378,14 @@ async function getBasePaymentStudentOptions(payload: {
     .eq("class_ref.status", "active")
     .order("full_name", { ascending: true });
 
-  if (payload.classId) {
-    query = query.eq("class_ref.id", payload.classId);
-  }
-
-  if (payload.normalizedQuery) {
-    const pattern = `%${escapeIlikePattern(payload.normalizedQuery)}%`;
-    query = query.or(
-      [
-        `full_name.ilike.${pattern}`,
-        `admission_no.ilike.${pattern}`,
-        `father_name.ilike.${pattern}`,
-        `primary_phone.ilike.${pattern}`,
-        `secondary_phone.ilike.${pattern}`,
-      ].join(","),
-    );
-  }
-
-  query = query.limit(payload.normalizedQuery ? 30 : 80);
-
-  const { data, error } = await query;
-
   if (error) {
-    throw new Error(`Unable to load Payment Desk students: ${error.message}`);
+    throw new Error(`Unable to load Payment Desk student index: ${error.message}`);
   }
 
   return ((data ?? []) as PaymentStudentBaseRow[])
-    .map((row) => {
-      const classRef = toSingleRecord(row.class_ref);
-
-      return buildStudentOption({
-        studentId: row.id,
-        studentName: row.full_name,
-        admissionNo: row.admission_no,
-        classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
-        fatherName: row.father_name,
-        fatherPhone: row.primary_phone,
-        motherPhone: row.secondary_phone,
-        pendingAmount: payload.pendingByStudentId.get(row.id) ?? null,
-      });
-    })
-    .sort(payload.normalizedQuery ? compareStudentSearchPriority(payload.normalizedQuery) : undefined);
-}
-
-function mapBreakdown(
-  rows: Awaited<ReturnType<typeof getWorkbookInstallmentBalances>>,
-): InstallmentBalanceItem[] {
-  return rows.map((row) => ({
-    installmentId: row.installmentId,
-    installmentNo: row.installmentNo,
-    installmentLabel: row.installmentLabel,
-    dueDate: row.dueDate,
-    amountDue: row.totalCharge,
-    paymentsTotal: row.paidAmount,
-    adjustmentsTotal: row.adjustmentAmount,
-    outstandingAmount: row.pendingAmount,
-    rawLateFee: row.rawLateFee,
-    waiverApplied: row.waiverApplied,
-    finalLateFee: row.finalLateFee,
-    balanceStatus: row.balanceStatus,
-  }));
+    .map(toStudentIndexItem)
+    .filter((row): row is PaymentStudentIndexItem => Boolean(row))
+    .sort((left, right) => left.fullName.localeCompare(right.fullName));
 }
 
 function summarizeStudent(
@@ -585,49 +499,25 @@ async function getTodayPaymentDeskCollection() {
   };
 }
 
-async function getReceiptStudentMatches(normalizedQuery: string) {
-  if (!normalizedQuery || !looksLikeReceiptQuery(normalizedQuery)) {
-    return [];
-  }
-
+async function getLatestReceiptForStudent(studentId: string) {
   const supabase = await createClient();
-  const pattern = `%${escapeIlikePattern(normalizedQuery)}%`;
   const { data, error } = await supabase
     .from("receipts")
     .select(
       "id, receipt_number, student_id, total_amount, payment_mode, payment_date, reference_number, created_at, student_ref:students!inner(full_name, admission_no, father_name, primary_phone, class_ref:classes(class_name, section, stream_name))",
     )
-    .or(`receipt_number.ilike.${pattern},reference_number.ilike.${pattern}`)
+    .eq("student_id", studentId)
     .order("created_at", { ascending: false })
-    .limit(10);
+    .limit(1)
+    .maybeSingle();
 
   if (error) {
-    return [];
+    return null;
   }
 
-  const seen = new Set<string>();
-  return ((data ?? []) as PaymentDeskReceiptRow[]).flatMap((row) => {
-    const student = toSingleRecord(row.student_ref);
-    const classRef = student ? toSingleRecord(student.class_ref) : null;
-
-    if (!student || seen.has(row.student_id)) {
-      return [];
-    }
-
-    seen.add(row.student_id);
-    return [
-      buildStudentOption({
-        studentId: row.student_id,
-        studentName: student.full_name,
-        admissionNo: student.admission_no,
-        classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
-        fatherName: student.father_name,
-        fatherPhone: student.primary_phone,
-        motherPhone: null,
-      }),
-    ];
-  });
+  return data ? mapPaymentDeskReceipt(data as PaymentDeskReceiptRow) : null;
 }
+
 
 export async function countNonCancelledInstallments(studentId: string) {
   const supabase = await createClient();
@@ -888,98 +778,73 @@ export async function getPaymentEntryPageData(payload: {
   autoPrepareMissingDues?: boolean;
 }): Promise<PaymentEntryPageData> {
   const policy = await getFeePolicySummary();
-  const normalizedQuery = normalizePaymentDeskQuery(payload.searchQuery);
-  const [selectedWorkbookRows, receiptStudentMatches, recentReceipts, todayCollection] = await Promise.all([
-    payload.studentId
-      ? getWorkbookStudentFinancials({
-          studentId: payload.studentId,
-          sessionLabel: policy.academicSessionLabel,
-        })
-      : Promise.resolve([]),
-    getReceiptStudentMatches(normalizedQuery),
+  const [studentIndex, recentReceipts, todayCollection] = await Promise.all([
+    getPaymentDeskStudentIndex(),
     getRecentPaymentDeskReceipts(6),
     getTodayPaymentDeskCollection(),
   ]);
-  let studentOptions = await getBasePaymentStudentOptions({
-    classId: payload.classId,
-    normalizedQuery,
-    selectedStudentId: payload.studentId,
-    pendingByStudentId: new Map(),
+  const today = new Date().toISOString().slice(0, 10);
+  const summary = payload.studentId
+    ? await getPaymentDeskStudentSummary({
+        studentId: payload.studentId,
+        paymentDate: today,
+        autoPrepareMissingDues: payload.autoPrepareMissingDues,
+      })
+    : null;
+
+  return {
+    studentIndex,
+    initialStudentId: payload.studentId,
+    initialClassId: payload.classId ?? "",
+    initialStudentSummary: summary?.student ?? null,
+    initialStudentIssue: summary?.issue ?? null,
+    initialLatestReceipt: summary?.latestReceipt ?? null,
+    modeOptions: policy.acceptedPaymentModes,
+    policyNote: `${policy.academicSessionLabel} policy uses receipt prefix ${policy.receiptPrefix}, ${policy.lateFeeLabel.toLowerCase()}, and ${policy.acceptedPaymentModes.map((item) => item.label).join(", ")}.`,
+    recentReceipts,
+    todayCollection,
+  };
+}
+
+export async function getPaymentDeskStudentSummary(payload: {
+  studentId: string;
+  paymentDate: string;
+  autoPrepareMissingDues?: boolean;
+}): Promise<PaymentDeskStudentSummary> {
+  const policy = await getFeePolicySummary();
+  const selectedWorkbookRows = await getWorkbookStudentFinancials({
+    studentId: payload.studentId,
+    sessionLabel: policy.academicSessionLabel,
   });
+  const selectedFinancial = selectedWorkbookRows[0] ?? null;
   let selectedStudentIssue: PaymentDeskIssue | null = null;
 
-  if (receiptStudentMatches.length > 0) {
-    const seenIds = new Set(studentOptions.map((item) => item.id));
-    studentOptions = [
-      ...receiptStudentMatches.filter((item) => {
-        if (seenIds.has(item.id)) {
-          return false;
-        }
-
-        seenIds.add(item.id);
-        return true;
-      }),
-      ...studentOptions,
-    ];
-  }
-
-  if (!payload.studentId) {
-    return {
-      studentOptions,
-      selectedStudent: null,
-      selectedStudentIssue: null,
-      searchQuery: normalizedQuery,
-      classId: payload.classId ?? "",
-      modeOptions: policy.acceptedPaymentModes,
-      policyNote: `${policy.academicSessionLabel} policy uses receipt prefix ${policy.receiptPrefix}, ${policy.lateFeeLabel.toLowerCase()}, and ${policy.acceptedPaymentModes.map((item) => item.label).join(", ")}.`,
-      recentReceipts,
-      todayCollection,
-    };
-  }
-
-  const selectedFinancial = selectedWorkbookRows[0] ?? null;
-
   if (selectedFinancial) {
-    const [breakdown, financialState] = await Promise.all([
-      getWorkbookInstallmentBalances(selectedFinancial.studentId).then(mapBreakdown),
-      getStudentFinancialState(selectedFinancial.studentId),
-    ]);
-    if (breakdown.length === 0) {
-      if (payload.autoPrepareMissingDues) {
-        const autoPrepareIssue = await tryAutoPrepareSelectedStudentDues({
-          studentId: selectedFinancial.studentId,
-          policySessionLabel: policy.academicSessionLabel,
-        });
+    let breakdown = await getPaymentDateAwareInstallmentBalances({
+      studentId: selectedFinancial.studentId,
+      paymentDate: payload.paymentDate,
+    });
 
-        if (!autoPrepareIssue) {
-          return getPaymentEntryPageData({
-            ...payload,
-            autoPrepareMissingDues: false,
-          });
-        }
-
-        selectedStudentIssue = autoPrepareIssue;
-      }
-
-      const selectedOption = buildStudentOption({
+    if (breakdown.length === 0 && payload.autoPrepareMissingDues) {
+      const autoPrepareIssue = await tryAutoPrepareSelectedStudentDues({
         studentId: selectedFinancial.studentId,
-        studentName: selectedFinancial.studentName,
-        admissionNo: selectedFinancial.admissionNo,
-        classLabel: selectedFinancial.classLabel,
-        fatherName: selectedFinancial.fatherName,
-        fatherPhone: selectedFinancial.fatherPhone,
-        motherPhone: selectedFinancial.motherPhone,
-        pendingAmount: selectedFinancial.outstandingAmount,
+        policySessionLabel: policy.academicSessionLabel,
       });
 
-      if (!studentOptions.some((item) => item.id === selectedOption.id)) {
-        studentOptions = [selectedOption, ...studentOptions];
+      if (!autoPrepareIssue) {
+        breakdown = await getPaymentDateAwareInstallmentBalances({
+          studentId: selectedFinancial.studentId,
+          paymentDate: payload.paymentDate,
+        });
+      } else {
+        selectedStudentIssue = autoPrepareIssue;
       }
+    }
 
+    if (breakdown.length === 0) {
       return {
-        studentOptions,
-        selectedStudent: null,
-        selectedStudentIssue:
+        student: null,
+        issue:
           selectedStudentIssue ?? {
             title: "Dues are not prepared for this student.",
             detail:
@@ -988,125 +853,66 @@ export async function getPaymentEntryPageData(payload: {
             actionHref: null,
             repairStudentId: selectedFinancial.studentId,
           },
-        searchQuery: normalizedQuery,
-        classId: payload.classId ?? "",
-        modeOptions: policy.acceptedPaymentModes,
-        policyNote: `${policy.academicSessionLabel} policy uses receipt prefix ${policy.receiptPrefix}, ${policy.lateFeeLabel.toLowerCase()}, and ${policy.acceptedPaymentModes.map((item) => item.label).join(", ")}.`,
-        recentReceipts,
-        todayCollection,
+        latestReceipt: await getLatestReceiptForStudent(payload.studentId),
+        suggestedDefaultAmount: null,
+        paymentDate: payload.paymentDate,
       };
     }
 
+    const financialState = await getStudentFinancialState(selectedFinancial.studentId);
     const selectedStudent = summarizeStudent(selectedFinancial, breakdown, financialState);
-    const selectedOption = buildStudentOption({
-      studentId: selectedStudent.id,
-      studentName: selectedStudent.fullName,
-      admissionNo: selectedStudent.admissionNo,
-      classLabel: selectedStudent.classLabel,
-      fatherName: selectedStudent.fatherName,
-      fatherPhone: selectedStudent.fatherPhone,
-      motherPhone: selectedStudent.motherPhone,
-      pendingAmount: selectedStudent.totalPending,
-    });
-
-    if (!studentOptions.some((item) => item.id === selectedOption.id)) {
-      studentOptions = [selectedOption, ...studentOptions];
-    }
 
     return {
-      studentOptions,
-      selectedStudent,
-      selectedStudentIssue: null,
-      searchQuery: normalizedQuery,
-      classId: payload.classId ?? "",
-      modeOptions: policy.acceptedPaymentModes,
-      policyNote: `${policy.academicSessionLabel} policy uses receipt prefix ${policy.receiptPrefix}, ${policy.lateFeeLabel.toLowerCase()}, and ${policy.acceptedPaymentModes.map((item) => item.label).join(", ")}.`,
-      recentReceipts,
-      todayCollection,
+      student: selectedStudent,
+      issue: null,
+      latestReceipt: await getLatestReceiptForStudent(payload.studentId),
+      suggestedDefaultAmount:
+        selectedStudent.totalPending > 0
+          ? (selectedStudent.nextDueAmount ?? selectedStudent.totalPending)
+          : null,
+      paymentDate: payload.paymentDate,
     };
   }
 
   const selectedStudentDetail = await getStudentDetail(payload.studentId);
-
   if (selectedStudentDetail) {
-    if (payload.autoPrepareMissingDues) {
-      const autoPrepareIssue = await tryAutoPrepareSelectedStudentDues({
-        studentId: selectedStudentDetail.id,
-        policySessionLabel: policy.academicSessionLabel,
-      });
-
-      if (!autoPrepareIssue) {
-        return getPaymentEntryPageData({
-          ...payload,
-          autoPrepareMissingDues: false,
-        });
-      }
-
-      selectedStudentIssue = autoPrepareIssue;
-    }
-
-    const selectedOption = buildStudentOption({
-      studentId: selectedStudentDetail.id,
-      studentName: selectedStudentDetail.fullName,
-      admissionNo: selectedStudentDetail.admissionNo,
-      classLabel: selectedStudentDetail.classLabel,
-      fatherName: selectedStudentDetail.fatherName,
-      fatherPhone: selectedStudentDetail.fatherPhone,
-      motherPhone: selectedStudentDetail.motherPhone,
-    });
-
-    if (!studentOptions.some((item) => item.id === selectedOption.id)) {
-      studentOptions = [selectedOption, ...studentOptions];
-    }
-
-    selectedStudentIssue =
-      selectedStudentIssue ??
-      (selectedStudentDetail.classSessionLabel !== policy.academicSessionLabel
-        ? {
-            title: "Selected student belongs to another academic session.",
-            detail:
-              `This student is in ${selectedStudentDetail.classSessionLabel || "a different session"}, but the active fee policy is ${policy.academicSessionLabel}. Open Fee Setup and make the same session active before dues or payments will appear.`,
-            actionLabel: "Open Fee Setup",
-            actionHref: "/protected/fee-setup",
-          }
-        : {
-            title: "Dues are not prepared for this student.",
-            detail:
-              "Student exists, but dues are not prepared yet. Payment Desk can repair this only when Fee Setup is complete.",
-            actionLabel: "Prepare dues again",
-            actionHref: null,
-            repairStudentId: selectedStudentDetail.id,
-          });
-
     return {
-      studentOptions,
-      selectedStudent: null,
-      selectedStudentIssue,
-      searchQuery: normalizedQuery,
-      classId: payload.classId ?? "",
-      modeOptions: policy.acceptedPaymentModes,
-      policyNote: `${policy.academicSessionLabel} policy uses receipt prefix ${policy.receiptPrefix}, ${policy.lateFeeLabel.toLowerCase()}, and ${policy.acceptedPaymentModes.map((item) => item.label).join(", ")}.`,
-      recentReceipts,
-      todayCollection,
+      student: null,
+      issue:
+        selectedStudentDetail.classSessionLabel !== policy.academicSessionLabel
+          ? {
+              title: "Selected student belongs to another academic session.",
+              detail:
+                `This student is in ${selectedStudentDetail.classSessionLabel || "a different session"}, but the active fee policy is ${policy.academicSessionLabel}. Open Fee Setup and make the same session active before dues or payments will appear.`,
+              actionLabel: "Open Fee Setup",
+              actionHref: "/protected/fee-setup",
+            }
+          : {
+              title: "Dues are not prepared for this student.",
+              detail:
+                "Student exists, but dues are not prepared yet. Payment Desk can repair this only when Fee Setup is complete.",
+              actionLabel: "Prepare dues again",
+              actionHref: null,
+              repairStudentId: selectedStudentDetail.id,
+            },
+      latestReceipt: await getLatestReceiptForStudent(payload.studentId),
+      suggestedDefaultAmount: null,
+      paymentDate: payload.paymentDate,
     };
   }
 
   return {
-    studentOptions,
-    selectedStudent: null,
-    selectedStudentIssue: {
+    student: null,
+    issue: {
       title: "Selected student could not be loaded.",
       detail:
         "Refresh the Payment Desk and try again, or open the student record to confirm the student exists and has fee data.",
       actionLabel: "Open Students",
       actionHref: "/protected/students",
     },
-    searchQuery: normalizedQuery,
-    classId: payload.classId ?? "",
-    modeOptions: policy.acceptedPaymentModes,
-    policyNote: `${policy.academicSessionLabel} policy uses receipt prefix ${policy.receiptPrefix}, ${policy.lateFeeLabel.toLowerCase()}, and ${policy.acceptedPaymentModes.map((item) => item.label).join(", ")}.`,
-    recentReceipts,
-    todayCollection,
+    latestReceipt: null,
+    suggestedDefaultAmount: null,
+    paymentDate: payload.paymentDate,
   };
 }
 

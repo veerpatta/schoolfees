@@ -52,11 +52,25 @@ export type PaymentStudentOption = {
   id: string;
   fullName: string;
   admissionNo: string;
+  classId?: string;
   classLabel: string;
   fatherName: string | null;
   fatherPhone: string | null;
   motherPhone: string | null;
+  studentStatus?: string;
   pendingAmount: number | null;
+};
+
+export type PaymentStudentIndexItem = {
+  id: string;
+  fullName: string;
+  admissionNo: string;
+  classId: string;
+  classLabel: string;
+  fatherName: string | null;
+  fatherPhone: string | null;
+  motherPhone: string | null;
+  studentStatus: string;
 };
 
 export type InstallmentBalanceItem = {
@@ -117,11 +131,21 @@ export type PaymentDeskIssue = {
 };
 
 export type PaymentEntryPageData = {
-  studentOptions: PaymentStudentOption[];
-  selectedStudent: SelectedStudentSummary | null;
-  selectedStudentIssue: PaymentDeskIssue | null;
-  searchQuery: string;
-  classId: string;
+  studentIndex: PaymentStudentIndexItem[];
+  initialStudentId: string | null;
+  initialClassId: string;
+  initialStudentSummary: SelectedStudentSummary | null;
+  initialStudentIssue: PaymentDeskIssue | null;
+  initialLatestReceipt: {
+    id: string;
+    receiptNumber: string;
+    studentId: string;
+    studentLabel: string;
+    totalAmount: number;
+    paymentMode: string;
+    paymentDate: string;
+    createdAt: string | null;
+  } | null;
   modeOptions: PaymentModeOption[];
   policyNote: string;
   recentReceipts: Array<{
@@ -138,6 +162,14 @@ export type PaymentEntryPageData = {
     receiptCount: number;
     totalAmount: number;
   };
+};
+
+export type PaymentDeskStudentSummary = {
+  student: SelectedStudentSummary | null;
+  issue: PaymentDeskIssue | null;
+  latestReceipt: PaymentEntryPageData["initialLatestReceipt"];
+  suggestedDefaultAmount: number | null;
+  paymentDate: string;
 };
 
 export type PaymentModeOption = {

@@ -1,5 +1,9 @@
 import type { PaymentMode } from "@/lib/db/types";
-import type { PaymentStudentOption, SelectedStudentSummary } from "@/lib/payments/types";
+import type {
+  PaymentStudentIndexItem,
+  PaymentStudentOption,
+  SelectedStudentSummary,
+} from "@/lib/payments/types";
 
 export type PaymentDraft = {
   selectedStudent: SelectedStudentSummary | null;
@@ -98,12 +102,42 @@ export function buildPaymentConfirmationSummary(
 }
 
 export function buildStudentSelectLabel(student: PaymentStudentOption) {
-  const pendingLabel =
-    student.pendingAmount == null
-      ? "dues load after selection"
-      : `pending Rs ${student.pendingAmount}`;
+  return `${student.fullName} — SR: ${student.admissionNo}`;
+}
 
-  return `${student.fullName} (${student.admissionNo}) - ${student.classLabel} - ${pendingLabel}`;
+export function buildPaymentDeskSearchIndex(students: PaymentStudentIndexItem[]) {
+  return new Map(
+    students.map((student) => [
+      student.id,
+      `${student.fullName} ${student.admissionNo} ${student.fatherName ?? ""} ${student.fatherPhone ?? ""} ${student.motherPhone ?? ""}`
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .trim(),
+    ]),
+  );
+}
+
+export function filterPaymentDeskStudents(payload: {
+  students: PaymentStudentIndexItem[];
+  searchIndex: Map<string, string>;
+  selectedClassId: string;
+  query: string;
+  limit?: number;
+}) {
+  const normalizedQuery = payload.query.trim().toLowerCase();
+  const classFiltered = payload.selectedClassId
+    ? payload.students.filter((student) => student.classId === payload.selectedClassId)
+    : payload.students;
+  const searched = normalizedQuery
+    ? classFiltered.filter((student) =>
+        (payload.searchIndex.get(student.id) ?? "").includes(normalizedQuery),
+      )
+    : classFiltered;
+
+  return searched
+    .slice()
+    .sort((left, right) => left.fullName.localeCompare(right.fullName))
+    .slice(0, payload.limit ?? 200);
 }
 
 export function shouldBlockClientSubmission(payload: {

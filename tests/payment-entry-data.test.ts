@@ -57,6 +57,25 @@ describe("payment entry data", () => {
     };
     createClient.mockResolvedValue({
       from: vi.fn(() => emptyStudentQuery),
+      rpc: vi.fn().mockResolvedValue({
+        data: [
+          {
+            installment_id: "inst-1",
+            installment_no: 1,
+            installment_label: "Installment 1",
+            due_date: "2026-04-20",
+            total_charge: 1500,
+            paid_amount: 0,
+            adjustment_amount: 0,
+            raw_late_fee: 0,
+            waiver_applied: 0,
+            final_late_fee: 0,
+            pending_amount: 1500,
+            balance_status: "pending",
+          },
+        ],
+        error: null,
+      }),
     });
     prepareDuesForStudentsAutomatically.mockResolvedValue({
       readyForPaymentCount: 1,
@@ -141,9 +160,9 @@ describe("payment entry data", () => {
       classId: "class-1",
     });
 
-    expect(data.selectedStudent?.id).toBe("student-1");
-    expect(data.selectedStudentIssue).toBeNull();
-    expect(data.studentOptions[0]?.id).toBe("student-1");
+    expect(data.initialStudentSummary?.id).toBe("student-1");
+    expect(data.initialStudentIssue).toBeNull();
+    expect(data.initialStudentId).toBe("student-1");
   });
 
   it("does not load workbook dues for every student before a student is selected", async () => {
@@ -180,6 +199,7 @@ describe("payment entry data", () => {
     };
     createClient.mockResolvedValue({
       from: vi.fn(() => studentQuery),
+      rpc: vi.fn().mockResolvedValue({ data: [], error: null }),
     });
 
     const { getPaymentEntryPageData } = await import("@/lib/payments/data");
@@ -190,8 +210,8 @@ describe("payment entry data", () => {
     });
 
     expect(getWorkbookStudentFinancials).not.toHaveBeenCalled();
-    expect(data.studentOptions).toHaveLength(1);
-    expect(data.studentOptions[0]?.pendingAmount).toBeNull();
+    expect(data.studentIndex).toHaveLength(1);
+    expect(data.studentIndex[0]?.admissionNo).toBe("SR-3");
   });
 
   it("shows a recovery message when a student exists but dues are not generated", async () => {
@@ -234,66 +254,62 @@ describe("payment entry data", () => {
       classId: "class-1",
     });
 
-    expect(data.selectedStudent).toBeNull();
-    expect(data.selectedStudentIssue?.title).toContain("Dues are not prepared");
-    expect(data.selectedStudentIssue?.actionHref).toBeNull();
-    expect(data.selectedStudentIssue?.repairStudentId).toBe("student-2");
+    expect(data.initialStudentSummary).toBeNull();
+    expect(data.initialStudentIssue?.title).toContain("Dues are not prepared");
+    expect(data.initialStudentIssue?.actionHref).toBeNull();
+    expect(data.initialStudentIssue?.repairStudentId).toBe("student-2");
   });
 
   it("auto-prepares selected active student dues once when Payment Desk can post", async () => {
-    let financialCallCount = 0;
     getWorkbookStudentFinancials.mockImplementation(async (filters?: { studentId?: string }) => {
       if (!filters?.studentId) {
         return [];
       }
 
-      financialCallCount += 1;
-      return financialCallCount >= 2
-        ? [
-            {
-              studentId: "student-2",
-              admissionNo: "SR-2",
-              studentName: "Test Student",
-              fatherName: "Father",
-              motherName: null,
-              fatherPhone: "8888888888",
-              motherPhone: null,
-              recordStatus: "active",
-              classId: "class-1",
-              sessionLabel: "2026-27",
-              className: "Class 1",
-              classLabel: "Class 1",
-              sortOrder: 1,
-              transportRouteId: null,
-              transportRouteName: null,
-              transportRouteCode: null,
-              studentStatusCode: "existing",
-              studentStatusLabel: "Old",
-              tuitionFee: 1000,
-              transportFee: 0,
-              academicFee: 500,
-              otherAdjustmentHead: null,
-              otherAdjustmentAmount: 0,
-              grossBaseBeforeDiscount: 1500,
-              discountAmount: 0,
-              lateFeeWaiverAmount: 0,
-              lateFeeTotal: 0,
-              totalDue: 1500,
-              totalPaid: 0,
-              outstandingAmount: 1500,
-              nextDueDate: "2026-04-20",
-              nextDueAmount: 1500,
-              nextDueLabel: "Installment 1",
-              lastPaymentDate: null,
-              inst1Pending: 1500,
-              inst2Pending: 0,
-              inst3Pending: 0,
-              inst4Pending: 0,
-              statusLabel: "NOT STARTED",
-              overrideReason: null,
-            },
-          ]
-        : [];
+      return [
+        {
+          studentId: "student-2",
+          admissionNo: "SR-2",
+          studentName: "Test Student",
+          fatherName: "Father",
+          motherName: null,
+          fatherPhone: "8888888888",
+          motherPhone: null,
+          recordStatus: "active",
+          classId: "class-1",
+          sessionLabel: "2026-27",
+          className: "Class 1",
+          classLabel: "Class 1",
+          sortOrder: 1,
+          transportRouteId: null,
+          transportRouteName: null,
+          transportRouteCode: null,
+          studentStatusCode: "existing",
+          studentStatusLabel: "Old",
+          tuitionFee: 1000,
+          transportFee: 0,
+          academicFee: 500,
+          otherAdjustmentHead: null,
+          otherAdjustmentAmount: 0,
+          grossBaseBeforeDiscount: 1500,
+          discountAmount: 0,
+          lateFeeWaiverAmount: 0,
+          lateFeeTotal: 0,
+          totalDue: 1500,
+          totalPaid: 0,
+          outstandingAmount: 1500,
+          nextDueDate: "2026-04-20",
+          nextDueAmount: 1500,
+          nextDueLabel: "Installment 1",
+          lastPaymentDate: null,
+          inst1Pending: 1500,
+          inst2Pending: 0,
+          inst3Pending: 0,
+          inst4Pending: 0,
+          statusLabel: "NOT STARTED",
+          overrideReason: null,
+        },
+      ];
     });
     getWorkbookInstallmentBalances.mockResolvedValue([
       {
@@ -337,6 +353,28 @@ describe("payment entry data", () => {
     };
     createClient.mockResolvedValue({
       from: vi.fn((table: string) => (table === "installments" ? installmentCountQuery : studentQuery)),
+      rpc: vi
+        .fn()
+        .mockResolvedValueOnce({ data: [], error: null })
+        .mockResolvedValueOnce({
+          data: [
+            {
+              installment_id: "inst-1",
+              installment_no: 1,
+              installment_label: "Installment 1",
+              due_date: "2026-04-20",
+              total_charge: 1500,
+              paid_amount: 0,
+              adjustment_amount: 0,
+              raw_late_fee: 0,
+              waiver_applied: 0,
+              final_late_fee: 0,
+              pending_amount: 1500,
+              balance_status: "pending",
+            },
+          ],
+          error: null,
+        }),
     });
 
     const { getPaymentEntryPageData } = await import("@/lib/payments/data");
@@ -351,7 +389,7 @@ describe("payment entry data", () => {
       studentIds: ["student-2"],
       reason: "Payment Desk selected student",
     });
-    expect(data.selectedStudent?.id).toBe("student-2");
-    expect(data.selectedStudentIssue).toBeNull();
+    expect(data.initialStudentSummary?.id).toBe("student-2");
+    expect(data.initialStudentIssue).toBeNull();
   });
 });

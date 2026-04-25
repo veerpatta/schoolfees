@@ -26,7 +26,7 @@ describe("source of truth audit fixes", () => {
 
     expect(reportsData).toContain('.from("v_workbook_installment_balances")');
     expect(reportsData).toContain('.select("pending_amount")');
-    expect(paymentsData).toContain("getWorkbookInstallmentBalances");
+    expect(paymentsData).toContain("getPaymentDateAwareInstallmentBalances");
     expect(paymentsData).toContain("pending_amount");
   });
 
@@ -58,7 +58,7 @@ describe("source of truth audit fixes", () => {
     expect(paymentData).toContain("preview_workbook_payment_allocation");
     expect(paymentData).toContain("Payment preview needs a database update.");
     expect(previewRoute).toContain("getPaymentDateAwareInstallmentBalances");
-    expect(paymentClient).toContain("/protected/payments/preview");
+    expect(paymentClient).toContain("/protected/payments/student-summary");
     expect(paymentClient).toContain("previewUnavailable");
     expect(paymentClient).toContain("previewTotalPending");
     expect(migration).toContain("private.workbook_installment_snapshot(p_student_id, p_payment_date, true)");
