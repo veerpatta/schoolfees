@@ -31,6 +31,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import {
+  alignWorkingSessionWithFeeSetupAction,
   repairCurrentSessionDuesAction,
   repairPaymentDeskDataAction,
   syncCurrentSessionAction,
@@ -619,8 +620,8 @@ function SystemSyncHealthPanel({
   canRepair: boolean;
 }) {
   const rows = [
-    ["Active session", health.activeSession],
-    ["Fee Setup session", health.academicSessionsCurrentSession],
+    ["Fee Setup active session", health.activeSession],
+    ["Academic current session", health.academicSessionsCurrentSession ?? "Not set"],
     ["Sessions match", health.sessionsMatch ? "Yes" : "No"],
     ["Students in active session", health.rawStudentsInActiveSession],
     ["Students shown by default", health.studentsShownInDefaultWorkspace],
@@ -668,6 +669,11 @@ function SystemSyncHealthPanel({
                   Sync Current Session
                 </Button>
               </form>
+              <form action={alignWorkingSessionWithFeeSetupAction}>
+                <Button type="submit" size="sm" variant="outline">
+                  Align Working Session with Fee Setup
+                </Button>
+              </form>
               <form action={repairPaymentDeskDataAction}>
                 <Button type="submit" size="sm" variant="outline">
                   Repair Payment Desk Data
@@ -697,6 +703,105 @@ function SystemSyncHealthPanel({
         <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           {health.rawStudentsInActiveSession} students found, but dues are not generated for {health.studentsMissingInstallmentRows} student{health.studentsMissingInstallmentRows === 1 ? "" : "s"}.
         </p>
+      ) : null}
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="font-semibold text-slate-950">Active students by session</p>
+          <div className="mt-3 space-y-2 text-sm text-slate-700">
+            {health.activeStudentsBySession.length === 0 ? (
+              <p className="text-slate-500">No active students found.</p>
+            ) : (
+              health.activeStudentsBySession.map((row) => (
+                <div key={row.sessionLabel} className="flex justify-between gap-3">
+                  <span>{row.sessionLabel}</span>
+                  <span className="font-semibold text-slate-950">{row.count}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="font-semibold text-slate-950">Workbook financial rows by session</p>
+          <div className="mt-3 space-y-2 text-sm text-slate-700">
+            {health.workbookFinancialRowsBySession.length === 0 ? (
+              <p className="text-slate-500">No workbook financial rows found.</p>
+            ) : (
+              health.workbookFinancialRowsBySession.map((row) => (
+                <div key={row.sessionLabel} className="flex justify-between gap-3">
+                  <span>{row.sessionLabel}</span>
+                  <span className="font-semibold text-slate-950">{row.count}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="font-semibold text-slate-950">Import batches by target session</p>
+          <div className="mt-3 space-y-2 text-sm text-slate-700">
+            {health.importBatchesByTargetSessionStatus.length === 0 ? (
+              <p className="text-slate-500">No import batches found.</p>
+            ) : (
+              health.importBatchesByTargetSessionStatus.slice(0, 8).map((row) => (
+                <div
+                  key={`${row.targetSessionLabel ?? "not-set"}-${row.status}`}
+                  className="flex justify-between gap-3"
+                >
+                  <span>{row.targetSessionLabel ?? "Not set"} / {row.status}</span>
+                  <span className="font-semibold text-slate-950">{row.count}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="font-semibold text-slate-950">Classes without fee settings</p>
+          <div className="mt-3 space-y-2 text-sm text-slate-700">
+            {health.classRowsWithoutFeeSettings.length === 0 ? (
+              <p className="text-slate-500">No class fee-setting gaps found.</p>
+            ) : (
+              health.classRowsWithoutFeeSettings.slice(0, 8).map((row) => (
+                <div key={row.classId} className="flex justify-between gap-3">
+                  <span>{row.classLabel}</span>
+                  <span className="text-slate-500">{row.sessionLabel}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+      {health.studentsMissingInstallments.length > 0 || health.classSessionMismatchStudents.length > 0 ? (
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p className="font-semibold text-amber-950">Students with dues not generated</p>
+            <div className="mt-3 space-y-2 text-sm text-amber-900">
+              {health.studentsMissingInstallments.slice(0, 8).map((row) => (
+                <p key={row.studentId}>
+                  {row.fullName} ({row.admissionNo || "No SR"}) - {row.sessionLabel}
+                </p>
+              ))}
+              {health.studentsMissingInstallments.length > 8 ? (
+                <p>{health.studentsMissingInstallments.length - 8} more students need review.</p>
+              ) : null}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p className="font-semibold text-amber-950">Students outside Fee Setup session</p>
+            <div className="mt-3 space-y-2 text-sm text-amber-900">
+              {health.classSessionMismatchStudents.length === 0 ? (
+                <p>No class/session mismatch found.</p>
+              ) : (
+                health.classSessionMismatchStudents.slice(0, 8).map((row) => (
+                  <p key={row.studentId}>
+                    {row.fullName} ({row.admissionNo || "No SR"}) - class session {row.sessionLabel}, Fee Setup {row.feeSetupSessionLabel}
+                  </p>
+                ))
+              )}
+              {health.classSessionMismatchStudents.length > 8 ? (
+                <p>{health.classSessionMismatchStudents.length - 8} more students need review.</p>
+              ) : null}
+            </div>
+          </div>
+        </div>
       ) : null}
       {health.errors.length > 0 || health.warnings.length > 0 ? (
         <div className="mt-4 space-y-2 text-sm text-amber-900">

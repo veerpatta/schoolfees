@@ -1,6 +1,7 @@
 import "server-only";
 
 import {
+  alignAcademicCurrentSessionWithFeeSetup as alignAcademicCurrentSessionWithFeeSetupLegacy,
   getSystemSyncHealth as getLegacySystemSyncHealth,
   getRawActiveSessionStudentCount as getLegacyRawActiveSessionStudentCount,
   getRawClassStudentSummary as getLegacyRawClassStudentSummary,
@@ -73,4 +74,8 @@ export async function getRawActiveSessionStudentCount(sessionLabel: string) {
 
 export async function getRawClassStudentSummary(sessionLabel: string) {
   return getLegacyRawClassStudentSummary(sessionLabel);
+}
+
+export async function alignWorkingSessionWithFeeSetup() {
+  return alignAcademicCurrentSessionWithFeeSetupLegacy();
 }

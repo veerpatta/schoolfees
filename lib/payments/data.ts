@@ -24,6 +24,21 @@ type PostStudentPaymentRow = {
   allocated_total: number;
 };
 
+type PaymentPreviewRpcRow = {
+  installment_id: string;
+  installment_no: number;
+  installment_label: string;
+  due_date: string;
+  total_charge: number;
+  paid_amount: number;
+  adjustment_amount: number;
+  raw_late_fee: number;
+  waiver_applied: number;
+  final_late_fee: number;
+  pending_amount: number;
+  balance_status: InstallmentBalanceItem["balanceStatus"];
+};
+
 type PaymentStudentBaseRow = {
   id: string;
   full_name: string;
@@ -518,4 +533,34 @@ export async function postStudentPayment(payload: {
     receiptNumber: row.receipt_number,
     allocatedTotal: row.allocated_total,
   };
+}
+
+export async function getPaymentDateAwareInstallmentBalances(payload: {
+  studentId: string;
+  paymentDate: string;
+}) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("preview_workbook_payment_allocation", {
+    p_student_id: payload.studentId,
+    p_payment_date: payload.paymentDate,
+  });
+
+  if (error) {
+    throw new Error(`Unable to preview selected payment date: ${error.message}`);
+  }
+
+  return ((data ?? []) as PaymentPreviewRpcRow[]).map((row) => ({
+    installmentId: row.installment_id,
+    installmentNo: row.installment_no,
+    installmentLabel: row.installment_label,
+    dueDate: row.due_date,
+    amountDue: row.total_charge,
+    paymentsTotal: row.paid_amount,
+    adjustmentsTotal: row.adjustment_amount,
+    outstandingAmount: row.pending_amount,
+    rawLateFee: row.raw_late_fee,
+    waiverApplied: row.waiver_applied,
+    finalLateFee: row.final_late_fee,
+    balanceStatus: row.balance_status,
+  })) satisfies InstallmentBalanceItem[];
 }

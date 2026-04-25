@@ -63,7 +63,7 @@ type UserRow = {
 };
 
 type InstallmentBalanceRow = {
-  outstanding_amount: number;
+  pending_amount: number;
 };
 
 function toSingleRecord<T>(value: T | T[] | null) {
@@ -432,8 +432,8 @@ export async function addPaymentAdjustment(payload: {
 
   if (payload.amountDelta > 0) {
     const { data: balanceRaw, error: balanceError } = await supabase
-      .from("v_installment_balances")
-      .select("outstanding_amount")
+      .from("v_workbook_installment_balances")
+      .select("pending_amount")
       .eq("student_id", payload.studentId)
       .eq("installment_id", paymentRaw.installment_id)
       .single();
@@ -444,7 +444,7 @@ export async function addPaymentAdjustment(payload: {
 
     const balance = balanceRaw as InstallmentBalanceRow;
 
-    if (payload.amountDelta > balance.outstanding_amount) {
+    if (payload.amountDelta > balance.pending_amount) {
       throw new Error("Positive adjustment cannot exceed current outstanding amount for this installment.");
     }
   }

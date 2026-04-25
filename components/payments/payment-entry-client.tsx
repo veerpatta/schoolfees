@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import { MetricCard } from "@/components/admin/metric-card";
@@ -16,6 +16,7 @@ import {
   buildPaymentQuickAmounts,
 } from "@/lib/payments/workflow";
 import type {
+  InstallmentBalanceItem,
   PaymentEntryActionState,
   PaymentEntryPageData,
 } from "@/lib/payments/types";
@@ -82,6 +83,8 @@ export function PaymentEntryClient({
   const [isReviewing, setIsReviewing] = useState(false);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [dateAwareBreakdown, setDateAwareBreakdown] = useState<InstallmentBalanceItem[] | null>(null);
+  const [previewNotice, setPreviewNotice] = useState<string | null>(null);
   const [paymentMode, setPaymentMode] = useState(data.modeOptions[0]?.value ?? "cash");
   const [referenceNumber, setReferenceNumber] = useState("");
   const [receivedBy, setReceivedBy] = useState(defaultReceivedBy);
@@ -89,26 +92,88 @@ export function PaymentEntryClient({
 
   const selectedStudent = data.selectedStudent;
   const selectedStudentIssue = data.selectedStudentIssue;
+  const previewBreakdown = useMemo(
+    () => dateAwareBreakdown ?? selectedStudent?.breakdown ?? [],
+    [dateAwareBreakdown, selectedStudent?.breakdown],
+  );
+  const previewTotalPending = previewBreakdown.reduce(
+    (sum, item) => sum + item.outstandingAmount,
+    0,
+  );
+  const previewOverdueAmount = previewBreakdown
+    .filter((item) => item.balanceStatus === "overdue")
+    .reduce((sum, item) => sum + item.outstandingAmount, 0);
+  const previewNextDue =
+    previewBreakdown.find((item) => item.outstandingAmount > 0) ?? null;
   const paymentAmount = Number(paymentAmountInput) || 0;
+
+  useEffect(() => {
+    if (!selectedStudent) {
+      setDateAwareBreakdown(null);
+      setPreviewNotice(null);
+      return;
+    }
+
+    let isActive = true;
+    const params = new URLSearchParams({
+      studentId: selectedStudent.id,
+      paymentDate,
+    });
+
+    setPreviewNotice("Refreshing pending amount for selected payment date...");
+
+    fetch(`/protected/payments/preview?${params.toString()}`, {
+      method: "GET",
+      headers: { accept: "application/json" },
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          throw new Error(payload?.error ?? "Unable to refresh payment preview.");
+        }
+
+        return response.json() as Promise<{ rows: InstallmentBalanceItem[] }>;
+      })
+      .then((payload) => {
+        if (!isActive) {
+          return;
+        }
+
+        setDateAwareBreakdown(payload.rows);
+        setPreviewNotice("Pending amount and late fee are recalculated for the selected payment date.");
+      })
+      .catch((error) => {
+        if (!isActive) {
+          return;
+        }
+
+        setDateAwareBreakdown(null);
+        setPreviewNotice(error instanceof Error ? error.message : "Unable to refresh payment preview.");
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [paymentDate, selectedStudent]);
 
   const allocationPreview = useMemo(() => {
     if (!selectedStudent) {
       return [];
     }
 
-    return buildPaymentAllocation(selectedStudent.breakdown, paymentAmount);
-  }, [paymentAmount, selectedStudent]);
+    return buildPaymentAllocation(previewBreakdown, paymentAmount);
+  }, [paymentAmount, previewBreakdown, selectedStudent]);
   const quickAmounts = useMemo(() => {
     if (!selectedStudent) {
       return [];
     }
 
     return buildPaymentQuickAmounts({
-      totalPending: selectedStudent.totalPending,
-      nextDueAmount: selectedStudent.nextDueAmount,
-      overdueAmount: selectedStudent.overdueAmount,
+      totalPending: previewTotalPending,
+      nextDueAmount: previewNextDue?.outstandingAmount ?? null,
+      overdueAmount: previewOverdueAmount,
     });
-  }, [selectedStudent]);
+  }, [previewNextDue, previewOverdueAmount, previewTotalPending, selectedStudent]);
 
   const allocatedPreviewTotal = allocationPreview.reduce(
     (sum, item) => sum + item.allocatedAmount,
@@ -358,20 +423,20 @@ export function PaymentEntryClient({
             />
             <MetricCard
               title="Pending"
-              value={formatInr(selectedStudent.totalPending)}
-              hint="Outstanding balance available for collection"
+              value={formatInr(previewTotalPending)}
+              hint={`Recalculated for payment date ${paymentDate}`}
             />
             <MetricCard
               title="Overdue"
-              value={formatInr(selectedStudent.overdueAmount)}
+              value={formatInr(previewOverdueAmount)}
               hint="Due installments past their date"
             />
             <MetricCard
               title="Next due installment"
-              value={selectedStudent.nextDueInstallmentLabel ?? "No pending dues"}
+              value={previewNextDue?.installmentLabel ?? "No pending dues"}
               hint={
-                selectedStudent.nextDueDate && selectedStudent.nextDueAmount !== null
-                  ? `${selectedStudent.nextDueDate} - ${formatInr(selectedStudent.nextDueAmount)}`
+                previewNextDue
+                  ? `${previewNextDue.dueDate} - ${formatInr(previewNextDue.outstandingAmount)}`
                   : "All installments settled"
               }
             />
@@ -423,7 +488,7 @@ export function PaymentEntryClient({
             actions={
               <div className="flex flex-wrap items-center gap-2">
                 <ValueStatePill tone="policy">Policy-driven</ValueStatePill>
-                {selectedStudent.totalPending > 0 ? (
+                {previewTotalPending > 0 ? (
                   <StatusBadge label="Pending dues" tone="warning" />
                 ) : (
                   <StatusBadge label="Fully paid" tone="good" />
@@ -446,7 +511,7 @@ export function PaymentEntryClient({
                   </tr>
                 </thead>
                 <tbody>
-                  {selectedStudent.breakdown.map((item) => (
+                  {previewBreakdown.map((item) => (
                     <tr key={item.installmentId} className="border-t border-slate-100 text-slate-700">
                       <td className="px-4 py-3">{item.installmentLabel}</td>
                       <td className="px-4 py-3">{item.dueDate}</td>
@@ -548,7 +613,7 @@ export function PaymentEntryClient({
                       name="paymentAmount"
                       type="number"
                       min={1}
-                      max={selectedStudent.totalPending}
+                      max={previewTotalPending}
                       className="mt-2"
                       value={paymentAmountInput}
                       onChange={(event) => {
@@ -648,8 +713,13 @@ export function PaymentEntryClient({
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-sm font-semibold text-slate-900">Installment allocation preview</p>
                   <p className="mt-1 text-xs text-slate-600">
-                    Amount is auto-allocated from oldest pending installment to newest. Final saved allocation stays server-calculated if the payment date changes late-fee position.
+                    Amount is auto-allocated from oldest pending installment to newest. Final late fee and pending amount are recalculated for the selected payment date.
                   </p>
+                  {previewNotice ? (
+                    <p className="mt-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+                      {previewNotice}
+                    </p>
+                  ) : null}
 
                   {allocationPreview.length === 0 ? (
                     <p className="mt-3 text-sm text-slate-600">
@@ -704,6 +774,9 @@ export function PaymentEntryClient({
                         <span>Allocated: {formatInr(allocatedPreviewTotal)}</span>
                         <span>Unallocated: {formatInr(unallocatedAmount)}</span>
                       </div>
+                      <p className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-blue-950">
+                        Date-adjusted pending before payment: {formatInr(previewTotalPending)}
+                      </p>
                       <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
                         This will generate an append-only receipt and cannot be edited later.
                       </p>
@@ -721,9 +794,9 @@ export function PaymentEntryClient({
                       type="button"
                       disabled={
                         !canPost ||
-                        selectedStudent.totalPending <= 0 ||
+                        previewTotalPending <= 0 ||
                         paymentAmount <= 0 ||
-                        paymentAmount > selectedStudent.totalPending
+                        paymentAmount > previewTotalPending
                       }
                       onClick={() => setIsReviewing(true)}
                     >
@@ -735,9 +808,9 @@ export function PaymentEntryClient({
                       disabled={
                         !canPost ||
                         pending ||
-                        selectedStudent.totalPending <= 0 ||
+                        previewTotalPending <= 0 ||
                         paymentAmount <= 0 ||
-                        paymentAmount > selectedStudent.totalPending
+                        paymentAmount > previewTotalPending
                       }
                     >
                       {pending ? "Generating receipt..." : "Confirm & Generate Receipt"}

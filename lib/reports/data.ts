@@ -91,25 +91,50 @@ type ReceiptSourceItem = {
   classLabel: string;
 };
 
-type InstallmentBalanceRow = {
+type WorkbookInstallmentBalanceReportRow = {
+  installment_id: string;
   student_id: string;
   transport_route_id: string | null;
   transport_route_name: string | null;
   transport_route_code: string | null;
   admission_no: string;
-  full_name: string;
+  student_name: string;
   session_label: string;
+  class_id: string;
   class_name: string;
+  class_label: string;
   section: string;
   stream_name: string;
   installment_no: number;
   installment_label: string;
   due_date: string;
-  amount_due: number;
-  payments_total: number;
-  adjustments_total: number;
-  outstanding_amount: number;
-  balance_status: "paid" | "partial" | "overdue" | "pending" | "waived" | "cancelled";
+  total_charge: number;
+  paid_amount: number;
+  adjustment_amount: number;
+  applied_amount: number;
+  pending_amount: number;
+  balance_status: "paid" | "partial" | "overdue" | "pending" | "waived";
+};
+
+type BaseReportStudentRow = {
+  id: string;
+  admission_no: string;
+  full_name: string;
+  class_id: string;
+  transport_route_id: string | null;
+  father_name: string | null;
+  primary_phone: string | null;
+  class_ref: ClassRefRow | ClassRefRow[] | null;
+  route_ref:
+    | {
+        route_name: string;
+        route_code: string | null;
+      }
+    | Array<{
+        route_name: string;
+        route_code: string | null;
+      }>
+    | null;
 };
 
 type LedgerStudentRow = {
@@ -547,24 +572,86 @@ function filterReceiptSourceRows(
   });
 }
 
+async function getActiveSessionBaseReportStudents(filters: ReportFilters) {
+  const supabase = await createClient();
+  const policy = await getFeePolicySummary();
+  const sessionLabel = filters.sessionLabel || policy.academicSessionLabel;
+  let query = supabase
+    .from("students")
+    .select(
+      "id, admission_no, full_name, class_id, transport_route_id, father_name, primary_phone, class_ref:classes!inner(session_label, status, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code)",
+    )
+    .eq("status", "active")
+    .eq("class_ref.session_label", sessionLabel)
+    .eq("class_ref.status", "active")
+    .order("full_name", { ascending: true });
+
+  if (filters.classId) {
+    query = query.eq("class_id", filters.classId);
+  }
+
+  if (filters.transportRouteId) {
+    query = query.eq("transport_route_id", filters.transportRouteId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Unable to load source students for reports: ${error.message}`);
+  }
+
+  return ((data ?? []) as BaseReportStudentRow[]).flatMap((row) => {
+    const classRef = toSingleRecord(row.class_ref);
+    const routeRef = toSingleRecord(row.route_ref);
+
+    if (!classRef) {
+      return [];
+    }
+
+    return [
+      {
+        studentId: row.id,
+        admissionNo: row.admission_no,
+        fullName: row.full_name,
+        sessionLabel,
+        classLabel: buildClassLabel({
+          class_name: classRef.class_name,
+          section: classRef.section || null,
+          stream_name: classRef.stream_name || null,
+        }),
+        transportRouteLabel: buildRouteLabel(routeRef),
+        installmentNo: 0,
+        installmentLabel: "Dues not generated",
+        dueDate: "",
+        amountDue: 0,
+        paymentsTotal: 0,
+        adjustmentsTotal: 0,
+        collectedAmount: 0,
+        outstandingAmount: 0,
+        balanceStatus: "missing_dues" as const,
+      } satisfies OutstandingReportRow,
+    ];
+  });
+}
+
 async function getOutstandingReportData(
   filters: ReportFilters,
   classOptions: StudentClassOption[],
 ): Promise<OutstandingReportData> {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("v_installment_balances")
+    .from("v_workbook_installment_balances")
     .select(
-      "student_id, transport_route_id, transport_route_name, transport_route_code, admission_no, full_name, session_label, class_name, section, stream_name, installment_no, installment_label, due_date, amount_due, payments_total, adjustments_total, outstanding_amount, balance_status",
+      "installment_id, student_id, transport_route_id, transport_route_name, transport_route_code, admission_no, student_name, session_label, class_id, class_name, class_label, section, stream_name, installment_no, installment_label, due_date, total_charge, paid_amount, adjustment_amount, applied_amount, pending_amount, balance_status",
     )
-    .gt("outstanding_amount", 0)
+    .gt("pending_amount", 0)
     .in("balance_status", ["partial", "overdue", "pending"]);
 
   if (error) {
     throw new Error(`Unable to load outstanding report: ${error.message}`);
   }
 
-  const rows = ((data ?? []) as InstallmentBalanceRow[])
+  const generatedRows = ((data ?? []) as WorkbookInstallmentBalanceReportRow[])
     .flatMap((row) => {
       if (
         row.balance_status !== "partial" &&
@@ -578,17 +665,19 @@ async function getOutstandingReportData(
         return [];
       }
 
-      const classLabel = buildClassLabel({
-        class_name: row.class_name,
-        section: row.section || null,
-        stream_name: row.stream_name || null,
-      });
+      const classLabel =
+        row.class_label ||
+        buildClassLabel({
+          class_name: row.class_name,
+          section: row.section || null,
+          stream_name: row.stream_name || null,
+        });
 
       return [
         {
           studentId: row.student_id,
           admissionNo: row.admission_no,
-          fullName: row.full_name,
+          fullName: row.student_name,
           sessionLabel: row.session_label,
           classLabel,
           transportRouteLabel: buildRouteLabel(
@@ -602,11 +691,11 @@ async function getOutstandingReportData(
           installmentNo: row.installment_no,
           installmentLabel: row.installment_label,
           dueDate: row.due_date,
-          amountDue: row.amount_due,
-          paymentsTotal: row.payments_total,
-          adjustmentsTotal: row.adjustments_total,
-          collectedAmount: row.payments_total + row.adjustments_total,
-          outstandingAmount: row.outstanding_amount,
+          amountDue: row.total_charge,
+          paymentsTotal: row.paid_amount,
+          adjustmentsTotal: row.adjustment_amount,
+          collectedAmount: row.applied_amount,
+          outstandingAmount: row.pending_amount,
           balanceStatus: row.balance_status,
         } satisfies OutstandingReportRow,
       ];
@@ -617,9 +706,22 @@ async function getOutstandingReportData(
         sessionLabel: row.sessionLabel,
       }),
     )
-    .filter((row) => dateMatchesRange(row.dueDate, filters))
+    .filter((row) => dateMatchesRange(row.dueDate, filters));
+  const generatedStudentIds = new Set(generatedRows.map((row) => row.studentId));
+  const missingDuesRows = (await getActiveSessionBaseReportStudents(filters)).filter(
+    (row) => !generatedStudentIds.has(row.studentId),
+  );
+  const rows = [...generatedRows, ...missingDuesRows]
     .sort((left, right) => {
       if (left.balanceStatus !== right.balanceStatus) {
+        if (left.balanceStatus === "missing_dues") {
+          return -1;
+        }
+
+        if (right.balanceStatus === "missing_dues") {
+          return 1;
+        }
+
         return left.balanceStatus === "overdue" ? -1 : 1;
       }
 
@@ -633,10 +735,13 @@ async function getOutstandingReportData(
   const metrics = rows.reduce(
     (acc, row) => {
       acc.totalOutstanding += row.outstandingAmount;
-      acc.openInstallments += 1;
 
-      if (row.balanceStatus === "overdue") {
-        acc.overdueInstallments += 1;
+      if (row.balanceStatus !== "missing_dues") {
+        acc.openInstallments += 1;
+
+        if (row.balanceStatus === "overdue") {
+          acc.overdueInstallments += 1;
+        }
       }
 
       acc.studentIds.add(row.studentId);
@@ -1024,10 +1129,10 @@ async function getStudentLedgerReportData(
     );
 
   const { data: balancesRaw, error: balancesError } = await supabase
-    .from("v_installment_balances")
-    .select("outstanding_amount")
+    .from("v_workbook_installment_balances")
+    .select("pending_amount")
     .eq("student_id", selectedStudent.id)
-    .gt("outstanding_amount", 0);
+    .gt("pending_amount", 0);
 
   if (balancesError) {
     throw new Error(
@@ -1035,8 +1140,8 @@ async function getStudentLedgerReportData(
     );
   }
 
-  const currentOutstanding = ((balancesRaw ?? []) as Array<{ outstanding_amount: number }>)
-    .reduce((sum, row) => sum + row.outstanding_amount, 0);
+  const currentOutstanding = ((balancesRaw ?? []) as Array<{ pending_amount: number }>)
+    .reduce((sum, row) => sum + row.pending_amount, 0);
 
   const rows = [...paymentEntries, ...adjustmentEntries].sort((left, right) => {
     if (left.createdAt !== right.createdAt) {
@@ -1511,7 +1616,7 @@ export { formatPaymentModeLabel };
 export function getReportAuditNote(reportKey: ReportKey) {
   switch (reportKey) {
     case "outstanding":
-      return "Totals come from current installment balances after the selected due-date, class, and session filters.";
+      return "Totals come from workbook installment balances after the selected due-date, class, and session filters; active students without generated dues are flagged separately.";
     case "daily-collection":
       return "Summary totals come from posted receipts grouped by payment date and payment mode.";
     case "student-ledger":

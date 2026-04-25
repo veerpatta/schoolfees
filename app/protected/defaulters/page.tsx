@@ -82,7 +82,7 @@ export default async function DefaultersPage({
         />
       </SectionCard>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
             Students listed
@@ -130,7 +130,62 @@ export default async function DefaultersPage({
             Pending, partial, and overdue installments across the listed rows.
           </p>
         </div>
+
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-700">
+            Dues not generated
+          </p>
+          <div className="mt-3 text-2xl font-semibold tracking-tight text-amber-950">
+            {data.metrics.missingDuesStudents}
+          </div>
+          <p className="mt-2 text-sm leading-6 text-amber-900">
+            Active students visible for repair, not counted as true defaulters.
+          </p>
+        </div>
       </section>
+
+      {data.missingDuesRows.length > 0 ? (
+        <SectionCard
+          title="Students with dues not generated"
+          description="These active students are not treated as defaulters yet. Generate dues before collection or follow-up."
+        >
+          <div className="overflow-x-auto rounded-xl border border-amber-200">
+            <table className="w-full min-w-[980px] text-left text-sm">
+              <thead className="bg-amber-50 text-xs uppercase tracking-wide text-amber-800">
+                <tr>
+                  <th className="px-4 py-3">Student</th>
+                  <th className="px-4 py-3">Class</th>
+                  <th className="px-4 py-3">SR no</th>
+                  <th className="px-4 py-3">Father</th>
+                  <th className="px-4 py-3">Phone</th>
+                  <th className="px-4 py-3">Route</th>
+                  <th className="px-4 py-3">Repair</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.missingDuesRows.map((row) => (
+                  <tr key={`missing-${row.studentId}`} className="border-t border-amber-100 text-slate-700">
+                    <td className="px-4 py-3 font-medium text-slate-900">{row.fullName}</td>
+                    <td className="px-4 py-3">{row.classLabel}</td>
+                    <td className="px-4 py-3">{row.admissionNo}</td>
+                    <td className="px-4 py-3">{row.fatherName ?? "-"}</td>
+                    <td className="px-4 py-3">{row.fatherPhone ?? "-"}</td>
+                    <td className="px-4 py-3">{row.transportRouteLabel}</td>
+                    <td className="px-4 py-3">
+                      <Link
+                        className="text-xs font-medium text-blue-700 hover:underline"
+                        href={`/protected/payments?studentId=${row.studentId}`}
+                      >
+                        Open repair
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
+      ) : null}
 
       <SectionCard
         title="Defaulter list"

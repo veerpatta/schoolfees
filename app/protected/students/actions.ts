@@ -12,16 +12,16 @@ import {
 import {
   type StudentFormActionState,
 } from "@/lib/students/types";
+import {
+  isDuesSyncRelevantStatus,
+  shouldSyncStudentDuesForChange,
+} from "@/lib/students/dues-sync";
 import { getStudentFormInput, validateStudentInput } from "@/lib/students/validation";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import {
   syncAfterStudentChange,
   revalidateFinanceSurfaces,
 } from "@/lib/system-sync/finance-sync";
-
-function isLedgerEligibleStatus(status: "active" | "inactive" | "left" | "graduated") {
-  return status === "active" || status === "inactive";
-}
 
 function mapWriteErrorToState(message: string): StudentFormActionState {
   if (message.toLowerCase().includes("admission_no") || message.toLowerCase().includes("students_admission_no_key")) {
@@ -70,7 +70,7 @@ export async function createStudentAction(
     const studentId = await createStudent(validated.data);
     let syncMessage = "";
 
-    if (isLedgerEligibleStatus(validated.data.status)) {
+    if (isDuesSyncRelevantStatus(validated.data.status)) {
       await requireStaffPermission("fees:write");
       const syncResult = await syncAfterStudentChange(studentId);
 
@@ -128,24 +128,11 @@ export async function updateStudentAction(
     }
 
     const updatedStudentId = await updateStudent(studentId, validated.data);
-    const feeProfileChanged =
-      previousStudent.studentTypeOverride !== validated.data.studentTypeOverride ||
-      previousStudent.tuitionOverride !== validated.data.tuitionOverride ||
-      previousStudent.transportOverride !== validated.data.transportOverride ||
-      previousStudent.discountAmount !== validated.data.discountAmount ||
-      previousStudent.lateFeeWaiverAmount !== validated.data.lateFeeWaiverAmount ||
-      previousStudent.otherAdjustmentHead !== validated.data.otherAdjustmentHead ||
-      previousStudent.otherAdjustmentAmount !== validated.data.otherAdjustmentAmount ||
-      previousStudent.overrideReason !== validated.data.feeProfileReason ||
-      previousStudent.overrideNotes !== validated.data.feeProfileNotes;
-    const routeOrClassChanged =
-      previousStudent.transportRouteId !== validated.data.transportRouteId ||
-      previousStudent.classId !== validated.data.classId;
-    const remainsLedgerEligible = isLedgerEligibleStatus(validated.data.status);
+    const shouldSyncDues = shouldSyncStudentDuesForChange(previousStudent, validated.data);
 
     let syncMessage = "";
 
-    if ((routeOrClassChanged || feeProfileChanged) && remainsLedgerEligible) {
+    if (shouldSyncDues) {
       await requireStaffPermission("fees:write");
       const syncResult = await syncAfterStudentChange(updatedStudentId);
 

@@ -137,6 +137,7 @@ export type OfficeWorkbookData =
 function toStudentRows(
   students: WorkbookStudentFinancial[],
   transactions: WorkbookTransaction[],
+  generatedStudentIds?: ReadonlySet<string>,
 ) {
   const historyMap = transactions.reduce(
     (acc, row) => {
@@ -161,8 +162,14 @@ function toStudentRows(
 
   return students.map((row) => ({
     ...row,
-    duesStatus: "generated" as const,
-    duesStatusLabel: "Generated",
+    duesStatus:
+      generatedStudentIds && !generatedStudentIds.has(row.studentId)
+        ? "missing_dues" as const
+        : "generated" as const,
+    duesStatusLabel:
+      generatedStudentIds && !generatedStudentIds.has(row.studentId)
+        ? "Dues not generated"
+        : "Generated",
     receiptHistory: (historyMap.get(row.studentId) ?? []).slice(0, 3),
   }));
 }
@@ -422,7 +429,7 @@ export async function getOfficeWorkbookData(
       return {
         view: filters.view,
         classOptions,
-        rows: toStudentRows(visibleRows, transactions),
+        rows: toStudentRows(visibleRows, transactions, generatedStudentIds),
         summary: buildSummary(visibleRows),
       };
     }

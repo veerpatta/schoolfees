@@ -12,10 +12,15 @@ type StudentClassJoin = {
   id: string;
   session_label: string;
   status: string;
+  class_name: string;
+  section: string | null;
+  stream_name: string | null;
 };
 
 type StudentSessionRow = {
   id: string;
+  admission_no: string;
+  full_name: string;
   status: string;
   class_id: string;
   transport_route_id: string | null;
@@ -36,6 +41,12 @@ export type SystemSyncHealth = {
   activeSession: string;
   academicSessionsCurrentSession: string | null;
   sessionsMatch: boolean;
+  activeStudentsBySession: SessionCountRow[];
+  workbookFinancialRowsBySession: SessionCountRow[];
+  importBatchesByTargetSessionStatus: ImportBatchSessionStatusRow[];
+  studentsMissingInstallments: MissingInstallmentStudentRow[];
+  classSessionMismatchStudents: StudentSessionMismatchRow[];
+  classRowsWithoutFeeSettings: ClassFeeSettingGapRow[];
   rawStudentsInActiveSession: number;
   studentsShownInDefaultWorkspace: number;
   studentsWithFinancialRows: number;
@@ -50,6 +61,34 @@ export type SystemSyncHealth = {
   dashboardReady: boolean;
   warnings: string[];
   errors: string[];
+};
+
+export type SessionCountRow = {
+  sessionLabel: string;
+  count: number;
+};
+
+export type ImportBatchSessionStatusRow = {
+  targetSessionLabel: string | null;
+  status: string;
+  count: number;
+};
+
+export type MissingInstallmentStudentRow = {
+  studentId: string;
+  admissionNo: string;
+  fullName: string;
+  sessionLabel: string;
+};
+
+export type StudentSessionMismatchRow = MissingInstallmentStudentRow & {
+  feeSetupSessionLabel: string;
+};
+
+export type ClassFeeSettingGapRow = {
+  classId: string;
+  sessionLabel: string;
+  classLabel: string;
 };
 
 export type RawClassStudentSummaryRow = {
@@ -143,6 +182,21 @@ function buildClassLabel(value: {
   return [value.class_name, value.section ? `Section ${value.section}` : "", value.stream_name ?? ""]
     .filter(Boolean)
     .join(" - ");
+}
+
+function addSessionCount(
+  map: Map<string, number>,
+  sessionLabel: string | null | undefined,
+  increment = 1,
+) {
+  const label = sessionLabel?.trim() || "Not set";
+  map.set(label, (map.get(label) ?? 0) + increment);
+}
+
+function toSessionCountRows(map: Map<string, number>) {
+  return [...map.entries()]
+    .map(([sessionLabel, count]) => ({ sessionLabel, count }))
+    .sort((left, right) => left.sessionLabel.localeCompare(right.sessionLabel));
 }
 
 export async function getRawActiveSessionStudentCount(sessionLabel: string) {
@@ -304,7 +358,9 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
   try {
     const { data: studentRowsRaw, error: studentsError } = await supabase
       .from("students")
-      .select("id, status, class_id, transport_route_id, class_ref:classes(id, session_label, status)");
+      .select(
+        "id, admission_no, full_name, status, class_id, transport_route_id, class_ref:classes(id, session_label, status, class_name, section, stream_name)",
+      );
 
     if (studentsError) {
       throw new Error(studentsError.message);
@@ -327,6 +383,29 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
   });
   const activeSessionStudentIds = activeSessionStudents.map((row) => row.id);
   const activeSessionClassIds = [...new Set(activeSessionStudents.map((row) => row.class_id))];
+  const activeStudentsBySessionMap = new Map<string, number>();
+  const classSessionMismatchStudents: StudentSessionMismatchRow[] = [];
+
+  studentRows.forEach((row) => {
+    const classRef = toSingleRecord(row.class_ref);
+
+    if (row.status !== "active" || classRef?.status !== "active") {
+      return;
+    }
+
+    addSessionCount(activeStudentsBySessionMap, classRef.session_label);
+
+    if (classRef.session_label !== activeSession) {
+      classSessionMismatchStudents.push({
+        studentId: row.id,
+        admissionNo: row.admission_no,
+        fullName: row.full_name,
+        sessionLabel: classRef.session_label,
+        feeSetupSessionLabel: activeSession,
+      });
+    }
+  });
+
   const activeRouteIds = [
     ...new Set(
       activeSessionStudents
@@ -359,7 +438,7 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
 
   const activeSessionClassRows = await supabase
     .from("classes")
-    .select("id")
+    .select("id, session_label, class_name, section, stream_name")
     .eq("session_label", activeSession)
     .eq("status", "active");
 
@@ -371,8 +450,22 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
   let installmentRowsData: Array<{ student_id: string }> = [];
   let feeSettingRowsData: Array<{ class_id: string }> = [];
   let routesWithoutAnnualFees = 0;
+  const workbookFinancialRowsBySessionMap = new Map<string, number>();
+  const importBatchSessionStatusMap = new Map<string, ImportBatchSessionStatusRow>();
 
   try {
+    const { data, error } = await supabase
+      .from("v_workbook_student_financials")
+      .select("student_id, session_label");
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    ((data ?? []) as Array<{ student_id: string; session_label: string | null }>).forEach((row) => {
+      addSessionCount(workbookFinancialRowsBySessionMap, row.session_label);
+    });
+
     studentsWithFinancialRows = activeSessionStudentIds.length > 0
       ? await getCount(
           supabase
@@ -385,6 +478,31 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
   } catch (error) {
     warnings.push(
       `Unable to count workbook student rows: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("import_batches")
+      .select("target_session_label, status");
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    ((data ?? []) as Array<{ target_session_label: string | null; status: string }>).forEach((row) => {
+      const targetSessionLabel = row.target_session_label?.trim() || null;
+      const key = `${targetSessionLabel ?? "Not set"}::${row.status}`;
+      const current = importBatchSessionStatusMap.get(key);
+      importBatchSessionStatusMap.set(key, {
+        targetSessionLabel,
+        status: row.status,
+        count: (current?.count ?? 0) + 1,
+      });
+    });
+  } catch (error) {
+    warnings.push(
+      `Unable to load import batch session status: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 
@@ -453,6 +571,27 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
     ] as string[],
   );
   const installmentStudentIds = new Set(installmentRowsData.map((row) => row.student_id));
+  const studentsMissingInstallments = activeSessionStudents
+    .filter((row) => !installmentStudentIds.has(row.id))
+    .map((row) => ({
+      studentId: row.id,
+      admissionNo: row.admission_no,
+      fullName: row.full_name,
+      sessionLabel: activeSession,
+    }));
+  const classRowsWithoutFeeSettings = ((activeSessionClassRows.data ?? []) as Array<{
+    id: string;
+    session_label: string;
+    class_name: string;
+    section: string | null;
+    stream_name: string | null;
+  }>)
+    .filter((row) => !feeSettingClassIds.has(row.id))
+    .map((row) => ({
+      classId: row.id,
+      sessionLabel: row.session_label,
+      classLabel: buildClassLabel(row),
+    }));
   const studentsWithNoFeeSetting = activeSessionStudents.filter(
     (row) => !feeSettingClassIds.has(row.class_id),
   ).length;
@@ -477,6 +616,16 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
     activeSession,
     academicSessionsCurrentSession,
     sessionsMatch,
+    activeStudentsBySession: toSessionCountRows(activeStudentsBySessionMap),
+    workbookFinancialRowsBySession: toSessionCountRows(workbookFinancialRowsBySessionMap),
+    importBatchesByTargetSessionStatus: [...importBatchSessionStatusMap.values()].sort(
+      (left, right) =>
+        (left.targetSessionLabel ?? "").localeCompare(right.targetSessionLabel ?? "") ||
+        left.status.localeCompare(right.status),
+    ),
+    studentsMissingInstallments,
+    classSessionMismatchStudents,
+    classRowsWithoutFeeSettings,
     rawStudentsInActiveSession: activeSessionStudents.length,
     studentsShownInDefaultWorkspace: activeSessionStudents.length,
     studentsWithFinancialRows,
@@ -497,4 +646,61 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
     warnings,
     errors,
   };
+}
+
+export async function alignAcademicCurrentSessionWithFeeSetup() {
+  const supabase = await createClient();
+  const policy = await getFeePolicySummary();
+  const activeSession = policy.academicSessionLabel.trim();
+
+  if (!activeSession) {
+    throw new Error("Fee Setup does not have an active academic session label.");
+  }
+
+  const { data: existingSession, error: lookupError } = await supabase
+    .from("academic_sessions")
+    .select("id")
+    .eq("session_label", activeSession)
+    .maybeSingle();
+
+  if (lookupError) {
+    throw new Error(`Unable to check academic session: ${lookupError.message}`);
+  }
+
+  const clearResult = await supabase
+    .from("academic_sessions")
+    .update({ is_current: false })
+    .neq("session_label", activeSession);
+
+  if (clearResult.error) {
+    throw new Error(`Unable to clear previous current session: ${clearResult.error.message}`);
+  }
+
+  if (existingSession?.id) {
+    const { error } = await supabase
+      .from("academic_sessions")
+      .update({ is_current: true, status: "active" })
+      .eq("id", existingSession.id);
+
+    if (error) {
+      throw new Error(`Unable to align academic current session: ${error.message}`);
+    }
+  } else {
+    const { error } = await supabase
+      .from("academic_sessions")
+      .insert({
+        session_label: activeSession,
+        status: "active",
+        is_current: true,
+        notes: "Created by System Sync Health to align the working session with Fee Setup.",
+      });
+
+    if (error) {
+      throw new Error(`Unable to create academic current session: ${error.message}`);
+    }
+  }
+
+  revalidateCoreFinancePaths();
+
+  return getSystemSyncHealth(activeSession);
 }

@@ -1,14 +1,72 @@
 import "server-only";
 
+import { getFeePolicySummary } from "@/lib/fees/data";
+import { createClient } from "@/lib/supabase/server";
 import { getWorkbookClassOptions, getWorkbookStudentFinancials } from "@/lib/workbook/data";
 import { getStudentFormOptions } from "@/lib/students/data";
 
 import type {
   DefaulterFilters,
+  MissingDuesWarningRow,
   RouteOutstandingSummaryRow,
   DefaulterSummaryRow,
   DefaultersPageData,
 } from "./types";
+
+type BaseDefaulterStudentRow = {
+  id: string;
+  admission_no: string;
+  full_name: string;
+  father_name: string | null;
+  primary_phone: string | null;
+  transport_route_id: string | null;
+  class_ref:
+    | {
+        session_label: string;
+        class_name: string;
+        section: string | null;
+        stream_name: string | null;
+      }
+    | Array<{
+        session_label: string;
+        class_name: string;
+        section: string | null;
+        stream_name: string | null;
+      }>
+    | null;
+  route_ref:
+    | {
+        route_name: string;
+        route_code: string | null;
+      }
+    | Array<{
+        route_name: string;
+        route_code: string | null;
+      }>
+    | null;
+};
+
+function toSingleRecord<T>(value: T | T[] | null) {
+  return Array.isArray(value) ? value[0] ?? null : value;
+}
+
+function buildClassLabel(value: {
+  class_name: string;
+  section: string | null;
+  stream_name: string | null;
+}) {
+  return [value.class_name, value.section ? `Section ${value.section}` : "", value.stream_name ?? ""]
+    .filter(Boolean)
+    .join(" - ");
+}
+
+function buildRouteLabel(value: { route_name: string; route_code: string | null } | null) {
+  if (!value) {
+    return "No Transport";
+  }
+
+  return value.route_code ? `${value.route_name} (${value.route_code})` : value.route_name;
+}
 
 function parseMinimumPendingAmount(value: string) {
   if (!value.trim()) {
@@ -24,16 +82,66 @@ function parseMinimumPendingAmount(value: string) {
   return Math.floor(parsed);
 }
 
+async function getActiveSessionStudents(filters: DefaulterFilters) {
+  const supabase = await createClient();
+  const policy = await getFeePolicySummary();
+  let query = supabase
+    .from("students")
+    .select(
+      "id, admission_no, full_name, father_name, primary_phone, transport_route_id, class_ref:classes!inner(session_label, status, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code)",
+    )
+    .eq("status", "active")
+    .eq("class_ref.session_label", policy.academicSessionLabel)
+    .eq("class_ref.status", "active")
+    .order("full_name", { ascending: true });
+
+  if (filters.classId) {
+    query = query.eq("class_id", filters.classId);
+  }
+
+  if (filters.transportRouteId) {
+    query = query.eq("transport_route_id", filters.transportRouteId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Unable to load active students for defaulters: ${error.message}`);
+  }
+
+  return ((data ?? []) as BaseDefaulterStudentRow[]).flatMap((row): MissingDuesWarningRow[] => {
+    const classRef = toSingleRecord(row.class_ref);
+    const routeRef = toSingleRecord(row.route_ref);
+
+    if (!classRef) {
+      return [];
+    }
+
+    return [
+      {
+        studentId: row.id,
+        admissionNo: row.admission_no,
+        fullName: row.full_name,
+        fatherName: row.father_name,
+        fatherPhone: row.primary_phone,
+        classLabel: buildClassLabel(classRef),
+        transportRouteId: row.transport_route_id,
+        transportRouteLabel: buildRouteLabel(routeRef),
+      },
+    ];
+  });
+}
+
 export async function getDefaultersPageData(
   filters: DefaulterFilters,
 ): Promise<DefaultersPageData> {
-  const [{ routeOptions }, classOptions, financialRows] = await Promise.all([
+  const [{ routeOptions }, classOptions, financialRows, activeStudents] = await Promise.all([
     getStudentFormOptions(),
     getWorkbookClassOptions(),
     getWorkbookStudentFinancials({
       classId: filters.classId || undefined,
-      onlyOverdue: filters.overdue === "overdue",
     }),
+    getActiveSessionStudents(filters),
   ]);
 
   const minimumPendingAmount = parseMinimumPendingAmount(filters.minPendingAmount);
@@ -92,6 +200,11 @@ export async function getDefaultersPageData(
       return left.fullName.localeCompare(right.fullName);
     });
 
+  const generatedStudentIds = new Set(financialRows.map((row) => row.studentId));
+  const missingDuesRows = activeStudents.filter(
+    (row) => !generatedStudentIds.has(row.studentId),
+  );
+
   const routeSummaryMap = new Map<string, RouteOutstandingSummaryRow>();
 
   rows.forEach((row) => {
@@ -143,6 +256,7 @@ export async function getDefaultersPageData(
       totalPending: 0,
       overdueInstallments: 0,
       openInstallments: 0,
+      missingDuesStudents: missingDuesRows.length,
     },
   );
 
@@ -151,6 +265,7 @@ export async function getDefaultersPageData(
     routeOptions,
     metrics,
     rows,
+    missingDuesRows,
     routeSummaryRows,
   };
 }

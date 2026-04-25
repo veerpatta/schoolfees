@@ -73,13 +73,17 @@ function toActionStateError(error: unknown): PaymentEntryActionState {
       : "Unable to save payment right now. Please try again.";
   const normalized = rawMessage.toLowerCase();
   const friendlyMessage =
-    normalized.includes("no pending dues") || normalized.includes("dues")
-      ? "No pending dues are available for this student. Generate dues or refresh the selected student before posting."
+    normalized.includes("cannot exceed") || normalized.includes("exceed total pending")
+      ? "Payment amount exceeds pending dues for the selected payment date. Refresh the preview or reduce the amount before posting."
+      : normalized.includes("no pending dues")
+        ? "No pending dues are available for the selected payment date. Generate dues, change the payment date, or refresh the selected student before posting."
       : normalized.includes("allocate")
         ? "Payment could not be allocated to the student's dues. Refresh dues and try again."
-        : normalized.includes("receipt")
-          ? "Payment could not generate a receipt. Please try again or contact admin."
-          : "Unable to save payment right now. Please check the student, dues, amount, and payment mode.";
+        : normalized.includes("dues")
+          ? "Payment could not be posted against the selected dues. Refresh dues and try again."
+          : normalized.includes("receipt")
+            ? "Payment could not generate a receipt. Please try again or contact admin."
+            : "Unable to save payment right now. Please check the student, dues, amount, and payment mode.";
 
   return {
     status: "error",

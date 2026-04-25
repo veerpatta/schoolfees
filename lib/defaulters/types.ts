@@ -35,6 +35,17 @@ export type DefaulterSummaryRow = {
   followUpStatus: "overdue" | "pending";
 };
 
+export type MissingDuesWarningRow = {
+  studentId: string;
+  admissionNo: string;
+  fullName: string;
+  fatherName: string | null;
+  fatherPhone: string | null;
+  classLabel: string;
+  transportRouteId: string | null;
+  transportRouteLabel: string;
+};
+
 export type RouteOutstandingSummaryRow = {
   routeId: string | null;
   routeLabel: string;
@@ -50,6 +61,7 @@ export type DefaultersMetrics = {
   totalPending: number;
   overdueInstallments: number;
   openInstallments: number;
+  missingDuesStudents: number;
 };
 
 export type DefaultersPageData = {
@@ -57,6 +69,7 @@ export type DefaultersPageData = {
   routeOptions: StudentRouteOption[];
   metrics: DefaultersMetrics;
   rows: DefaulterSummaryRow[];
+  missingDuesRows: MissingDuesWarningRow[];
   routeSummaryRows: RouteOutstandingSummaryRow[];
 };
 

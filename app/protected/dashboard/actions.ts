@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { getFeePolicySummary } from "@/lib/fees/data";
 import {
+  alignWorkingSessionWithFeeSetup,
   repairMissingDues,
   revalidateFinanceSurfaces,
   syncSessionDues,
@@ -53,6 +54,19 @@ export async function repairPaymentDeskDataAction() {
   redirect(
     dashboardUrl(
       `Payment Desk data repaired for ${policy.academicSessionLabel}: ${result.installmentsToInsert} inserted, ${result.installmentsToUpdate} updated, ${result.installmentsToCancel} cancelled, ${result.lockedInstallments} protected rows left for review.`,
+    ),
+  );
+}
+
+export async function alignWorkingSessionWithFeeSetupAction() {
+  await requireStaffPermission("fees:write");
+  const health = await alignWorkingSessionWithFeeSetup();
+  const warningCount =
+    health.classSessionMismatchStudents.length + health.studentsMissingInstallments.length;
+
+  redirect(
+    dashboardUrl(
+      `Academic current session now matches Fee Setup session ${health.activeSession}. Student records were not moved; ${warningCount} warning item${warningCount === 1 ? "" : "s"} remain for review.`,
     ),
   );
 }

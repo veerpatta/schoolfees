@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { syncAfterBulkStudentImport } from "@/lib/system-sync/finance-sync";
 import { createStudent, getStudentDetail, updateStudent } from "@/lib/students/data";
+import { shouldSyncStudentDuesForChange } from "@/lib/students/dues-sync";
 import { buildAutoColumnMapping, validateColumnMapping } from "@/lib/import/mapping";
 import { parseStudentImportFile } from "@/lib/import/parser";
 import { executeStudentImportDryRun } from "@/lib/import/dryRun";
@@ -1254,32 +1255,6 @@ function buildImportStudentInput(
   };
 }
 
-function shouldSyncDues(
-  previousStudent: Awaited<ReturnType<typeof getStudentDetail>>,
-  next: StudentValidatedInput,
-) {
-  if (!previousStudent) {
-    return next.status === "active" || next.status === "inactive";
-  }
-
-  const feeProfileChanged =
-    previousStudent.studentTypeOverride !== next.studentTypeOverride ||
-    previousStudent.tuitionOverride !== next.tuitionOverride ||
-    previousStudent.transportOverride !== next.transportOverride ||
-    previousStudent.discountAmount !== next.discountAmount ||
-    previousStudent.lateFeeWaiverAmount !== next.lateFeeWaiverAmount ||
-    previousStudent.otherAdjustmentHead !== next.otherAdjustmentHead ||
-    previousStudent.otherAdjustmentAmount !== next.otherAdjustmentAmount;
-  const routeOrClassChanged =
-    previousStudent.transportRouteId !== next.transportRouteId ||
-    previousStudent.classId !== next.classId;
-
-  return (
-    (routeOrClassChanged || feeProfileChanged) &&
-    (next.status === "active" || next.status === "inactive")
-  );
-}
-
 async function getActiveImportedOverrideId(studentId: string) {
   const supabase = await createClient();
   const { data } = await supabase
@@ -1540,7 +1515,7 @@ export async function commitStudentImportBatch(batchId: string) {
       const importedOverrideId = await getActiveImportedOverrideId(importedStudentId);
       affectedStudentIds.add(importedStudentId);
 
-      if (shouldSyncDues(previousStudent, input)) {
+      if (shouldSyncStudentDuesForChange(previousStudent, input)) {
         studentsToRegenerate.add(importedStudentId);
       }
 

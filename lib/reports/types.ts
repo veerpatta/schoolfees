@@ -140,7 +140,7 @@ export type OutstandingReportRow = {
   adjustmentsTotal: number;
   collectedAmount: number;
   outstandingAmount: number;
-  balanceStatus: "partial" | "overdue" | "pending";
+  balanceStatus: "partial" | "overdue" | "pending" | "missing_dues";
 };
 
 export type OutstandingReportData = {

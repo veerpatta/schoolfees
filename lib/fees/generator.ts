@@ -10,6 +10,7 @@ type GeneratorStudentRow = {
   id: string;
   class_id: string;
   transport_route_id: string | null;
+  status: "active" | "inactive" | "left" | "graduated";
   class_ref:
     | {
         session_label: string;
@@ -238,17 +239,25 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
     ? new Set(options.scopedStudentIds)
     : null;
 
-  const { data: activeStudentsRaw, error: studentsError } = await supabase
+  let studentsQuery = supabase
     .from("students")
-    .select("id, class_id, transport_route_id, class_ref:classes(session_label)")
-    .eq("status", "active");
+    .select("id, class_id, transport_route_id, status, class_ref:classes(session_label)");
+
+  if (scopedStudentIdSet) {
+    studentsQuery = studentsQuery.in("id", [...scopedStudentIdSet]);
+  } else {
+    studentsQuery = studentsQuery.eq("status", "active");
+  }
+
+  const { data: studentsRaw, error: studentsError } = await studentsQuery;
 
   if (studentsError) {
     throw new Error(studentsError.message);
   }
 
-  const activeStudents = (activeStudentsRaw ?? []) as GeneratorStudentRow[];
-  const sessionStudents = activeStudents.filter((student) => {
+  const loadedStudents = (studentsRaw ?? []) as GeneratorStudentRow[];
+  const activeStudents = loadedStudents.filter((student) => student.status === "active");
+  const sessionStudents = loadedStudents.filter((student) => {
     const classRef = toSingleRecord(student.class_ref);
     return classRef?.session_label === setupData.globalPolicy.academicSessionLabel;
   });
@@ -325,6 +334,47 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
   let expectedScheduledInstallments = 0;
 
   for (const student of scopedStudents) {
+    if (student.status !== "active") {
+      existingInstallments
+        .filter((row) => row.student_id === student.id)
+        .forEach((row) => {
+          if (row.status === "cancelled") {
+            return;
+          }
+
+          const paidAmount = paymentTotalsByInstallment.get(row.id) ?? 0;
+          const adjustmentAmount = adjustmentTotalsByInstallment.get(row.id) ?? 0;
+          const lock = classifyInstallmentLock({
+            existingInstallment: row,
+            paidAmount,
+            adjustmentAmount,
+          });
+
+          if (lock.isLocked) {
+            blockedInstallmentsForReview.push({
+              installmentId: row.id,
+              studentId: row.student_id,
+              installmentNo: row.installment_no,
+              installmentLabel: row.installment_label,
+              dueDate: row.due_date,
+              amountDue: row.amount_due,
+              paidAmount,
+              adjustmentAmount,
+              outstandingAmount: lock.outstandingAmount,
+              reasonCode: lock.reasonCode,
+              reasonLabel: lock.reasonLabel,
+              actionNeeded: "cancel",
+            });
+            affectedStudentIds.add(student.id);
+            return;
+          }
+
+          installmentsToCancel.push({ id: row.id });
+          affectedStudentIds.add(student.id);
+        });
+      continue;
+    }
+
     const classDefault = classDefaultMap.get(student.class_id) ?? null;
     const routeDefault = student.transport_route_id
       ? (routeDefaultMap.get(student.transport_route_id) ?? null)
