@@ -47,6 +47,29 @@ function clientWithRpc(counts: number[], rpc: ReturnType<typeof vi.fn>) {
   };
 }
 
+function noExistingReceiptClient() {
+  return {
+    from: vi.fn(() => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    })),
+  };
+}
+
+function noLikelyDuplicateClient() {
+  return {
+    from: vi.fn(() => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      gte: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      is: vi.fn().mockResolvedValue({ data: [], error: null }),
+    })),
+  };
+}
+
 function duplicateReceiptQuery() {
   return {
     select: vi.fn().mockReturnThis(),
@@ -111,8 +134,14 @@ describe("payment submit preflight", () => {
           allocated_total: 1000,
         },
         error: null,
-      });
-    createClient.mockResolvedValue(clientWithRpc([0, 4], rpc));
+    });
+    createClient
+      .mockResolvedValueOnce(noExistingReceiptClient())
+      .mockResolvedValueOnce(clientWithRpc([0], rpc))
+      .mockResolvedValueOnce(clientWithRpc([4], rpc))
+      .mockResolvedValueOnce(clientWithRpc([], rpc))
+      .mockResolvedValueOnce(noLikelyDuplicateClient())
+      .mockResolvedValueOnce({ rpc });
 
     const { postStudentPayment } = await import("@/lib/payments/data");
     const receipt = await postStudentPayment({
@@ -123,6 +152,7 @@ describe("payment submit preflight", () => {
       referenceNumber: null,
       remarks: null,
       receivedBy: "Admin",
+      clientRequestId: "00000000-0000-4000-8000-000000000901",
     });
 
     expect(prepareDuesForStudentsAutomatically).toHaveBeenCalledWith({
@@ -139,7 +169,9 @@ describe("payment submit preflight", () => {
   });
 
   it("payment_submit_shows_exact_reason_when_class_fee_missing", async () => {
-    createClient.mockResolvedValue(clientWithRpc([0], vi.fn()));
+    createClient
+      .mockResolvedValueOnce(noExistingReceiptClient())
+      .mockResolvedValueOnce(clientWithRpc([0], vi.fn()));
     prepareDuesForStudentsAutomatically.mockResolvedValue({
       readyForPaymentCount: 0,
       duesNeedAttentionCount: 1,
@@ -157,12 +189,15 @@ describe("payment submit preflight", () => {
         referenceNumber: null,
         remarks: null,
         receivedBy: "Admin",
+        clientRequestId: "00000000-0000-4000-8000-000000000901",
       }),
     ).rejects.toThrow("Class 1 does not have a fee amount in Fee Setup for 2026-27.");
   });
 
   it("payment_submit_shows_exact_reason_when_session_mismatch", async () => {
-    createClient.mockResolvedValue(clientWithRpc([4], vi.fn()));
+    createClient
+      .mockResolvedValueOnce(noExistingReceiptClient())
+      .mockResolvedValueOnce(clientWithRpc([4], vi.fn()));
     getStudentDetail.mockResolvedValue(student({ classSessionLabel: "2025-26" }));
 
     const { postStudentPayment } = await import("@/lib/payments/data");
@@ -176,6 +211,7 @@ describe("payment submit preflight", () => {
         referenceNumber: null,
         remarks: null,
         receivedBy: "Admin",
+        clientRequestId: "00000000-0000-4000-8000-000000000901",
       }),
     ).rejects.toThrow("Student belongs to another academic year.");
   });
@@ -210,7 +246,12 @@ describe("payment submit preflight", () => {
         },
         error: null,
       });
-    createClient.mockResolvedValue(clientWithRpc([4], rpc));
+    createClient
+      .mockResolvedValueOnce(noExistingReceiptClient())
+      .mockResolvedValueOnce(clientWithRpc([4], rpc))
+      .mockResolvedValueOnce(clientWithRpc([], rpc))
+      .mockResolvedValueOnce(noLikelyDuplicateClient())
+      .mockResolvedValueOnce({ rpc });
 
     const { postStudentPayment } = await import("@/lib/payments/data");
 
@@ -223,6 +264,7 @@ describe("payment submit preflight", () => {
         referenceNumber: null,
         remarks: null,
         receivedBy: "Admin",
+        clientRequestId: "00000000-0000-4000-8000-000000000901",
       }),
     ).resolves.toMatchObject({
       receiptNumber: "SVP20260425-0001",
@@ -258,7 +300,7 @@ describe("payment submit preflight", () => {
     };
 
     createClient
-      .mockResolvedValueOnce({ rpc: postRpc, from: vi.fn() })
+      .mockResolvedValueOnce(noExistingReceiptClient())
       .mockResolvedValueOnce(countClient)
       .mockResolvedValueOnce(previewClient)
       .mockResolvedValueOnce(duplicateClient);
@@ -274,6 +316,7 @@ describe("payment submit preflight", () => {
         referenceNumber: null,
         remarks: null,
         receivedBy: "Admin",
+        clientRequestId: "00000000-0000-4000-8000-000000000901",
       }),
     ).rejects.toThrow(
       "A similar payment was just recorded. Open the latest receipt or start a new payment if this is intentional.",

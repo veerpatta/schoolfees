@@ -49,6 +49,10 @@ function parsePaymentAmount(value: FormDataEntryValue | null) {
   return numeric;
 }
 
+function requiresPaymentReference(paymentMode: PaymentMode) {
+  return paymentMode !== "cash";
+}
+
 async function parsePaymentMode(value: FormDataEntryValue | null): Promise<PaymentMode> {
   const normalized = (value ?? "").toString().trim();
   const policy = await getFeePolicySummary();
@@ -82,6 +86,9 @@ function toActionStateError(error: unknown): PaymentEntryActionState {
       amountReceived: null,
       paymentDate: null,
       paymentMode: null,
+      referenceNumber: null,
+      receivedBy: null,
+      clientRequestId: null,
       remainingBalance: null,
       diagnostic: null,
     };
@@ -96,6 +103,9 @@ function toActionStateError(error: unknown): PaymentEntryActionState {
     amountReceived: null,
     paymentDate: null,
     paymentMode: null,
+    referenceNumber: null,
+    receivedBy: null,
+    clientRequestId: null,
     remainingBalance: null,
     diagnostic: getPaymentPostingDiagnostic(error),
   };
@@ -111,15 +121,23 @@ export async function submitPaymentEntryAction(
     const paymentDate = parsePaymentDate(formData.get("paymentDate"));
     const paymentMode = await parsePaymentMode(formData.get("paymentMode"));
     const paymentAmount = parsePaymentAmount(formData.get("paymentAmount"));
+    const clientRequestId = parseUuid(formData.get("clientRequestId"), "Payment attempt");
+    const referenceNumber = (formData.get("referenceNumber") ?? "").toString().trim() || null;
+    const receivedBy = parseRequiredString(formData.get("receivedBy"), "Received by");
+
+    if (requiresPaymentReference(paymentMode) && !referenceNumber) {
+      throw new Error("Reference number is required for UPI, bank transfer, and cheque payments.");
+    }
 
     const receipt = await postStudentPayment({
       studentId,
       paymentDate,
       paymentMode,
       paymentAmount,
-      referenceNumber: (formData.get("referenceNumber") ?? "").toString().trim() || null,
+      referenceNumber,
       remarks: (formData.get("remarks") ?? "").toString().trim() || null,
-      receivedBy: parseRequiredString(formData.get("receivedBy"), "Received by"),
+      receivedBy,
+      clientRequestId,
     });
 
     revalidateCoreFinancePaths([studentId]);
@@ -133,6 +151,9 @@ export async function submitPaymentEntryAction(
       amountReceived: paymentAmount,
       paymentDate,
       paymentMode,
+      referenceNumber,
+      receivedBy,
+      clientRequestId,
       remainingBalance: Math.max((receipt.remainingBalance ?? 0), 0),
       diagnostic: null,
     };

@@ -86,6 +86,7 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
       <PaymentEntryClient
         data={data}
         canPost={canPostPayments}
+        canViewDiagnostics={staff.appRole === "admin"}
         classOptions={classOptions}
         workflowGuard={!readiness.postPayments.isReady ? readiness.postPayments : null}
         initialState={INITIAL_PAYMENT_ENTRY_ACTION_STATE}

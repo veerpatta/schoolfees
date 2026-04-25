@@ -9,6 +9,9 @@ export type PaymentEntryActionState = {
   amountReceived?: number | null;
   paymentDate?: string | null;
   paymentMode?: PaymentMode | null;
+  referenceNumber?: string | null;
+  receivedBy?: string | null;
+  clientRequestId?: string | null;
   remainingBalance?: number | null;
   diagnostic?: PaymentPostingDiagnostic | null;
 };
@@ -22,6 +25,9 @@ export const INITIAL_PAYMENT_ENTRY_ACTION_STATE: PaymentEntryActionState = {
   amountReceived: null,
   paymentDate: null,
   paymentMode: null,
+  referenceNumber: null,
+  receivedBy: null,
+  clientRequestId: null,
   remainingBalance: null,
   diagnostic: null,
 };
@@ -92,6 +98,10 @@ export type SelectedStudentSummary = {
   totalDue: number;
   totalPaid: number;
   totalPending: number;
+  creditBalance: number;
+  overpaidAmount: number;
+  refundableAmount: number;
+  rowsKeptForReview: number;
   overdueAmount: number;
   nextDueInstallmentLabel: string | null;
   nextDueDate: string | null;

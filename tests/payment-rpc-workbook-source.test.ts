@@ -9,7 +9,7 @@ function readLatestPaymentMigration() {
       process.cwd(),
       "supabase",
       "migrations",
-      "20260425072007_fix_post_student_payment_receipt_number_ambiguity.sql",
+      "20260425143000_payment_desk_idempotency_and_locking.sql",
     ),
     "utf8",
   );
@@ -61,6 +61,23 @@ describe("post_student_payment workbook source", () => {
     expect(migration).toContain("v_candidate_receipt_number :=");
     expect(migration).toContain("v_candidate_receipt_id as receipt_id");
     expect(migration).toContain("v_candidate_receipt_number as receipt_number");
+  });
+
+  it("payment_action_reuses_existing_receipt_for_same_idempotency_key", () => {
+    const migration = readLatestPaymentMigration();
+
+    expect(migration).toContain("client_request_id uuid");
+    expect(migration).toContain("receipts_student_client_request_id_unique");
+    expect(migration).toContain("and r.client_request_id = p_client_request_id");
+    expect(migration).toContain("v_existing_receipt_number as receipt_number");
+  });
+
+  it("post_student_payment_locks_student_allocation_scope", () => {
+    const migration = readLatestPaymentMigration();
+
+    expect(migration).toContain("pg_advisory_xact_lock(hashtextextended(p_student_id::text, 0))");
+    expect(migration).toContain("select coalesce(sum(snapshot_row.pending_amount), 0)");
+    expect(migration).toContain("p_client_request_id uuid default null");
   });
 
   it("payment_receipt_number_sequence_increments_for_same_day", () => {

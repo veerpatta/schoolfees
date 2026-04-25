@@ -11,7 +11,6 @@ import {
 import {
   getWorkbookInstallmentBalances,
   getWorkbookStudentFinancials,
-  getWorkbookTransactions,
 } from "@/lib/workbook/data";
 import type {
   InstallmentBalanceItem,
@@ -66,6 +65,67 @@ type PaymentStudentBaseRow = {
         section: string | null;
         stream_name: string | null;
         status: string;
+      }>
+    | null;
+};
+
+type StudentFinancialStateRow = {
+  student_id: string;
+  total_due: number | null;
+  total_paid: number | null;
+  pending_amount: number | null;
+  credit_balance: number | null;
+  overpaid_amount: number | null;
+  refundable_amount: number | null;
+  rows_kept_for_review: number | null;
+  installment_pending_amount: number | null;
+};
+
+type PaymentDeskReceiptRow = {
+  id: string;
+  receipt_number: string;
+  student_id: string;
+  total_amount: number;
+  payment_mode: string;
+  payment_date: string;
+  reference_number: string | null;
+  created_at: string | null;
+  student_ref:
+    | {
+        full_name: string;
+        admission_no: string;
+        father_name: string | null;
+        primary_phone: string | null;
+        class_ref:
+          | {
+              class_name: string;
+              section: string | null;
+              stream_name: string | null;
+            }
+          | Array<{
+              class_name: string;
+              section: string | null;
+              stream_name: string | null;
+            }>
+          | null;
+      }
+    | Array<{
+        full_name: string;
+        admission_no: string;
+        father_name: string | null;
+        primary_phone: string | null;
+        class_ref:
+          | {
+              class_name: string;
+              section: string | null;
+              stream_name: string | null;
+            }
+          | Array<{
+              class_name: string;
+              section: string | null;
+              stream_name: string | null;
+            }>
+          | null;
       }>
     | null;
 };
@@ -173,6 +233,10 @@ export function toFriendlyPaymentPostingError(error: unknown) {
     normalized.includes("amount exceeds")
   ) {
     return "Payment amount exceeds pending amount for the selected payment date.";
+  }
+
+  if (normalized.includes("reference number is required")) {
+    return "Reference number is required for UPI, bank transfer, and cheque payments.";
   }
 
   if (normalized.includes("no pending dues") || normalized.includes("total_outstanding")) {
@@ -284,6 +348,30 @@ function buildClassLabel(value: {
   return parts.join(" - ");
 }
 
+function escapeIlikePattern(value: string) {
+  return value.replace(/[\\%_]/g, (match) => `\\${match}`);
+}
+
+function compareStudentSearchPriority(query: string) {
+  const normalizedQuery = query.toLowerCase();
+
+  return (left: PaymentStudentOption, right: PaymentStudentOption) => {
+    const score = (item: PaymentStudentOption) => {
+      const admission = item.admissionNo.toLowerCase();
+      const name = item.fullName.toLowerCase();
+      const phone = `${item.fatherPhone ?? ""} ${item.motherPhone ?? ""}`;
+
+      if (admission === normalizedQuery) return 0;
+      if (admission.startsWith(normalizedQuery)) return 1;
+      if (phone.includes(normalizedQuery)) return 2;
+      if (name.startsWith(normalizedQuery)) return 3;
+      return 4;
+    };
+
+    return score(left) - score(right) || left.fullName.localeCompare(right.fullName);
+  };
+}
+
 function buildStudentOption(payload: {
   studentId: string;
   studentName: string;
@@ -322,21 +410,32 @@ async function getBasePaymentStudentOptions(payload: {
     .eq("status", "active")
     .eq("class_ref.session_label", policy.academicSessionLabel)
     .eq("class_ref.status", "active")
-    .order("full_name", { ascending: true })
-    .limit(80);
+    .order("full_name", { ascending: true });
 
   if (payload.classId) {
     query = query.eq("class_ref.id", payload.classId);
   }
+
+  if (payload.normalizedQuery) {
+    const pattern = `%${escapeIlikePattern(payload.normalizedQuery)}%`;
+    query = query.or(
+      [
+        `full_name.ilike.${pattern}`,
+        `admission_no.ilike.${pattern}`,
+        `father_name.ilike.${pattern}`,
+        `primary_phone.ilike.${pattern}`,
+        `secondary_phone.ilike.${pattern}`,
+      ].join(","),
+    );
+  }
+
+  query = query.limit(payload.normalizedQuery ? 30 : 80);
 
   const { data, error } = await query;
 
   if (error) {
     throw new Error(`Unable to load Payment Desk students: ${error.message}`);
   }
-
-  const normalizedQuery = payload.normalizedQuery.toLowerCase();
-  const selectedStudentId = payload.selectedStudentId ?? null;
 
   return ((data ?? []) as PaymentStudentBaseRow[])
     .map((row) => {
@@ -353,28 +452,7 @@ async function getBasePaymentStudentOptions(payload: {
         pendingAmount: payload.pendingByStudentId.get(row.id) ?? null,
       });
     })
-    .filter((row) => {
-      if (row.id === selectedStudentId) {
-        return true;
-      }
-
-      if (!normalizedQuery) {
-        return true;
-      }
-
-      const haystack = [
-        row.fullName,
-        row.admissionNo,
-        row.fatherName ?? "",
-        row.fatherPhone ?? "",
-        row.motherPhone ?? "",
-        row.classLabel,
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      return haystack.includes(normalizedQuery);
-    });
+    .sort(payload.normalizedQuery ? compareStudentSearchPriority(payload.normalizedQuery) : undefined);
 }
 
 function mapBreakdown(
@@ -399,7 +477,12 @@ function mapBreakdown(
 function summarizeStudent(
   financial: Awaited<ReturnType<typeof getWorkbookStudentFinancials>>[number],
   breakdown: InstallmentBalanceItem[],
+  financialState: StudentFinancialStateRow | null,
 ): SelectedStudentSummary {
+  const pendingAmount = financialState?.pending_amount ?? financial.outstandingAmount;
+  const totalDue = financialState?.total_due ?? financial.totalDue;
+  const totalPaid = financialState?.total_paid ?? financial.totalPaid;
+
   return {
     id: financial.studentId,
     fullName: financial.studentName,
@@ -411,9 +494,13 @@ function summarizeStudent(
     studentStatusLabel: financial.studentStatusLabel,
     transportRouteLabel: financial.transportRouteName ?? "No Transport",
     breakdown,
-    totalDue: financial.totalDue,
-    totalPaid: financial.totalPaid,
-    totalPending: financial.outstandingAmount,
+    totalDue,
+    totalPaid,
+    totalPending: pendingAmount,
+    creditBalance: financialState?.credit_balance ?? 0,
+    overpaidAmount: financialState?.overpaid_amount ?? 0,
+    refundableAmount: financialState?.refundable_amount ?? 0,
+    rowsKeptForReview: financialState?.rows_kept_for_review ?? 0,
     overdueAmount: breakdown
       .filter((item) => item.balanceStatus === "overdue")
       .reduce((sum, item) => sum + item.outstandingAmount, 0),
@@ -421,6 +508,125 @@ function summarizeStudent(
     nextDueDate: financial.nextDueDate,
     nextDueAmount: financial.nextDueAmount,
   };
+}
+
+async function getStudentFinancialState(studentId: string) {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("v_student_financial_state")
+      .select(
+        "student_id, total_due, total_paid, pending_amount, credit_balance, overpaid_amount, refundable_amount, rows_kept_for_review, installment_pending_amount",
+      )
+      .eq("student_id", studentId)
+      .maybeSingle();
+
+    if (error) {
+      return null;
+    }
+
+    return (data ?? null) as StudentFinancialStateRow | null;
+  } catch {
+    return null;
+  }
+}
+
+function mapPaymentDeskReceipt(row: PaymentDeskReceiptRow) {
+  const student = toSingleRecord(row.student_ref);
+
+  return {
+    id: row.id,
+    receiptNumber: row.receipt_number,
+    studentId: row.student_id,
+    studentLabel: student
+      ? `${student.full_name} (${student.admission_no})`
+      : "Unknown student",
+    totalAmount: row.total_amount,
+    paymentMode: row.payment_mode,
+    paymentDate: row.payment_date,
+    createdAt: row.created_at,
+  };
+}
+
+async function getRecentPaymentDeskReceipts(limit = 6) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("receipts")
+    .select(
+      "id, receipt_number, student_id, total_amount, payment_mode, payment_date, reference_number, created_at, student_ref:students!inner(full_name, admission_no, father_name, primary_phone, class_ref:classes(class_name, section, stream_name))",
+    )
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(`Unable to load recent receipts: ${error.message}`);
+  }
+
+  return ((data ?? []) as PaymentDeskReceiptRow[]).map(mapPaymentDeskReceipt);
+}
+
+async function getTodayPaymentDeskCollection() {
+  const supabase = await createClient();
+  const today = new Date().toISOString().slice(0, 10);
+  const { data, error } = await supabase
+    .from("receipts")
+    .select("id, total_amount")
+    .eq("payment_date", today);
+
+  if (error) {
+    throw new Error(`Unable to load today's collection: ${error.message}`);
+  }
+
+  const rows = (data ?? []) as Array<{ id: string; total_amount: number | null }>;
+
+  return {
+    receiptCount: rows.length,
+    totalAmount: rows.reduce((sum, row) => sum + (row.total_amount ?? 0), 0),
+  };
+}
+
+async function getReceiptStudentMatches(normalizedQuery: string) {
+  if (!normalizedQuery || !looksLikeReceiptQuery(normalizedQuery)) {
+    return [];
+  }
+
+  const supabase = await createClient();
+  const pattern = `%${escapeIlikePattern(normalizedQuery)}%`;
+  const { data, error } = await supabase
+    .from("receipts")
+    .select(
+      "id, receipt_number, student_id, total_amount, payment_mode, payment_date, reference_number, created_at, student_ref:students!inner(full_name, admission_no, father_name, primary_phone, class_ref:classes(class_name, section, stream_name))",
+    )
+    .or(`receipt_number.ilike.${pattern},reference_number.ilike.${pattern}`)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (error) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  return ((data ?? []) as PaymentDeskReceiptRow[]).flatMap((row) => {
+    const student = toSingleRecord(row.student_ref);
+    const classRef = student ? toSingleRecord(student.class_ref) : null;
+
+    if (!student || seen.has(row.student_id)) {
+      return [];
+    }
+
+    seen.add(row.student_id);
+    return [
+      buildStudentOption({
+        studentId: row.student_id,
+        studentName: student.full_name,
+        admissionNo: student.admission_no,
+        classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
+        fatherName: student.father_name,
+        fatherPhone: student.primary_phone,
+        motherPhone: null,
+      }),
+    ];
+  });
 }
 
 export async function countNonCancelledInstallments(studentId: string) {
@@ -683,13 +889,16 @@ export async function getPaymentEntryPageData(payload: {
 }): Promise<PaymentEntryPageData> {
   const policy = await getFeePolicySummary();
   const normalizedQuery = normalizePaymentDeskQuery(payload.searchQuery);
-  const [selectedWorkbookRows] = await Promise.all([
+  const [selectedWorkbookRows, receiptStudentMatches, recentReceipts, todayCollection] = await Promise.all([
     payload.studentId
       ? getWorkbookStudentFinancials({
           studentId: payload.studentId,
           sessionLabel: policy.academicSessionLabel,
         })
       : Promise.resolve([]),
+    getReceiptStudentMatches(normalizedQuery),
+    getRecentPaymentDeskReceipts(6),
+    getTodayPaymentDeskCollection(),
   ]);
   let studentOptions = await getBasePaymentStudentOptions({
     classId: payload.classId,
@@ -699,60 +908,20 @@ export async function getPaymentEntryPageData(payload: {
   });
   let selectedStudentIssue: PaymentDeskIssue | null = null;
 
-  if (normalizedQuery && looksLikeReceiptQuery(normalizedQuery)) {
-    const receiptMatches = await getWorkbookTransactions({ limit: 30, query: normalizedQuery });
+  if (receiptStudentMatches.length > 0) {
     const seenIds = new Set(studentOptions.map((item) => item.id));
-
-    receiptMatches
-      .filter((row) => {
-        const haystack = `${row.receiptNumber} ${row.referenceNumber ?? ""}`.toLowerCase();
-        return haystack.includes(normalizedQuery.toLowerCase());
-      })
-      .forEach((row) => {
-        if (seenIds.has(row.studentId)) {
-          return;
+    studentOptions = [
+      ...receiptStudentMatches.filter((item) => {
+        if (seenIds.has(item.id)) {
+          return false;
         }
 
-        const financial =
-          selectedWorkbookRows.find((item) => item.studentId === row.studentId);
-
-        studentOptions = [
-          {
-            id: row.studentId,
-            fullName: row.studentName,
-            admissionNo: row.admissionNo,
-            classLabel: row.classLabel,
-            fatherName: row.fatherName,
-            fatherPhone: row.fatherPhone,
-            motherPhone: null,
-            pendingAmount: financial?.outstandingAmount ?? row.currentOutstanding,
-          },
-          ...studentOptions,
-        ];
-        seenIds.add(row.studentId);
-      });
+        seenIds.add(item.id);
+        return true;
+      }),
+      ...studentOptions,
+    ];
   }
-
-  const [recentTransactions, todayTransactions] = await Promise.all([
-    getWorkbookTransactions({ limit: 6 }),
-    getWorkbookTransactions({ todayOnly: true }),
-  ]);
-
-  const recentReceipts = recentTransactions.slice(0, 6).map((row) => ({
-    id: row.receiptId,
-    receiptNumber: row.receiptNumber,
-    studentId: row.studentId,
-    studentLabel: `${row.studentName} (${row.admissionNo})`,
-    totalAmount: row.totalAmount,
-    paymentMode: row.paymentMode,
-    paymentDate: row.paymentDate,
-    createdAt: row.createdAt,
-  }));
-
-  const todayCollection = {
-    receiptCount: todayTransactions.length,
-    totalAmount: todayTransactions.reduce((sum, row) => sum + row.totalAmount, 0),
-  };
 
   if (!payload.studentId) {
     return {
@@ -771,9 +940,10 @@ export async function getPaymentEntryPageData(payload: {
   const selectedFinancial = selectedWorkbookRows[0] ?? null;
 
   if (selectedFinancial) {
-    const breakdown = mapBreakdown(
-      await getWorkbookInstallmentBalances(selectedFinancial.studentId),
-    );
+    const [breakdown, financialState] = await Promise.all([
+      getWorkbookInstallmentBalances(selectedFinancial.studentId).then(mapBreakdown),
+      getStudentFinancialState(selectedFinancial.studentId),
+    ]);
     if (breakdown.length === 0) {
       if (payload.autoPrepareMissingDues) {
         const autoPrepareIssue = await tryAutoPrepareSelectedStudentDues({
@@ -827,7 +997,7 @@ export async function getPaymentEntryPageData(payload: {
       };
     }
 
-    const selectedStudent = summarizeStudent(selectedFinancial, breakdown);
+    const selectedStudent = summarizeStudent(selectedFinancial, breakdown, financialState);
     const selectedOption = buildStudentOption({
       studentId: selectedStudent.id,
       studentName: selectedStudent.fullName,
@@ -948,9 +1118,18 @@ export async function postStudentPayment(payload: {
   referenceNumber: string | null;
   remarks: string | null;
   receivedBy: string;
+  clientRequestId: string;
 }) {
-  const supabase = await createClient();
   const policy = await getFeePolicySummary();
+  const existingReceipt = await findReceiptByClientRequestId({
+    studentId: payload.studentId,
+    clientRequestId: payload.clientRequestId,
+  });
+
+  if (existingReceipt) {
+    return existingReceipt;
+  }
+
   const preflightDiagnostic = await preflightPaymentPosting({
     studentId: payload.studentId,
     paymentDate: payload.paymentDate,
@@ -968,6 +1147,7 @@ export async function postStudentPayment(payload: {
     throw new DuplicatePaymentWarning(duplicateReceipt);
   }
 
+  const supabase = await createClient();
   const { data, error } = await supabase.rpc("post_student_payment", {
     p_student_id: payload.studentId,
     p_payment_date: payload.paymentDate,
@@ -977,6 +1157,7 @@ export async function postStudentPayment(payload: {
     p_remarks: payload.remarks,
     p_received_by: payload.receivedBy,
     p_receipt_prefix: policy.receiptPrefix,
+    p_client_request_id: payload.clientRequestId,
   });
 
   if (error) {
@@ -1006,6 +1187,32 @@ export async function postStudentPayment(payload: {
     receiptNumber: row.receipt_number,
     allocatedTotal: row.allocated_total,
     remainingBalance: Math.max((preflightDiagnostic.previewPendingAmount ?? 0) - payload.paymentAmount, 0),
+  };
+}
+
+async function findReceiptByClientRequestId(payload: {
+  studentId: string;
+  clientRequestId: string;
+}) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("receipts")
+    .select("id, receipt_number, total_amount, student_id")
+    .eq("student_id", payload.studentId)
+    .eq("client_request_id", payload.clientRequestId)
+    .maybeSingle();
+
+  if (error || !data?.id || !data.receipt_number) {
+    return null;
+  }
+
+  const financialState = await getStudentFinancialState(payload.studentId);
+
+  return {
+    receiptId: data.id as string,
+    receiptNumber: data.receipt_number as string,
+    allocatedTotal: (data.total_amount ?? 0) as number,
+    remainingBalance: financialState?.pending_amount ?? null,
   };
 }
 

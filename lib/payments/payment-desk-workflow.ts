@@ -10,6 +10,9 @@ export type PaymentDraft = {
   referenceNumber: string;
   receivedBy: string;
   previewTotalPending: number;
+  isPreviewRefreshing?: boolean;
+  referenceRequired?: boolean;
+  creditBalance?: number;
 };
 
 export type PaymentDraftValidation =
@@ -39,8 +42,26 @@ export function validatePaymentDraft(draft: PaymentDraft): PaymentDraftValidatio
     return { ok: false, message: "Enter a valid whole rupee payment amount." };
   }
 
+  if (draft.isPreviewRefreshing) {
+    return { ok: false, message: "Wait for the dues preview to finish refreshing." };
+  }
+
   if (draft.previewTotalPending <= 0) {
+    if ((draft.creditBalance ?? 0) > 0) {
+      return {
+        ok: false,
+        message: `No pending dues. Student has Rs ${draft.creditBalance} credit.`,
+      };
+    }
+
     return { ok: false, message: "No pending dues are available for this student." };
+  }
+
+  if (draft.referenceRequired && !draft.referenceNumber.trim()) {
+    return {
+      ok: false,
+      message: "Reference number is required for UPI, bank transfer, and cheque payments.",
+    };
   }
 
   if (amount > draft.previewTotalPending) {

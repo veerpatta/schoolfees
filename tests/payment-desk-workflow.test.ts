@@ -26,6 +26,10 @@ const selectedStudent = {
   totalDue: 5000,
   totalPaid: 1000,
   totalPending: 4000,
+  creditBalance: 0,
+  overpaidAmount: 0,
+  refundableAmount: 0,
+  rowsKeptForReview: 0,
   overdueAmount: 0,
   nextDueInstallmentLabel: "Installment 1",
   nextDueDate: "2026-04-20",
@@ -88,6 +92,57 @@ describe("payment desk cashier workflow", () => {
     ).toEqual({ ok: false, message: "Payment amount exceeds pending amount." });
   });
 
+  it("payment_confirm_disabled_while_preview_loading", () => {
+    expect(
+      validatePaymentDraft({
+        selectedStudent,
+        amountInput: "1500",
+        paymentDate: "2026-04-25",
+        paymentMode: "cash",
+        paymentModeLabel: "Cash",
+        referenceNumber: "",
+        receivedBy: "Office Staff",
+        previewTotalPending: 4000,
+        isPreviewRefreshing: true,
+      }),
+    ).toEqual({ ok: false, message: "Wait for the dues preview to finish refreshing." });
+  });
+
+  it("payment_confirm_requires_reference_for_non_cash", () => {
+    expect(
+      validatePaymentDraft({
+        selectedStudent,
+        amountInput: "1500",
+        paymentDate: "2026-04-25",
+        paymentMode: "upi",
+        paymentModeLabel: "UPI",
+        referenceNumber: "",
+        receivedBy: "Office Staff",
+        previewTotalPending: 4000,
+        referenceRequired: true,
+      }),
+    ).toEqual({
+      ok: false,
+      message: "Reference number is required for UPI, bank transfer, and cheque payments.",
+    });
+  });
+
+  it("payment_desk_blocks_payment_when_credit_and_no_pending", () => {
+    expect(
+      validatePaymentDraft({
+        selectedStudent: { ...selectedStudent, creditBalance: 500 },
+        amountInput: "100",
+        paymentDate: "2026-04-25",
+        paymentMode: "cash",
+        paymentModeLabel: "Cash",
+        referenceNumber: "",
+        receivedBy: "Office Staff",
+        previewTotalPending: 0,
+        creditBalance: 500,
+      }),
+    ).toEqual({ ok: false, message: "No pending dues. Student has Rs 500 credit." });
+  });
+
   it("blocks duplicate client submission while posting or after success lock", () => {
     expect(shouldBlockClientSubmission({ isSubmitting: true, isLockedAfterSuccess: false })).toBe(true);
     expect(shouldBlockClientSubmission({ isSubmitting: false, isLockedAfterSuccess: true })).toBe(true);
@@ -136,8 +191,20 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("Payment Successful");
     expect(component).toContain("Receipt has been saved.");
     expect(component).toContain("Collect Another Payment");
-    expect(component).toContain("Latest payment");
+    expect(component).toContain("Latest receipt posted at desk");
+    expect(component).toContain("Amount to refund/adjust");
+    expect(component).toContain("Required for this mode");
     expect(component).toContain("Similar payment already recorded");
     expect(component).toContain("isLockedAfterSuccess");
+  });
+
+  it("receipt_view_labels_current_balance_vs_receipt_balance", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/receipts/receipt-document.tsx"),
+      "utf8",
+    );
+
+    expect(component).toContain("Balance after this receipt");
+    expect(component).toContain("Current outstanding now");
   });
 });

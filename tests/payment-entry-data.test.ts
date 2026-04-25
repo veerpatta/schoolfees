@@ -49,8 +49,10 @@ describe("payment entry data", () => {
       select: vi.fn().mockReturnThis(),
       in: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
+      or: vi.fn().mockReturnThis(),
       order: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
       then: vi.fn((resolve) => resolve({ data: [], error: null })),
     };
     createClient.mockResolvedValue({
@@ -148,8 +150,10 @@ describe("payment entry data", () => {
     const studentQuery = {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
+      or: vi.fn().mockReturnThis(),
       order: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
       then: vi.fn((resolve) =>
         resolve({
           data: [
@@ -320,8 +324,10 @@ describe("payment entry data", () => {
       select: vi.fn().mockReturnThis(),
       in: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
+      or: vi.fn().mockReturnThis(),
       order: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
       then: vi.fn((resolve) => resolve({ data: [], error: null })),
     };
     const installmentCountQuery = {

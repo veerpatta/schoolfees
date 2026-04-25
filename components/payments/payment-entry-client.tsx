@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { MetricCard } from "@/components/admin/metric-card";
 import { SectionCard } from "@/components/admin/section-card";
@@ -30,6 +31,7 @@ import { formatInr } from "@/lib/helpers/currency";
 type PaymentEntryClientProps = {
   data: PaymentEntryPageData;
   canPost: boolean;
+  canViewDiagnostics: boolean;
   classOptions: Array<{ id: string; label: string }>;
   workflowGuard: {
     title: string;
@@ -58,7 +60,13 @@ function createClientRequestId() {
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function ActionNotice({ state }: { state: PaymentEntryActionState }) {
+function ActionNotice({
+  state,
+  canViewDiagnostics,
+}: {
+  state: PaymentEntryActionState;
+  canViewDiagnostics: boolean;
+}) {
   if (!state.message) {
     return null;
   }
@@ -74,7 +82,7 @@ function ActionNotice({ state }: { state: PaymentEntryActionState }) {
       }
     >
       {state.message}
-      {state.status === "error" && state.diagnostic ? (
+      {state.status === "error" && state.diagnostic && canViewDiagnostics ? (
         <details className="mt-2 rounded border border-red-200 bg-white/70 px-2 py-2 text-xs text-red-900">
           <summary className="cursor-pointer font-medium">Admin diagnostic</summary>
           <dl className="mt-2 grid gap-1 sm:grid-cols-2">
@@ -110,6 +118,7 @@ function ActionNotice({ state }: { state: PaymentEntryActionState }) {
 export function PaymentEntryClient({
   data,
   canPost,
+  canViewDiagnostics,
   classOptions,
   workflowGuard,
   initialState,
@@ -117,6 +126,7 @@ export function PaymentEntryClient({
   submitPaymentEntryAction,
   repairPaymentDeskStudentDuesAction,
 }: PaymentEntryClientProps) {
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(
     submitPaymentEntryAction,
     initialState,
@@ -127,6 +137,8 @@ export function PaymentEntryClient({
   const [dateAwareBreakdown, setDateAwareBreakdown] = useState<InstallmentBalanceItem[] | null>(null);
   const [previewNotice, setPreviewNotice] = useState<string | null>(null);
   const [previewUnavailable, setPreviewUnavailable] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewRefreshToken, setPreviewRefreshToken] = useState(0);
   const [paymentMode, setPaymentMode] = useState(data.modeOptions[0]?.value ?? "cash");
   const [referenceNumber, setReferenceNumber] = useState("");
   const [receivedBy, setReceivedBy] = useState(defaultReceivedBy);
@@ -156,12 +168,16 @@ export function PaymentEntryClient({
   const previewNextDue =
     previewBreakdown.find((item) => item.outstandingAmount > 0) ?? null;
   const paymentAmount = Number(paymentAmountInput) || 0;
+  const referenceRequired = paymentMode !== "cash";
+  const creditBalance = selectedStudent?.creditBalance ?? 0;
+  const refundableAmount = selectedStudent?.refundableAmount ?? 0;
 
   useEffect(() => {
     if (!selectedStudent) {
       setDateAwareBreakdown(null);
       setPreviewNotice(null);
       setPreviewUnavailable(false);
+      setPreviewLoading(false);
       return;
     }
 
@@ -172,6 +188,7 @@ export function PaymentEntryClient({
     });
 
     setPreviewNotice("Refreshing pending amount for selected payment date...");
+    setPreviewLoading(true);
 
     fetch(`/protected/payments/preview?${params.toString()}`, {
       method: "GET",
@@ -192,6 +209,7 @@ export function PaymentEntryClient({
 
         setDateAwareBreakdown(payload.rows);
         setPreviewUnavailable(false);
+        setPreviewLoading(false);
         setPreviewNotice(
           payload.notice ?? "Pending amount and late fee are recalculated for the selected payment date.",
         );
@@ -203,13 +221,14 @@ export function PaymentEntryClient({
 
         setDateAwareBreakdown(null);
         setPreviewUnavailable(true);
+        setPreviewLoading(false);
         setPreviewNotice(error instanceof Error ? error.message : "Unable to refresh payment preview.");
       });
 
     return () => {
       isActive = false;
     };
-  }, [paymentDate, selectedStudent]);
+  }, [paymentDate, previewRefreshToken, selectedStudent]);
 
   const allocationPreview = useMemo(() => {
     if (!selectedStudent) {
@@ -238,6 +257,10 @@ export function PaymentEntryClient({
   const receiptHref = state.receiptId ? `/protected/receipts/${state.receiptId}` : null;
   const selectedPaymentModeLabel =
     data.modeOptions.find((modeOption) => modeOption.value === paymentMode)?.label ?? paymentMode;
+  const postedPaymentModeLabel =
+    data.modeOptions.find((modeOption) => modeOption.value === state.paymentMode)?.label ??
+    state.paymentMode ??
+    selectedPaymentModeLabel;
   const draftValidation = validatePaymentDraft({
     selectedStudent,
     amountInput: paymentAmountInput,
@@ -247,6 +270,9 @@ export function PaymentEntryClient({
     referenceNumber,
     receivedBy,
     previewTotalPending,
+    isPreviewRefreshing: previewLoading,
+    referenceRequired,
+    creditBalance,
   });
   const confirmationSummary = buildPaymentConfirmationSummary({
     selectedStudent,
@@ -257,6 +283,9 @@ export function PaymentEntryClient({
     referenceNumber,
     receivedBy,
     previewTotalPending,
+    isPreviewRefreshing: previewLoading,
+    referenceRequired,
+    creditBalance,
   });
   const remainingAfterPayment =
     draftValidation.ok ? draftValidation.remainingBalance : previewTotalPending;
@@ -331,6 +360,9 @@ export function PaymentEntryClient({
       referenceNumber,
       receivedBy,
       previewTotalPending,
+      isPreviewRefreshing: previewLoading,
+      referenceRequired,
+      creditBalance,
     });
 
     if (!validation.ok) {
@@ -355,10 +387,16 @@ export function PaymentEntryClient({
     setPaymentMode(resetValues.paymentMode as typeof paymentMode);
     setReceivedBy(resetValues.receivedBy);
     setClientRequestId(createClientRequestId());
+    setDateAwareBreakdown(null);
+    setPreviewNotice("Refreshing dues before the next payment...");
+    setPreviewUnavailable(false);
+    setPreviewLoading(true);
+    setPreviewRefreshToken((value) => value + 1);
     setIsLockedAfterSuccess(false);
     setIsSuccessOpen(false);
     setIsDuplicateOpen(false);
     setCopyStatus("idle");
+    router.refresh();
   }
 
   return (
@@ -474,8 +512,8 @@ export function PaymentEntryClient({
         </SectionCard>
 
         <SectionCard
-          title="Latest payment"
-          description="Small confirmation area for the last receipt saved at the desk."
+          title="Latest receipt posted at desk"
+          description="Small confirmation area for the newest saved receipt."
         >
           {latestPayment ? (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-950">
@@ -617,6 +655,27 @@ export function PaymentEntryClient({
             />
           </section>
 
+          {creditBalance > 0 || selectedStudent.rowsKeptForReview > 0 ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+              {creditBalance > 0 ? (
+                <p className="font-semibold">
+                  Amount to refund/adjust: {formatInr(refundableAmount || creditBalance)}
+                </p>
+              ) : null}
+              {previewTotalPending <= 0 && creditBalance > 0 ? (
+                <p className="mt-1">
+                  No pending dues. Student has {formatInr(creditBalance)} credit, so normal payment posting is blocked.
+                </p>
+              ) : null}
+              {selectedStudent.rowsKeptForReview > 0 ? (
+                <p className="mt-1">
+                  {selectedStudent.rowsKeptForReview} fee row
+                  {selectedStudent.rowsKeptForReview === 1 ? "" : "s"} kept for admin review.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
           <SectionCard
             title="3. Student Fee Summary"
             description="Desk view for parent contact, workbook status, and route before posting the next receipt."
@@ -753,7 +812,7 @@ export function PaymentEntryClient({
                 submittingRef.current = true;
               }}
             >
-              <ActionNotice state={state} />
+              <ActionNotice state={state} canViewDiagnostics={canViewDiagnostics} />
               {formError ? (
                 <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                   {formError}
@@ -842,18 +901,26 @@ export function PaymentEntryClient({
                     </select>
                   </div>
                   <div>
-                    <Label htmlFor="payment-reference-number">Reference number</Label>
+                    <Label htmlFor="payment-reference-number">
+                      Reference number{referenceRequired ? " (required)" : ""}
+                    </Label>
                     <Input
                       id="payment-reference-number"
                       name="referenceNumber"
                       className="mt-2"
-                      placeholder="UPI/cheque/txn ref"
+                      placeholder={referenceRequired ? "Required for this mode" : "Optional for cash"}
                       value={referenceNumber}
                       onChange={(event) => {
                         setReferenceNumber(event.target.value);
                         setFormError(null);
                       }}
+                      required={referenceRequired}
                     />
+                    {referenceRequired ? (
+                      <p className="mt-1 text-xs text-amber-700">
+                        Enter the UPI, bank, or cheque reference before generating the receipt.
+                      </p>
+                    ) : null}
                   </div>
                   <div>
                     <Label htmlFor="payment-received-by">Received by</Label>
@@ -948,6 +1015,7 @@ export function PaymentEntryClient({
                     disabled={
                       !canPost ||
                       isLockedAfterSuccess ||
+                      previewLoading ||
                       previewUnavailable ||
                       previewTotalPending <= 0
                     }
@@ -973,6 +1041,30 @@ export function PaymentEntryClient({
                       <span>Received by: {confirmationSummary.receivedBy}</span>
                       <span>Remaining balance: {formatInr(confirmationSummary.remainingBalance)}</span>
                     </div>
+                    <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+                      <table className="w-full min-w-[520px] text-left text-sm">
+                        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                          <tr>
+                            <th className="px-3 py-2">Installment</th>
+                            <th className="px-3 py-2">Due date</th>
+                            <th className="px-3 py-2">Amount applied</th>
+                            <th className="px-3 py-2">Remaining</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {allocationPreview.map((item) => (
+                            <tr key={item.installmentId} className="border-t border-slate-100">
+                              <td className="px-3 py-2">{item.installmentLabel}</td>
+                              <td className="px-3 py-2">{item.dueDate}</td>
+                              <td className="px-3 py-2 font-medium text-slate-900">
+                                {formatInr(item.allocatedAmount)}
+                              </td>
+                              <td className="px-3 py-2">{formatInr(item.outstandingAfter)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                     <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                       This will save the receipt once. Posted receipts stay in history.
                     </p>
@@ -985,7 +1077,7 @@ export function PaymentEntryClient({
                       >
                         Cancel
                       </Button>
-                      <Button type="submit" disabled={pending || submittingRef.current}>
+                      <Button type="submit" disabled={pending || submittingRef.current || previewLoading || !draftValidation.ok}>
                         {pending ? "Posting payment..." : "Generate Receipt"}
                       </Button>
                     </div>
@@ -1000,17 +1092,31 @@ export function PaymentEntryClient({
                     <p className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
                       Receipt has been saved.
                     </p>
+                    <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                        Receipt No
+                      </p>
+                      <p className="mt-1 break-all text-2xl font-semibold text-slate-950">
+                        {state.receiptNumber}
+                      </p>
+                    </div>
                     <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                      <span>Receipt number: {state.receiptNumber}</span>
                       <span>Student name: {selectedStudent.fullName}</span>
+                      <span>SR/admission no: {selectedStudent.admissionNo}</span>
+                      <span>Class: {selectedStudent.classLabel}</span>
                       <span>Amount received: {formatInr(state.amountReceived ?? paymentAmount)}</span>
                       <span>Payment date: {state.paymentDate ?? paymentDate}</span>
-                      <span>Payment mode: {selectedPaymentModeLabel}</span>
+                      <span>Payment mode: {postedPaymentModeLabel}</span>
+                      <span>Reference number: {state.referenceNumber ?? "Not entered"}</span>
+                      <span>Received by: {state.receivedBy ?? receivedBy}</span>
                       <span>Remaining balance: {formatInr(state.remainingBalance ?? remainingAfterPayment)}</span>
+                      {creditBalance > 0 ? (
+                        <span>Credit/refund state: {formatInr(refundableAmount || creditBalance)} to adjust/refund</span>
+                      ) : null}
                     </div>
                     <div className="mt-5 flex flex-wrap justify-end gap-2">
                       <Button asChild variant="outline">
-                        <Link href={receiptHref}>Print Receipt</Link>
+                        <Link href={receiptHref} target="_blank">Print Receipt</Link>
                       </Button>
                       <Button asChild variant="outline">
                         <Link href={receiptHref}>Open Receipt</Link>

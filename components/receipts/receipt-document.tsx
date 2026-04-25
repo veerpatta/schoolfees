@@ -171,9 +171,9 @@ export function ReceiptDocument({ receipt, className }: ReceiptDocumentProps) {
           <p className="mt-1 text-xs text-slate-500">Before this receipt: {formatInr(receipt.totalPaidBeforeReceipt)}</p>
         </div>
         <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3">
-          <p className="text-xs uppercase tracking-wider text-slate-500">Balance due</p>
+          <p className="text-xs uppercase tracking-wider text-slate-500">Balance after this receipt</p>
           <p className="mt-1 font-semibold text-slate-950">{formatInr(receipt.outstandingAfterReceipt)}</p>
-          <p className="mt-1 text-xs text-slate-500">Current outstanding: {formatInr(receipt.currentOutstanding)}</p>
+          <p className="mt-1 text-xs text-slate-500">Current outstanding now: {formatInr(receipt.currentOutstanding)}</p>
         </div>
       </section>
 
