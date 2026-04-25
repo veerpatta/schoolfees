@@ -2,12 +2,10 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 import { MetricCard } from "@/components/admin/metric-card";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
-import { AutoSubmitForm } from "@/components/office/auto-submit-form";
 import { OfficeRecentActions, OfficeRecentTracker, ValueStatePill, WorkflowGuard } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,12 +14,16 @@ import { buildPaymentAllocation } from "@/lib/payments/allocation";
 import { buildPaymentQuickAmounts } from "@/lib/payments/workflow";
 import {
   buildPaymentConfirmationSummary,
+  buildPaymentDeskSearchIndex,
   buildStudentSelectLabel,
+  filterPaymentDeskStudents,
   resetPaymentDraftForNextPayment,
   shouldBlockClientSubmission,
   validatePaymentDraft,
 } from "@/lib/payments/payment-desk-workflow";
 import type {
+  PaymentDeskIssue,
+  PaymentDeskStudentSummary,
   InstallmentBalanceItem,
   PaymentEntryActionState,
   PaymentEntryPageData,
@@ -126,11 +128,20 @@ export function PaymentEntryClient({
   submitPaymentEntryAction,
   repairPaymentDeskStudentDuesAction,
 }: PaymentEntryClientProps) {
-  const router = useRouter();
   const [state, formAction, pending] = useActionState(
     submitPaymentEntryAction,
     initialState,
   );
+  const [selectedClassId, setSelectedClassId] = useState(data.initialClassId);
+  const [studentSearchQuery, setStudentSearchQuery] = useState("");
+  const [selectedStudentId, setSelectedStudentId] = useState(data.initialStudentId ?? "");
+  const [selectedStudent, setSelectedStudent] = useState(data.initialStudentSummary);
+  const [selectedStudentIssue, setSelectedStudentIssue] = useState<PaymentDeskIssue | null>(
+    data.initialStudentIssue,
+  );
+  const [studentSummaryLoading, setStudentSummaryLoading] = useState(false);
+  const [studentSummaryNotice, setStudentSummaryNotice] = useState<string | null>(null);
+  const [latestStudentReceipt, setLatestStudentReceipt] = useState(data.initialLatestReceipt);
   const [paymentAmountInput, setPaymentAmountInput] = useState("");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -138,7 +149,7 @@ export function PaymentEntryClient({
   const [previewNotice, setPreviewNotice] = useState<string | null>(null);
   const [previewUnavailable, setPreviewUnavailable] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewRefreshToken, setPreviewRefreshToken] = useState(0);
+  const [summaryRefreshToken, setSummaryRefreshToken] = useState(0);
   const [paymentMode, setPaymentMode] = useState(data.modeOptions[0]?.value ?? "cash");
   const [referenceNumber, setReferenceNumber] = useState("");
   const [receivedBy, setReceivedBy] = useState(defaultReceivedBy);
@@ -152,8 +163,24 @@ export function PaymentEntryClient({
   const submittingRef = useRef(false);
   const amountInputRef = useRef<HTMLInputElement>(null);
 
-  const selectedStudent = data.selectedStudent;
-  const selectedStudentIssue = data.selectedStudentIssue;
+  const studentSearchIndex = useMemo(
+    () => buildPaymentDeskSearchIndex(data.studentIndex),
+    [data.studentIndex],
+  );
+  const filteredStudents = useMemo(
+    () =>
+      filterPaymentDeskStudents({
+        students: data.studentIndex,
+        searchIndex: studentSearchIndex,
+        selectedClassId,
+        query: studentSearchQuery,
+      }),
+    [data.studentIndex, selectedClassId, studentSearchIndex, studentSearchQuery],
+  );
+  const selectedStudentIndexItem = useMemo(
+    () => data.studentIndex.find((student) => student.id === selectedStudentId) ?? null,
+    [data.studentIndex, selectedStudentId],
+  );
   const previewBreakdown = useMemo(
     () => dateAwareBreakdown ?? selectedStudent?.breakdown ?? [],
     [dateAwareBreakdown, selectedStudent?.breakdown],
@@ -173,24 +200,29 @@ export function PaymentEntryClient({
   const refundableAmount = selectedStudent?.refundableAmount ?? 0;
 
   useEffect(() => {
-    if (!selectedStudent) {
+    if (!selectedStudentId) {
       setDateAwareBreakdown(null);
       setPreviewNotice(null);
       setPreviewUnavailable(false);
       setPreviewLoading(false);
+      setSelectedStudent(null);
+      setSelectedStudentIssue(null);
+      setLatestStudentReceipt(null);
       return;
     }
 
     let isActive = true;
     const params = new URLSearchParams({
-      studentId: selectedStudent.id,
+      studentId: selectedStudentId,
       paymentDate,
     });
 
+    setStudentSummaryLoading(true);
+    setStudentSummaryNotice("Loading dues...");
     setPreviewNotice("Refreshing pending amount for selected payment date...");
     setPreviewLoading(true);
 
-    fetch(`/protected/payments/preview?${params.toString()}`, {
+    fetch(`/protected/payments/student-summary?${params.toString()}`, {
       method: "GET",
       headers: { accept: "application/json" },
     })
@@ -200,18 +232,30 @@ export function PaymentEntryClient({
           throw new Error(payload?.error ?? "Unable to refresh payment preview.");
         }
 
-        return response.json() as Promise<{ rows: InstallmentBalanceItem[]; notice?: string | null }>;
+        return response.json() as Promise<PaymentDeskStudentSummary>;
       })
       .then((payload) => {
         if (!isActive) {
           return;
         }
 
-        setDateAwareBreakdown(payload.rows);
+        setSelectedStudent(payload.student);
+        setSelectedStudentIssue(payload.issue);
+        setLatestStudentReceipt(payload.latestReceipt);
+        setDateAwareBreakdown(payload.student?.breakdown ?? []);
+        setPaymentAmountInput(
+          payload.suggestedDefaultAmount && payload.suggestedDefaultAmount > 0
+            ? String(payload.suggestedDefaultAmount)
+            : "",
+        );
+        setStudentSummaryLoading(false);
+        setStudentSummaryNotice(null);
         setPreviewUnavailable(false);
         setPreviewLoading(false);
         setPreviewNotice(
-          payload.notice ?? "Pending amount and late fee are recalculated for the selected payment date.",
+          payload.student
+            ? "Pending amount and late fee are recalculated for the selected payment date."
+            : "No pending dues for selected payment date.",
         );
       })
       .catch((error) => {
@@ -220,6 +264,8 @@ export function PaymentEntryClient({
         }
 
         setDateAwareBreakdown(null);
+        setStudentSummaryLoading(false);
+        setStudentSummaryNotice(error instanceof Error ? error.message : "Unable to load dues.");
         setPreviewUnavailable(true);
         setPreviewLoading(false);
         setPreviewNotice(error instanceof Error ? error.message : "Unable to refresh payment preview.");
@@ -228,7 +274,7 @@ export function PaymentEntryClient({
     return () => {
       isActive = false;
     };
-  }, [paymentDate, previewRefreshToken, selectedStudent]);
+  }, [paymentDate, selectedStudentId, summaryRefreshToken]);
 
   const allocationPreview = useMemo(() => {
     if (!selectedStudent) {
@@ -289,7 +335,7 @@ export function PaymentEntryClient({
   });
   const remainingAfterPayment =
     draftValidation.ok ? draftValidation.remainingBalance : previewTotalPending;
-  const latestReceipt = data.recentReceipts[0] ?? null;
+  const latestReceipt = latestStudentReceipt ?? data.recentReceipts[0] ?? null;
   const latestPayment = state.status === "success" && state.receiptId && state.receiptNumber
     ? {
         id: state.receiptId,
@@ -388,15 +434,14 @@ export function PaymentEntryClient({
     setReceivedBy(resetValues.receivedBy);
     setClientRequestId(createClientRequestId());
     setDateAwareBreakdown(null);
-    setPreviewNotice("Refreshing dues before the next payment...");
+    setPreviewNotice("Refreshing balance...");
     setPreviewUnavailable(false);
     setPreviewLoading(true);
-    setPreviewRefreshToken((value) => value + 1);
+    setSummaryRefreshToken((value) => value + 1);
     setIsLockedAfterSuccess(false);
     setIsSuccessOpen(false);
     setIsDuplicateOpen(false);
     setCopyStatus("idle");
-    router.refresh();
   }
 
   return (
@@ -426,14 +471,28 @@ export function PaymentEntryClient({
         title="1. Select Class"
         description="Start with class, then choose the student."
       >
-        <AutoSubmitForm action="/protected/payments" method="get" className="grid gap-3 md:grid-cols-[minmax(220px,320px)_1fr] md:items-end">
+        <div className="grid gap-3 md:grid-cols-[minmax(220px,320px)_1fr] md:items-end">
           <div>
             <Label htmlFor="payment-class-id">Class</Label>
             <select
               id="payment-class-id"
-              name="classId"
-              defaultValue={data.classId ?? ""}
+              value={selectedClassId}
               className={`${selectClassName} mt-2`}
+              onChange={(event) => {
+                const nextClassId = event.target.value;
+                setSelectedClassId(nextClassId);
+                if (
+                  selectedStudentId &&
+                  data.studentIndex.some(
+                    (student) => student.id === selectedStudentId && student.classId !== nextClassId,
+                  )
+                ) {
+                  setSelectedStudentId("");
+                  setSelectedStudent(null);
+                  setSelectedStudentIssue(null);
+                  setPaymentAmountInput("");
+                }
+              }}
             >
               <option value="">Select class</option>
               {classOptions.map((classOption) => (
@@ -444,25 +503,24 @@ export function PaymentEntryClient({
             </select>
           </div>
           <p className="text-sm text-slate-600">
-            Student list loads for the selected class and stays in alphabetical order with SR no.
+            Student list stays ready for the selected class and remains in alphabetical order with SR no.
           </p>
-        </AutoSubmitForm>
+        </div>
       </SectionCard>
 
       <SectionCard
         title="2. Select Student"
-        description="Use SR no, student name, phone number, or receipt number to reach the right student quickly."
+        description="Use SR no, student name, father name, or phone number to reach the right student quickly."
       >
-        <AutoSubmitForm action="/protected/payments" method="get" className="space-y-4">
+        <div className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            {data.classId ? <input type="hidden" name="classId" value={data.classId} /> : null}
             <div>
               <Label htmlFor="payment-student-query">Search</Label>
               <Input
                 id="payment-student-query"
-                name="query"
-                defaultValue={data.searchQuery}
-                placeholder="SR no, student, phone, or receipt no"
+                value={studentSearchQuery}
+                onChange={(event) => setStudentSearchQuery(event.target.value)}
+                placeholder="SR no, student, father, or phone"
                 className="mt-2"
               />
             </div>
@@ -470,26 +528,40 @@ export function PaymentEntryClient({
               <Label htmlFor="payment-student-id">Student</Label>
               <select
                 id="payment-student-id"
-                name="studentId"
-                defaultValue={selectedStudent?.id ?? ""}
+                value={selectedStudentId}
                 className={`${selectClassName} mt-2`}
+                onChange={(event) => {
+                  setSelectedStudentId(event.target.value);
+                  setFormError(null);
+                }}
               >
                 <option value="">Select student</option>
-                {data.studentOptions.map((student) => (
+                {filteredStudents.map((student) => (
                   <option key={student.id} value={student.id}>
-                    {buildStudentSelectLabel(student)}
+                    {buildStudentSelectLabel({
+                      ...student,
+                      pendingAmount: null,
+                    })}
                   </option>
                 ))}
               </select>
             </div>
           </div>
+          {studentSummaryLoading ? (
+            <p className="text-sm text-slate-600">{studentSummaryNotice ?? "Loading students..."}</p>
+          ) : null}
           {selectedStudent ? (
             <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
               Selected student: <span className="font-semibold">{selectedStudent.fullName}</span>{" "}
               ({selectedStudent.admissionNo}) - {selectedStudent.classLabel}
             </div>
           ) : null}
-        </AutoSubmitForm>
+          {!selectedStudent && selectedStudentIndexItem ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              Loading dues for {selectedStudentIndexItem.fullName}...
+            </div>
+          ) : null}
+        </div>
       </SectionCard>
 
       {workflowGuard ? (
@@ -829,11 +901,9 @@ export function PaymentEntryClient({
                         setFormError(null);
                       }}
                     />
-                    {paymentMode !== "cash" ? (
-                      <p className="mt-1 text-xs text-slate-500">
-                        Reference is useful for matching bank/UPI records.
-                      </p>
-                    ) : null}
+                    <p className="mt-1 text-xs text-slate-500">
+                      Reference is useful for matching bank/UPI records.
+                    </p>
                   </div>
                   <div>
                     <Label htmlFor="payment-received-by">Received by</Label>
@@ -929,6 +999,7 @@ export function PaymentEntryClient({
                       !canPost ||
                       isLockedAfterSuccess ||
                       previewLoading ||
+                      studentSummaryLoading ||
                       previewUnavailable ||
                       previewTotalPending <= 0
                     }

@@ -16,7 +16,6 @@ import {
 
 type PaymentsPageProps = {
   searchParams?: Promise<{
-    query?: string;
     studentId?: string;
     classId?: string;
     repairNotice?: string;
@@ -33,7 +32,6 @@ function normalizeStudentId(rawValue: string | undefined) {
 
 export default async function PaymentsPage({ searchParams }: PaymentsPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const searchQuery = (resolvedSearchParams?.query ?? "").trim();
   const studentId = normalizeStudentId(resolvedSearchParams?.studentId);
   const classId = normalizeStudentId(resolvedSearchParams?.classId);
   const repairNotice = (resolvedSearchParams?.repairNotice ?? "").trim();
@@ -48,7 +46,7 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
   const canPostPayments =
     hasStaffPermission(staff, "payments:write") && readiness.postPayments.isReady;
   const data = await getPaymentEntryPageData({
-    searchQuery,
+    searchQuery: "",
     studentId,
     classId: classId ?? undefined,
     autoPrepareMissingDues: canPostPayments,

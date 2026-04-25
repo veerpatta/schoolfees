@@ -67,11 +67,11 @@ describe("read-only UX audit implementation", () => {
     const paymentData = readRepoFile("lib/payments/data.ts");
     const ledger = readRepoFile("components/ledger/ledger-client.tsx");
 
-    expect(paymentDesk).toContain("AutoSubmitForm");
+    expect(paymentDesk).not.toContain("AutoSubmitForm");
     expect(paymentDesk).not.toContain("Continue with this student");
     expect(paymentData).toContain("tryAutoPrepareSelectedStudentDues");
     expect(paymentData).toContain("Prepare dues again");
-    expect(paymentDesk).toContain("/protected/payments/preview");
+    expect(paymentDesk).toContain("/protected/payments/student-summary");
     expect(ledger).toContain("AutoSubmitForm");
     expect(ledger).not.toContain("Open ledger");
     expect(ledger).not.toContain("Apply filters");
