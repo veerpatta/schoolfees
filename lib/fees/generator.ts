@@ -492,7 +492,8 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
     string,
     typeof setupData.conventionalDiscountAssignments
   >();
-  setupData.conventionalDiscountAssignments.forEach((assignment) => {
+  const conventionalDiscountAssignments = setupData.conventionalDiscountAssignments ?? [];
+  conventionalDiscountAssignments.forEach((assignment) => {
     const existing = conventionalDiscountAssignmentMap.get(assignment.studentId) ?? [];
     existing.push(assignment);
     conventionalDiscountAssignmentMap.set(assignment.studentId, existing);

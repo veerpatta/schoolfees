@@ -15,6 +15,7 @@ type ConfigChangeScope =
   | "class_defaults"
   | "transport_defaults"
   | "student_override"
+  | "conventional_discount_policy"
   | "workbook_setup";
 
 type ConfigChangeBatchRow = {
@@ -47,6 +48,8 @@ function getScopeLabel(scope: ConfigChangeScope) {
       return "Transport defaults";
     case "student_override":
       return "Student override";
+    case "conventional_discount_policy":
+      return "Conventional discount policy";
     case "workbook_setup":
       return "Workbook Fee Setup";
   }

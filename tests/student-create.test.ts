@@ -7,7 +7,16 @@ vi.mock("server-only", () => ({}));
 
 vi.mock("@/lib/fees/data", () => ({
   getFeePolicySummary: vi.fn(async () => ({ customFeeHeads: [] })),
+  getFeeSetupPageData: vi.fn(async () => ({
+    globalPolicy: { academicSessionLabel: "2026-27" },
+    schoolDefault: { tuitionFee: 0 },
+    classDefaults: [],
+  })),
   upsertStudentFeeOverride,
+}));
+
+vi.mock("@/lib/fees/conventional-discounts", () => ({
+  saveStudentConventionalDiscountAssignments: vi.fn(async () => undefined),
 }));
 
 vi.mock("@/lib/master-data/data", () => ({
@@ -75,6 +84,11 @@ describe("createStudent", () => {
       otherAdjustmentAmount: null,
       feeProfileReason: "Import",
       feeProfileNotes: null,
+      conventionalPolicyIds: [],
+      conventionalDiscountReason: "Conventional discount approved",
+      conventionalDiscountNotes: null,
+      conventionalDiscountFamilyGroup: null,
+      conventionalDiscountManualOverrideReason: null,
       notes: null,
     });
 
@@ -113,6 +127,11 @@ describe("createStudent", () => {
       otherAdjustmentAmount: null,
       feeProfileReason: "Student fee profile",
       feeProfileNotes: null,
+      conventionalPolicyIds: [],
+      conventionalDiscountReason: "Conventional discount approved",
+      conventionalDiscountNotes: null,
+      conventionalDiscountFamilyGroup: null,
+      conventionalDiscountManualOverrideReason: null,
       notes: null,
     });
 

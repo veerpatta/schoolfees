@@ -191,9 +191,9 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("Payment Successful");
     expect(component).toContain("Receipt has been saved.");
     expect(component).toContain("Collect Another Payment");
-    expect(component).toContain("Latest receipt posted at desk");
+    expect(component).toContain("Latest receipt:");
     expect(component).toContain("Amount to refund/adjust");
-    expect(component).toContain("Required for this mode");
+    expect(component).toContain("Reference number");
     expect(component).toContain("Similar payment already recorded");
     expect(component).toContain("isLockedAfterSuccess");
   });

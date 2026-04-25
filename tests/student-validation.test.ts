@@ -27,6 +27,11 @@ function baseInput(overrides: Record<string, string> = {}) {
     otherAdjustmentAmount: "",
     feeProfileReason: "",
     feeProfileNotes: "",
+    conventionalPolicyIds: [],
+    conventionalDiscountReason: "",
+    conventionalDiscountNotes: "",
+    conventionalDiscountFamilyGroup: "",
+    conventionalDiscountManualOverrideReason: "",
     notes: "",
     ...overrides,
   };

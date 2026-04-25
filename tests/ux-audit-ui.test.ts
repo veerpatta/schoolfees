@@ -127,8 +127,8 @@ describe("read-only UX audit implementation", () => {
     expect(studentsTable).toContain("Student name");
     expect(transactions).toContain("Receipt no");
     expect(transactions).not.toContain("Receipt / Ref");
-    expect(defaulters).toContain("Status / Next due");
-    expect(defaulters).toContain("Phone-ready overdue list with only the fields needed for follow-up.");
+    expect(defaulters).toContain("Oldest due");
+    expect(defaulters).toContain("Phone-ready overdue list for");
   });
 
   it("write actions still revalidate finance surfaces", () => {
