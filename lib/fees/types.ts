@@ -280,6 +280,9 @@ export type StudentFinancialSnapshot = {
   policy: FeePolicySummary;
   resolvedBreakdown: ResolvedFeeBreakdown;
   currentOutstanding: number;
+  creditBalance: number;
+  refundableAmount: number;
+  rowsKeptForReview: number;
   openInstallments: number;
   overdueInstallments: number;
   nextDueDate: string | null;

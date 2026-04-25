@@ -62,6 +62,35 @@ function ActionNotice({ state }: { state: PaymentEntryActionState }) {
       }
     >
       {state.message}
+      {state.status === "error" && state.diagnostic ? (
+        <details className="mt-2 rounded border border-red-200 bg-white/70 px-2 py-2 text-xs text-red-900">
+          <summary className="cursor-pointer font-medium">Admin diagnostic</summary>
+          <dl className="mt-2 grid gap-1 sm:grid-cols-2">
+            <div>Reason: {state.diagnostic.reason}</div>
+            <div>Student: {state.diagnostic.studentId ?? "Not set"}</div>
+            <div>Fee Setup year: {state.diagnostic.activeFeeSetupSession ?? "Not set"}</div>
+            <div>Student year: {state.diagnostic.studentClassSession ?? "Not set"}</div>
+            <div>Dues rows: {state.diagnostic.installmentCount ?? "Not checked"}</div>
+            <div>Preview pending: {state.diagnostic.previewPendingAmount ?? "Not checked"}</div>
+            <div>Payment date: {state.diagnostic.selectedPaymentDate ?? "Not set"}</div>
+            <div>Preview worked: {state.diagnostic.previewWorked ? "Yes" : "No"}</div>
+            <div>Posting worked: {state.diagnostic.postStudentPaymentWorked ? "Yes" : "No"}</div>
+            <div>Auto-prepare tried: {state.diagnostic.autoPrepareAttempted ? "Yes" : "No"}</div>
+            <div>
+              Auto-prepare worked:{" "}
+              {state.diagnostic.autoPrepareWorked == null
+                ? "Not tried"
+                : state.diagnostic.autoPrepareWorked
+                  ? "Yes"
+                  : "No"}
+            </div>
+            <div>Database code: {state.diagnostic.rawRpcErrorCode ?? "None"}</div>
+          </dl>
+          {state.diagnostic.rawRpcErrorMessage ? (
+            <p className="mt-2 break-words">Database message: {state.diagnostic.rawRpcErrorMessage}</p>
+          ) : null}
+        </details>
+      ) : null}
     </div>
   );
 }

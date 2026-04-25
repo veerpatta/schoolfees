@@ -773,6 +773,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           hint={`${data.studentsWithPending} student${data.studentsWithPending === 1 ? "" : "s"} still have dues.`}
         />
         <MetricCard
+          title="Amount to Refund"
+          value={formatInr(data.totalRefundDue)}
+          hint="Credit/refund due from revised fee records. No cash refund is processed here."
+        />
+        <MetricCard
           title="Overdue Amount"
           value={formatInr(data.kpis.overdueAmount)}
           hint={`${data.overdueInstallmentCount} overdue installment${data.overdueInstallmentCount === 1 ? "" : "s"}.`}

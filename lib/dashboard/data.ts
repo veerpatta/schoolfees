@@ -86,6 +86,7 @@ export type DashboardPageData = {
   totalDue: number;
   totalCollected: number;
   totalPending: number;
+  totalRefundDue: number;
   overdueInstallmentCount: number;
   studentsWithPending: number;
   paidStudents: number;
@@ -324,6 +325,7 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
     overdueInstallments,
     transactions,
     todayTransactions,
+    refundStateRows,
     configAlerts,
     importAlerts,
     ledgerAlerts,
@@ -411,6 +413,23 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
       [],
       warnings,
     ),
+    optionalLoad(
+      "refund due state",
+      async () => {
+        const supabase = await createClient();
+        const { data, error } = await supabase
+          .from("v_student_financial_state")
+          .select("refundable_amount");
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        return (data ?? []) as Array<{ refundable_amount: number | null }>;
+      },
+      [],
+      warnings,
+    ),
     optionalLoad("fee setup review alerts", getConfigChangeAlerts, [], warnings),
     optionalLoad("student import alerts", getImportIssueAlerts, [], warnings),
     optionalLoad("dues update alerts", getLedgerReviewAlerts, [], warnings),
@@ -433,6 +452,10 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
   const overdueStudents = financialRows.filter((row) => row.statusLabel === "OVERDUE").length;
   const notStartedStudents = financialRows.filter((row) => row.statusLabel === "NOT STARTED").length;
   const studentsWithPending = financialRows.filter((row) => row.outstandingAmount > 0).length;
+  const totalRefundDue = refundStateRows.reduce(
+    (sum, row) => sum + Math.max(Number(row.refundable_amount ?? 0), 0),
+    0,
+  );
   const alerts: DashboardAlert[] = [
     ...setupAlerts,
     ...configAlerts,
@@ -509,6 +532,7 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
     totalDue: summary.kpis.totalExpectedFees,
     totalCollected: summary.kpis.totalCollected,
     totalPending: summary.kpis.totalPending,
+    totalRefundDue,
     overdueInstallmentCount: overdueInstallments.length,
     studentsWithPending,
     paidStudents,

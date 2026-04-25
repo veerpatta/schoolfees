@@ -4,7 +4,11 @@ import { redirect } from "next/navigation";
 
 import type { PaymentMode } from "@/lib/db/types";
 import { getFeePolicySummary } from "@/lib/fees/data";
-import { postStudentPayment, toFriendlyPaymentPostingError } from "@/lib/payments/data";
+import {
+  getPaymentPostingDiagnostic,
+  postStudentPayment,
+  toFriendlyPaymentPostingError,
+} from "@/lib/payments/data";
 import type { PaymentEntryActionState } from "@/lib/payments/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import {
@@ -73,6 +77,7 @@ function toActionStateError(error: unknown): PaymentEntryActionState {
     receiptNumber: null,
     receiptId: null,
     studentId: null,
+    diagnostic: getPaymentPostingDiagnostic(error),
   };
 }
 
@@ -102,6 +107,7 @@ export async function submitPaymentEntryAction(
       receiptNumber: receipt.receiptNumber,
       receiptId: receipt.receiptId,
       studentId,
+      diagnostic: null,
     };
   } catch (error) {
     return toActionStateError(error);

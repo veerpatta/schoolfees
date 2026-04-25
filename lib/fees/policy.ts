@@ -1523,6 +1523,7 @@ export async function getStudentFinancialSnapshot(
     const [
       { data: workbookStudentRaw, error: workbookStudentError },
       { data: workbookBalancesRaw, error: workbookBalancesError },
+      { data: financialStateRaw, error: financialStateError },
     ] = await Promise.all([
       supabase
         .from("v_workbook_student_financials")
@@ -1534,6 +1535,11 @@ export async function getStudentFinancialSnapshot(
         .select("pending_amount, balance_status")
         .eq("student_id", studentId)
         .gt("pending_amount", 0),
+      supabase
+        .from("v_student_financial_state")
+        .select("pending_amount, credit_balance, refundable_amount, rows_kept_for_review")
+        .eq("student_id", studentId)
+        .maybeSingle(),
     ]);
 
     if (workbookStudentError && !workbookStudentError.message.includes("does not exist")) {
@@ -1542,6 +1548,10 @@ export async function getStudentFinancialSnapshot(
 
     if (workbookBalancesError && !workbookBalancesError.message.includes("does not exist")) {
       throw new Error(`Unable to load workbook installment balances: ${workbookBalancesError.message}`);
+    }
+
+    if (financialStateError && !financialStateError.message.includes("does not exist")) {
+      throw new Error(`Unable to load student financial state: ${financialStateError.message}`);
     }
 
     const workbookStudent = (workbookStudentRaw ?? null) as
@@ -1556,13 +1566,25 @@ export async function getStudentFinancialSnapshot(
       pending_amount: number;
       balance_status: "paid" | "partial" | "overdue" | "pending" | "waived";
     }>;
+    const financialState = (financialStateRaw ?? null) as
+      | {
+          pending_amount: number;
+          credit_balance: number;
+          refundable_amount: number;
+          rows_kept_for_review: number;
+        }
+      | null;
 
     return {
       policy: pageData.globalPolicy,
       resolvedBreakdown: resolved.breakdown,
       currentOutstanding:
+        financialState?.pending_amount ??
         workbookStudent?.outstanding_amount ??
         workbookBalances.reduce((sum, row) => sum + row.pending_amount, 0),
+      creditBalance: financialState?.credit_balance ?? 0,
+      refundableAmount: financialState?.refundable_amount ?? 0,
+      rowsKeptForReview: financialState?.rows_kept_for_review ?? 0,
       openInstallments: workbookBalances.length,
       overdueInstallments: workbookBalances.filter((row) => row.balance_status === "overdue").length,
       nextDueDate: workbookStudent?.next_due_date ?? null,
@@ -1593,6 +1615,9 @@ export async function getStudentFinancialSnapshot(
       (sum, row) => sum + row.outstanding_amount,
       0,
     ),
+    creditBalance: 0,
+    refundableAmount: 0,
+    rowsKeptForReview: 0,
     openInstallments: balanceRows.length,
     overdueInstallments: balanceRows.filter((row) => row.balance_status === "overdue").length,
     nextDueDate: nextDue?.due_date ?? null,

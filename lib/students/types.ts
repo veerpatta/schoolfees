@@ -100,7 +100,7 @@ export type StudentDetail = {
   updatedAt: string;
 };
 
-export type StudentDeletionSafety = {
+  export type StudentDeletionSafety = {
   studentId: string;
   hasFinancialHistory: boolean;
   hardDeleteAllowed: boolean;
@@ -115,8 +115,9 @@ export type StudentDeletionSafety = {
   ledgerRegenerationRowCount: number;
   importReferenceCount: number;
   feeOverrideCount: number;
-  auditLogCount: number;
-  sessionLabel: string;
+    auditLogCount: number;
+    hardDeleteBlockers: string[];
+    sessionLabel: string;
   admissionNo: string;
   fullName: string;
 };

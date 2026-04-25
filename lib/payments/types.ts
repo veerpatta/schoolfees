@@ -6,6 +6,7 @@ export type PaymentEntryActionState = {
   receiptNumber: string | null;
   receiptId: string | null;
   studentId: string | null;
+  diagnostic?: PaymentPostingDiagnostic | null;
 };
 
 export const INITIAL_PAYMENT_ENTRY_ACTION_STATE: PaymentEntryActionState = {
@@ -14,6 +15,23 @@ export const INITIAL_PAYMENT_ENTRY_ACTION_STATE: PaymentEntryActionState = {
   receiptNumber: null,
   receiptId: null,
   studentId: null,
+  diagnostic: null,
+};
+
+export type PaymentPostingDiagnostic = {
+  rawRpcErrorCode: string | null;
+  rawRpcErrorMessage: string | null;
+  studentId: string | null;
+  activeFeeSetupSession: string | null;
+  studentClassSession: string | null;
+  installmentCount: number | null;
+  previewPendingAmount: number | null;
+  selectedPaymentDate: string | null;
+  previewWorked: boolean;
+  postStudentPaymentWorked: boolean;
+  autoPrepareAttempted: boolean;
+  autoPrepareWorked: boolean | null;
+  reason: string;
 };
 
 export type PaymentStudentOption = {

@@ -780,7 +780,10 @@ export async function getStudentDeletionSafety(studentId: string): Promise<Stude
     installmentCount,
     receiptCount,
     paymentCount,
-    adjustmentCount: adjustmentCount + refundRequestCount,
+    adjustmentCount,
+    refundRequestCount,
+    blockedInstallmentCount,
+    ledgerRegenerationRowCount,
     sessionLabel: student.classSessionLabel,
     admissionNo: student.admissionNo,
     fullName: student.fullName,
@@ -802,6 +805,7 @@ export async function getStudentDeletionSafety(studentId: string): Promise<Stude
     importReferenceCount,
     feeOverrideCount,
     auditLogCount,
+    hardDeleteBlockers: deletePolicy.hardDeleteBlockers,
     sessionLabel: student.classSessionLabel,
     admissionNo: student.admissionNo,
     fullName: student.fullName,
@@ -837,17 +841,7 @@ export async function hardDeleteStudent(studentId: string, options: { forceTestR
 
   if (!safety.hardDeleteAllowed && !(options.forceTestRecord && safety.canForceDeleteTestRecord)) {
     throw new Error(
-      "Cannot delete because payment history exists. Withdraw student instead.",
-    );
-  }
-
-  if (
-    safety.refundRequestCount > 0 ||
-    safety.blockedInstallmentCount > 0 ||
-    safety.ledgerRegenerationRowCount > 0
-  ) {
-    throw new Error(
-      "Cannot delete because this student is linked to fee review records. Withdraw student instead.",
+      `Cannot delete because this student is linked to ${safety.hardDeleteBlockers.join(", ")}. Withdraw student instead.`,
     );
   }
 

@@ -17,6 +17,7 @@ import type {
   InstallmentBalanceItem,
   PaymentDeskIssue,
   PaymentEntryPageData,
+  PaymentPostingDiagnostic,
   PaymentStudentOption,
   SelectedStudentSummary,
 } from "@/lib/payments/types";
@@ -69,6 +70,26 @@ type PaymentStudentBaseRow = {
     | null;
 };
 
+export class PaymentPostingPreflightError extends Error {
+  diagnostic: PaymentPostingDiagnostic;
+
+  constructor(message: string, diagnostic: PaymentPostingDiagnostic) {
+    super(message);
+    this.name = "PaymentPostingPreflightError";
+    this.diagnostic = diagnostic;
+  }
+}
+
+export class PaymentPostingRpcError extends Error {
+  diagnostic: PaymentPostingDiagnostic;
+
+  constructor(message: string, diagnostic: PaymentPostingDiagnostic) {
+    super(message);
+    this.name = "PaymentPostingRpcError";
+    this.diagnostic = diagnostic;
+  }
+}
+
 export function toFriendlyPaymentPreviewError(error: unknown) {
   const rawMessage =
     error instanceof Error
@@ -113,6 +134,13 @@ export function toFriendlyPaymentPreviewError(error: unknown) {
 }
 
 export function toFriendlyPaymentPostingError(error: unknown) {
+  if (
+    error instanceof PaymentPostingPreflightError ||
+    error instanceof PaymentPostingRpcError
+  ) {
+    return error.message;
+  }
+
   const rawMessage =
     error instanceof Error
       ? error.message
@@ -130,7 +158,7 @@ export function toFriendlyPaymentPostingError(error: unknown) {
   }
 
   if (normalized.includes("no pending dues") || normalized.includes("total_outstanding")) {
-    return "No pending dues are available for this student.";
+    return "No payable dues found for selected payment date.";
   }
 
   if (normalized.includes("selected student was not found")) {
@@ -138,7 +166,7 @@ export function toFriendlyPaymentPostingError(error: unknown) {
   }
 
   if (normalized.includes("dues") || normalized.includes("installment")) {
-    return "Dues are not prepared for this student.";
+    return "Dues exist, but payment posting could not read them. Ask admin to check database update.";
   }
 
   if (normalized.includes("session")) {
@@ -159,6 +187,57 @@ export function toFriendlyPaymentPostingError(error: unknown) {
   }
 
   return "Unable to save payment right now. Please check the student, dues, amount, and payment mode.";
+}
+
+export function getPaymentPostingDiagnostic(error: unknown) {
+  if (
+    error instanceof PaymentPostingPreflightError ||
+    error instanceof PaymentPostingRpcError
+  ) {
+    return error.diagnostic;
+  }
+
+  return null;
+}
+
+function getRawDatabaseError(error: unknown) {
+  if (typeof error === "object" && error !== null) {
+    const record = error as { code?: unknown; message?: unknown };
+
+    return {
+      code: typeof record.code === "string" ? record.code : null,
+      message: typeof record.message === "string" ? record.message : null,
+    };
+  }
+
+  return {
+    code: null,
+    message: error instanceof Error ? error.message : String(error),
+  };
+}
+
+function buildPaymentDiagnostic(
+  input: Partial<PaymentPostingDiagnostic> & {
+    studentId: string | null;
+    selectedPaymentDate: string | null;
+    reason: string;
+  },
+): PaymentPostingDiagnostic {
+  return {
+    rawRpcErrorCode: input.rawRpcErrorCode ?? null,
+    rawRpcErrorMessage: input.rawRpcErrorMessage ?? null,
+    studentId: input.studentId,
+    activeFeeSetupSession: input.activeFeeSetupSession ?? null,
+    studentClassSession: input.studentClassSession ?? null,
+    installmentCount: input.installmentCount ?? null,
+    previewPendingAmount: input.previewPendingAmount ?? null,
+    selectedPaymentDate: input.selectedPaymentDate,
+    previewWorked: input.previewWorked ?? false,
+    postStudentPaymentWorked: input.postStudentPaymentWorked ?? false,
+    autoPrepareAttempted: input.autoPrepareAttempted ?? false,
+    autoPrepareWorked: input.autoPrepareWorked ?? null,
+    reason: input.reason,
+  };
 }
 
 function toSingleRecord<T>(value: T | T[] | null) {
@@ -341,7 +420,7 @@ function summarizeStudent(
   };
 }
 
-async function countNonCancelledInstallments(studentId: string) {
+export async function countNonCancelledInstallments(studentId: string) {
   const supabase = await createClient();
   const { count, error } = await supabase
     .from("installments")
@@ -354,6 +433,177 @@ async function countNonCancelledInstallments(studentId: string) {
   }
 
   return count ?? 0;
+}
+
+async function getSelectedStudentPreflightContext(studentId: string) {
+  const [policy, student, installmentCount] = await Promise.all([
+    getFeePolicySummary(),
+    getStudentDetail(studentId),
+    countNonCancelledInstallments(studentId),
+  ]);
+
+  return {
+    policy,
+    student,
+    installmentCount,
+  };
+}
+
+function mapDuesPreparationReason(reason: string | null) {
+  const normalized = (reason ?? "").toLowerCase();
+
+  if (normalized.includes("does not have a fee amount") || normalized.includes("class fee")) {
+    return reason ?? "Class fee is missing in Fee Setup.";
+  }
+
+  if (normalized.includes("installment date") || normalized.includes("no installment")) {
+    return reason ?? "Installment dates are missing in Fee Setup.";
+  }
+
+  if (normalized.includes("another year") || normalized.includes("session")) {
+    return reason ?? "Student belongs to another academic year.";
+  }
+
+  return reason ?? "Dues could not be prepared. Check Fee Setup for this class and year.";
+}
+
+export async function preflightPaymentPosting(payload: {
+  studentId: string;
+  paymentDate: string;
+  paymentAmount: number;
+}) {
+  const context = await getSelectedStudentPreflightContext(payload.studentId);
+  let installmentCount = context.installmentCount;
+  let autoPrepareAttempted = false;
+  let autoPrepareWorked: boolean | null = null;
+  const baseDiagnostic = {
+    studentId: payload.studentId,
+    activeFeeSetupSession: context.policy.academicSessionLabel,
+    studentClassSession: context.student?.classSessionLabel ?? null,
+    selectedPaymentDate: payload.paymentDate,
+    installmentCount,
+  };
+
+  if (!context.student) {
+    throw new PaymentPostingPreflightError(
+      "Selected student could not be found. Refresh Payment Desk and select the student again.",
+      buildPaymentDiagnostic({
+        ...baseDiagnostic,
+        reason: "student_not_found",
+      }),
+    );
+  }
+
+  if (context.student.status !== "active") {
+    throw new PaymentPostingPreflightError(
+      "No payable dues found for selected payment date.",
+      buildPaymentDiagnostic({
+        ...baseDiagnostic,
+        reason: `student_status_${context.student.status}`,
+      }),
+    );
+  }
+
+  if (context.student.classSessionLabel !== context.policy.academicSessionLabel) {
+    throw new PaymentPostingPreflightError(
+      "Student belongs to another academic year.",
+      buildPaymentDiagnostic({
+        ...baseDiagnostic,
+        reason: "session_mismatch",
+      }),
+    );
+  }
+
+  if (installmentCount === 0) {
+    autoPrepareAttempted = true;
+    const duesResult = await prepareDuesForStudentsAutomatically({
+      studentIds: [payload.studentId],
+      reason: "Payment submit auto-prepare",
+      useSystemClient: true,
+    });
+
+    autoPrepareWorked =
+      duesResult.readyForPaymentCount > 0 && duesResult.duesNeedAttentionCount === 0;
+
+    if (!autoPrepareWorked) {
+      throw new PaymentPostingPreflightError(
+        mapDuesPreparationReason(duesResult.reasonSummary),
+        buildPaymentDiagnostic({
+          ...baseDiagnostic,
+          autoPrepareAttempted,
+          autoPrepareWorked,
+          reason: duesResult.reasonSummary ?? "auto_prepare_failed",
+        }),
+      );
+    }
+
+    installmentCount = await countNonCancelledInstallments(payload.studentId);
+  }
+
+  let previewRows: InstallmentBalanceItem[];
+  try {
+    previewRows = await getPaymentDateAwareInstallmentBalances({
+      studentId: payload.studentId,
+      paymentDate: payload.paymentDate,
+    });
+  } catch (error) {
+    throw new PaymentPostingPreflightError(
+      "Dues exist, but payment posting could not read them. Ask admin to check database update.",
+      buildPaymentDiagnostic({
+        ...baseDiagnostic,
+        installmentCount,
+        autoPrepareAttempted,
+        autoPrepareWorked,
+        rawRpcErrorMessage: error instanceof Error ? error.message : String(error),
+        reason: "preview_failed",
+      }),
+    );
+  }
+
+  const previewPendingAmount = previewRows.reduce(
+    (sum, row) => sum + row.outstandingAmount,
+    0,
+  );
+
+  if (previewPendingAmount <= 0) {
+    throw new PaymentPostingPreflightError(
+      "No payable dues found for selected payment date.",
+      buildPaymentDiagnostic({
+        ...baseDiagnostic,
+        installmentCount,
+        previewPendingAmount,
+        previewWorked: true,
+        autoPrepareAttempted,
+        autoPrepareWorked,
+        reason: "no_payable_dues_for_payment_date",
+      }),
+    );
+  }
+
+  if (payload.paymentAmount > previewPendingAmount) {
+    throw new PaymentPostingPreflightError(
+      "Payment amount is more than pending dues.",
+      buildPaymentDiagnostic({
+        ...baseDiagnostic,
+        installmentCount,
+        previewPendingAmount,
+        previewWorked: true,
+        autoPrepareAttempted,
+        autoPrepareWorked,
+        reason: "payment_amount_exceeds_preview_pending",
+      }),
+    );
+  }
+
+  return buildPaymentDiagnostic({
+    ...baseDiagnostic,
+    installmentCount,
+    previewPendingAmount,
+    previewWorked: true,
+    autoPrepareAttempted,
+    autoPrepareWorked,
+    reason: "preflight_passed",
+  });
 }
 
 async function tryAutoPrepareSelectedStudentDues(payload: {
@@ -727,6 +977,11 @@ export async function postStudentPayment(payload: {
 }) {
   const supabase = await createClient();
   const policy = await getFeePolicySummary();
+  const preflightDiagnostic = await preflightPaymentPosting({
+    studentId: payload.studentId,
+    paymentDate: payload.paymentDate,
+    paymentAmount: payload.paymentAmount,
+  });
   const { data, error } = await supabase.rpc("post_student_payment", {
     p_student_id: payload.studentId,
     p_payment_date: payload.paymentDate,
@@ -739,7 +994,17 @@ export async function postStudentPayment(payload: {
   });
 
   if (error) {
-    throw new Error(toFriendlyPaymentPostingError(error));
+    const raw = getRawDatabaseError(error);
+    throw new PaymentPostingRpcError(
+      toFriendlyPaymentPostingError(error),
+      {
+        ...preflightDiagnostic,
+        rawRpcErrorCode: raw.code,
+        rawRpcErrorMessage: raw.message,
+        postStudentPaymentWorked: false,
+        reason: "post_student_payment_failed",
+      },
+    );
   }
 
   const row = Array.isArray(data)

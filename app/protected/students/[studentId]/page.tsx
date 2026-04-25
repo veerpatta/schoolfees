@@ -163,6 +163,14 @@ export default async function StudentDetailPage({
                 {financialSnapshot ? formatInr(financialSnapshot.currentOutstanding) : "-"}
               </p>
             </div>
+            {financialSnapshot?.creditBalance ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-700">Amount to refund</p>
+                <p className="mt-2 font-semibold text-amber-950">
+                  {formatInr(financialSnapshot.refundableAmount)}
+                </p>
+              </div>
+            ) : null}
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
@@ -220,6 +228,16 @@ export default async function StudentDetailPage({
                 {financialSnapshot.activeOverrideReason ? (
                   <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                     Override reason: {financialSnapshot.activeOverrideReason}
+                  </p>
+                ) : null}
+                {financialSnapshot.creditBalance > 0 ? (
+                  <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    Amount to refund / adjust: {formatInr(financialSnapshot.refundableAmount)}.
+                  </p>
+                ) : null}
+                {financialSnapshot.rowsKeptForReview > 0 ? (
+                  <p className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+                    Rows kept for review: {financialSnapshot.rowsKeptForReview}.
                   </p>
                 ) : null}
                 {financialSnapshot.resolvedBreakdown.booksExcludedFromWorkbook ? (
@@ -573,6 +591,11 @@ export default async function StudentDetailPage({
               deletionSafety.ledgerRegenerationRowCount > 0 ? (
                 <p className="mt-2 text-amber-700">
                   Fee review records are linked to this student. Withdraw student instead of deleting.
+                </p>
+              ) : null}
+              {deletionSafety.hardDeleteBlockers.length > 0 ? (
+                <p className="mt-2 text-amber-700">
+                  Delete blockers: {deletionSafety.hardDeleteBlockers.join(", ")}.
                 </p>
               ) : null}
               <p className="mt-2">
