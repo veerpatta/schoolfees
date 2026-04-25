@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 import { schoolProfile } from "@/lib/config/school";
 import { formatInr } from "@/lib/helpers/currency";
 import type { ReceiptDetail } from "@/lib/receipts/types";
@@ -24,6 +26,77 @@ function paymentModeLabel(value: ReceiptDetail["paymentMode"]) {
   return "Cash";
 }
 
+function wordsBelowThousand(value: number): string {
+  const ones = [
+    "",
+    "One",
+    "Two",
+    "Three",
+    "Four",
+    "Five",
+    "Six",
+    "Seven",
+    "Eight",
+    "Nine",
+    "Ten",
+    "Eleven",
+    "Twelve",
+    "Thirteen",
+    "Fourteen",
+    "Fifteen",
+    "Sixteen",
+    "Seventeen",
+    "Eighteen",
+    "Nineteen",
+  ];
+  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  const parts: string[] = [];
+
+  if (value >= 100) {
+    parts.push(`${ones[Math.floor(value / 100)]} Hundred`);
+    value %= 100;
+  }
+
+  if (value >= 20) {
+    parts.push(tens[Math.floor(value / 10)]);
+    value %= 10;
+  }
+
+  if (value > 0) {
+    parts.push(ones[value]);
+  }
+
+  return parts.join(" ");
+}
+
+function amountInWords(value: number) {
+  const amount = Math.max(Math.round(value), 0);
+
+  if (amount === 0) {
+    return "Zero Rupees Only";
+  }
+
+  const groups: Array<[number, string]> = [
+    [10000000, "Crore"],
+    [100000, "Lakh"],
+    [1000, "Thousand"],
+    [1, ""],
+  ];
+  const parts: string[] = [];
+  let remaining = amount;
+
+  groups.forEach(([size, label]) => {
+    const groupValue = Math.floor(remaining / size);
+
+    if (groupValue > 0) {
+      parts.push(`${wordsBelowThousand(groupValue)}${label ? ` ${label}` : ""}`);
+      remaining %= size;
+    }
+  });
+
+  return `${parts.join(" ")} Rupees Only`;
+}
+
 type ReceiptDocumentProps = {
   receipt: ReceiptDetail;
   className?: string;
@@ -34,25 +107,72 @@ export function ReceiptDocument({ receipt, className }: ReceiptDocumentProps) {
 
   return (
     <article
-      className={`mx-auto w-full max-w-4xl rounded-xl border border-slate-300 bg-white p-6 text-slate-900 shadow-sm print:max-w-none print:rounded-none print:border-slate-400 print:p-0 print:shadow-none ${className ?? ""}`.trim()}
+      className={`receipt-print-sheet mx-auto w-full max-w-4xl rounded-xl border border-slate-300 bg-white p-6 text-slate-900 shadow-sm print:max-w-none print:rounded-none print:border-slate-400 print:p-0 print:shadow-none ${className ?? ""}`.trim()}
     >
+      <style>{`
+        @page {
+          size: A4;
+          margin: 10mm;
+        }
+
+        @media print {
+          .receipt-print-sheet {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            font-size: 11px;
+            line-height: 1.25;
+            width: 100%;
+          }
+
+          .receipt-print-sheet section,
+          .receipt-print-sheet table,
+          .receipt-print-sheet tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+
+          .receipt-print-sheet .print-compact {
+            padding-top: 0.55rem;
+            padding-bottom: 0.55rem;
+          }
+
+          .receipt-print-sheet th,
+          .receipt-print-sheet td {
+            padding-top: 0.35rem;
+            padding-bottom: 0.35rem;
+          }
+        }
+      `}</style>
       <header className="border-b border-slate-300 pb-4">
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-lg font-semibold uppercase tracking-wide">{schoolProfile.name}</p>
-            <p className="text-sm text-slate-600">Installment receipt</p>
-            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
-              Academic session {receipt.sessionLabel}
-            </p>
+          <div className="flex items-start gap-3">
+            <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md border border-slate-300 bg-white">
+              <Image
+                src="/branding/veer-patta-school-logo.jpg"
+                alt={`${schoolProfile.name} logo`}
+                fill
+                sizes="64px"
+                className="object-contain p-1"
+              />
+            </div>
+            <div>
+              <p className="text-lg font-semibold uppercase tracking-wide">{schoolProfile.name}</p>
+              <p className="text-sm text-slate-600">{schoolProfile.shortName}</p>
+              <p className="text-sm text-slate-600">Official fee receipt</p>
+              <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
+                Academic session {receipt.sessionLabel}
+              </p>
+            </div>
           </div>
           <div className="text-right">
             <p className="text-xs uppercase tracking-wider text-slate-500">Receipt no</p>
             <p className="text-lg font-semibold">{receipt.receiptNumber}</p>
+            <p className="mt-1 text-xs text-slate-500">{formatDate(receipt.paymentDate)}</p>
           </div>
         </div>
       </header>
 
-      <section className="grid gap-3 border-b border-slate-300 py-4 text-sm md:grid-cols-3">
+      <section className="print-compact grid gap-3 border-b border-slate-300 py-4 text-sm md:grid-cols-3">
         <div>
           <p className="text-xs uppercase tracking-wider text-slate-500">Student name</p>
           <p className="font-medium">{receipt.studentFullName}</p>
@@ -79,7 +199,7 @@ export function ReceiptDocument({ receipt, className }: ReceiptDocumentProps) {
         </div>
       </section>
 
-      <section className="grid gap-3 border-b border-slate-300 py-4 text-sm md:grid-cols-3">
+      <section className="print-compact grid gap-3 border-b border-slate-300 py-4 text-sm md:grid-cols-3">
         <div>
           <p className="text-xs uppercase tracking-wider text-slate-500">Payment date</p>
           <p className="font-medium">{formatDate(receipt.paymentDate)}</p>
@@ -106,7 +226,7 @@ export function ReceiptDocument({ receipt, className }: ReceiptDocumentProps) {
         </div>
       </section>
 
-      <section className="grid gap-4 border-b border-slate-300 py-4 lg:grid-cols-[1.2fr_0.8fr]">
+      <section className="print-compact grid gap-4 border-b border-slate-300 py-4 lg:grid-cols-[1.2fr_0.8fr]">
         <div>
           <p className="mb-2 text-xs uppercase tracking-wider text-slate-500">Payment breakdown</p>
           <div className="overflow-hidden rounded-md border border-slate-300">
@@ -160,7 +280,7 @@ export function ReceiptDocument({ receipt, className }: ReceiptDocumentProps) {
         </div>
       </section>
 
-      <section className="grid gap-3 border-b border-slate-300 py-4 text-sm md:grid-cols-3">
+      <section className="print-compact grid gap-3 border-b border-slate-300 py-4 text-sm md:grid-cols-3">
         <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3">
           <p className="text-xs uppercase tracking-wider text-slate-500">Amount received</p>
           <p className="mt-1 font-semibold text-slate-950">{formatInr(receipt.totalAmount)}</p>
@@ -178,6 +298,10 @@ export function ReceiptDocument({ receipt, className }: ReceiptDocumentProps) {
       </section>
 
       <section className="border-t border-slate-300 pt-4 text-sm">
+        <p className="mb-3">
+          <span className="font-semibold">Amount in words:</span>{" "}
+          {amountInWords(receipt.totalAmount)}
+        </p>
         <div className="grid gap-3 md:grid-cols-3">
           <div>
             <span className="font-semibold">Discount:</span> {formatInr(receipt.discountAmount)}
@@ -194,6 +318,12 @@ export function ReceiptDocument({ receipt, className }: ReceiptDocumentProps) {
             <span className="font-semibold">Remarks:</span> {receipt.notes}
           </p>
         ) : null}
+        <div className="mt-8 flex items-end justify-between gap-6 text-xs text-slate-600">
+          <p>This is an official school office receipt.</p>
+          <div className="min-w-48 border-t border-slate-400 pt-2 text-center">
+            Authorised signature
+          </div>
+        </div>
       </section>
     </article>
   );

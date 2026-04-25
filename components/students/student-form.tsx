@@ -7,6 +7,7 @@ import { ValueStatePill } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { ConventionalDiscountPolicy } from "@/lib/fees/types";
 import { STUDENT_STATUSES } from "@/lib/students/constants";
 import {
   INITIAL_STUDENT_FORM_ACTION_STATE,
@@ -36,6 +37,11 @@ type StudentFormValues = {
   otherAdjustmentAmount: string;
   feeProfileReason: string;
   feeProfileNotes: string;
+  conventionalPolicyIds: string[];
+  conventionalDiscountReason: string;
+  conventionalDiscountNotes: string;
+  conventionalDiscountFamilyGroup: string;
+  conventionalDiscountManualOverrideReason: string;
   notes: string;
 };
 
@@ -43,7 +49,9 @@ type StudentFormProps = {
   mode: "add" | "edit";
   classOptions: StudentClassOption[];
   routeOptions: StudentRouteOption[];
+  conventionalDiscountPolicies?: ConventionalDiscountPolicy[];
   initialValues: StudentFormValues;
+  returnTo?: string;
   action: (
     previous: StudentFormActionState,
     formData: FormData,
@@ -68,7 +76,9 @@ export function StudentForm({
   mode,
   classOptions,
   routeOptions,
+  conventionalDiscountPolicies = [],
   initialValues,
+  returnTo = "/protected/students",
   action,
 }: StudentFormProps) {
   const [state, formAction, isPending] = useActionState(
@@ -83,6 +93,9 @@ export function StudentForm({
       <div className="flex flex-wrap gap-2">
         <ValueStatePill tone="editable">Student Master</ValueStatePill>
         <ValueStatePill tone="policy">Fee exceptions</ValueStatePill>
+        {initialValues.conventionalPolicyIds.length > 0 ? (
+          <ValueStatePill tone="review">Conventional discount</ValueStatePill>
+        ) : null}
       </div>
 
       {state.message ? (
@@ -100,7 +113,9 @@ export function StudentForm({
                 <Link href={`/protected/payments?studentId=${state.studentId}`}>Open Payment Desk</Link>
               </Button>
               <Button asChild size="sm" variant="outline">
-                <Link href={`/protected/students/${state.studentId}`}>Open student</Link>
+                <Link href={`/protected/students/${state.studentId}?returnTo=${encodeURIComponent(returnTo)}`}>
+                  Open student
+                </Link>
               </Button>
             </div>
           ) : null}
@@ -251,6 +266,95 @@ export function StudentForm({
 
       <details className="rounded-xl border border-slate-200 bg-white">
         <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-900">
+          Conventional Discounts
+        </summary>
+        <div className="space-y-4 border-t border-slate-200 p-4">
+          <p className="text-sm text-slate-600">
+            Use these only for approved school policies like RTE, Staff Child, or 3rd Child.
+          </p>
+          {conventionalDiscountPolicies.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+              Conventional discounts are not configured for this year yet.
+            </div>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-3">
+              {conventionalDiscountPolicies
+                .filter((policy) => policy.isActive && policy.id)
+                .map((policy) => (
+                  <label
+                    key={policy.id}
+                    className="flex min-h-24 cursor-pointer flex-col rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+                  >
+                    <span className="flex items-center gap-2 font-semibold text-slate-950">
+                      <input
+                        type="checkbox"
+                        name="conventionalPolicyIds"
+                        value={policy.id ?? ""}
+                        defaultChecked={initialValues.conventionalPolicyIds.includes(policy.id ?? "")}
+                        className="h-4 w-4 rounded border-slate-300"
+                      />
+                      {policy.displayName}
+                    </span>
+                    <span className="mt-2 text-slate-600">
+                      {policy.calculationType === "tuition_zero"
+                        ? "Tuition becomes Rs 0"
+                        : policy.calculationType === "tuition_percentage"
+                          ? `Tuition becomes ${policy.percentage ?? 0}%`
+                          : `Tuition becomes Rs ${policy.fixedTuitionAmount ?? 0}`}
+                    </span>
+                  </label>
+                ))}
+            </div>
+          )}
+          <FieldError message={getFieldError(state, "conventionalPolicyIds")} />
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <Label htmlFor="conventionalDiscountReason">Reason</Label>
+              <Input
+                id="conventionalDiscountReason"
+                name="conventionalDiscountReason"
+                defaultValue={initialValues.conventionalDiscountReason}
+                className="mt-2"
+                placeholder="e.g. Approved by principal"
+              />
+              <FieldError message={getFieldError(state, "conventionalDiscountReason")} />
+            </div>
+            <div>
+              <Label htmlFor="conventionalDiscountFamilyGroup">Family / sibling group</Label>
+              <Input
+                id="conventionalDiscountFamilyGroup"
+                name="conventionalDiscountFamilyGroup"
+                defaultValue={initialValues.conventionalDiscountFamilyGroup}
+                className="mt-2"
+                placeholder="Required for 3rd Child unless overridden"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Label htmlFor="conventionalDiscountManualOverrideReason">Manual override reason</Label>
+              <Input
+                id="conventionalDiscountManualOverrideReason"
+                name="conventionalDiscountManualOverrideReason"
+                defaultValue={initialValues.conventionalDiscountManualOverrideReason}
+                className="mt-2"
+                placeholder="Only needed when 3rd Child eligibility is manually confirmed"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Label htmlFor="conventionalDiscountNotes">Policy notes</Label>
+              <textarea
+                id="conventionalDiscountNotes"
+                name="conventionalDiscountNotes"
+                defaultValue={initialValues.conventionalDiscountNotes}
+                className={`${textAreaClassName} mt-2`}
+                placeholder="Optional office notes"
+              />
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <details className="rounded-xl border border-slate-200 bg-white">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-900">
           Fee exceptions
         </summary>
         <div className="border-t border-slate-200 p-4">
@@ -331,7 +435,7 @@ export function StudentForm({
               : "Update student"}
         </Button>
         <Button type="button" variant="outline" asChild>
-          <Link href="/protected/students">Cancel</Link>
+          <Link href={returnTo}>Cancel</Link>
         </Button>
       </div>
     </form>

@@ -216,6 +216,34 @@ export const studentImportFieldDefinitions: readonly ImportFieldDefinition[] = [
     required: false,
     aliases: ["other fee amount", "custom fee amount"],
   },
+  {
+    key: "conventionalPolicy1",
+    label: "Conventional Policy 1",
+    description: "Optional. Use RTE, Staff Child, or 3rd Child Policy.",
+    required: false,
+    aliases: ["conventional policy 1", "policy 1", "discount policy 1"],
+  },
+  {
+    key: "conventionalPolicy2",
+    label: "Conventional Policy 2",
+    description: "Optional second approved conventional policy.",
+    required: false,
+    aliases: ["conventional policy 2", "policy 2", "discount policy 2"],
+  },
+  {
+    key: "conventionalFamilyGroup",
+    label: "Family Group / Sibling Group",
+    description: "Required for 3rd Child Policy unless reviewed manually after import.",
+    required: false,
+    aliases: ["family group", "sibling group", "family sibling group"],
+  },
+  {
+    key: "conventionalPolicyNotes",
+    label: "Policy Notes",
+    description: "Optional reason or office note for conventional discounts.",
+    required: false,
+    aliases: ["policy notes", "discount policy notes", "conventional policy notes"],
+  },
 ] as const;
 
 export function normalizeImportKey(value: string) {

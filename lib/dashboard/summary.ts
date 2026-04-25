@@ -11,6 +11,7 @@ export type DashboardKpis = {
   totalPending: number;
   overdueAmount: number;
   todaysCollection: number;
+  thisMonthCollection: number;
   receiptsToday: number;
   collectionRate: number;
 };
@@ -166,6 +167,10 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
     (sum, row) => sum + row.totalAmount,
     0,
   );
+  const currentMonthKey = new Date().toISOString().slice(0, 7);
+  const thisMonthCollection = input.transactions
+    .filter((row) => row.paymentDate.startsWith(currentMonthKey))
+    .reduce((sum, row) => sum + row.totalAmount, 0);
 
   const kpis: DashboardKpis = {
     totalStudents,
@@ -174,6 +179,7 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
     totalPending,
     overdueAmount,
     todaysCollection,
+    thisMonthCollection,
     receiptsToday: input.todayTransactions.length,
     collectionRate: calculatePercentage(totalCollected, totalExpectedFees),
   };

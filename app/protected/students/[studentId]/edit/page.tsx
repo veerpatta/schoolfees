@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
@@ -12,18 +13,30 @@ type EditStudentPageProps = {
   params: Promise<{
     studentId: string;
   }>;
+  searchParams?: Promise<{
+    returnTo?: string;
+  }>;
 };
 
-export default async function EditStudentPage({ params }: EditStudentPageProps) {
+export default async function EditStudentPage({ params, searchParams }: EditStudentPageProps) {
   await requireStaffPermission("students:write", { onDenied: "redirect" });
   const resolvedParams = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const returnTo = resolvedSearchParams?.returnTo?.startsWith("/protected/students")
+    ? resolvedSearchParams.returnTo
+    : "/protected/students";
   const student = await getStudentDetail(resolvedParams.studentId);
 
   if (!student) {
     notFound();
   }
 
-  const { classOptions, routeOptions, resolvedSessionLabel } = await getStudentFormOptions();
+  const {
+    classOptions,
+    routeOptions,
+    conventionalDiscountPolicies,
+    resolvedSessionLabel,
+  } = await getStudentFormOptions();
   const hasSessionMismatch =
     student.classSessionLabel.trim().toLowerCase() !== resolvedSessionLabel.trim().toLowerCase();
 
@@ -33,6 +46,11 @@ export default async function EditStudentPage({ params }: EditStudentPageProps) 
         eyebrow="Students"
         title="Edit student"
         description={`Update student details and fee exceptions for ${student.fullName} (SR no ${student.admissionNo}).`}
+        actions={
+          <Link className="text-sm font-medium text-slate-700 underline-offset-4 hover:underline" href={returnTo}>
+            Back to Students
+          </Link>
+        }
       />
 
       <SectionCard
@@ -48,6 +66,7 @@ export default async function EditStudentPage({ params }: EditStudentPageProps) 
           mode="edit"
           classOptions={classOptions}
           routeOptions={routeOptions}
+          conventionalDiscountPolicies={conventionalDiscountPolicies}
           initialValues={{
             fullName: student.fullName,
             classId: student.classId,
@@ -69,8 +88,15 @@ export default async function EditStudentPage({ params }: EditStudentPageProps) 
             otherAdjustmentAmount: student.otherAdjustmentAmount?.toString() ?? "",
             feeProfileReason: student.overrideReason ?? "Student fee profile",
             feeProfileNotes: student.overrideNotes ?? "",
+            conventionalPolicyIds: student.conventionalDiscountPolicyIds,
+            conventionalDiscountReason: student.conventionalDiscountReason ?? "",
+            conventionalDiscountNotes: student.conventionalDiscountNotes ?? "",
+            conventionalDiscountFamilyGroup: student.conventionalDiscountFamilyGroupLabel ?? "",
+            conventionalDiscountManualOverrideReason:
+              student.conventionalDiscountManualOverrideReason ?? "",
             notes: student.notes ?? "",
           }}
+          returnTo={returnTo}
           action={updateStudentAction.bind(null, student.id)}
         />
       </SectionCard>

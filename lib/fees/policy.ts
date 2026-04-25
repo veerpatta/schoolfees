@@ -20,6 +20,11 @@ import {
   normalizeFeeHeadDefinition,
   parseFeeHeadCatalog,
 } from "@/lib/fees/fee-heads";
+import {
+  applyConventionalDiscountsToTuition,
+  getConventionalDiscountPolicies,
+  getStudentConventionalDiscountAssignments,
+} from "@/lib/fees/conventional-discounts";
 import type {
   ClassFeeDefault,
   FeeHeadDefinition,
@@ -30,6 +35,7 @@ import type {
   InstallmentScheduleItem,
   ResolvedFeeBreakdown,
   SchoolFeeDefault,
+  StudentConventionalDiscountAssignment,
   StudentFeeOverride,
   StudentFinancialSnapshot,
   TransportDefault,
@@ -559,6 +565,9 @@ function buildStudentOptions(studentRows: StudentRow[]): FeeSetupStudentOption[]
 }
 
 function buildResolvedBreakdown(payload: {
+  tuitionBeforeConventionalDiscount?: number;
+  conventionalDiscountApplied?: number;
+  conventionalDiscountLabels?: string[];
   tuitionFee: number;
   transportFee: number;
   booksFee: number;
@@ -636,6 +645,13 @@ function buildResolvedBreakdown(payload: {
       (coreHeads.reduce((sum, item) => sum + item.amount, 0) +
         customHeads.reduce((sum, item) => sum + item.amount, 0)),
     discountApplied: Math.max(0, payload.discountApplied ?? 0),
+    conventionalDiscountApplied: Math.max(
+      0,
+      Math.trunc(payload.conventionalDiscountApplied ?? 0),
+    ),
+    conventionalDiscountLabels: payload.conventionalDiscountLabels ?? [],
+    tuitionBeforeConventionalDiscount:
+      payload.tuitionBeforeConventionalDiscount ?? payload.tuitionFee,
     lateFeeWaiverAmount: Math.max(0, payload.lateFeeWaiverAmount ?? 0),
     booksExcludedFromWorkbook: Boolean(payload.booksExcludedFromWorkbook),
   };
@@ -651,6 +667,13 @@ export async function getFeeSetupPageData(): Promise<FeeSetupPageData> {
     loadFeePolicySnapshots(false),
     loadFeeCollections(),
     getMasterDataOptions(),
+  ]);
+  const [conventionalDiscountPolicies, conventionalDiscountAssignments] = await Promise.all([
+    getConventionalDiscountPolicies(globalPolicy.academicSessionLabel),
+    getStudentConventionalDiscountAssignments({
+      academicSessionLabel: globalPolicy.academicSessionLabel,
+      studentIds: collections.studentRows.map((row) => row.id),
+    }),
   ]);
 
   const discoveredFeeHeadIds = new Set<string>();
@@ -779,6 +802,8 @@ export async function getFeeSetupPageData(): Promise<FeeSetupPageData> {
     classDefaults,
     transportDefaults,
     studentOverrides,
+    conventionalDiscountPolicies,
+    conventionalDiscountAssignments,
     classOptions: masterOptions.classOptions,
     studentOptions: buildStudentOptions(collections.studentRows),
     routeOptions: masterOptions.routeOptions,
@@ -1346,6 +1371,7 @@ export function resolveStudentPolicyBreakdown(payload: {
   classDefault: ClassFeeDefault | null;
   routeDefault: TransportDefault | null;
   studentOverride: StudentFeeOverride | null;
+  conventionalDiscountAssignments?: StudentConventionalDiscountAssignment[];
   hasTransportRoute: boolean;
 }) {
   const base = payload.classDefault ?? payload.schoolDefault;
@@ -1391,8 +1417,13 @@ export function resolveStudentPolicyBreakdown(payload: {
           : null);
     const otherAdjustmentAmount =
       payload.studentOverride?.otherAdjustmentAmount ?? fallbackOtherAdjustmentAmount;
-    const tuitionFee =
+    const tuitionBeforeConventionalDiscount =
       payload.studentOverride?.customTuitionFeeAmount ?? base.tuitionFee;
+    const conventionalDiscountEffect = applyConventionalDiscountsToTuition({
+      baseTuition: tuitionBeforeConventionalDiscount,
+      assignments: payload.conventionalDiscountAssignments ?? [],
+    });
+    const tuitionFee = conventionalDiscountEffect.resultingTuition;
     const transportFee =
       payload.studentOverride?.customTransportFeeAmount ??
       (payload.hasTransportRoute ? routeAnnualAmount : 0);
@@ -1412,6 +1443,7 @@ export function resolveStudentPolicyBreakdown(payload: {
     return {
       breakdown: buildResolvedBreakdown({
         tuitionFee,
+        tuitionBeforeConventionalDiscount,
         transportFee,
         booksFee: 0,
         admissionActivityMiscFee: 0,
@@ -1424,6 +1456,8 @@ export function resolveStudentPolicyBreakdown(payload: {
         otherAdjustmentAmount,
         grossBaseBeforeDiscount: workbookCharges.grossBaseBeforeDiscount,
         discountApplied: workbookCharges.discountApplied,
+        conventionalDiscountApplied: conventionalDiscountEffect.discountApplied,
+        conventionalDiscountLabels: conventionalDiscountEffect.appliedLabels,
         lateFeeWaiverAmount,
         annualTotal: workbookCharges.baseTotalDue,
         booksExcludedFromWorkbook: true,
@@ -1445,17 +1479,23 @@ export function resolveStudentPolicyBreakdown(payload: {
     : 0;
   const legacyTuitionFee =
     payload.studentOverride?.customTuitionFeeAmount ?? base.tuitionFee;
+  const conventionalDiscountEffect = applyConventionalDiscountsToTuition({
+    baseTuition: legacyTuitionFee,
+    assignments: payload.conventionalDiscountAssignments ?? [],
+  });
+  const tuitionFee = conventionalDiscountEffect.resultingTuition;
   const legacyBooksFee =
     payload.studentOverride?.customBooksFeeAmount ?? base.booksFee;
   const legacyGrossBaseBeforeDiscount =
-    legacyTuitionFee +
+    tuitionFee +
     transportFee +
     legacyBooksFee +
     admissionActivityMiscFee +
     Object.values(mergedCustomAmounts).reduce((sum, value) => sum + value, 0);
 
   const breakdown = buildResolvedBreakdown({
-    tuitionFee: legacyTuitionFee,
+    tuitionFee,
+    tuitionBeforeConventionalDiscount: legacyTuitionFee,
     transportFee,
     booksFee: legacyBooksFee,
     admissionActivityMiscFee,
@@ -1465,6 +1505,8 @@ export function resolveStudentPolicyBreakdown(payload: {
     studentType: effectiveStudentType,
     grossBaseBeforeDiscount: legacyGrossBaseBeforeDiscount,
     discountApplied: payload.studentOverride?.discountAmount ?? 0,
+    conventionalDiscountApplied: conventionalDiscountEffect.discountApplied,
+    conventionalDiscountLabels: conventionalDiscountEffect.appliedLabels,
     lateFeeWaiverAmount,
   });
 
@@ -1510,12 +1552,16 @@ export async function getStudentFinancialSnapshot(
     null;
   const studentOverride =
     pageData.studentOverrides.find((item) => item.studentId === studentId) ?? null;
+  const conventionalDiscountAssignments = pageData.conventionalDiscountAssignments.filter(
+    (item) => item.studentId === studentId,
+  );
   const resolved = resolveStudentPolicyBreakdown({
     policy: pageData.globalPolicy,
     schoolDefault: pageData.schoolDefault,
     classDefault,
     routeDefault,
     studentOverride,
+    conventionalDiscountAssignments,
     hasTransportRoute: Boolean(student.transport_route_id),
   });
 

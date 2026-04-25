@@ -76,6 +76,10 @@ export const importFieldKeys = [
   "lateFeeWaiverAmount",
   "customOtherFeeHead",
   "customOtherFeeAmount",
+  "conventionalPolicy1",
+  "conventionalPolicy2",
+  "conventionalFamilyGroup",
+  "conventionalPolicyNotes",
 ] as const;
 
 export type ImportFieldKey = (typeof importFieldKeys)[number];
@@ -123,6 +127,12 @@ export type NormalizedStudentImportRow = {
   status: StudentStatus;
   notes: string | null;
   feeProfileReason: string | null;
+  conventionalDiscounts: {
+    policyIds: string[];
+    policyLabels: string[];
+    familyGroup: string | null;
+    notes: string | null;
+  };
   overrides: NormalizedStudentImportOverride;
 };
 

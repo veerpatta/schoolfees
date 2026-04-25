@@ -66,6 +66,7 @@ export type StudentListItem = {
   missingClassFlag: boolean;
   missingStatusFlag: boolean;
   outstandingAmount: number;
+  conventionalDiscountLabels: string[];
   updatedAt: string;
 };
 
@@ -95,6 +96,14 @@ export type StudentDetail = {
   otherAdjustmentAmount: number | null;
   overrideReason: string | null;
   overrideNotes: string | null;
+  conventionalDiscountPolicyIds: string[];
+  conventionalDiscountLabels: string[];
+  conventionalDiscountReason: string | null;
+  conventionalDiscountNotes: string | null;
+  conventionalDiscountFamilyGroupLabel: string | null;
+  conventionalDiscountManualOverrideReason: string | null;
+  tuitionBeforeConventionalDiscount: number;
+  tuitionAfterConventionalDiscount: number;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -143,6 +152,11 @@ export type StudentFormInput = {
   otherAdjustmentAmount: string;
   feeProfileReason: string;
   feeProfileNotes: string;
+  conventionalPolicyIds: string[];
+  conventionalDiscountReason: string;
+  conventionalDiscountNotes: string;
+  conventionalDiscountFamilyGroup: string;
+  conventionalDiscountManualOverrideReason: string;
   notes: string;
 };
 
@@ -167,6 +181,11 @@ export type StudentValidatedInput = {
   otherAdjustmentAmount: number | null;
   feeProfileReason: string;
   feeProfileNotes: string | null;
+  conventionalPolicyIds: string[];
+  conventionalDiscountReason: string;
+  conventionalDiscountNotes: string | null;
+  conventionalDiscountFamilyGroup: string | null;
+  conventionalDiscountManualOverrideReason: string | null;
   notes: string | null;
 };
 

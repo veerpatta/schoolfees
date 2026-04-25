@@ -82,6 +82,25 @@ function parseMinimumPendingAmount(value: string) {
   return Math.floor(parsed);
 }
 
+function toDateKey() {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function calculateDaysOverdue(dueDate: string | null, today: string) {
+  if (!dueDate || dueDate >= today) {
+    return 0;
+  }
+
+  const due = new Date(`${dueDate}T00:00:00+05:30`).getTime();
+  const now = new Date(`${today}T00:00:00+05:30`).getTime();
+  return Math.max(0, Math.floor((now - due) / 86_400_000));
+}
+
 async function getActiveSessionStudents(filters: DefaulterFilters) {
   const supabase = await createClient();
   const policy = await getFeePolicySummary();
@@ -145,6 +164,8 @@ export async function getDefaultersPageData(
   ]);
 
   const minimumPendingAmount = parseMinimumPendingAmount(filters.minPendingAmount);
+  const normalizedSearch = (filters.searchQuery ?? "").trim().toLowerCase();
+  const today = toDateKey();
 
   const rows = financialRows
     .filter((row) =>
@@ -153,9 +174,25 @@ export async function getDefaultersPageData(
     .filter((row) => row.outstandingAmount > 0)
     .filter((row) => row.outstandingAmount >= minimumPendingAmount)
     .filter((row) => (filters.overdue === "overdue" ? row.statusLabel === "OVERDUE" : true))
+    .filter((row) => {
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      return [
+        row.studentName,
+        row.admissionNo,
+        row.fatherName ?? "",
+        row.fatherPhone ?? "",
+        row.classLabel,
+      ].some((value) => value.toLowerCase().includes(normalizedSearch));
+    })
     .map(
-      (row) =>
-        ({
+      (row) => {
+        const daysOverdue = calculateDaysOverdue(row.nextDueDate, today);
+        const defaulterScore = row.outstandingAmount + daysOverdue * 100;
+
+        return {
           studentId: row.studentId,
           admissionNo: row.admissionNo,
           fullName: row.studentName,
@@ -186,11 +223,15 @@ export async function getDefaultersPageData(
           nextDueDate: row.nextDueDate,
           lastPaymentDate: row.lastPaymentDate,
           followUpStatus: row.statusLabel === "OVERDUE" ? "overdue" : "pending",
-        }) satisfies DefaulterSummaryRow,
+          daysOverdue,
+          defaulterScore,
+          rank: 0,
+        } satisfies DefaulterSummaryRow;
+      },
     )
     .sort((left, right) => {
-      if (right.overdueInstallments !== left.overdueInstallments) {
-        return right.overdueInstallments - left.overdueInstallments;
+      if (right.defaulterScore !== left.defaulterScore) {
+        return right.defaulterScore - left.defaulterScore;
       }
 
       if (right.totalPending !== left.totalPending) {
@@ -198,7 +239,8 @@ export async function getDefaultersPageData(
       }
 
       return left.fullName.localeCompare(right.fullName);
-    });
+    })
+    .map((row, index) => ({ ...row, rank: index + 1 }));
 
   const generatedStudentIds = new Set(financialRows.map((row) => row.studentId));
   const missingDuesRows = activeStudents.filter(

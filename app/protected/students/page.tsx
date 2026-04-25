@@ -3,7 +3,6 @@ import Link from "next/link";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
-import { ClassTabs } from "@/components/office/office-ui";
 import { StudentBulkImportDialogTrigger } from "@/components/students/student-bulk-import-dialog";
 import { StudentFilters } from "@/components/students/student-filters";
 import { StudentListTable } from "@/components/students/student-list-table";
@@ -129,6 +128,13 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
       ),
   );
   const activeCount = students.filter((student) => student.status === "active").length;
+  const returnParams = new URLSearchParams();
+  if (filters.query) returnParams.set("query", filters.query);
+  if (filters.sessionLabel) returnParams.set("sessionLabel", filters.sessionLabel);
+  if (filters.classId) returnParams.set("classId", filters.classId);
+  if (filters.transportRouteId) returnParams.set("transportRouteId", filters.transportRouteId);
+  if (filters.status) returnParams.set("status", filters.status);
+  const returnTo = `/protected/students${returnParams.toString() ? `?${returnParams.toString()}` : ""}`;
 
   return (
     <div className="space-y-6">
@@ -178,25 +184,12 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
         title="Find students"
         description="Search by student name, SR no, or phone, then narrow by class, route, or status."
       >
-        <div className="space-y-4">
-          <ClassTabs
-            basePath="/protected/students"
-            classOptions={classOptions}
-            activeClassId={filters.classId}
-            query={{
-              query: filters.query || null,
-              sessionLabel: filters.sessionLabel || null,
-              transportRouteId: filters.transportRouteId || null,
-              status: filters.status || null,
-            }}
-          />
-          <StudentFilters
-            filters={filters}
-            sessionOptions={sessionOptions}
-            classOptions={classOptions}
-            routeOptions={routeOptions}
-          />
-        </div>
+        <StudentFilters
+          filters={filters}
+          sessionOptions={sessionOptions}
+          classOptions={classOptions}
+          routeOptions={routeOptions}
+        />
       </SectionCard>
 
       {formOptions?.sessionMismatch ? (
@@ -239,6 +232,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
           students={students}
           hasFilters={hasFilters}
           canWrite={canWriteStudents}
+          returnTo={returnTo}
         />
       </SectionCard>
 

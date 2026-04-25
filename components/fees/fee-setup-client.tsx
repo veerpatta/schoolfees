@@ -100,6 +100,17 @@ type FeeHeadRow = FeeHeadDefinition & {
   rowId: string;
 };
 
+type ConventionalDiscountRow = {
+  id: string | null;
+  code: string;
+  displayName: string;
+  calculationType: "tuition_zero" | "tuition_percentage" | "tuition_fixed_amount";
+  fixedTuitionAmount: number | null;
+  percentage: number | null;
+  isActive: boolean;
+  sortOrder: number;
+};
+
 type SessionFormState = {
   academicSessionLabel: string;
   installmentDates: string[];
@@ -107,6 +118,7 @@ type SessionFormState = {
   newStudentAcademicFeeAmount: number;
   oldStudentAcademicFeeAmount: number;
   customFeeHeads: FeeHeadRow[];
+  conventionalDiscountPolicies: ConventionalDiscountRow[];
   classRows: Array<{
     label: string;
     annualTuition: number;
@@ -190,6 +202,16 @@ function buildSessionFormState(data: FeeSetupPageData, sessionLabel: string): Se
     newStudentAcademicFeeAmount: snapshot.newStudentAcademicFeeAmount,
     oldStudentAcademicFeeAmount: snapshot.oldStudentAcademicFeeAmount,
     customFeeHeads: snapshot.customFeeHeads.map((item, index) => buildFeeHeadRow(item, index)),
+    conventionalDiscountPolicies: data.conventionalDiscountPolicies.map((policy) => ({
+      id: policy.id,
+      code: policy.code,
+      displayName: policy.displayName,
+      calculationType: policy.calculationType,
+      fixedTuitionAmount: policy.fixedTuitionAmount,
+      percentage: policy.percentage,
+      isActive: policy.isActive,
+      sortOrder: policy.sortOrder,
+    })),
     classRows: buildWorkbookClassSetupRows(data, sessionLabel).map((item) => ({
       label: item.label,
       annualTuition: item.annualTuition,
@@ -257,6 +279,15 @@ function createWorkbookFormData(
     );
     formData.append("feeHeadIsActive", item.isActive ? "yes" : "no");
     formData.append("feeHeadNotes", item.notes ?? "");
+  });
+  form.conventionalDiscountPolicies.forEach((item) => {
+    formData.append("conventionalPolicyId", item.id ?? "");
+    formData.append("conventionalPolicyCode", item.code);
+    formData.append("conventionalPolicyName", item.displayName);
+    formData.append("conventionalPolicyCalculationType", item.calculationType);
+    formData.append("conventionalPolicyFixedAmount", String(item.fixedTuitionAmount ?? ""));
+    formData.append("conventionalPolicyPercentage", String(item.percentage ?? ""));
+    formData.append("conventionalPolicyIsActive", item.isActive ? "yes" : "no");
   });
   form.classRows.forEach((item) => {
     formData.append("classLabel", item.label);
@@ -566,6 +597,19 @@ export function FeeSetupClient({
     setForm((current) => ({
       ...current,
       customFeeHeads: current.customFeeHeads.filter((item) => item.rowId !== rowId),
+    }));
+    markDirty();
+  }
+
+  function updateConventionalDiscountRow(
+    code: string,
+    patch: Partial<ConventionalDiscountRow>,
+  ) {
+    setForm((current) => ({
+      ...current,
+      conventionalDiscountPolicies: current.conventionalDiscountPolicies.map((item) =>
+        item.code === code ? { ...item, ...patch } : item,
+      ),
     }));
     markDirty();
   }
@@ -982,6 +1026,110 @@ export function FeeSetupClient({
                 className="mt-2"
                 disabled={!canEdit}
               />
+            </div>
+          </div>
+
+          <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-950">Conventional Discounts</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  Configure standard school policies. Student-specific approval is done from Students.
+                </p>
+              </div>
+              <StatusBadge label="Max 2 per student" tone="accent" />
+            </div>
+            <div className="grid gap-3 lg:grid-cols-3">
+              {form.conventionalDiscountPolicies.map((policy) => (
+                <div key={policy.code} className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <Label htmlFor={`policy-name-${policy.code}`}>Policy name</Label>
+                      <Input
+                        id={`policy-name-${policy.code}`}
+                        value={policy.displayName}
+                        onChange={(event) =>
+                          updateConventionalDiscountRow(policy.code, {
+                            displayName: event.target.value,
+                          })
+                        }
+                        className="mt-2"
+                        disabled={!canEdit}
+                      />
+                    </div>
+                    <label className="mt-7 flex items-center gap-2 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={policy.isActive}
+                        onChange={(event) =>
+                          updateConventionalDiscountRow(policy.code, {
+                            isActive: event.target.checked,
+                          })
+                        }
+                        disabled={!canEdit}
+                      />
+                      Active
+                    </label>
+                  </div>
+                  <div className="mt-4 grid gap-3">
+                    <div>
+                      <Label htmlFor={`policy-type-${policy.code}`}>Calculation</Label>
+                      <select
+                        id={`policy-type-${policy.code}`}
+                        value={policy.calculationType}
+                        onChange={(event) =>
+                          updateConventionalDiscountRow(policy.code, {
+                            calculationType: event.target.value as ConventionalDiscountRow["calculationType"],
+                          })
+                        }
+                        className={`${selectClassName} mt-2`}
+                        disabled={!canEdit}
+                      >
+                        <option value="tuition_zero">Tuition becomes Rs 0</option>
+                        <option value="tuition_percentage">Tuition percentage</option>
+                        <option value="tuition_fixed_amount">Fixed tuition amount</option>
+                      </select>
+                    </div>
+                    {policy.calculationType === "tuition_percentage" ? (
+                      <div>
+                        <Label htmlFor={`policy-percent-${policy.code}`}>Tuition percentage</Label>
+                        <Input
+                          id={`policy-percent-${policy.code}`}
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={policy.percentage ?? 0}
+                          onChange={(event) =>
+                            updateConventionalDiscountRow(policy.code, {
+                              percentage: Number(event.target.value || 0),
+                            })
+                          }
+                          className="mt-2"
+                          disabled={!canEdit}
+                        />
+                      </div>
+                    ) : null}
+                    {policy.calculationType === "tuition_fixed_amount" ? (
+                      <div>
+                        <Label htmlFor={`policy-fixed-${policy.code}`}>Fixed tuition</Label>
+                        <Input
+                          id={`policy-fixed-${policy.code}`}
+                          type="number"
+                          min={0}
+                          value={policy.fixedTuitionAmount ?? 0}
+                          onChange={(event) =>
+                            updateConventionalDiscountRow(policy.code, {
+                              fixedTuitionAmount: Number(event.target.value || 0),
+                            })
+                          }
+                          className="mt-2"
+                          disabled={!canEdit}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 

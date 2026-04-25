@@ -10,12 +10,14 @@ type StudentListTableProps = {
   students: StudentListItem[];
   hasFilters: boolean;
   canWrite: boolean;
+  returnTo: string;
 };
 
 export function StudentListTable({
   students,
   hasFilters,
   canWrite,
+  returnTo,
 }: StudentListTableProps) {
   if (students.length === 0) {
     return (
@@ -76,6 +78,18 @@ export function StudentListTable({
               </td>
               <td className="px-4 py-3">
                 <p className="text-sm font-medium text-slate-900">{student.fullName}</p>
+                {student.conventionalDiscountLabels.length > 0 ? (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {student.conventionalDiscountLabels.map((label) => (
+                      <span
+                        key={label}
+                        className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800"
+                      >
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
               </td>
               <td className="px-4 py-3 text-sm text-slate-700">{student.classLabel}</td>
               <td className="px-4 py-3 text-sm text-slate-700">{student.transportRouteLabel}</td>
@@ -91,13 +105,20 @@ export function StudentListTable({
               <td className="px-4 py-3 text-right">
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" size="sm" asChild>
-                    <Link href={`/protected/students/${student.id}`}>View</Link>
+                    <Link href={`/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`}>
+                      View
+                    </Link>
                   </Button>
                   {canWrite ? (
                     <Button size="sm" asChild>
-                      <Link href={`/protected/students/${student.id}/edit`}>Edit</Link>
+                      <Link href={`/protected/students/${student.id}/edit?returnTo=${encodeURIComponent(returnTo)}`}>
+                        Edit
+                      </Link>
                     </Button>
                   ) : null}
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href={`/protected/payments?studentId=${student.id}`}>More</Link>
+                  </Button>
                 </div>
               </td>
             </tr>

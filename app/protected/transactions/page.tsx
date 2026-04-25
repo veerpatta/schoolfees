@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { AutoSubmitForm } from "@/components/office/auto-submit-form";
-import { ClassTabs, ValueStatePill, WorkflowGuard } from "@/components/office/office-ui";
+import { ValueStatePill, WorkflowGuard } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
@@ -195,12 +195,14 @@ function WorkbookSummaryCards({
 
 function TransactionsTable({
   rows,
+  returnTo,
 }: {
   rows: Awaited<ReturnType<typeof getOfficeWorkbookData>> extends infer T
     ? T extends { view: "transactions" | "receipts"; rows: infer R }
       ? R
       : never
     : never;
+  returnTo: string;
 }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200">
@@ -237,10 +239,10 @@ function TransactionsTable({
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/protected/receipts/${row.receiptId}`}>Print</Link>
+                      <Link href={`/protected/receipts/${row.receiptId}?returnTo=${encodeURIComponent(returnTo)}`}>Print</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/protected/students/${row.studentId}`}>Student</Link>
+                      <Link href={`/protected/students/${row.studentId}?returnTo=${encodeURIComponent(returnTo)}`}>Student</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
                       <Link href={`/protected/payments?studentId=${row.studentId}`}>Payment Desk</Link>
@@ -731,6 +733,16 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     sessionLabel,
     toDate,
   });
+  const returnParams = new URLSearchParams();
+  returnParams.set("view", activeView);
+  if (classId) returnParams.set("classId", classId);
+  if (searchQuery) returnParams.set("query", searchQuery);
+  if (fromDate) returnParams.set("fromDate", fromDate);
+  if (toDate) returnParams.set("toDate", toDate);
+  if (paymentMode) returnParams.set("paymentMode", paymentMode);
+  if (routeId) returnParams.set("routeId", routeId);
+  if (sessionLabel) returnParams.set("sessionLabel", sessionLabel);
+  const returnTo = `/protected/transactions?${returnParams.toString()}`;
 
   return (
     <div className="space-y-6">
@@ -780,15 +792,8 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
       >
         <div className="space-y-4">
           <ViewTabs activeView={activeView} classId={classId} query={preservedQuery} />
-          <ClassTabs
-            basePath="/protected/transactions"
-            classOptions={workbook.classOptions}
-            activeClassId={classId}
-            query={{ view: activeView, ...preservedQuery }}
-          />
           <AutoSubmitForm action="/protected/transactions" method="get" className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
             <input type="hidden" name="view" value={activeView} />
-            {classId ? <input type="hidden" name="classId" value={classId} /> : null}
             <div className="xl:col-span-2">
               <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" htmlFor="transactions-query">
                 Search
@@ -800,6 +805,24 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                 className="mt-2 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
                 placeholder="Student, SR no, receipt no, phone"
               />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" htmlFor="transactions-class">
+                Class
+              </label>
+              <select
+                id="transactions-class"
+                name="classId"
+                defaultValue={classId}
+                className="mt-2 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+              >
+                <option value="">All classes</option>
+                {workbook.classOptions.map((classOption) => (
+                  <option key={classOption.id} value={classOption.id}>
+                    {classOption.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" htmlFor="transactions-session">
@@ -915,7 +938,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
               : "Receipt register with print, student, and payment desk shortcuts."
           }
         >
-          <TransactionsTable rows={workbook.rows} />
+          <TransactionsTable rows={workbook.rows} returnTo={returnTo} />
         </SectionCard>
       ) : null}
 

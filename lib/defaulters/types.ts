@@ -8,6 +8,7 @@ export type DefaulterFilters = {
   transportRouteId: string;
   overdue: "" | "overdue";
   minPendingAmount: string;
+  searchQuery?: string;
 };
 
 export type DefaulterSummaryRow = {
@@ -33,6 +34,9 @@ export type DefaulterSummaryRow = {
   nextDueDate: string | null;
   lastPaymentDate: string | null;
   followUpStatus: "overdue" | "pending";
+  daysOverdue: number;
+  defaulterScore: number;
+  rank: number;
 };
 
 export type MissingDuesWarningRow = {
@@ -78,4 +82,5 @@ export const EMPTY_DEFAULTER_FILTERS: DefaulterFilters = {
   transportRouteId: "",
   overdue: "",
   minPendingAmount: "",
+  searchQuery: "",
 };

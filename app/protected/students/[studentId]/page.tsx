@@ -23,6 +23,7 @@ type StudentDetailPageProps = {
   }>;
   searchParams?: Promise<{
     tab?: string;
+    returnTo?: string;
   }>;
 };
 
@@ -88,6 +89,10 @@ export default async function StudentDetailPage({
   const resolvedParams = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const activeTab = normalizeTab(resolvedSearchParams?.tab);
+  const returnTo = resolvedSearchParams?.returnTo?.startsWith("/protected/students")
+    ? resolvedSearchParams.returnTo
+    : "/protected/students";
+  const encodedReturnTo = encodeURIComponent(returnTo);
   const { student, financialSnapshot, ledger, receipts, installmentBalances } =
     await getStudentWorkspaceData(resolvedParams.studentId);
   const deletionSafety = await getStudentDeletionSafety(resolvedParams.studentId);
@@ -195,11 +200,11 @@ export default async function StudentDetailPage({
               </Button>
             ) : null}
             <Button asChild variant="outline">
-              <Link href="/protected/students">Back to students</Link>
+              <Link href={returnTo}>Back to Students</Link>
             </Button>
             {canEditStudent ? (
               <Button asChild variant="outline">
-                <Link href={`/protected/students/${student.id}/edit`}>Edit student</Link>
+                <Link href={`/protected/students/${student.id}/edit?returnTo=${encodedReturnTo}`}>Edit student</Link>
               </Button>
             ) : null}
           </div>
@@ -230,6 +235,16 @@ export default async function StudentDetailPage({
                     Override reason: {financialSnapshot.activeOverrideReason}
                   </p>
                 ) : null}
+                {student.conventionalDiscountLabels.length > 0 ? (
+                  <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
+                    <p className="font-semibold">Conventional discounts</p>
+                    <p className="mt-1">{student.conventionalDiscountLabels.join(", ")}</p>
+                    <p className="mt-1">
+                      Tuition changed from {formatInr(student.tuitionBeforeConventionalDiscount)} to{" "}
+                      {formatInr(student.tuitionAfterConventionalDiscount)}.
+                    </p>
+                  </div>
+                ) : null}
                 {financialSnapshot.creditBalance > 0 ? (
                   <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                     Amount to refund / adjust: {formatInr(financialSnapshot.refundableAmount)}.
@@ -258,7 +273,7 @@ export default async function StudentDetailPage({
           {tabs.map((tab) => (
             <Link
               key={tab.key}
-              href={`/protected/students/${student.id}?tab=${tab.key}`}
+              href={`/protected/students/${student.id}?tab=${tab.key}&returnTo=${encodedReturnTo}`}
               className={
                 activeTab === tab.key
                   ? "inline-flex items-center rounded-full border border-slate-900 bg-slate-900 px-3 py-2 text-sm text-white"
@@ -390,7 +405,7 @@ export default async function StudentDetailPage({
           {canEditStudent ? (
             <div className="mt-4">
               <Button asChild size="sm" variant="outline">
-                <Link href={`/protected/students/${student.id}/edit`}>Edit student fee profile</Link>
+                <Link href={`/protected/students/${student.id}/edit?returnTo=${encodedReturnTo}`}>Edit student fee profile</Link>
               </Button>
             </div>
           ) : null}
@@ -637,6 +652,27 @@ export default async function StudentDetailPage({
                 </form>
               ) : null}
             </div>
+          </div>
+
+          <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-950">
+            <p className="font-semibold">Conventional Discounts</p>
+            {student.conventionalDiscountLabels.length > 0 ? (
+              <div className="mt-2 space-y-1">
+                <p>{student.conventionalDiscountLabels.join(", ")}</p>
+                <p>
+                  Tuition before policy: {formatInr(student.tuitionBeforeConventionalDiscount)}
+                </p>
+                <p>
+                  Tuition after policy: {formatInr(student.tuitionAfterConventionalDiscount)}
+                </p>
+                {student.conventionalDiscountReason ? <p>Reason: {student.conventionalDiscountReason}</p> : null}
+                {student.conventionalDiscountFamilyGroupLabel ? (
+                  <p>Family group: {student.conventionalDiscountFamilyGroupLabel}</p>
+                ) : null}
+              </div>
+            ) : (
+              <p className="mt-2 text-emerald-900">No conventional discount is active.</p>
+            )}
           </div>
         </details>
       ) : null}

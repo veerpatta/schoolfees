@@ -3,6 +3,7 @@ import "server-only";
 import { getMasterDataOptions } from "@/lib/master-data/data";
 import { createClient } from "@/lib/supabase/server";
 import { getFeePolicySummary } from "@/lib/fees/data";
+import { getConventionalDiscountPolicies } from "@/lib/fees/conventional-discounts";
 import {
   prepareDuesForStudentsAutomatically,
 } from "@/lib/system-sync/finance-sync";
@@ -376,6 +377,33 @@ function toNormalizedPayload(value: unknown): NormalizedStudentImportRow | null 
     notes: typeof value.notes === "string" ? value.notes : null,
     feeProfileReason:
       typeof value.feeProfileReason === "string" ? value.feeProfileReason : null,
+    conventionalDiscounts: isRecord(value.conventionalDiscounts)
+      ? {
+          policyIds: Array.isArray(value.conventionalDiscounts.policyIds)
+            ? value.conventionalDiscounts.policyIds.filter(
+                (item): item is string => typeof item === "string",
+              )
+            : [],
+          policyLabels: Array.isArray(value.conventionalDiscounts.policyLabels)
+            ? value.conventionalDiscounts.policyLabels.filter(
+                (item): item is string => typeof item === "string",
+              )
+            : [],
+          familyGroup:
+            typeof value.conventionalDiscounts.familyGroup === "string"
+              ? value.conventionalDiscounts.familyGroup
+              : null,
+          notes:
+            typeof value.conventionalDiscounts.notes === "string"
+              ? value.conventionalDiscounts.notes
+              : null,
+        }
+      : {
+          policyIds: [],
+          policyLabels: [],
+          familyGroup: null,
+          notes: null,
+        },
     overrides: toNormalizedOverrides(value.overrides),
   };
 }
@@ -1076,6 +1104,10 @@ export async function runStudentImportDryRun(batchId: string, mapping: StudentIm
     );
   }
 
+  const conventionalDiscountPolicies = targetSessionLabel
+    ? await getConventionalDiscountPolicies(targetSessionLabel)
+    : [];
+
   const validationResult = executeStudentImportDryRun({
     mode: batchRow.import_mode === "update" ? "update" : "add",
     targetSessionLabel,
@@ -1115,6 +1147,7 @@ export async function runStudentImportDryRun(batchId: string, mapping: StudentIm
     activeFeeSettingClassIds: new Set(
       ((feeSettings ?? []) as FeeSettingRow[]).map((row) => row.class_id),
     ),
+    conventionalDiscountPolicies,
   });
 
   await updateImportRowsForBatch(
@@ -1178,6 +1211,13 @@ function hasMappedValue(
   return stringifyImportCell(rawValue).length > 0;
 }
 
+function conventionalDiscountSelectionChanged(
+  previousPolicyIds: readonly string[] = [],
+  nextPolicyIds: readonly string[] = [],
+) {
+  return [...previousPolicyIds].sort().join("|") !== [...nextPolicyIds].sort().join("|");
+}
+
 function buildImportStudentInput(
   row: ImportRowDetail,
   mapping: StudentImportColumnMapping,
@@ -1192,6 +1232,10 @@ function buildImportStudentInput(
   const existing = existingStudent ?? null;
   const useExisting = row.operation === "update" && existing !== null;
   const override = payload.overrides;
+  const hasConventionalPolicyMapping =
+    hasMappedValue(row, mapping, "conventionalPolicy1") ||
+    hasMappedValue(row, mapping, "conventionalPolicy2");
+  const hasConventionalNotesMapping = hasMappedValue(row, mapping, "conventionalPolicyNotes");
 
   return {
     fullName: payload.fullName,
@@ -1262,6 +1306,24 @@ function buildImportStudentInput(
         ? existing?.overrideReason ?? `Imported from batch ${batchId} row ${row.rowIndex}`
         : payload.feeProfileReason ?? `Imported from batch ${batchId} row ${row.rowIndex}`,
     feeProfileNotes: row.reviewNote,
+    conventionalPolicyIds:
+      useExisting && !hasConventionalPolicyMapping
+        ? existing?.conventionalDiscountPolicyIds ?? []
+        : payload.conventionalDiscounts.policyIds,
+    conventionalDiscountReason:
+      useExisting && !hasConventionalNotesMapping
+        ? existing?.conventionalDiscountReason ?? `Imported from batch ${batchId} row ${row.rowIndex}`
+        : payload.conventionalDiscounts.notes ?? `Imported from batch ${batchId} row ${row.rowIndex}`,
+    conventionalDiscountNotes:
+      useExisting && !hasConventionalNotesMapping
+        ? existing?.conventionalDiscountNotes ?? null
+        : payload.conventionalDiscounts.notes,
+    conventionalDiscountFamilyGroup:
+      useExisting && !hasMappedValue(row, mapping, "conventionalFamilyGroup")
+        ? existing?.conventionalDiscountFamilyGroupLabel ?? null
+        : payload.conventionalDiscounts.familyGroup,
+    conventionalDiscountManualOverrideReason:
+      existing?.conventionalDiscountManualOverrideReason ?? null,
     notes:
       useExisting && !hasMappedValue(row, mapping, "notes")
         ? existing?.notes ?? null
@@ -1532,7 +1594,13 @@ export async function commitStudentImportBatch(batchId: string) {
       const importedOverrideId = await getActiveImportedOverrideId(importedStudentId);
       affectedStudentIds.add(importedStudentId);
 
-      if (shouldSyncStudentDuesForChange(previousStudent, input)) {
+      if (
+        shouldSyncStudentDuesForChange(previousStudent, input) ||
+        conventionalDiscountSelectionChanged(
+          previousStudent?.conventionalDiscountPolicyIds ?? [],
+          input.conventionalPolicyIds,
+        )
+      ) {
         studentsToRegenerate.add(importedStudentId);
       }
 

@@ -6,6 +6,7 @@ export type ConfigChangeScope =
   | "class_defaults"
   | "transport_defaults"
   | "student_override"
+  | "conventional_discount_policy"
   | "workbook_setup";
 
 export type ConfigChangeFieldDiff = {
@@ -152,6 +153,9 @@ export type ResolvedFeeBreakdown = {
   otherAdjustmentAmount: number;
   grossBaseBeforeDiscount: number;
   discountApplied: number;
+  conventionalDiscountApplied: number;
+  conventionalDiscountLabels: string[];
+  tuitionBeforeConventionalDiscount: number;
   lateFeeWaiverAmount: number;
   booksExcludedFromWorkbook: boolean;
 };
@@ -178,6 +182,43 @@ export type FeePolicySummary = {
 export type FeePolicySnapshot = FeePolicySummary & {
   isActive: boolean;
   updatedAt: string | null;
+};
+
+export type ConventionalDiscountCalculationType =
+  | "tuition_zero"
+  | "tuition_percentage"
+  | "tuition_fixed_amount";
+
+export type ConventionalDiscountPolicy = {
+  id: string | null;
+  academicSessionLabel: string;
+  code: "rte" | "staff_child" | "third_child" | string;
+  displayName: string;
+  calculationType: ConventionalDiscountCalculationType;
+  fixedTuitionAmount: number | null;
+  percentage: number | null;
+  isActive: boolean;
+  sortOrder: number;
+  updatedAt: string | null;
+};
+
+export type StudentConventionalDiscountAssignment = {
+  id: string;
+  studentId: string;
+  policyId: string;
+  academicSessionLabel: string;
+  isActive: boolean;
+  reason: string;
+  notes: string | null;
+  beforeTuitionAmount: number;
+  resultingTuitionAmount: number;
+  familyGroupId: string | null;
+  familyGroupLabel: string | null;
+  isManualOverride: boolean;
+  manualOverrideReason: string | null;
+  appliedBy: string | null;
+  appliedAt: string | null;
+  policy: ConventionalDiscountPolicy;
 };
 
 export type SchoolFeeDefault = {
@@ -271,6 +312,8 @@ export type FeeSetupPageData = {
   classDefaults: ClassFeeDefault[];
   transportDefaults: TransportDefault[];
   studentOverrides: StudentFeeOverride[];
+  conventionalDiscountPolicies: ConventionalDiscountPolicy[];
+  conventionalDiscountAssignments: StudentConventionalDiscountAssignment[];
   classOptions: FeeSetupClassOption[];
   studentOptions: FeeSetupStudentOption[];
   routeOptions: FeeSetupRouteOption[];

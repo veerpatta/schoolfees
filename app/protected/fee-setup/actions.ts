@@ -6,12 +6,14 @@ import {
   applyWorkbookFeeSetupBatch,
   createWorkbookFeeSetupPreview,
 } from "@/lib/fees/workbook-setup-change";
+import { upsertConventionalDiscountPolicies } from "@/lib/fees/conventional-discounts";
 import type { WorkbookFeeSetupFormPayload } from "@/lib/fees/workbook-setup";
 import {
   DEFAULT_FEE_HEAD_METADATA,
   normalizeFeeHeadChargeFrequency,
 } from "@/lib/fees/fee-heads";
 import type {
+  ConventionalDiscountCalculationType,
   FeeHeadApplicationType,
   FeeHeadChargeFrequency,
   FeeSetupActionState,
@@ -166,6 +168,49 @@ function parseFeeHeadRows(formData: FormData) {
     .filter((row) => Boolean(row)) as WorkbookFeeSetupFormPayload["customFeeHeads"];
 }
 
+function parseConventionalDiscountRows(formData: FormData) {
+  const ids = formData.getAll("conventionalPolicyId").map((value) => value.toString().trim());
+  const codes = formData.getAll("conventionalPolicyCode").map((value) => value.toString().trim());
+  const names = formData.getAll("conventionalPolicyName").map((value) => value.toString().trim());
+  const types = formData
+    .getAll("conventionalPolicyCalculationType")
+    .map((value) => value.toString().trim());
+  const fixedAmounts = formData.getAll("conventionalPolicyFixedAmount");
+  const percentages = formData.getAll("conventionalPolicyPercentage");
+  const activeValues = formData
+    .getAll("conventionalPolicyIsActive")
+    .map((value) => value.toString().trim());
+
+  return codes.map((code, index) => {
+    const calculationType = (
+      ["tuition_zero", "tuition_percentage", "tuition_fixed_amount"].includes(
+        types[index] ?? "",
+      )
+        ? types[index]
+        : "tuition_zero"
+    ) as ConventionalDiscountCalculationType;
+    const fixedValue = Number((fixedAmounts[index] ?? "").toString().trim());
+    const percentageValue = Number((percentages[index] ?? "").toString().trim());
+
+    return {
+      id: ids[index] || null,
+      code,
+      displayName: parseRequiredString(names[index] ?? null, "Discount name"),
+      calculationType,
+      fixedTuitionAmount:
+        calculationType === "tuition_fixed_amount" && Number.isFinite(fixedValue)
+          ? Math.max(0, Math.trunc(fixedValue))
+          : null,
+      percentage:
+        calculationType === "tuition_percentage" && Number.isFinite(percentageValue)
+          ? Math.max(0, Math.min(100, percentageValue))
+          : null,
+      isActive: activeValues[index] !== "no",
+      sortOrder: index + 1,
+    };
+  });
+}
+
 function parseWorkbookFeeSetupForm(formData: FormData): WorkbookFeeSetupFormPayload {
   const classRows = parseRepeatedRows(
     formData,
@@ -289,10 +334,15 @@ export async function saveWorkbookFeeSetupAction(
     await requireStaffPermission("fees:write");
 
     const payload = parseWorkbookFeeSetupForm(formData);
+    const conventionalDiscountPolicies = parseConventionalDiscountRows(formData);
 
     if (parseIntent(formData) === "apply") {
       const batchId = parseUuid(formData.get("changeBatchId"), "Review batch");
       const result = await applyWorkbookFeeSetupBatch(batchId, payload);
+      await upsertConventionalDiscountPolicies({
+        academicSessionLabel: payload.academicSessionLabel,
+        policies: conventionalDiscountPolicies,
+      });
       revalidateFeeSetupSurface();
       return toSuccessState(result.message);
     }

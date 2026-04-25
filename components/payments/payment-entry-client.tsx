@@ -8,7 +8,7 @@ import { MetricCard } from "@/components/admin/metric-card";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { AutoSubmitForm } from "@/components/office/auto-submit-form";
-import { ClassTabs, OfficeRecentActions, OfficeRecentTracker, ValueStatePill, WorkflowGuard } from "@/components/office/office-ui";
+import { OfficeRecentActions, OfficeRecentTracker, ValueStatePill, WorkflowGuard } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -168,7 +168,7 @@ export function PaymentEntryClient({
   const previewNextDue =
     previewBreakdown.find((item) => item.outstandingAmount > 0) ?? null;
   const paymentAmount = Number(paymentAmountInput) || 0;
-  const referenceRequired = paymentMode !== "cash";
+  const referenceRequired = false;
   const creditBalance = selectedStudent?.creditBalance ?? 0;
   const refundableAmount = selectedStudent?.refundableAmount ?? 0;
 
@@ -422,118 +422,32 @@ export function PaymentEntryClient({
         }
       />
 
-      <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-        <SectionCard
-          title="1. Select Class"
-          description="Filter the counter desk by class first, then pick the student."
-        >
-          <div className="space-y-4">
-            <ClassTabs
-              basePath="/protected/payments"
-              classOptions={classOptions}
-              activeClassId={data.classId}
-            />
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Today&apos;s collection
-                </p>
-                <p className="mt-2 text-2xl font-semibold text-slate-950">
-                  {formatInr(data.todayCollection.totalAmount)}
-                </p>
-                <p className="mt-2 text-sm text-slate-600">
-                  {data.todayCollection.receiptCount} receipt
-                  {data.todayCollection.receiptCount === 1 ? "" : "s"} posted today.
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Quick actions
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button asChild size="sm" variant="outline">
-                    <Link href="/protected/transactions?view=receipts">Receipts</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href="/protected/transactions?view=collection_today">Today&apos;s collection</Link>
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            <details className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-              <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-slate-700">
-                Recent receipts
-              </summary>
-              <div className="border-t border-slate-200 bg-white p-4">
-                <div className="overflow-x-auto rounded-xl border border-slate-200">
-                  <table className="w-full min-w-[640px] text-left text-sm">
-                    <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
-                      <tr>
-                        <th className="px-4 py-3">Receipt</th>
-                        <th className="px-4 py-3">Student</th>
-                        <th className="px-4 py-3">Amount</th>
-                        <th className="px-4 py-3">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.recentReceipts.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="px-4 py-5 text-center text-slate-500">
-                            No recent receipts yet.
-                          </td>
-                        </tr>
-                      ) : (
-                        data.recentReceipts.map((receipt) => (
-                          <tr key={receipt.id} className="border-t border-slate-100">
-                            <td className="px-4 py-3 font-medium text-slate-900">{receipt.receiptNumber}</td>
-                            <td className="px-4 py-3">{receipt.studentLabel}</td>
-                            <td className="px-4 py-3">{formatInr(receipt.totalAmount)}</td>
-                            <td className="px-4 py-3">
-                              <div className="flex flex-wrap gap-2">
-                                <Button asChild size="sm" variant="outline">
-                                  <Link href={`/protected/receipts/${receipt.id}`}>Print</Link>
-                                </Button>
-                                <Button asChild size="sm" variant="outline">
-                                  <Link href={`/protected/students/${receipt.studentId}`}>Student</Link>
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </details>
+      <SectionCard
+        title="1. Select Class"
+        description="Start with class, then choose the student."
+      >
+        <AutoSubmitForm action="/protected/payments" method="get" className="grid gap-3 md:grid-cols-[minmax(220px,320px)_1fr] md:items-end">
+          <div>
+            <Label htmlFor="payment-class-id">Class</Label>
+            <select
+              id="payment-class-id"
+              name="classId"
+              defaultValue={data.classId ?? ""}
+              className={`${selectClassName} mt-2`}
+            >
+              <option value="">Select class</option>
+              {classOptions.map((classOption) => (
+                <option key={classOption.id} value={classOption.id}>
+                  {classOption.label}
+                </option>
+              ))}
+            </select>
           </div>
-        </SectionCard>
-
-        <SectionCard
-          title="Latest receipt posted at desk"
-          description="Small confirmation area for the newest saved receipt."
-        >
-          {latestPayment ? (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-950">
-              <p className="font-semibold">{latestPayment.receiptNumber}</p>
-              <div className="mt-2 grid gap-1 text-slate-700">
-                <span>{latestPayment.studentLabel}</span>
-                <span>{formatInr(latestPayment.totalAmount)} by {latestPayment.paymentMode}</span>
-                <span>{latestPayment.createdAt ?? latestPayment.paymentDate}</span>
-              </div>
-              <div className="mt-3">
-                <Button asChild size="sm" variant="outline">
-                  <Link href={`/protected/receipts/${latestPayment.id}`}>Open receipt</Link>
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <OfficeRecentActions />
-          )}
-        </SectionCard>
-      </section>
+          <p className="text-sm text-slate-600">
+            Student list loads for the selected class and stays in alphabetical order with SR no.
+          </p>
+        </AutoSubmitForm>
+      </SectionCard>
 
       <SectionCard
         title="2. Select Student"
@@ -779,7 +693,7 @@ export function PaymentEntryClient({
 
           <SectionCard
             title="Collect Payment"
-            description="Enter amount, mode, date, and reference, then confirm payment."
+            description="Enter amount, mode, and date, then confirm payment. Reference number is optional."
             actions={<ValueStatePill tone="locked">Receipt saved after posting</ValueStatePill>}
           >
             {!canPost ? (
@@ -902,23 +816,22 @@ export function PaymentEntryClient({
                   </div>
                   <div>
                     <Label htmlFor="payment-reference-number">
-                      Reference number{referenceRequired ? " (required)" : ""}
+                      Reference number
                     </Label>
                     <Input
                       id="payment-reference-number"
                       name="referenceNumber"
                       className="mt-2"
-                      placeholder={referenceRequired ? "Required for this mode" : "Optional for cash"}
+                      placeholder="Optional"
                       value={referenceNumber}
                       onChange={(event) => {
                         setReferenceNumber(event.target.value);
                         setFormError(null);
                       }}
-                      required={referenceRequired}
                     />
-                    {referenceRequired ? (
-                      <p className="mt-1 text-xs text-amber-700">
-                        Enter the UPI, bank, or cheque reference before generating the receipt.
+                    {paymentMode !== "cash" ? (
+                      <p className="mt-1 text-xs text-slate-500">
+                        Reference is useful for matching bank/UPI records.
                       </p>
                     ) : null}
                   </div>
@@ -1166,6 +1079,90 @@ export function PaymentEntryClient({
           </SectionCard>
         </>
       )}
+
+      <SectionCard
+        title="Desk totals and recent receipts"
+        description="Daily totals and lookup shortcuts stay below the payment form."
+      >
+        <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Today&apos;s collection
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">
+                {formatInr(data.todayCollection.totalAmount)}
+              </p>
+              <p className="mt-2 text-sm text-slate-600">
+                {data.todayCollection.receiptCount} receipt
+                {data.todayCollection.receiptCount === 1 ? "" : "s"} posted today.
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Quick actions
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/protected/transactions?view=receipts">Receipts</Link>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/protected/transactions?view=collection_today">Today&apos;s collection</Link>
+                </Button>
+              </div>
+              <div className="mt-3">
+                {latestPayment ? (
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/protected/receipts/${latestPayment.id}`}>Open latest receipt</Link>
+                  </Button>
+                ) : (
+                  <OfficeRecentActions />
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                <tr>
+                  <th className="px-4 py-3">Receipt</th>
+                  <th className="px-4 py-3">Student</th>
+                  <th className="px-4 py-3">Amount</th>
+                  <th className="px-4 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.recentReceipts.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-5 text-center text-slate-500">
+                      No recent receipts yet.
+                    </td>
+                  </tr>
+                ) : (
+                  data.recentReceipts.map((receipt) => (
+                    <tr key={receipt.id} className="border-t border-slate-100">
+                      <td className="px-4 py-3 font-medium text-slate-900">{receipt.receiptNumber}</td>
+                      <td className="px-4 py-3">{receipt.studentLabel}</td>
+                      <td className="px-4 py-3">{formatInr(receipt.totalAmount)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`/protected/receipts/${receipt.id}`}>Print</Link>
+                          </Button>
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`/protected/students/${receipt.studentId}`}>Student</Link>
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </SectionCard>
     </div>
   );
 }

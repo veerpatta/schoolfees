@@ -49,10 +49,6 @@ function parsePaymentAmount(value: FormDataEntryValue | null) {
   return numeric;
 }
 
-function requiresPaymentReference(paymentMode: PaymentMode) {
-  return paymentMode !== "cash";
-}
-
 async function parsePaymentMode(value: FormDataEntryValue | null): Promise<PaymentMode> {
   const normalized = (value ?? "").toString().trim();
   const policy = await getFeePolicySummary();
@@ -124,10 +120,6 @@ export async function submitPaymentEntryAction(
     const clientRequestId = parseUuid(formData.get("clientRequestId"), "Payment attempt");
     const referenceNumber = (formData.get("referenceNumber") ?? "").toString().trim() || null;
     const receivedBy = parseRequiredString(formData.get("receivedBy"), "Received by");
-
-    if (requiresPaymentReference(paymentMode) && !referenceNumber) {
-      throw new Error("Reference number is required for UPI, bank transfer, and cheque payments.");
-    }
 
     const receipt = await postStudentPayment({
       studentId,

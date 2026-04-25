@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { Button } from "@/components/ui/button";
 import { DefaulterFilters } from "@/components/defaulters/defaulter-filters";
 import { getDefaultersPageData } from "@/lib/defaulters/data";
 import {
@@ -20,6 +21,7 @@ type DefaultersPageProps = {
     transportRouteId?: string;
     overdue?: string;
     minPendingAmount?: string;
+    query?: string;
   }>;
 };
 
@@ -32,6 +34,7 @@ function normalizeFilters(
   const rawRouteId = params?.transportRouteId?.trim() ?? "";
   const rawOverdue = params?.overdue?.trim() ?? "";
   const rawMinPendingAmount = params?.minPendingAmount?.trim() ?? "";
+  const rawSearchQuery = params?.query?.trim() ?? "";
 
   return {
     classId: uuidPattern.test(rawClassId) ? rawClassId : EMPTY_DEFAULTER_FILTERS.classId,
@@ -43,6 +46,7 @@ function normalizeFilters(
       /^\d+$/.test(rawMinPendingAmount)
         ? rawMinPendingAmount
         : EMPTY_DEFAULTER_FILTERS.minPendingAmount,
+    searchQuery: rawSearchQuery.slice(0, 80) || EMPTY_DEFAULTER_FILTERS.searchQuery,
   };
 }
 
@@ -64,10 +68,15 @@ export default async function DefaultersPage({
         title="Outstanding follow-up register"
         description={`Phone-ready overdue list for ${policy.academicSessionLabel}.`}
         actions={
-          <StatusBadge
-            label={`${data.rows.length} row${data.rows.length === 1 ? "" : "s"} listed`}
-            tone="accent"
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge
+              label={`${data.rows.length} row${data.rows.length === 1 ? "" : "s"} listed`}
+              tone="accent"
+            />
+            <Button asChild size="sm" variant="outline">
+              <Link href="/protected/exports/defaulters">Export</Link>
+            </Button>
+          </div>
         }
       />
 
@@ -189,24 +198,28 @@ export default async function DefaultersPage({
 
       <SectionCard
         title="Defaulter list"
-        description="Phone-ready overdue list with only the fields needed for follow-up."
+        description="Ranked by pending amount and overdue days so the highest-risk follow-ups appear first."
       >
         <div className="overflow-x-auto rounded-xl border border-slate-200">
           <table className="w-full min-w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
               <tr>
+                <th className="px-4 py-3">Rank</th>
                 <th className="px-4 py-3">Student</th>
                 <th className="px-4 py-3">Class</th>
+                <th className="px-4 py-3">Father</th>
                 <th className="px-4 py-3">Phone</th>
                 <th className="px-4 py-3">Pending</th>
-                <th className="px-4 py-3">Status / Next due</th>
+                <th className="px-4 py-3">Oldest due</th>
+                <th className="px-4 py-3">Days overdue</th>
+                <th className="px-4 py-3">Last payment</th>
                 <th className="px-4 py-3">Action</th>
               </tr>
             </thead>
             <tbody>
               {data.rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
+                  <td colSpan={10} className="px-4 py-6 text-center text-slate-500">
                     No defaulters found for the selected filters.
                   </td>
                 </tr>
@@ -216,25 +229,39 @@ export default async function DefaultersPage({
                     key={row.studentId}
                     className="border-t border-slate-100 text-slate-700"
                   >
-                    <td className="px-4 py-3 font-medium text-slate-900">{row.fullName}</td>
+                    <td className="px-4 py-3 font-semibold text-slate-950">#{row.rank}</td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-slate-900">{row.fullName}</div>
+                      <div className="text-xs text-slate-500">SR no {row.admissionNo}</div>
+                    </td>
                     <td className="px-4 py-3">{row.classLabel}</td>
+                    <td className="px-4 py-3">{row.fatherName ?? "-"}</td>
                     <td className="px-4 py-3">{row.fatherPhone ?? "-"}</td>
                     <td className="px-4 py-3 font-medium text-slate-900">
                       {formatInr(row.totalPending)}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="capitalize">{row.followUpStatus}</div>
-                      <div className="text-xs text-slate-500">
-                        {formatShortDate(row.nextDueDate)} · {formatInr(row.nextDueAmount ?? 0)}
-                      </div>
+                      {row.oldestDueDate ? formatShortDate(row.oldestDueDate) : "-"}
+                    </td>
+                    <td className="px-4 py-3">{row.daysOverdue}</td>
+                    <td className="px-4 py-3">
+                      {row.lastPaymentDate ? formatShortDate(row.lastPaymentDate) : "-"}
                     </td>
                     <td className="px-4 py-3">
-                      <Link
-                        href={`/protected/students/${row.studentId}`}
-                        className="text-sm font-semibold text-sky-700 hover:text-sky-900"
-                      >
-                        View
-                      </Link>
+                      <div className="flex flex-wrap gap-2">
+                        <Link
+                          href={`/protected/students/${row.studentId}`}
+                          className="text-sm font-semibold text-sky-700 hover:text-sky-900"
+                        >
+                          View
+                        </Link>
+                        <Link
+                          href={`/protected/payments?studentId=${row.studentId}`}
+                          className="text-sm font-semibold text-sky-700 hover:text-sky-900"
+                        >
+                          Payment
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -328,7 +355,7 @@ export default async function DefaultersPage({
             <tbody>
               {data.rows.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-6 text-center text-slate-500">
+                  <td colSpan={10} className="px-4 py-6 text-center text-slate-500">
                     No route-wise students for the selected filters.
                   </td>
                 </tr>

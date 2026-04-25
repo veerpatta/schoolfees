@@ -1,6 +1,11 @@
 import "server-only";
 
-import { getFeePolicySummary, upsertStudentFeeOverride } from "@/lib/fees/data";
+import { getFeePolicySummary, getFeeSetupPageData, upsertStudentFeeOverride } from "@/lib/fees/data";
+import {
+  getConventionalDiscountPolicies,
+  getStudentConventionalDiscountAssignments,
+  saveStudentConventionalDiscountAssignments,
+} from "@/lib/fees/conventional-discounts";
 import { getMasterDataOptions } from "@/lib/master-data/data";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -283,6 +288,32 @@ async function saveStudentFeeProfile(
   });
 }
 
+async function saveStudentConventionalDiscountProfile(
+  studentId: string,
+  payload: StudentValidatedInput,
+) {
+  const setup = await getFeeSetupPageData();
+  const classDefault =
+    setup.classDefaults.find((item) => item.classId === payload.classId) ?? null;
+  const academicSessionLabel =
+    classDefault?.sessionLabel ?? setup.globalPolicy.academicSessionLabel;
+  const baseTuition =
+    payload.tuitionOverride ?? classDefault?.tuitionFee ?? setup.schoolDefault.tuitionFee;
+
+  await saveStudentConventionalDiscountAssignments({
+    studentId,
+    academicSessionLabel,
+    policyIds: payload.conventionalPolicyIds,
+    reason: payload.conventionalDiscountReason,
+    notes: payload.conventionalDiscountNotes,
+    baseTuition,
+    familyGroupLabel: payload.conventionalDiscountFamilyGroup,
+    guardianName: payload.fatherName,
+    guardianPhone: payload.fatherPhone,
+    manualOverrideReason: payload.conventionalDiscountManualOverrideReason,
+  });
+}
+
 async function generatePendingAdmissionNo() {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -360,6 +391,9 @@ export async function getStudentFormOptions(payload?: {
       routeCode: row.routeCode,
       isActive: row.isActive,
     }));
+  const conventionalDiscountPolicies = await getConventionalDiscountPolicies(
+    resolvedSessionLabel,
+  ).catch(() => []);
 
   return {
     currentSessionLabel: options.currentSessionLabel,
@@ -371,6 +405,7 @@ export async function getStudentFormOptions(payload?: {
     allClassOptions,
     classOptions,
     routeOptions,
+    conventionalDiscountPolicies,
   };
 }
 
@@ -416,12 +451,14 @@ export async function getStudents(filters: StudentListFilters) {
 
   let financialMap = new Map<string, StudentWorkbookFinancialRow>();
   let overrideMap = new Map<string, StudentFeeOverrideRow>();
+  let conventionalDiscountMap = new Map<string, string[]>();
 
   if (studentRows.length > 0) {
     const studentIds = studentRows.map((row) => row.id);
     const [
       { data: financialsRaw, error: financialsError },
       { data: overridesRaw, error: overridesError },
+      conventionalAssignments,
     ] = await Promise.all([
       supabase
         .from("v_workbook_student_financials")
@@ -436,6 +473,10 @@ export async function getStudents(filters: StudentListFilters) {
         )
         .eq("is_active", true)
         .in("student_id", studentIds),
+      getStudentConventionalDiscountAssignments({
+        academicSessionLabel: policy.academicSessionLabel,
+        studentIds,
+      }).catch(() => []),
     ]);
 
     if (financialsError) {
@@ -471,6 +512,12 @@ export async function getStudents(filters: StudentListFilters) {
         row,
       ]),
     );
+    conventionalDiscountMap = new Map();
+    conventionalAssignments.forEach((assignment) => {
+      const labels = conventionalDiscountMap.get(assignment.studentId) ?? [];
+      labels.push(assignment.policy.displayName);
+      conventionalDiscountMap.set(assignment.studentId, labels);
+    });
   }
 
   return studentRows.map((row) => {
@@ -551,6 +598,7 @@ export async function getStudents(filters: StudentListFilters) {
       missingClassFlag: Boolean(financial?.missing_class_flag),
       missingStatusFlag: Boolean(financial?.missing_status_flag),
       outstandingAmount: financial?.outstanding_amount ?? 0,
+      conventionalDiscountLabels: conventionalDiscountMap.get(row.id) ?? [],
       updatedAt: row.updated_at,
     } satisfies StudentListItem;
   });
@@ -558,7 +606,8 @@ export async function getStudents(filters: StudentListFilters) {
 
 export async function getStudentDetail(studentId: string) {
   const supabase = await createClient();
-  const [studentResult, overrideRow, financialResult] = await Promise.all([
+  const policy = await getFeePolicySummary();
+  const [studentResult, overrideRow, financialResult, conventionalAssignments] = await Promise.all([
     supabase
       .from("students")
       .select(
@@ -569,9 +618,13 @@ export async function getStudentDetail(studentId: string) {
     getStudentFeeOverrideRow(studentId),
     supabase
       .from("v_workbook_student_financials")
-      .select("student_id, student_status_label, outstanding_amount")
+      .select("student_id, student_status_label, tuition_fee, outstanding_amount")
       .eq("student_id", studentId)
       .maybeSingle(),
+    getStudentConventionalDiscountAssignments({
+      academicSessionLabel: policy.academicSessionLabel,
+      studentIds: [studentId],
+    }).catch(() => []),
   ]);
 
   if (studentResult.error) {
@@ -590,6 +643,16 @@ export async function getStudentDetail(studentId: string) {
   const classRef = toSingleRecord(row.class_ref);
   const routeRef = toSingleRecord(row.route_ref);
   const financial = (financialResult.data ?? null) as StudentWorkbookFinancialRow | null;
+  const firstConventionalAssignment = conventionalAssignments[0] ?? null;
+  const tuitionBeforeConventionalDiscount =
+    firstConventionalAssignment?.beforeTuitionAmount ??
+    overrideRow?.custom_tuition_fee_amount ??
+    financial?.tuition_fee ??
+    0;
+  const tuitionAfterConventionalDiscount =
+    conventionalAssignments.length > 0
+      ? Math.min(...conventionalAssignments.map((item) => item.resultingTuitionAmount))
+      : tuitionBeforeConventionalDiscount;
 
   return {
     id: row.id,
@@ -621,6 +684,15 @@ export async function getStudentDetail(studentId: string) {
     otherAdjustmentAmount: overrideRow?.other_adjustment_amount ?? null,
     overrideReason: overrideRow?.reason ?? null,
     overrideNotes: overrideRow?.notes ?? null,
+    conventionalDiscountPolicyIds: conventionalAssignments.map((item) => item.policyId),
+    conventionalDiscountLabels: conventionalAssignments.map((item) => item.policy.displayName),
+    conventionalDiscountReason: firstConventionalAssignment?.reason ?? null,
+    conventionalDiscountNotes: firstConventionalAssignment?.notes ?? null,
+    conventionalDiscountFamilyGroupLabel: firstConventionalAssignment?.familyGroupLabel ?? null,
+    conventionalDiscountManualOverrideReason:
+      firstConventionalAssignment?.manualOverrideReason ?? null,
+    tuitionBeforeConventionalDiscount,
+    tuitionAfterConventionalDiscount,
     notes: row.notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -677,6 +749,7 @@ export async function createStudent(payload: StudentValidatedInput) {
 
   const studentId = data.id as string;
   await saveStudentFeeProfile(studentId, payload, null);
+  await saveStudentConventionalDiscountProfile(studentId, payload);
   return studentId;
 }
 
@@ -709,6 +782,7 @@ export async function updateStudent(studentId: string, payload: StudentValidated
 
   const updatedStudentId = data.id as string;
   await saveStudentFeeProfile(updatedStudentId, payload, existingOverride);
+  await saveStudentConventionalDiscountProfile(updatedStudentId, payload);
   return updatedStudentId;
 }
 

@@ -80,6 +80,7 @@ export const rolePermissions: Record<StaffRole, readonly StaffPermission[]> = {
     "receipts:view",
     "receipts:print",
     "defaulters:view",
+    "reports:view",
   ],
   read_only_staff: [
     "dashboard:view",

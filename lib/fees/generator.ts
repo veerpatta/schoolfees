@@ -488,6 +488,15 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
   const classDefaultMap = new Map(setupData.classDefaults.map((item) => [item.classId, item]));
   const routeDefaultMap = new Map(setupData.transportDefaults.map((item) => [item.id, item]));
   const studentOverrideMap = new Map(setupData.studentOverrides.map((item) => [item.studentId, item]));
+  const conventionalDiscountAssignmentMap = new Map<
+    string,
+    typeof setupData.conventionalDiscountAssignments
+  >();
+  setupData.conventionalDiscountAssignments.forEach((assignment) => {
+    const existing = conventionalDiscountAssignmentMap.get(assignment.studentId) ?? [];
+    existing.push(assignment);
+    conventionalDiscountAssignmentMap.set(assignment.studentId, existing);
+  });
   const existingInstallmentMap = new Map(
     existingInstallments.map((item) => [`${item.student_id}::${item.installment_no}`, item]),
   );
@@ -555,12 +564,15 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
       ? (routeDefaultMap.get(student.transport_route_id) ?? null)
       : null;
     const studentOverride = studentOverrideMap.get(student.id) ?? null;
+    const conventionalDiscountAssignments =
+      conventionalDiscountAssignmentMap.get(student.id) ?? [];
     const resolved = resolveStudentPolicyBreakdown({
       policy: setupData.globalPolicy,
       schoolDefault: setupData.schoolDefault,
       classDefault,
       routeDefault,
       studentOverride,
+      conventionalDiscountAssignments,
       hasTransportRoute: Boolean(student.transport_route_id),
     });
     const tuitionAmount =

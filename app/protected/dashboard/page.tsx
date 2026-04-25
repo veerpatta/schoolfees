@@ -467,7 +467,7 @@ function FollowUpQueue({
     <div className="space-y-3">
       {rows.length === 0 ? (
         <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-6 text-center text-sm text-emerald-800">
-          No follow-up students found in the current dashboard data.
+          No defaulters found in the current dashboard data.
         </p>
       ) : (
         rows.map((row) => (
@@ -482,7 +482,7 @@ function FollowUpQueue({
               <div className="text-left sm:text-right">
                 <p className="font-semibold text-amber-800">{formatInr(row.outstandingAmount)}</p>
                 <p className="text-xs text-slate-500">
-                  {row.nextDueDate ? `Next due ${formatShortDate(row.nextDueDate)}` : row.statusLabel || "Pending"}
+                  {row.nextDueDate ? `Oldest due ${formatShortDate(row.nextDueDate)}` : row.statusLabel || "Pending"}
                 </p>
               </div>
             </div>
@@ -751,16 +751,26 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         />
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          title="Today's Collection"
-          value={formatInr(data.kpis.todaysCollection)}
-          hint="Collected at the Payment Desk today."
+          title="Total Expected Fees"
+          value={formatInr(data.kpis.totalExpectedFees)}
+          hint="Total fee demand for prepared dues."
         />
         <MetricCard
-          title="Pending Dues"
+          title="Total Collected"
+          value={formatInr(data.kpis.totalCollected)}
+          hint={`${formatPercent(data.kpis.collectionRate)} of expected fees collected.`}
+        />
+        <MetricCard
+          title="Total Pending"
           value={formatInr(data.kpis.totalPending)}
           hint={`${data.studentsWithPending} student${data.studentsWithPending === 1 ? "" : "s"} need follow-up.`}
+        />
+        <MetricCard
+          title="Collection %"
+          value={formatPercent(data.kpis.collectionRate)}
+          hint="Current session collection rate."
         />
         <MetricCard
           title="Active Students"
@@ -768,14 +778,19 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           hint="Students in this academic year."
         />
         <MetricCard
+          title="Refund/Credit Due"
+          value={formatInr(data.totalRefundDue)}
+          hint="Credit balance after revised fee calculations."
+        />
+        <MetricCard
           title="Receipts Today"
           value={data.kpis.receiptsToday}
           hint="Receipts saved today."
         />
         <MetricCard
-          title="Follow-up"
-          value={data.followUpQueue.length}
-          hint="Students needing fee follow-up."
+          title="This Month Collection"
+          value={formatInr(data.kpis.thisMonthCollection)}
+          hint="Receipts posted in the current month."
         />
       </div>
 
@@ -796,8 +811,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       </div>
 
       <SectionCard
-        title="Follow-up queue"
-        description="Students with overdue or high pending balances."
+        title="Top Defaulters"
+        description="Students with overdue or high pending balances for daily follow-up."
+        actions={
+          <Button asChild size="sm" variant="outline">
+            <Link href="/protected/defaulters">Open Defaulters</Link>
+          </Button>
+        }
       >
         <FollowUpQueue rows={data.followUpQueue} canPostPayments={canPostPayments} />
       </SectionCard>

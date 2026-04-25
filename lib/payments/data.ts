@@ -236,7 +236,7 @@ export function toFriendlyPaymentPostingError(error: unknown) {
   }
 
   if (normalized.includes("reference number is required")) {
-    return "Reference number is required for UPI, bank transfer, and cheque payments.";
+    return "Reference number is optional. Please try posting the payment again.";
   }
 
   if (normalized.includes("no pending dues") || normalized.includes("total_outstanding")) {

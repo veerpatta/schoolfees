@@ -17,6 +17,7 @@ import {
   stringifyImportCell,
 } from "@/lib/import/validation";
 import { normalizeWorkbookClassLabel } from "@/lib/fees/workbook";
+import type { ConventionalDiscountPolicy } from "@/lib/fees/types";
 import type {
   DryRunProcessedRow,
   ImportBatchSummary,
@@ -49,6 +50,7 @@ export type StudentImportDryRunContext = {
   routes: ImportRouteReference[];
   existingStudents: ExistingStudentDuplicateRecord[];
   activeFeeSettingClassIds: ReadonlySet<string>;
+  conventionalDiscountPolicies?: readonly ConventionalDiscountPolicy[];
 };
 
 function findReferenceMatch<T extends { id: string; aliases: readonly string[] }>(
@@ -111,6 +113,10 @@ function hasAnyOverride(normalized: NormalizedStudentImportRow["overrides"]) {
   );
 }
 
+function normalizePolicyLookupKey(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
 export function executeStudentImportDryRun({
   rows,
   mode = "add",
@@ -120,6 +126,7 @@ export function executeStudentImportDryRun({
   routes,
   existingStudents,
   activeFeeSettingClassIds,
+  conventionalDiscountPolicies = [],
 }: StudentImportDryRunContext) {
   const normalizedTargetSessionLabel = targetSessionLabel?.trim().toLowerCase() ?? "";
   const isSessionScoped = normalizedTargetSessionLabel.length > 0;
@@ -134,6 +141,14 @@ export function executeStudentImportDryRun({
   const existingByAdmissionNo = new Map(
     existingStudents.map((student) => [student.admissionNo.toLowerCase(), student]),
   );
+  const conventionalPolicyMap = new Map<string, ConventionalDiscountPolicy>();
+
+  conventionalDiscountPolicies
+    .filter((policy) => policy.isActive && policy.id)
+    .forEach((policy) => {
+      conventionalPolicyMap.set(normalizePolicyLookupKey(policy.displayName), policy);
+      conventionalPolicyMap.set(normalizePolicyLookupKey(policy.code), policy);
+    });
 
   const preliminaryRows: DryRunProcessedRow[] = rows.map((row) => {
     const errors: ImportIssue[] = [];
@@ -154,6 +169,16 @@ export function executeStudentImportDryRun({
     const notes = stringifyImportCell(getMappedCellValue(row.rawPayload, mapping, "notes"));
     const feeProfileReason = stringifyImportCell(
       getMappedCellValue(row.rawPayload, mapping, "feeProfileReason"),
+    );
+    const conventionalPolicyValues = [
+      stringifyImportCell(getMappedCellValue(row.rawPayload, mapping, "conventionalPolicy1")),
+      stringifyImportCell(getMappedCellValue(row.rawPayload, mapping, "conventionalPolicy2")),
+    ].filter(Boolean);
+    const conventionalFamilyGroup = stringifyImportCell(
+      getMappedCellValue(row.rawPayload, mapping, "conventionalFamilyGroup"),
+    );
+    const conventionalPolicyNotes = stringifyImportCell(
+      getMappedCellValue(row.rawPayload, mapping, "conventionalPolicyNotes"),
     );
     const updateTarget =
       mode === "update"
@@ -242,6 +267,17 @@ export function executeStudentImportDryRun({
     const lateFeeWaiverAmount = parseNonNegativeWholeNumber(
       getMappedCellValue(row.rawPayload, mapping, "lateFeeWaiverAmount"),
       "Late fee waiver",
+    );
+    const conventionalPolicyMatches = conventionalPolicyValues.map((value) => ({
+      value,
+      policy: conventionalPolicyMap.get(normalizePolicyLookupKey(value)) ?? null,
+    }));
+    const conventionalPolicyIds = Array.from(
+      new Set(
+        conventionalPolicyMatches
+          .map((match) => match.policy?.id)
+          .filter((id): id is string => Boolean(id)),
+      ),
     );
 
     if (!effectiveFullName) {
@@ -382,6 +418,27 @@ export function executeStudentImportDryRun({
       }
     }
 
+    conventionalPolicyMatches.forEach((match) => {
+      if (!match.policy) {
+        errors.push({
+          code: "ERR_INVALID_CONVENTIONAL_POLICY",
+          field: "conventionalPolicy1",
+          message: `Conventional policy "${match.value}" is not active for this academic year.`,
+        });
+      }
+    });
+
+    if (
+      conventionalPolicyMatches.some((match) => match.policy?.code === "third_child") &&
+      !conventionalFamilyGroup
+    ) {
+      errors.push({
+        code: "ERR_THIRD_CHILD_NEEDS_FAMILY_GROUP",
+        field: "conventionalFamilyGroup",
+        message: "3rd Child Policy needs a Family Group / Sibling Group value.",
+      });
+    }
+
     if (studentTypeOverride.error) {
       if (mode === "add") {
         warnings.push(`WARN_INVALID_STUDENT_TYPE: ${studentTypeOverride.error} Existing will be used.`);
@@ -459,6 +516,11 @@ export function executeStudentImportDryRun({
           otherAdjustmentAmount.value !== null ? otherAdjustmentAmount.value.toString() : "",
         feeProfileReason,
         feeProfileNotes: "",
+        conventionalPolicyIds,
+        conventionalDiscountReason: conventionalPolicyNotes || "Imported conventional discount",
+        conventionalDiscountNotes: conventionalPolicyNotes,
+        conventionalDiscountFamilyGroup: conventionalFamilyGroup,
+        conventionalDiscountManualOverrideReason: "",
         notes,
       },
       {
@@ -511,6 +573,14 @@ export function executeStudentImportDryRun({
       status: studentValidation.data.status,
       notes: studentValidation.data.notes,
       feeProfileReason: studentValidation.data.feeProfileReason,
+      conventionalDiscounts: {
+        policyIds: studentValidation.data.conventionalPolicyIds,
+        policyLabels: conventionalPolicyMatches
+          .map((match) => match.policy?.displayName ?? match.value)
+          .filter(Boolean),
+        familyGroup: studentValidation.data.conventionalDiscountFamilyGroup,
+        notes: studentValidation.data.conventionalDiscountNotes,
+      },
       overrides: {
         customTuitionFeeAmount: tuitionOverride.value,
         customTransportFeeAmount: transportOverride.value,

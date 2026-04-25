@@ -77,6 +77,16 @@ export function getStudentFormInput(formData: FormData): StudentFormInput {
     otherAdjustmentAmount: asTrimmedString(formData.get("otherAdjustmentAmount")),
     feeProfileReason: asTrimmedString(formData.get("feeProfileReason")),
     feeProfileNotes: asTrimmedString(formData.get("feeProfileNotes")),
+    conventionalPolicyIds: formData
+      .getAll("conventionalPolicyIds")
+      .map((value) => value.toString().trim())
+      .filter(Boolean),
+    conventionalDiscountReason: asTrimmedString(formData.get("conventionalDiscountReason")),
+    conventionalDiscountNotes: asTrimmedString(formData.get("conventionalDiscountNotes")),
+    conventionalDiscountFamilyGroup: asTrimmedString(formData.get("conventionalDiscountFamilyGroup")),
+    conventionalDiscountManualOverrideReason: asTrimmedString(
+      formData.get("conventionalDiscountManualOverrideReason"),
+    ),
     notes: asTrimmedString(formData.get("notes")),
   };
 }
@@ -108,6 +118,7 @@ export function validateStudentInput(
   const discountAmount = parseOptionalWholeNumber(input.discountAmount);
   const lateFeeWaiverAmount = parseOptionalWholeNumber(input.lateFeeWaiverAmount);
   const otherAdjustmentAmount = parseOptionalWholeNumber(input.otherAdjustmentAmount);
+  const conventionalPolicyIds = Array.from(new Set(input.conventionalPolicyIds));
   const feeProfileReason =
     normalizeNullableText(input.feeProfileReason, 180) ??
     "Student Master workbook profile";
@@ -189,6 +200,14 @@ export function validateStudentInput(
     fieldErrors.otherAdjustmentAmount = "Enter the adjustment amount for this head.";
   }
 
+  if (conventionalPolicyIds.length > 2) {
+    fieldErrors.conventionalPolicyIds = "Select no more than two conventional discounts.";
+  }
+
+  if (conventionalPolicyIds.length > 0 && !input.conventionalDiscountReason.trim()) {
+    fieldErrors.conventionalDiscountReason = "Reason is required for conventional discounts.";
+  }
+
   if (Object.keys(fieldErrors).length > 0) {
     return {
       ok: false,
@@ -220,6 +239,19 @@ export function validateStudentInput(
       otherAdjustmentAmount,
       feeProfileReason,
       feeProfileNotes: normalizeNullableText(input.feeProfileNotes, 1000),
+      conventionalPolicyIds,
+      conventionalDiscountReason:
+        normalizeNullableText(input.conventionalDiscountReason, 180) ??
+        "Conventional discount approved",
+      conventionalDiscountNotes: normalizeNullableText(input.conventionalDiscountNotes, 1000),
+      conventionalDiscountFamilyGroup: normalizeNullableText(
+        input.conventionalDiscountFamilyGroup,
+        180,
+      ),
+      conventionalDiscountManualOverrideReason: normalizeNullableText(
+        input.conventionalDiscountManualOverrideReason,
+        500,
+      ),
       notes: normalizeNullableText(input.notes, 1000),
     },
   };

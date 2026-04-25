@@ -24,6 +24,8 @@ import {
 } from "@/lib/system-sync/finance-sync";
 
 function mapWriteErrorToState(message: string): StudentFormActionState {
+  const normalizedMessage = message.toLowerCase();
+
   if (message.toLowerCase().includes("admission_no") || message.toLowerCase().includes("students_admission_no_key")) {
     return {
       status: "error",
@@ -35,12 +37,36 @@ function mapWriteErrorToState(message: string): StudentFormActionState {
     };
   }
 
+  if (
+    normalizedMessage.includes("conventional discount") ||
+    normalizedMessage.includes("3rd child") ||
+    normalizedMessage.includes("sibling group")
+  ) {
+    return {
+      status: "error",
+      message,
+      fieldErrors: {
+        conventionalPolicyIds: message,
+      },
+      studentId: null,
+    };
+  }
+
   return {
     status: "error",
     message: "Unable to save student right now. Please try again.",
     fieldErrors: {},
     studentId: null,
   };
+}
+
+function conventionalDiscountSelectionChanged(
+  previousPolicyIds: readonly string[] = [],
+  nextPolicyIds: readonly string[] = [],
+) {
+  const previousKey = [...previousPolicyIds].sort().join("|");
+  const nextKey = [...nextPolicyIds].sort().join("|");
+  return previousKey !== nextKey;
 }
 
 export async function createStudentAction(
@@ -137,7 +163,12 @@ export async function updateStudentAction(
     }
 
     const updatedStudentId = await updateStudent(studentId, validated.data);
-    const shouldSyncDues = shouldSyncStudentDuesForChange(previousStudent, validated.data);
+    const shouldSyncDues =
+      shouldSyncStudentDuesForChange(previousStudent, validated.data) ||
+      conventionalDiscountSelectionChanged(
+        previousStudent.conventionalDiscountPolicyIds,
+        validated.data.conventionalPolicyIds,
+      );
 
     let syncMessage = "";
 

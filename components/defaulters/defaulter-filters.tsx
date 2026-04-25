@@ -25,7 +25,17 @@ export function DefaulterFilters({
   routeOptions,
 }: DefaulterFiltersProps) {
   return (
-    <AutoSubmitForm method="get" className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <AutoSubmitForm method="get" className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div>
+        <Label htmlFor="query">Search</Label>
+        <Input
+          id="query"
+          name="query"
+          defaultValue={filters.searchQuery ?? ""}
+          placeholder="Student, SR no, phone"
+          className="mt-2"
+        />
+      </div>
       <div>
         <Label htmlFor="classId">Class</Label>
         <select
@@ -87,7 +97,7 @@ export function DefaulterFilters({
         />
       </div>
 
-      <div className="flex items-end gap-2 md:col-span-2 xl:col-span-4">
+      <div className="flex items-end gap-2 md:col-span-2 xl:col-span-5">
         <Button type="button" variant="outline" asChild>
           <Link href="/protected/defaulters">Clear</Link>
         </Button>

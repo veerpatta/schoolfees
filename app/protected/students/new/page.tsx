@@ -19,7 +19,7 @@ export default async function NewStudentPage({ searchParams }: NewStudentPagePro
   const staff = await requireStaffPermission("students:write", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const requestedSessionLabel = resolvedSearchParams?.sessionLabel?.trim() ?? null;
-  const [{ classOptions, routeOptions }, setup] = await Promise.all([
+  const [{ classOptions, routeOptions, conventionalDiscountPolicies }, setup] = await Promise.all([
     getStudentFormOptions({ sessionLabel: requestedSessionLabel }),
     getSetupWizardData(),
   ]);
@@ -51,6 +51,7 @@ export default async function NewStudentPage({ searchParams }: NewStudentPagePro
             mode="add"
             classOptions={classOptions}
             routeOptions={routeOptions}
+            conventionalDiscountPolicies={conventionalDiscountPolicies}
             initialValues={{
               fullName: "",
               classId: "",
@@ -72,6 +73,11 @@ export default async function NewStudentPage({ searchParams }: NewStudentPagePro
               otherAdjustmentAmount: "",
               feeProfileReason: "Student fee profile",
               feeProfileNotes: "",
+              conventionalPolicyIds: [],
+              conventionalDiscountReason: "",
+              conventionalDiscountNotes: "",
+              conventionalDiscountFamilyGroup: "",
+              conventionalDiscountManualOverrideReason: "",
               notes: "",
             }}
             action={createStudentAction}
