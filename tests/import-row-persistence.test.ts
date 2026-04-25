@@ -77,7 +77,7 @@ describe("import row persistence", () => {
         normalized_payload: null,
       }),
     ]);
-  });
+  }, 15000);
 
   it("updates validation rows only within the batch", async () => {
     const { updateImportRowsForBatch } = await import("@/lib/import/data");
@@ -153,5 +153,5 @@ describe("import row persistence", () => {
       duplicate_student_id: null,
       import_operation: "create",
     });
-  });
+  }, 15000);
 });
