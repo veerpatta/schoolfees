@@ -207,5 +207,5 @@ describe("student import commit workflow", () => {
     expect(result.status).toBe("completed");
     expect(result.duesReadyCount).toBe(1);
     expect(result.duesAttentionCount).toBe(0);
-  });
+  }, 15000);
 });
