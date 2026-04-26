@@ -409,17 +409,28 @@ export async function getStudentFormOptions(payload?: {
   };
 }
 
-export async function getStudents(filters: StudentListFilters) {
+export async function getStudentsPage(
+  filters: StudentListFilters,
+  pagination: {
+    page: number;
+    pageSize: number;
+  },
+) {
   const supabase = await createClient();
   const policy = await getFeePolicySummary();
+  const page = Math.max(1, Math.floor(pagination.page));
+  const pageSize = Math.min(100, Math.max(1, Math.floor(pagination.pageSize)));
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
   let query = supabase
     .from("students")
     .select(
       "id, admission_no, full_name, date_of_birth, status, primary_phone, secondary_phone, updated_at, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code)",
+      { count: "exact" },
     )
     .eq("class_ref.status", "active")
     .order("full_name", { ascending: true })
-    .limit(100);
+    .range(from, to);
 
   if (filters.query) {
     query = query.ilike("full_name", `%${filters.query}%`);
@@ -441,7 +452,7 @@ export async function getStudents(filters: StudentListFilters) {
     query = query.eq("status", filters.status);
   }
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
 
   if (error) {
     throw new Error(`Unable to load students: ${error.message}`);
@@ -520,7 +531,7 @@ export async function getStudents(filters: StudentListFilters) {
     });
   }
 
-  return studentRows.map((row) => {
+  const students = studentRows.map((row) => {
     const classRef = toSingleRecord(row.class_ref);
     const routeRef = toSingleRecord(row.route_ref);
     const financial = financialMap.get(row.id) ?? null;
@@ -602,6 +613,18 @@ export async function getStudents(filters: StudentListFilters) {
       updatedAt: row.updated_at,
     } satisfies StudentListItem;
   });
+
+  return {
+    students,
+    totalCount: count ?? 0,
+    page,
+    pageSize,
+  };
+}
+
+export async function getStudents(filters: StudentListFilters) {
+  const result = await getStudentsPage(filters, { page: 1, pageSize: 100 });
+  return result.students;
 }
 
 export async function getStudentDetail(studentId: string) {

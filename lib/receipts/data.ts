@@ -157,17 +157,25 @@ function buildFeeSummary(row: WorkbookFinancialRow | null): ReceiptFeeSummaryIte
   ];
 }
 
-export async function getReceiptsList(searchQuery: string): Promise<ReceiptListItem[]> {
+export async function getReceiptsPage(
+  searchQuery: string,
+  pagination: { page: number; pageSize: number },
+): Promise<{ receipts: ReceiptListItem[]; totalCount: number; page: number; pageSize: number }> {
   const supabase = await createClient();
+  const page = Math.max(1, Math.floor(pagination.page));
+  const pageSize = Math.min(100, Math.max(1, Math.floor(pagination.pageSize)));
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
 
   let query = supabase
     .from("receipts")
     .select(
       "id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, student_ref:students(id, full_name, admission_no, father_name, primary_phone, class_ref:classes(session_label, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code))",
+      { count: "exact" },
     )
     .order("payment_date", { ascending: false })
     .order("created_at", { ascending: false })
-    .limit(80);
+    .range(from, to);
 
   const normalizedQuery = searchQuery.trim();
 
@@ -175,13 +183,13 @@ export async function getReceiptsList(searchQuery: string): Promise<ReceiptListI
     query = query.or(`receipt_number.ilike.%${normalizedQuery}%,reference_number.ilike.%${normalizedQuery}%`);
   }
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
 
   if (error) {
     throw new Error(`Unable to load receipts: ${error.message}`);
   }
 
-  return ((data ?? []) as ReceiptListRow[]).map((row) => {
+  const receipts = ((data ?? []) as ReceiptListRow[]).map((row) => {
     const student = toSingleRecord(row.student_ref);
 
     return {
@@ -199,6 +207,18 @@ export async function getReceiptsList(searchQuery: string): Promise<ReceiptListI
       classLabel: buildClassLabel(student?.class_ref ?? null),
     };
   });
+
+  return {
+    receipts,
+    totalCount: count ?? 0,
+    page,
+    pageSize,
+  };
+}
+
+export async function getReceiptsList(searchQuery: string): Promise<ReceiptListItem[]> {
+  const page = await getReceiptsPage(searchQuery, { page: 1, pageSize: 80 });
+  return page.receipts;
 }
 
 export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail | null> {

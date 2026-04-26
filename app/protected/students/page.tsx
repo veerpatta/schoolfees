@@ -4,14 +4,13 @@ import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { StudentBulkImportDialogTrigger } from "@/components/students/student-bulk-import-dialog";
-import { StudentFilters } from "@/components/students/student-filters";
-import { StudentListTable } from "@/components/students/student-list-table";
+import { StudentQuickLoad } from "@/components/students/student-quick-load";
 import { Button } from "@/components/ui/button";
 import { STUDENT_STATUSES } from "@/lib/students/constants";
 import {
   getClassOptionsForSession,
   getStudentFormOptions,
-  getStudents,
+  getStudentsPage,
 } from "@/lib/students/data";
 import {
   EMPTY_STUDENT_FILTERS,
@@ -30,6 +29,7 @@ type StudentsPageProps = {
     classId?: string;
     transportRouteId?: string;
     status?: StudentListFilters["status"];
+    page?: string;
   }>;
 };
 
@@ -100,11 +100,15 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
   if (filters.classId && !validClassIdSet.has(filters.classId)) {
     filters.classId = EMPTY_STUDENT_FILTERS.classId;
   }
+  const page = Math.max(1, Number.parseInt(resolvedSearchParams?.page ?? "1", 10) || 1);
   let students: StudentListItem[] = [];
+  let totalCount = 0;
   let studentLoadWarning: string | null = null;
 
   try {
-    students = await getStudents(filters);
+    const pageData = await getStudentsPage(filters, { page, pageSize: 40 });
+    students = pageData.students;
+    totalCount = pageData.totalCount;
   } catch (error) {
     studentLoadWarning =
       error instanceof Error
@@ -115,26 +119,6 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
   const loadWarnings = [formLoadWarning, studentLoadWarning].filter(
     (value): value is string => Boolean(value),
   );
-
-  const hasFilters = Boolean(
-    filters.query ||
-      filters.classId ||
-      filters.transportRouteId ||
-      filters.status ||
-      Boolean(
-        filters.sessionLabel &&
-          resolvedSessionLabel &&
-          filters.sessionLabel !== resolvedSessionLabel,
-      ),
-  );
-  const activeCount = students.filter((student) => student.status === "active").length;
-  const returnParams = new URLSearchParams();
-  if (filters.query) returnParams.set("query", filters.query);
-  if (filters.sessionLabel) returnParams.set("sessionLabel", filters.sessionLabel);
-  if (filters.classId) returnParams.set("classId", filters.classId);
-  if (filters.transportRouteId) returnParams.set("transportRouteId", filters.transportRouteId);
-  if (filters.status) returnParams.set("status", filters.status);
-  const returnTo = `/protected/students${returnParams.toString() ? `?${returnParams.toString()}` : ""}`;
 
   return (
     <div className="space-y-6">
@@ -180,18 +164,6 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
         }
       />
 
-      <SectionCard
-        title="Find students"
-        description="Search by student name, SR no, or phone, then narrow by class, route, or status."
-      >
-        <StudentFilters
-          filters={filters}
-          sessionOptions={sessionOptions}
-          classOptions={classOptions}
-          routeOptions={routeOptions}
-        />
-      </SectionCard>
-
       {formOptions?.sessionMismatch ? (
         <SectionCard
           title="Working session mismatch"
@@ -224,17 +196,16 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
         </SectionCard>
       ) : null}
 
-      <SectionCard
-        title="Student list"
-        description={`${activeCount} active student${activeCount === 1 ? "" : "s"} found.`}
-      >
-        <StudentListTable
-          students={students}
-          hasFilters={hasFilters}
-          canWrite={canWriteStudents}
-          returnTo={returnTo}
-        />
-      </SectionCard>
+      <StudentQuickLoad
+        initialFilters={filters}
+        initialStudents={students}
+        initialPage={page}
+        initialTotalCount={totalCount}
+        sessionOptions={sessionOptions}
+        classOptions={classOptions}
+        routeOptions={routeOptions}
+        canWrite={canWriteStudents}
+      />
 
     </div>
   );
