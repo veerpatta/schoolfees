@@ -1,40 +1,21 @@
-import Link from "next/link";
-
 import { PageHeader } from "@/components/admin/page-header";
-import { SectionCard } from "@/components/admin/section-card";
-import { AutoSubmitForm } from "@/components/office/auto-submit-form";
-import { Button } from "@/components/ui/button";
-import { formatInr } from "@/lib/helpers/currency";
-import { getReceiptsList } from "@/lib/receipts/data";
+import { ReceiptsQuickLoad } from "@/components/receipts/receipts-quick-load";
+import { getReceiptsPage } from "@/lib/receipts/data";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 type ReceiptsPageProps = {
   searchParams?: Promise<{
     query?: string;
+    page?: string;
   }>;
 };
-
-function paymentModeLabel(mode: "cash" | "upi" | "bank_transfer" | "cheque") {
-  if (mode === "upi") {
-    return "UPI";
-  }
-
-  if (mode === "bank_transfer") {
-    return "Bank transfer";
-  }
-
-  if (mode === "cheque") {
-    return "Cheque";
-  }
-
-  return "Cash";
-}
 
 export default async function ReceiptsPage({ searchParams }: ReceiptsPageProps) {
   const staff = await requireStaffPermission("receipts:view", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const query = (resolvedSearchParams?.query ?? "").trim();
-  const receipts = await getReceiptsList(query);
+  const page = Math.max(1, Number.parseInt(resolvedSearchParams?.page ?? "1", 10) || 1);
+  const data = await getReceiptsPage(query, { page, pageSize: 30 });
   const canPrintReceipts = hasStaffPermission(staff, "receipts:print");
 
   return (
@@ -45,77 +26,13 @@ export default async function ReceiptsPage({ searchParams }: ReceiptsPageProps) 
         description="Search receipts and open printable copies."
       />
 
-      <SectionCard title="Receipt lookup" description="Search by receipt number or reference number.">
-        <AutoSubmitForm action="/protected/receipts" method="get" className="flex flex-col gap-3 sm:flex-row">
-          <input
-            name="query"
-            defaultValue={query}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-            placeholder="e.g. SVP20260421-0001 or UPI reference"
-          />
-          {query ? (
-            <Button asChild variant="outline">
-              <Link href="/protected/receipts">Clear</Link>
-            </Button>
-          ) : null}
-        </AutoSubmitForm>
-      </SectionCard>
-
-      <SectionCard
-        title="Recent receipts"
-        description={
-          canPrintReceipts
-            ? `${receipts.length} receipt${receipts.length === 1 ? "" : "s"} in this view.`
-            : "Open receipt details for verification. Print controls stay hidden for your role."
-        }
-      >
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full min-w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
-              <tr>
-                <th className="px-4 py-3">Receipt no</th>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Student</th>
-                <th className="px-4 py-3">Class</th>
-                <th className="px-4 py-3">Mode</th>
-                <th className="px-4 py-3">Amount</th>
-                <th className="px-4 py-3">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {receipts.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
-                    No receipts found for this filter.
-                  </td>
-                </tr>
-              ) : (
-                receipts.map((receipt) => {
-                  return (
-                    <tr key={receipt.id} className="border-t border-slate-100 text-slate-700">
-                      <td className="px-4 py-3 font-medium text-slate-900">{receipt.receiptNumber}</td>
-                      <td className="px-4 py-3">{receipt.paymentDate}</td>
-                      <td className="px-4 py-3">
-                        {receipt.studentFullName} ({receipt.admissionNo})
-                      </td>
-                      <td className="px-4 py-3">{receipt.classLabel}</td>
-                      <td className="px-4 py-3">{paymentModeLabel(receipt.paymentMode)}</td>
-                      <td className="px-4 py-3">{formatInr(receipt.totalAmount)}</td>
-                      <td className="px-4 py-3">
-                        <Button asChild variant="outline" size="sm">
-                          <Link href={`/protected/receipts/${receipt.id}`}>
-                            {canPrintReceipts ? "Open / Print" : "Open"}
-                          </Link>
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </SectionCard>
+      <ReceiptsQuickLoad
+        initialQuery={query}
+        initialPage={page}
+        initialReceipts={data.receipts}
+        initialTotalCount={data.totalCount}
+        canPrintReceipts={canPrintReceipts}
+      />
     </div>
   );
 }

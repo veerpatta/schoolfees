@@ -58,7 +58,7 @@ describe("read-only UX audit implementation", () => {
     expect(reports).not.toContain("Update view");
     expect(defaulters).toContain("AutoSubmitForm");
     expect(defaulters).not.toContain("Apply filters");
-    expect(receipts).toContain("AutoSubmitForm");
+    expect(receipts).toContain("ReceiptsQuickLoad");
     expect(receipts).not.toContain(">Search</button>");
   });
 
