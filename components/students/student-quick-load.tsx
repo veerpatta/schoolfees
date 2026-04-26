@@ -110,7 +110,65 @@ export function StudentQuickLoad({
         title="Find students"
         description="Search by student name, SR no, or phone, then narrow by class, route, or status."
       >
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <details className="md:hidden">
+          <summary className="cursor-pointer rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
+            Open filters
+          </summary>
+          <div className="mt-3 grid gap-3">
+            <div>
+              <Label htmlFor="query">Search</Label>
+              <Input
+                id="query"
+                value={filters.query}
+                onChange={(event) => {
+                  setPage(1);
+                  setFilters((previous) => ({ ...previous, query: event.target.value }));
+                }}
+                placeholder="Student name, SR no, or phone"
+                className="mt-2"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="classId-mobile">Class</Label>
+                <select
+                  id="classId-mobile"
+                  value={filters.classId}
+                  onChange={(event) => {
+                    setPage(1);
+                    setFilters((previous) => ({ ...previous, classId: event.target.value }));
+                  }}
+                  className={`${selectClassName} mt-2`}
+                >
+                  <option value="">All classes</option>
+                  {classOptions.map((classOption) => (
+                    <option key={classOption.id} value={classOption.id}>
+                      {classOption.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="status-mobile">Status</Label>
+                <select
+                  id="status-mobile"
+                  value={filters.status}
+                  onChange={(event) => {
+                    setPage(1);
+                    setFilters((previous) => ({ ...previous, status: event.target.value as StudentListFilters["status"] }));
+                  }}
+                  className={`${selectClassName} mt-2`}
+                >
+                  <option value="">All statuses</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="withdrawn">Withdrawn</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </details>
+        <div className="hidden gap-3 md:grid md:grid-cols-2 xl:grid-cols-6">
           <div className="xl:col-span-2">
             <Label htmlFor="query">Search</Label>
             <Input

@@ -200,7 +200,46 @@ export default async function DefaultersPage({
         title="Defaulter list"
         description="Ranked by pending amount and overdue days so the highest-risk follow-ups appear first."
       >
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
+        <div className="space-y-3 md:hidden">
+          {data.rows.length === 0 ? (
+            <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 text-center text-sm text-slate-500">
+              No defaulters found for the selected filters.
+            </p>
+          ) : (
+            data.rows.map((row) => (
+              <div key={row.studentId} className="rounded-xl border border-slate-200 bg-white p-3">
+                <div className="flex items-center justify-between">
+                  <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-900">
+                    Rank #{row.rank}
+                  </span>
+                  <span className="text-sm font-semibold text-slate-900">{formatInr(row.totalPending)}</span>
+                </div>
+                <p className="mt-2 font-semibold text-slate-900">{row.fullName}</p>
+                <p className="text-xs text-slate-500">SR no {row.admissionNo} • {row.classLabel}</p>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                  <p>Days overdue: {row.daysOverdue}</p>
+                  <p>Oldest due: {row.oldestDueDate ? formatShortDate(row.oldestDueDate) : "-"}</p>
+                  <p>Father: {row.fatherName ?? "-"}</p>
+                  <p>Last payment: {row.lastPaymentDate ? formatShortDate(row.lastPaymentDate) : "-"}</p>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {row.fatherPhone ? (
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`tel:${row.fatherPhone}`}>Call</Link>
+                    </Button>
+                  ) : null}
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/protected/students/${row.studentId}`}>Open Student</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/protected/payments?studentId=${row.studentId}`}>Open Payment</Link>
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
           <table className="w-full min-w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
               <tr>

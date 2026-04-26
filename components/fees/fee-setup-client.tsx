@@ -1362,7 +1362,27 @@ export function FeeSetupClient({
       >
         <div className="space-y-4">
           <ActionNotice state={classState} />
-          <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
+          <div className="space-y-3 md:hidden">
+            {visibleClassRows.map((row) => (
+              <div key={`mobile-${selectedSessionLabel}-${row.label}`} className="rounded-xl border border-slate-200 bg-white p-3">
+                <p className="font-semibold text-slate-900">{row.label}</p>
+                <Label className="mt-2 block" htmlFor={`class-fee-${row.label}`}>Annual tuition</Label>
+                <Input
+                  id={`class-fee-${row.label}`}
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  value={row.annualTuition}
+                  onChange={(event) =>
+                    updateClassAnnualTuition(row.label, Number(event.target.value || 0))
+                  }
+                  disabled={!canEdit}
+                  className="mt-2"
+                />
+              </div>
+            ))}
+          </div>
+          <div className="hidden overflow-auto rounded-xl border border-slate-200 bg-white md:block">
             <table className="w-full min-w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                 <tr>
@@ -1585,7 +1605,30 @@ export function FeeSetupClient({
       >
         <div className="space-y-4">
           <ActionNotice state={routeState} />
-          <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
+          <div className="space-y-3 md:hidden">
+            {visibleRouteRows.map((row) => (
+              <div key={`mobile-route-${row.routeName}`} className="rounded-xl border border-slate-200 bg-white p-3">
+                <p className="font-semibold text-slate-900">{row.routeName}</p>
+                <Label className="mt-2 block" htmlFor={`route-fee-${row.routeName}`}>Annual transport fee</Label>
+                <Input
+                  id={`route-fee-${row.routeName}`}
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  value={row.annualFee}
+                  onChange={(event) =>
+                    updateRouteAnnualFee(row.routeName, Number(event.target.value || 0))
+                  }
+                  disabled={!canEdit}
+                  className="mt-2"
+                />
+                <p className="mt-2 text-xs text-slate-500">
+                  Per installment {formatInr(Math.floor(row.annualFee / Math.max(form.installmentDates.length, 1)))}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="hidden overflow-auto rounded-xl border border-slate-200 bg-white md:block">
             <table className="w-full min-w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                 <tr>
@@ -1853,12 +1896,12 @@ export function FeeSetupClient({
             </div>
           )}
 
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 pb-20 md:pb-4">
             <p className="max-w-3xl text-sm leading-6 text-slate-600">
               Publishing updates future or unpaid dues only. Receipts stay saved in
               history, and paid or adjusted rows are kept for review.
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-slate-200 bg-white/95 p-3 backdrop-blur md:static md:border-0 md:bg-transparent md:p-0">
               {canEdit ? (
                 <>
                   <Button

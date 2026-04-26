@@ -287,6 +287,20 @@ export function getVisibleProtectedNavigation(staffRole: StaffRole) {
   });
 }
 
+const mobilePrimaryOrder = [
+  "/protected/dashboard",
+  "/protected/students",
+  "/protected/payments",
+  "/protected/defaulters",
+] as const;
+
+export function getMobilePrimaryNavigation(staffRole: StaffRole) {
+  const visibleItems = getVisibleProtectedNavigation(staffRole);
+  return mobilePrimaryOrder
+    .map((href) => visibleItems.find((item) => item.href === href))
+    .filter((item): item is ProtectedNavigationItem => Boolean(item));
+}
+
 export function getProtectedRouteMeta(pathname: string): ProtectedRouteMeta {
   const item = routeMetaItems.find((meta) =>
     [meta.match, ...(meta.aliases ?? [])].some((href) => matchesRoute(pathname, href)),

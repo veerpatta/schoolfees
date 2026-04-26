@@ -75,6 +75,7 @@ function ActionNotice({
 
   return (
     <div
+      aria-live="polite"
       className={
         state.status === "error"
           ? "rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
@@ -162,6 +163,8 @@ export function PaymentEntryClient({
   const [clientRequestId, setClientRequestId] = useState(createClientRequestId);
   const submittingRef = useRef(false);
   const amountInputRef = useRef<HTMLInputElement>(null);
+  const summaryRequestRef = useRef(0);
+  const summaryAbortRef = useRef<AbortController | null>(null);
 
   const studentSearchIndex = useMemo(
     () => buildPaymentDeskSearchIndex(data.studentIndex),
@@ -211,7 +214,10 @@ export function PaymentEntryClient({
       return;
     }
 
-    let isActive = true;
+    summaryAbortRef.current?.abort();
+    const controller = new AbortController();
+    summaryAbortRef.current = controller;
+    const requestId = ++summaryRequestRef.current;
     const params = new URLSearchParams({
       studentId: selectedStudentId,
       paymentDate,
@@ -225,6 +231,7 @@ export function PaymentEntryClient({
     fetch(`/protected/payments/student-summary?${params.toString()}`, {
       method: "GET",
       headers: { accept: "application/json" },
+      signal: controller.signal,
     })
       .then(async (response) => {
         if (!response.ok) {
@@ -235,7 +242,7 @@ export function PaymentEntryClient({
         return response.json() as Promise<PaymentDeskStudentSummary>;
       })
       .then((payload) => {
-        if (!isActive) {
+        if (requestId !== summaryRequestRef.current) {
           return;
         }
 
@@ -259,7 +266,10 @@ export function PaymentEntryClient({
         );
       })
       .catch((error) => {
-        if (!isActive) {
+        if (requestId !== summaryRequestRef.current) {
+          return;
+        }
+        if (error instanceof Error && error.name === "AbortError") {
           return;
         }
 
@@ -272,7 +282,7 @@ export function PaymentEntryClient({
       });
 
     return () => {
-      isActive = false;
+      controller.abort();
     };
   }, [paymentDate, selectedStudentId, summaryRefreshToken]);
 
@@ -470,6 +480,7 @@ export function PaymentEntryClient({
       <SectionCard
         title="1. Select Class"
         description="Start with class, then choose the student."
+        className="sticky top-[72px] z-[5] bg-white/95 md:static md:bg-white"
       >
         <div className="grid gap-3 md:grid-cols-[minmax(220px,320px)_1fr] md:items-end">
           <div>
@@ -716,7 +727,27 @@ export function PaymentEntryClient({
               </div>
             }
           >
-            <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <div className="space-y-3 md:hidden">
+              {previewBreakdown.map((item) => (
+                <div key={item.installmentId} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-slate-900">{item.installmentLabel}</p>
+                    <ValueStatePill tone={item.balanceStatus === "paid" ? "locked" : item.balanceStatus === "partial" || item.balanceStatus === "overdue" ? "review" : "calculated"} className="normal-case tracking-normal">
+                      {item.balanceStatus}
+                    </ValueStatePill>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">Due {item.dueDate}</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                    <span>Base: {formatInr(item.amountDue - item.finalLateFee)}</span>
+                    <span>Late: {formatInr(item.finalLateFee)}</span>
+                    <span>Paid: {formatInr(item.paymentsTotal)}</span>
+                    <span>Adj: {formatInr(item.adjustmentsTotal)}</span>
+                  </div>
+                  <p className="mt-2 text-sm font-semibold text-slate-950">Outstanding: {formatInr(item.outstandingAmount)}</p>
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
               <table className="w-full min-w-[760px] text-left text-sm">
                 <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                   <tr>
@@ -833,6 +864,7 @@ export function PaymentEntryClient({
                       id="payment-amount"
                       name="paymentAmount"
                       type="number"
+                      inputMode="decimal"
                       min={1}
                       max={previewTotalPending}
                       className="mt-2"
@@ -943,6 +975,7 @@ export function PaymentEntryClient({
                   </p>
                   {previewNotice ? (
                     <p
+                      aria-live="polite"
                       className={
                         previewUnavailable
                           ? "mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
@@ -958,7 +991,18 @@ export function PaymentEntryClient({
                       Enter a payment amount to preview allocation.
                     </p>
                   ) : (
-                    <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                    <>
+                      <div className="mt-3 space-y-2 md:hidden">
+                        {allocationPreview.map((item) => (
+                          <div key={item.installmentId} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
+                            <p className="font-semibold text-slate-900">{item.installmentLabel}</p>
+                            <p className="text-slate-500">{item.dueDate}</p>
+                            <p>Allocated: {formatInr(item.allocatedAmount)}</p>
+                            <p>Remaining: {formatInr(item.outstandingAfter)}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-3 hidden overflow-x-auto rounded-lg border border-slate-200 bg-white md:block">
                       <table className="w-full min-w-[600px] text-left text-sm">
                         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                           <tr>
@@ -983,7 +1027,8 @@ export function PaymentEntryClient({
                           ))}
                         </tbody>
                       </table>
-                    </div>
+                      </div>
+                    </>
                   )}
 
                   <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-700">
@@ -992,7 +1037,7 @@ export function PaymentEntryClient({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-2">
+                <div className="hidden items-center justify-end gap-2 md:flex">
                   <Button
                     type="button"
                     disabled={
@@ -1010,9 +1055,27 @@ export function PaymentEntryClient({
                 </div>
               </fieldset>
 
+              <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 backdrop-blur md:hidden">
+                <Button
+                  type="button"
+                  className="w-full"
+                  disabled={
+                    !canPost ||
+                    isLockedAfterSuccess ||
+                    previewLoading ||
+                    studentSummaryLoading ||
+                    previewUnavailable ||
+                    previewTotalPending <= 0
+                  }
+                  onClick={openConfirmationDialog}
+                >
+                  Confirm Payment
+                </Button>
+              </div>
+
               {isConfirmOpen && confirmationSummary ? (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
-                  <div className="w-full max-w-xl rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 px-2 md:items-center md:px-4">
+                  <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border border-slate-200 bg-white p-4 shadow-xl md:max-w-xl md:rounded-xl md:p-5">
                     <h2 className="text-lg font-semibold text-slate-950">Confirm Payment</h2>
                     <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                       <span>Student name: {confirmationSummary.studentName}</span>
@@ -1052,7 +1115,7 @@ export function PaymentEntryClient({
                     <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                       This will save the receipt once. Posted receipts stay in history.
                     </p>
-                    <div className="mt-5 flex justify-end gap-2">
+                    <div className="sticky bottom-0 mt-5 flex justify-end gap-2 border-t border-slate-100 bg-white pt-3">
                       <Button
                         type="button"
                         variant="outline"
@@ -1070,8 +1133,8 @@ export function PaymentEntryClient({
               ) : null}
 
               {isSuccessOpen && state.status === "success" && receiptHref ? (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
-                  <div className="w-full max-w-xl rounded-xl border border-emerald-200 bg-white p-5 shadow-xl">
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 px-2 md:items-center md:px-4">
+                  <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border border-emerald-200 bg-white p-4 shadow-xl md:max-w-xl md:rounded-xl md:p-5">
                     <h2 className="text-lg font-semibold text-slate-950">Payment Successful</h2>
                     <p className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
                       Receipt has been saved.
@@ -1098,7 +1161,7 @@ export function PaymentEntryClient({
                         <span>Credit/refund state: {formatInr(refundableAmount || creditBalance)} to adjust/refund</span>
                       ) : null}
                     </div>
-                    <div className="mt-5 flex flex-wrap justify-end gap-2">
+                    <div className="sticky bottom-0 mt-5 flex flex-wrap justify-end gap-2 border-t border-slate-100 bg-white pt-3">
                       <Button asChild variant="outline">
                         <Link href={receiptHref} target="_blank">Print Receipt</Link>
                       </Button>
@@ -1126,8 +1189,8 @@ export function PaymentEntryClient({
               ) : null}
 
               {isDuplicateOpen && state.status === "duplicate" && state.receiptId ? (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
-                  <div className="w-full max-w-lg rounded-xl border border-amber-200 bg-white p-5 shadow-xl">
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 px-2 md:items-center md:px-4">
+                  <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl border border-amber-200 bg-white p-4 shadow-xl md:max-w-lg md:rounded-xl md:p-5">
                     <h2 className="text-lg font-semibold text-slate-950">
                       Similar payment already recorded
                     </h2>
@@ -1154,8 +1217,26 @@ export function PaymentEntryClient({
       <SectionCard
         title="Desk totals and recent receipts"
         description="Daily totals and lookup shortcuts stay below the payment form."
+        className="pb-20 md:pb-4"
       >
-        <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
+        <details className="md:hidden">
+          <summary className="cursor-pointer rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
+            Show desk totals & recent receipts
+          </summary>
+          <div className="mt-3 grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Today&apos;s collection
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-slate-950">
+                  {formatInr(data.todayCollection.totalAmount)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </details>
+        <div className="hidden gap-4 lg:grid-cols-[0.8fr_1.2fr] md:grid">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1">
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">

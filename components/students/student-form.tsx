@@ -181,7 +181,7 @@ export function StudentForm({
 
           <div>
             <Label htmlFor="fatherPhone">Phone</Label>
-            <Input id="fatherPhone" name="fatherPhone" defaultValue={initialValues.fatherPhone} className="mt-2" />
+            <Input id="fatherPhone" name="fatherPhone" type="tel" defaultValue={initialValues.fatherPhone} className="mt-2" />
             <FieldError message={getFieldError(state, "fatherPhone")} />
           </div>
 
@@ -249,7 +249,7 @@ export function StudentForm({
           </div>
           <div>
             <Label htmlFor="motherPhone">Mother phone</Label>
-            <Input id="motherPhone" name="motherPhone" defaultValue={initialValues.motherPhone} className="mt-2" />
+            <Input id="motherPhone" name="motherPhone" type="tel" defaultValue={initialValues.motherPhone} className="mt-2" />
             <FieldError message={getFieldError(state, "motherPhone")} />
           </div>
           <div className="md:col-span-2">
@@ -364,22 +364,22 @@ export function StudentForm({
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <div>
               <Label htmlFor="tuitionOverride">Tuition override</Label>
-              <Input id="tuitionOverride" name="tuitionOverride" type="number" min={0} defaultValue={initialValues.tuitionOverride} className="mt-2" placeholder="Leave blank for class default" />
+              <Input id="tuitionOverride" name="tuitionOverride" type="number" inputMode="decimal" min={0} defaultValue={initialValues.tuitionOverride} className="mt-2" placeholder="Leave blank for class default" />
               <FieldError message={getFieldError(state, "tuitionOverride")} />
             </div>
             <div>
               <Label htmlFor="transportOverride">Transport override</Label>
-              <Input id="transportOverride" name="transportOverride" type="number" min={0} defaultValue={initialValues.transportOverride} className="mt-2" placeholder="Leave blank for route default" />
+              <Input id="transportOverride" name="transportOverride" type="number" inputMode="decimal" min={0} defaultValue={initialValues.transportOverride} className="mt-2" placeholder="Leave blank for route default" />
               <FieldError message={getFieldError(state, "transportOverride")} />
             </div>
             <div>
               <Label htmlFor="discountAmount">Discount</Label>
-              <Input id="discountAmount" name="discountAmount" type="number" min={0} defaultValue={initialValues.discountAmount} className="mt-2" />
+              <Input id="discountAmount" name="discountAmount" type="number" inputMode="decimal" min={0} defaultValue={initialValues.discountAmount} className="mt-2" />
               <FieldError message={getFieldError(state, "discountAmount")} />
             </div>
             <div>
               <Label htmlFor="lateFeeWaiverAmount">Late fee waiver</Label>
-              <Input id="lateFeeWaiverAmount" name="lateFeeWaiverAmount" type="number" min={0} defaultValue={initialValues.lateFeeWaiverAmount} className="mt-2" />
+              <Input id="lateFeeWaiverAmount" name="lateFeeWaiverAmount" type="number" inputMode="decimal" min={0} defaultValue={initialValues.lateFeeWaiverAmount} className="mt-2" />
               <FieldError message={getFieldError(state, "lateFeeWaiverAmount")} />
             </div>
             <div>
@@ -389,7 +389,7 @@ export function StudentForm({
             </div>
             <div>
               <Label htmlFor="otherAdjustmentAmount">Other adjustment amount</Label>
-              <Input id="otherAdjustmentAmount" name="otherAdjustmentAmount" type="number" defaultValue={initialValues.otherAdjustmentAmount} className="mt-2" placeholder="Positive or negative" />
+              <Input id="otherAdjustmentAmount" name="otherAdjustmentAmount" type="number" inputMode="decimal" defaultValue={initialValues.otherAdjustmentAmount} className="mt-2" placeholder="Positive or negative" />
               <FieldError message={getFieldError(state, "otherAdjustmentAmount")} />
             </div>
             <div className="md:col-span-2 xl:col-span-3">

@@ -116,7 +116,32 @@ export function ReceiptsQuickLoad({
         description={`${totalCount} receipt${totalCount === 1 ? "" : "s"} in this view.${isLoading ? " Refreshing…" : ""}`}
       >
         <div className="space-y-4">
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="space-y-3 md:hidden">
+            {receipts.length === 0 ? (
+              <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 text-center text-sm text-slate-500">
+                No receipts found for this filter.
+              </p>
+            ) : (
+              receipts.map((receipt) => {
+                const returnTo = `/protected/receipts${params.toString() ? `?${params.toString()}` : ""}`;
+                return (
+                  <div key={receipt.id} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+                    <p className="font-semibold text-slate-900">{receipt.receiptNumber}</p>
+                    <p className="text-xs text-slate-500">{receipt.paymentDate}</p>
+                    <p className="mt-1">{receipt.studentFullName} ({receipt.admissionNo})</p>
+                    <p className="text-xs text-slate-600">{receipt.classLabel} • {paymentModeLabel(receipt.paymentMode)}</p>
+                    <p className="mt-1 font-semibold text-slate-900">{formatInr(receipt.totalAmount)}</p>
+                    <Button className="mt-2" asChild variant="outline" size="sm">
+                      <Link href={`/protected/receipts/${receipt.id}?returnTo=${encodeURIComponent(returnTo)}`}>
+                        {canPrintReceipts ? "Open / Print" : "Open"}
+                      </Link>
+                    </Button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+          <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
             <table className="w-full min-w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                 <tr>
