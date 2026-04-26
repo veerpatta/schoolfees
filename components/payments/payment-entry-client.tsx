@@ -118,6 +118,71 @@ function ActionNotice({
   );
 }
 
+type ConfirmAllocationPreviewItem = {
+  installmentId: string;
+  installmentLabel: string;
+  dueDate: string;
+  allocatedAmount: number;
+  outstandingAfter: number;
+};
+
+export function ConfirmationAllocationSummary({
+  allocationPreview,
+}: {
+  allocationPreview: ConfirmAllocationPreviewItem[];
+}) {
+  if (allocationPreview.length === 0) {
+    return (
+      <p className="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+        No installment allocation rows are available for this payment amount.
+      </p>
+    );
+  }
+
+  return (
+    <>
+      <div className="mt-4 space-y-2 md:hidden">
+        {allocationPreview.map((item) => (
+          <div key={item.installmentId} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+            <div className="flex items-start justify-between gap-2">
+              <p className="font-semibold text-slate-900">{item.installmentLabel}</p>
+              <p className="text-xs text-slate-500">{item.dueDate}</p>
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-700">
+              <span>Applied: {formatInr(item.allocatedAmount)}</span>
+              <span>Remaining: {formatInr(item.outstandingAfter)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 hidden overflow-x-auto rounded-lg border border-slate-200 md:block">
+        <table className="w-full min-w-[520px] text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+            <tr>
+              <th className="px-3 py-2">Installment</th>
+              <th className="px-3 py-2">Due date</th>
+              <th className="px-3 py-2">Amount applied</th>
+              <th className="px-3 py-2">Remaining</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allocationPreview.map((item) => (
+              <tr key={item.installmentId} className="border-t border-slate-100">
+                <td className="px-3 py-2">{item.installmentLabel}</td>
+                <td className="px-3 py-2">{item.dueDate}</td>
+                <td className="px-3 py-2 font-medium text-slate-900">
+                  {formatInr(item.allocatedAmount)}
+                </td>
+                <td className="px-3 py-2">{formatInr(item.outstandingAfter)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
 export function PaymentEntryClient({
   data,
   canPost,
@@ -1075,47 +1140,40 @@ export function PaymentEntryClient({
 
               {isConfirmOpen && confirmationSummary ? (
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 px-2 md:items-center md:px-4">
-                  <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border border-slate-200 bg-white p-4 shadow-xl md:max-w-xl md:rounded-xl md:p-5">
-                    <h2 className="text-lg font-semibold text-slate-950">Confirm Payment</h2>
-                    <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                      <span>Student name: {confirmationSummary.studentName}</span>
-                      <span>SR/admission no: {confirmationSummary.admissionNo}</span>
-                      <span>Class: {confirmationSummary.classLabel}</span>
-                      <span>Payment amount: {formatInr(confirmationSummary.amount)}</span>
-                      <span>Payment date: {confirmationSummary.paymentDate}</span>
-                      <span>Payment mode: {confirmationSummary.paymentModeLabel}</span>
-                      <span>Reference number: {confirmationSummary.referenceNumber ?? "Not entered"}</span>
-                      <span>Received by: {confirmationSummary.receivedBy}</span>
-                      <span>Remaining balance: {formatInr(confirmationSummary.remainingBalance)}</span>
+                  <div className="max-h-[92vh] w-full overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-xl md:max-w-xl md:rounded-xl">
+                    <div className="max-h-[calc(92vh-80px)] overflow-y-auto px-4 pb-4 pt-4 md:px-5 md:pb-5 md:pt-5">
+                      <h2 className="text-lg font-semibold text-slate-950">Confirm Payment</h2>
+                      <div className="mt-4 grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-slate-600">Payment amount</span>
+                          <span className="font-semibold text-slate-950">{formatInr(confirmationSummary.amount)}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-slate-600">Payment date</span>
+                          <span className="font-semibold text-slate-950">{confirmationSummary.paymentDate}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-slate-600">Payment mode</span>
+                          <span className="font-semibold text-slate-950">{confirmationSummary.paymentModeLabel}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-slate-600">Remaining balance</span>
+                          <span className="font-semibold text-slate-950">{formatInr(confirmationSummary.remainingBalance)}</span>
+                        </div>
+                      </div>
+                      <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                        <span>Student name: {confirmationSummary.studentName}</span>
+                        <span>SR/admission no: {confirmationSummary.admissionNo}</span>
+                        <span>Class: {confirmationSummary.classLabel}</span>
+                        <span>Reference number: {confirmationSummary.referenceNumber ?? "Not entered"}</span>
+                        <span>Received by: {confirmationSummary.receivedBy}</span>
+                      </div>
+                      <ConfirmationAllocationSummary allocationPreview={allocationPreview} />
+                      <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                        This will save the receipt once. Posted receipts stay in history.
+                      </p>
                     </div>
-                    <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
-                      <table className="w-full min-w-[520px] text-left text-sm">
-                        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
-                          <tr>
-                            <th className="px-3 py-2">Installment</th>
-                            <th className="px-3 py-2">Due date</th>
-                            <th className="px-3 py-2">Amount applied</th>
-                            <th className="px-3 py-2">Remaining</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {allocationPreview.map((item) => (
-                            <tr key={item.installmentId} className="border-t border-slate-100">
-                              <td className="px-3 py-2">{item.installmentLabel}</td>
-                              <td className="px-3 py-2">{item.dueDate}</td>
-                              <td className="px-3 py-2 font-medium text-slate-900">
-                                {formatInr(item.allocatedAmount)}
-                              </td>
-                              <td className="px-3 py-2">{formatInr(item.outstandingAfter)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                      This will save the receipt once. Posted receipts stay in history.
-                    </p>
-                    <div className="sticky bottom-0 mt-5 flex justify-end gap-2 border-t border-slate-100 bg-white pt-3">
+                    <div className="sticky bottom-0 flex justify-end gap-2 border-t border-slate-100 bg-white px-4 py-3 md:px-5">
                       <Button
                         type="button"
                         variant="outline"
