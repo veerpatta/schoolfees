@@ -358,6 +358,13 @@ export function PaymentEntryClient({
     referenceRequired,
     creditBalance,
   });
+  const confirmDisabled =
+    !canPost ||
+    isLockedAfterSuccess ||
+    previewLoading ||
+    studentSummaryLoading ||
+    previewUnavailable ||
+    previewTotalPending <= 0;
   const confirmationSummary = buildPaymentConfirmationSummary({
     selectedStudent,
     amountInput: paymentAmountInput,
@@ -593,8 +600,8 @@ export function PaymentEntryClient({
         title="2. Select Student"
         description="Use SR no, student name, father name, or phone number to reach the right student quickly."
       >
-        <div className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
             <div>
               <Label htmlFor="payment-student-query">Search</Label>
               <Input
@@ -706,7 +713,7 @@ export function PaymentEntryClient({
                               role="option"
                               aria-selected={isSelected}
                               type="button"
-                              className={`flex min-h-11 w-full items-center border-b border-slate-100 px-3 py-2 text-left text-sm last:border-b-0 ${
+                      className={`flex min-h-12 w-full items-center border-b border-slate-100 px-3 py-2 text-left text-sm last:border-b-0 ${
                                 isActive ? "bg-blue-50 text-blue-900" : "bg-white text-slate-800 hover:bg-slate-50"
                               }`}
                               onMouseDown={(event) => event.preventDefault()}
@@ -1040,13 +1047,14 @@ export function PaymentEntryClient({
                       }}
                       required
                     />
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="mt-2 flex flex-wrap gap-2 md:flex-wrap">
                       {quickAmounts.map((quickAmount) => (
                         <Button
                           key={quickAmount.key}
                           type="button"
                           size="sm"
                           variant={quickAmount.key === "custom" ? "ghost" : "outline"}
+                          className="min-h-10"
                           disabled={quickAmount.disabled}
                           onClick={() => {
                             setFormError(null);
@@ -1205,14 +1213,7 @@ export function PaymentEntryClient({
                 <div className="hidden items-center justify-end gap-2 md:flex">
                   <Button
                     type="button"
-                    disabled={
-                      !canPost ||
-                      isLockedAfterSuccess ||
-                      previewLoading ||
-                      studentSummaryLoading ||
-                      previewUnavailable ||
-                      previewTotalPending <= 0
-                    }
+                    disabled={confirmDisabled}
                     onClick={openConfirmationDialog}
                   >
                     Confirm Payment
@@ -1221,17 +1222,18 @@ export function PaymentEntryClient({
               </fieldset>
 
               <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 backdrop-blur md:hidden mobile-safe-bottom-padding">
+                <div className="mb-2 flex items-center justify-between text-xs text-slate-600">
+                  <span className="truncate pr-2">
+                    {selectedStudent ? selectedStudent.fullName : "Select student"}
+                  </span>
+                  <span className="font-semibold text-slate-900">
+                    Pending {formatInr(previewTotalPending)}
+                  </span>
+                </div>
                 <Button
                   type="button"
-                  className="w-full"
-                  disabled={
-                    !canPost ||
-                    isLockedAfterSuccess ||
-                    previewLoading ||
-                    studentSummaryLoading ||
-                    previewUnavailable ||
-                    previewTotalPending <= 0
-                  }
+                  className="min-h-11 w-full"
+                  disabled={confirmDisabled}
                   onClick={openConfirmationDialog}
                 >
                   Confirm Payment
