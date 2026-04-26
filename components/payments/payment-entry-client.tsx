@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 import { MetricCard } from "@/components/admin/metric-card";
@@ -55,6 +55,9 @@ const selectClassName =
 
 const textAreaClassName =
   "flex min-h-[88px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+const studentComboboxRowHeight = 52;
+const studentComboboxPanelHeight = 312;
+const studentComboboxOverscan = 4;
 
 function createClientRequestId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -136,6 +139,9 @@ export function PaymentEntryClient({
   const [selectedClassId, setSelectedClassId] = useState(data.initialClassId);
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
   const [selectedStudentId, setSelectedStudentId] = useState(data.initialStudentId ?? "");
+  const [isStudentPickerOpen, setIsStudentPickerOpen] = useState(false);
+  const [activeStudentOptionIndex, setActiveStudentOptionIndex] = useState(-1);
+  const [studentListScrollTop, setStudentListScrollTop] = useState(0);
   const [selectedStudent, setSelectedStudent] = useState(data.initialStudentSummary);
   const [selectedStudentIssue, setSelectedStudentIssue] = useState<PaymentDeskIssue | null>(
     data.initialStudentIssue,
@@ -163,8 +169,12 @@ export function PaymentEntryClient({
   const [clientRequestId, setClientRequestId] = useState(createClientRequestId);
   const submittingRef = useRef(false);
   const amountInputRef = useRef<HTMLInputElement>(null);
+  const studentPickerRef = useRef<HTMLDivElement>(null);
+  const studentSearchInputRef = useRef<HTMLInputElement>(null);
+  const studentListRef = useRef<HTMLDivElement>(null);
   const summaryRequestRef = useRef(0);
   const summaryAbortRef = useRef<AbortController | null>(null);
+  const studentListId = useId();
 
   const studentSearchIndex = useMemo(
     () => buildPaymentDeskSearchIndex(data.studentIndex),
@@ -184,6 +194,24 @@ export function PaymentEntryClient({
     () => data.studentIndex.find((student) => student.id === selectedStudentId) ?? null,
     [data.studentIndex, selectedStudentId],
   );
+  const totalStudentRows = filteredStudents.length;
+  const firstVisibleStudentIndex = Math.max(
+    Math.floor(studentListScrollTop / studentComboboxRowHeight) - studentComboboxOverscan,
+    0,
+  );
+  const visibleStudentRowCount =
+    Math.ceil(studentComboboxPanelHeight / studentComboboxRowHeight) + studentComboboxOverscan * 2;
+  const lastVisibleStudentIndex = Math.min(
+    firstVisibleStudentIndex + visibleStudentRowCount,
+    totalStudentRows,
+  );
+  const visibleStudentOptions = filteredStudents.slice(
+    firstVisibleStudentIndex,
+    lastVisibleStudentIndex,
+  );
+  const topVisibleOffset = firstVisibleStudentIndex * studentComboboxRowHeight;
+  const bottomVisibleOffset =
+    Math.max(totalStudentRows - lastVisibleStudentIndex, 0) * studentComboboxRowHeight;
   const previewBreakdown = useMemo(
     () => dateAwareBreakdown ?? selectedStudent?.breakdown ?? [],
     [dateAwareBreakdown, selectedStudent?.breakdown],
@@ -406,6 +434,48 @@ export function PaymentEntryClient({
     }
   }, [state]);
 
+  useEffect(() => {
+    function handleOutsideClick(event: MouseEvent) {
+      if (!studentPickerRef.current?.contains(event.target as Node)) {
+        setIsStudentPickerOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isStudentPickerOpen) {
+      return;
+    }
+    if (activeStudentOptionIndex < 0) {
+      return;
+    }
+    const targetRowTop = activeStudentOptionIndex * studentComboboxRowHeight;
+    const targetRowBottom = targetRowTop + studentComboboxRowHeight;
+    const listScrollTop = studentListRef.current?.scrollTop ?? 0;
+    const listBottom = listScrollTop + studentComboboxPanelHeight;
+
+    if (targetRowTop < listScrollTop) {
+      studentListRef.current?.scrollTo({ top: targetRowTop });
+    } else if (targetRowBottom > listBottom) {
+      studentListRef.current?.scrollTo({ top: targetRowBottom - studentComboboxPanelHeight });
+    }
+  }, [activeStudentOptionIndex, isStudentPickerOpen]);
+
+  useEffect(() => {
+    setActiveStudentOptionIndex(filteredStudents.findIndex((student) => student.id === selectedStudentId));
+  }, [filteredStudents, selectedStudentId]);
+
+  function selectStudent(studentId: string) {
+    setSelectedStudentId(studentId);
+    setFormError(null);
+    setIsStudentPickerOpen(false);
+  }
+
   function openConfirmationDialog() {
     const validation = validatePaymentDraft({
       selectedStudent,
@@ -530,32 +600,127 @@ export function PaymentEntryClient({
               <Input
                 id="payment-student-query"
                 value={studentSearchQuery}
-                onChange={(event) => setStudentSearchQuery(event.target.value)}
+                onChange={(event) => {
+                  setStudentSearchQuery(event.target.value);
+                  setIsStudentPickerOpen(true);
+                  setStudentListScrollTop(0);
+                }}
                 placeholder="SR no, student, father, or phone"
                 className="mt-2"
               />
             </div>
             <div>
               <Label htmlFor="payment-student-id">Student</Label>
-              <select
-                id="payment-student-id"
-                value={selectedStudentId}
-                className={`${selectClassName} mt-2`}
-                onChange={(event) => {
-                  setSelectedStudentId(event.target.value);
-                  setFormError(null);
-                }}
-              >
-                <option value="">Select student</option>
-                {filteredStudents.map((student) => (
-                  <option key={student.id} value={student.id}>
-                    {buildStudentSelectLabel({
-                      ...student,
-                      pendingAmount: null,
-                    })}
-                  </option>
-                ))}
-              </select>
+              <div ref={studentPickerRef} className="relative mt-2 space-y-2">
+                <input type="hidden" id="payment-student-id" value={selectedStudentId} readOnly />
+                {selectedStudentIndexItem ? (
+                  <div className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-950">
+                    <span className="truncate">
+                      {buildStudentSelectLabel({ ...selectedStudentIndexItem, pendingAmount: null })}
+                    </span>
+                    <button
+                      type="button"
+                      className="rounded-full border border-blue-300 bg-white px-2 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                      onClick={() => {
+                        setSelectedStudentId("");
+                        setSelectedStudent(null);
+                        setSelectedStudentIssue(null);
+                        setPaymentAmountInput("");
+                        setIsStudentPickerOpen(false);
+                        studentSearchInputRef.current?.focus();
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                ) : null}
+                <Input
+                  ref={studentSearchInputRef}
+                  id={`${studentListId}-input`}
+                  role="combobox"
+                  aria-expanded={isStudentPickerOpen}
+                  aria-controls={studentListId}
+                  aria-activedescendant={
+                    activeStudentOptionIndex >= 0
+                      ? `${studentListId}-option-${activeStudentOptionIndex}`
+                      : undefined
+                  }
+                  aria-autocomplete="list"
+                  placeholder="Select student"
+                  value={studentSearchQuery}
+                  onFocus={() => setIsStudentPickerOpen(true)}
+                  onChange={(event) => {
+                    setStudentSearchQuery(event.target.value);
+                    setIsStudentPickerOpen(true);
+                    setStudentListScrollTop(0);
+                    setActiveStudentOptionIndex(0);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "ArrowDown") {
+                      event.preventDefault();
+                      setIsStudentPickerOpen(true);
+                      setActiveStudentOptionIndex((index) =>
+                        Math.min(index < 0 ? 0 : index + 1, filteredStudents.length - 1),
+                      );
+                    } else if (event.key === "ArrowUp") {
+                      event.preventDefault();
+                      setIsStudentPickerOpen(true);
+                      setActiveStudentOptionIndex((index) => Math.max(index - 1, 0));
+                    } else if (event.key === "Enter") {
+                      if (!isStudentPickerOpen) {
+                        return;
+                      }
+                      event.preventDefault();
+                      const nextStudent = filteredStudents[activeStudentOptionIndex];
+                      if (nextStudent) {
+                        selectStudent(nextStudent.id);
+                      }
+                    } else if (event.key === "Escape") {
+                      setIsStudentPickerOpen(false);
+                    }
+                  }}
+                />
+                {isStudentPickerOpen ? (
+                  <div
+                    id={studentListId}
+                    role="listbox"
+                    ref={studentListRef}
+                    className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-md border border-slate-200 bg-white shadow-lg"
+                    style={{ height: `${studentComboboxPanelHeight}px` }}
+                    onScroll={(event) => setStudentListScrollTop(event.currentTarget.scrollTop)}
+                  >
+                    {filteredStudents.length === 0 ? (
+                      <p className="px-3 py-3 text-sm text-slate-600">No matching students.</p>
+                    ) : (
+                      <div style={{ paddingTop: topVisibleOffset, paddingBottom: bottomVisibleOffset }}>
+                        {visibleStudentOptions.map((student, index) => {
+                          const optionIndex = firstVisibleStudentIndex + index;
+                          const label = buildStudentSelectLabel({ ...student, pendingAmount: null });
+                          const isActive = optionIndex === activeStudentOptionIndex;
+                          const isSelected = selectedStudentId === student.id;
+
+                          return (
+                            <button
+                              key={student.id}
+                              id={`${studentListId}-option-${optionIndex}`}
+                              role="option"
+                              aria-selected={isSelected}
+                              type="button"
+                              className={`flex min-h-11 w-full items-center border-b border-slate-100 px-3 py-2 text-left text-sm last:border-b-0 ${
+                                isActive ? "bg-blue-50 text-blue-900" : "bg-white text-slate-800 hover:bg-slate-50"
+                              }`}
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => selectStudent(student.id)}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
           {studentSummaryLoading ? (

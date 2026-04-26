@@ -240,6 +240,32 @@ describe("payment desk cashier workflow", () => {
     expect(matches.map((item) => item.admissionNo)).toContain("SR-120");
   });
 
+  it("payment_search_handles_large_list_with_index_reuse", () => {
+    const students = Array.from({ length: 5000 }, (_, index) => ({
+      id: `s-${index + 1}`,
+      fullName: `Student ${String(index + 1).padStart(4, "0")}`,
+      admissionNo: `SR-${String(index + 1).padStart(4, "0")}`,
+      classId: "c1",
+      classLabel: "Class 1",
+      fatherName: `Father ${index + 1}`,
+      fatherPhone: `98${String(index).padStart(8, "0")}`,
+      motherPhone: null,
+      studentStatus: "active",
+    }));
+    const searchIndex = buildPaymentDeskSearchIndex(students);
+
+    const matches = filterPaymentDeskStudents({
+      students,
+      searchIndex,
+      selectedClassId: "c1",
+      query: "SR-4999",
+      limit: 20,
+    });
+
+    expect(matches).toHaveLength(1);
+    expect(matches[0]?.admissionNo).toBe("SR-4999");
+  });
+
   it("payment desk component contains the required cashier dialogs and locked states", () => {
     const component = readFileSync(
       join(process.cwd(), "components/payments/payment-entry-client.tsx"),
@@ -257,6 +283,21 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("Reference number");
     expect(component).toContain("Similar payment already recorded");
     expect(component).toContain("isLockedAfterSuccess");
+  });
+
+  it("payment desk student picker uses accessible combobox with virtualized result rows", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      "utf8",
+    );
+
+    expect(component).toContain('role="combobox"');
+    expect(component).toContain('role="listbox"');
+    expect(component).toContain("studentComboboxRowHeight");
+    expect(component).toContain("filteredStudents.slice");
+    expect(component).toContain("Selected student:");
+    expect(component).toContain("Clear");
+    expect(component).toContain("setIsStudentPickerOpen(false)");
   });
 
   it("receipt_view_labels_current_balance_vs_receipt_balance", () => {
