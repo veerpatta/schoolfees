@@ -37,25 +37,25 @@ export function AppTopBar({ staffEmail, staffRole }: AppTopBarProps) {
         hideMobileBottomNav ? "pb-0" : "pb-[var(--mobile-bottom-nav-offset)] md:pb-0"
       }`}
     >
-      <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
-              <div className="mb-3 lg:hidden">
+              <div className="mb-2 lg:hidden">
                 <SchoolBrand variant="icon" />
               </div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-sky-700/80">
                 {schoolProfile.shortName}
               </p>
-              <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-slate-950">
+              <h1 className="mt-1 font-heading text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">
                 {routeMeta.label}
               </h1>
-              <p className="mt-1.5 max-w-2xl text-sm leading-6 text-slate-600">
+              <p className="mt-1 hidden max-w-2xl text-sm leading-6 text-slate-600 sm:block">
                 {routeMeta.description}
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+            <div className="hidden flex-wrap items-center gap-2 sm:flex lg:justify-end">
               <StatusBadge label={roleLabels[staffRole]} tone="neutral" />
               <div className="rounded-full border border-white/70 bg-white/85 px-3 py-2 text-sm text-slate-700 shadow-[0_12px_30px_-24px_rgba(15,23,42,0.4)]">
                 {staffEmail}
@@ -65,6 +65,21 @@ export function AppTopBar({ staffEmail, staffRole }: AppTopBarProps) {
               </Button>
               <LogoutButton />
             </div>
+          </div>
+          <div className="flex items-center justify-between gap-2 sm:hidden">
+            <StatusBadge label={roleLabels[staffRole]} tone="neutral" />
+            <details className="relative">
+              <summary className="list-none rounded-full border border-white/70 bg-white/90 px-3 py-2 text-xs font-medium text-slate-700 shadow-[0_12px_30px_-24px_rgba(15,23,42,0.4)]">
+                Desk actions
+              </summary>
+              <div className="absolute right-0 top-11 z-50 w-56 space-y-2 rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+                <p className="truncate text-xs text-slate-500">{staffEmail}</p>
+                <Button asChild size="sm" variant="outline" className="w-full">
+                  <Link href="/protected/password">Change password</Link>
+                </Button>
+                <LogoutButton className="w-full justify-center" />
+              </div>
+            </details>
           </div>
 
           <SidebarNav staffRole={staffRole} mode="topbar" className="hidden md:grid lg:hidden" />
