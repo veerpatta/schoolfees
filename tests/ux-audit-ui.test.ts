@@ -72,9 +72,24 @@ describe("read-only UX audit implementation", () => {
     expect(paymentData).toContain("tryAutoPrepareSelectedStudentDues");
     expect(paymentData).toContain("Prepare dues again");
     expect(paymentDesk).toContain("/protected/payments/student-summary");
+    expect(paymentDesk).toContain("mobile-payment-cta-clearance");
+    expect(paymentDesk).toContain("mobile-safe-bottom-padding");
     expect(ledger).toContain("AutoSubmitForm");
     expect(ledger).not.toContain("Open ledger");
     expect(ledger).not.toContain("Apply filters");
+  });
+
+  it("mobile payment layout avoids stacked bottom bars", () => {
+    const paymentDesk = readRepoFile("components/payments/payment-entry-client.tsx");
+    const topbar = readRepoFile("components/admin/app-topbar.tsx");
+    const globals = readRepoFile("app/globals.css");
+
+    expect(topbar).toContain('pathname.startsWith("/protected/payments")');
+    expect(topbar).toContain("hideMobileBottomNav ? null");
+    expect(paymentDesk).toContain("mobile-payment-cta-clearance");
+    expect(paymentDesk).toContain("mobile-safe-bottom-padding");
+    expect(globals).toContain("--mobile-safe-area-bottom");
+    expect(globals).toContain("--mobile-payment-cta-offset");
   });
 
   it("dashboard hides repair console and Admin Tools owns fee data troubleshooting", () => {
