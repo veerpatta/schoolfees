@@ -455,7 +455,7 @@ export function PaymentEntryClient({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mobile-payment-cta-clearance md:pb-4">
       <OfficeRecentTracker
         student={
           selectedStudent
@@ -1055,7 +1055,7 @@ export function PaymentEntryClient({
                 </div>
               </fieldset>
 
-              <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 backdrop-blur md:hidden">
+              <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 backdrop-blur md:hidden mobile-safe-bottom-padding">
                 <Button
                   type="button"
                   className="w-full"
@@ -1075,7 +1075,7 @@ export function PaymentEntryClient({
 
               {isConfirmOpen && confirmationSummary ? (
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 px-2 md:items-center md:px-4">
-                  <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border border-slate-200 bg-white p-4 shadow-xl md:max-w-xl md:rounded-xl md:p-5">
+                  <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border border-slate-200 bg-white p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-xl md:rounded-xl md:p-5">
                     <h2 className="text-lg font-semibold text-slate-950">Confirm Payment</h2>
                     <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                       <span>Student name: {confirmationSummary.studentName}</span>
@@ -1115,7 +1115,7 @@ export function PaymentEntryClient({
                     <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                       This will save the receipt once. Posted receipts stay in history.
                     </p>
-                    <div className="sticky bottom-0 mt-5 flex justify-end gap-2 border-t border-slate-100 bg-white pt-3">
+                    <div className="sticky bottom-0 mt-5 flex justify-end gap-2 border-t border-slate-100 bg-white pt-3 mobile-safe-bottom-padding">
                       <Button
                         type="button"
                         variant="outline"
@@ -1134,7 +1134,7 @@ export function PaymentEntryClient({
 
               {isSuccessOpen && state.status === "success" && receiptHref ? (
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 px-2 md:items-center md:px-4">
-                  <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border border-emerald-200 bg-white p-4 shadow-xl md:max-w-xl md:rounded-xl md:p-5">
+                  <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border border-emerald-200 bg-white p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-xl md:rounded-xl md:p-5">
                     <h2 className="text-lg font-semibold text-slate-950">Payment Successful</h2>
                     <p className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
                       Receipt has been saved.
@@ -1161,7 +1161,7 @@ export function PaymentEntryClient({
                         <span>Credit/refund state: {formatInr(refundableAmount || creditBalance)} to adjust/refund</span>
                       ) : null}
                     </div>
-                    <div className="sticky bottom-0 mt-5 flex flex-wrap justify-end gap-2 border-t border-slate-100 bg-white pt-3">
+                    <div className="sticky bottom-0 mt-5 flex flex-wrap justify-end gap-2 border-t border-slate-100 bg-white pt-3 mobile-safe-bottom-padding">
                       <Button asChild variant="outline">
                         <Link href={receiptHref} target="_blank">Print Receipt</Link>
                       </Button>
@@ -1190,7 +1190,7 @@ export function PaymentEntryClient({
 
               {isDuplicateOpen && state.status === "duplicate" && state.receiptId ? (
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 px-2 md:items-center md:px-4">
-                  <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl border border-amber-200 bg-white p-4 shadow-xl md:max-w-lg md:rounded-xl md:p-5">
+                  <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl border border-amber-200 bg-white p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-lg md:rounded-xl md:p-5">
                     <h2 className="text-lg font-semibold text-slate-950">
                       Similar payment already recorded
                     </h2>
@@ -1217,7 +1217,7 @@ export function PaymentEntryClient({
       <SectionCard
         title="Desk totals and recent receipts"
         description="Daily totals and lookup shortcuts stay below the payment form."
-        className="pb-20 md:pb-4"
+        className="mobile-payment-cta-clearance md:pb-4"
       >
         <details className="md:hidden">
           <summary className="cursor-pointer rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">

@@ -42,6 +42,11 @@
     --chart-4: 188 86% 43%;
     --chart-5: 221 70% 42%;
     --radius: 0.75rem;
+    --mobile-safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --mobile-bottom-nav-height: 4.25rem;
+    --mobile-bottom-nav-offset: calc(var(--mobile-bottom-nav-height) + var(--mobile-safe-area-bottom));
+    --mobile-payment-cta-height: 4.5rem;
+    --mobile-payment-cta-offset: calc(var(--mobile-payment-cta-height) + var(--mobile-safe-area-bottom));
   }
 }
 
@@ -91,6 +96,18 @@
 
   .animate-float-delayed {
     animation: float-slow 20s ease-in-out infinite 5s;
+  }
+
+  .mobile-safe-bottom-padding {
+    padding-bottom: var(--mobile-safe-area-bottom);
+  }
+
+  .mobile-bottom-nav-clearance {
+    padding-bottom: var(--mobile-bottom-nav-offset);
+  }
+
+  .mobile-payment-cta-clearance {
+    padding-bottom: var(--mobile-payment-cta-offset);
   }
 }
 
