@@ -77,6 +77,23 @@ describe("read-only UX audit implementation", () => {
     expect(ledger).not.toContain("Apply filters");
   });
 
+  it("payment desk mobile flow keeps confirm path above non-blocking sections", () => {
+    const paymentDesk = readRepoFile("components/payments/payment-entry-client.tsx");
+    const collectPaymentIndex = paymentDesk.indexOf('title="Collect Payment"');
+    const selectedStudentIndex = paymentDesk.indexOf('title="Selected student"');
+    const deskTotalsIndex = paymentDesk.indexOf('title="Desk totals and recent receipts"');
+
+    expect(paymentDesk).toContain('className="sticky top-[72px]');
+    expect(paymentDesk).toContain("Selected student details");
+    expect(paymentDesk).toContain("Full dues table");
+    expect(paymentDesk).toContain("Show desk totals & recent receipts");
+    expect(collectPaymentIndex).toBeGreaterThan(-1);
+    expect(selectedStudentIndex).toBeGreaterThan(-1);
+    expect(deskTotalsIndex).toBeGreaterThan(-1);
+    expect(collectPaymentIndex).toBeLessThan(selectedStudentIndex);
+    expect(collectPaymentIndex).toBeLessThan(deskTotalsIndex);
+  });
+
   it("dashboard hides repair console and Admin Tools owns fee data troubleshooting", () => {
     const dashboard = readRepoFile("app/protected/dashboard/page.tsx");
     const advanced = readRepoFile("app/protected/advanced/page.tsx");

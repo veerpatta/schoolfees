@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 
 import { MetricCard } from "@/components/admin/metric-card";
@@ -115,6 +116,23 @@ function ActionNotice({
         </details>
       ) : null}
     </div>
+  );
+}
+
+function MobileAccordion({
+  summary,
+  children,
+}: {
+  summary: string;
+  children: ReactNode;
+}) {
+  return (
+    <details className="rounded-xl border border-slate-200 bg-white md:hidden">
+      <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-slate-800">
+        {summary}
+      </summary>
+      <div className="border-t border-slate-100 px-4 py-3">{children}</div>
+    </details>
   );
 }
 
@@ -616,106 +634,16 @@ export function PaymentEntryClient({
         </SectionCard>
       ) : (
         <>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-            {data.policyNote}
+          <div className="sticky top-[72px] z-[6] rounded-xl border border-blue-200 bg-white/95 px-3 py-2 text-xs text-slate-700 shadow-sm backdrop-blur md:hidden">
+            <span className="font-semibold text-slate-900">{selectedStudent.fullName}</span> ·{" "}
+            <span>{selectedStudent.admissionNo}</span> ·{" "}
+            <span className="font-semibold text-amber-700">Pending {formatInr(previewTotalPending)}</span>
           </div>
-
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-            <MetricCard
-              title="Total due"
-              value={formatInr(selectedStudent.totalDue)}
-              hint={`${selectedStudent.fullName} (${selectedStudent.admissionNo})`}
-            />
-            <MetricCard
-              title="Paid"
-              value={formatInr(selectedStudent.totalPaid)}
-              hint="Includes posted payments and adjustments"
-            />
-            <MetricCard
-              title="Pending"
-              value={formatInr(previewTotalPending)}
-              hint={`Recalculated for payment date ${paymentDate}`}
-            />
-            <MetricCard
-              title="Overdue"
-              value={formatInr(previewOverdueAmount)}
-              hint="Due installments past their date"
-            />
-            <MetricCard
-              title="Next due installment"
-              value={previewNextDue?.installmentLabel ?? "No pending dues"}
-              hint={
-                previewNextDue
-                  ? `${previewNextDue.dueDate} - ${formatInr(previewNextDue.outstandingAmount)}`
-                  : "All installments settled"
-              }
-            />
-          </section>
-
-          {creditBalance > 0 || selectedStudent.rowsKeptForReview > 0 ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-              {creditBalance > 0 ? (
-                <p className="font-semibold">
-                  Amount to refund/adjust: {formatInr(refundableAmount || creditBalance)}
-                </p>
-              ) : null}
-              {previewTotalPending <= 0 && creditBalance > 0 ? (
-                <p className="mt-1">
-                  No pending dues. Student has {formatInr(creditBalance)} credit, so normal payment posting is blocked.
-                </p>
-              ) : null}
-              {selectedStudent.rowsKeptForReview > 0 ? (
-                <p className="mt-1">
-                  {selectedStudent.rowsKeptForReview} fee row
-                  {selectedStudent.rowsKeptForReview === 1 ? "" : "s"} kept for admin review.
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-
-          <SectionCard
-            title="Selected student"
-            description="Class, route, and contact details for the selected student."
-          >
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Student status
-                </div>
-                <div className="mt-2 font-medium text-slate-900">
-                  {selectedStudent.studentStatusLabel}
-                </div>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Transport route
-                </div>
-                <div className="mt-2 font-medium text-slate-900">
-                  {selectedStudent.transportRouteLabel}
-                </div>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Father
-                </div>
-                <div className="mt-2 font-medium text-slate-900">
-                  {selectedStudent.fatherName ?? "Not set"}
-                </div>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Phone
-                </div>
-                <div className="mt-2 font-medium text-slate-900">
-                  {selectedStudent.fatherPhone ?? selectedStudent.motherPhone ?? "Not set"}
-                </div>
-              </div>
-            </div>
-          </SectionCard>
 
           <SectionCard
             title="Dues summary"
             description="Installment-level dues before saving the next receipt."
+            className="hidden md:block"
             actions={
               <div className="flex flex-wrap items-center gap-2">
                 <ValueStatePill tone="policy">From Fee Setup</ValueStatePill>
@@ -1211,6 +1139,166 @@ export function PaymentEntryClient({
               ) : null}
             </form>
           </SectionCard>
+
+          <div className="space-y-4">
+            <div className="hidden rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 md:block">
+              {data.policyNote}
+            </div>
+
+            <section className="hidden gap-4 md:grid md:grid-cols-2 xl:grid-cols-5">
+              <MetricCard
+                title="Total due"
+                value={formatInr(selectedStudent.totalDue)}
+                hint={`${selectedStudent.fullName} (${selectedStudent.admissionNo})`}
+              />
+              <MetricCard
+                title="Paid"
+                value={formatInr(selectedStudent.totalPaid)}
+                hint="Includes posted payments and adjustments"
+              />
+              <MetricCard
+                title="Pending"
+                value={formatInr(previewTotalPending)}
+                hint={`Recalculated for payment date ${paymentDate}`}
+              />
+              <MetricCard
+                title="Overdue"
+                value={formatInr(previewOverdueAmount)}
+                hint="Due installments past their date"
+              />
+              <MetricCard
+                title="Next due installment"
+                value={previewNextDue?.installmentLabel ?? "No pending dues"}
+                hint={
+                  previewNextDue
+                    ? `${previewNextDue.dueDate} - ${formatInr(previewNextDue.outstandingAmount)}`
+                    : "All installments settled"
+                }
+              />
+            </section>
+
+            {creditBalance > 0 || selectedStudent.rowsKeptForReview > 0 ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                {creditBalance > 0 ? (
+                  <p className="font-semibold">
+                    Amount to refund/adjust: {formatInr(refundableAmount || creditBalance)}
+                  </p>
+                ) : null}
+                {previewTotalPending <= 0 && creditBalance > 0 ? (
+                  <p className="mt-1">
+                    No pending dues. Student has {formatInr(creditBalance)} credit, so normal payment posting is blocked.
+                  </p>
+                ) : null}
+                {selectedStudent.rowsKeptForReview > 0 ? (
+                  <p className="mt-1">
+                    {selectedStudent.rowsKeptForReview} fee row
+                    {selectedStudent.rowsKeptForReview === 1 ? "" : "s"} kept for admin review.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            <MobileAccordion summary="Selected student details">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Student status
+                  </div>
+                  <div className="mt-2 font-medium text-slate-900">
+                    {selectedStudent.studentStatusLabel}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Transport route
+                  </div>
+                  <div className="mt-2 font-medium text-slate-900">
+                    {selectedStudent.transportRouteLabel}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Father
+                  </div>
+                  <div className="mt-2 font-medium text-slate-900">
+                    {selectedStudent.fatherName ?? "Not set"}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Phone
+                  </div>
+                  <div className="mt-2 font-medium text-slate-900">
+                    {selectedStudent.fatherPhone ?? selectedStudent.motherPhone ?? "Not set"}
+                  </div>
+                </div>
+              </div>
+            </MobileAccordion>
+
+            <SectionCard
+              title="Selected student"
+              description="Class, route, and contact details for the selected student."
+              className="hidden md:block"
+            >
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Student status
+                  </div>
+                  <div className="mt-2 font-medium text-slate-900">
+                    {selectedStudent.studentStatusLabel}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Transport route
+                  </div>
+                  <div className="mt-2 font-medium text-slate-900">
+                    {selectedStudent.transportRouteLabel}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Father
+                  </div>
+                  <div className="mt-2 font-medium text-slate-900">
+                    {selectedStudent.fatherName ?? "Not set"}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Phone
+                  </div>
+                  <div className="mt-2 font-medium text-slate-900">
+                    {selectedStudent.fatherPhone ?? selectedStudent.motherPhone ?? "Not set"}
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+
+            <MobileAccordion summary="Full dues table">
+              <div className="space-y-3">
+                {previewBreakdown.map((item) => (
+                  <div key={item.installmentId} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-slate-900">{item.installmentLabel}</p>
+                      <ValueStatePill tone={item.balanceStatus === "paid" ? "locked" : item.balanceStatus === "partial" || item.balanceStatus === "overdue" ? "review" : "calculated"} className="normal-case tracking-normal">
+                        {item.balanceStatus}
+                      </ValueStatePill>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">Due {item.dueDate}</p>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                      <span>Base: {formatInr(item.amountDue - item.finalLateFee)}</span>
+                      <span>Late: {formatInr(item.finalLateFee)}</span>
+                      <span>Paid: {formatInr(item.paymentsTotal)}</span>
+                      <span>Adj: {formatInr(item.adjustmentsTotal)}</span>
+                    </div>
+                    <p className="mt-2 text-sm font-semibold text-slate-950">Outstanding: {formatInr(item.outstandingAmount)}</p>
+                  </div>
+                ))}
+              </div>
+            </MobileAccordion>
+          </div>
         </>
       )}
 
