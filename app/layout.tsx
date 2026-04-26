@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 import { schoolProfile } from "@/lib/config/school";
 import { getSiteUrl } from "@/lib/env";
@@ -22,6 +22,19 @@ export const metadata: Metadata = {
     "supabase",
     "school collections",
   ],
+  appleWebApp: {
+    capable: true,
+    title: `${schoolProfile.shortName} Fee Admin`,
+    statusBarStyle: "default",
+  },
+  manifest: "/manifest.webmanifest",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0ea5e9",
 };
 
 export default function RootLayout({

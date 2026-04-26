@@ -36,6 +36,9 @@ export default async function ExportsPage() {
         title="Exports"
         description="Download Excel files for student, dues, defaulter, and receipt records."
       />
+      <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+        On mobile, downloads may open in your browser or spreadsheet app depending on device settings.
+      </p>
 
       <div className="grid gap-4 lg:grid-cols-3">
         {exportGroups.map((group) => (

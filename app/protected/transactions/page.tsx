@@ -205,7 +205,32 @@ function TransactionsTable({
   returnTo: string;
 }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200">
+    <>
+      <div className="space-y-3 md:hidden">
+        {rows.length === 0 ? (
+          <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 text-center text-sm text-slate-500">
+            No transactions found for this view.
+          </p>
+        ) : (
+          rows.map((row) => (
+            <div key={row.receiptId} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+              <p className="font-semibold text-slate-900">{row.receiptNumber}</p>
+              <p className="text-xs text-slate-500">{formatShortDate(row.paymentDate)} • {row.studentName}</p>
+              <p className="mt-1 text-xs text-slate-600">{row.classLabel} • {formatPaymentModeLabel(row.paymentMode)}</p>
+              <p className="mt-1 font-semibold text-slate-900">{formatInr(row.totalAmount)}</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/protected/receipts/${row.receiptId}?returnTo=${encodeURIComponent(returnTo)}`}>Open</Link>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/protected/payments?studentId=${row.studentId}`}>Payment</Link>
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
       <table className="w-full min-w-full text-left text-sm">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
           <tr>
@@ -254,7 +279,8 @@ function TransactionsTable({
           )}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 }
 

@@ -195,7 +195,21 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
                 No payment rows found for current filter.
               </p>
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <>
+                <div className="space-y-3 md:hidden">
+                  {selectedStudent.payments.map((payment) => (
+                    <div key={payment.id} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+                      <p className="font-semibold text-slate-900">{payment.receiptNumber}</p>
+                      <p className="text-xs text-slate-500">{formatDateTime(payment.createdAt)}</p>
+                      <p className="mt-1">{payment.installmentLabel} • {formatInr(payment.paymentAmount)}</p>
+                      <p className="text-xs text-slate-600 capitalize">
+                        {payment.paymentMode.replace("_", " ")} {payment.referenceNumber ? `• ${payment.referenceNumber}` : ""}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-600">{payment.notes || "-"}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
                 <table className="w-full min-w-[760px] text-left text-sm">
                   <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                     <tr>
@@ -246,7 +260,8 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
                     ))}
                   </tbody>
                 </table>
-              </div>
+                </div>
+              </>
             )}
           </SectionCard>
 

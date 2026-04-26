@@ -1,0 +1,17 @@
+{
+  "name": "Shri Veer Patta School Fee Admin",
+  "short_name": "VPPS Fee",
+  "start_url": "/protected",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0ea5e9",
+  "description": "Internal fee management workspace for VPPS office/accounts staff.",
+  "icons": [
+    {
+      "src": "/branding/veer-patta-school-logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}

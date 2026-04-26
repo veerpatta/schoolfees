@@ -39,7 +39,47 @@ export function StudentListTable({
 
   return (
     <div className="rounded-xl border border-slate-200">
-      <table className="min-w-full divide-y divide-slate-200">
+      <div className="space-y-3 p-3 md:hidden">
+        {students.map((student) => (
+          <div key={student.id} className="rounded-xl border border-slate-200 bg-white p-3">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="font-semibold text-slate-900">{student.fullName}</p>
+                <p className="text-xs text-slate-500">SR no {student.admissionNo}</p>
+              </div>
+              <StatusBadge
+                label={student.duesStatus === "generated" ? student.statusLabel || "Prepared" : "Dues not prepared"}
+                tone={student.duesStatus === "generated" ? "good" : "warning"}
+              />
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
+              <p>Class: {student.classLabel}</p>
+              <p>Route: {student.transportRouteLabel}</p>
+              <p className="col-span-2 text-sm font-semibold text-slate-900">
+                Outstanding: {formatInr(student.outstandingAmount)}
+              </p>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`}>
+                  View
+                </Link>
+              </Button>
+              {canWrite ? (
+                <Button size="sm" asChild>
+                  <Link href={`/protected/students/${student.id}/edit?returnTo=${encodeURIComponent(returnTo)}`}>
+                    Edit
+                  </Link>
+                </Button>
+              ) : null}
+              <Button variant="ghost" size="sm" asChild>
+                <Link href={`/protected/payments?studentId=${student.id}`}>Payment</Link>
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <table className="hidden min-w-full divide-y divide-slate-200 md:table">
         <thead className="bg-slate-50">
           <tr>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
