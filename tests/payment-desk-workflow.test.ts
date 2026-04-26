@@ -259,6 +259,21 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("isLockedAfterSuccess");
   });
 
+  it("payment amount autofocus is desktop-only with manual mobile prompt", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      "utf8",
+    );
+
+    expect(component).toContain("function shouldAutoFocusAmountInput()");
+    expect(component).toContain('window.matchMedia("(min-width: 768px)")');
+    expect(component).toContain('window.matchMedia("(any-pointer: fine)")');
+    expect(component).toContain("if (shouldAutoFocusAmountInput())");
+    expect(component).toContain("setShowManualAmountFocusPrompt(true)");
+    expect(component).toContain("Enter Amount");
+    expect(component).toContain("aria-label=\"Enter Amount\"");
+  });
+
   it("receipt_view_labels_current_balance_vs_receipt_balance", () => {
     const component = readFileSync(
       join(process.cwd(), "components/receipts/receipt-document.tsx"),

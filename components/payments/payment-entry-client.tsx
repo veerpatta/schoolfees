@@ -62,6 +62,16 @@ function createClientRequestId() {
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function shouldAutoFocusAmountInput() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return false;
+  }
+
+  const desktopViewport = window.matchMedia("(min-width: 768px)").matches;
+  const hasFinePointer = window.matchMedia("(any-pointer: fine)").matches;
+  return desktopViewport && hasFinePointer;
+}
+
 function ActionNotice({
   state,
   canViewDiagnostics,
@@ -160,6 +170,7 @@ export function PaymentEntryClient({
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
   const [isLockedAfterSuccess, setIsLockedAfterSuccess] = useState(false);
+  const [showManualAmountFocusPrompt, setShowManualAmountFocusPrompt] = useState(false);
   const [clientRequestId, setClientRequestId] = useState(createClientRequestId);
   const submittingRef = useRef(false);
   const amountInputRef = useRef<HTMLInputElement>(null);
@@ -375,9 +386,18 @@ export function PaymentEntryClient({
       : "";
 
   useEffect(() => {
-    if (selectedStudent) {
-      amountInputRef.current?.focus();
+    if (!selectedStudent) {
+      setShowManualAmountFocusPrompt(false);
+      return;
     }
+
+    if (shouldAutoFocusAmountInput()) {
+      amountInputRef.current?.focus();
+      setShowManualAmountFocusPrompt(false);
+      return;
+    }
+
+    setShowManualAmountFocusPrompt(true);
   }, [selectedStudent?.id, selectedStudent]);
 
   useEffect(() => {
@@ -861,6 +881,7 @@ export function PaymentEntryClient({
                   <div>
                     <Label htmlFor="payment-amount">Payment amount</Label>
                     <Input
+                      ref={amountInputRef}
                       id="payment-amount"
                       name="paymentAmount"
                       type="number"
@@ -875,6 +896,21 @@ export function PaymentEntryClient({
                       }}
                       required
                     />
+                    {showManualAmountFocusPrompt ? (
+                      <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                        <span>Need keypad?</span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => amountInputRef.current?.focus()}
+                          aria-label="Enter Amount"
+                        >
+                          Enter Amount
+                        </Button>
+                      </div>
+                    ) : null}
                     <div className="mt-2 flex flex-wrap gap-2">
                       {quickAmounts.map((quickAmount) => (
                         <Button
