@@ -82,14 +82,21 @@ describe("read-only UX audit implementation", () => {
   it("mobile payment layout avoids stacked bottom bars", () => {
     const paymentDesk = readRepoFile("components/payments/payment-entry-client.tsx");
     const topbar = readRepoFile("components/admin/app-topbar.tsx");
+    const shell = readRepoFile("components/admin/dashboard-shell.tsx");
+    const mobileNav = readRepoFile("components/admin/mobile-bottom-nav.tsx");
     const globals = readRepoFile("app/globals.css");
 
-    expect(topbar).toContain('pathname.startsWith("/protected/payments")');
-    expect(topbar).toContain("hideMobileBottomNav ? null");
+    expect(topbar).not.toContain("hideMobileBottomNav");
+    expect(topbar).not.toContain("fixed inset-x-0 bottom-0");
+    expect(shell).toContain("<MobileBottomNav staffRole={staffRole} />");
+    expect(mobileNav).toContain("fixed inset-x-0 bottom-0");
+    expect(mobileNav).toContain("getMobileBottomNavigation(staffRole)");
     expect(paymentDesk).toContain("mobile-payment-cta-clearance");
+    expect(paymentDesk).toContain('style={{ bottom: "var(--mobile-bottom-nav-offset)" }}');
     expect(paymentDesk).toContain("mobile-safe-bottom-padding");
     expect(globals).toContain("--mobile-safe-area-bottom");
     expect(globals).toContain("--mobile-payment-cta-offset");
+    expect(globals).toContain("--mobile-payment-with-nav-offset");
   });
 
   it("accountant and read-only roles do not get technical diagnostics by default", () => {

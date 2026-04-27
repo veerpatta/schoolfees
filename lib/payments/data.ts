@@ -818,12 +818,16 @@ export async function getPaymentDeskStudentSummary(payload: {
   });
   const selectedFinancial = selectedWorkbookRows[0] ?? null;
   let selectedStudentIssue: PaymentDeskIssue | null = null;
+  const latestReceiptPromise = getLatestReceiptForStudent(payload.studentId);
 
   if (selectedFinancial) {
-    let breakdown = await getPaymentDateAwareInstallmentBalances({
-      studentId: selectedFinancial.studentId,
-      paymentDate: payload.paymentDate,
-    });
+    let [breakdown, financialState] = await Promise.all([
+      getPaymentDateAwareInstallmentBalances({
+        studentId: selectedFinancial.studentId,
+        paymentDate: payload.paymentDate,
+      }),
+      getStudentFinancialState(selectedFinancial.studentId),
+    ]);
 
     if (breakdown.length === 0 && payload.autoPrepareMissingDues) {
       const autoPrepareIssue = await tryAutoPrepareSelectedStudentDues({
@@ -836,6 +840,7 @@ export async function getPaymentDeskStudentSummary(payload: {
           studentId: selectedFinancial.studentId,
           paymentDate: payload.paymentDate,
         });
+        financialState = await getStudentFinancialState(selectedFinancial.studentId);
       } else {
         selectedStudentIssue = autoPrepareIssue;
       }
@@ -853,19 +858,18 @@ export async function getPaymentDeskStudentSummary(payload: {
             actionHref: null,
             repairStudentId: selectedFinancial.studentId,
           },
-        latestReceipt: await getLatestReceiptForStudent(payload.studentId),
+        latestReceipt: await latestReceiptPromise,
         suggestedDefaultAmount: null,
         paymentDate: payload.paymentDate,
       };
     }
 
-    const financialState = await getStudentFinancialState(selectedFinancial.studentId);
     const selectedStudent = summarizeStudent(selectedFinancial, breakdown, financialState);
 
     return {
       student: selectedStudent,
       issue: null,
-      latestReceipt: await getLatestReceiptForStudent(payload.studentId),
+      latestReceipt: await latestReceiptPromise,
       suggestedDefaultAmount:
         selectedStudent.totalPending > 0
           ? (selectedStudent.nextDueAmount ?? selectedStudent.totalPending)
@@ -891,11 +895,11 @@ export async function getPaymentDeskStudentSummary(payload: {
               title: "Dues are not prepared for this student.",
               detail:
                 "Student exists, but dues are not prepared yet. Payment Desk can repair this only when Fee Setup is complete.",
-              actionLabel: "Prepare dues again",
-              actionHref: null,
-              repairStudentId: selectedStudentDetail.id,
+            actionLabel: "Prepare dues again",
+            actionHref: null,
+            repairStudentId: selectedStudentDetail.id,
             },
-      latestReceipt: await getLatestReceiptForStudent(payload.studentId),
+      latestReceipt: await latestReceiptPromise,
       suggestedDefaultAmount: null,
       paymentDate: payload.paymentDate,
     };

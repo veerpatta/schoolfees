@@ -311,6 +311,37 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("setIsStudentPickerOpen(false)");
   });
 
+  it("mobile navigation and payment entry remain optimized for fast cashier flow", () => {
+    const paymentDesk = readFileSync(
+      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      "utf8",
+    );
+    const topbar = readFileSync(
+      join(process.cwd(), "components/admin/app-topbar.tsx"),
+      "utf8",
+    );
+    const shell = readFileSync(
+      join(process.cwd(), "components/admin/dashboard-shell.tsx"),
+      "utf8",
+    );
+    const mobileNav = readFileSync(
+      join(process.cwd(), "components/admin/mobile-bottom-nav.tsx"),
+      "utf8",
+    );
+
+    expect(topbar).not.toContain("hideMobileBottomNav");
+    expect(topbar).not.toContain("fixed inset-x-0 bottom-0");
+    expect(shell).toContain("<MobileBottomNav staffRole={staffRole} />");
+    expect(mobileNav).toContain("fixed inset-x-0 bottom-0");
+    expect(paymentDesk).not.toContain('className="sticky top-[72px] z-[5] bg-white/95 md:static md:bg-white"');
+    expect(paymentDesk).toContain("Amount Received");
+    expect(paymentDesk.indexOf('title=\"4. Enter Payment\"')).toBeLessThan(
+      paymentDesk.indexOf('title=\"3. Review Dues\"'),
+    );
+    expect(paymentDesk).toContain("setPaymentAmountInput(\"\");");
+    expect(paymentDesk).not.toContain("payload.suggestedDefaultAmount && payload.suggestedDefaultAmount > 0");
+  });
+
   it("receipt_view_labels_current_balance_vs_receipt_balance", () => {
     const component = readFileSync(
       join(process.cwd(), "components/receipts/receipt-document.tsx"),

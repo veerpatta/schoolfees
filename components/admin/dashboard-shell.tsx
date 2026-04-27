@@ -9,6 +9,7 @@ import { getFeePolicySummary } from "@/lib/fees/data";
 import { formatInr } from "@/lib/helpers/currency";
 
 import { AppTopBar } from "./app-topbar";
+import { MobileBottomNav } from "./mobile-bottom-nav";
 import { SidebarNav } from "./sidebar-nav";
 
 type DashboardShellProps = {
@@ -73,9 +74,10 @@ export async function DashboardShell({
           <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.14),transparent_58%)]" />
           <div className="relative z-10">
             <AppTopBar staffEmail={staffEmail} staffRole={staffRole} />
-            <main className="mx-auto max-w-7xl px-4 py-5 print:max-w-none print:px-0 print:py-0 sm:px-6 lg:px-8 lg:py-6">
+            <main className="mx-auto max-w-7xl px-4 py-5 print:max-w-none print:px-0 print:py-0 sm:px-6 lg:px-8 lg:py-6 mobile-bottom-nav-clearance md:pb-5 lg:pb-6">
               {children}
             </main>
+            <MobileBottomNav staffRole={staffRole} />
           </div>
         </div>
       </div>
