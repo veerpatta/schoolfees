@@ -16,10 +16,17 @@ function normalizePaymentDate(value: string | null) {
   return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : "";
 }
 
+function normalizeIncludeLatestReceipt(value: string | null) {
+  return (value ?? "").trim().toLowerCase() !== "false";
+}
+
 export async function GET(request: NextRequest) {
   await requireStaffPermission("payments:view");
   const studentId = normalizeStudentId(request.nextUrl.searchParams.get("studentId"));
   const paymentDate = normalizePaymentDate(request.nextUrl.searchParams.get("paymentDate"));
+  const includeLatestReceipt = normalizeIncludeLatestReceipt(
+    request.nextUrl.searchParams.get("includeLatestReceipt"),
+  );
 
   if (!studentId || !paymentDate) {
     return Response.json(
@@ -33,6 +40,7 @@ export async function GET(request: NextRequest) {
       studentId,
       paymentDate,
       autoPrepareMissingDues: true,
+      includeLatestReceipt,
     });
 
     return Response.json(summary);

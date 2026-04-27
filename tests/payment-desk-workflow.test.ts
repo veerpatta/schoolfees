@@ -306,9 +306,26 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain('role="listbox"');
     expect(component).toContain("studentComboboxRowHeight");
     expect(component).toContain("filteredStudents.slice");
-    expect(component).toContain("Selected student:");
+    expect(component).toContain("Selected:");
     expect(component).toContain("Clear");
     expect(component).toContain("setIsStudentPickerOpen(false)");
+    expect(component).toContain("setActiveStudentOptionIndex(-1)");
+    expect(component).toContain("studentSearchInputRef.current?.blur()");
+    expect(component).toContain("amountInputRef.current?.focus()");
+  });
+
+  it("fast payment form keeps amount entry ahead of dues review and does not auto-fill amount", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      "utf8",
+    );
+
+    expect(component.indexOf('title="3. Fast Payment"')).toBeLessThan(
+      component.indexOf('title="3. Review Dues"'),
+    );
+    expect(component).toContain('title="3. Fast Payment"');
+    expect(component).toContain("Loading dues...");
+    expect(component).not.toContain("setPaymentAmountInput(payload.suggestedDefaultAmount");
   });
 
   it("mobile navigation and payment entry remain optimized for fast cashier flow", () => {
@@ -335,7 +352,7 @@ describe("payment desk cashier workflow", () => {
     expect(mobileNav).toContain("fixed inset-x-0 bottom-0");
     expect(paymentDesk).not.toContain('className="sticky top-[72px] z-[5] bg-white/95 md:static md:bg-white"');
     expect(paymentDesk).toContain("Amount Received");
-    expect(paymentDesk.indexOf('title=\"4. Enter Payment\"')).toBeLessThan(
+    expect(paymentDesk.indexOf('title=\"3. Fast Payment\"')).toBeLessThan(
       paymentDesk.indexOf('title=\"3. Review Dues\"'),
     );
     expect(paymentDesk).toContain("setPaymentAmountInput(\"\");");

@@ -175,7 +175,6 @@ export function PaymentEntryClient({
   const studentListRef = useRef<HTMLDivElement>(null);
   const summaryRequestRef = useRef(0);
   const summaryAbortRef = useRef<AbortController | null>(null);
-  const lastLoadedStudentIdRef = useRef<string | null>(null);
   const studentListId = useId();
 
   const studentSearchIndex = useMemo(
@@ -252,6 +251,7 @@ export function PaymentEntryClient({
     const params = new URLSearchParams({
       studentId: selectedStudentId,
       paymentDate,
+      includeLatestReceipt: "false",
     });
 
     setStudentSummaryLoading(true);
@@ -279,12 +279,10 @@ export function PaymentEntryClient({
 
         setSelectedStudent(payload.student);
         setSelectedStudentIssue(payload.issue);
-        setLatestStudentReceipt(payload.latestReceipt);
-        setDateAwareBreakdown(payload.student?.breakdown ?? []);
-        if (lastLoadedStudentIdRef.current !== selectedStudentId) {
-          setPaymentAmountInput("");
-          lastLoadedStudentIdRef.current = selectedStudentId;
+        if (payload.latestReceipt) {
+          setLatestStudentReceipt(payload.latestReceipt);
         }
+        setDateAwareBreakdown(payload.student?.breakdown ?? []);
         setStudentSummaryLoading(false);
         setStudentSummaryNotice(null);
         setPreviewUnavailable(false);
@@ -305,10 +303,10 @@ export function PaymentEntryClient({
 
         setDateAwareBreakdown(null);
         setStudentSummaryLoading(false);
-        setStudentSummaryNotice(error instanceof Error ? error.message : "Unable to load dues.");
+        setStudentSummaryNotice("Unable to load dues. Ask admin to check Fee Setup.");
         setPreviewUnavailable(true);
         setPreviewLoading(false);
-        setPreviewNotice(error instanceof Error ? error.message : "Unable to refresh payment preview.");
+        setPreviewNotice("Unable to load dues. Ask admin to check Fee Setup.");
       });
 
     return () => {
@@ -412,12 +410,6 @@ export function PaymentEntryClient({
       : "";
 
   useEffect(() => {
-    if (selectedStudent) {
-      amountInputRef.current?.focus();
-    }
-  }, [selectedStudent?.id, selectedStudent]);
-
-  useEffect(() => {
     submittingRef.current = false;
 
     if (state.status === "success") {
@@ -480,11 +472,15 @@ export function PaymentEntryClient({
   }, [filteredStudents, selectedStudentId]);
 
   function selectStudent(studentId: string) {
-    lastLoadedStudentIdRef.current = null;
     setSelectedStudentId(studentId);
     setPaymentAmountInput("");
     setFormError(null);
     setIsStudentPickerOpen(false);
+    setActiveStudentOptionIndex(-1);
+    studentSearchInputRef.current?.blur();
+    setTimeout(() => {
+      amountInputRef.current?.focus();
+    }, 0);
   }
 
   function openConfirmationDialog() {
@@ -572,6 +568,9 @@ export function PaymentEntryClient({
               onChange={(event) => {
                 const nextClassId = event.target.value;
                 setSelectedClassId(nextClassId);
+                setIsStudentPickerOpen(false);
+                setActiveStudentOptionIndex(-1);
+                studentSearchInputRef.current?.blur();
                 if (
                   selectedStudentId &&
                   data.studentIndex.some(
@@ -581,7 +580,6 @@ export function PaymentEntryClient({
                   setSelectedStudentId("");
                   setSelectedStudent(null);
                   setSelectedStudentIssue(null);
-                  lastLoadedStudentIdRef.current = null;
                   setPaymentAmountInput("");
                 }
               }}
@@ -636,7 +634,6 @@ export function PaymentEntryClient({
                         setSelectedStudentId("");
                         setSelectedStudent(null);
                         setSelectedStudentIssue(null);
-                        lastLoadedStudentIdRef.current = null;
                         setPaymentAmountInput("");
                         setIsStudentPickerOpen(false);
                         studentSearchInputRef.current?.focus();
@@ -745,15 +742,14 @@ export function PaymentEntryClient({
               </div>
             </div>
           ) : null}
-          {selectedStudent ? (
+          {selectedStudentIndexItem ? (
             <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
-              Selected student: <span className="font-semibold">{selectedStudent.fullName}</span>{" "}
-              ({selectedStudent.admissionNo}) - {selectedStudent.classLabel}
-            </div>
-          ) : null}
-          {!selectedStudent && selectedStudentIndexItem ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-              Loading dues for {selectedStudentIndexItem.fullName}...
+              Selected:{" "}
+              <span className="font-semibold">
+                {selectedStudent?.fullName ?? selectedStudentIndexItem.fullName}
+              </span>{" "}
+              · {selectedStudent?.classLabel ?? selectedStudentIndexItem.classLabel} · SR No{" "}
+              {selectedStudent?.admissionNo ?? selectedStudentIndexItem.admissionNo}
             </div>
           ) : null}
         </div>
@@ -768,28 +764,7 @@ export function PaymentEntryClient({
         />
       ) : null}
 
-      {selectedStudentIssue && !selectedStudent && !studentSummaryLoading ? (
-        <SectionCard
-          title={selectedStudentIssue.title}
-          description={selectedStudentIssue.detail}
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            {selectedStudentIssue.repairStudentId && selectedStudentIssue.actionLabel && canPost ? (
-              <form action={repairPaymentDeskStudentDuesAction}>
-                <input type="hidden" name="studentId" value={selectedStudentIssue.repairStudentId} />
-                <Button type="submit">{selectedStudentIssue.actionLabel}</Button>
-              </form>
-            ) : selectedStudentIssue.actionHref && selectedStudentIssue.actionLabel ? (
-              <Button asChild>
-                <Link href={selectedStudentIssue.actionHref}>{selectedStudentIssue.actionLabel}</Link>
-              </Button>
-            ) : null}
-            <Button asChild variant="outline">
-              <Link href="/protected/students">Open Students</Link>
-            </Button>
-          </div>
-        </SectionCard>
-      ) : !studentSelectedFromIndex ? (
+      {!studentSelectedFromIndex ? (
         <SectionCard
           title="Choose a student to continue"
           description="Dues, installment breakup, and the payment form will appear after a student is selected."
@@ -800,6 +775,29 @@ export function PaymentEntryClient({
         </SectionCard>
       ) : (
         <>
+          {selectedStudentIssue && !selectedStudent && !studentSummaryLoading ? (
+            <SectionCard
+              title={selectedStudentIssue.title}
+              description="Unable to load dues. Ask admin to check Fee Setup."
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                {selectedStudentIssue.repairStudentId && selectedStudentIssue.actionLabel && canPost ? (
+                  <form action={repairPaymentDeskStudentDuesAction}>
+                    <input type="hidden" name="studentId" value={selectedStudentIssue.repairStudentId} />
+                    <Button type="submit">{selectedStudentIssue.actionLabel}</Button>
+                  </form>
+                ) : selectedStudentIssue.actionHref && selectedStudentIssue.actionLabel ? (
+                  <Button asChild>
+                    <Link href={selectedStudentIssue.actionHref}>{selectedStudentIssue.actionLabel}</Link>
+                  </Button>
+                ) : null}
+                <Button asChild variant="outline">
+                  <Link href="/protected/students">Open Students</Link>
+                </Button>
+              </div>
+            </SectionCard>
+          ) : null}
+
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
             {data.policyNote}
           </div>
@@ -826,51 +824,9 @@ export function PaymentEntryClient({
             </div>
           ) : null}
 
-          {selectedStudent ? (
-            <SectionCard
-              title="Selected student"
-              description="Class, route, and contact details for the selected student."
-            >
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    Student status
-                  </div>
-                  <div className="mt-2 font-medium text-slate-900">
-                    {selectedStudent.studentStatusLabel}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    Transport route
-                  </div>
-                  <div className="mt-2 font-medium text-slate-900">
-                    {selectedStudent.transportRouteLabel}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    Father
-                  </div>
-                  <div className="mt-2 font-medium text-slate-900">
-                    {selectedStudent.fatherName ?? "Not set"}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    Phone
-                  </div>
-                  <div className="mt-2 font-medium text-slate-900">
-                    {selectedStudent.fatherPhone ?? selectedStudent.motherPhone ?? "Not set"}
-                  </div>
-                </div>
-              </div>
-            </SectionCard>
-          ) : null}
-
           <SectionCard
-            title="4. Enter Payment"
-            description="Enter amount, mode, and date, then confirm payment."
+            title="3. Fast Payment"
+            description="Selected student, amount, mode, and confirm payment in one place."
             actions={<ValueStatePill tone="locked">Receipt saved after posting</ValueStatePill>}
           >
             {!canPost ? (
@@ -925,7 +881,7 @@ export function PaymentEntryClient({
                       type="number"
                       inputMode="decimal"
                       min={1}
-                      max={previewTotalPending}
+                      max={previewTotalPending > 0 ? previewTotalPending : undefined}
                       className="mt-2"
                       value={paymentAmountInput}
                       onChange={(event) => {
@@ -934,6 +890,9 @@ export function PaymentEntryClient({
                       }}
                       required
                     />
+                    {studentSummaryLoading ? (
+                      <p className="mt-2 text-xs text-slate-500">Loading dues...</p>
+                    ) : null}
                     <div className="mt-2 flex flex-wrap gap-2 md:flex-wrap">
                       {quickAmounts.map((quickAmount) => (
                         <Button

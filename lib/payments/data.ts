@@ -810,15 +810,22 @@ export async function getPaymentDeskStudentSummary(payload: {
   studentId: string;
   paymentDate: string;
   autoPrepareMissingDues?: boolean;
+  includeLatestReceipt?: boolean;
 }): Promise<PaymentDeskStudentSummary> {
   const policy = await getFeePolicySummary();
-  const selectedWorkbookRows = await getWorkbookStudentFinancials({
-    studentId: payload.studentId,
-    sessionLabel: policy.academicSessionLabel,
-  });
+  const [selectedWorkbookRows, selectedStudentDetail] = await Promise.all([
+    getWorkbookStudentFinancials({
+      studentId: payload.studentId,
+      sessionLabel: policy.academicSessionLabel,
+    }),
+    getStudentDetail(payload.studentId),
+  ]);
   const selectedFinancial = selectedWorkbookRows[0] ?? null;
   let selectedStudentIssue: PaymentDeskIssue | null = null;
-  const latestReceiptPromise = getLatestReceiptForStudent(payload.studentId);
+  const shouldIncludeLatestReceipt = payload.includeLatestReceipt ?? true;
+  const latestReceiptPromise = shouldIncludeLatestReceipt
+    ? getLatestReceiptForStudent(payload.studentId)
+    : Promise.resolve(null);
 
   if (selectedFinancial) {
     let [breakdown, financialState] = await Promise.all([
@@ -878,7 +885,6 @@ export async function getPaymentDeskStudentSummary(payload: {
     };
   }
 
-  const selectedStudentDetail = await getStudentDetail(payload.studentId);
   if (selectedStudentDetail) {
     return {
       student: null,
