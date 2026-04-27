@@ -8,6 +8,7 @@ import {
   buildPaymentConfirmationSummary,
   buildStudentSelectLabel,
   filterPaymentDeskStudents,
+  paymentModeNeedsReference,
   resetPaymentDraftForNextPayment,
   shouldBlockClientSubmission,
   validatePaymentDraft,
@@ -110,7 +111,7 @@ describe("payment desk cashier workflow", () => {
     ).toEqual({ ok: false, message: "Wait for the dues preview to finish refreshing." });
   });
 
-  it("payment_reference_optional_for_all_modes", () => {
+  it("payment_reference_required_for_upi_bank_and_cheque", () => {
     expect(
       validatePaymentDraft({
         selectedStudent,
@@ -121,11 +122,11 @@ describe("payment desk cashier workflow", () => {
         referenceNumber: "",
         receivedBy: "Office Staff",
         previewTotalPending: 4000,
+        referenceRequired: true,
       }),
     ).toEqual({
-      ok: true,
-      amount: 1500,
-      remainingBalance: 2500,
+      ok: false,
+      message: "Reference number is required for UPI, bank transfer, and cheque payments.",
     });
   });
 
@@ -164,6 +165,13 @@ describe("payment desk cashier workflow", () => {
       paymentMode: "upi",
       receivedBy: "Office Staff",
     });
+  });
+
+  it("marks reference-required payment modes for desk safety prompts", () => {
+    expect(paymentModeNeedsReference("upi")).toBe(true);
+    expect(paymentModeNeedsReference("bank_transfer")).toBe(true);
+    expect(paymentModeNeedsReference("cheque")).toBe(true);
+    expect(paymentModeNeedsReference("cash")).toBe(false);
   });
 
   it("student labels stay short and show SR no", () => {
@@ -281,6 +289,9 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("Latest receipt:");
     expect(component).toContain("Amount to refund/adjust");
     expect(component).toContain("Reference number");
+    expect(component).toContain("Copy WhatsApp Message");
+    expect(component).toContain("animate-bottom-sheet-up");
+    expect(component).toContain("animate-success-check");
     expect(component).toContain("Similar payment already recorded");
     expect(component).toContain("isLockedAfterSuccess");
   });

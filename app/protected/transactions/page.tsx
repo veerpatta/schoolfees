@@ -286,7 +286,24 @@ function TransactionsTable({
 
 function InstallmentTrackerTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200">
+    <>
+      <div className="space-y-3 md:hidden">
+        {rows.length === 0 ? (
+          <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 text-center text-sm text-slate-500">
+            No dues tracker rows found.
+          </p>
+        ) : (
+          rows.map((row) => (
+            <div key={`tracker-mobile-${row.studentId}`} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+              <p className="font-semibold text-slate-900">{row.studentName}</p>
+              <p className="text-xs text-slate-500">{row.classLabel} • SR {row.admissionNo}</p>
+              <p className="mt-2 text-xs text-slate-600">Next due: {row.nextDueLabel ?? "No pending dues"}</p>
+              <p className="mt-1 font-semibold text-slate-900">Outstanding: {formatInr(row.outstandingAmount)}</p>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
       <table className="w-full min-w-full text-left text-sm">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
           <tr>
@@ -359,13 +376,34 @@ function InstallmentTrackerTable({ rows }: { rows: OfficeWorkbookStudentRow[] })
           )}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 }
 
 function StudentDuesTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200">
+    <>
+      <div className="space-y-3 md:hidden">
+        {rows.length === 0 ? (
+          <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 text-center text-sm text-slate-500">
+            No students found for statement view.
+          </p>
+        ) : (
+          rows.map((row) => (
+            <div key={`dues-mobile-${row.studentId}`} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+              <p className="font-semibold text-slate-900">{row.studentName}</p>
+              <p className="text-xs text-slate-500">{row.classLabel} • SR {row.admissionNo}</p>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                <p>Total due: {formatInr(row.totalDue)}</p>
+                <p>Paid: {formatInr(row.totalPaid)}</p>
+              </div>
+              <p className="mt-1 font-semibold text-slate-900">Outstanding: {formatInr(row.outstandingAmount)}</p>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
       <table className="w-full min-w-full text-left text-sm">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
           <tr>
@@ -438,7 +476,8 @@ function StudentDuesTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
           )}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 }
 

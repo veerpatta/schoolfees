@@ -158,7 +158,19 @@ export default async function DefaultersPage({
           title="Students whose dues are not prepared"
           description="These active students are not treated as defaulters yet. Prepare dues before collection or follow-up."
         >
-          <div className="overflow-x-auto rounded-xl border border-amber-200">
+          <div className="space-y-3 md:hidden">
+            {data.missingDuesRows.map((row) => (
+              <div key={`missing-mobile-${row.studentId}`} className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">
+                <p className="font-semibold text-amber-950">{row.fullName}</p>
+                <p className="text-xs text-amber-900">{row.classLabel} • SR {row.admissionNo}</p>
+                <p className="mt-1 text-xs text-amber-900">Phone: {row.fatherPhone ?? "-"}</p>
+                <Button asChild size="sm" variant="outline" className="mt-3">
+                  <Link href={`/protected/payments?studentId=${row.studentId}`}>Prepare dues</Link>
+                </Button>
+              </div>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto rounded-xl border border-amber-200 md:block">
             <table className="w-full min-w-full text-left text-sm">
               <thead className="bg-amber-50 text-xs uppercase tracking-wide text-amber-800">
                 <tr>
@@ -314,7 +326,26 @@ export default async function DefaultersPage({
         title="Route-wise transport outstanding"
         description="Use this view for transport follow-up and route-level reconciliation work."
       >
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
+        <div className="space-y-3 md:hidden">
+          {data.routeSummaryRows.length === 0 ? (
+            <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 text-center text-sm text-slate-500">
+              No route-wise outstanding rows for the selected filters.
+            </p>
+          ) : (
+            data.routeSummaryRows.map((row) => (
+              <div key={`route-mobile-${row.routeId ?? row.routeLabel}`} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+                <p className="font-semibold text-slate-900">{row.routeLabel}</p>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                  <p>Students: {row.studentCount}</p>
+                  <p>Open installments: {row.openInstallments}</p>
+                  <p>Overdue installments: {row.overdueInstallments}</p>
+                  <p className="font-semibold text-slate-900">Pending: {formatInr(row.totalPending)}</p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
           <table className="w-full min-w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
               <tr>

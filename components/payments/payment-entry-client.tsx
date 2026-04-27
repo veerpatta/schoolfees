@@ -17,6 +17,7 @@ import {
   buildPaymentDeskSearchIndex,
   buildStudentSelectLabel,
   filterPaymentDeskStudents,
+  paymentModeNeedsReference,
   resetPaymentDraftForNextPayment,
   shouldBlockClientSubmission,
   validatePaymentDraft,
@@ -226,7 +227,7 @@ export function PaymentEntryClient({
   const previewNextDue =
     previewBreakdown.find((item) => item.outstandingAmount > 0) ?? null;
   const paymentAmount = Number(paymentAmountInput) || 0;
-  const referenceRequired = false;
+  const referenceRequired = paymentModeNeedsReference(paymentMode);
   const creditBalance = selectedStudent?.creditBalance ?? 0;
   const refundableAmount = selectedStudent?.refundableAmount ?? 0;
 
@@ -597,7 +598,7 @@ export function PaymentEntryClient({
       </SectionCard>
 
       <SectionCard
-        title="2. Select Student"
+        title="2. Search Student"
         description="Use SR no, student name, father name, or phone number to reach the right student quickly."
       >
             <div className="space-y-4">
@@ -731,7 +732,14 @@ export function PaymentEntryClient({
             </div>
           </div>
           {studentSummaryLoading ? (
-            <p className="text-sm text-slate-600">{studentSummaryNotice ?? "Loading students..."}</p>
+            <div className="space-y-2" aria-live="polite">
+              <p className="text-sm text-slate-600">{studentSummaryNotice ?? "Loading students..."}</p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <div className="h-16 animate-pulse rounded-xl bg-slate-100" />
+                <div className="h-16 animate-pulse rounded-xl bg-slate-100" />
+                <div className="h-16 animate-pulse rounded-xl bg-slate-100" />
+              </div>
+            </div>
           ) : null}
           {selectedStudent ? (
             <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
@@ -886,7 +894,7 @@ export function PaymentEntryClient({
           </SectionCard>
 
           <SectionCard
-            title="Dues summary"
+            title="3. Review Dues"
             description="Installment-level dues before saving the next receipt."
             actions={
               <div className="flex flex-wrap items-center gap-2">
@@ -967,8 +975,8 @@ export function PaymentEntryClient({
           </SectionCard>
 
           <SectionCard
-            title="Collect Payment"
-            description="Enter amount, mode, and date, then confirm payment. Reference number is optional."
+            title="4. Enter Payment"
+            description="Enter amount, mode, and date, then confirm payment."
             actions={<ValueStatePill tone="locked">Receipt saved after posting</ValueStatePill>}
           >
             {!canPost ? (
@@ -1107,7 +1115,9 @@ export function PaymentEntryClient({
                       }}
                     />
                     <p className="mt-1 text-xs text-slate-500">
-                      Reference is useful for matching bank/UPI records.
+                      {referenceRequired
+                        ? "Reference is required for UPI, bank transfer, and cheque payments."
+                        : "Reference is useful for matching bank/UPI records."}
                     </p>
                   </div>
                   <div>
@@ -1125,6 +1135,11 @@ export function PaymentEntryClient({
                     />
                   </div>
                 </div>
+                {referenceRequired ? (
+                  <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
+                    Confirm this reference number carefully before posting. It is used for UPI, bank transfer, and cheque tracking.
+                  </p>
+                ) : null}
 
                 <div>
                   <Label htmlFor="payment-remarks">Remarks</Label>
@@ -1221,7 +1236,7 @@ export function PaymentEntryClient({
                 </div>
               </fieldset>
 
-              <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 backdrop-blur md:hidden mobile-safe-bottom-padding">
+                <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 backdrop-blur md:hidden mobile-safe-bottom-padding">
                 <div className="mb-2 flex items-center justify-between text-xs text-slate-600">
                   <span className="truncate pr-2">
                     {selectedStudent ? selectedStudent.fullName : "Select student"}
@@ -1242,7 +1257,7 @@ export function PaymentEntryClient({
 
               {isConfirmOpen && confirmationSummary ? (
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 px-2 md:items-center md:px-4">
-                  <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border border-slate-200 bg-white p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-xl md:rounded-xl md:p-5">
+                  <div className="max-h-[92vh] w-full animate-bottom-sheet-up overflow-y-auto rounded-t-2xl border border-slate-200 bg-white p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-xl md:rounded-xl md:p-5">
                     <h2 className="text-lg font-semibold text-slate-950">Confirm Payment</h2>
                     <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                       <span>Student name: {confirmationSummary.studentName}</span>
@@ -1301,8 +1316,13 @@ export function PaymentEntryClient({
 
               {isSuccessOpen && state.status === "success" && receiptHref ? (
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 px-2 md:items-center md:px-4">
-                  <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border border-emerald-200 bg-white p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-xl md:rounded-xl md:p-5">
-                    <h2 className="text-lg font-semibold text-slate-950">Payment Successful</h2>
+                  <div className="max-h-[92vh] w-full animate-bottom-sheet-up overflow-y-auto rounded-t-2xl border border-emerald-200 bg-white p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-xl md:rounded-xl md:p-5">
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="inline-flex size-7 animate-success-check items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                        ✓
+                      </span>
+                      <h2 className="text-lg font-semibold text-slate-950">Payment Successful</h2>
+                    </div>
                     <p className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
                       Receipt has been saved.
                     </p>
@@ -1335,9 +1355,6 @@ export function PaymentEntryClient({
                       <Button asChild variant="outline">
                         <Link href={receiptHref}>Open Receipt</Link>
                       </Button>
-                      <Button type="button" onClick={handleCollectAnotherPayment}>
-                        Collect Another Payment
-                      </Button>
                       {whatsappCopy ? (
                         <Button
                           type="button"
@@ -1347,9 +1364,12 @@ export function PaymentEntryClient({
                             setCopyStatus("copied");
                           }}
                         >
-                          {copyStatus === "copied" ? "Copied text" : "Copy confirmation text"}
+                          {copyStatus === "copied" ? "Copied message" : "Copy WhatsApp Message"}
                         </Button>
                       ) : null}
+                      <Button type="button" onClick={handleCollectAnotherPayment}>
+                        Collect Another Payment
+                      </Button>
                     </div>
                   </div>
                 </div>
