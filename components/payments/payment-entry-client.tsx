@@ -175,6 +175,7 @@ export function PaymentEntryClient({
   const studentListRef = useRef<HTMLDivElement>(null);
   const summaryRequestRef = useRef(0);
   const summaryAbortRef = useRef<AbortController | null>(null);
+  const lastLoadedStudentIdRef = useRef<string | null>(null);
   const studentListId = useId();
 
   const studentSearchIndex = useMemo(
@@ -230,6 +231,7 @@ export function PaymentEntryClient({
   const referenceRequired = paymentModeNeedsReference(paymentMode);
   const creditBalance = selectedStudent?.creditBalance ?? 0;
   const refundableAmount = selectedStudent?.refundableAmount ?? 0;
+  const studentSelectedFromIndex = Boolean(selectedStudentId && selectedStudentIndexItem);
 
   useEffect(() => {
     if (!selectedStudentId) {
@@ -279,11 +281,10 @@ export function PaymentEntryClient({
         setSelectedStudentIssue(payload.issue);
         setLatestStudentReceipt(payload.latestReceipt);
         setDateAwareBreakdown(payload.student?.breakdown ?? []);
-        setPaymentAmountInput(
-          payload.suggestedDefaultAmount && payload.suggestedDefaultAmount > 0
-            ? String(payload.suggestedDefaultAmount)
-            : "",
-        );
+        if (lastLoadedStudentIdRef.current !== selectedStudentId) {
+          setPaymentAmountInput("");
+          lastLoadedStudentIdRef.current = selectedStudentId;
+        }
         setStudentSummaryLoading(false);
         setStudentSummaryNotice(null);
         setPreviewUnavailable(false);
@@ -479,7 +480,9 @@ export function PaymentEntryClient({
   }, [filteredStudents, selectedStudentId]);
 
   function selectStudent(studentId: string) {
+    lastLoadedStudentIdRef.current = null;
     setSelectedStudentId(studentId);
+    setPaymentAmountInput("");
     setFormError(null);
     setIsStudentPickerOpen(false);
   }
@@ -533,7 +536,7 @@ export function PaymentEntryClient({
   }
 
   return (
-    <div className="space-y-6 mobile-payment-cta-clearance md:pb-4">
+    <div className="space-y-6 mobile-payment-with-nav-clearance md:pb-4">
       <OfficeRecentTracker
         student={
           selectedStudent
@@ -558,7 +561,6 @@ export function PaymentEntryClient({
       <SectionCard
         title="1. Select Class"
         description="Start with class, then choose the student."
-        className="sticky top-[72px] z-[5] bg-white/95 md:static md:bg-white"
       >
         <div className="grid gap-3 md:grid-cols-[minmax(220px,320px)_1fr] md:items-end">
           <div>
@@ -579,6 +581,7 @@ export function PaymentEntryClient({
                   setSelectedStudentId("");
                   setSelectedStudent(null);
                   setSelectedStudentIssue(null);
+                  lastLoadedStudentIdRef.current = null;
                   setPaymentAmountInput("");
                 }
               }}
@@ -633,6 +636,7 @@ export function PaymentEntryClient({
                         setSelectedStudentId("");
                         setSelectedStudent(null);
                         setSelectedStudentIssue(null);
+                        lastLoadedStudentIdRef.current = null;
                         setPaymentAmountInput("");
                         setIsStudentPickerOpen(false);
                         studentSearchInputRef.current?.focus();
@@ -764,7 +768,7 @@ export function PaymentEntryClient({
         />
       ) : null}
 
-      {selectedStudentIssue && !selectedStudent ? (
+      {selectedStudentIssue && !selectedStudent && !studentSummaryLoading ? (
         <SectionCard
           title={selectedStudentIssue.title}
           description={selectedStudentIssue.detail}
@@ -785,7 +789,7 @@ export function PaymentEntryClient({
             </Button>
           </div>
         </SectionCard>
-      ) : !selectedStudent ? (
+      ) : !studentSelectedFromIndex ? (
         <SectionCard
           title="Choose a student to continue"
           description="Dues, installment breakup, and the payment form will appear after a student is selected."
@@ -800,39 +804,8 @@ export function PaymentEntryClient({
             {data.policyNote}
           </div>
 
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-            <MetricCard
-              title="Total due"
-              value={formatInr(selectedStudent.totalDue)}
-              hint={`${selectedStudent.fullName} (${selectedStudent.admissionNo})`}
-            />
-            <MetricCard
-              title="Paid"
-              value={formatInr(selectedStudent.totalPaid)}
-              hint="Includes posted payments and adjustments"
-            />
-            <MetricCard
-              title="Pending"
-              value={formatInr(previewTotalPending)}
-              hint={`Recalculated for payment date ${paymentDate}`}
-            />
-            <MetricCard
-              title="Overdue"
-              value={formatInr(previewOverdueAmount)}
-              hint="Due installments past their date"
-            />
-            <MetricCard
-              title="Next due installment"
-              value={previewNextDue?.installmentLabel ?? "No pending dues"}
-              hint={
-                previewNextDue
-                  ? `${previewNextDue.dueDate} - ${formatInr(previewNextDue.outstandingAmount)}`
-                  : "All installments settled"
-              }
-            />
-          </section>
 
-          {creditBalance > 0 || selectedStudent.rowsKeptForReview > 0 ? (
+          {selectedStudent && (creditBalance > 0 || selectedStudent.rowsKeptForReview > 0) ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
               {creditBalance > 0 ? (
                 <p className="font-semibold">
@@ -853,126 +826,47 @@ export function PaymentEntryClient({
             </div>
           ) : null}
 
-          <SectionCard
-            title="Selected student"
-            description="Class, route, and contact details for the selected student."
-          >
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Student status
-                </div>
-                <div className="mt-2 font-medium text-slate-900">
-                  {selectedStudent.studentStatusLabel}
-                </div>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Transport route
-                </div>
-                <div className="mt-2 font-medium text-slate-900">
-                  {selectedStudent.transportRouteLabel}
-                </div>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Father
-                </div>
-                <div className="mt-2 font-medium text-slate-900">
-                  {selectedStudent.fatherName ?? "Not set"}
-                </div>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Phone
-                </div>
-                <div className="mt-2 font-medium text-slate-900">
-                  {selectedStudent.fatherPhone ?? selectedStudent.motherPhone ?? "Not set"}
-                </div>
-              </div>
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            title="3. Review Dues"
-            description="Installment-level dues before saving the next receipt."
-            actions={
-              <div className="flex flex-wrap items-center gap-2">
-                <ValueStatePill tone="policy">From Fee Setup</ValueStatePill>
-                {previewTotalPending > 0 ? (
-                  <StatusBadge label="Pending dues" tone="warning" />
-                ) : (
-                  <StatusBadge label="Fully paid" tone="good" />
-                )}
-              </div>
-            }
-          >
-            <div className="space-y-3 md:hidden">
-              {previewBreakdown.map((item) => (
-                <div key={item.installmentId} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
-                  <div className="flex items-center justify-between">
-                    <p className="font-semibold text-slate-900">{item.installmentLabel}</p>
-                    <ValueStatePill tone={item.balanceStatus === "paid" ? "locked" : item.balanceStatus === "partial" || item.balanceStatus === "overdue" ? "review" : "calculated"} className="normal-case tracking-normal">
-                      {item.balanceStatus}
-                    </ValueStatePill>
+          {selectedStudent ? (
+            <SectionCard
+              title="Selected student"
+              description="Class, route, and contact details for the selected student."
+            >
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Student status
                   </div>
-                  <p className="mt-1 text-xs text-slate-500">Due {item.dueDate}</p>
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
-                    <span>Base: {formatInr(item.amountDue - item.finalLateFee)}</span>
-                    <span>Late: {formatInr(item.finalLateFee)}</span>
-                    <span>Paid: {formatInr(item.paymentsTotal)}</span>
-                    <span>Adj: {formatInr(item.adjustmentsTotal)}</span>
+                  <div className="mt-2 font-medium text-slate-900">
+                    {selectedStudent.studentStatusLabel}
                   </div>
-                  <p className="mt-2 text-sm font-semibold text-slate-950">Outstanding: {formatInr(item.outstandingAmount)}</p>
                 </div>
-              ))}
-            </div>
-            <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
-              <table className="w-full min-w-[760px] text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
-                  <tr>
-                    <th className="px-4 py-3">Installment</th>
-                    <th className="px-4 py-3">Due date</th>
-                    <th className="px-4 py-3">Base due</th>
-                    <th className="px-4 py-3">Late fee</th>
-                    <th className="px-4 py-3">Paid</th>
-                    <th className="px-4 py-3">Adjustments</th>
-                    <th className="px-4 py-3">Outstanding</th>
-                    <th className="px-4 py-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {previewBreakdown.map((item) => (
-                    <tr key={item.installmentId} className="border-t border-slate-100 text-slate-700">
-                      <td className="px-4 py-3">{item.installmentLabel}</td>
-                      <td className="px-4 py-3">{item.dueDate}</td>
-                      <td className="px-4 py-3">{formatInr(item.amountDue - item.finalLateFee)}</td>
-                      <td className="px-4 py-3">{formatInr(item.finalLateFee)}</td>
-                      <td className="px-4 py-3">{formatInr(item.paymentsTotal)}</td>
-                      <td className="px-4 py-3">{formatInr(item.adjustmentsTotal)}</td>
-                      <td className="px-4 py-3 font-medium text-slate-900">
-                        {formatInr(item.outstandingAmount)}
-                      </td>
-                      <td className="px-4 py-3 capitalize">
-                        <ValueStatePill
-                          tone={
-                            item.balanceStatus === "paid"
-                              ? "locked"
-                              : item.balanceStatus === "partial" || item.balanceStatus === "overdue"
-                                ? "review"
-                                : "calculated"
-                          }
-                          className="normal-case tracking-normal"
-                        >
-                          {item.balanceStatus}
-                        </ValueStatePill>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </SectionCard>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Transport route
+                  </div>
+                  <div className="mt-2 font-medium text-slate-900">
+                    {selectedStudent.transportRouteLabel}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Father
+                  </div>
+                  <div className="mt-2 font-medium text-slate-900">
+                    {selectedStudent.fatherName ?? "Not set"}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Phone
+                  </div>
+                  <div className="mt-2 font-medium text-slate-900">
+                    {selectedStudent.fatherPhone ?? selectedStudent.motherPhone ?? "Not set"}
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+          ) : null}
 
           <SectionCard
             title="4. Enter Payment"
@@ -1019,27 +913,12 @@ export function PaymentEntryClient({
                 disabled={!canPost || isLockedAfterSuccess}
                 className="space-y-4 disabled:opacity-70"
               >
-                <input type="hidden" name="studentId" value={selectedStudent.id} />
+                <input type="hidden" name="studentId" value={selectedStudentId} />
                 <input type="hidden" name="clientRequestId" value={clientRequestId} />
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   <div>
-                    <Label htmlFor="payment-date">Payment date</Label>
-                    <Input
-                      id="payment-date"
-                      name="paymentDate"
-                      type="date"
-                      value={paymentDate}
-                      onChange={(event) => {
-                        setPaymentDate(event.target.value);
-                        setFormError(null);
-                      }}
-                      className="mt-2"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="payment-amount">Payment amount</Label>
+                    <Label htmlFor="payment-amount">Amount Received</Label>
                     <Input
                       id="payment-amount"
                       name="paymentAmount"
@@ -1078,6 +957,21 @@ export function PaymentEntryClient({
                         </Button>
                       ))}
                     </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="payment-date">Payment date</Label>
+                    <Input
+                      id="payment-date"
+                      name="paymentDate"
+                      type="date"
+                      value={paymentDate}
+                      onChange={(event) => {
+                        setPaymentDate(event.target.value);
+                        setFormError(null);
+                      }}
+                      className="mt-2"
+                      required
+                    />
                   </div>
                   <div>
                     <Label htmlFor="payment-mode">Payment mode</Label>
@@ -1236,7 +1130,7 @@ export function PaymentEntryClient({
                 </div>
               </fieldset>
 
-                <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 backdrop-blur md:hidden mobile-safe-bottom-padding">
+                <div className="fixed inset-x-0 z-40 border-t border-slate-200 bg-white/95 p-3 backdrop-blur md:hidden mobile-safe-bottom-padding" style={{ bottom: "var(--mobile-bottom-nav-offset)" }}>
                 <div className="mb-2 flex items-center justify-between text-xs text-slate-600">
                   <span className="truncate pr-2">
                     {selectedStudent ? selectedStudent.fullName : "Select student"}
@@ -1314,7 +1208,7 @@ export function PaymentEntryClient({
                 </div>
               ) : null}
 
-              {isSuccessOpen && state.status === "success" && receiptHref ? (
+              {isSuccessOpen && state.status === "success" && receiptHref && selectedStudent ? (
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 px-2 md:items-center md:px-4">
                   <div className="max-h-[92vh] w-full animate-bottom-sheet-up overflow-y-auto rounded-t-2xl border border-emerald-200 bg-white p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-xl md:rounded-xl md:p-5">
                     <div className="mb-2 flex items-center gap-2">
@@ -1397,6 +1291,130 @@ export function PaymentEntryClient({
                 </div>
               ) : null}
             </form>
+          </SectionCard>
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            {studentSummaryLoading && !selectedStudent ? (
+              <>
+                <div className="h-24 animate-pulse rounded-2xl border border-slate-200 bg-slate-100" />
+                <div className="h-24 animate-pulse rounded-2xl border border-slate-200 bg-slate-100" />
+                <div className="h-24 animate-pulse rounded-2xl border border-slate-200 bg-slate-100" />
+                <div className="h-24 animate-pulse rounded-2xl border border-slate-200 bg-slate-100" />
+                <div className="h-24 animate-pulse rounded-2xl border border-slate-200 bg-slate-100" />
+              </>
+            ) : selectedStudent ? (
+              <>
+                <MetricCard
+                  title="Total due"
+                  value={formatInr(selectedStudent.totalDue)}
+                  hint={`${selectedStudent.fullName} (${selectedStudent.admissionNo})`}
+                />
+                <MetricCard
+                  title="Paid"
+                  value={formatInr(selectedStudent.totalPaid)}
+                  hint="Includes posted payments and adjustments"
+                />
+                <MetricCard
+                  title="Pending"
+                  value={formatInr(previewTotalPending)}
+                  hint={`Recalculated for payment date ${paymentDate}`}
+                />
+                <MetricCard
+                  title="Overdue"
+                  value={formatInr(previewOverdueAmount)}
+                  hint="Due installments past their date"
+                />
+                <MetricCard
+                  title="Next due installment"
+                  value={previewNextDue?.installmentLabel ?? "No pending dues"}
+                  hint={
+                    previewNextDue
+                      ? `${previewNextDue.dueDate} - ${formatInr(previewNextDue.outstandingAmount)}`
+                      : "All installments settled"
+                  }
+                />
+              </>
+            ) : null}
+          </section>
+
+          <SectionCard
+            title="3. Review Dues"
+            description="Installment-level dues before saving the next receipt."
+            actions={
+              <div className="flex flex-wrap items-center gap-2">
+                <ValueStatePill tone="policy">From Fee Setup</ValueStatePill>
+                {previewTotalPending > 0 ? (
+                  <StatusBadge label="Pending dues" tone="warning" />
+                ) : (
+                  <StatusBadge label="Fully paid" tone="good" />
+                )}
+              </div>
+            }
+          >
+            <div className="space-y-3 md:hidden">
+              {previewBreakdown.map((item) => (
+                <div key={item.installmentId} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-slate-900">{item.installmentLabel}</p>
+                    <ValueStatePill tone={item.balanceStatus === "paid" ? "locked" : item.balanceStatus === "partial" || item.balanceStatus === "overdue" ? "review" : "calculated"} className="normal-case tracking-normal">
+                      {item.balanceStatus}
+                    </ValueStatePill>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">Due {item.dueDate}</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                    <span>Base: {formatInr(item.amountDue - item.finalLateFee)}</span>
+                    <span>Late: {formatInr(item.finalLateFee)}</span>
+                    <span>Paid: {formatInr(item.paymentsTotal)}</span>
+                    <span>Adj: {formatInr(item.adjustmentsTotal)}</span>
+                  </div>
+                  <p className="mt-2 text-sm font-semibold text-slate-950">Outstanding: {formatInr(item.outstandingAmount)}</p>
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
+              <table className="w-full min-w-[760px] text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                  <tr>
+                    <th className="px-4 py-3">Installment</th>
+                    <th className="px-4 py-3">Due date</th>
+                    <th className="px-4 py-3">Base due</th>
+                    <th className="px-4 py-3">Late fee</th>
+                    <th className="px-4 py-3">Paid</th>
+                    <th className="px-4 py-3">Adjustments</th>
+                    <th className="px-4 py-3">Outstanding</th>
+                    <th className="px-4 py-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewBreakdown.map((item) => (
+                    <tr key={item.installmentId} className="border-t border-slate-100 text-slate-700">
+                      <td className="px-4 py-3">{item.installmentLabel}</td>
+                      <td className="px-4 py-3">{item.dueDate}</td>
+                      <td className="px-4 py-3">{formatInr(item.amountDue - item.finalLateFee)}</td>
+                      <td className="px-4 py-3">{formatInr(item.finalLateFee)}</td>
+                      <td className="px-4 py-3">{formatInr(item.paymentsTotal)}</td>
+                      <td className="px-4 py-3">{formatInr(item.adjustmentsTotal)}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">
+                        {formatInr(item.outstandingAmount)}
+                      </td>
+                      <td className="px-4 py-3 capitalize">
+                        <ValueStatePill
+                          tone={
+                            item.balanceStatus === "paid"
+                              ? "locked"
+                              : item.balanceStatus === "partial" || item.balanceStatus === "overdue"
+                                ? "review"
+                                : "calculated"
+                          }
+                          className="normal-case tracking-normal"
+                        >
+                          {item.balanceStatus}
+                        </ValueStatePill>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </SectionCard>
         </>
       )}

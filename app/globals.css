@@ -47,6 +47,7 @@
     --mobile-bottom-nav-offset: calc(var(--mobile-bottom-nav-height) + var(--mobile-safe-area-bottom));
     --mobile-payment-cta-height: 4.5rem;
     --mobile-payment-cta-offset: calc(var(--mobile-payment-cta-height) + var(--mobile-safe-area-bottom));
+    --mobile-payment-with-nav-offset: calc(var(--mobile-payment-cta-height) + var(--mobile-bottom-nav-offset));
   }
 }
 
@@ -133,6 +134,10 @@
 
   .mobile-payment-cta-clearance {
     padding-bottom: var(--mobile-payment-cta-offset);
+  }
+
+  .mobile-payment-with-nav-clearance {
+    padding-bottom: var(--mobile-payment-with-nav-offset);
   }
 }
 
