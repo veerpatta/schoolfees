@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { SchoolBrand } from "@/components/branding/school-brand";
 import { roleLabels, type StaffRole } from "@/lib/auth/roles";
 import {
-  getMobilePrimaryNavigation,
+  getMobileBottomNavigation,
   getProtectedRouteMeta,
   getVisibleProtectedNavigation,
 } from "@/lib/config/navigation";
@@ -26,10 +26,12 @@ export function AppTopBar({ staffEmail, staffRole }: AppTopBarProps) {
   const pathname = usePathname();
   const hideMobileBottomNav = pathname.startsWith("/protected/payments");
   const routeMeta = getProtectedRouteMeta(pathname);
-  const primaryMobileItems = getMobilePrimaryNavigation(staffRole);
+  const primaryMobileItems = getMobileBottomNavigation(staffRole);
   const allItems = getVisibleProtectedNavigation(staffRole);
   const primarySet = new Set(primaryMobileItems.map((item) => item.href));
-  const moreItems = allItems.filter((item) => !primarySet.has(item.href));
+  const moreItems = allItems.filter(
+    (item) => !primarySet.has(item.href) && item.href !== "/protected/transactions",
+  );
 
   return (
     <header
@@ -87,7 +89,10 @@ export function AppTopBar({ staffEmail, staffRole }: AppTopBarProps) {
       </div>
       {hideMobileBottomNav ? null : (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 py-2 backdrop-blur md:hidden mobile-safe-bottom-padding">
-          <div className="mx-auto grid max-w-7xl grid-cols-5 gap-1">
+          <div
+            className="mx-auto grid max-w-7xl gap-1"
+            style={{ gridTemplateColumns: `repeat(${primaryMobileItems.length + 1}, minmax(0, 1fr))` }}
+          >
             {primaryMobileItems.map((item) => {
               const Icon = item.icon;
               const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -101,7 +106,7 @@ export function AppTopBar({ staffEmail, staffRole }: AppTopBarProps) {
                   }`}
                 >
                   <Icon className="size-4" />
-                  <span>{item.label.replace(" Desk", "")}</span>
+                  <span>{item.label}</span>
                 </Link>
               );
             })}

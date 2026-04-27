@@ -79,6 +79,10 @@ export function validatePaymentDraft(draft: PaymentDraft): PaymentDraftValidatio
   };
 }
 
+export function paymentModeNeedsReference(paymentMode: PaymentMode | string) {
+  return paymentMode === "upi" || paymentMode === "bank_transfer" || paymentMode === "cheque";
+}
+
 export function buildPaymentConfirmationSummary(
   draft: PaymentDraft,
 ): PaymentConfirmationSummary | null {

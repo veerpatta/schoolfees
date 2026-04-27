@@ -745,13 +745,31 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </SectionCard>
       ) : null}
 
-      {data.systemSyncHealth ? (
+      {staff.appRole === "admin" && data.systemSyncHealth ? (
         <FeeDataAttentionBanner
           health={data.systemSyncHealth}
         />
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:hidden">
+        <MetricCard
+          title="Today collection"
+          value={formatInr(data.kpis.todaysCollection)}
+          hint="Posted receipts today."
+        />
+        <MetricCard
+          title="Receipts today"
+          value={data.kpis.receiptsToday}
+          hint="Receipts saved by office staff."
+        />
+        <MetricCard
+          title="Total pending"
+          value={formatInr(data.kpis.totalPending)}
+          hint={`${data.studentsWithPending} student${data.studentsWithPending === 1 ? "" : "s"} need follow-up.`}
+        />
+      </div>
+
+      <div className="hidden gap-4 sm:grid sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           title="Total Expected Fees"
           value={formatInr(data.kpis.totalExpectedFees)}
@@ -799,6 +817,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           title="Class-wise pending"
           description="Highest pending classes appear first."
           actions={<ClipboardList className="size-5 text-amber-600" />}
+          className="hidden sm:block"
         >
           <ClassPendingChart rows={maxChartCards} />
         </SectionCard>

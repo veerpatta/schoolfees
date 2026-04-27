@@ -92,6 +92,13 @@ describe("read-only UX audit implementation", () => {
     expect(globals).toContain("--mobile-payment-cta-offset");
   });
 
+  it("accountant and read-only roles do not get technical diagnostics by default", () => {
+    const paymentsPage = readRepoFile("app/protected/payments/page.tsx");
+
+    expect(paymentsPage).toContain("canViewDiagnostics={staff.appRole === \"admin\"}");
+    expect(paymentsPage).not.toContain("canViewDiagnostics={true}");
+  });
+
   it("dashboard hides repair console and Admin Tools owns fee data troubleshooting", () => {
     const dashboard = readRepoFile("app/protected/dashboard/page.tsx");
     const advanced = readRepoFile("app/protected/advanced/page.tsx");
@@ -137,13 +144,18 @@ describe("read-only UX audit implementation", () => {
     const studentsTable = readRepoFile("components/students/student-list-table.tsx");
     const transactions = readRepoFile("app/protected/transactions/page.tsx");
     const defaulters = readRepoFile("app/protected/defaulters/page.tsx");
+    const dashboard = readRepoFile("app/protected/dashboard/page.tsx");
 
     expect(studentsTable).toContain("SR no");
     expect(studentsTable).toContain("Student name");
+    expect(studentsTable).toContain("md:hidden");
     expect(transactions).toContain("Receipt no");
+    expect(transactions).toContain("tracker-mobile-");
     expect(transactions).not.toContain("Receipt / Ref");
     expect(defaulters).toContain("Oldest due");
+    expect(defaulters).toContain("missing-mobile-");
     expect(defaulters).toContain("Phone-ready overdue list for");
+    expect(dashboard).toContain("Today collection");
   });
 
   it("write actions still revalidate finance surfaces", () => {

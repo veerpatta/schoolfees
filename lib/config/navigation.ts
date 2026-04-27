@@ -36,6 +36,12 @@ export type ProtectedRouteMeta = {
   href: string | null;
 };
 
+export type MobileBottomNavigationItem = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+};
+
 const simpleNavigationItems: ProtectedNavigationItem[] = [
   {
     href: "/protected/dashboard",
@@ -287,18 +293,42 @@ export function getVisibleProtectedNavigation(staffRole: StaffRole) {
   });
 }
 
-const mobilePrimaryOrder = [
-  "/protected/dashboard",
-  "/protected/students",
-  "/protected/payments",
-  "/protected/defaulters",
-] as const;
+export function getMobileBottomNavigation(staffRole: StaffRole) {
+  const items: MobileBottomNavigationItem[] = [
+    {
+      href: "/protected/dashboard",
+      label: "Home",
+      icon: BarChart3,
+    },
+    {
+      href: "/protected/students",
+      label: "Students",
+      icon: UsersRound,
+    },
+  ];
 
-export function getMobilePrimaryNavigation(staffRole: StaffRole) {
-  const visibleItems = getVisibleProtectedNavigation(staffRole);
-  return mobilePrimaryOrder
-    .map((href) => visibleItems.find((item) => item.href === href))
-    .filter((item): item is ProtectedNavigationItem => Boolean(item));
+  if (hasRolePermission(staffRole, "payments:write")) {
+    items.push({
+      href: "/protected/payments",
+      label: "Collect",
+      icon: BadgeIndianRupee,
+    });
+  }
+
+  items.push(
+    {
+      href: "/protected/defaulters",
+      label: "Dues",
+      icon: ClipboardList,
+    },
+    {
+      href: "/protected/receipts",
+      label: "Receipts",
+      icon: BookOpenCheck,
+    },
+  );
+
+  return items;
 }
 
 export function getProtectedRouteMeta(pathname: string): ProtectedRouteMeta {

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   advancedHubSections,
   getDefaultProtectedHref,
+  getMobileBottomNavigation,
   getProtectedRouteMeta,
   getVisibleProtectedNavigation,
 } from "@/lib/config/navigation";
@@ -131,5 +132,24 @@ describe("office navigation", () => {
       href: "/protected/transactions",
       label: "Transactions",
     });
+  });
+
+  it("builds mobile bottom nav with Home, Students, Dues, Receipts, and More entry support", () => {
+    const accountant = getMobileBottomNavigation("accountant");
+    const readOnly = getMobileBottomNavigation("read_only_staff");
+
+    expect(accountant.map((item) => item.label)).toEqual([
+      "Home",
+      "Students",
+      "Collect",
+      "Dues",
+      "Receipts",
+    ]);
+    expect(readOnly.map((item) => item.label)).toEqual([
+      "Home",
+      "Students",
+      "Dues",
+      "Receipts",
+    ]);
   });
 });
