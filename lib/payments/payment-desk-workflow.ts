@@ -61,13 +61,6 @@ export function validatePaymentDraft(draft: PaymentDraft): PaymentDraftValidatio
     return { ok: false, message: "No pending dues are available for this student." };
   }
 
-  if (draft.referenceRequired && !draft.referenceNumber.trim()) {
-    return {
-      ok: false,
-      message: "Reference number is required for UPI, bank transfer, and cheque payments.",
-    };
-  }
-
   if (amount > draft.previewTotalPending) {
     return { ok: false, message: "Payment amount exceeds pending amount." };
   }
