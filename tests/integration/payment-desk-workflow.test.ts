@@ -311,7 +311,22 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("setIsStudentPickerOpen(false)");
     expect(component).toContain("setActiveStudentOptionIndex(-1)");
     expect(component).toContain("studentSearchInputRef.current?.blur()");
+    expect(component).toContain("amountSectionRef.current?.scrollIntoView");
     expect(component).toContain("amountInputRef.current?.focus()");
+  });
+
+  it("class selection auto-opens student picker and triggers mobile scroll/focus hooks", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      "utf8",
+    );
+
+    expect(component).toContain("setIsStudentPickerOpen(true)");
+    expect(component).toContain("setActiveStudentOptionIndex(0)");
+    expect(component).toContain("setStudentListScrollTop(0)");
+    expect(component).toContain("studentListRef.current?.scrollTo({ top: 0 })");
+    expect(component).toContain("studentPickerRef.current?.scrollIntoView");
+    expect(component).toContain("studentSearchInputRef.current?.focus()");
   });
 
   it("fast payment form keeps amount entry ahead of dues review and does not auto-fill amount", () => {
@@ -325,7 +340,21 @@ describe("payment desk cashier workflow", () => {
     );
     expect(component).toContain('title="3. Fast Payment"');
     expect(component).toContain("Loading dues...");
+    expect(component).toContain("Pending:");
+    expect(component).toContain("Overdue:");
+    expect(component).toContain("Next due:");
     expect(component).not.toContain("setPaymentAmountInput(payload.suggestedDefaultAmount");
+  });
+
+  it("mobile cashier CTA remains disabled while summary or preview is loading", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      "utf8",
+    );
+
+    expect(component).toContain("previewLoading ||");
+    expect(component).toContain("studentSummaryLoading ||");
+    expect(component).toContain("Enter amount to continue");
   });
 
   it("mobile navigation and payment entry remain optimized for fast cashier flow", () => {

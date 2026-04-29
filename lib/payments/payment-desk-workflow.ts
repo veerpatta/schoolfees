@@ -49,6 +49,12 @@ export function validatePaymentDraft(draft: PaymentDraft): PaymentDraftValidatio
   if (draft.isPreviewRefreshing) {
     return { ok: false, message: "Wait for the dues preview to finish refreshing." };
   }
+  if (draft.referenceRequired && draft.referenceNumber.trim().length === 0) {
+    return {
+      ok: false,
+      message: "Reference number is required for UPI, bank transfer, and cheque payments.",
+    };
+  }
 
   if (draft.previewTotalPending <= 0) {
     if ((draft.creditBalance ?? 0) > 0) {

@@ -171,6 +171,8 @@ export function PaymentEntryClient({
   const submittingRef = useRef(false);
   const amountInputRef = useRef<HTMLInputElement>(null);
   const studentPickerRef = useRef<HTMLDivElement>(null);
+  const amountSectionRef = useRef<HTMLDivElement>(null);
+  const classSectionRef = useRef<HTMLDivElement>(null);
   const studentSearchInputRef = useRef<HTMLInputElement>(null);
   const studentListRef = useRef<HTMLDivElement>(null);
   const summaryRequestRef = useRef(0);
@@ -471,6 +473,18 @@ export function PaymentEntryClient({
     setActiveStudentOptionIndex(filteredStudents.findIndex((student) => student.id === selectedStudentId));
   }, [filteredStudents, selectedStudentId]);
 
+  function prefersReducedMotion() {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return false;
+    }
+
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  function smoothScrollBehavior() {
+    return prefersReducedMotion() ? "auto" : "smooth";
+  }
+
   function selectStudent(studentId: string) {
     setSelectedStudentId(studentId);
     setPaymentAmountInput("");
@@ -478,9 +492,12 @@ export function PaymentEntryClient({
     setIsStudentPickerOpen(false);
     setActiveStudentOptionIndex(-1);
     studentSearchInputRef.current?.blur();
-    setTimeout(() => {
-      amountInputRef.current?.focus();
-    }, 0);
+    amountSectionRef.current?.scrollIntoView({ block: "start", behavior: smoothScrollBehavior() });
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        amountInputRef.current?.focus();
+      }, 0);
+    });
   }
 
   function openConfirmationDialog() {
@@ -554,11 +571,12 @@ export function PaymentEntryClient({
         }
       />
 
+      <div ref={classSectionRef}>
       <SectionCard
         title="1. Select Class"
         description="Start with class, then choose the student."
       >
-        <div className="grid gap-3 md:grid-cols-[minmax(220px,320px)_1fr] md:items-end">
+        <div className="grid gap-2 md:gap-3 md:grid-cols-[minmax(220px,320px)_1fr] md:items-end">
           <div>
             <Label htmlFor="payment-class-id">Class</Label>
             <select
@@ -568,9 +586,25 @@ export function PaymentEntryClient({
               onChange={(event) => {
                 const nextClassId = event.target.value;
                 setSelectedClassId(nextClassId);
-                setIsStudentPickerOpen(false);
-                setActiveStudentOptionIndex(-1);
-                studentSearchInputRef.current?.blur();
+                if (nextClassId) {
+                  setIsStudentPickerOpen(true);
+                  setActiveStudentOptionIndex(0);
+                  setStudentListScrollTop(0);
+                  requestAnimationFrame(() => {
+                    studentListRef.current?.scrollTo({ top: 0 });
+                    studentPickerRef.current?.scrollIntoView({
+                      block: "start",
+                      behavior: smoothScrollBehavior(),
+                    });
+                    setTimeout(() => {
+                      studentSearchInputRef.current?.focus();
+                    }, prefersReducedMotion() ? 0 : 120);
+                  });
+                } else {
+                  setIsStudentPickerOpen(false);
+                  setActiveStudentOptionIndex(-1);
+                  studentSearchInputRef.current?.blur();
+                }
                 if (
                   selectedStudentId &&
                   data.studentIndex.some(
@@ -597,13 +631,14 @@ export function PaymentEntryClient({
           </p>
         </div>
       </SectionCard>
+      </div>
 
       <SectionCard
         title="2. Search Student"
         description="Use SR no, student name, father name, or phone number to reach the right student quickly."
       >
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2 md:space-y-4">
+              <div className="grid gap-2 md:gap-4 md:grid-cols-2">
             <div>
               <Label htmlFor="payment-student-query">Search</Label>
               <Input
@@ -824,6 +859,7 @@ export function PaymentEntryClient({
             </div>
           ) : null}
 
+          <div ref={amountSectionRef}>
           <SectionCard
             title="3. Fast Payment"
             description="Selected student, amount, mode, and confirm payment in one place."
@@ -838,7 +874,7 @@ export function PaymentEntryClient({
             ) : null}
             <form
               action={formAction}
-              className="space-y-4"
+              className="space-y-3 md:space-y-4"
               onSubmit={(event) => {
                 if (!isConfirmOpen) {
                   event.preventDefault();
@@ -867,12 +903,25 @@ export function PaymentEntryClient({
               ) : null}
               <fieldset
                 disabled={!canPost || isLockedAfterSuccess}
-                className="space-y-4 disabled:opacity-70"
+                className="space-y-3 md:space-y-4 disabled:opacity-70"
               >
                 <input type="hidden" name="studentId" value={selectedStudentId} />
                 <input type="hidden" name="clientRequestId" value={clientRequestId} />
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {studentSummaryLoading ? (
+                  <p className="rounded-md border border-blue-100 bg-blue-50 px-2 py-1 text-xs text-blue-900">Loading dues...</p>
+                ) : null}
+                {selectedStudent ? (
+                  <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                    <p className="font-semibold text-slate-900">{selectedStudent.fullName} · SR {selectedStudent.admissionNo}</p>
+                    <p>Pending: {formatInr(previewTotalPending)} · Overdue: {formatInr(previewOverdueAmount)}</p>
+                    <p>
+                      Next due: {previewNextDue ? `${previewNextDue.installmentLabel} (${formatInr(previewNextDue.outstandingAmount)})` : "No pending installment"}
+                    </p>
+                    {creditBalance > 0 ? <p className="font-semibold text-amber-900">Credit/refund to adjust: {formatInr(refundableAmount || creditBalance)}</p> : null}
+                  </div>
+                ) : null}
+                <div className="grid gap-3 md:gap-4 md:grid-cols-2 xl:grid-cols-3">
                   <div>
                     <Label htmlFor="payment-amount">Amount Received</Label>
                     <Input
@@ -883,6 +932,7 @@ export function PaymentEntryClient({
                       min={1}
                       max={previewTotalPending > 0 ? previewTotalPending : undefined}
                       className="mt-2"
+                      ref={amountInputRef}
                       value={paymentAmountInput}
                       onChange={(event) => {
                         setPaymentAmountInput(event.target.value);
@@ -890,9 +940,6 @@ export function PaymentEntryClient({
                       }}
                       required
                     />
-                    {studentSummaryLoading ? (
-                      <p className="mt-2 text-xs text-slate-500">Loading dues...</p>
-                    ) : null}
                     <div className="mt-2 flex flex-wrap gap-2 md:flex-wrap">
                       {quickAmounts.map((quickAmount) => (
                         <Button
@@ -1104,7 +1151,7 @@ export function PaymentEntryClient({
                   disabled={confirmDisabled}
                   onClick={openConfirmationDialog}
                 >
-                  Confirm Payment
+                  {paymentAmountInput ? "Confirm Payment" : "Enter amount to continue"}
                 </Button>
               </div>
 
@@ -1251,6 +1298,7 @@ export function PaymentEntryClient({
               ) : null}
             </form>
           </SectionCard>
+          </div>
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             {studentSummaryLoading && !selectedStudent ? (
               <>
