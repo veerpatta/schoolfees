@@ -969,7 +969,7 @@ export function PaymentEntryClient({
                     />
                     <p className="mt-1 text-xs text-slate-500">
                       {referenceRequired
-                        ? "Reference is required for UPI, bank transfer, and cheque payments."
+                        ? "Reference is optional but recommended for UPI, bank transfer, and cheque payments."
                         : "Reference is useful for matching bank/UPI records."}
                     </p>
                   </div>
