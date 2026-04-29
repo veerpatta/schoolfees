@@ -489,7 +489,7 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
       title: "Students found, dues missing",
       detail: "Students exist in the active fee setup session, but dues are not prepared yet.",
       tone: "warning",
-      actionHref: "/protected/advanced#fee-data-troubleshooting",
+      actionHref: "/protected/admin-tools#fee-data-troubleshooting",
       actionLabel: "Prepare missing dues",
     });
   }

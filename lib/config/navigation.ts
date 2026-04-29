@@ -96,7 +96,7 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
     requiredPermission: "reports:view",
   },
   {
-    href: "/protected/advanced",
+    href: "/protected/admin-tools",
     label: "Admin Tools",
     description: "Setup, corrections, and system checks.",
     icon: FolderCog,
@@ -163,26 +163,26 @@ const routeMetaItems: Array<
     description: "Excel downloads for students, dues, payments, and admin review.",
   },
   {
-    match: "/protected/advanced",
-    href: "/protected/advanced",
+    match: "/protected/admin-tools",
+    href: "/protected/admin-tools",
     label: "Admin Tools",
     description: "Rare setup, staff, correction, and troubleshooting tools.",
   },
   {
     match: "/protected/setup",
-    href: "/protected/advanced",
+    href: "/protected/admin-tools",
     label: "First-time Setup",
     description: "First-time go-live preparation, readiness, and completion review.",
   },
   {
     match: "/protected/master-data",
-    href: "/protected/advanced",
+    href: "/protected/admin-tools",
     label: "School Lists",
     description: "Sessions, classes, and routes kept in one place for admin upkeep.",
   },
   {
     match: "/protected/finance-controls",
-    href: "/protected/advanced",
+    href: "/protected/admin-tools",
     label: "Day Close & Corrections",
     description: "Day close, refunds, correction review, and finance-office controls.",
   },
@@ -206,19 +206,19 @@ const routeMetaItems: Array<
   },
   {
     match: "/protected/imports",
-    href: "/protected/advanced",
+    href: "/protected/admin-tools",
     label: "Import History",
     description: "Student spreadsheet upload history and review.",
   },
   {
     match: "/protected/staff",
-    href: "/protected/advanced",
+    href: "/protected/admin-tools",
     label: "Staff",
     description: "Internal staff accounts, role access, and password resets.",
   },
   {
     match: "/protected/settings",
-    href: "/protected/advanced",
+    href: "/protected/admin-tools",
     label: "App Settings",
     description: "School settings, system checks, and change history.",
   },
@@ -285,7 +285,7 @@ export function getVisibleProtectedNavigation(staffRole: StaffRole) {
     "/protected/exports",
     "/protected/fee-setup",
     "/protected/students",
-    "/protected/advanced",
+    "/protected/admin-tools",
   ];
 
   return [...visibleItems].sort((left, right) => {
@@ -430,7 +430,7 @@ export const advancedHubSections: readonly AdvancedHubSection[] = [
     description: "Prepare missing dues and fix fee records when daily pages need attention.",
     items: [
       {
-        href: "/protected/advanced#fee-data-troubleshooting",
+        href: "/protected/admin-tools#fee-data-troubleshooting",
         label: "Fee Data Troubleshooting",
         description: "Prepare missing dues, update fee records, and fix Payment Desk dues.",
         icon: FolderCog,

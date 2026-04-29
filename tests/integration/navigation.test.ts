@@ -46,16 +46,16 @@ describe("office navigation", () => {
   it("hides the advanced hub from read-only staff", () => {
     const items = getVisibleProtectedNavigation("read_only_staff");
 
-    expect(items.some((item) => item.href === "/protected/advanced")).toBe(false);
+    expect(items.some((item) => item.href === "/protected/admin-tools")).toBe(false);
   });
 
   it("labels the secondary admin hub as Admin Tools", () => {
     const items = getVisibleProtectedNavigation("admin");
-    const adminTools = items.find((item) => item.href === "/protected/advanced");
+    const adminTools = items.find((item) => item.href === "/protected/admin-tools");
 
     expect(adminTools?.label).toBe("Admin Tools");
-    expect(getProtectedRouteMeta("/protected/advanced")).toMatchObject({
-      href: "/protected/advanced",
+    expect(getProtectedRouteMeta("/protected/admin-tools")).toMatchObject({
+      href: "/protected/admin-tools",
       label: "Admin Tools",
     });
   });
@@ -99,22 +99,22 @@ describe("office navigation", () => {
       label: "Reports & Exports",
     });
     expect(getProtectedRouteMeta("/protected/imports")).toMatchObject({
-      href: "/protected/advanced",
+      href: "/protected/admin-tools",
       label: "Import History",
     });
   });
 
   it("uses plain admin labels for setup, lists, and settings", () => {
     expect(getProtectedRouteMeta("/protected/setup")).toMatchObject({
-      href: "/protected/advanced",
+      href: "/protected/admin-tools",
       label: "First-time Setup",
     });
     expect(getProtectedRouteMeta("/protected/master-data")).toMatchObject({
-      href: "/protected/advanced",
+      href: "/protected/admin-tools",
       label: "School Lists",
     });
     expect(getProtectedRouteMeta("/protected/settings")).toMatchObject({
-      href: "/protected/advanced",
+      href: "/protected/admin-tools",
       label: "App Settings",
     });
   });
