@@ -15,6 +15,7 @@ export type OfficeWorkflowReadinessInput = {
   ledgerReady: boolean;
   collectionDeskReady: boolean;
   setupReadyForCompletion: boolean;
+  missingBlockingItemKeys?: string[];
 };
 
 export type OfficeWorkflowGuard = {
@@ -76,6 +77,7 @@ export function buildOfficeWorkflowReadiness(
   input: OfficeWorkflowReadinessInput,
   role: StaffRole,
 ): OfficeWorkflowReadiness {
+  const missingItems = new Set(input.missingBlockingItemKeys ?? []);
   const addStudent = input.classCount > 0
     ? buildReadyGuard("add_student", {
         title: "Student entry is ready.",
@@ -132,27 +134,75 @@ export function buildOfficeWorkflowReadiness(
           actionHref: !input.hasStudents ? "/protected/imports" : "/protected/fee-setup",
         });
 
-  const paymentPostingReady =
-    input.collectionDeskReady || input.setupReadyForCompletion;
+  const paymentPostingReady = input.collectionDeskReady;
+
+  const postPaymentBlocker = (() => {
+    if (missingItems.has("fee_defaults_configured")) {
+      return {
+        title: "Fee defaults are required before payments",
+        adminDetail:
+          "School and class-wise defaults are incomplete for the active session. Save fee defaults before live collection.",
+        nonAdminDetail:
+          "Payment posting is waiting on admin setup. Fee defaults for the active session are still incomplete.",
+        actionLabel: input.classCount > 0 ? "Configure fee defaults" : "Open Fee Setup",
+        actionHref: input.classCount > 0 ? "/protected/fee-setup" : "/protected/setup#class-defaults",
+      };
+    }
+
+    if (missingItems.has("students_imported")) {
+      return {
+        title: "Students are required before payments",
+        adminDetail:
+          "No active-session students are available for collection. Import or add students before posting payments.",
+        nonAdminDetail:
+          "Payment posting is waiting on admin setup. Active-session student records are not ready yet.",
+        actionLabel: input.classCount > 0 ? "Open students" : "Open imports",
+        actionHref: input.classCount > 0 ? "/protected/students" : "/protected/imports",
+      };
+    }
+
+    if (missingItems.has("ledgers_generated")) {
+      return {
+        title: "Dues need recalculation before payments",
+        adminDetail:
+          "Students and fee setup exist, but installment dues are not in sync. Recalculate dues before live collection.",
+        nonAdminDetail:
+          "Payment posting is waiting on admin setup. Dues recalculation must be completed first.",
+        actionLabel: "Recalculate dues",
+        actionHref: "/protected/fee-setup/generate",
+      };
+    }
+
+    if (missingItems.size === 1 && missingItems.has("collection_desk_ready") && input.setupReadyForCompletion) {
+      return {
+        title: "Mark setup complete before live posting",
+        adminDetail:
+          "Core setup checks are complete. Mark setup complete to open the collection desk for live posting.",
+        nonAdminDetail:
+          "Payment posting is waiting on admin setup. The setup completion step is still pending.",
+        actionLabel: "Mark setup complete",
+        actionHref: "/protected/setup#complete",
+      };
+    }
+
+    return {
+      title: "Finish setup before posting payments.",
+      adminDetail:
+        "Clear the remaining setup blockers before opening the collection desk for live posting.",
+      nonAdminDetail:
+        "Payment posting is waiting on admin setup. The collection desk is not ready yet.",
+      actionLabel: null,
+      actionHref: null,
+    };
+  })();
 
   const postPayments = paymentPostingReady
     ? buildReadyGuard("post_payments", {
-        title: "Payment posting is ready.",
-        detail: input.collectionDeskReady
-          ? "Setup, student import, and dues preparation are complete for collection work."
-          : "Core setup checks are complete. You can start collections now and mark setup complete from Setup when convenient.",
+      title: "Payment posting is ready.",
+      detail:
+          "Setup, student import, and dues preparation are complete for collection work.",
       })
-    : buildGuard("post_payments", role, {
-        title: "Finish setup before posting payments.",
-        adminDetail:
-          input.setupReadyForCompletion
-            ? "Mark the setup stage complete after the final review, then start collections."
-            : "Clear the remaining setup blockers before opening the collection desk for live posting.",
-        nonAdminDetail:
-          "Payment posting is waiting on admin setup. The collection desk is not ready yet.",
-        actionLabel: input.setupReadyForCompletion ? "Mark setup complete" : "Go to Setup",
-        actionHref: input.setupReadyForCompletion ? "/protected/setup#complete" : "/protected/setup",
-      });
+    : buildGuard("post_payments", role, postPaymentBlocker);
 
   const reports =
     input.classCount > 0 && (input.hasStudents || input.hasFeeDefaults)
@@ -195,6 +245,7 @@ export function getOfficeWorkflowReadiness(
       ledgerReady: hasChecklistItem(setup.readiness, "ledgers_generated"),
       collectionDeskReady: setup.readiness.collectionDeskReady,
       setupReadyForCompletion: setup.readiness.readyForCompletion,
+      missingBlockingItemKeys: setup.readiness.missingBlockingItems.map((item) => item.key),
     },
     role,
   );
