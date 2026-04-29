@@ -219,6 +219,7 @@ Required runtime env:
 - `SUPABASE_SERVICE_ROLE_KEY` (server-only)
 - `NEXT_PUBLIC_SCHOOL_NAME`
 - `NEXT_PUBLIC_APP_MODE`
+- `OPENAI_MODEL` (optional, defaults to `gpt-5.5` in `lib/config/openai.ts`)
 
 Bootstrap script env (staff seeding):
 
