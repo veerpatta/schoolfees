@@ -132,10 +132,15 @@ export function buildOfficeWorkflowReadiness(
           actionHref: !input.hasStudents ? "/protected/imports" : "/protected/fee-setup",
         });
 
-  const postPayments = input.collectionDeskReady
+  const paymentPostingReady =
+    input.collectionDeskReady || input.setupReadyForCompletion;
+
+  const postPayments = paymentPostingReady
     ? buildReadyGuard("post_payments", {
         title: "Payment posting is ready.",
-        detail: "Setup, student import, and dues preparation are complete for collection work.",
+        detail: input.collectionDeskReady
+          ? "Setup, student import, and dues preparation are complete for collection work."
+          : "Core setup checks are complete. You can start collections now and mark setup complete from Setup when convenient.",
       })
     : buildGuard("post_payments", role, {
         title: "Finish setup before posting payments.",
