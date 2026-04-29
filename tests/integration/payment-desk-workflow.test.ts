@@ -281,6 +281,10 @@ describe("payment desk cashier workflow", () => {
     );
 
     expect(component).toContain("Confirm Payment");
+    expect(component).toContain("Collect");
+    expect(component).toContain("Dues Details");
+    expect(component).toContain("Recent Receipt");
+    expect(component).toContain("Notes");
     expect(component).toContain("Generate Receipt");
     expect(component).toContain("Posting payment...");
     expect(component).toContain("Payment Successful");
@@ -355,6 +359,7 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("previewLoading ||");
     expect(component).toContain("studentSummaryLoading ||");
     expect(component).toContain("Enter amount to continue");
+    expect(component).toContain("desktop-payment-class-id");
   });
 
   it("mobile navigation and payment entry remain optimized for fast cashier flow", () => {

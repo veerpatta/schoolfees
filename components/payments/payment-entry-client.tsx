@@ -167,6 +167,7 @@ export function PaymentEntryClient({
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
   const [isLockedAfterSuccess, setIsLockedAfterSuccess] = useState(false);
+  const [desktopPanelTab, setDesktopPanelTab] = useState<"collect" | "dues" | "receipt" | "notes">("collect");
   const [clientRequestId, setClientRequestId] = useState(createClientRequestId);
   const submittingRef = useRef(false);
   const amountInputRef = useRef<HTMLInputElement>(null);
@@ -571,7 +572,7 @@ export function PaymentEntryClient({
         }
       />
 
-      <div ref={classSectionRef}>
+      <div ref={classSectionRef} className="md:hidden">
       <SectionCard
         title="1. Select Class"
         description="Start with class, then choose the student."
@@ -635,6 +636,7 @@ export function PaymentEntryClient({
 
       <SectionCard
         title="2. Search Student"
+        className="md:hidden"
         description="Use SR no, student name, father name, or phone number to reach the right student quickly."
       >
             <div className="space-y-2 md:space-y-4">
@@ -789,6 +791,47 @@ export function PaymentEntryClient({
           ) : null}
         </div>
       </SectionCard>
+
+
+      <section className="hidden md:flex md:h-[calc(100vh-140px)] md:min-h-[640px] md:flex-col md:gap-3">
+        <div className="sticky top-0 z-10 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+          <div className="grid gap-2 lg:grid-cols-[180px_minmax(280px,1fr)_170px_170px_auto]">
+            <select id="desktop-payment-class-id" value={selectedClassId} className={selectClassName} onChange={(event)=>{const nextClassId=event.target.value;setSelectedClassId(nextClassId);if(nextClassId){setIsStudentPickerOpen(true);setActiveStudentOptionIndex(0);setStudentListScrollTop(0);requestAnimationFrame(()=>{studentListRef.current?.scrollTo({ top: 0 });setTimeout(()=>studentSearchInputRef.current?.focus(),0);});}}}>
+              <option value="">Class</option>{classOptions.map((classOption)=><option key={classOption.id} value={classOption.id}>{classOption.label}</option>)}
+            </select>
+            <div ref={studentPickerRef} className="relative">
+              <Input ref={studentSearchInputRef} role="combobox" aria-expanded={isStudentPickerOpen} aria-controls={studentListId} aria-activedescendant={activeStudentOptionIndex >= 0 ? `${studentListId}-option-${activeStudentOptionIndex}` : undefined} aria-autocomplete="list" placeholder="Search student" value={studentSearchQuery} onFocus={()=>setIsStudentPickerOpen(true)} onChange={(event)=>{setStudentSearchQuery(event.target.value);setIsStudentPickerOpen(true);setStudentListScrollTop(0);setActiveStudentOptionIndex(0);}} />
+              {isStudentPickerOpen ? (
+                <div id={studentListId} role="listbox" ref={studentListRef} className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-md border border-slate-200 bg-white shadow-lg" style={{ height: `${studentComboboxPanelHeight}px` }} onScroll={(event) => setStudentListScrollTop(event.currentTarget.scrollTop)}>
+                  {filteredStudents.length === 0 ? <p className="px-3 py-3 text-sm text-slate-600">No matching students.</p> : <div style={{ paddingTop: topVisibleOffset, paddingBottom: bottomVisibleOffset }}>{visibleStudentOptions.map((student,index)=>{const optionIndex=firstVisibleStudentIndex+index;const label=buildStudentSelectLabel({ ...student, pendingAmount: null });const isActive=optionIndex===activeStudentOptionIndex;const isSelected=selectedStudentId===student.id;return <button key={student.id} id={`${studentListId}-option-${optionIndex}`} role="option" aria-selected={isSelected} type="button" className={`flex min-h-12 w-full items-center border-b border-slate-100 px-3 py-2 text-left text-sm last:border-b-0 ${isActive ? "bg-blue-50 text-blue-900" : "bg-white text-slate-800 hover:bg-slate-50"}`} onMouseDown={(event)=>event.preventDefault()} onClick={()=>selectStudent(student.id)}>{label}</button>;})}</div>}
+                </div>
+              ) : null}
+            </div>
+            <Input id="desktop-payment-amount" type="number" inputMode="decimal" min={1} max={previewTotalPending > 0 ? previewTotalPending : undefined} ref={amountInputRef} placeholder="Amount" value={paymentAmountInput} onChange={(event)=>{setPaymentAmountInput(event.target.value);setFormError(null);}} />
+            <select id="desktop-payment-mode" className={selectClassName} value={paymentMode} onChange={(event)=>{setPaymentMode(event.target.value as typeof paymentMode);setFormError(null);}}>{data.modeOptions.map((modeOption)=><option key={modeOption.value} value={modeOption.value}>{modeOption.label}</option>)}</select>
+            <Button type="button" disabled={confirmDisabled} onClick={openConfirmationDialog}>Confirm Payment</Button>
+          </div>
+        </div>
+        <div className="grid min-h-0 flex-1 grid-cols-[minmax(320px,420px)_1fr] gap-3">
+          <div className="min-h-0 overflow-y-auto rounded-lg border border-slate-200 bg-white p-3 text-sm">
+            <p className="mb-2 font-medium">Students</p>
+            <p className="text-xs text-slate-500">Select class, then pick student.</p>
+            {selectedStudentIndexItem ? <p className="mt-2 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs">Selected: {selectedStudent?.fullName ?? selectedStudentIndexItem.fullName}</p> : null}
+          </div>
+          <div className="min-h-0 overflow-y-auto rounded-lg border border-slate-200 bg-white p-3">
+            <div className="mb-2 flex gap-2 text-sm">
+              <button type="button" className="rounded border px-2 py-1" onClick={()=>setDesktopPanelTab("collect")}>Collect</button>
+              <button type="button" className="rounded border px-2 py-1" onClick={()=>setDesktopPanelTab("dues")}>Dues Details</button>
+              <button type="button" className="rounded border px-2 py-1" onClick={()=>setDesktopPanelTab("receipt")}>Recent Receipt</button>
+              <button type="button" className="rounded border px-2 py-1" onClick={()=>setDesktopPanelTab("notes")}>Notes</button>
+            </div>
+            {desktopPanelTab === "collect" ? <div className="space-y-2 text-sm"><p className="font-semibold">{selectedStudent?.fullName ?? "Select student"}</p><p>Class: {selectedStudent?.classLabel ?? "-"} · SR {selectedStudent?.admissionNo ?? "-"}</p><p>Pending amount: {formatInr(previewTotalPending)}</p><p>Overdue amount: {formatInr(previewOverdueAmount)}</p><p>Next due amount: {formatInr(previewNextDue?.outstandingAmount ?? 0)}</p><div className="flex flex-wrap gap-2">{quickAmounts.map((quickAmount)=><Button key={quickAmount.key} type="button" size="sm" variant="outline" disabled={quickAmount.disabled} onClick={()=>setPaymentAmountInput(quickAmount.amount===null?"":String(quickAmount.amount))}>{quickAmount.label}</Button>)}</div><Input placeholder="Reference number" value={referenceNumber} onChange={(e)=>setReferenceNumber(e.target.value)} /><Input placeholder="Received by" value={receivedBy} onChange={(e)=>setReceivedBy(e.target.value)} /><Button type="button" disabled={confirmDisabled} onClick={openConfirmationDialog}>Confirm Payment</Button></div> : null}
+            {desktopPanelTab === "dues" ? <div className="text-sm"><p className="mb-2 font-medium">Installment breakdown</p><p className="text-xs text-slate-600">Preview allocated: {formatInr(allocatedPreviewTotal)} · Unallocated: {formatInr(unallocatedAmount)}</p></div> : null}
+            {desktopPanelTab === "receipt" ? <div className="text-sm">{latestPayment ? <><p>Latest receipt number: {latestPayment.receiptNumber}</p><p>Payment date: {latestPayment.paymentDate}</p><p>Amount: {formatInr(latestPayment.totalAmount)}</p><Link className="text-blue-700 underline" href={`/protected/receipts/${latestPayment.id}`}>Open/Print receipt</Link></> : <p>No recent receipt.</p>}</div> : null}
+            {desktopPanelTab === "notes" ? <div className="space-y-2 text-sm"><p>Remarks</p><textarea className={textAreaClassName} value={remarks} onChange={(event)=>setRemarks(event.target.value)} /><p className="text-xs text-slate-500">Reference helper: keep UPI/bank/cheque reference for reconciliation.</p>{canViewDiagnostics ? <p className="text-xs text-slate-500">Diagnostics visible for admin only.</p> : null}</div> : null}
+          </div>
+        </div>
+      </section>
 
       {workflowGuard ? (
         <WorkflowGuard
