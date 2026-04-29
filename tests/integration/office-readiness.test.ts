@@ -12,6 +12,7 @@ describe("office workflow readiness", () => {
         ledgerReady: false,
         collectionDeskReady: false,
         setupReadyForCompletion: false,
+        missingBlockingItemKeys: [],
       },
       "admin",
     );
@@ -29,6 +30,7 @@ describe("office workflow readiness", () => {
         ledgerReady: false,
         collectionDeskReady: false,
         setupReadyForCompletion: false,
+        missingBlockingItemKeys: [],
       },
       "accountant",
     );
@@ -47,6 +49,7 @@ describe("office workflow readiness", () => {
         ledgerReady: false,
         collectionDeskReady: false,
         setupReadyForCompletion: false,
+        missingBlockingItemKeys: ["ledgers_generated"],
       },
       "read_only_staff",
     );
@@ -65,6 +68,7 @@ describe("office workflow readiness", () => {
         ledgerReady: false,
         collectionDeskReady: false,
         setupReadyForCompletion: false,
+        missingBlockingItemKeys: ["fee_defaults_configured"],
       },
       "admin",
     );
@@ -73,7 +77,63 @@ describe("office workflow readiness", () => {
     expect(readiness.recalculateLedgers.actionHref).toBe("/protected/fee-setup");
   });
 
-  it("marks payment posting ready only when the collection desk is ready", () => {
+  it("points missing ledgers blocker to dues recalculation", () => {
+    const readiness = buildOfficeWorkflowReadiness(
+      {
+        classCount: 12,
+        hasFeeDefaults: true,
+        hasStudents: true,
+        ledgerReady: false,
+        collectionDeskReady: false,
+        setupReadyForCompletion: true,
+        missingBlockingItemKeys: ["ledgers_generated", "collection_desk_ready"],
+      },
+      "admin",
+    );
+
+    expect(readiness.postPayments.isReady).toBe(false);
+    expect(readiness.postPayments.title).toBe("Dues need recalculation before payments");
+    expect(readiness.postPayments.actionHref).toBe("/protected/fee-setup/generate");
+  });
+
+  it("points completion-ready setups to setup completion", () => {
+    const readiness = buildOfficeWorkflowReadiness(
+      {
+        classCount: 12,
+        hasFeeDefaults: true,
+        hasStudents: true,
+        ledgerReady: true,
+        collectionDeskReady: false,
+        setupReadyForCompletion: true,
+        missingBlockingItemKeys: ["collection_desk_ready"],
+      },
+      "admin",
+    );
+
+    expect(readiness.postPayments.isReady).toBe(false);
+    expect(readiness.postPayments.actionHref).toBe("/protected/setup#complete");
+    expect(readiness.postPayments.actionLabel).toBe("Mark setup complete");
+  });
+
+  it("points missing class defaults to fee setup", () => {
+    const readiness = buildOfficeWorkflowReadiness(
+      {
+        classCount: 12,
+        hasFeeDefaults: false,
+        hasStudents: true,
+        ledgerReady: false,
+        collectionDeskReady: false,
+        setupReadyForCompletion: false,
+        missingBlockingItemKeys: ["fee_defaults_configured", "ledgers_generated"],
+      },
+      "admin",
+    );
+
+    expect(readiness.postPayments.isReady).toBe(false);
+    expect(readiness.postPayments.actionHref).toBe("/protected/fee-setup");
+  });
+
+  it("marks payment posting ready when operational and completion checks are complete", () => {
     const readiness = buildOfficeWorkflowReadiness(
       {
         classCount: 12,
@@ -82,6 +142,7 @@ describe("office workflow readiness", () => {
         ledgerReady: true,
         collectionDeskReady: true,
         setupReadyForCompletion: true,
+        missingBlockingItemKeys: [],
       },
       "admin",
     );

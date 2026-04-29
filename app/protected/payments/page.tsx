@@ -45,11 +45,15 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
   const readiness = getOfficeWorkflowReadiness(setup, staff.appRole);
   const canPostPayments =
     hasStaffPermission(staff, "payments:write") && readiness.postPayments.isReady;
+  const canRepairOrPrepareDues =
+    hasStaffPermission(staff, "payments:write") &&
+    staff.appRole === "admin" &&
+    readiness.recalculateLedgers.isReady;
   const data = await getPaymentEntryPageData({
     searchQuery: "",
     studentId,
     classId: classId ?? undefined,
-    autoPrepareMissingDues: canPostPayments,
+    autoPrepareMissingDues: canRepairOrPrepareDues,
   });
 
   return (
