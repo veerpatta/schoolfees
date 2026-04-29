@@ -108,7 +108,7 @@ describe("read-only UX audit implementation", () => {
 
   it("dashboard hides repair console and Admin Tools owns fee data troubleshooting", () => {
     const dashboard = readRepoFile("app/protected/dashboard/page.tsx");
-    const advanced = readRepoFile("app/protected/advanced/page.tsx");
+    const advanced = readRepoFile("app/protected/admin-tools/page.tsx");
     const navigation = readRepoFile("lib/config/navigation.ts");
 
     expect(dashboard).not.toContain("System Sync Health");

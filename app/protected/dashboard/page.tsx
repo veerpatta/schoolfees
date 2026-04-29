@@ -621,7 +621,7 @@ function FeeDataAttentionBanner({
         <div className="flex flex-wrap gap-2">
           <StatusBadge label="Needs attention" tone="warning" />
           <Button asChild size="sm">
-            <Link href="/protected/advanced#fee-data-troubleshooting">
+            <Link href="/protected/admin-tools#fee-data-troubleshooting">
               Open Fee Data Troubleshooting
             </Link>
           </Button>
@@ -730,7 +730,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         >
           <div className="grid gap-3 md:grid-cols-4">
             <Button asChild variant="outline">
-              <Link href="/protected/advanced#fee-data-troubleshooting">Prepare missing dues</Link>
+              <Link href="/protected/admin-tools#fee-data-troubleshooting">Prepare missing dues</Link>
             </Button>
             <Button asChild variant="outline">
               <Link href="/protected/students">Open Students</Link>

@@ -747,7 +747,7 @@ async function tryAutoPrepareSelectedStudentDues(payload: {
       detail:
         "Dues records already exist, but Payment Desk could not load payable balances. Ask an admin to run Fee Data Status before posting.",
       actionLabel: "Open Fee Data Status",
-      actionHref: "/protected/advanced",
+      actionHref: "/protected/admin-tools",
     };
   }
 
