@@ -160,6 +160,8 @@ export function PaymentEntryClient({
   const [summaryRefreshToken, setSummaryRefreshToken] = useState(0);
   const [paymentMode, setPaymentMode] = useState(data.modeOptions[0]?.value ?? "cash");
   const [referenceNumber, setReferenceNumber] = useState("");
+  const [waiveLateFee, setWaiveLateFee] = useState(false);
+  const [additionalDiscount, setAdditionalDiscount] = useState("");
   const [receivedBy, setReceivedBy] = useState(defaultReceivedBy);
   const [remarks, setRemarks] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -229,6 +231,9 @@ export function PaymentEntryClient({
     .reduce((sum, item) => sum + item.outstandingAmount, 0);
   const previewNextDue =
     previewBreakdown.find((item) => item.outstandingAmount > 0) ?? null;
+  const totalPendingLateFee = previewBreakdown
+    .filter((item) => item.outstandingAmount > 0)
+    .reduce((sum, item) => sum + item.finalLateFee, 0);
   const paymentAmount = Number(paymentAmountInput) || 0;
   const referenceRequired = paymentModeNeedsReference(paymentMode);
   const creditBalance = selectedStudent?.creditBalance ?? 0;
@@ -493,7 +498,6 @@ export function PaymentEntryClient({
     setIsStudentPickerOpen(false);
     setActiveStudentOptionIndex(-1);
     studentSearchInputRef.current?.blur();
-    amountSectionRef.current?.scrollIntoView({ block: "start", behavior: smoothScrollBehavior() });
     requestAnimationFrame(() => {
       setTimeout(() => {
         amountInputRef.current?.focus();
@@ -535,6 +539,8 @@ export function PaymentEntryClient({
     setPaymentAmountInput(resetValues.amountInput);
     setReferenceNumber(resetValues.referenceNumber);
     setRemarks(resetValues.remarks);
+    setWaiveLateFee(false);
+    setAdditionalDiscount("");
     setPaymentMode(resetValues.paymentMode as typeof paymentMode);
     setReceivedBy(resetValues.receivedBy);
     setClientRequestId(createClientRequestId());
@@ -593,10 +599,6 @@ export function PaymentEntryClient({
                   setStudentListScrollTop(0);
                   requestAnimationFrame(() => {
                     studentListRef.current?.scrollTo({ top: 0 });
-                    studentPickerRef.current?.scrollIntoView({
-                      block: "start",
-                      behavior: smoothScrollBehavior(),
-                    });
                     setTimeout(() => {
                       studentSearchInputRef.current?.focus();
                     }, prefersReducedMotion() ? 0 : 120);
@@ -950,6 +952,9 @@ export function PaymentEntryClient({
               >
                 <input type="hidden" name="studentId" value={selectedStudentId} />
                 <input type="hidden" name="clientRequestId" value={clientRequestId} />
+                <input type="hidden" name="waiveLateFee" value={waiveLateFee ? "1" : "0"} />
+                <input type="hidden" name="lateFeeWaiveAmount" value={waiveLateFee ? String(totalPendingLateFee) : "0"} />
+                <input type="hidden" name="additionalDiscount" value={additionalDiscount} />
 
                 {studentSummaryLoading ? (
                   <p className="rounded-md border border-blue-100 bg-blue-50 px-2 py-1 text-xs text-blue-900">Loading dues...</p>
@@ -1078,12 +1083,7 @@ export function PaymentEntryClient({
                     />
                   </div>
                 </div>
-                {referenceRequired ? (
-                  <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
-                    Confirm this reference number carefully before posting. It is used for UPI, bank transfer, and cheque tracking.
-                  </p>
-                ) : null}
-
+                
                 <div>
                   <Label htmlFor="payment-remarks">Remarks</Label>
                   <textarea
@@ -1236,6 +1236,16 @@ export function PaymentEntryClient({
                           ))}
                         </tbody>
                       </table>
+                    </div>
+                    <div className="mt-4 space-y-3 rounded-lg border border-slate-200 p-3 text-sm">
+                      <label className="flex items-center gap-2">
+                        <input type="checkbox" checked={waiveLateFee} onChange={(event)=>setWaiveLateFee(event.target.checked)} />
+                        Waive pending late fee for this payment ({formatInr(totalPendingLateFee)})
+                      </label>
+                      <div>
+                        <Label htmlFor="confirm-additional-discount">Additional discount</Label>
+                        <Input id="confirm-additional-discount" type="number" min={0} value={additionalDiscount} onChange={(event)=>setAdditionalDiscount(event.target.value)} placeholder="0" className="mt-1" />
+                      </div>
                     </div>
                     <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                       This will save the receipt once. Posted receipts stay in history.
