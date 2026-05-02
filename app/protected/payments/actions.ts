@@ -87,10 +87,11 @@ function parseWholeNumberOptional(value: FormDataEntryValue | null, fieldLabel: 
 async function applyPaymentDeskOverrides(payload: {
   studentId: string;
   waiveLateFee: boolean;
+  lateFeeWaiveAmount: number;
   additionalDiscount: number;
 }) {
   if (!payload.waiveLateFee && payload.additionalDiscount <= 0) return;
-  const supabase = await createClient();
+  const [policy, supabase] = await Promise.all([getFeePolicySummary(), createClient()]);
   const { data: existing } = await supabase
     .from("student_fee_overrides")
     .select("custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, late_fee_waiver_amount, discount_amount, student_type_override, transport_applies_override, notes")
@@ -105,11 +106,13 @@ async function applyPaymentDeskOverrides(payload: {
     customBooksFeeAmount: existing?.custom_books_fee_amount ?? null,
     customAdmissionActivityMiscFeeAmount: existing?.custom_admission_activity_misc_fee_amount ?? null,
     customFeeHeadAmounts: existing?.custom_other_fee_heads ?? {},
-    customFeeHeads: [],
+    customFeeHeads: policy.customFeeHeads,
     customLateFeeFlatAmount: existing?.custom_late_fee_flat_amount ?? null,
     otherAdjustmentHead: existing?.other_adjustment_head ?? null,
     otherAdjustmentAmount: existing?.other_adjustment_amount ?? null,
-    lateFeeWaiverAmount: payload.waiveLateFee ? 1000 : (existing?.late_fee_waiver_amount ?? 0),
+    lateFeeWaiverAmount: payload.waiveLateFee
+      ? Math.max((existing?.late_fee_waiver_amount ?? 0) + payload.lateFeeWaiveAmount, 0)
+      : (existing?.late_fee_waiver_amount ?? 0),
     discountAmount: (existing?.discount_amount ?? 0) + payload.additionalDiscount,
     studentTypeOverride: existing?.student_type_override ?? null,
     transportAppliesOverride: existing?.transport_applies_override ?? null,
@@ -169,8 +172,9 @@ export async function submitPaymentEntryAction(
     const receivedBy = parseRequiredString(formData.get("receivedBy"), "Received by");
     const waiveLateFee = (formData.get("waiveLateFee") ?? "0").toString() === "1";
     const additionalDiscount = parseWholeNumberOptional(formData.get("additionalDiscount"), "Additional discount");
+    const lateFeeWaiveAmount = parseWholeNumberOptional(formData.get("lateFeeWaiveAmount"), "Late fee waiver");
 
-    await applyPaymentDeskOverrides({ studentId, waiveLateFee, additionalDiscount });
+    await applyPaymentDeskOverrides({ studentId, waiveLateFee, lateFeeWaiveAmount, additionalDiscount });
 
     const receipt = await postStudentPayment({
       studentId,

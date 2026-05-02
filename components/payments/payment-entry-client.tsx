@@ -231,6 +231,9 @@ export function PaymentEntryClient({
     .reduce((sum, item) => sum + item.outstandingAmount, 0);
   const previewNextDue =
     previewBreakdown.find((item) => item.outstandingAmount > 0) ?? null;
+  const totalPendingLateFee = previewBreakdown
+    .filter((item) => item.outstandingAmount > 0)
+    .reduce((sum, item) => sum + item.finalLateFee, 0);
   const paymentAmount = Number(paymentAmountInput) || 0;
   const referenceRequired = paymentModeNeedsReference(paymentMode);
   const creditBalance = selectedStudent?.creditBalance ?? 0;
@@ -536,6 +539,8 @@ export function PaymentEntryClient({
     setPaymentAmountInput(resetValues.amountInput);
     setReferenceNumber(resetValues.referenceNumber);
     setRemarks(resetValues.remarks);
+    setWaiveLateFee(false);
+    setAdditionalDiscount("");
     setPaymentMode(resetValues.paymentMode as typeof paymentMode);
     setReceivedBy(resetValues.receivedBy);
     setClientRequestId(createClientRequestId());
@@ -948,6 +953,7 @@ export function PaymentEntryClient({
                 <input type="hidden" name="studentId" value={selectedStudentId} />
                 <input type="hidden" name="clientRequestId" value={clientRequestId} />
                 <input type="hidden" name="waiveLateFee" value={waiveLateFee ? "1" : "0"} />
+                <input type="hidden" name="lateFeeWaiveAmount" value={waiveLateFee ? String(totalPendingLateFee) : "0"} />
                 <input type="hidden" name="additionalDiscount" value={additionalDiscount} />
 
                 {studentSummaryLoading ? (
@@ -1234,7 +1240,7 @@ export function PaymentEntryClient({
                     <div className="mt-4 space-y-3 rounded-lg border border-slate-200 p-3 text-sm">
                       <label className="flex items-center gap-2">
                         <input type="checkbox" checked={waiveLateFee} onChange={(event)=>setWaiveLateFee(event.target.checked)} />
-                        Waive late fee for this payment
+                        Waive pending late fee for this payment ({formatInr(totalPendingLateFee)})
                       </label>
                       <div>
                         <Label htmlFor="confirm-additional-discount">Additional discount</Label>
