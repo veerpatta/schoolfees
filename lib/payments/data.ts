@@ -233,7 +233,7 @@ export function toFriendlyPaymentPostingError(error: unknown) {
   }
 
   if (normalized.includes("reference number is required")) {
-    return "Reference number is optional. Please try posting the payment again.";
+    return "Reference number is required for UPI, bank transfer, and cheque payments.";
   }
 
   if (normalized.includes("no pending dues") || normalized.includes("total_outstanding")) {
@@ -570,6 +570,8 @@ export async function preflightPaymentPosting(payload: {
   studentId: string;
   paymentDate: string;
   paymentAmount: number;
+  quickDiscountAmount?: number;
+  quickLateFeeWaiverAmount?: number;
 }) {
   const context = await getSelectedStudentPreflightContext(payload.studentId);
   let installmentCount = context.installmentCount;
@@ -679,17 +681,25 @@ export async function preflightPaymentPosting(payload: {
     );
   }
 
-  if (payload.paymentAmount > previewPendingAmount) {
+  const quickDiscountApplied = Math.max(payload.quickDiscountAmount ?? 0, 0);
+  const quickLateFeeWaiverApplied = Math.max(payload.quickLateFeeWaiverAmount ?? 0, 0);
+  const revisedPendingBeforePayment = Math.max(
+    previewPendingAmount - quickDiscountApplied - quickLateFeeWaiverApplied,
+    0,
+  );
+
+  if (payload.paymentAmount > revisedPendingBeforePayment) {
     throw new PaymentPostingPreflightError(
       "Payment amount is more than pending dues.",
       buildPaymentDiagnostic({
         ...baseDiagnostic,
         installmentCount,
         previewPendingAmount,
+        revisedPendingAmount: revisedPendingBeforePayment,
         previewWorked: true,
         autoPrepareAttempted,
         autoPrepareWorked,
-        reason: "payment_amount_exceeds_preview_pending",
+        reason: "payment_amount_exceeds_revised_pending",
       }),
     );
   }
@@ -698,6 +708,7 @@ export async function preflightPaymentPosting(payload: {
     ...baseDiagnostic,
     installmentCount,
     previewPendingAmount,
+    revisedPendingAmount: revisedPendingBeforePayment,
     previewWorked: true,
     autoPrepareAttempted,
     autoPrepareWorked,
@@ -952,6 +963,8 @@ export async function postStudentPayment(payload: {
     studentId: payload.studentId,
     paymentDate: payload.paymentDate,
     paymentAmount: payload.paymentAmount,
+    quickDiscountAmount: payload.quickDiscountAmount ?? 0,
+    quickLateFeeWaiverAmount: payload.quickLateFeeWaiverAmount ?? 0,
   });
   const duplicateReceipt = await findLikelyDuplicateReceipt({
     studentId: payload.studentId,
@@ -1006,7 +1019,7 @@ export async function postStudentPayment(payload: {
     receiptId: row.receipt_id,
     receiptNumber: row.receipt_number,
     allocatedTotal: row.allocated_total,
-    remainingBalance: Math.max((preflightDiagnostic.previewPendingAmount ?? 0) - payload.paymentAmount, 0),
+    remainingBalance: Math.max((preflightDiagnostic.revisedPendingAmount ?? 0) - payload.paymentAmount, 0),
   };
 }
 

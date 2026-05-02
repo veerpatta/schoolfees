@@ -94,6 +94,10 @@ type WorkbookFinancialRow = {
   total_paid: number;
   outstanding_amount: number;
 };
+type ReceiptFinanceAdjustmentRow = {
+  quick_discount_amount: number;
+  quick_late_fee_waiver_amount: number;
+};
 
 type UserRow = {
   id: string;
@@ -247,6 +251,7 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     { data: userRaw, error: userError },
     { data: financialRaw, error: financialError },
     { data: studentReceiptsRaw, error: studentReceiptsError },
+    { data: receiptAdjustmentRaw, error: receiptAdjustmentError },
   ] = await Promise.all([
     supabase
       .from("payments")
@@ -269,6 +274,11 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
       .eq("student_id", receipt.student_id)
       .order("payment_date", { ascending: true })
       .order("created_at", { ascending: true }),
+    supabase
+      .from("receipt_finance_adjustments")
+      .select("quick_discount_amount, quick_late_fee_waiver_amount")
+      .eq("receipt_id", receipt.id)
+      .maybeSingle(),
   ]);
 
   if (paymentsError) {
@@ -285,6 +295,9 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
 
   if (studentReceiptsError) {
     throw new Error(`Unable to load receipt history: ${studentReceiptsError.message}`);
+  }
+  if (receiptAdjustmentError && !receiptAdjustmentError.message.includes("does not exist")) {
+    throw new Error(`Unable to load receipt adjustment details: ${receiptAdjustmentError.message}`);
   }
 
   const breakdown: ReceiptBreakdownItem[] = ((paymentsRaw ?? []) as ReceiptPaymentRow[])
@@ -311,6 +324,7 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
   const createdByName = (userRaw as UserRow | null)?.full_name ?? null;
   const financial = (financialRaw ?? null) as WorkbookFinancialRow | null;
   const studentReceipts = (studentReceiptsRaw ?? []) as HistoricalReceiptRow[];
+  const receiptAdjustment = (receiptAdjustmentRaw ?? null) as ReceiptFinanceAdjustmentRow | null;
   const currentReceiptIndex = studentReceipts.findIndex((row) => row.id === receipt.id);
   const receiptsUpToCurrent = currentReceiptIndex === -1 ? [] : studentReceipts.slice(0, currentReceiptIndex + 1);
   const receiptsBeforeCurrent = currentReceiptIndex <= 0 ? [] : studentReceipts.slice(0, currentReceiptIndex);
@@ -344,9 +358,9 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     totalPaidToDate,
     outstandingAfterReceipt,
     currentOutstanding: financial?.outstanding_amount ?? outstandingAfterReceipt,
-    discountAmount: financial?.discount_amount ?? 0,
+    discountAmount: receiptAdjustment?.quick_discount_amount ?? 0,
     lateFeeAmount: financial?.late_fee_total ?? 0,
-    lateFeeWaived: financial?.late_fee_waiver_amount ?? 0,
+    lateFeeWaived: receiptAdjustment?.quick_late_fee_waiver_amount ?? 0,
     breakdown,
   };
 }

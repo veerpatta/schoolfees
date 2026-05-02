@@ -262,6 +262,8 @@ export function PaymentEntryClient({
       studentId: selectedStudentId,
       paymentDate,
       includeLatestReceipt: "false",
+      quickDiscountAmount: String(quickDiscountAmount),
+      quickLateFeeWaiverAmount: String(quickLateFeeWaiverAmount),
     });
 
     setStudentSummaryLoading(true);
@@ -322,7 +324,7 @@ export function PaymentEntryClient({
     return () => {
       controller.abort();
     };
-  }, [paymentDate, selectedStudentId, summaryRefreshToken]);
+  }, [paymentDate, quickDiscountAmount, quickLateFeeWaiverAmount, selectedStudentId, summaryRefreshToken]);
 
   const allocationPreview = useMemo(() => {
     if (!selectedStudent) {
@@ -420,7 +422,7 @@ export function PaymentEntryClient({
       : null;
   const whatsappCopy =
     state.status === "success" && state.receiptNumber && selectedStudent
-      ? `Dear Parent, payment of ${formatInr(paymentAmount)} has been received for ${selectedStudent.fullName} (${selectedStudent.classLabel}). Receipt No: ${state.receiptNumber}. Thank you - Shri Veer Patta Senior Secondary School.`
+      ? `Dear Parent, Payment received: ${formatInr(paymentAmount)}.${quickDiscountAmount > 0 ? ` Discount applied: ${formatInr(quickDiscountAmount)}.` : ""}${quickLateFeeWaiverAmount > 0 ? ` Late fee waived: ${formatInr(quickLateFeeWaiverAmount)}.` : ""} Receipt No: ${state.receiptNumber}. Thank you - Shri Veer Patta Senior Secondary School.`
       : "";
 
   useEffect(() => {
@@ -1299,7 +1301,9 @@ export function PaymentEntryClient({
                       <span>Student name: {selectedStudent.fullName}</span>
                       <span>SR/admission no: {selectedStudent.admissionNo}</span>
                       <span>Class: {selectedStudent.classLabel}</span>
-                      <span>Amount received: {formatInr(state.amountReceived ?? paymentAmount)}</span>
+                      <span>Payment received: {formatInr(state.amountReceived ?? paymentAmount)}</span>
+                      {quickDiscountAmount > 0 ? <span>Discount applied: {formatInr(quickDiscountAmount)}</span> : null}
+                      {quickLateFeeWaiverAmount > 0 ? <span>Late fee waived: {formatInr(quickLateFeeWaiverAmount)}</span> : null}
                       <span>Payment date: {state.paymentDate ?? paymentDate}</span>
                       <span>Payment mode: {postedPaymentModeLabel}</span>
                       <span>Reference number: {state.referenceNumber ?? "Not entered"}</span>

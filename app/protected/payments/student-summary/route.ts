@@ -19,6 +19,10 @@ function normalizePaymentDate(value: string | null) {
 function normalizeIncludeLatestReceipt(value: string | null) {
   return (value ?? "").trim().toLowerCase() !== "false";
 }
+function normalizeWhole(value: string | null) {
+  const n = Number((value ?? "").trim());
+  return Number.isInteger(n) && n >= 0 ? n : 0;
+}
 
 export async function GET(request: NextRequest) {
   await requireStaffPermission("payments:view");
@@ -27,6 +31,8 @@ export async function GET(request: NextRequest) {
   const includeLatestReceipt = normalizeIncludeLatestReceipt(
     request.nextUrl.searchParams.get("includeLatestReceipt"),
   );
+  const quickDiscountAmount = normalizeWhole(request.nextUrl.searchParams.get("quickDiscountAmount"));
+  const quickLateFeeWaiverAmount = normalizeWhole(request.nextUrl.searchParams.get("quickLateFeeWaiverAmount"));
 
   if (!studentId || !paymentDate) {
     return Response.json(
@@ -43,7 +49,20 @@ export async function GET(request: NextRequest) {
       includeLatestReceipt,
     });
 
-    return Response.json(summary);
+    const pendingBeforeQuickDiscount = summary.student?.totalPending ?? 0;
+    const revisedPendingBeforePayment = Math.max(
+      pendingBeforeQuickDiscount - quickDiscountAmount - quickLateFeeWaiverAmount,
+      0,
+    );
+    return Response.json({
+      ...summary,
+      payablePreview: {
+        pendingBeforeQuickDiscount,
+        quickDiscountApplied: quickDiscountAmount,
+        lateFeeWaivedApplied: quickLateFeeWaiverAmount,
+        revisedPendingBeforePayment,
+      },
+    });
   } catch (error) {
     return Response.json(
       {
