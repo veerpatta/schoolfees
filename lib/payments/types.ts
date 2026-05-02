@@ -40,6 +40,7 @@ export type PaymentPostingDiagnostic = {
   studentClassSession: string | null;
   installmentCount: number | null;
   previewPendingAmount: number | null;
+  revisedPendingAmount?: number | null;
   selectedPaymentDate: string | null;
   previewWorked: boolean;
   postStudentPaymentWorked: boolean;

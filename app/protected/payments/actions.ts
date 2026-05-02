@@ -4,8 +4,6 @@ import { redirect } from "next/navigation";
 
 import type { PaymentMode } from "@/lib/db/types";
 import { getFeePolicySummary } from "@/lib/fees/data";
-import { upsertStudentFeeOverride } from "@/lib/fees/policy";
-import { createClient } from "@/lib/supabase/server";
 import {
   DuplicatePaymentWarning,
   getPaymentPostingDiagnostic,
@@ -73,6 +71,10 @@ function parsePaymentDate(value: FormDataEntryValue | null) {
   return normalized;
 }
 
+function paymentModeNeedsReference(mode: PaymentMode) {
+  return mode === "upi" || mode === "bank_transfer" || mode === "cheque";
+}
+
 
 function parseWholeNumberOptional(value: FormDataEntryValue | null, fieldLabel: string) {
   const normalized = (value ?? "").toString().trim();
@@ -84,42 +86,6 @@ function parseWholeNumberOptional(value: FormDataEntryValue | null, fieldLabel: 
   return numeric;
 }
 
-async function applyPaymentDeskOverrides(payload: {
-  studentId: string;
-  waiveLateFee: boolean;
-  lateFeeWaiveAmount: number;
-  additionalDiscount: number;
-}) {
-  if (!payload.waiveLateFee && payload.additionalDiscount <= 0) return;
-  const [policy, supabase] = await Promise.all([getFeePolicySummary(), createClient()]);
-  const { data: existing } = await supabase
-    .from("student_fee_overrides")
-    .select("custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, late_fee_waiver_amount, discount_amount, student_type_override, transport_applies_override, notes")
-    .eq("student_id", payload.studentId)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  await upsertStudentFeeOverride({
-    studentId: payload.studentId,
-    customTuitionFeeAmount: existing?.custom_tuition_fee_amount ?? null,
-    customTransportFeeAmount: existing?.custom_transport_fee_amount ?? null,
-    customBooksFeeAmount: existing?.custom_books_fee_amount ?? null,
-    customAdmissionActivityMiscFeeAmount: existing?.custom_admission_activity_misc_fee_amount ?? null,
-    customFeeHeadAmounts: existing?.custom_other_fee_heads ?? {},
-    customFeeHeads: policy.customFeeHeads,
-    customLateFeeFlatAmount: existing?.custom_late_fee_flat_amount ?? null,
-    otherAdjustmentHead: existing?.other_adjustment_head ?? null,
-    otherAdjustmentAmount: existing?.other_adjustment_amount ?? null,
-    lateFeeWaiverAmount: payload.waiveLateFee
-      ? Math.max((existing?.late_fee_waiver_amount ?? 0) + payload.lateFeeWaiveAmount, 0)
-      : (existing?.late_fee_waiver_amount ?? 0),
-    discountAmount: (existing?.discount_amount ?? 0) + payload.additionalDiscount,
-    studentTypeOverride: existing?.student_type_override ?? null,
-    transportAppliesOverride: existing?.transport_applies_override ?? null,
-    reason: "Payment Desk quick override",
-    notes: existing?.notes ?? null,
-  });
-}
 
 function toActionStateError(error: unknown): PaymentEntryActionState {
   if (error instanceof DuplicatePaymentWarning) {
@@ -169,12 +135,13 @@ export async function submitPaymentEntryAction(
     const paymentAmount = parsePaymentAmount(formData.get("paymentAmount"));
     const clientRequestId = parseUuid(formData.get("clientRequestId"), "Payment attempt");
     const referenceNumber = (formData.get("referenceNumber") ?? "").toString().trim() || null;
+    if (paymentModeNeedsReference(paymentMode) && !referenceNumber) {
+      throw new Error("Reference number is required for UPI, bank transfer, and cheque payments.");
+    }
     const receivedBy = parseRequiredString(formData.get("receivedBy"), "Received by");
     const waiveLateFee = (formData.get("waiveLateFee") ?? "0").toString() === "1";
     const additionalDiscount = parseWholeNumberOptional(formData.get("additionalDiscount"), "Additional discount");
     const lateFeeWaiveAmount = parseWholeNumberOptional(formData.get("lateFeeWaiveAmount"), "Late fee waiver");
-
-    await applyPaymentDeskOverrides({ studentId, waiveLateFee, lateFeeWaiveAmount, additionalDiscount });
 
     const receipt = await postStudentPayment({
       studentId,
@@ -185,6 +152,8 @@ export async function submitPaymentEntryAction(
       remarks: (formData.get("remarks") ?? "").toString().trim() || null,
       receivedBy,
       clientRequestId,
+      quickDiscountAmount: additionalDiscount,
+      quickLateFeeWaiverAmount: waiveLateFee ? lateFeeWaiveAmount : 0,
     });
 
     revalidateCoreFinancePaths([studentId]);

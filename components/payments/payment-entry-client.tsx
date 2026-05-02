@@ -235,6 +235,8 @@ export function PaymentEntryClient({
     .filter((item) => item.outstandingAmount > 0)
     .reduce((sum, item) => sum + item.finalLateFee, 0);
   const paymentAmount = Number(paymentAmountInput) || 0;
+  const quickDiscountAmount = Number(additionalDiscount) || 0;
+  const quickLateFeeWaiverAmount = waiveLateFee ? totalPendingLateFee : 0;
   const referenceRequired = paymentModeNeedsReference(paymentMode);
   const creditBalance = selectedStudent?.creditBalance ?? 0;
   const refundableAmount = selectedStudent?.refundableAmount ?? 0;
@@ -260,6 +262,8 @@ export function PaymentEntryClient({
       studentId: selectedStudentId,
       paymentDate,
       includeLatestReceipt: "false",
+      quickDiscountAmount: String(quickDiscountAmount),
+      quickLateFeeWaiverAmount: String(quickLateFeeWaiverAmount),
     });
 
     setStudentSummaryLoading(true);
@@ -320,7 +324,7 @@ export function PaymentEntryClient({
     return () => {
       controller.abort();
     };
-  }, [paymentDate, selectedStudentId, summaryRefreshToken]);
+  }, [paymentDate, quickDiscountAmount, quickLateFeeWaiverAmount, selectedStudentId, summaryRefreshToken]);
 
   const allocationPreview = useMemo(() => {
     if (!selectedStudent) {
@@ -362,6 +366,8 @@ export function PaymentEntryClient({
     referenceNumber,
     receivedBy,
     previewTotalPending,
+    quickDiscountAmount,
+    quickLateFeeWaiverAmount,
     isPreviewRefreshing: previewLoading,
     referenceRequired,
     creditBalance,
@@ -382,6 +388,8 @@ export function PaymentEntryClient({
     referenceNumber,
     receivedBy,
     previewTotalPending,
+    quickDiscountAmount,
+    quickLateFeeWaiverAmount,
     isPreviewRefreshing: previewLoading,
     referenceRequired,
     creditBalance,
@@ -487,9 +495,7 @@ export function PaymentEntryClient({
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
 
-  function smoothScrollBehavior() {
-    return prefersReducedMotion() ? "auto" : "smooth";
-  }
+
 
   function selectStudent(studentId: string) {
     setSelectedStudentId(studentId);
@@ -499,6 +505,8 @@ export function PaymentEntryClient({
     setActiveStudentOptionIndex(-1);
     studentSearchInputRef.current?.blur();
     requestAnimationFrame(() => {
+      studentPickerRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      amountSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       setTimeout(() => {
         amountInputRef.current?.focus();
       }, 0);
@@ -515,6 +523,8 @@ export function PaymentEntryClient({
       referenceNumber,
       receivedBy,
       previewTotalPending,
+      quickDiscountAmount,
+      quickLateFeeWaiverAmount,
       isPreviewRefreshing: previewLoading,
       referenceRequired,
       creditBalance,
