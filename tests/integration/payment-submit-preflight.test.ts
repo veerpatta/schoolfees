@@ -164,7 +164,7 @@ describe("payment submit preflight", () => {
       p_student_id: "00000000-0000-4000-8000-000000000001",
       p_payment_date: "2026-04-25",
     });
-    expect(rpc).toHaveBeenNthCalledWith(2, "post_student_payment", expect.any(Object));
+    expect(rpc).toHaveBeenNthCalledWith(2, "post_student_payment_with_adjustments", expect.any(Object));
     expect(receipt.receiptNumber).toBe("SVP20260425-0001");
   });
 

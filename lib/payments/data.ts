@@ -935,6 +935,8 @@ export async function postStudentPayment(payload: {
   remarks: string | null;
   receivedBy: string;
   clientRequestId: string;
+  quickDiscountAmount?: number;
+  quickLateFeeWaiverAmount?: number;
 }) {
   const policy = await getFeePolicySummary();
   const existingReceipt = await findReceiptByClientRequestId({
@@ -964,7 +966,7 @@ export async function postStudentPayment(payload: {
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("post_student_payment", {
+  const { data, error } = await supabase.rpc("post_student_payment_with_adjustments", {
     p_student_id: payload.studentId,
     p_payment_date: payload.paymentDate,
     p_payment_mode: payload.paymentMode,
@@ -974,6 +976,8 @@ export async function postStudentPayment(payload: {
     p_received_by: payload.receivedBy,
     p_receipt_prefix: policy.receiptPrefix,
     p_client_request_id: payload.clientRequestId,
+    p_quick_discount_amount: Math.max(payload.quickDiscountAmount ?? 0, 0),
+    p_quick_late_fee_waiver_amount: Math.max(payload.quickLateFeeWaiverAmount ?? 0, 0),
   });
 
   if (error) {

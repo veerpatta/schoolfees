@@ -14,6 +14,8 @@ export type PaymentDraft = {
   referenceNumber: string;
   receivedBy: string;
   previewTotalPending: number;
+  quickDiscountAmount?: number;
+  quickLateFeeWaiverAmount?: number;
   isPreviewRefreshing?: boolean;
   referenceRequired?: boolean;
   creditBalance?: number;
@@ -45,11 +47,22 @@ export function validatePaymentDraft(draft: PaymentDraft): PaymentDraftValidatio
   if (!Number.isInteger(amount) || amount <= 0) {
     return { ok: false, message: "Enter a valid whole rupee payment amount." };
   }
+  if (draft.referenceRequired && !draft.referenceNumber.trim()) {
+    return {
+      ok: false,
+      message: "Reference number is required for UPI, bank transfer, and cheque payments.",
+    };
+  }
 
   if (draft.isPreviewRefreshing) {
     return { ok: false, message: "Wait for the dues preview to finish refreshing." };
   }
-  if (draft.previewTotalPending <= 0) {
+  const revisedPending = Math.max(
+    draft.previewTotalPending - (draft.quickDiscountAmount ?? 0) - (draft.quickLateFeeWaiverAmount ?? 0),
+    0,
+  );
+
+  if (revisedPending <= 0) {
     if ((draft.creditBalance ?? 0) > 0) {
       return {
         ok: false,
@@ -60,14 +73,14 @@ export function validatePaymentDraft(draft: PaymentDraft): PaymentDraftValidatio
     return { ok: false, message: "No pending dues are available for this student." };
   }
 
-  if (amount > draft.previewTotalPending) {
+  if (amount > revisedPending) {
     return { ok: false, message: "Payment amount exceeds pending amount." };
   }
 
   return {
     ok: true,
     amount,
-    remainingBalance: Math.max(draft.previewTotalPending - amount, 0),
+    remainingBalance: Math.max(revisedPending - amount, 0),
   };
 }
 
