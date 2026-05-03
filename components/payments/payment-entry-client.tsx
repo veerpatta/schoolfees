@@ -60,6 +60,7 @@ const textAreaClassName =
 const studentComboboxRowHeight = 52;
 const studentComboboxPanelHeight = 312;
 const studentComboboxOverscan = 4;
+const paymentDeskLastClassStorageKey = "vpps.paymentDesk.lastClassId";
 
 function desktopTabButtonClass(active: boolean) {
   return cn(
@@ -184,13 +185,21 @@ export function PaymentEntryClient({
   const [clientRequestId, setClientRequestId] = useState(createClientRequestId);
   const submittingRef = useRef(false);
   const amountInputRef = useRef<HTMLInputElement>(null);
-  const studentPickerRef = useRef<HTMLDivElement>(null);
+  const amountSectionRef = useRef<HTMLDivElement>(null);
   const classSectionRef = useRef<HTMLDivElement>(null);
-  const studentSearchInputRef = useRef<HTMLInputElement>(null);
-  const studentListRef = useRef<HTMLDivElement>(null);
+  const studentSearchSectionRef = useRef<HTMLDivElement>(null);
+  const mobileStudentPickerRef = useRef<HTMLDivElement>(null);
+  const desktopStudentPickerRef = useRef<HTMLDivElement>(null);
+  const mobileStudentSearchInputRef = useRef<HTMLInputElement>(null);
+  const desktopStudentSearchInputRef = useRef<HTMLInputElement>(null);
+  const mobileStudentListRef = useRef<HTMLDivElement>(null);
+  const desktopStudentListRef = useRef<HTMLDivElement>(null);
   const summaryRequestRef = useRef(0);
   const summaryAbortRef = useRef<AbortController | null>(null);
-  const studentListId = useId();
+  const lastAmountFocusStudentIdRef = useRef<string | null>(null);
+  const [activeStudentPickerMode, setActiveStudentPickerMode] = useState<"mobile" | "desktop">("mobile");
+  const mobileStudentListId = useId();
+  const desktopStudentListId = useId();
 
   const studentSearchIndex = useMemo(
     () => buildPaymentDeskSearchIndex(data.studentIndex),
@@ -273,7 +282,7 @@ export function PaymentEntryClient({
     const params = new URLSearchParams({
       studentId: selectedStudentId,
       paymentDate,
-      includeLatestReceipt: "false",
+      includeLatestReceipt: "true",
     });
 
     setStudentSummaryLoading(true);
@@ -301,9 +310,7 @@ export function PaymentEntryClient({
 
         setSelectedStudent(payload.student);
         setSelectedStudentIssue(payload.issue);
-        if (payload.latestReceipt) {
-          setLatestStudentReceipt(payload.latestReceipt);
-        }
+        setLatestStudentReceipt(payload.latestReceipt);
         setDateAwareBreakdown(payload.student?.breakdown ?? []);
         setStudentSummaryLoading(false);
         setStudentSummaryNotice(null);
@@ -353,6 +360,9 @@ export function PaymentEntryClient({
       }),
     [paymentAmount, previewBreakdown, quickDiscountAmount, quickLateFeeWaiverAmount],
   );
+  const latestReceipt = latestStudentReceipt ?? data.recentReceipts[0] ?? null;
+  const latestStudentPaymentAmount =
+    latestStudentReceipt?.studentId === selectedStudentId ? latestStudentReceipt.totalAmount : null;
   const quickAmounts = useMemo(() => {
     if (!selectedStudent) {
       return [];
@@ -362,8 +372,17 @@ export function PaymentEntryClient({
       totalPending: previewTotalPending,
       nextDueAmount: previewNextDue?.outstandingAmount ?? null,
       overdueAmount: previewOverdueAmount,
+      lateFeeAmount: pendingLateFeeAmount,
+      lastPaidAmount: latestStudentPaymentAmount,
     });
-  }, [previewNextDue, previewOverdueAmount, previewTotalPending, selectedStudent]);
+  }, [
+    latestStudentPaymentAmount,
+    pendingLateFeeAmount,
+    previewNextDue,
+    previewOverdueAmount,
+    previewTotalPending,
+    selectedStudent,
+  ]);
 
   const allocatedPreviewTotal = allocationPreview.reduce(
     (sum, item) => sum + item.allocatedAmount,
@@ -421,7 +440,6 @@ export function PaymentEntryClient({
   const netPayable = draftValidation.ok ? draftValidation.revisedPendingBeforePayment : Math.max(previewTotalPending - quickDiscountAmount - quickLateFeeWaiverAmount, 0);
   const remainingAfterPayment =
     draftValidation.ok ? draftValidation.remainingBalance : netPayable;
-  const latestReceipt = latestStudentReceipt ?? data.recentReceipts[0] ?? null;
   const latestPayment = state.status === "success" && state.receiptId && state.receiptNumber
     ? {
         id: state.receiptId,
@@ -443,7 +461,7 @@ export function PaymentEntryClient({
           paymentMode: latestReceipt.paymentMode,
           paymentDate: latestReceipt.paymentDate,
           createdAt: latestReceipt.createdAt,
-        }
+      }
       : null;
   const whatsappCopy =
     state.status === "success" && state.receiptNumber && selectedStudent
@@ -477,8 +495,37 @@ export function PaymentEntryClient({
   }, [state]);
 
   useEffect(() => {
+    if (data.initialClassId || selectedClassId) {
+      return;
+    }
+
+    const storedClassId = window.localStorage.getItem(paymentDeskLastClassStorageKey);
+    if (!storedClassId || !classOptions.some((classOption) => classOption.id === storedClassId)) {
+      return;
+    }
+
+    setSelectedClassId(storedClassId);
+    setIsStudentPickerOpen(true);
+    setActiveStudentOptionIndex(0);
+    focusStudentSearch("mobile");
+  }, [classOptions, data.initialClassId, selectedClassId]);
+
+  useEffect(() => {
+    if (!selectedClassId) {
+      window.localStorage.removeItem(paymentDeskLastClassStorageKey);
+      return;
+    }
+
+    window.localStorage.setItem(paymentDeskLastClassStorageKey, selectedClassId);
+  }, [selectedClassId]);
+
+  useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
-      if (!studentPickerRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const isInsideMobilePicker = mobileStudentPickerRef.current?.contains(target);
+      const isInsideDesktopPicker = desktopStudentPickerRef.current?.contains(target);
+
+      if (!isInsideMobilePicker && !isInsideDesktopPicker) {
         setIsStudentPickerOpen(false);
       }
     }
@@ -498,19 +545,97 @@ export function PaymentEntryClient({
     }
     const targetRowTop = activeStudentOptionIndex * studentComboboxRowHeight;
     const targetRowBottom = targetRowTop + studentComboboxRowHeight;
-    const listScrollTop = studentListRef.current?.scrollTop ?? 0;
+    const activeStudentList =
+      activeStudentPickerMode === "desktop"
+        ? desktopStudentListRef.current
+        : mobileStudentListRef.current;
+    const listScrollTop = activeStudentList?.scrollTop ?? 0;
     const listBottom = listScrollTop + studentComboboxPanelHeight;
 
     if (targetRowTop < listScrollTop) {
-      studentListRef.current?.scrollTo({ top: targetRowTop });
+      activeStudentList?.scrollTo({ top: targetRowTop });
     } else if (targetRowBottom > listBottom) {
-      studentListRef.current?.scrollTo({ top: targetRowBottom - studentComboboxPanelHeight });
+      activeStudentList?.scrollTo({ top: targetRowBottom - studentComboboxPanelHeight });
     }
-  }, [activeStudentOptionIndex, isStudentPickerOpen]);
+  }, [activeStudentOptionIndex, activeStudentPickerMode, isStudentPickerOpen]);
 
   useEffect(() => {
     setActiveStudentOptionIndex(filteredStudents.findIndex((student) => student.id === selectedStudentId));
   }, [filteredStudents, selectedStudentId]);
+
+  useEffect(() => {
+    if (!selectedStudent || studentSummaryLoading) {
+      return;
+    }
+
+    if (lastAmountFocusStudentIdRef.current === selectedStudent.id) {
+      return;
+    }
+
+    lastAmountFocusStudentIdRef.current = selectedStudent.id;
+    requestAnimationFrame(() => {
+      amountSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      amountInputRef.current?.focus({ preventScroll: true });
+    });
+  }, [selectedStudent, studentSummaryLoading]);
+
+  function focusStudentSearch(mode: "mobile" | "desktop") {
+    requestAnimationFrame(() => {
+      const studentList =
+        mode === "desktop" ? desktopStudentListRef.current : mobileStudentListRef.current;
+      const studentSearchInput =
+        mode === "desktop"
+          ? desktopStudentSearchInputRef.current
+          : mobileStudentSearchInputRef.current;
+
+      studentList?.scrollTo({ top: 0 });
+      if (mode === "mobile") {
+        studentSearchSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      studentSearchInput?.focus({ preventScroll: mode === "mobile" });
+    });
+  }
+
+  function clearSelectedStudent() {
+    setSelectedStudentId("");
+    setSelectedStudent(null);
+    setSelectedStudentIssue(null);
+    setLatestStudentReceipt(null);
+    setDateAwareBreakdown(null);
+    setPaymentAmountInput("");
+    setQuickDiscountInput("");
+    setWaiveFullLateFee(false);
+    setLatestStudentReceipt(null);
+    setFormError(null);
+    lastAmountFocusStudentIdRef.current = null;
+  }
+
+  function handleClassChange(nextClassId: string, mode: "mobile" | "desktop") {
+    setActiveStudentPickerMode(mode);
+    setSelectedClassId(nextClassId);
+    setStudentSearchQuery("");
+    setStudentListScrollTop(0);
+
+    if (nextClassId) {
+      setIsStudentPickerOpen(true);
+      setActiveStudentOptionIndex(0);
+      focusStudentSearch(mode);
+    } else {
+      setIsStudentPickerOpen(false);
+      setActiveStudentOptionIndex(-1);
+      mobileStudentSearchInputRef.current?.blur();
+      desktopStudentSearchInputRef.current?.blur();
+    }
+
+    if (
+      selectedStudentId &&
+      data.studentIndex.some(
+        (student) => student.id === selectedStudentId && student.classId !== nextClassId,
+      )
+    ) {
+      clearSelectedStudent();
+    }
+  }
 
   function selectStudent(studentId: string) {
     setSelectedStudentId(studentId);
@@ -520,10 +645,9 @@ export function PaymentEntryClient({
     setFormError(null);
     setIsStudentPickerOpen(false);
     setActiveStudentOptionIndex(-1);
-    studentSearchInputRef.current?.blur();
-    requestAnimationFrame(() => {
-      amountInputRef.current?.focus({ preventScroll: true });
-    });
+    lastAmountFocusStudentIdRef.current = null;
+    mobileStudentSearchInputRef.current?.blur();
+    desktopStudentSearchInputRef.current?.blur();
   }
 
   function openConfirmationDialog() {
@@ -578,6 +702,17 @@ export function PaymentEntryClient({
     setIsSuccessOpen(false);
     setIsDuplicateOpen(false);
     setCopyStatus("idle");
+    setStudentSearchQuery("");
+    setSelectedStudentId("");
+    setSelectedStudent(null);
+    setSelectedStudentIssue(null);
+    setLatestStudentReceipt(null);
+    lastAmountFocusStudentIdRef.current = null;
+    setIsStudentPickerOpen(Boolean(selectedClassId));
+    if (selectedClassId) {
+      setActiveStudentOptionIndex(0);
+      focusStudentSearch(activeStudentPickerMode);
+    }
   }
 
   return (
@@ -617,31 +752,7 @@ export function PaymentEntryClient({
               className={`${selectClassName} mt-2`}
               onChange={(event) => {
                 const nextClassId = event.target.value;
-                setSelectedClassId(nextClassId);
-                if (nextClassId) {
-                  setIsStudentPickerOpen(true);
-                  setActiveStudentOptionIndex(0);
-                  setStudentListScrollTop(0);
-                  requestAnimationFrame(() => {
-                    studentListRef.current?.scrollTo({ top: 0 });
-                    studentSearchInputRef.current?.focus({ preventScroll: true });
-                  });
-                } else {
-                  setIsStudentPickerOpen(false);
-                  setActiveStudentOptionIndex(-1);
-                  studentSearchInputRef.current?.blur();
-                }
-                if (
-                  selectedStudentId &&
-                  data.studentIndex.some(
-                    (student) => student.id === selectedStudentId && student.classId !== nextClassId,
-                  )
-                ) {
-                  setSelectedStudentId("");
-                  setSelectedStudent(null);
-                  setSelectedStudentIssue(null);
-                  setPaymentAmountInput("");
-                }
+                handleClassChange(nextClassId, "mobile");
               }}
             >
               <option value="">Select class</option>
@@ -659,9 +770,9 @@ export function PaymentEntryClient({
       </SectionCard>
       </div>
 
+      <div ref={studentSearchSectionRef} className="md:hidden">
       <SectionCard
         title="2. Search Student"
-        className="md:hidden"
         description="Use SR no, student name, father name, or phone number to reach the right student quickly."
       >
             <div className="space-y-2 md:space-y-4">
@@ -672,6 +783,7 @@ export function PaymentEntryClient({
                 id="payment-student-query"
                 value={studentSearchQuery}
                 onChange={(event) => {
+                  setActiveStudentPickerMode("mobile");
                   setStudentSearchQuery(event.target.value);
                   setIsStudentPickerOpen(true);
                   setStudentListScrollTop(0);
@@ -682,7 +794,7 @@ export function PaymentEntryClient({
             </div>
             <div>
               <Label htmlFor="payment-student-id">Student</Label>
-              <div ref={studentPickerRef} className="relative mt-2 space-y-2">
+              <div ref={mobileStudentPickerRef} className="relative mt-2 space-y-2">
                 <input type="hidden" id="payment-student-id" value={selectedStudentId} readOnly />
                 {selectedStudentIndexItem ? (
                   <div className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-950">
@@ -693,12 +805,9 @@ export function PaymentEntryClient({
                       type="button"
                       className="rounded-full border border-blue-300 bg-white px-2 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
                       onClick={() => {
-                        setSelectedStudentId("");
-                        setSelectedStudent(null);
-                        setSelectedStudentIssue(null);
-                        setPaymentAmountInput("");
+                        clearSelectedStudent();
                         setIsStudentPickerOpen(false);
-                        studentSearchInputRef.current?.focus({ preventScroll: true });
+                        mobileStudentSearchInputRef.current?.focus({ preventScroll: true });
                       }}
                     >
                       Clear
@@ -706,21 +815,25 @@ export function PaymentEntryClient({
                   </div>
                 ) : null}
                 <Input
-                  ref={studentSearchInputRef}
-                  id={`${studentListId}-input`}
+                  ref={mobileStudentSearchInputRef}
+                  id={`${mobileStudentListId}-input`}
                   role="combobox"
                   aria-expanded={isStudentPickerOpen}
-                  aria-controls={studentListId}
+                  aria-controls={mobileStudentListId}
                   aria-activedescendant={
                     activeStudentOptionIndex >= 0
-                      ? `${studentListId}-option-${activeStudentOptionIndex}`
+                      ? `${mobileStudentListId}-option-${activeStudentOptionIndex}`
                       : undefined
                   }
                   aria-autocomplete="list"
                   placeholder="Select student"
                   value={studentSearchQuery}
-                  onFocus={() => setIsStudentPickerOpen(true)}
+                  onFocus={() => {
+                    setActiveStudentPickerMode("mobile");
+                    setIsStudentPickerOpen(true);
+                  }}
                   onChange={(event) => {
+                    setActiveStudentPickerMode("mobile");
                     setStudentSearchQuery(event.target.value);
                     setIsStudentPickerOpen(true);
                     setStudentListScrollTop(0);
@@ -753,9 +866,9 @@ export function PaymentEntryClient({
                 />
                 {isStudentPickerOpen ? (
                   <div
-                    id={studentListId}
+                    id={mobileStudentListId}
                     role="listbox"
-                    ref={studentListRef}
+                    ref={mobileStudentListRef}
                     className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-md border border-slate-200 bg-white shadow-lg"
                     style={{ height: `${studentComboboxPanelHeight}px` }}
                     onScroll={(event) => setStudentListScrollTop(event.currentTarget.scrollTop)}
@@ -773,7 +886,7 @@ export function PaymentEntryClient({
                           return (
                             <button
                               key={student.id}
-                              id={`${studentListId}-option-${optionIndex}`}
+                              id={`${mobileStudentListId}-option-${optionIndex}`}
                               role="option"
                               aria-selected={isSelected}
                               type="button"
@@ -816,19 +929,20 @@ export function PaymentEntryClient({
           ) : null}
         </div>
       </SectionCard>
+      </div>
 
 
       <section className="hidden md:flex md:h-[calc(100vh-140px)] md:min-h-[640px] md:flex-col md:gap-3">
         <div className="sticky top-0 z-10 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
           <div className="grid gap-2 lg:grid-cols-[180px_minmax(280px,1fr)_170px_170px_auto]">
-            <select id="desktop-payment-class-id" value={selectedClassId} className={selectClassName} onChange={(event)=>{const nextClassId=event.target.value;setSelectedClassId(nextClassId);if(nextClassId){setIsStudentPickerOpen(true);setActiveStudentOptionIndex(0);setStudentListScrollTop(0);requestAnimationFrame(()=>{studentListRef.current?.scrollTo({ top: 0 });studentSearchInputRef.current?.focus({ preventScroll: true });});}}}>
+            <select id="desktop-payment-class-id" value={selectedClassId} className={selectClassName} onChange={(event)=>handleClassChange(event.target.value, "desktop")}>
               <option value="">Class</option>{classOptions.map((classOption)=><option key={classOption.id} value={classOption.id}>{classOption.label}</option>)}
             </select>
-            <div ref={studentPickerRef} className="relative">
-              <Input ref={studentSearchInputRef} role="combobox" aria-expanded={isStudentPickerOpen} aria-controls={studentListId} aria-activedescendant={activeStudentOptionIndex >= 0 ? `${studentListId}-option-${activeStudentOptionIndex}` : undefined} aria-autocomplete="list" placeholder="Search student" value={studentSearchQuery} onFocus={()=>setIsStudentPickerOpen(true)} onChange={(event)=>{setStudentSearchQuery(event.target.value);setIsStudentPickerOpen(true);setStudentListScrollTop(0);setActiveStudentOptionIndex(0);}} />
+            <div ref={desktopStudentPickerRef} className="relative">
+              <Input ref={desktopStudentSearchInputRef} role="combobox" aria-expanded={isStudentPickerOpen} aria-controls={desktopStudentListId} aria-activedescendant={activeStudentOptionIndex >= 0 ? `${desktopStudentListId}-option-${activeStudentOptionIndex}` : undefined} aria-autocomplete="list" placeholder="Search student" value={studentSearchQuery} onFocus={()=>{setActiveStudentPickerMode("desktop");setIsStudentPickerOpen(true);}} onChange={(event)=>{setActiveStudentPickerMode("desktop");setStudentSearchQuery(event.target.value);setIsStudentPickerOpen(true);setStudentListScrollTop(0);setActiveStudentOptionIndex(0);}} />
               {isStudentPickerOpen ? (
-                <div id={studentListId} role="listbox" ref={studentListRef} className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-md border border-slate-200 bg-white shadow-lg" style={{ height: `${studentComboboxPanelHeight}px` }} onScroll={(event) => setStudentListScrollTop(event.currentTarget.scrollTop)}>
-                  {filteredStudents.length === 0 ? <p className="px-3 py-3 text-sm text-slate-600">No matching students.</p> : <div style={{ paddingTop: topVisibleOffset, paddingBottom: bottomVisibleOffset }}>{visibleStudentOptions.map((student,index)=>{const optionIndex=firstVisibleStudentIndex+index;const label=buildStudentSelectLabel({ ...student, pendingAmount: null });const isActive=optionIndex===activeStudentOptionIndex;const isSelected=selectedStudentId===student.id;return <button key={student.id} id={`${studentListId}-option-${optionIndex}`} role="option" aria-selected={isSelected} type="button" className={`flex min-h-12 w-full items-center border-b border-slate-100 px-3 py-2 text-left text-sm last:border-b-0 ${isActive ? "bg-blue-50 text-blue-900" : "bg-white text-slate-800 hover:bg-slate-50"}`} onMouseDown={(event)=>event.preventDefault()} onClick={()=>selectStudent(student.id)}>{label}</button>;})}</div>}
+                <div id={desktopStudentListId} role="listbox" ref={desktopStudentListRef} className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-md border border-slate-200 bg-white shadow-lg" style={{ height: `${studentComboboxPanelHeight}px` }} onScroll={(event) => setStudentListScrollTop(event.currentTarget.scrollTop)}>
+                  {filteredStudents.length === 0 ? <p className="px-3 py-3 text-sm text-slate-600">No matching students.</p> : <div style={{ paddingTop: topVisibleOffset, paddingBottom: bottomVisibleOffset }}>{visibleStudentOptions.map((student,index)=>{const optionIndex=firstVisibleStudentIndex+index;const label=buildStudentSelectLabel({ ...student, pendingAmount: null });const isActive=optionIndex===activeStudentOptionIndex;const isSelected=selectedStudentId===student.id;return <button key={student.id} id={`${desktopStudentListId}-option-${optionIndex}`} role="option" aria-selected={isSelected} type="button" className={`flex min-h-12 w-full items-center border-b border-slate-100 px-3 py-2 text-left text-sm last:border-b-0 ${isActive ? "bg-blue-50 text-blue-900" : "bg-white text-slate-800 hover:bg-slate-50"}`} onMouseDown={(event)=>event.preventDefault()} onClick={()=>selectStudent(student.id)}>{label}</button>;})}</div>}
                 </div>
               ) : null}
             </div>
@@ -1019,7 +1133,7 @@ export function PaymentEntryClient({
                   </div>
                 ) : null}
                 <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-                  <div>
+                  <div ref={amountSectionRef}>
                     <Label htmlFor="payment-amount">Amount received</Label>
                     <Input
                       id="payment-amount"
@@ -1043,7 +1157,7 @@ export function PaymentEntryClient({
                           key={quickAmount.key}
                           type="button"
                           size="sm"
-                          variant={quickAmount.key === "custom" ? "ghost" : "outline"}
+                          variant={quickAmount.key === "clear" ? "ghost" : "outline"}
                           className="h-8 px-2 text-xs"
                           disabled={quickAmount.disabled}
                           onClick={() => {
@@ -1286,6 +1400,26 @@ export function PaymentEntryClient({
                     <span className="shrink-0">Net {formatInr(netPayable)}</span>
                   </div>
                   <div className="grid grid-cols-[1fr_1fr] gap-2">
+                    <div className="col-span-2 grid grid-cols-3 gap-1.5">
+                      {quickAmounts.map((quickAmount) => (
+                        <Button
+                          key={`mobile-${quickAmount.key}`}
+                          type="button"
+                          size="sm"
+                          variant={quickAmount.key === "clear" ? "ghost" : "outline"}
+                          className="h-8 px-1 text-[11px]"
+                          disabled={quickAmount.disabled}
+                          onClick={() => {
+                            setFormError(null);
+                            setPaymentAmountInput(
+                              quickAmount.amount === null ? "" : String(quickAmount.amount),
+                            );
+                          }}
+                        >
+                          {quickAmount.label}
+                        </Button>
+                      ))}
+                    </div>
                     <Input
                       aria-label="Mobile amount received"
                       type="number"
@@ -1350,6 +1484,10 @@ export function PaymentEntryClient({
                         setFormError(null);
                       }}
                     />
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-slate-50 px-2 py-1 text-[11px] text-slate-600">
+                    <span>Pending {formatInr(previewTotalPending)}</span>
+                    <span>Amount {paymentAmountInput ? formatInr(paymentAmount) : "Not entered"}</span>
                   </div>
                   <Button
                     type="button"

@@ -295,7 +295,7 @@ describe("payment desk cashier workflow", () => {
     ).toBe("Asha Sharma — SR: SR-1");
   });
 
-  it("payment_search_matches_name_sr_father_phone", () => {
+  it("payment_search_matches_name_sr_father_phone_and_class_label", () => {
     const students = [
       {
         id: "s1",
@@ -326,6 +326,7 @@ describe("payment desk cashier workflow", () => {
     expect(filterPaymentDeskStudents({ students, searchIndex, selectedClassId: "c1", query: "Asha" })).toHaveLength(1);
     expect(filterPaymentDeskStudents({ students, searchIndex, selectedClassId: "c1", query: "Ramesh" })).toHaveLength(1);
     expect(filterPaymentDeskStudents({ students, searchIndex, selectedClassId: "c1", query: "8888" })).toHaveLength(1);
+    expect(filterPaymentDeskStudents({ students, searchIndex, selectedClassId: "c1", query: "class 1" })).toHaveLength(2);
   });
 
   it("payment_search_not_limited_to_first_80", () => {
@@ -405,6 +406,24 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("isLockedAfterSuccess");
   });
 
+  it("keeps mobile and desktop student picker refs separate for touch selection", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      "utf8",
+    );
+
+    expect(component).toContain("studentSearchSectionRef");
+    expect(component).toContain("mobileStudentPickerRef");
+    expect(component).toContain("desktopStudentPickerRef");
+    expect(component).toContain("mobileStudentSearchInputRef");
+    expect(component).toContain("desktopStudentSearchInputRef");
+    expect(component).toContain("mobileStudentListRef");
+    expect(component).toContain("desktopStudentListRef");
+    expect(component).not.toContain("const studentPickerRef = useRef");
+    expect(component).not.toContain("const studentSearchInputRef = useRef");
+    expect(component).not.toContain("const studentListRef = useRef");
+  });
+
   it("late fee waiver is a checkbox and not a normal free text amount field", () => {
     const component = readFileSync(
       join(process.cwd(), "components/payments/payment-entry-client.tsx"),
@@ -442,9 +461,10 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("Clear");
     expect(component).toContain("setIsStudentPickerOpen(false)");
     expect(component).toContain("setActiveStudentOptionIndex(-1)");
-    expect(component).toContain("studentSearchInputRef.current?.blur()");
-    expect(component).not.toContain("scrollIntoView");
-    expect(component).not.toContain("amountSectionRef");
+    expect(component).toContain("mobileStudentSearchInputRef.current?.blur()");
+    expect(component).toContain("desktopStudentSearchInputRef.current?.blur()");
+    expect(component).toContain("scrollIntoView");
+    expect(component).toContain("amountSectionRef");
     expect(component).toContain("amountInputRef.current?.focus({ preventScroll: true })");
     expect(component).toContain("useDeferredValue(studentSearchQuery)");
     expect(component).toContain("query: deferredStudentSearchQuery");
@@ -459,8 +479,9 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("setIsStudentPickerOpen(true)");
     expect(component).toContain("setActiveStudentOptionIndex(0)");
     expect(component).toContain("setStudentListScrollTop(0)");
-    expect(component).toContain("studentListRef.current?.scrollTo({ top: 0 })");
-    expect(component).toContain("studentSearchInputRef.current?.focus({ preventScroll: true })");
+    expect(component).toContain("studentList?.scrollTo({ top: 0 })");
+    expect(component).toContain("studentSearchInput?.focus({ preventScroll: mode === \"mobile\" })");
+    expect(component).toContain("studentSearchSectionRef.current?.scrollIntoView({ behavior: \"smooth\", block: \"start\" })");
     expect(component).not.toContain("studentPickerRef.current?.scrollIntoView");
   });
 

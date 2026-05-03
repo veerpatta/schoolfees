@@ -180,7 +180,7 @@ export function buildPaymentDeskSearchIndex(students: PaymentStudentIndexItem[])
   return new Map(
     students.map((student) => [
       student.id,
-      `${student.fullName} ${student.admissionNo} ${student.fatherName ?? ""} ${student.fatherPhone ?? ""} ${student.motherPhone ?? ""}`
+      `${student.fullName} ${student.admissionNo} ${student.classLabel} ${student.fatherName ?? ""} ${student.fatherPhone ?? ""} ${student.motherPhone ?? ""}`
         .toLowerCase()
         .replace(/\s+/g, " ")
         .trim(),
