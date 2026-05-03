@@ -399,10 +399,17 @@ export async function getWorkbookClassOptions() {
 export async function getWorkbookStudentFinancials(filters?: {
   classId?: string;
   studentId?: string;
+  studentIds?: readonly string[];
   onlyOverdue?: boolean;
   sessionLabel?: string;
 }) {
   const supabase = await createClient();
+  const studentIds = [...new Set(filters?.studentIds?.filter(Boolean) ?? [])];
+
+  if (filters?.studentIds && studentIds.length === 0) {
+    return [];
+  }
+
   let query = supabase
     .from("v_workbook_student_financials")
     .select("*")
@@ -415,6 +422,10 @@ export async function getWorkbookStudentFinancials(filters?: {
 
   if (filters?.studentId) {
     query = query.eq("student_id", filters.studentId);
+  }
+
+  if (studentIds.length > 0) {
+    query = query.in("student_id", studentIds);
   }
 
   if (filters?.onlyOverdue) {
@@ -542,11 +553,16 @@ export async function getWorkbookTransactions(filters?: {
   }
 
   const receipts = (data ?? []) as ReceiptRow[];
-  const financials = await getWorkbookStudentFinancials({
-    classId: filters?.classId,
-    studentId: filters?.studentId,
-    sessionLabel: filters?.sessionLabel,
-  });
+  const receiptStudentIds = [...new Set(receipts.map((row) => row.student_id).filter(Boolean))];
+  const financials =
+    receipts.length > 0
+      ? await getWorkbookStudentFinancials({
+          classId: filters?.classId,
+          studentId: filters?.studentId,
+          studentIds: filters?.studentId ? undefined : receiptStudentIds,
+          sessionLabel: filters?.sessionLabel,
+        })
+      : [];
   const financialMap = new Map(financials.map((item) => [item.studentId, item]));
 
   return receipts

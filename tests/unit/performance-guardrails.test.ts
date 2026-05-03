@@ -26,6 +26,24 @@ describe("office performance guardrails", () => {
     expect(exportRoute).toContain("exportAll: true");
   });
 
+  it("scopes workbook reads to the active office session and visible receipts", () => {
+    const dashboardData = readRepoFile("lib/dashboard/data.ts");
+    const officeData = readRepoFile("lib/office/data.ts");
+    const workbookData = readRepoFile("lib/workbook/data.ts");
+
+    expect(dashboardData).toContain(
+      "getWorkbookStudentFinancials({ sessionLabel: policy.academicSessionLabel })",
+    );
+    expect(dashboardData).toContain(
+      "getWorkbookInstallmentRows({ sessionLabel: policy.academicSessionLabel })",
+    );
+    expect(officeData).toContain("const sessionLabel = policy.academicSessionLabel");
+    expect(officeData).toContain("getWorkbookInstallmentRows({ pendingOnly: true, sessionLabel })");
+    expect(workbookData).toContain("studentIds?: readonly string[]");
+    expect(workbookData).toContain("query = query.in(\"student_id\", studentIds)");
+    expect(workbookData).toContain("const receiptStudentIds =");
+  });
+
   it("documents additive indexes for common office filters", () => {
     const migration = readRepoFile(
       "supabase/migrations/20260503143000_office_performance_indexes.sql",

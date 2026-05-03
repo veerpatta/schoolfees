@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getRecentConfigChangeLog } from "@/lib/fees/change-log";
+import { getFeePolicySummary } from "@/lib/fees/data";
 import { getDashboardPageData } from "@/lib/dashboard/data";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkbookInstallmentRows, getWorkbookTransactions } from "@/lib/workbook/data";
@@ -84,6 +85,8 @@ export type OfficeHomeData = {
 
 export async function getOfficeHomeData(): Promise<OfficeHomeData> {
   const supabase = await createClient();
+  const policy = await getFeePolicySummary();
+  const sessionLabel = policy.academicSessionLabel;
   const today = getSchoolDateStamp();
 
   const [
@@ -97,9 +100,9 @@ export async function getOfficeHomeData(): Promise<OfficeHomeData> {
   ] = await Promise.all([
     getDashboardPageData(),
     getRecentConfigChangeLog(6),
-    getWorkbookInstallmentRows({ pendingOnly: true }),
-    getWorkbookInstallmentRows({ overdueOnly: true, pendingOnly: true }),
-    getWorkbookTransactions({ todayOnly: true }),
+    getWorkbookInstallmentRows({ pendingOnly: true, sessionLabel }),
+    getWorkbookInstallmentRows({ overdueOnly: true, pendingOnly: true, sessionLabel }),
+    getWorkbookTransactions({ todayOnly: true, sessionLabel }),
     supabase
       .from("import_batches")
       .select("id, filename, status, invalid_rows, duplicate_rows, failed_rows, created_at")
