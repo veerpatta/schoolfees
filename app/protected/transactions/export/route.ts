@@ -71,6 +71,7 @@ export async function GET(request: NextRequest) {
     searchQuery: (request.nextUrl.searchParams.get("query") ?? "").trim(),
     sessionLabel: (request.nextUrl.searchParams.get("sessionLabel") ?? "").trim(),
     toDate: normalizeDate(request.nextUrl.searchParams.get("toDate")),
+    exportAll: true,
   });
 
   const csvData = (() => {

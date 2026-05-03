@@ -322,7 +322,6 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
     rawClassSummary,
     financialRows,
     installmentRows,
-    overdueInstallments,
     transactions,
     todayTransactions,
     refundStateRows,
@@ -400,12 +399,6 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
     ),
     optionalLoad("workbook student financials", () => getWorkbookStudentFinancials(), [], warnings),
     optionalLoad("workbook installment balances", () => getWorkbookInstallmentRows(), [], warnings),
-    optionalLoad(
-      "overdue workbook installments",
-      () => getWorkbookInstallmentRows({ overdueOnly: true, pendingOnly: true }),
-      [],
-      warnings,
-    ),
     optionalLoad("receipt activity", () => getWorkbookTransactions({ limit: 20 }), [], warnings),
     optionalLoad(
       "today receipt activity",
@@ -419,7 +412,8 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
         const supabase = await createClient();
         const { data, error } = await supabase
           .from("v_student_financial_state")
-          .select("refundable_amount");
+          .select("refundable_amount")
+          .gt("refundable_amount", 0);
 
         if (error) {
           throw new Error(error.message);
@@ -435,6 +429,9 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
     optionalLoad("dues update alerts", getLedgerReviewAlerts, [], warnings),
     getSetupAlerts(staffRole, warnings),
   ]);
+  const overdueInstallments = installmentRows.filter(
+    (row) => row.balanceStatus === "overdue" && row.pendingAmount > 0,
+  );
 
   const summary = buildDashboardSummary({
     financialRows,

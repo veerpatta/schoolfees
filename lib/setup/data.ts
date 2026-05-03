@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import type { ClassStatus } from "@/lib/db/types";
 import { parseAcademicSessionLabel } from "@/lib/config/fee-rules";
 import { previewLedgerGeneration } from "@/lib/fees/generator";
@@ -355,7 +357,7 @@ function buildFlowItems(payload: {
   ];
 }
 
-export async function getSetupWizardData(): Promise<SetupWizardData> {
+async function loadSetupWizardData(): Promise<SetupWizardData> {
   const supabase = await createClient();
   const setupData = await getFeeSetupPageData();
   const activeSessionLabel = setupData.globalPolicy.academicSessionLabel;
@@ -523,6 +525,12 @@ export async function getSetupWizardData(): Promise<SetupWizardData> {
     activeSessionClassDefaultCount: classDefaults.filter((item) => item.hasSavedDefault).length,
     installmentCount: setupData.globalPolicy.installmentCount,
   };
+}
+
+const getSetupWizardDataForRequest = cache(loadSetupWizardData);
+
+export async function getSetupWizardData(): Promise<SetupWizardData> {
+  return getSetupWizardDataForRequest();
 }
 
 export async function saveSetupPolicy(input: SaveSetupPolicyInput) {

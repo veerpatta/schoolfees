@@ -446,6 +446,8 @@ describe("payment desk cashier workflow", () => {
     expect(component).not.toContain("scrollIntoView");
     expect(component).not.toContain("amountSectionRef");
     expect(component).toContain("amountInputRef.current?.focus({ preventScroll: true })");
+    expect(component).toContain("useDeferredValue(studentSearchQuery)");
+    expect(component).toContain("query: deferredStudentSearchQuery");
   });
 
   it("class selection auto-opens student picker without jumping the page", () => {

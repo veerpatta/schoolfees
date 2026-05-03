@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import type { ClassStatus, PaymentMode } from "@/lib/db/types";
 import {
   formatPaymentModeLabel,
@@ -397,7 +399,7 @@ async function ensureFeeHeadNotReferenced(headId: string) {
   }
 }
 
-export async function getMasterDataOptions(): Promise<MasterDataOptions> {
+async function loadMasterDataOptions(): Promise<MasterDataOptions> {
   const supabase = await createClient();
   const currentSessionLabel = await getCurrentSessionLabel();
 
@@ -468,6 +470,12 @@ export async function getMasterDataOptions(): Promise<MasterDataOptions> {
       isActive: acceptedModes.has(mode),
     })),
   };
+}
+
+const getMasterDataOptionsForRequest = cache(loadMasterDataOptions);
+
+export async function getMasterDataOptions(): Promise<MasterDataOptions> {
+  return getMasterDataOptionsForRequest();
 }
 
 export async function getMasterDataPageData() {

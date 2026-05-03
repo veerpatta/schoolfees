@@ -23,6 +23,7 @@ export type OfficeWorkbookFilters = {
   searchQuery?: string;
   sessionLabel: string;
   toDate?: string;
+  exportAll?: boolean;
 };
 
 export type OfficeWorkbookCollectionRow = {
@@ -379,6 +380,7 @@ export async function getOfficeWorkbookData(
     routeId: filters.routeId || undefined,
     sessionLabel: filters.sessionLabel || undefined,
     toDate: filters.toDate || undefined,
+    limit: filters.exportAll ? null : undefined,
   };
 
   switch (filters.view) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useActionState, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 import { MetricCard } from "@/components/admin/metric-card";
@@ -139,6 +139,7 @@ export function PaymentEntryClient({
   );
   const [selectedClassId, setSelectedClassId] = useState(data.initialClassId);
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
+  const deferredStudentSearchQuery = useDeferredValue(studentSearchQuery);
   const [selectedStudentId, setSelectedStudentId] = useState(data.initialStudentId ?? "");
   const [isStudentPickerOpen, setIsStudentPickerOpen] = useState(false);
   const [activeStudentOptionIndex, setActiveStudentOptionIndex] = useState(-1);
@@ -191,9 +192,9 @@ export function PaymentEntryClient({
         students: data.studentIndex,
         searchIndex: studentSearchIndex,
         selectedClassId,
-        query: studentSearchQuery,
+        query: deferredStudentSearchQuery,
       }),
-    [data.studentIndex, selectedClassId, studentSearchIndex, studentSearchQuery],
+    [data.studentIndex, deferredStudentSearchQuery, selectedClassId, studentSearchIndex],
   );
   const selectedStudentIndexItem = useMemo(
     () => data.studentIndex.find((student) => student.id === selectedStudentId) ?? null,

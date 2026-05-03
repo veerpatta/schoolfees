@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMasterDataOptions } from "@/lib/master-data/data";
 import { createClient } from "@/lib/supabase/server";
@@ -657,8 +659,12 @@ function buildResolvedBreakdown(payload: {
   };
 }
 
+const getFeePolicySummaryForRequest = cache(async (useAdmin: boolean) => {
+  return loadGlobalPolicy(useAdmin);
+});
+
 export async function getFeePolicySummary(options: { useAdmin?: boolean } = {}) {
-  return loadGlobalPolicy(Boolean(options.useAdmin));
+  return getFeePolicySummaryForRequest(Boolean(options.useAdmin));
 }
 
 export async function getFeeSetupPageData(): Promise<FeeSetupPageData> {
