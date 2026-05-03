@@ -18,6 +18,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { CopyReminderButton } from "@/components/dashboard/copy-reminder-button";
+import { OfficeNextActions, OfficeNotice } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { getDashboardPageData, type DashboardAlert } from "@/lib/dashboard/data";
 import { formatInr } from "@/lib/helpers/currency";
@@ -694,54 +695,38 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       />
 
       {resolvedSearchParams?.notice ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-          {resolvedSearchParams.notice}
-        </div>
+        <OfficeNotice tone="success">{resolvedSearchParams.notice}</OfficeNotice>
       ) : null}
 
       {!data.emptyState.hasStudents ? (
         <SectionCard
           title="No students yet"
-          description="Start with test students and fee setup, then use the payment desk for posted receipts."
-          className="border-sky-100 bg-sky-50/70"
+          description="Start with student records, then review Fee Setup before collection."
           actions={<StatusBadge label="Start testing" tone="accent" />}
         >
-          <div className="grid gap-3 md:grid-cols-4">
-            <Button asChild variant="outline">
-              <Link href="/protected/students/new">Add student</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/protected/students">Bulk add students</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/protected/fee-setup">Open Fee Setup</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/protected/imports/template">Download template</Link>
-            </Button>
-          </div>
+          <OfficeNextActions
+            actions={[
+              { href: "/protected/students/new", label: "Add student", detail: "Create one student record." },
+              { href: "/protected/students", label: "Bulk add students", detail: "Use the Students workspace for spreadsheet import." },
+              { href: "/protected/fee-setup", label: "Open Fee Setup", detail: "Check yearly fees before collection." },
+              { href: "/protected/imports/template", label: "Download template", detail: "Get the student import file." },
+            ]}
+          />
         </SectionCard>
       ) : !data.emptyState.hasFinancialData ? (
         <SectionCard
           title="Students found, dues missing"
-          description="Students exist in the active fee setup session, but dues have not been generated yet."
-          className="border-amber-100 bg-amber-50/70"
+          description="Students exist for this year, but their payable dues are not ready yet."
           actions={<StatusBadge label="Needs attention" tone="warning" />}
         >
-          <div className="grid gap-3 md:grid-cols-4">
-            <Button asChild variant="outline">
-              <Link href="/protected/admin-tools#fee-data-troubleshooting">Prepare missing dues</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/protected/students">Open Students</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/protected/payments">Open Payment Desk</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/protected/fee-setup">Open Fee Setup</Link>
-            </Button>
-          </div>
+          <OfficeNextActions
+            actions={[
+              { href: "/protected/admin-tools#fee-data-troubleshooting", label: "Prepare missing dues", detail: "Admin-only repair for daily screens." },
+              { href: "/protected/students", label: "Open Students", detail: "Check student class and year." },
+              { href: "/protected/payments", label: "Open Payment Desk", detail: "Collect after dues are ready." },
+              { href: "/protected/fee-setup", label: "Open Fee Setup", detail: "Review yearly fee defaults." },
+            ]}
+          />
         </SectionCard>
       ) : null}
 
@@ -897,21 +882,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             title="Next best actions"
             description="Shortcuts only. Dashboard does not post payments or edit fee setup."
           >
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {nextActions.map((action) => {
-                const Icon = action.icon;
-                return (
-                  <Link
-                    key={action.href}
-                    href={action.href}
-                    className="group rounded-lg border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-800 transition hover:border-sky-200 hover:bg-sky-50"
-                  >
-                    <Icon className="mb-3 size-5 text-sky-700 transition group-hover:text-sky-800" />
-                    {action.label}
-                  </Link>
-                );
-              })}
-            </div>
+            <OfficeNextActions
+              actions={nextActions.map((action) => ({
+                href: action.href,
+                label: action.label,
+              }))}
+            />
           </SectionCard>
         </div>
       </details>

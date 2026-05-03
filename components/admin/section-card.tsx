@@ -23,13 +23,13 @@ export function SectionCard({
     <section
       id={id}
       className={cn(
-        "glass-panel rounded-xl p-4 md:p-5",
+        "rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:p-5",
         className,
       )}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="font-heading text-base font-semibold tracking-tight text-slate-950 sm:text-lg">
+          <h2 className="font-heading text-base font-semibold text-slate-950 sm:text-lg">
             {title}
           </h2>
           {description ? (

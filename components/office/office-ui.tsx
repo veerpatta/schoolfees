@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,16 @@ const toneClasses: Record<ValueStateTone, string> = {
   review: "border-rose-200 bg-rose-50 text-rose-700",
 };
 
+type OfficeTone = "neutral" | "success" | "warning" | "danger" | "info";
+
+const officeToneClasses: Record<OfficeTone, string> = {
+  neutral: "border-slate-200 bg-slate-50 text-slate-700",
+  success: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  warning: "border-amber-200 bg-amber-50 text-amber-900",
+  danger: "border-rose-200 bg-rose-50 text-rose-800",
+  info: "border-sky-200 bg-sky-50 text-sky-800",
+};
+
 export function ValueStatePill({
   tone,
   children,
@@ -33,7 +43,7 @@ export function ValueStatePill({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em]",
+        "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em]",
         toneClasses[tone],
         className,
       )}
@@ -65,6 +75,148 @@ export function WorkflowGuard({
           </Button>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+export function OfficeNotice({
+  title,
+  children,
+  tone = "neutral",
+  action,
+  className,
+}: {
+  title?: string;
+  children: ReactNode;
+  tone?: OfficeTone;
+  action?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-lg border px-4 py-3 text-sm",
+        officeToneClasses[tone],
+        className,
+      )}
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          {title ? <p className="font-semibold">{title}</p> : null}
+          <div className={cn(title ? "mt-1.5" : "", "leading-6")}>{children}</div>
+        </div>
+        {action ? <div className="shrink-0">{action}</div> : null}
+      </div>
+    </div>
+  );
+}
+
+export function OfficeEmptyState({
+  title,
+  detail,
+  action,
+  className,
+}: {
+  title: string;
+  detail: string;
+  action?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-center",
+        className,
+      )}
+    >
+      <p className="font-semibold text-slate-950">{title}</p>
+      <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-600">{detail}</p>
+      {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
+    </div>
+  );
+}
+
+export function OfficeActionBar({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-3 shadow-sm",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function OfficeFilterBar({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-lg border border-slate-200 bg-slate-50 p-3",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function OfficeTableShell({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("overflow-x-auto rounded-lg border border-slate-200 bg-white", className)}>
+      {children}
+    </div>
+  );
+}
+
+export function OfficeNextActions({
+  actions,
+  className,
+}: {
+  actions: Array<{
+    href: string;
+    label: string;
+    detail?: string;
+  }>;
+  className?: string;
+}) {
+  if (actions.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className={cn("grid gap-3 sm:grid-cols-2 xl:grid-cols-3", className)}>
+      {actions.map((action) => (
+        <Link
+          key={`${action.href}-${action.label}`}
+          href={action.href}
+          className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm transition hover:border-slate-300 hover:bg-slate-50"
+        >
+          <span className="font-semibold text-slate-950">{action.label}</span>
+          {action.detail ? (
+            <span className="mt-1 block leading-5 text-slate-600">{action.detail}</span>
+          ) : null}
+        </Link>
+      ))}
     </div>
   );
 }

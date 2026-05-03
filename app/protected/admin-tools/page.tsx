@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { OfficeNotice } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { advancedHubSections } from "@/lib/config/navigation";
 import { getFeePolicySummary } from "@/lib/fees/data";
@@ -42,10 +43,10 @@ export default async function AdvancedPage() {
         actions={<StatusBadge label="Rare admin area" tone="accent" />}
       />
 
-      <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-700">
+      <OfficeNotice title="Not for daily work">
         These tools are rarely needed. Daily work should stay in Dashboard, Students, Fee Setup,
         Payment Desk, and Transactions.
-      </div>
+      </OfficeNotice>
 
       {canRepairFeeData ? (
         <SectionCard
@@ -60,26 +61,26 @@ export default async function AdvancedPage() {
           }
         >
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
               Fee Setup year
             </p>
             <p className="mt-2 font-semibold text-slate-950">{feeDataHealth.activeFeePolicySession}</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
               Students this year
             </p>
             <p className="mt-2 font-semibold text-slate-950">{feeDataHealth.rawStudentsInActiveSession}</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
               Dues not prepared
             </p>
             <p className="mt-2 font-semibold text-slate-950">{feeDataHealth.studentsMissingDues}</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
               Payment Desk
             </p>
             <p className="mt-2 font-semibold text-slate-950">
@@ -114,7 +115,7 @@ export default async function AdvancedPage() {
             </form>
           </div>
 
-        <details className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <details className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white">
           <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-slate-900">
             Technical details
           </summary>

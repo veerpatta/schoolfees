@@ -1,0 +1,33 @@
+▲ Next.js 16.2.4 (Turbopack)
+- Local:         http://127.0.0.1:3000
+- Network:       http://127.0.0.1:3000
+- Environments: .env.local
+✓ Ready in 399ms
+
+ GET / 200 in 3.0s (next.js: 118ms, proxy.ts: 142ms, application-code: 2.7s)
+ GET / 200 in 443ms (next.js: 4ms, proxy.ts: 7ms, application-code: 432ms)
+ GET /auth/login 200 in 78ms (next.js: 42ms, proxy.ts: 5ms, application-code: 31ms)
+ POST /auth/login 200 in 2.7s (next.js: 3ms, proxy.ts: 4ms, application-code: 2.7s)
+  └─ ƒ loginAction({"message":null,"status":"idle"}, {}) in 1902ms app/auth/login/actions.ts
+ GET /protected 200 in 1554ms (next.js: 57ms, proxy.ts: 351ms, application-code: 1146ms)
+ GET /protected 200 in 2.1s (next.js: 4ms, proxy.ts: 976ms, application-code: 1145ms)
+ GET /protected/dashboard 200 in 7.4s (next.js: 4ms, proxy.ts: 338ms, application-code: 7.0s)
+ GET /protected/dashboard 200 in 7.9s (next.js: 23ms, proxy.ts: 334ms, application-code: 7.5s)
+ GET /protected/students 200 in 6.2s (next.js: 31ms, proxy.ts: 470ms, application-code: 5.7s)
+ GET /protected/students/index?sessionLabel=TEST-2026-27&status=active 200 in 4.3s (next.js: 69ms, proxy.ts: 334ms, application-code: 3.9s)
+ GET /protected/students/4dd5289d-b8e2-4d25-8750-603fab6d02e7/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3DTEST-2026-27%26status%3Dactive 200 in 6.2s (next.js: 837ms, proxy.ts: 370ms, application-code: 5.0s)
+ GET /protected/students?sessionLabel=TEST-2026-27&status=active 200 in 5.7s (next.js: 3ms, proxy.ts: 391ms, application-code: 5.3s)
+ GET /protected/students/index?sessionLabel=TEST-2026-27&status=active 200 in 4.2s (next.js: 5ms, proxy.ts: 330ms, application-code: 3.9s)
+ GET /protected/students/index?sessionLabel=TEST-2026-27&classId=f52ddcf4-5eb9-47e2-8b46-c5d9d5a8e23a&status=active 200 in 1980ms (next.js: 3ms, proxy.ts: 377ms, application-code: 1601ms)
+ GET /protected/students/index?sessionLabel=TEST-2026-27&classId=9b420631-c5e2-4b12-8ae5-07289d22215c&status=active 200 in 4.3s (next.js: 4ms, proxy.ts: 342ms, application-code: 4.0s)
+ GET /protected/students/410394f2-fb9c-4723-8ab0-b59c2899a7c2?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3DTEST-2026-27%26classId%3D9b420631-c5e2-4b12-8ae5-07289d22215c%26status%3Dactive 200 in 7.7s (next.js: 745ms, proxy.ts: 431ms, application-code: 6.5s)
+ GET /protected/students/410394f2-fb9c-4723-8ab0-b59c2899a7c2/statement 200 in 7.0s (next.js: 725ms, proxy.ts: 381ms, application-code: 5.9s)
+ GET /protected/ledger?studentId=410394f2-fb9c-4723-8ab0-b59c2899a7c2 200 in 2.1s (next.js: 381ms, proxy.ts: 512ms, application-code: 1201ms)
+ GET /protected/payments 200 in 3.3s (next.js: 30ms, proxy.ts: 371ms, application-code: 2.9s)
+ GET /protected/payments/student-summary?studentId=3d5e9c60-dad6-4ac4-af92-02b6af38aa5f&paymentDate=2026-05-03&includeLatestReceipt=false 200 in 7.1s (next.js: 44ms, proxy.ts: 399ms, application-code: 6.7s)
+ POST /protected/payments 200 in 9.0s (next.js: 3ms, proxy.ts: 381ms, application-code: 8.6s)
+  └─ ƒ submitPaymentEntryAction({"amountReceived":null,"clientRequestId":null,"diagnostic":null,"...":"12 items not stringified"}, {}) in 5935ms app/protected/payments/actions.ts
+ GET /protected/payments/student-summary?studentId=3d5e9c60-dad6-4ac4-af92-02b6af38aa5f&paymentDate=2026-05-03&includeLatestReceipt=false 200 in 6.0s (next.js: 5ms, proxy.ts: 360ms, application-code: 5.6s)
+ GET /protected/payments/student-summary?studentId=bbc3e972-7fe2-4917-8dd1-19b1883bb82b&paymentDate=2026-05-03&includeLatestReceipt=false 200 in 7.3s (next.js: 4ms, proxy.ts: 383ms, application-code: 6.9s)
+ GET /protected/transactions 200 in 6.0s (next.js: 418ms, proxy.ts: 364ms, application-code: 5.3s)
+ GET /protected/transactions?view=collection_today 200 in 5.4s (next.js: 3ms, proxy.ts: 409ms, application-code: 4.9s)

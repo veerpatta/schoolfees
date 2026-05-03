@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { OfficeNotice } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { DefaulterFilters } from "@/components/defaulters/defaulter-filters";
 import { getDefaultersPageData } from "@/lib/defaulters/data";
@@ -66,7 +67,7 @@ export default async function DefaultersPage({
       <PageHeader
         eyebrow="Defaulters"
         title="Outstanding follow-up register"
-        description={`Phone-ready overdue list for ${policy.academicSessionLabel}.`}
+        description={`Phone-ready overdue list for ${policy.academicSessionLabel}. Highest risk appears first.`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge
@@ -80,6 +81,10 @@ export default async function DefaultersPage({
         }
       />
 
+      <OfficeNotice tone="info">
+        Use this screen for calls and follow-up only. Collect payments from Payment Desk.
+      </OfficeNotice>
+
       <SectionCard
         title="Filters"
         description="Keep the follow-up list narrow enough for the office team to act on."
@@ -92,11 +97,11 @@ export default async function DefaultersPage({
       </SectionCard>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+        <div className="rounded-lg border border-slate-200 bg-white p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
             Students listed
           </p>
-          <div className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+          <div className="mt-2 text-2xl font-semibold text-slate-950">
             {data.metrics.totalStudents}
           </div>
           <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -104,11 +109,11 @@ export default async function DefaultersPage({
           </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+        <div className="rounded-lg border border-slate-200 bg-white p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
             Pending amount
           </p>
-          <div className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+          <div className="mt-2 text-2xl font-semibold text-slate-950">
             {formatInr(data.metrics.totalPending)}
           </div>
           <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -116,11 +121,11 @@ export default async function DefaultersPage({
           </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+        <div className="rounded-lg border border-slate-200 bg-white p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
             Overdue installments
           </p>
-          <div className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+          <div className="mt-2 text-2xl font-semibold text-slate-950">
             {data.metrics.overdueInstallments}
           </div>
           <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -128,11 +133,11 @@ export default async function DefaultersPage({
           </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+        <div className="rounded-lg border border-slate-200 bg-white p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
             Open installments
           </p>
-          <div className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+          <div className="mt-2 text-2xl font-semibold text-slate-950">
             {data.metrics.openInstallments}
           </div>
           <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -140,11 +145,11 @@ export default async function DefaultersPage({
           </p>
         </div>
 
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-700">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-700">
             Dues not prepared
           </p>
-          <div className="mt-3 text-2xl font-semibold tracking-tight text-amber-950">
+          <div className="mt-2 text-2xl font-semibold text-amber-950">
             {data.metrics.missingDuesStudents}
           </div>
           <p className="mt-2 text-sm leading-6 text-amber-900">

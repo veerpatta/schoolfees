@@ -40,7 +40,7 @@ export default async function FeeSetupPage() {
       <PageHeader
         eyebrow="Fee Setup"
         title="Academic Year Fee Setup"
-        description="Set the academic year, installment dates, class fees, transport fees, then preview and publish safely."
+        description="Set yearly fees, due dates, class fees, transport fees, then review and publish."
         actions={
           canEdit ? (
             <StatusBadge label="Admin editable" tone="good" />

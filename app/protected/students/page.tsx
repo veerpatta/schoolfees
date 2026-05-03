@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { OfficeActionBar, OfficeNotice } from "@/components/office/office-ui";
 import { StudentBulkImportDialogTrigger } from "@/components/students/student-bulk-import-dialog";
 import { StudentQuickLoad } from "@/components/students/student-quick-load";
 import { Button } from "@/components/ui/button";
@@ -125,25 +126,25 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
       <PageHeader
         eyebrow="Students"
         title="Students"
-        description="Add students, manage student details, assign class/transport, and handle student-specific fee exceptions."
+        description="Add, search, bulk update, and review student-specific fee exceptions."
         actions={
           canWriteStudents ? (
-            <div className="flex flex-wrap items-center gap-2">
+            <OfficeActionBar className="border-0 bg-transparent p-0 shadow-none">
               <Button asChild>
                 <Link href={`/protected/students/new?sessionLabel=${encodeURIComponent(filters.sessionLabel)}`}>
                   Add Student
                 </Link>
               </Button>
+              <StudentBulkImportDialogTrigger
+                sessionOptions={sessionOptions}
+                defaultSessionLabel={filters.sessionLabel}
+              />
               <details className="relative">
                 <summary className="inline-flex h-9 cursor-pointer list-none items-center justify-center rounded-lg border border-input bg-white px-4 py-2 text-sm font-semibold shadow-sm hover:bg-accent">
-                  More
+                  More templates
                 </summary>
                 <div className="absolute right-0 z-20 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
                   <div className="grid gap-2">
-                    <StudentBulkImportDialogTrigger
-                      sessionOptions={sessionOptions}
-                      defaultSessionLabel={filters.sessionLabel}
-                    />
                     <Button asChild variant="outline">
                       <Link href={`/protected/imports/template?mode=add&sessionLabel=${encodeURIComponent(filters.sessionLabel)}`}>
                         Download Add Template
@@ -157,7 +158,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
                   </div>
                 </div>
               </details>
-            </div>
+            </OfficeActionBar>
           ) : (
             <StatusBadge label="Read-only access" tone="warning" />
           )
@@ -169,15 +170,19 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
           title="Working session mismatch"
             description="Fee Setup and student lists are not pointing to the same academic year."
         >
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <OfficeNotice
+            tone="warning"
+            action={
+              <Button asChild variant="outline">
+                <Link href="/protected/fee-setup">Open Fee Setup</Link>
+              </Button>
+            }
+          >
             <p>
               Defaulting finance workflows to Fee Setup session{" "}
               <strong>{formOptions.policySessionLabel || resolvedSessionLabel}</strong>.
             </p>
-            <Button asChild variant="outline">
-              <Link href="/protected/fee-setup">Open Fee Setup</Link>
-            </Button>
-          </div>
+          </OfficeNotice>
         </SectionCard>
       ) : null}
 
@@ -188,7 +193,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
         >
           <div className="space-y-2 text-sm text-amber-900">
             {loadWarnings.map((warning) => (
-              <p key={warning} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+              <p key={warning} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
                 {warning}
               </p>
             ))}

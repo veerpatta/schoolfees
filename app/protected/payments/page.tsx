@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/admin/page-header";
-import { WorkflowGuard } from "@/components/office/office-ui";
+import { OfficeNotice, WorkflowGuard } from "@/components/office/office-ui";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { PaymentEntryClient } from "@/components/payments/payment-entry-client";
 import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
@@ -61,7 +61,7 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
       <PageHeader
         eyebrow="Payments"
         title="Payment Desk"
-        description="Select student, collect payment, print receipt."
+        description="Select a student, review dues, collect payment, and print the receipt."
         actions={
           <StatusBadge
             label={canPostPayments ? "Posting enabled" : "Read-only access"}
@@ -80,9 +80,7 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
       ) : null}
 
       {repairNotice ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          {repairNotice}
-        </div>
+        <OfficeNotice tone="warning">{repairNotice}</OfficeNotice>
       ) : null}
 
       <PaymentEntryClient

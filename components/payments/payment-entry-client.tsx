@@ -30,6 +30,7 @@ import type {
   PaymentEntryPageData,
 } from "@/lib/payments/types";
 import { formatInr } from "@/lib/helpers/currency";
+import { cn } from "@/lib/utils";
 
 type PaymentEntryClientProps = {
   data: PaymentEntryPageData;
@@ -59,6 +60,15 @@ const textAreaClassName =
 const studentComboboxRowHeight = 52;
 const studentComboboxPanelHeight = 312;
 const studentComboboxOverscan = 4;
+
+function desktopTabButtonClass(active: boolean) {
+  return cn(
+    "rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors",
+    active
+      ? "border-slate-900 bg-slate-900 text-white"
+      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
+  );
+}
 
 function createClientRequestId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -835,10 +845,10 @@ export function PaymentEntryClient({
           </div>
           <div className="min-h-0 overflow-y-auto rounded-lg border border-slate-200 bg-white p-3">
             <div className="mb-2 flex gap-2 text-sm">
-              <button type="button" className="rounded border px-2 py-1" onClick={()=>setDesktopPanelTab("collect")}>Collect</button>
-              <button type="button" className="rounded border px-2 py-1" onClick={()=>setDesktopPanelTab("dues")}>Dues Details</button>
-              <button type="button" className="rounded border px-2 py-1" onClick={()=>setDesktopPanelTab("receipt")}>Recent Receipt</button>
-              <button type="button" className="rounded border px-2 py-1" onClick={()=>setDesktopPanelTab("notes")}>Notes</button>
+              <button type="button" className={desktopTabButtonClass(desktopPanelTab === "collect")} onClick={()=>setDesktopPanelTab("collect")}>Collect</button>
+              <button type="button" className={desktopTabButtonClass(desktopPanelTab === "dues")} onClick={()=>setDesktopPanelTab("dues")}>Dues Details</button>
+              <button type="button" className={desktopTabButtonClass(desktopPanelTab === "receipt")} onClick={()=>setDesktopPanelTab("receipt")}>Recent Receipt</button>
+              <button type="button" className={desktopTabButtonClass(desktopPanelTab === "notes")} onClick={()=>setDesktopPanelTab("notes")}>Notes</button>
             </div>
             {desktopPanelTab === "collect" ? (
               <div className="space-y-3 text-sm">

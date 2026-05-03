@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { AutoSubmitForm } from "@/components/office/auto-submit-form";
-import { ValueStatePill, WorkflowGuard } from "@/components/office/office-ui";
+import { OfficeNotice, ValueStatePill, WorkflowGuard } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
@@ -814,7 +814,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
       <PageHeader
         eyebrow="Finance records"
         title="Transactions"
-        description="What financial activity happened?"
+        description="Read-only receipts, dues, class register, and payment history."
         actions={
           <div className="flex flex-wrap gap-2">
             {canExport ? (
@@ -848,9 +848,13 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         />
       ) : null}
 
+      <OfficeNotice tone="info" title="Read-only finance center">
+        Use Payment Desk to collect money. This page is for checking, filtering, printing, and exporting saved records.
+      </OfficeNotice>
+
       <SectionCard
         title="Choose view"
-        description="Switch records, dues, receipts, and export views from one compact control area."
+        description="Switch records, dues, receipts, and export views from one control area."
         actions={
           <StatusBadge label="Read-only records" tone="accent" />
         }

@@ -8,11 +8,11 @@ type MetricCardProps = {
 
 export function MetricCard({ title, value, hint }: MetricCardProps) {
   return (
-    <div className="glass-panel rounded-xl p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-sky-700/75">
+    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
         {title}
       </p>
-      <div className="mt-3 font-heading text-2xl font-semibold tracking-tight text-slate-950">
+      <div className="mt-2 font-heading text-2xl font-semibold text-slate-950">
         {value}
       </div>
       {hint ? (
