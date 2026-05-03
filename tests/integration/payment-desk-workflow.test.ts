@@ -57,11 +57,77 @@ describe("payment desk cashier workflow", () => {
       admissionNo: "SR-1",
       classLabel: "Class 1",
       amount: 1500,
+      pendingBeforeDiscount: 4000,
+      quickDiscountApplied: 0,
+      lateFeeWaivedApplied: 0,
+      revisedPendingBeforePayment: 4000,
       paymentDate: "2026-04-25",
       paymentModeLabel: "Cash",
       referenceNumber: "UPI-1",
       receivedBy: "Office Staff",
       remainingBalance: 2500,
+    });
+  });
+
+  it("shows revised payable when cashier applies a quick discount", () => {
+    expect(
+      buildPaymentConfirmationSummary({
+        selectedStudent: { ...selectedStudent, totalPending: 1000 },
+        amountInput: "900",
+        quickDiscountInput: "100",
+        paymentDate: "2026-04-25",
+        paymentMode: "cash",
+        paymentModeLabel: "Cash",
+        referenceNumber: "",
+        receivedBy: "Office Staff",
+        previewTotalPending: 1000,
+      }),
+    ).toMatchObject({
+      pendingBeforeDiscount: 1000,
+      quickDiscountApplied: 100,
+      lateFeeWaivedApplied: 0,
+      revisedPendingBeforePayment: 900,
+      amount: 900,
+      remainingBalance: 0,
+    });
+  });
+
+  it("blocks overpayment against revised payable after discount", () => {
+    expect(
+      validatePaymentDraft({
+        selectedStudent: { ...selectedStudent, totalPending: 1000 },
+        amountInput: "1000",
+        quickDiscountInput: "100",
+        paymentDate: "2026-04-25",
+        paymentMode: "cash",
+        paymentModeLabel: "Cash",
+        referenceNumber: "",
+        receivedBy: "Office Staff",
+        previewTotalPending: 1000,
+      }),
+    ).toEqual({ ok: false, message: "Payment amount exceeds net payable after discount." });
+  });
+
+  it("late fee waiver reduces payable in the confirmation summary", () => {
+    expect(
+      buildPaymentConfirmationSummary({
+        selectedStudent: { ...selectedStudent, totalPending: 1100 },
+        amountInput: "1000",
+        quickLateFeeWaiverInput: "100",
+        paymentDate: "2026-04-25",
+        paymentMode: "cash",
+        paymentModeLabel: "Cash",
+        referenceNumber: "",
+        receivedBy: "Office Staff",
+        previewTotalPending: 1100,
+      }),
+    ).toMatchObject({
+      pendingBeforeDiscount: 1100,
+      quickDiscountApplied: 0,
+      lateFeeWaivedApplied: 100,
+      revisedPendingBeforePayment: 1000,
+      amount: 1000,
+      remainingBalance: 0,
     });
   });
 

@@ -37,7 +37,7 @@ begin
     when jsonb_typeof(new.raw_app_meta_data -> 'is_active') = 'boolean' then
       (new.raw_app_meta_data->>'is_active')::boolean
     else
-      new.deleted_at is null
+      true
   end;
 
   insert into public.users (
@@ -52,7 +52,7 @@ begin
     new.id,
     resolved_full_name,
     private.normalize_staff_role(new.raw_app_meta_data->>'staff_role'),
-    nullif(trim(coalesce(new.phone, '')), ''),
+    nullif(trim(coalesce(new.raw_user_meta_data->>'phone', new.raw_user_meta_data->>'phone_number', '')), ''),
     resolved_is_active,
     new.last_sign_in_at
   )
@@ -71,7 +71,7 @@ $$;
 
 drop trigger if exists sync_staff_profile_from_auth_users on auth.users;
 create trigger sync_staff_profile_from_auth_users
-after insert or update of email, phone, raw_user_meta_data, raw_app_meta_data, last_sign_in_at, deleted_at
+after insert or update of email, raw_user_meta_data, raw_app_meta_data, last_sign_in_at
 on auth.users
 for each row execute function private.sync_staff_profile_from_auth_user();
 
@@ -92,12 +92,12 @@ select
     'School Staff'
   ) as full_name,
   private.normalize_staff_role(au.raw_app_meta_data->>'staff_role') as role,
-  nullif(trim(coalesce(au.phone, '')), '') as phone,
+  nullif(trim(coalesce(au.raw_user_meta_data->>'phone', au.raw_user_meta_data->>'phone_number', '')), '') as phone,
   case
     when jsonb_typeof(au.raw_app_meta_data -> 'is_active') = 'boolean' then
       (au.raw_app_meta_data->>'is_active')::boolean
     else
-      au.deleted_at is null
+      true
   end as is_active,
   au.last_sign_in_at as last_login_at
 from auth.users as au

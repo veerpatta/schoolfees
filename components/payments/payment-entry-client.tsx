@@ -151,6 +151,8 @@ export function PaymentEntryClient({
   const [studentSummaryNotice, setStudentSummaryNotice] = useState<string | null>(null);
   const [latestStudentReceipt, setLatestStudentReceipt] = useState(data.initialLatestReceipt);
   const [paymentAmountInput, setPaymentAmountInput] = useState("");
+  const [quickDiscountInput, setQuickDiscountInput] = useState("");
+  const [quickLateFeeWaiverInput, setQuickLateFeeWaiverInput] = useState("");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [dateAwareBreakdown, setDateAwareBreakdown] = useState<InstallmentBalanceItem[] | null>(null);
@@ -160,8 +162,6 @@ export function PaymentEntryClient({
   const [summaryRefreshToken, setSummaryRefreshToken] = useState(0);
   const [paymentMode, setPaymentMode] = useState(data.modeOptions[0]?.value ?? "cash");
   const [referenceNumber, setReferenceNumber] = useState("");
-  const [waiveLateFee, setWaiveLateFee] = useState(false);
-  const [additionalDiscount, setAdditionalDiscount] = useState("");
   const [receivedBy, setReceivedBy] = useState(defaultReceivedBy);
   const [remarks, setRemarks] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -231,12 +231,9 @@ export function PaymentEntryClient({
     .reduce((sum, item) => sum + item.outstandingAmount, 0);
   const previewNextDue =
     previewBreakdown.find((item) => item.outstandingAmount > 0) ?? null;
-  const totalPendingLateFee = previewBreakdown
-    .filter((item) => item.outstandingAmount > 0)
-    .reduce((sum, item) => sum + item.finalLateFee, 0);
   const paymentAmount = Number(paymentAmountInput) || 0;
-  const quickDiscountAmount = Number(additionalDiscount) || 0;
-  const quickLateFeeWaiverAmount = waiveLateFee ? totalPendingLateFee : 0;
+  const quickDiscountAmount = Number(quickDiscountInput) || 0;
+  const quickLateFeeWaiverAmount = Number(quickLateFeeWaiverInput) || 0;
   const referenceRequired = paymentModeNeedsReference(paymentMode);
   const creditBalance = selectedStudent?.creditBalance ?? 0;
   const refundableAmount = selectedStudent?.refundableAmount ?? 0;
@@ -360,6 +357,8 @@ export function PaymentEntryClient({
   const draftValidation = validatePaymentDraft({
     selectedStudent,
     amountInput: paymentAmountInput,
+    quickDiscountInput,
+    quickLateFeeWaiverInput,
     paymentDate,
     paymentMode,
     paymentModeLabel: selectedPaymentModeLabel,
@@ -382,6 +381,8 @@ export function PaymentEntryClient({
   const confirmationSummary = buildPaymentConfirmationSummary({
     selectedStudent,
     amountInput: paymentAmountInput,
+    quickDiscountInput,
+    quickLateFeeWaiverInput,
     paymentDate,
     paymentMode,
     paymentModeLabel: selectedPaymentModeLabel,
@@ -394,8 +395,9 @@ export function PaymentEntryClient({
     referenceRequired,
     creditBalance,
   });
+  const netPayable = draftValidation.ok ? draftValidation.revisedPendingBeforePayment : Math.max(previewTotalPending - quickDiscountAmount - quickLateFeeWaiverAmount, 0);
   const remainingAfterPayment =
-    draftValidation.ok ? draftValidation.remainingBalance : previewTotalPending;
+    draftValidation.ok ? draftValidation.remainingBalance : netPayable;
   const latestReceipt = latestStudentReceipt ?? data.recentReceipts[0] ?? null;
   const latestPayment = state.status === "success" && state.receiptId && state.receiptNumber
     ? {
@@ -517,6 +519,8 @@ export function PaymentEntryClient({
     const validation = validatePaymentDraft({
       selectedStudent,
       amountInput: paymentAmountInput,
+      quickDiscountInput,
+      quickLateFeeWaiverInput,
       paymentDate,
       paymentMode,
       paymentModeLabel: selectedPaymentModeLabel,
@@ -547,10 +551,10 @@ export function PaymentEntryClient({
     });
 
     setPaymentAmountInput(resetValues.amountInput);
+    setQuickDiscountInput("");
+    setQuickLateFeeWaiverInput("");
     setReferenceNumber(resetValues.referenceNumber);
     setRemarks(resetValues.remarks);
-    setWaiveLateFee(false);
-    setAdditionalDiscount("");
     setPaymentMode(resetValues.paymentMode as typeof paymentMode);
     setReceivedBy(resetValues.receivedBy);
     setClientRequestId(createClientRequestId());
@@ -962,9 +966,6 @@ export function PaymentEntryClient({
               >
                 <input type="hidden" name="studentId" value={selectedStudentId} />
                 <input type="hidden" name="clientRequestId" value={clientRequestId} />
-                <input type="hidden" name="waiveLateFee" value={waiveLateFee ? "1" : "0"} />
-                <input type="hidden" name="lateFeeWaiveAmount" value={waiveLateFee ? String(totalPendingLateFee) : "0"} />
-                <input type="hidden" name="additionalDiscount" value={additionalDiscount} />
 
                 {studentSummaryLoading ? (
                   <p className="rounded-md border border-blue-100 bg-blue-50 px-2 py-1 text-xs text-blue-900">Loading dues...</p>
@@ -1023,6 +1024,40 @@ export function PaymentEntryClient({
                     </div>
                   </div>
                   <div>
+                    <Label htmlFor="quick-discount-amount">Discount / concession</Label>
+                    <Input
+                      id="quick-discount-amount"
+                      name="quickDiscountAmount"
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      max={previewTotalPending}
+                      className="mt-2"
+                      value={quickDiscountInput}
+                      onChange={(event) => {
+                        setQuickDiscountInput(event.target.value);
+                        setFormError(null);
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="quick-late-fee-waiver-amount">Late fee waived</Label>
+                    <Input
+                      id="quick-late-fee-waiver-amount"
+                      name="quickLateFeeWaiverAmount"
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      max={previewTotalPending}
+                      className="mt-2"
+                      value={quickLateFeeWaiverInput}
+                      onChange={(event) => {
+                        setQuickLateFeeWaiverInput(event.target.value);
+                        setFormError(null);
+                      }}
+                    />
+                  </div>
+                  <div>
                     <Label htmlFor="payment-date">Payment date</Label>
                     <Input
                       id="payment-date"
@@ -1074,7 +1109,7 @@ export function PaymentEntryClient({
                     />
                     <p className="mt-1 text-xs text-slate-500">
                       {referenceRequired
-                        ? "Reference is optional but recommended for UPI, bank transfer, and cheque payments."
+                        ? "Reference is required for UPI, bank transfer, and cheque payments."
                         : "Reference is useful for matching bank/UPI records."}
                     </p>
                   </div>
@@ -1173,6 +1208,10 @@ export function PaymentEntryClient({
                   )}
 
                   <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-700">
+                    <span>Pending before discount: {formatInr(previewTotalPending)}</span>
+                    <span>Discount: {formatInr(quickDiscountAmount)}</span>
+                    <span>Late fee waived: {formatInr(quickLateFeeWaiverAmount)}</span>
+                    <span>Net payable: {formatInr(netPayable)}</span>
                     <span>Preview allocated: {formatInr(allocatedPreviewTotal)}</span>
                     <span>Unallocated: {formatInr(unallocatedAmount)}</span>
                   </div>
@@ -1216,7 +1255,11 @@ export function PaymentEntryClient({
                       <span>Student name: {confirmationSummary.studentName}</span>
                       <span>SR/admission no: {confirmationSummary.admissionNo}</span>
                       <span>Class: {confirmationSummary.classLabel}</span>
-                      <span>Payment amount: {formatInr(confirmationSummary.amount)}</span>
+                      <span>Pending before discount: {formatInr(confirmationSummary.pendingBeforeDiscount)}</span>
+                      <span>Discount applied: {formatInr(confirmationSummary.quickDiscountApplied)}</span>
+                      <span>Late fee waived: {formatInr(confirmationSummary.lateFeeWaivedApplied)}</span>
+                      <span>Net payable: {formatInr(confirmationSummary.revisedPendingBeforePayment)}</span>
+                      <span>Amount received: {formatInr(confirmationSummary.amount)}</span>
                       <span>Payment date: {confirmationSummary.paymentDate}</span>
                       <span>Payment mode: {confirmationSummary.paymentModeLabel}</span>
                       <span>Reference number: {confirmationSummary.referenceNumber ?? "Not entered"}</span>
@@ -1246,16 +1289,6 @@ export function PaymentEntryClient({
                           ))}
                         </tbody>
                       </table>
-                    </div>
-                    <div className="mt-4 space-y-3 rounded-lg border border-slate-200 p-3 text-sm">
-                      <label className="flex items-center gap-2">
-                        <input type="checkbox" checked={waiveLateFee} onChange={(event)=>setWaiveLateFee(event.target.checked)} />
-                        Waive pending late fee for this payment ({formatInr(totalPendingLateFee)})
-                      </label>
-                      <div>
-                        <Label htmlFor="confirm-additional-discount">Additional discount</Label>
-                        <Input id="confirm-additional-discount" type="number" min={0} value={additionalDiscount} onChange={(event)=>setAdditionalDiscount(event.target.value)} placeholder="0" className="mt-1" />
-                      </div>
                     </div>
                     <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                       This will save the receipt once. Posted receipts stay in history.
@@ -1301,9 +1334,13 @@ export function PaymentEntryClient({
                       <span>Student name: {selectedStudent.fullName}</span>
                       <span>SR/admission no: {selectedStudent.admissionNo}</span>
                       <span>Class: {selectedStudent.classLabel}</span>
-                      <span>Payment received: {formatInr(state.amountReceived ?? paymentAmount)}</span>
-                      {quickDiscountAmount > 0 ? <span>Discount applied: {formatInr(quickDiscountAmount)}</span> : null}
-                      {quickLateFeeWaiverAmount > 0 ? <span>Late fee waived: {formatInr(quickLateFeeWaiverAmount)}</span> : null}
+                      <span>Amount received: {formatInr(state.amountReceived ?? paymentAmount)}</span>
+                      {(state.quickDiscountApplied ?? quickDiscountAmount) > 0 ? (
+                        <span>Discount applied: {formatInr(state.quickDiscountApplied ?? quickDiscountAmount)}</span>
+                      ) : null}
+                      {(state.lateFeeWaivedApplied ?? quickLateFeeWaiverAmount) > 0 ? (
+                        <span>Late fee waived: {formatInr(state.lateFeeWaivedApplied ?? quickLateFeeWaiverAmount)}</span>
+                      ) : null}
                       <span>Payment date: {state.paymentDate ?? paymentDate}</span>
                       <span>Payment mode: {postedPaymentModeLabel}</span>
                       <span>Reference number: {state.referenceNumber ?? "Not entered"}</span>

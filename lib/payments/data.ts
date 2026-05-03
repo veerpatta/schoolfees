@@ -572,6 +572,8 @@ export async function preflightPaymentPosting(payload: {
   paymentAmount: number;
   quickDiscountAmount?: number;
   quickLateFeeWaiverAmount?: number;
+  paymentMode?: PaymentMode;
+  referenceNumber?: string | null;
 }) {
   const context = await getSelectedStudentPreflightContext(payload.studentId);
   let installmentCount = context.installmentCount;
@@ -611,6 +613,20 @@ export async function preflightPaymentPosting(payload: {
       buildPaymentDiagnostic({
         ...baseDiagnostic,
         reason: "session_mismatch",
+      }),
+    );
+  }
+
+  if (
+    payload.paymentMode &&
+    (payload.paymentMode === "upi" || payload.paymentMode === "bank_transfer" || payload.paymentMode === "cheque") &&
+    !payload.referenceNumber?.trim()
+  ) {
+    throw new PaymentPostingPreflightError(
+      "Reference number is required for UPI, bank transfer, and cheque payments.",
+      buildPaymentDiagnostic({
+        ...baseDiagnostic,
+        reason: "reference_required_for_non_cash_payment",
       }),
     );
   }
@@ -681,21 +697,49 @@ export async function preflightPaymentPosting(payload: {
     );
   }
 
-  const quickDiscountApplied = Math.max(payload.quickDiscountAmount ?? 0, 0);
-  const quickLateFeeWaiverApplied = Math.max(payload.quickLateFeeWaiverAmount ?? 0, 0);
-  const revisedPendingBeforePayment = Math.max(
-    previewPendingAmount - quickDiscountApplied - quickLateFeeWaiverApplied,
-    0,
-  );
+  const adjustmentAmount =
+    Math.max(payload.quickDiscountAmount ?? 0, 0) +
+    Math.max(payload.quickLateFeeWaiverAmount ?? 0, 0);
+  const revisedPendingAmount = Math.max(previewPendingAmount - adjustmentAmount, 0);
 
-  if (payload.paymentAmount > revisedPendingBeforePayment) {
+  if (adjustmentAmount > previewPendingAmount) {
     throw new PaymentPostingPreflightError(
-      "Payment amount is more than pending dues.",
+      "Discount and late fee waiver exceed pending amount.",
       buildPaymentDiagnostic({
         ...baseDiagnostic,
         installmentCount,
         previewPendingAmount,
-        revisedPendingAmount: revisedPendingBeforePayment,
+        revisedPendingAmount,
+        previewWorked: true,
+        autoPrepareAttempted,
+        autoPrepareWorked,
+        reason: "adjustment_amount_exceeds_preview_pending",
+      }),
+    );
+  }
+
+  if (revisedPendingAmount <= 0) {
+    throw new PaymentPostingPreflightError(
+      "No payable dues found after discount and late fee waiver.",
+      buildPaymentDiagnostic({
+        ...baseDiagnostic,
+        installmentCount,
+        previewPendingAmount,
+        previewWorked: true,
+        autoPrepareAttempted,
+        autoPrepareWorked,
+        reason: "no_payable_dues_after_adjustments",
+      }),
+    );
+  }
+
+  if (payload.paymentAmount > revisedPendingAmount) {
+    throw new PaymentPostingPreflightError(
+      "Payment amount is more than net payable after discount.",
+      buildPaymentDiagnostic({
+        ...baseDiagnostic,
+        installmentCount,
+        previewPendingAmount,
         previewWorked: true,
         autoPrepareAttempted,
         autoPrepareWorked,
@@ -708,7 +752,7 @@ export async function preflightPaymentPosting(payload: {
     ...baseDiagnostic,
     installmentCount,
     previewPendingAmount,
-    revisedPendingAmount: revisedPendingBeforePayment,
+    revisedPendingAmount,
     previewWorked: true,
     autoPrepareAttempted,
     autoPrepareWorked,
@@ -942,12 +986,12 @@ export async function postStudentPayment(payload: {
   paymentDate: string;
   paymentMode: PaymentMode;
   paymentAmount: number;
+  quickDiscountAmount?: number;
+  quickLateFeeWaiverAmount?: number;
   referenceNumber: string | null;
   remarks: string | null;
   receivedBy: string;
   clientRequestId: string;
-  quickDiscountAmount?: number;
-  quickLateFeeWaiverAmount?: number;
 }) {
   const policy = await getFeePolicySummary();
   const existingReceipt = await findReceiptByClientRequestId({
@@ -963,8 +1007,10 @@ export async function postStudentPayment(payload: {
     studentId: payload.studentId,
     paymentDate: payload.paymentDate,
     paymentAmount: payload.paymentAmount,
-    quickDiscountAmount: payload.quickDiscountAmount ?? 0,
-    quickLateFeeWaiverAmount: payload.quickLateFeeWaiverAmount ?? 0,
+    quickDiscountAmount: payload.quickDiscountAmount,
+    quickLateFeeWaiverAmount: payload.quickLateFeeWaiverAmount,
+    paymentMode: payload.paymentMode,
+    referenceNumber: payload.referenceNumber,
   });
   const duplicateReceipt = await findLikelyDuplicateReceipt({
     studentId: payload.studentId,
@@ -979,6 +1025,8 @@ export async function postStudentPayment(payload: {
   }
 
   const supabase = await createClient();
+  const quickDiscountAmount = Math.max(payload.quickDiscountAmount ?? 0, 0);
+  const quickLateFeeWaiverAmount = Math.max(payload.quickLateFeeWaiverAmount ?? 0, 0);
   const { data, error } = await supabase.rpc("post_student_payment_with_adjustments", {
     p_student_id: payload.studentId,
     p_payment_date: payload.paymentDate,
@@ -989,8 +1037,8 @@ export async function postStudentPayment(payload: {
     p_received_by: payload.receivedBy,
     p_receipt_prefix: policy.receiptPrefix,
     p_client_request_id: payload.clientRequestId,
-    p_quick_discount_amount: Math.max(payload.quickDiscountAmount ?? 0, 0),
-    p_quick_late_fee_waiver_amount: Math.max(payload.quickLateFeeWaiverAmount ?? 0, 0),
+    p_quick_discount_amount: quickDiscountAmount,
+    p_quick_late_fee_waiver_amount: quickLateFeeWaiverAmount,
   });
 
   if (error) {
@@ -1019,7 +1067,15 @@ export async function postStudentPayment(payload: {
     receiptId: row.receipt_id,
     receiptNumber: row.receipt_number,
     allocatedTotal: row.allocated_total,
-    remainingBalance: Math.max((preflightDiagnostic.revisedPendingAmount ?? 0) - payload.paymentAmount, 0),
+    quickDiscountApplied: quickDiscountAmount,
+    lateFeeWaivedApplied: quickLateFeeWaiverAmount,
+    remainingBalance: Math.max(
+      (preflightDiagnostic.previewPendingAmount ?? 0) -
+        quickDiscountAmount -
+        quickLateFeeWaiverAmount -
+        payload.paymentAmount,
+      0,
+    ),
   };
 }
 
@@ -1045,6 +1101,8 @@ async function findReceiptByClientRequestId(payload: {
     receiptId: data.id as string,
     receiptNumber: data.receipt_number as string,
     allocatedTotal: (data.total_amount ?? 0) as number,
+    quickDiscountApplied: 0,
+    lateFeeWaivedApplied: 0,
     remainingBalance: financialState?.pending_amount ?? null,
   };
 }
