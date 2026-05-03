@@ -310,6 +310,44 @@ describe("payment submit preflight", () => {
     ).rejects.toThrow("Payment amount is more than net payable after discount.");
   });
 
+  it("server preflight rejects late fee waiver above pending late fee", async () => {
+    const previewRpc = vi.fn().mockResolvedValue({
+      data: [
+        {
+          installment_id: "00000000-0000-4000-8000-000000000101",
+          installment_no: 1,
+          installment_label: "Installment 1",
+          due_date: "2026-04-20",
+          total_charge: 1100,
+          paid_amount: 0,
+          adjustment_amount: 0,
+          raw_late_fee: 100,
+          waiver_applied: 0,
+          final_late_fee: 100,
+          pending_amount: 1100,
+          balance_status: "pending",
+        },
+      ],
+      error: null,
+    });
+    createClient
+      .mockResolvedValueOnce(clientWithRpc([4], vi.fn()))
+      .mockResolvedValueOnce(clientWithRpc([], previewRpc));
+
+    const { preflightPaymentPosting } = await import("@/lib/payments/data");
+
+    await expect(
+      preflightPaymentPosting({
+        studentId: "00000000-0000-4000-8000-000000000001",
+        paymentDate: "2026-04-25",
+        paymentAmount: 1000,
+        quickLateFeeWaiverAmount: 200,
+        paymentMode: "cash",
+        referenceNumber: null,
+      }),
+    ).rejects.toThrow("Late fee waiver cannot be more than pending late fee.");
+  });
+
   it("server preflight requires references for UPI bank and cheque", async () => {
     createClient.mockResolvedValueOnce(clientWithRpc([4], vi.fn()));
 

@@ -700,7 +700,27 @@ export async function preflightPaymentPosting(payload: {
   const adjustmentAmount =
     Math.max(payload.quickDiscountAmount ?? 0, 0) +
     Math.max(payload.quickLateFeeWaiverAmount ?? 0, 0);
+  const pendingLateFeeAmount = previewRows.reduce(
+    (sum, row) => sum + Math.min(row.finalLateFee, row.outstandingAmount),
+    0,
+  );
   const revisedPendingAmount = Math.max(previewPendingAmount - adjustmentAmount, 0);
+
+  if (Math.max(payload.quickLateFeeWaiverAmount ?? 0, 0) > pendingLateFeeAmount) {
+    throw new PaymentPostingPreflightError(
+      "Late fee waiver cannot be more than pending late fee.",
+      buildPaymentDiagnostic({
+        ...baseDiagnostic,
+        installmentCount,
+        previewPendingAmount,
+        revisedPendingAmount,
+        previewWorked: true,
+        autoPrepareAttempted,
+        autoPrepareWorked,
+        reason: "late_fee_waiver_exceeds_pending_late_fee",
+      }),
+    );
+  }
 
   if (adjustmentAmount > previewPendingAmount) {
     throw new PaymentPostingPreflightError(

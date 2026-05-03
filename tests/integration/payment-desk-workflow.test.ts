@@ -14,6 +14,7 @@ import {
   validatePaymentDraft,
 } from "@/lib/payments/payment-desk-workflow";
 import type { SelectedStudentSummary } from "@/lib/payments/types";
+import { buildReceiptPreviewAllocation } from "@/lib/payments/allocation";
 
 const selectedStudent = {
   id: "student-1",
@@ -25,7 +26,22 @@ const selectedStudent = {
   motherPhone: null,
   studentStatusLabel: "Old",
   transportRouteLabel: "No Transport",
-  breakdown: [],
+  breakdown: [
+    {
+      installmentId: "installment-1",
+      installmentNo: 1,
+      installmentLabel: "Installment 1",
+      dueDate: "2026-04-20",
+      amountDue: 1100,
+      paymentsTotal: 0,
+      adjustmentsTotal: 0,
+      outstandingAmount: 1100,
+      rawLateFee: 100,
+      waiverApplied: 0,
+      finalLateFee: 100,
+      balanceStatus: "pending",
+    },
+  ],
   totalDue: 5000,
   totalPaid: 1000,
   totalPending: 4000,
@@ -129,6 +145,28 @@ describe("payment desk cashier workflow", () => {
       amount: 1000,
       remainingBalance: 0,
     });
+  });
+
+  it("builds receipt preview allocation with discount waiver cash and remaining columns", () => {
+    expect(
+      buildReceiptPreviewAllocation({
+        installments: selectedStudent.breakdown,
+        paymentAmount: 900,
+        quickDiscountAmount: 100,
+        quickLateFeeWaiverAmount: 100,
+      }),
+    ).toEqual([
+      {
+        installmentId: "installment-1",
+        installmentLabel: "Installment 1",
+        dueDate: "2026-04-20",
+        pendingBefore: 1100,
+        discountApplied: 100,
+        lateFeeWaived: 100,
+        amountReceived: 900,
+        remaining: 0,
+      },
+    ]);
   });
 
   it("invalid amount does not allow confirmation", () => {
@@ -346,12 +384,13 @@ describe("payment desk cashier workflow", () => {
       "utf8",
     );
 
+    expect(component).toContain("Receipt Preview");
     expect(component).toContain("Confirm Payment");
     expect(component).toContain("Collect");
     expect(component).toContain("Dues Details");
     expect(component).toContain("Recent Receipt");
     expect(component).toContain("Notes");
-    expect(component).toContain("Generate Receipt");
+    expect(component).toContain("Confirm & Save Receipt");
     expect(component).toContain("Posting payment...");
     expect(component).toContain("Payment Successful");
     expect(component).toContain("Receipt has been saved.");
@@ -364,6 +403,29 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("animate-success-check");
     expect(component).toContain("Similar payment already recorded");
     expect(component).toContain("isLockedAfterSuccess");
+  });
+
+  it("late fee waiver is a checkbox and not a normal free text amount field", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      "utf8",
+    );
+
+    expect(component).toContain("Waive full pending late fee");
+    expect(component).toContain('type="checkbox"');
+    expect(component).toContain('type="hidden" name="quickLateFeeWaiverAmount"');
+    expect(component).not.toContain('id="quick-late-fee-waiver-amount"');
+  });
+
+  it("quick discount and late fee waiver update locally without refetching dues", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      "utf8",
+    );
+
+    expect(component).not.toContain('quickDiscountAmount: String(quickDiscountAmount)');
+    expect(component).not.toContain('quickLateFeeWaiverAmount: String(quickLateFeeWaiverAmount)');
+    expect(component).not.toContain("}, [paymentDate, quickDiscountAmount, quickLateFeeWaiverAmount");
   });
 
   it("payment desk student picker uses accessible combobox with virtualized result rows", () => {
@@ -381,11 +443,12 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("setIsStudentPickerOpen(false)");
     expect(component).toContain("setActiveStudentOptionIndex(-1)");
     expect(component).toContain("studentSearchInputRef.current?.blur()");
-    expect(component).toContain("amountSectionRef.current?.scrollIntoView");
-    expect(component).toContain("amountInputRef.current?.focus()");
+    expect(component).not.toContain("scrollIntoView");
+    expect(component).not.toContain("amountSectionRef");
+    expect(component).toContain("amountInputRef.current?.focus({ preventScroll: true })");
   });
 
-  it("class selection auto-opens student picker and triggers mobile scroll/focus hooks", () => {
+  it("class selection auto-opens student picker without jumping the page", () => {
     const component = readFileSync(
       join(process.cwd(), "components/payments/payment-entry-client.tsx"),
       "utf8",
@@ -395,8 +458,8 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("setActiveStudentOptionIndex(0)");
     expect(component).toContain("setStudentListScrollTop(0)");
     expect(component).toContain("studentListRef.current?.scrollTo({ top: 0 })");
-    expect(component).toContain("studentPickerRef.current?.scrollIntoView");
-    expect(component).toContain("studentSearchInputRef.current?.focus()");
+    expect(component).toContain("studentSearchInputRef.current?.focus({ preventScroll: true })");
+    expect(component).not.toContain("studentPickerRef.current?.scrollIntoView");
   });
 
   it("fast payment form keeps amount entry ahead of dues review and does not auto-fill amount", () => {
@@ -426,6 +489,9 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("studentSummaryLoading ||");
     expect(component).toContain("Enter amount to continue");
     expect(component).toContain("desktop-payment-class-id");
+    expect(component).toContain("Mobile amount received");
+    expect(component).toContain("Mobile discount");
+    expect(component).toContain("Mobile payment mode");
   });
 
   it("mobile navigation and payment entry remain optimized for fast cashier flow", () => {
@@ -451,7 +517,7 @@ describe("payment desk cashier workflow", () => {
     expect(shell).toContain("<MobileBottomNav staffRole={staffRole} />");
     expect(mobileNav).toContain("fixed inset-x-0 bottom-0");
     expect(paymentDesk).not.toContain('className="sticky top-[72px] z-[5] bg-white/95 md:static md:bg-white"');
-    expect(paymentDesk).toContain("Amount Received");
+    expect(paymentDesk).toContain("Amount received");
     expect(paymentDesk.indexOf('title=\"3. Fast Payment\"')).toBeLessThan(
       paymentDesk.indexOf('title=\"3. Review Dues\"'),
     );

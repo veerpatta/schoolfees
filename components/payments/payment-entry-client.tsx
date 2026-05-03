@@ -10,7 +10,7 @@ import { OfficeRecentActions, OfficeRecentTracker, ValueStatePill, WorkflowGuard
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { buildPaymentAllocation } from "@/lib/payments/allocation";
+import { buildPaymentAllocation, buildReceiptPreviewAllocation } from "@/lib/payments/allocation";
 import { buildPaymentQuickAmounts } from "@/lib/payments/workflow";
 import {
   buildPaymentConfirmationSummary,
@@ -152,7 +152,7 @@ export function PaymentEntryClient({
   const [latestStudentReceipt, setLatestStudentReceipt] = useState(data.initialLatestReceipt);
   const [paymentAmountInput, setPaymentAmountInput] = useState("");
   const [quickDiscountInput, setQuickDiscountInput] = useState("");
-  const [quickLateFeeWaiverInput, setQuickLateFeeWaiverInput] = useState("");
+  const [waiveFullLateFee, setWaiveFullLateFee] = useState(false);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [dateAwareBreakdown, setDateAwareBreakdown] = useState<InstallmentBalanceItem[] | null>(null);
@@ -174,7 +174,6 @@ export function PaymentEntryClient({
   const submittingRef = useRef(false);
   const amountInputRef = useRef<HTMLInputElement>(null);
   const studentPickerRef = useRef<HTMLDivElement>(null);
-  const amountSectionRef = useRef<HTMLDivElement>(null);
   const classSectionRef = useRef<HTMLDivElement>(null);
   const studentSearchInputRef = useRef<HTMLInputElement>(null);
   const studentListRef = useRef<HTMLDivElement>(null);
@@ -233,7 +232,12 @@ export function PaymentEntryClient({
     previewBreakdown.find((item) => item.outstandingAmount > 0) ?? null;
   const paymentAmount = Number(paymentAmountInput) || 0;
   const quickDiscountAmount = Number(quickDiscountInput) || 0;
-  const quickLateFeeWaiverAmount = Number(quickLateFeeWaiverInput) || 0;
+  const pendingLateFeeAmount = previewBreakdown.reduce(
+    (sum, item) => sum + Math.min(item.finalLateFee, item.outstandingAmount),
+    0,
+  );
+  const quickLateFeeWaiverAmount = waiveFullLateFee ? pendingLateFeeAmount : 0;
+  const quickLateFeeWaiverInput = quickLateFeeWaiverAmount > 0 ? String(quickLateFeeWaiverAmount) : "";
   const referenceRequired = paymentModeNeedsReference(paymentMode);
   const creditBalance = selectedStudent?.creditBalance ?? 0;
   const refundableAmount = selectedStudent?.refundableAmount ?? 0;
@@ -259,8 +263,6 @@ export function PaymentEntryClient({
       studentId: selectedStudentId,
       paymentDate,
       includeLatestReceipt: "false",
-      quickDiscountAmount: String(quickDiscountAmount),
-      quickLateFeeWaiverAmount: String(quickLateFeeWaiverAmount),
     });
 
     setStudentSummaryLoading(true);
@@ -321,7 +323,7 @@ export function PaymentEntryClient({
     return () => {
       controller.abort();
     };
-  }, [paymentDate, quickDiscountAmount, quickLateFeeWaiverAmount, selectedStudentId, summaryRefreshToken]);
+  }, [paymentDate, selectedStudentId, summaryRefreshToken]);
 
   const allocationPreview = useMemo(() => {
     if (!selectedStudent) {
@@ -330,6 +332,16 @@ export function PaymentEntryClient({
 
     return buildPaymentAllocation(previewBreakdown, paymentAmount);
   }, [paymentAmount, previewBreakdown, selectedStudent]);
+  const receiptPreviewAllocation = useMemo(
+    () =>
+      buildReceiptPreviewAllocation({
+        installments: previewBreakdown,
+        paymentAmount,
+        quickDiscountAmount,
+        quickLateFeeWaiverAmount,
+      }),
+    [paymentAmount, previewBreakdown, quickDiscountAmount, quickLateFeeWaiverAmount],
+  );
   const quickAmounts = useMemo(() => {
     if (!selectedStudent) {
       return [];
@@ -489,29 +501,17 @@ export function PaymentEntryClient({
     setActiveStudentOptionIndex(filteredStudents.findIndex((student) => student.id === selectedStudentId));
   }, [filteredStudents, selectedStudentId]);
 
-  function prefersReducedMotion() {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-      return false;
-    }
-
-    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  }
-
-
-
   function selectStudent(studentId: string) {
     setSelectedStudentId(studentId);
     setPaymentAmountInput("");
+    setQuickDiscountInput("");
+    setWaiveFullLateFee(false);
     setFormError(null);
     setIsStudentPickerOpen(false);
     setActiveStudentOptionIndex(-1);
     studentSearchInputRef.current?.blur();
     requestAnimationFrame(() => {
-      studentPickerRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      amountSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      setTimeout(() => {
-        amountInputRef.current?.focus();
-      }, 0);
+      amountInputRef.current?.focus({ preventScroll: true });
     });
   }
 
@@ -552,7 +552,7 @@ export function PaymentEntryClient({
 
     setPaymentAmountInput(resetValues.amountInput);
     setQuickDiscountInput("");
-    setQuickLateFeeWaiverInput("");
+    setWaiveFullLateFee(false);
     setReferenceNumber(resetValues.referenceNumber);
     setRemarks(resetValues.remarks);
     setPaymentMode(resetValues.paymentMode as typeof paymentMode);
@@ -613,9 +613,7 @@ export function PaymentEntryClient({
                   setStudentListScrollTop(0);
                   requestAnimationFrame(() => {
                     studentListRef.current?.scrollTo({ top: 0 });
-                    setTimeout(() => {
-                      studentSearchInputRef.current?.focus();
-                    }, prefersReducedMotion() ? 0 : 120);
+                    studentSearchInputRef.current?.focus({ preventScroll: true });
                   });
                 } else {
                   setIsStudentPickerOpen(false);
@@ -689,7 +687,7 @@ export function PaymentEntryClient({
                         setSelectedStudentIssue(null);
                         setPaymentAmountInput("");
                         setIsStudentPickerOpen(false);
-                        studentSearchInputRef.current?.focus();
+                        studentSearchInputRef.current?.focus({ preventScroll: true });
                       }}
                     >
                       Clear
@@ -812,7 +810,7 @@ export function PaymentEntryClient({
       <section className="hidden md:flex md:h-[calc(100vh-140px)] md:min-h-[640px] md:flex-col md:gap-3">
         <div className="sticky top-0 z-10 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
           <div className="grid gap-2 lg:grid-cols-[180px_minmax(280px,1fr)_170px_170px_auto]">
-            <select id="desktop-payment-class-id" value={selectedClassId} className={selectClassName} onChange={(event)=>{const nextClassId=event.target.value;setSelectedClassId(nextClassId);if(nextClassId){setIsStudentPickerOpen(true);setActiveStudentOptionIndex(0);setStudentListScrollTop(0);requestAnimationFrame(()=>{studentListRef.current?.scrollTo({ top: 0 });setTimeout(()=>studentSearchInputRef.current?.focus(),0);});}}}>
+            <select id="desktop-payment-class-id" value={selectedClassId} className={selectClassName} onChange={(event)=>{const nextClassId=event.target.value;setSelectedClassId(nextClassId);if(nextClassId){setIsStudentPickerOpen(true);setActiveStudentOptionIndex(0);setStudentListScrollTop(0);requestAnimationFrame(()=>{studentListRef.current?.scrollTo({ top: 0 });studentSearchInputRef.current?.focus({ preventScroll: true });});}}}>
               <option value="">Class</option>{classOptions.map((classOption)=><option key={classOption.id} value={classOption.id}>{classOption.label}</option>)}
             </select>
             <div ref={studentPickerRef} className="relative">
@@ -841,7 +839,37 @@ export function PaymentEntryClient({
               <button type="button" className="rounded border px-2 py-1" onClick={()=>setDesktopPanelTab("receipt")}>Recent Receipt</button>
               <button type="button" className="rounded border px-2 py-1" onClick={()=>setDesktopPanelTab("notes")}>Notes</button>
             </div>
-            {desktopPanelTab === "collect" ? <div className="space-y-2 text-sm"><p className="font-semibold">{selectedStudent?.fullName ?? "Select student"}</p><p>Class: {selectedStudent?.classLabel ?? "-"} · SR {selectedStudent?.admissionNo ?? "-"}</p><p>Pending amount: {formatInr(previewTotalPending)}</p><p>Overdue amount: {formatInr(previewOverdueAmount)}</p><p>Next due amount: {formatInr(previewNextDue?.outstandingAmount ?? 0)}</p><div className="flex flex-wrap gap-2">{quickAmounts.map((quickAmount)=><Button key={quickAmount.key} type="button" size="sm" variant="outline" disabled={quickAmount.disabled} onClick={()=>setPaymentAmountInput(quickAmount.amount===null?"":String(quickAmount.amount))}>{quickAmount.label}</Button>)}</div><Input placeholder="Reference number" value={referenceNumber} onChange={(e)=>setReferenceNumber(e.target.value)} /><Input placeholder="Received by" value={receivedBy} onChange={(e)=>setReceivedBy(e.target.value)} /><Button type="button" disabled={confirmDisabled} onClick={openConfirmationDialog}>Confirm Payment</Button></div> : null}
+            {desktopPanelTab === "collect" ? (
+              <div className="space-y-3 text-sm">
+                <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                  <p className="font-semibold">{selectedStudent?.fullName ?? "Select student"}</p>
+                  <p>Class: {selectedStudent?.classLabel ?? "-"} · SR {selectedStudent?.admissionNo ?? "-"}</p>
+                  <p>Pending: {formatInr(previewTotalPending)} · Late fee: {formatInr(pendingLateFeeAmount)}</p>
+                </div>
+                <div className="grid gap-2 lg:grid-cols-2">
+                  <Input placeholder="Amount received" value={paymentAmountInput} onChange={(event)=>setPaymentAmountInput(event.target.value)} />
+                  <Input placeholder="Additional discount / concession" value={quickDiscountInput} onChange={(event)=>setQuickDiscountInput(event.target.value)} />
+                </div>
+                <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2">
+                  <input type="checkbox" checked={waiveFullLateFee} disabled={pendingLateFeeAmount <= 0} onChange={(event)=>setWaiveFullLateFee(event.target.checked)} />
+                  <span>Waive full pending late fee ({formatInr(pendingLateFeeAmount)})</span>
+                </label>
+                <div className="grid gap-2 lg:grid-cols-2">
+                  <Input placeholder="Reference number" value={referenceNumber} onChange={(event)=>setReferenceNumber(event.target.value)} />
+                  <Input placeholder="Received by" value={receivedBy} onChange={(event)=>setReceivedBy(event.target.value)} />
+                </div>
+                <textarea className={textAreaClassName} placeholder="Remarks" value={remarks} onChange={(event)=>setRemarks(event.target.value)} />
+                <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 sm:grid-cols-2">
+                  <span>Pending before discount: {formatInr(previewTotalPending)}</span>
+                  <span>Late fee waived: {formatInr(quickLateFeeWaiverAmount)}</span>
+                  <span>Discount/concession: {formatInr(quickDiscountAmount)}</span>
+                  <span>Net payable: {formatInr(netPayable)}</span>
+                  <span>Amount received: {formatInr(paymentAmount)}</span>
+                  <span>Remaining after this payment: {formatInr(remainingAfterPayment)}</span>
+                </div>
+                <Button type="button" className="w-full" disabled={confirmDisabled} onClick={openConfirmationDialog}>Confirm Payment</Button>
+              </div>
+            ) : null}
             {desktopPanelTab === "dues" ? <div className="text-sm"><p className="mb-2 font-medium">Installment breakdown</p><p className="text-xs text-slate-600">Preview allocated: {formatInr(allocatedPreviewTotal)} · Unallocated: {formatInr(unallocatedAmount)}</p></div> : null}
             {desktopPanelTab === "receipt" ? <div className="text-sm">{latestPayment ? <><p>Latest receipt number: {latestPayment.receiptNumber}</p><p>Payment date: {latestPayment.paymentDate}</p><p>Amount: {formatInr(latestPayment.totalAmount)}</p><Link className="text-blue-700 underline" href={`/protected/receipts/${latestPayment.id}`}>Open/Print receipt</Link></> : <p>No recent receipt.</p>}</div> : null}
             {desktopPanelTab === "notes" ? <div className="space-y-2 text-sm"><p>Remarks</p><textarea className={textAreaClassName} value={remarks} onChange={(event)=>setRemarks(event.target.value)} /><p className="text-xs text-slate-500">Reference helper: keep UPI/bank/cheque reference for reconciliation.</p>{canViewDiagnostics ? <p className="text-xs text-slate-500">Diagnostics visible for admin only.</p> : null}</div> : null}
@@ -918,7 +946,6 @@ export function PaymentEntryClient({
             </div>
           ) : null}
 
-          <div ref={amountSectionRef}>
           <SectionCard
             title="3. Fast Payment"
             description="Selected student, amount, mode, and confirm payment in one place."
@@ -933,7 +960,7 @@ export function PaymentEntryClient({
             ) : null}
             <form
               action={formAction}
-              className="space-y-3 md:space-y-4"
+              className="space-y-3"
               onSubmit={(event) => {
                 if (!isConfirmOpen) {
                   event.preventDefault();
@@ -962,7 +989,7 @@ export function PaymentEntryClient({
               ) : null}
               <fieldset
                 disabled={!canPost || isLockedAfterSuccess}
-                className="space-y-3 md:space-y-4 disabled:opacity-70"
+                className="space-y-3 disabled:opacity-70"
               >
                 <input type="hidden" name="studentId" value={selectedStudentId} />
                 <input type="hidden" name="clientRequestId" value={clientRequestId} />
@@ -980,9 +1007,9 @@ export function PaymentEntryClient({
                     {creditBalance > 0 ? <p className="font-semibold text-amber-900">Credit/refund to adjust: {formatInr(refundableAmount || creditBalance)}</p> : null}
                   </div>
                 ) : null}
-                <div className="grid gap-3 md:gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
                   <div>
-                    <Label htmlFor="payment-amount">Amount Received</Label>
+                    <Label htmlFor="payment-amount">Amount received</Label>
                     <Input
                       id="payment-amount"
                       name="paymentAmount"
@@ -990,7 +1017,7 @@ export function PaymentEntryClient({
                       inputMode="decimal"
                       min={1}
                       max={previewTotalPending > 0 ? previewTotalPending : undefined}
-                      className="mt-2"
+                      className="mt-1 h-10 text-base"
                       ref={amountInputRef}
                       value={paymentAmountInput}
                       onChange={(event) => {
@@ -1006,7 +1033,7 @@ export function PaymentEntryClient({
                           type="button"
                           size="sm"
                           variant={quickAmount.key === "custom" ? "ghost" : "outline"}
-                          className="min-h-10"
+                          className="h-8 px-2 text-xs"
                           disabled={quickAmount.disabled}
                           onClick={() => {
                             setFormError(null);
@@ -1024,7 +1051,7 @@ export function PaymentEntryClient({
                     </div>
                   </div>
                   <div>
-                    <Label htmlFor="quick-discount-amount">Discount / concession</Label>
+                    <Label htmlFor="quick-discount-amount">Additional discount / concession</Label>
                     <Input
                       id="quick-discount-amount"
                       name="quickDiscountAmount"
@@ -1032,7 +1059,7 @@ export function PaymentEntryClient({
                       inputMode="decimal"
                       min={0}
                       max={previewTotalPending}
-                      className="mt-2"
+                      className="mt-1 h-10"
                       value={quickDiscountInput}
                       onChange={(event) => {
                         setQuickDiscountInput(event.target.value);
@@ -1040,22 +1067,26 @@ export function PaymentEntryClient({
                       }}
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="quick-late-fee-waiver-amount">Late fee waived</Label>
-                    <Input
-                      id="quick-late-fee-waiver-amount"
-                      name="quickLateFeeWaiverAmount"
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      max={previewTotalPending}
-                      className="mt-2"
-                      value={quickLateFeeWaiverInput}
-                      onChange={(event) => {
-                        setQuickLateFeeWaiverInput(event.target.value);
-                        setFormError(null);
-                      }}
-                    />
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 xl:col-span-2">
+                    <input type="hidden" name="quickLateFeeWaiverAmount" value={quickLateFeeWaiverAmount} />
+                    <label className="flex items-start gap-2 text-sm font-medium text-slate-900">
+                      <input
+                        type="checkbox"
+                        className="mt-1 size-4 rounded border-slate-300"
+                        checked={waiveFullLateFee}
+                        disabled={pendingLateFeeAmount <= 0}
+                        onChange={(event) => {
+                          setWaiveFullLateFee(event.target.checked);
+                          setFormError(null);
+                        }}
+                      />
+                      <span>
+                        Waive full pending late fee ({formatInr(pendingLateFeeAmount)})
+                        <span className="mt-1 block text-xs font-normal text-slate-500">
+                          Applies only to pending late fee.
+                        </span>
+                      </span>
+                    </label>
                   </div>
                   <div>
                     <Label htmlFor="payment-date">Payment date</Label>
@@ -1068,7 +1099,7 @@ export function PaymentEntryClient({
                         setPaymentDate(event.target.value);
                         setFormError(null);
                       }}
-                      className="mt-2"
+                      className="mt-1 h-10"
                       required
                     />
                   </div>
@@ -1077,7 +1108,7 @@ export function PaymentEntryClient({
                     <select
                       id="payment-mode"
                       name="paymentMode"
-                      className={`${selectClassName} mt-2`}
+                      className={`${selectClassName} mt-1 h-10`}
                       value={paymentMode}
                       onChange={(event) => {
                         setPaymentMode(event.target.value as typeof paymentMode);
@@ -1099,7 +1130,7 @@ export function PaymentEntryClient({
                     <Input
                       id="payment-reference-number"
                       name="referenceNumber"
-                      className="mt-2"
+                      className="mt-1 h-10"
                       placeholder="Optional"
                       value={referenceNumber}
                       onChange={(event) => {
@@ -1107,7 +1138,7 @@ export function PaymentEntryClient({
                         setFormError(null);
                       }}
                     />
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-[11px] text-slate-500">
                       {referenceRequired
                         ? "Reference is required for UPI, bank transfer, and cheque payments."
                         : "Reference is useful for matching bank/UPI records."}
@@ -1118,7 +1149,7 @@ export function PaymentEntryClient({
                     <Input
                       id="payment-received-by"
                       name="receivedBy"
-                      className="mt-2"
+                      className="mt-1 h-10"
                       value={receivedBy}
                       onChange={(event) => {
                         setReceivedBy(event.target.value);
@@ -1129,12 +1160,16 @@ export function PaymentEntryClient({
                   </div>
                 </div>
                 
-                <div>
+                <details className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                  <summary className="cursor-pointer text-sm font-medium text-slate-700">
+                    Remarks and allocation preview
+                  </summary>
+                <div className="mt-3">
                   <Label htmlFor="payment-remarks">Remarks</Label>
                   <textarea
                     id="payment-remarks"
                     name="remarks"
-                    className={`${textAreaClassName} mt-2`}
+                    className={`${textAreaClassName} mt-1 min-h-16`}
                     placeholder="Optional desk remarks"
                     value={remarks}
                     onChange={(event) => {
@@ -1144,7 +1179,7 @@ export function PaymentEntryClient({
                   />
                 </div>
 
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <p className="text-sm font-semibold text-slate-900">Installment allocation preview</p>
                   <p className="mt-1 text-xs text-slate-600">
                     Amount is auto-allocated from oldest pending installment to newest. Final late fee and pending amount are recalculated for the selected payment date.
@@ -1207,15 +1242,17 @@ export function PaymentEntryClient({
                     </>
                   )}
 
-                  <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-700">
+                  <div className="mt-3 grid gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-3">
                     <span>Pending before discount: {formatInr(previewTotalPending)}</span>
-                    <span>Discount: {formatInr(quickDiscountAmount)}</span>
+                    <span>Late fee pending: {formatInr(pendingLateFeeAmount)}</span>
                     <span>Late fee waived: {formatInr(quickLateFeeWaiverAmount)}</span>
+                    <span>Discount: {formatInr(quickDiscountAmount)}</span>
                     <span>Net payable: {formatInr(netPayable)}</span>
-                    <span>Preview allocated: {formatInr(allocatedPreviewTotal)}</span>
-                    <span>Unallocated: {formatInr(unallocatedAmount)}</span>
+                    <span>Amount received: {formatInr(paymentAmount)}</span>
+                    <span>Remaining after this payment: {formatInr(remainingAfterPayment)}</span>
                   </div>
                 </div>
+                </details>
 
                 <div className="hidden items-center justify-end gap-2 md:flex">
                   <Button
@@ -1228,83 +1265,165 @@ export function PaymentEntryClient({
                 </div>
               </fieldset>
 
-                <div className="fixed inset-x-0 z-40 border-t border-slate-200 bg-white/95 p-3 backdrop-blur md:hidden mobile-safe-bottom-padding" style={{ bottom: "var(--mobile-bottom-nav-offset)" }}>
-                <div className="mb-2 flex items-center justify-between text-xs text-slate-600">
-                  <span className="truncate pr-2">
-                    {selectedStudent ? selectedStudent.fullName : "Select student"}
-                  </span>
-                  <span className="font-semibold text-slate-900">
-                    Pending {formatInr(previewTotalPending)}
-                  </span>
-                </div>
-                <Button
-                  type="button"
-                  className="min-h-11 w-full"
-                  disabled={confirmDisabled}
-                  onClick={openConfirmationDialog}
+              {selectedStudent ? (
+                <div
+                  className="fixed inset-x-0 z-40 border-t border-slate-200 bg-white/95 p-2 shadow-[0_-8px_24px_rgba(15,23,42,0.12)] backdrop-blur md:hidden mobile-safe-bottom-padding"
+                  style={{ bottom: "var(--mobile-bottom-nav-offset)" }}
                 >
-                  {paymentAmountInput ? "Confirm Payment" : "Enter amount to continue"}
-                </Button>
-              </div>
+                  <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-slate-600">
+                    <span className="truncate font-medium text-slate-900">{selectedStudent.fullName}</span>
+                    <span className="shrink-0">Net {formatInr(netPayable)}</span>
+                  </div>
+                  <div className="grid grid-cols-[1fr_1fr] gap-2">
+                    <Input
+                      aria-label="Mobile amount received"
+                      type="number"
+                      inputMode="decimal"
+                      min={1}
+                      placeholder="Amount"
+                      className="h-9"
+                      value={paymentAmountInput}
+                      onChange={(event) => {
+                        setPaymentAmountInput(event.target.value);
+                        setFormError(null);
+                      }}
+                    />
+                    <Input
+                      aria-label="Mobile discount"
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      placeholder="Discount"
+                      className="h-9"
+                      value={quickDiscountInput}
+                      onChange={(event) => {
+                        setQuickDiscountInput(event.target.value);
+                        setFormError(null);
+                      }}
+                    />
+                    <label className="col-span-2 flex min-h-9 items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-2 text-xs font-medium text-slate-900">
+                      <span>Waive late fee {formatInr(pendingLateFeeAmount)}</span>
+                      <input
+                        type="checkbox"
+                        className="size-4"
+                        checked={waiveFullLateFee}
+                        disabled={pendingLateFeeAmount <= 0}
+                        onChange={(event) => {
+                          setWaiveFullLateFee(event.target.checked);
+                          setFormError(null);
+                        }}
+                      />
+                    </label>
+                    <select
+                      aria-label="Mobile payment mode"
+                      className={`${selectClassName} h-9`}
+                      value={paymentMode}
+                      onChange={(event) => {
+                        setPaymentMode(event.target.value as typeof paymentMode);
+                        setFormError(null);
+                      }}
+                    >
+                      {data.modeOptions.map((modeOption) => (
+                        <option key={modeOption.value} value={modeOption.value}>
+                          {modeOption.label}
+                        </option>
+                      ))}
+                    </select>
+                    <Input
+                      aria-label="Mobile reference number"
+                      placeholder={referenceRequired ? "Reference required" : "Reference"}
+                      className="h-9"
+                      value={referenceNumber}
+                      onChange={(event) => {
+                        setReferenceNumber(event.target.value);
+                        setFormError(null);
+                      }}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    className="mt-2 h-10 w-full"
+                    disabled={confirmDisabled}
+                    onClick={openConfirmationDialog}
+                  >
+                    {paymentAmountInput ? "Confirm Payment" : "Enter amount to continue"}
+                  </Button>
+                </div>
+              ) : null}
 
               {isConfirmOpen && confirmationSummary ? (
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 px-2 md:items-center md:px-4">
-                  <div className="max-h-[92vh] w-full animate-bottom-sheet-up overflow-y-auto rounded-t-2xl border border-slate-200 bg-white p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-xl md:rounded-xl md:p-5">
-                    <h2 className="text-lg font-semibold text-slate-950">Confirm Payment</h2>
-                    <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                  <div className="max-h-[92vh] w-full animate-bottom-sheet-up overflow-y-auto rounded-t-2xl border border-slate-200 bg-slate-100 p-2 pb-[calc(0.5rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-4xl md:rounded-xl md:p-4">
+                    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="border-b border-dashed border-slate-300 pb-3 text-center">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                        Shri Veer Patta Senior Secondary School
+                      </p>
+                      <h2 className="mt-1 text-xl font-semibold text-slate-950">Receipt Preview</h2>
+                      <p className="text-sm text-slate-600">Confirm Payment</p>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm lg:grid-cols-4">
                       <span>Student name: {confirmationSummary.studentName}</span>
-                      <span>SR/admission no: {confirmationSummary.admissionNo}</span>
+                      <span>SR no: {confirmationSummary.admissionNo}</span>
                       <span>Class: {confirmationSummary.classLabel}</span>
-                      <span>Pending before discount: {formatInr(confirmationSummary.pendingBeforeDiscount)}</span>
-                      <span>Discount applied: {formatInr(confirmationSummary.quickDiscountApplied)}</span>
-                      <span>Late fee waived: {formatInr(confirmationSummary.lateFeeWaivedApplied)}</span>
-                      <span>Net payable: {formatInr(confirmationSummary.revisedPendingBeforePayment)}</span>
-                      <span>Amount received: {formatInr(confirmationSummary.amount)}</span>
+                      <span>Father/phone: {selectedStudent?.fatherName ?? selectedStudent?.fatherPhone ?? "Not entered"}</span>
                       <span>Payment date: {confirmationSummary.paymentDate}</span>
                       <span>Payment mode: {confirmationSummary.paymentModeLabel}</span>
                       <span>Reference number: {confirmationSummary.referenceNumber ?? "Not entered"}</span>
                       <span>Received by: {confirmationSummary.receivedBy}</span>
+                    </div>
+                    <div className="mt-3 grid gap-2 rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm sm:grid-cols-2 lg:grid-cols-6">
+                      <span>Pending before discount: {formatInr(confirmationSummary.pendingBeforeDiscount)}</span>
+                      <span>Discount/concession: {formatInr(confirmationSummary.quickDiscountApplied)}</span>
+                      <span>Late fee waived: {confirmationSummary.lateFeeWaivedApplied > 0 ? formatInr(confirmationSummary.lateFeeWaivedApplied) : "No late fee waived"}</span>
+                      <span>Net payable: {formatInr(confirmationSummary.revisedPendingBeforePayment)}</span>
+                      <span className="font-semibold text-slate-950">Amount received: {formatInr(confirmationSummary.amount)}</span>
                       <span>Remaining balance: {formatInr(confirmationSummary.remainingBalance)}</span>
                     </div>
-                    <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
-                      <table className="w-full min-w-[520px] text-left text-sm">
-                        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                    <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200">
+                      <table className="w-full min-w-[760px] text-left text-xs md:text-sm">
+                        <thead className="bg-slate-100 text-[11px] uppercase tracking-wide text-slate-600">
                           <tr>
                             <th className="px-3 py-2">Installment</th>
                             <th className="px-3 py-2">Due date</th>
-                            <th className="px-3 py-2">Amount applied</th>
+                            <th className="px-3 py-2">Pending before</th>
+                            <th className="px-3 py-2">Discount applied</th>
+                            <th className="px-3 py-2">Late fee waived</th>
+                            <th className="px-3 py-2">Amount received</th>
                             <th className="px-3 py-2">Remaining</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {allocationPreview.map((item) => (
+                          {receiptPreviewAllocation.map((item) => (
                             <tr key={item.installmentId} className="border-t border-slate-100">
                               <td className="px-3 py-2">{item.installmentLabel}</td>
                               <td className="px-3 py-2">{item.dueDate}</td>
-                              <td className="px-3 py-2 font-medium text-slate-900">
-                                {formatInr(item.allocatedAmount)}
-                              </td>
-                              <td className="px-3 py-2">{formatInr(item.outstandingAfter)}</td>
+                              <td className="px-3 py-2">{formatInr(item.pendingBefore)}</td>
+                              <td className="px-3 py-2">{formatInr(item.discountApplied)}</td>
+                              <td className="px-3 py-2">{formatInr(item.lateFeeWaived)}</td>
+                              <td className="px-3 py-2 font-medium text-slate-900">{formatInr(item.amountReceived)}</td>
+                              <td className="px-3 py-2">{formatInr(item.remaining)}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
-                    <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                      This will save the receipt once. Posted receipts stay in history.
+                    <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                      This will save an official receipt. Posted receipts stay in history.
                     </p>
-                    <div className="sticky bottom-0 mt-5 flex justify-end gap-2 border-t border-slate-100 bg-white pt-3 mobile-safe-bottom-padding">
+                    <div className="sticky bottom-0 mt-4 flex justify-end gap-2 border-t border-dashed border-slate-300 bg-white pt-3 mobile-safe-bottom-padding">
                       <Button
                         type="button"
                         variant="outline"
                         onClick={() => setIsConfirmOpen(false)}
                         disabled={pending}
                       >
-                        Cancel
+                        Back/Edit
                       </Button>
                       <Button type="submit" disabled={pending || submittingRef.current || previewLoading || !draftValidation.ok}>
-                        {pending ? "Posting payment..." : "Generate Receipt"}
+                        {pending ? "Posting payment..." : "Confirm & Save Receipt"}
                       </Button>
+                    </div>
                     </div>
                   </div>
                 </div>
@@ -1400,7 +1519,6 @@ export function PaymentEntryClient({
               ) : null}
             </form>
           </SectionCard>
-          </div>
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             {studentSummaryLoading && !selectedStudent ? (
               <>
