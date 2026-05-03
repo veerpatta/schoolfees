@@ -158,6 +158,48 @@ describe("dashboard summary", () => {
     expect(calculatePercentage(-20, 100)).toBe(0);
   });
 
+  it("dashboard KPIs use revised pending after discount without counting discount as cash", () => {
+    const summary = buildDashboardSummary({
+      financialRows: [
+        student({
+          totalDue: 900,
+          totalPaid: 900,
+          outstandingAmount: 0,
+          discountAmount: 100,
+          statusLabel: "PAID",
+        }),
+      ],
+      studentRows: [
+        {
+          studentId: "student-1",
+          classId: "class-1",
+          sessionLabel: "2026-27",
+          classLabel: "Class 1",
+        },
+      ],
+      installmentRows: [
+        installment({
+          totalCharge: 900,
+          paidAmount: 900,
+          adjustmentAmount: 100,
+          pendingAmount: 0,
+          balanceStatus: "paid",
+        }),
+      ],
+      overdueInstallments: [],
+      transactions: [transaction({ totalAmount: 900, currentOutstanding: 0, discountApplied: 100 })],
+      todayTransactions: [transaction({ totalAmount: 900, currentOutstanding: 0, discountApplied: 100 })],
+    });
+
+    expect(summary.kpis).toMatchObject({
+      totalExpectedFees: 900,
+      totalCollected: 900,
+      totalPending: 0,
+      todaysCollection: 900,
+      collectionRate: 100,
+    });
+  });
+
   it("uses raw active-session student count even when fee rows are missing", () => {
     const summary = buildDashboardSummary({
       rawStudentCount: 40,

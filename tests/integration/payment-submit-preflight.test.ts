@@ -272,6 +272,124 @@ describe("payment submit preflight", () => {
     });
   });
 
+  it("server preflight rejects overpayment after quick discount", async () => {
+    const previewRpc = vi.fn().mockResolvedValue({
+      data: [
+        {
+          installment_id: "00000000-0000-4000-8000-000000000101",
+          installment_no: 1,
+          installment_label: "Installment 1",
+          due_date: "2026-04-20",
+          total_charge: 1000,
+          paid_amount: 0,
+          adjustment_amount: 0,
+          raw_late_fee: 0,
+          waiver_applied: 0,
+          final_late_fee: 0,
+          pending_amount: 1000,
+          balance_status: "pending",
+        },
+      ],
+      error: null,
+    });
+    createClient
+      .mockResolvedValueOnce(clientWithRpc([4], vi.fn()))
+      .mockResolvedValueOnce(clientWithRpc([], previewRpc));
+
+    const { preflightPaymentPosting } = await import("@/lib/payments/data");
+
+    await expect(
+      preflightPaymentPosting({
+        studentId: "00000000-0000-4000-8000-000000000001",
+        paymentDate: "2026-04-25",
+        paymentAmount: 1000,
+        quickDiscountAmount: 100,
+        paymentMode: "cash",
+        referenceNumber: null,
+      }),
+    ).rejects.toThrow("Payment amount is more than net payable after discount.");
+  });
+
+  it("server preflight requires references for UPI bank and cheque", async () => {
+    createClient.mockResolvedValueOnce(clientWithRpc([4], vi.fn()));
+
+    const { preflightPaymentPosting } = await import("@/lib/payments/data");
+
+    await expect(
+      preflightPaymentPosting({
+        studentId: "00000000-0000-4000-8000-000000000001",
+        paymentDate: "2026-04-25",
+        paymentAmount: 900,
+        paymentMode: "upi",
+        referenceNumber: null,
+      }),
+    ).rejects.toThrow("Reference number is required for UPI, bank transfer, and cheque payments.");
+  });
+
+  it("payment submit passes quick adjustments to the adjustment RPC", async () => {
+    const rpc = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: [
+          {
+            installment_id: "00000000-0000-4000-8000-000000000101",
+            installment_no: 1,
+            installment_label: "Installment 1",
+            due_date: "2026-04-20",
+            total_charge: 1000,
+            paid_amount: 0,
+            adjustment_amount: 0,
+            raw_late_fee: 0,
+            waiver_applied: 0,
+            final_late_fee: 0,
+            pending_amount: 1000,
+            balance_status: "pending",
+          },
+        ],
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          receipt_id: "00000000-0000-4000-8000-000000000201",
+          receipt_number: "SVP20260425-0001",
+          allocated_total: 900,
+        },
+        error: null,
+      });
+    createClient
+      .mockResolvedValueOnce(noExistingReceiptClient())
+      .mockResolvedValueOnce(clientWithRpc([4], rpc))
+      .mockResolvedValueOnce(clientWithRpc([], rpc))
+      .mockResolvedValueOnce(noLikelyDuplicateClient())
+      .mockResolvedValueOnce({ rpc });
+
+    const { postStudentPayment } = await import("@/lib/payments/data");
+
+    const receipt = await postStudentPayment({
+      studentId: "00000000-0000-4000-8000-000000000001",
+      paymentDate: "2026-04-25",
+      paymentMode: "cash",
+      paymentAmount: 900,
+      quickDiscountAmount: 100,
+      quickLateFeeWaiverAmount: 0,
+      referenceNumber: null,
+      remarks: null,
+      receivedBy: "Admin",
+      clientRequestId: "00000000-0000-4000-8000-000000000901",
+    });
+
+    expect(rpc).toHaveBeenLastCalledWith("post_student_payment_with_adjustments", expect.objectContaining({
+      p_total_amount: 900,
+      p_quick_discount_amount: 100,
+      p_quick_late_fee_waiver_amount: 0,
+    }));
+    expect(receipt).toMatchObject({
+      quickDiscountApplied: 100,
+      lateFeeWaivedApplied: 0,
+      remainingBalance: 0,
+    });
+  });
+
   it("likely duplicate payment returns a friendly warning without posting again", async () => {
     const postRpc = vi.fn();
     const previewRpc = vi.fn().mockResolvedValue({

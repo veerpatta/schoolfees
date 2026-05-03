@@ -7,6 +7,8 @@ export type PaymentEntryActionState = {
   receiptId: string | null;
   studentId: string | null;
   amountReceived?: number | null;
+  quickDiscountApplied?: number | null;
+  lateFeeWaivedApplied?: number | null;
   paymentDate?: string | null;
   paymentMode?: PaymentMode | null;
   referenceNumber?: string | null;
@@ -23,6 +25,8 @@ export const INITIAL_PAYMENT_ENTRY_ACTION_STATE: PaymentEntryActionState = {
   receiptId: null,
   studentId: null,
   amountReceived: null,
+  quickDiscountApplied: null,
+  lateFeeWaivedApplied: null,
   paymentDate: null,
   paymentMode: null,
   referenceNumber: null,

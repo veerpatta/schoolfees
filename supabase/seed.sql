@@ -1,0 +1,2 @@
+-- No seed data is required for the local development stack yet.
+-- Keep this file present because supabase/config.toml references it.

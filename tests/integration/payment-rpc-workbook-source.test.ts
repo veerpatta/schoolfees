@@ -15,6 +15,18 @@ function readLatestPaymentMigration() {
   );
 }
 
+function readAdjustmentMigration() {
+  return readFileSync(
+    join(
+      process.cwd(),
+      "supabase",
+      "migrations",
+      "20260503120000_payment_desk_receipt_adjustments.sql",
+    ),
+    "utf8",
+  );
+}
+
 describe("post_student_payment workbook source", () => {
   it("uses workbook balances for workbook_v1 payment validation and allocation", () => {
     const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
@@ -89,5 +101,25 @@ describe("post_student_payment workbook source", () => {
     expect(migration).toContain("v_daily_sequence := v_daily_sequence + 1");
     expect(migration).toContain("lpad(v_daily_sequence::text, 4, '0')");
     expect(migration).toContain("to_char(p_payment_date, 'YYYYMMDD')");
+  });
+
+  it("payment_desk_adjustment_rpc_validates_against_revised_payable", () => {
+    const migration = readAdjustmentMigration();
+
+    expect(migration).toContain("post_student_payment_with_adjustments");
+    expect(migration).toContain("v_revised_pending := v_total_pending - v_remaining_discount - v_remaining_waiver");
+    expect(migration).toContain("Payment amount cannot exceed revised payable amount.");
+    expect(migration).toContain("p_quick_discount_amount integer default 0");
+    expect(migration).toContain("p_quick_late_fee_waiver_amount integer default 0");
+  });
+
+  it("payment_desk_adjustment_rpc_allocates_cash_separately_from_concessions", () => {
+    const migration = readAdjustmentMigration();
+
+    expect(migration).toContain("insert into public.receipt_adjustments");
+    expect(migration).toContain("insert into public.payments");
+    expect(migration).toContain("'discount'");
+    expect(migration).toContain("'writeoff'");
+    expect(migration).toContain("v_payment_allocation");
   });
 });

@@ -78,6 +78,11 @@ type HistoricalReceiptRow = {
   created_at: string;
 };
 
+type ReceiptAdjustmentRow = {
+  adjustment_type: "discount" | "writeoff" | "correction" | "reversal";
+  amount_delta: number;
+};
+
 type WorkbookFinancialRow = {
   student_id: string;
   session_label: string;
@@ -93,10 +98,6 @@ type WorkbookFinancialRow = {
   total_due: number;
   total_paid: number;
   outstanding_amount: number;
-};
-type ReceiptFinanceAdjustmentRow = {
-  quick_discount_amount: number;
-  quick_late_fee_waiver_amount: number;
 };
 
 type UserRow = {
@@ -251,7 +252,7 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     { data: userRaw, error: userError },
     { data: financialRaw, error: financialError },
     { data: studentReceiptsRaw, error: studentReceiptsError },
-    { data: receiptAdjustmentRaw, error: receiptAdjustmentError },
+    { data: receiptAdjustmentsRaw, error: receiptAdjustmentsError },
   ] = await Promise.all([
     supabase
       .from("payments")
@@ -275,10 +276,9 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
       .order("payment_date", { ascending: true })
       .order("created_at", { ascending: true }),
     supabase
-      .from("receipt_finance_adjustments")
-      .select("quick_discount_amount, quick_late_fee_waiver_amount")
-      .eq("receipt_id", receipt.id)
-      .maybeSingle(),
+      .from("receipt_adjustments")
+      .select("adjustment_type, amount_delta")
+      .eq("receipt_id", receipt.id),
   ]);
 
   if (paymentsError) {
@@ -296,8 +296,9 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
   if (studentReceiptsError) {
     throw new Error(`Unable to load receipt history: ${studentReceiptsError.message}`);
   }
-  if (receiptAdjustmentError && !receiptAdjustmentError.message.includes("does not exist")) {
-    throw new Error(`Unable to load receipt adjustment details: ${receiptAdjustmentError.message}`);
+
+  if (receiptAdjustmentsError && !receiptAdjustmentsError.message.includes("does not exist")) {
+    throw new Error(`Unable to load receipt adjustments: ${receiptAdjustmentsError.message}`);
   }
 
   const breakdown: ReceiptBreakdownItem[] = ((paymentsRaw ?? []) as ReceiptPaymentRow[])
@@ -324,13 +325,26 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
   const createdByName = (userRaw as UserRow | null)?.full_name ?? null;
   const financial = (financialRaw ?? null) as WorkbookFinancialRow | null;
   const studentReceipts = (studentReceiptsRaw ?? []) as HistoricalReceiptRow[];
-  const receiptAdjustment = (receiptAdjustmentRaw ?? null) as ReceiptFinanceAdjustmentRow | null;
+  const receiptAdjustments = (receiptAdjustmentsRaw ?? []) as ReceiptAdjustmentRow[];
+  const receiptDiscountAmount = receiptAdjustments
+    .filter((row) => row.adjustment_type === "discount")
+    .reduce((sum, row) => sum + Math.max(row.amount_delta ?? 0, 0), 0);
+  const receiptLateFeeWaived = receiptAdjustments
+    .filter((row) => row.adjustment_type === "writeoff")
+    .reduce((sum, row) => sum + Math.max(row.amount_delta ?? 0, 0), 0);
   const currentReceiptIndex = studentReceipts.findIndex((row) => row.id === receipt.id);
   const receiptsUpToCurrent = currentReceiptIndex === -1 ? [] : studentReceipts.slice(0, currentReceiptIndex + 1);
   const receiptsBeforeCurrent = currentReceiptIndex <= 0 ? [] : studentReceipts.slice(0, currentReceiptIndex);
   const totalPaidBeforeReceipt = receiptsBeforeCurrent.reduce((sum, row) => sum + row.total_amount, 0);
   const totalPaidToDate = receiptsUpToCurrent.reduce((sum, row) => sum + row.total_amount, 0);
-  const outstandingAfterReceipt = Math.max((financial?.total_due ?? totalPaidToDate) - totalPaidToDate, 0);
+  const adjustmentsUpToCurrent = receiptAdjustments.reduce(
+    (sum, row) => sum + Math.max(row.amount_delta ?? 0, 0),
+    0,
+  );
+  const outstandingAfterReceipt = Math.max(
+    (financial?.total_due ?? totalPaidToDate) - totalPaidToDate - adjustmentsUpToCurrent,
+    0,
+  );
 
   return {
     id: receipt.id,
@@ -358,9 +372,9 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     totalPaidToDate,
     outstandingAfterReceipt,
     currentOutstanding: financial?.outstanding_amount ?? outstandingAfterReceipt,
-    discountAmount: receiptAdjustment?.quick_discount_amount ?? 0,
+    discountAmount: receiptDiscountAmount,
     lateFeeAmount: financial?.late_fee_total ?? 0,
-    lateFeeWaived: receiptAdjustment?.quick_late_fee_waiver_amount ?? 0,
+    lateFeeWaived: receiptLateFeeWaived,
     breakdown,
   };
 }

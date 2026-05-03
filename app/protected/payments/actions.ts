@@ -49,6 +49,22 @@ function parsePaymentAmount(value: FormDataEntryValue | null) {
   return numeric;
 }
 
+function parseOptionalPaymentAdjustment(value: FormDataEntryValue | null, fieldLabel: string) {
+  const normalized = (value ?? "").toString().trim();
+
+  if (!normalized) {
+    return 0;
+  }
+
+  const numeric = Number(normalized);
+
+  if (!Number.isInteger(numeric) || numeric < 0) {
+    throw new Error(`${fieldLabel} must be a whole number.`);
+  }
+
+  return numeric;
+}
+
 async function parsePaymentMode(value: FormDataEntryValue | null): Promise<PaymentMode> {
   const normalized = (value ?? "").toString().trim();
   const policy = await getFeePolicySummary();
@@ -76,17 +92,6 @@ function paymentModeNeedsReference(mode: PaymentMode) {
 }
 
 
-function parseWholeNumberOptional(value: FormDataEntryValue | null, fieldLabel: string) {
-  const normalized = (value ?? "").toString().trim();
-  if (!normalized) return 0;
-  const numeric = Number(normalized);
-  if (!Number.isInteger(numeric) || numeric < 0) {
-    throw new Error(`${fieldLabel} must be a whole number 0 or greater.`);
-  }
-  return numeric;
-}
-
-
 function toActionStateError(error: unknown): PaymentEntryActionState {
   if (error instanceof DuplicatePaymentWarning) {
     return {
@@ -96,6 +101,8 @@ function toActionStateError(error: unknown): PaymentEntryActionState {
       receiptId: error.receiptId,
       studentId: null,
       amountReceived: null,
+      quickDiscountApplied: null,
+      lateFeeWaivedApplied: null,
       paymentDate: null,
       paymentMode: null,
       referenceNumber: null,
@@ -113,6 +120,8 @@ function toActionStateError(error: unknown): PaymentEntryActionState {
     receiptId: null,
     studentId: null,
     amountReceived: null,
+    quickDiscountApplied: null,
+    lateFeeWaivedApplied: null,
     paymentDate: null,
     paymentMode: null,
     referenceNumber: null,
@@ -133,27 +142,32 @@ export async function submitPaymentEntryAction(
     const paymentDate = parsePaymentDate(formData.get("paymentDate"));
     const paymentMode = await parsePaymentMode(formData.get("paymentMode"));
     const paymentAmount = parsePaymentAmount(formData.get("paymentAmount"));
+    const quickDiscountAmount = parseOptionalPaymentAdjustment(
+      formData.get("quickDiscountAmount"),
+      "Discount",
+    );
+    const quickLateFeeWaiverAmount = parseOptionalPaymentAdjustment(
+      formData.get("quickLateFeeWaiverAmount"),
+      "Late fee waiver",
+    );
     const clientRequestId = parseUuid(formData.get("clientRequestId"), "Payment attempt");
     const referenceNumber = (formData.get("referenceNumber") ?? "").toString().trim() || null;
     if (paymentModeNeedsReference(paymentMode) && !referenceNumber) {
       throw new Error("Reference number is required for UPI, bank transfer, and cheque payments.");
     }
     const receivedBy = parseRequiredString(formData.get("receivedBy"), "Received by");
-    const waiveLateFee = (formData.get("waiveLateFee") ?? "0").toString() === "1";
-    const additionalDiscount = parseWholeNumberOptional(formData.get("additionalDiscount"), "Additional discount");
-    const lateFeeWaiveAmount = parseWholeNumberOptional(formData.get("lateFeeWaiveAmount"), "Late fee waiver");
 
     const receipt = await postStudentPayment({
       studentId,
       paymentDate,
       paymentMode,
       paymentAmount,
+      quickDiscountAmount,
+      quickLateFeeWaiverAmount,
       referenceNumber,
       remarks: (formData.get("remarks") ?? "").toString().trim() || null,
       receivedBy,
       clientRequestId,
-      quickDiscountAmount: additionalDiscount,
-      quickLateFeeWaiverAmount: waiveLateFee ? lateFeeWaiveAmount : 0,
     });
 
     revalidateCoreFinancePaths([studentId]);
@@ -165,6 +179,8 @@ export async function submitPaymentEntryAction(
       receiptId: receipt.receiptId,
       studentId,
       amountReceived: paymentAmount,
+      quickDiscountApplied: receipt.quickDiscountApplied,
+      lateFeeWaivedApplied: receipt.lateFeeWaivedApplied,
       paymentDate,
       paymentMode,
       referenceNumber,
