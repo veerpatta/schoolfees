@@ -11,6 +11,7 @@ import {
   paymentModeNeedsReference,
   resetPaymentDraftForNextPayment,
   shouldBlockClientSubmission,
+  shouldShowPaymentActionState,
   validatePaymentDraft,
 } from "@/lib/payments/payment-desk-workflow";
 import type { SelectedStudentSummary } from "@/lib/payments/types";
@@ -271,6 +272,39 @@ describe("payment desk cashier workflow", () => {
     });
   });
 
+  it("collect another payment hides the old submit result before the next student is selected", () => {
+    const successState = {
+      status: "success",
+      message: "Payment posted successfully. Receipt SVP-1 generated.",
+      receiptNumber: "SVP-1",
+      receiptId: "receipt-1",
+      studentId: "student-1",
+      amountReceived: 1500,
+      quickDiscountApplied: 0,
+      lateFeeWaivedApplied: 0,
+      paymentDate: "2026-04-25",
+      paymentMode: "cash",
+      referenceNumber: null,
+      receivedBy: "Office Staff",
+      clientRequestId: "attempt-1",
+      remainingBalance: 2500,
+      diagnostic: null,
+    } as const;
+
+    expect(
+      shouldShowPaymentActionState({
+        state: successState,
+        dismissedActionStateKey: null,
+      }),
+    ).toBe(true);
+    expect(
+      shouldShowPaymentActionState({
+        state: successState,
+        dismissedActionStateKey: "success:receipt-1:SVP-1:attempt-1:Payment posted successfully. Receipt SVP-1 generated.",
+      }),
+    ).toBe(false);
+  });
+
   it("marks reference-required payment modes for desk safety prompts", () => {
     expect(paymentModeNeedsReference("upi")).toBe(true);
     expect(paymentModeNeedsReference("bank_transfer")).toBe(true);
@@ -404,6 +438,20 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("animate-success-check");
     expect(component).toContain("Similar payment already recorded");
     expect(component).toContain("isLockedAfterSuccess");
+  });
+
+  it("collect another payment dismisses stale receipt success state in the component", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      "utf8",
+    );
+
+    expect(component).toContain("dismissedActionStateKey");
+    expect(component).toContain("visibleActionState");
+    expect(component).toContain("ActionNotice state={visibleActionState}");
+    expect(component).toContain("setDismissedActionStateKey(actionStateKey)");
+    expect(component).toContain("setPreviewNotice(null)");
+    expect(component).toContain("const latestReceipt = selectedStudentId ? latestStudentReceipt : data.recentReceipts[0] ?? null");
   });
 
   it("keeps mobile and desktop student picker refs separate for touch selection", () => {

@@ -18,9 +18,11 @@ import {
   buildPaymentDeskSearchIndex,
   buildStudentSelectLabel,
   filterPaymentDeskStudents,
+  buildPaymentActionStateKey,
   paymentModeNeedsReference,
   resetPaymentDraftForNextPayment,
   shouldBlockClientSubmission,
+  shouldShowPaymentActionState,
   validatePaymentDraft,
 } from "@/lib/payments/payment-desk-workflow";
 import type {
@@ -172,7 +174,6 @@ export function PaymentEntryClient({
   const [previewNotice, setPreviewNotice] = useState<string | null>(null);
   const [previewUnavailable, setPreviewUnavailable] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [summaryRefreshToken, setSummaryRefreshToken] = useState(0);
   const [paymentMode, setPaymentMode] = useState(data.modeOptions[0]?.value ?? "cash");
   const [referenceNumber, setReferenceNumber] = useState("");
   const [receivedBy, setReceivedBy] = useState(defaultReceivedBy);
@@ -184,6 +185,7 @@ export function PaymentEntryClient({
   const [isLockedAfterSuccess, setIsLockedAfterSuccess] = useState(false);
   const [desktopPanelTab, setDesktopPanelTab] = useState<"collect" | "dues" | "receipt" | "notes">("collect");
   const [clientRequestId, setClientRequestId] = useState(createClientRequestId);
+  const [dismissedActionStateKey, setDismissedActionStateKey] = useState<string | null>(null);
   const submittingRef = useRef(false);
   const amountInputRef = useRef<HTMLInputElement>(null);
   const amountSectionRef = useRef<HTMLDivElement>(null);
@@ -342,7 +344,7 @@ export function PaymentEntryClient({
     return () => {
       controller.abort();
     };
-  }, [paymentDate, selectedStudentId, summaryRefreshToken]);
+  }, [paymentDate, selectedStudentId]);
 
   const allocationPreview = useMemo(() => {
     if (!selectedStudent) {
@@ -361,7 +363,7 @@ export function PaymentEntryClient({
       }),
     [paymentAmount, previewBreakdown, quickDiscountAmount, quickLateFeeWaiverAmount],
   );
-  const latestReceipt = latestStudentReceipt ?? data.recentReceipts[0] ?? null;
+  const latestReceipt = selectedStudentId ? latestStudentReceipt : data.recentReceipts[0] ?? null;
   const latestStudentPaymentAmount =
     latestStudentReceipt?.studentId === selectedStudentId ? latestStudentReceipt.totalAmount : null;
   const quickAmounts = useMemo(() => {
@@ -390,13 +392,22 @@ export function PaymentEntryClient({
     0,
   );
   const unallocatedAmount = Math.max(paymentAmount - allocatedPreviewTotal, 0);
-  const receiptHref = state.receiptId ? `/protected/receipts/${state.receiptId}` : null;
-  const printReceiptHref = receiptHref ? `${receiptHref}?print=1` : null;
+  const actionStateKey = buildPaymentActionStateKey(state);
+  const visibleActionState = shouldShowPaymentActionState({
+    state,
+    dismissedActionStateKey,
+  })
+    ? state
+    : initialState;
+  const visibleReceiptHref = visibleActionState.receiptId
+    ? `/protected/receipts/${visibleActionState.receiptId}`
+    : null;
+  const printReceiptHref = visibleReceiptHref ? `${visibleReceiptHref}?print=1` : null;
   const selectedPaymentModeLabel =
     data.modeOptions.find((modeOption) => modeOption.value === paymentMode)?.label ?? paymentMode;
   const postedPaymentModeLabel =
-    data.modeOptions.find((modeOption) => modeOption.value === state.paymentMode)?.label ??
-    state.paymentMode ??
+    data.modeOptions.find((modeOption) => modeOption.value === visibleActionState.paymentMode)?.label ??
+    visibleActionState.paymentMode ??
     selectedPaymentModeLabel;
   const draftValidation = validatePaymentDraft({
     selectedStudent,
@@ -442,16 +453,16 @@ export function PaymentEntryClient({
   const netPayable = draftValidation.ok ? draftValidation.revisedPendingBeforePayment : Math.max(previewTotalPending - quickDiscountAmount - quickLateFeeWaiverAmount, 0);
   const remainingAfterPayment =
     draftValidation.ok ? draftValidation.remainingBalance : netPayable;
-  const latestPayment = state.status === "success" && state.receiptId && state.receiptNumber
+  const latestPayment = visibleActionState.status === "success" && visibleActionState.receiptId && visibleActionState.receiptNumber
     ? {
-        id: state.receiptId,
-        receiptNumber: state.receiptNumber,
+        id: visibleActionState.receiptId,
+        receiptNumber: visibleActionState.receiptNumber,
         studentLabel: selectedStudent
           ? `${selectedStudent.fullName} (${selectedStudent.admissionNo})`
           : "Selected student",
-        totalAmount: state.amountReceived ?? paymentAmount,
+        totalAmount: visibleActionState.amountReceived ?? paymentAmount,
         paymentMode: selectedPaymentModeLabel,
-        paymentDate: state.paymentDate ?? paymentDate,
+        paymentDate: visibleActionState.paymentDate ?? paymentDate,
         createdAt: null,
       }
     : latestReceipt
@@ -466,14 +477,15 @@ export function PaymentEntryClient({
       }
       : null;
   const whatsappCopy =
-    state.status === "success" && state.receiptNumber && selectedStudent
-      ? `Dear Parent, Payment received: ${formatInr(paymentAmount)}.${quickDiscountAmount > 0 ? ` Discount applied: ${formatInr(quickDiscountAmount)}.` : ""}${quickLateFeeWaiverAmount > 0 ? ` Late fee waived: ${formatInr(quickLateFeeWaiverAmount)}.` : ""} Receipt No: ${state.receiptNumber}. Thank you - Shri Veer Patta Senior Secondary School.`
+    visibleActionState.status === "success" && visibleActionState.receiptNumber && selectedStudent
+      ? `Dear Parent, Payment received: ${formatInr(visibleActionState.amountReceived ?? paymentAmount)}.${(visibleActionState.quickDiscountApplied ?? quickDiscountAmount) > 0 ? ` Discount applied: ${formatInr(visibleActionState.quickDiscountApplied ?? quickDiscountAmount)}.` : ""}${(visibleActionState.lateFeeWaivedApplied ?? quickLateFeeWaiverAmount) > 0 ? ` Late fee waived: ${formatInr(visibleActionState.lateFeeWaivedApplied ?? quickLateFeeWaiverAmount)}.` : ""} Receipt No: ${visibleActionState.receiptNumber}. Thank you - Shri Veer Patta Senior Secondary School.`
       : "";
 
   useEffect(() => {
     submittingRef.current = false;
 
     if (state.status === "success") {
+      setDismissedActionStateKey(null);
       setIsConfirmOpen(false);
       setIsSuccessOpen(true);
       setIsDuplicateOpen(false);
@@ -483,6 +495,7 @@ export function PaymentEntryClient({
     }
 
     if (state.status === "duplicate") {
+      setDismissedActionStateKey(null);
       setIsConfirmOpen(false);
       setIsSuccessOpen(false);
       setIsDuplicateOpen(true);
@@ -491,6 +504,7 @@ export function PaymentEntryClient({
     }
 
     if (state.status === "error") {
+      setDismissedActionStateKey(null);
       setIsConfirmOpen(false);
       setFormError(state.message);
     }
@@ -696,10 +710,12 @@ export function PaymentEntryClient({
     setReceivedBy(resetValues.receivedBy);
     setClientRequestId(createClientRequestId());
     setDateAwareBreakdown(null);
-    setPreviewNotice("Refreshing balance...");
+    setPreviewNotice(null);
     setPreviewUnavailable(false);
-    setPreviewLoading(true);
-    setSummaryRefreshToken((value) => value + 1);
+    setPreviewLoading(false);
+    setStudentSummaryLoading(false);
+    setStudentSummaryNotice(null);
+    setDismissedActionStateKey(actionStateKey);
     setIsLockedAfterSuccess(false);
     setIsSuccessOpen(false);
     setIsDuplicateOpen(false);
@@ -730,11 +746,14 @@ export function PaymentEntryClient({
             : undefined
         }
         receipt={
-          state.status === "success" && state.receiptId && state.receiptNumber && state.studentId
+            visibleActionState.status === "success" &&
+            visibleActionState.receiptId &&
+            visibleActionState.receiptNumber &&
+            visibleActionState.studentId
             ? {
-                id: state.receiptId,
-                receiptNumber: state.receiptNumber,
-                studentId: state.studentId,
+                id: visibleActionState.receiptId,
+                receiptNumber: visibleActionState.receiptNumber,
+                studentId: visibleActionState.studentId,
               }
             : undefined
         }
@@ -1106,9 +1125,10 @@ export function PaymentEntryClient({
                 }
 
                 submittingRef.current = true;
+                setDismissedActionStateKey(null);
               }}
             >
-              <ActionNotice state={state} canViewDiagnostics={canViewDiagnostics} />
+              <ActionNotice state={visibleActionState} canViewDiagnostics={canViewDiagnostics} />
               {formError ? (
                 <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                   {formError}
@@ -1580,7 +1600,7 @@ export function PaymentEntryClient({
                 </div>
               ) : null}
 
-              {isSuccessOpen && state.status === "success" && receiptHref && selectedStudent ? (
+              {isSuccessOpen && visibleActionState.status === "success" && visibleReceiptHref && selectedStudent ? (
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 px-2 md:items-center md:px-4">
                   <div className="max-h-[92vh] w-full animate-bottom-sheet-up overflow-y-auto rounded-t-2xl border border-emerald-200 bg-white p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-xl md:rounded-xl md:p-5">
                     <div className="mb-2 flex items-center gap-2">
@@ -1597,25 +1617,25 @@ export function PaymentEntryClient({
                         Receipt No
                       </p>
                       <p className="mt-1 break-all text-2xl font-semibold text-slate-950">
-                        {state.receiptNumber}
+                        {visibleActionState.receiptNumber}
                       </p>
                     </div>
                     <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                       <span>Student name: {selectedStudent.fullName}</span>
                       <span>SR/admission no: {selectedStudent.admissionNo}</span>
                       <span>Class: {selectedStudent.classLabel}</span>
-                      <span>Amount received: {formatInr(state.amountReceived ?? paymentAmount)}</span>
-                      {(state.quickDiscountApplied ?? quickDiscountAmount) > 0 ? (
-                        <span>Discount applied: {formatInr(state.quickDiscountApplied ?? quickDiscountAmount)}</span>
+                      <span>Amount received: {formatInr(visibleActionState.amountReceived ?? paymentAmount)}</span>
+                      {(visibleActionState.quickDiscountApplied ?? quickDiscountAmount) > 0 ? (
+                        <span>Discount applied: {formatInr(visibleActionState.quickDiscountApplied ?? quickDiscountAmount)}</span>
                       ) : null}
-                      {(state.lateFeeWaivedApplied ?? quickLateFeeWaiverAmount) > 0 ? (
-                        <span>Late fee waived: {formatInr(state.lateFeeWaivedApplied ?? quickLateFeeWaiverAmount)}</span>
+                      {(visibleActionState.lateFeeWaivedApplied ?? quickLateFeeWaiverAmount) > 0 ? (
+                        <span>Late fee waived: {formatInr(visibleActionState.lateFeeWaivedApplied ?? quickLateFeeWaiverAmount)}</span>
                       ) : null}
-                      <span>Payment date: {state.paymentDate ?? paymentDate}</span>
+                      <span>Payment date: {visibleActionState.paymentDate ?? paymentDate}</span>
                       <span>Payment mode: {postedPaymentModeLabel}</span>
-                      <span>Reference number: {state.referenceNumber ?? "Not entered"}</span>
-                      <span>Received by: {state.receivedBy ?? receivedBy}</span>
-                      <span>Remaining balance: {formatInr(state.remainingBalance ?? remainingAfterPayment)}</span>
+                      <span>Reference number: {visibleActionState.referenceNumber ?? "Not entered"}</span>
+                      <span>Received by: {visibleActionState.receivedBy ?? receivedBy}</span>
+                      <span>Remaining balance: {formatInr(visibleActionState.remainingBalance ?? remainingAfterPayment)}</span>
                       {creditBalance > 0 ? (
                         <span>Credit/refund state: {formatInr(refundableAmount || creditBalance)} to adjust/refund</span>
                       ) : null}
@@ -1627,7 +1647,7 @@ export function PaymentEntryClient({
                         </Button>
                       ) : null}
                       <Button asChild variant="outline">
-                        <Link href={receiptHref}>Open Receipt</Link>
+                        <Link href={visibleReceiptHref}>Open Receipt</Link>
                       </Button>
                       {whatsappCopy ? (
                         <Button
@@ -1649,19 +1669,19 @@ export function PaymentEntryClient({
                 </div>
               ) : null}
 
-              {isDuplicateOpen && state.status === "duplicate" && state.receiptId ? (
+              {isDuplicateOpen && visibleActionState.status === "duplicate" && visibleActionState.receiptId ? (
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 px-2 md:items-center md:px-4">
                   <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl border border-amber-200 bg-white p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-lg md:rounded-xl md:p-5">
                     <h2 className="text-lg font-semibold text-slate-950">
                       Similar payment already recorded
                     </h2>
-                    <p className="mt-3 text-sm text-slate-700">{state.message}</p>
+                    <p className="mt-3 text-sm text-slate-700">{visibleActionState.message}</p>
                     <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                      Latest receipt: {state.receiptNumber}
+                      Latest receipt: {visibleActionState.receiptNumber}
                     </p>
                     <div className="mt-5 flex flex-wrap justify-end gap-2">
                       <Button asChild variant="outline">
-                        <Link href={`/protected/receipts/${state.receiptId}`}>Open latest receipt</Link>
+                        <Link href={`/protected/receipts/${visibleActionState.receiptId}`}>Open latest receipt</Link>
                       </Button>
                       <Button type="button" onClick={handleCollectAnotherPayment}>
                         Start new payment

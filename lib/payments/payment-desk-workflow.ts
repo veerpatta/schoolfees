@@ -1,5 +1,6 @@
 import type { PaymentMode } from "@/lib/db/types";
 import type {
+  PaymentEntryActionState,
   PaymentStudentIndexItem,
   PaymentStudentOption,
   SelectedStudentSummary,
@@ -216,6 +217,27 @@ export function shouldBlockClientSubmission(payload: {
   isLockedAfterSuccess: boolean;
 }) {
   return payload.isSubmitting || payload.isLockedAfterSuccess;
+}
+
+export function buildPaymentActionStateKey(state: PaymentEntryActionState) {
+  return [
+    state.status,
+    state.receiptId ?? "",
+    state.receiptNumber ?? "",
+    state.clientRequestId ?? "",
+    state.message ?? "",
+  ].join(":");
+}
+
+export function shouldShowPaymentActionState(payload: {
+  state: PaymentEntryActionState;
+  dismissedActionStateKey: string | null;
+}) {
+  if (payload.state.status === "idle") {
+    return false;
+  }
+
+  return buildPaymentActionStateKey(payload.state) !== payload.dismissedActionStateKey;
 }
 
 export function resetPaymentDraftForNextPayment(payload: {
