@@ -42,12 +42,18 @@ describe("office performance guardrails", () => {
     expect(workbookData).toContain("studentIds?: readonly string[]");
     expect(workbookData).toContain("query = query.in(\"student_id\", studentIds)");
     expect(workbookData).toContain("const receiptStudentIds =");
+    expect(workbookData).toContain("loadTransactionStudentIds");
+    expect(workbookData).toContain("query = query.in(\"student_id\", scopedStudentIds)");
+    expect(workbookData).toContain("query = query.or(receiptSearchParts.join(\",\"))");
   });
 
   it("documents additive indexes for common office filters", () => {
-    const migration = readRepoFile(
+    const migration = [
       "supabase/migrations/20260503143000_office_performance_indexes.sql",
-    );
+      "supabase/migrations/20260506120000_transaction_filter_performance.sql",
+    ]
+      .map(readRepoFile)
+      .join("\n");
     const schema = readRepoFile("supabase/schema.sql");
     const expectedIndexes = [
       "idx_classes_session_status_sort",
@@ -55,6 +61,7 @@ describe("office performance guardrails", () => {
       "idx_students_active_route_name",
       "idx_students_admission_no_lookup",
       "idx_receipts_payment_date_created_at",
+      "idx_receipts_student_payment_date_created_at",
       "idx_receipts_duplicate_guard_lookup",
       "idx_installments_student_status_due_date",
       "idx_installments_class_status_due_date",
@@ -67,5 +74,17 @@ describe("office performance guardrails", () => {
 
     expect(migration).not.toContain("drop index");
     expect(migration).not.toContain("drop constraint");
+  });
+
+  it("keeps Payment Desk dues loading scoped to the selected student", () => {
+    const paymentsData = readRepoFile("lib/payments/data.ts");
+
+    expect(paymentsData).toContain("getPaymentDeskStudentIndex()");
+    expect(paymentsData).toContain("payload.studentId");
+    expect(paymentsData).toContain("getPaymentDeskStudentSummary({");
+    expect(paymentsData).toContain("studentId: payload.studentId");
+    expect(paymentsData).toContain("getWorkbookStudentFinancials({");
+    expect(paymentsData).toContain("studentId: payload.studentId");
+    expect(paymentsData).not.toContain("getWorkbookStudentFinancials({\n      classId");
   });
 });

@@ -4,12 +4,14 @@ type RouteLoadingProps = {
   title: string;
   description: string;
   badgeLabel?: string;
+  cards?: number;
 };
 
 export function RouteLoading({
   title,
   description,
   badgeLabel = "Loading",
+  cards = 4,
 }: RouteLoadingProps) {
   return (
     <div className="space-y-6">
@@ -24,7 +26,7 @@ export function RouteLoading({
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {Array.from({ length: 4 }).map((_, index) => (
+        {Array.from({ length: cards }).map((_, index) => (
           <div
             key={index}
             className="animate-pulse rounded-[24px] border border-slate-200 bg-white/80 p-5"

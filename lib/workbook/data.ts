@@ -384,6 +384,74 @@ function getTodayStamp(referenceDate = new Date()) {
   }).format(referenceDate);
 }
 
+function normalizeTransactionSearch(value: string | undefined) {
+  const normalized = (value ?? "").trim();
+  return normalized ? normalized.replace(/[,%()]/g, " ").replace(/\s+/g, " ") : "";
+}
+
+function escapeIlikePattern(value: string) {
+  return value.replace(/[\\_%]/g, (match) => `\\${match}`);
+}
+
+function toPostgrestInList(values: readonly string[]) {
+  return values.map((value) => `"${value}"`).join(",");
+}
+
+async function loadTransactionStudentIds(filters: {
+  classId?: string;
+  query?: string;
+  routeId?: string;
+  sessionLabel?: string;
+}) {
+  const shouldLoad =
+    Boolean(filters.classId) ||
+    Boolean(filters.routeId) ||
+    Boolean(filters.sessionLabel) ||
+    Boolean(filters.query);
+
+  if (!shouldLoad) {
+    return null;
+  }
+
+  const supabase = await createClient();
+  let query = supabase
+    .from("students")
+    .select("id, class_ref:classes!inner(id, session_label)")
+    .eq("status", "active");
+
+  if (filters.classId) {
+    query = query.eq("class_id", filters.classId);
+  }
+
+  if (filters.routeId) {
+    query = query.eq("transport_route_id", filters.routeId);
+  }
+
+  if (filters.sessionLabel) {
+    query = query.eq("class_ref.session_label", filters.sessionLabel);
+  }
+
+  if (filters.query) {
+    const pattern = `%${escapeIlikePattern(filters.query)}%`;
+    query = query.or(
+      [
+        `full_name.ilike.${pattern}`,
+        `admission_no.ilike.${pattern}`,
+        `father_name.ilike.${pattern}`,
+        `primary_phone.ilike.${pattern}`,
+      ].join(","),
+    );
+  }
+
+  const { data, error } = await query.limit(5000);
+
+  if (error) {
+    throw new Error(`Unable to load transaction student scope: ${error.message}`);
+  }
+
+  return [...new Set(((data ?? []) as Array<{ id: string }>).map((row) => row.id))];
+}
+
 export async function getWorkbookClassOptions() {
   const { classOptions } = await getStudentFormOptions();
 
@@ -512,6 +580,30 @@ export async function getWorkbookTransactions(filters?: {
   toDate?: string;
 }) {
   const supabase = await createClient();
+  const normalizedSearch = normalizeTransactionSearch(filters?.query);
+  const hasStudentScopeFilter = Boolean(filters?.classId || filters?.routeId || filters?.sessionLabel);
+  const scopedStudentIds =
+    filters?.studentId || !hasStudentScopeFilter
+      ? null
+      : await loadTransactionStudentIds({
+          classId: filters?.classId,
+          routeId: filters?.routeId,
+          sessionLabel: filters?.sessionLabel,
+        });
+  const searchStudentIds =
+    filters?.studentId || !normalizedSearch
+      ? null
+      : await loadTransactionStudentIds({
+          classId: filters?.classId,
+          query: normalizedSearch,
+          routeId: filters?.routeId,
+          sessionLabel: filters?.sessionLabel,
+        });
+
+  if (scopedStudentIds && scopedStudentIds.length === 0) {
+    return [];
+  }
+
   let query = supabase
     .from("receipts")
     .select(
@@ -522,6 +614,8 @@ export async function getWorkbookTransactions(filters?: {
 
   if (filters?.studentId) {
     query = query.eq("student_id", filters.studentId);
+  } else if (scopedStudentIds) {
+    query = query.in("student_id", scopedStudentIds);
   }
 
   if (filters?.todayOnly) {
@@ -538,6 +632,20 @@ export async function getWorkbookTransactions(filters?: {
 
   if (filters?.paymentMode) {
     query = query.eq("payment_mode", filters.paymentMode);
+  }
+
+  if (normalizedSearch) {
+    const pattern = `%${escapeIlikePattern(normalizedSearch)}%`;
+    const receiptSearchParts = [
+      `receipt_number.ilike.${pattern}`,
+      `reference_number.ilike.${pattern}`,
+    ];
+
+    if (searchStudentIds && searchStudentIds.length > 0) {
+      receiptSearchParts.push(`student_id.in.(${toPostgrestInList(searchStudentIds)})`);
+    }
+
+    query = query.or(receiptSearchParts.join(","));
   }
 
   if (typeof filters?.limit === "number") {
@@ -601,7 +709,7 @@ export async function getWorkbookTransactions(filters?: {
     .filter((row) => (filters?.routeId ? row.transportRouteId === filters.routeId : true))
     .filter((row) => (filters?.sessionLabel ? row.sessionLabel === filters.sessionLabel : true))
     .filter((row) => {
-      const normalizedQuery = (filters?.query ?? "").trim().toLowerCase();
+      const normalizedQuery = normalizedSearch.toLowerCase();
 
       if (!normalizedQuery) {
         return true;

@@ -598,6 +598,9 @@ on public.installments (updated_by);
 create index if not exists idx_receipts_student_payment_date
 on public.receipts (student_id, payment_date desc);
 
+create index if not exists idx_receipts_student_payment_date_created_at
+on public.receipts (student_id, payment_date desc, created_at desc);
+
 create index if not exists idx_receipts_payment_date
 on public.receipts (payment_date desc);
 
