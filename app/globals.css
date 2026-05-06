@@ -124,6 +124,18 @@
     animation: success-check-pop 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
+  .animate-loading-bar {
+    animation: loading-bar 1200ms ease-in-out infinite;
+  }
+
+  .animate-soft-shimmer {
+    animation: soft-shimmer 1300ms ease-in-out infinite;
+  }
+
+  .animate-receipt-settle {
+    animation: receipt-settle 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
   .mobile-safe-bottom-padding {
     padding-bottom: var(--mobile-safe-area-bottom);
   }
@@ -150,7 +162,10 @@
   .animate-float-slow,
   .animate-float-delayed,
   .animate-bottom-sheet-up,
-  .animate-success-check {
+  .animate-success-check,
+  .animate-loading-bar,
+  .animate-soft-shimmer,
+  .animate-receipt-settle {
     animation: none !important;
   }
 }
@@ -199,6 +214,43 @@
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes loading-bar {
+  0% {
+    transform: translateX(-120%);
+  }
+
+  50% {
+    transform: translateX(90%);
+  }
+
+  100% {
+    transform: translateX(260%);
+  }
+}
+
+@keyframes soft-shimmer {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes receipt-settle {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.99);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 

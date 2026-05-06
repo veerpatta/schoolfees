@@ -10,6 +10,7 @@ import { OfficeRecentActions, OfficeRecentTracker, ValueStatePill, WorkflowGuard
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LoadingBlock } from "@/components/ui/loading-skeleton";
 import { buildPaymentAllocation, buildReceiptPreviewAllocation } from "@/lib/payments/allocation";
 import { buildPaymentQuickAmounts } from "@/lib/payments/workflow";
 import {
@@ -390,6 +391,7 @@ export function PaymentEntryClient({
   );
   const unallocatedAmount = Math.max(paymentAmount - allocatedPreviewTotal, 0);
   const receiptHref = state.receiptId ? `/protected/receipts/${state.receiptId}` : null;
+  const printReceiptHref = receiptHref ? `${receiptHref}?print=1` : null;
   const selectedPaymentModeLabel =
     data.modeOptions.find((modeOption) => modeOption.value === paymentMode)?.label ?? paymentMode;
   const postedPaymentModeLabel =
@@ -908,12 +910,12 @@ export function PaymentEntryClient({
             </div>
           </div>
           {studentSummaryLoading ? (
-            <div className="space-y-2" aria-live="polite">
+            <div className="space-y-2" aria-live="polite" aria-busy={studentSummaryLoading}>
               <p className="text-sm text-slate-600">{studentSummaryNotice ?? "Loading students..."}</p>
               <div className="grid gap-2 sm:grid-cols-3">
-                <div className="h-16 animate-pulse rounded-xl bg-slate-100" />
-                <div className="h-16 animate-pulse rounded-xl bg-slate-100" />
-                <div className="h-16 animate-pulse rounded-xl bg-slate-100" />
+                <LoadingBlock className="h-16 rounded-xl border-0 bg-slate-100 p-3" lines={1} />
+                <LoadingBlock className="h-16 rounded-xl border-0 bg-slate-100 p-3" lines={1} />
+                <LoadingBlock className="h-16 rounded-xl border-0 bg-slate-100 p-3" lines={1} />
               </div>
             </div>
           ) : null}
@@ -1619,9 +1621,11 @@ export function PaymentEntryClient({
                       ) : null}
                     </div>
                     <div className="sticky bottom-0 mt-5 flex flex-wrap justify-end gap-2 border-t border-slate-100 bg-white pt-3 mobile-safe-bottom-padding">
-                      <Button asChild variant="outline">
-                        <Link href={receiptHref} target="_blank">Print Receipt</Link>
-                      </Button>
+                      {printReceiptHref ? (
+                        <Button asChild variant="outline">
+                          <Link href={printReceiptHref} target="_blank">Print Receipt</Link>
+                        </Button>
+                      ) : null}
                       <Button asChild variant="outline">
                         <Link href={receiptHref}>Open Receipt</Link>
                       </Button>
@@ -1671,11 +1675,11 @@ export function PaymentEntryClient({
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             {studentSummaryLoading && !selectedStudent ? (
               <>
-                <div className="h-24 animate-pulse rounded-2xl border border-slate-200 bg-slate-100" />
-                <div className="h-24 animate-pulse rounded-2xl border border-slate-200 bg-slate-100" />
-                <div className="h-24 animate-pulse rounded-2xl border border-slate-200 bg-slate-100" />
-                <div className="h-24 animate-pulse rounded-2xl border border-slate-200 bg-slate-100" />
-                <div className="h-24 animate-pulse rounded-2xl border border-slate-200 bg-slate-100" />
+                <LoadingBlock className="h-24 rounded-2xl bg-slate-50" lines={1} />
+                <LoadingBlock className="h-24 rounded-2xl bg-slate-50" lines={1} />
+                <LoadingBlock className="h-24 rounded-2xl bg-slate-50" lines={1} />
+                <LoadingBlock className="h-24 rounded-2xl bg-slate-50" lines={1} />
+                <LoadingBlock className="h-24 rounded-2xl bg-slate-50" lines={1} />
               </>
             ) : selectedStudent ? (
               <>

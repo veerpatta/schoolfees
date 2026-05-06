@@ -13,6 +13,7 @@ type ReceiptDetailPageProps = {
   }>;
   searchParams?: Promise<{
     returnTo?: string;
+    print?: string;
   }>;
 };
 
@@ -32,6 +33,7 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
   const returnTo = resolvedSearchParams?.returnTo?.startsWith("/protected/transactions")
     ? resolvedSearchParams.returnTo
     : "/protected/transactions?view=receipts";
+  const shouldAutoPrint = resolvedSearchParams?.print === "1";
 
   if (!isUuid(receiptId)) {
     notFound();
@@ -56,7 +58,7 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
             <Link className="text-sm font-medium text-slate-700 underline-offset-4 hover:underline" href={returnTo}>
               Back to Transactions
             </Link>
-            {canPrintReceipts ? <ReceiptPrintActions /> : null}
+            {canPrintReceipts ? <ReceiptPrintActions autoPrint={shouldAutoPrint} /> : null}
           </div>
         }
         className="no-print"
