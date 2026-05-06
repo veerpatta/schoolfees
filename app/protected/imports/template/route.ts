@@ -4,6 +4,7 @@ import {
   workbookToXlsxBuffer,
   type UpdateTemplateStudent,
 } from "@/lib/import/templates";
+import { getConventionalDiscountPolicies } from "@/lib/fees/conventional-discounts";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { getMasterDataOptions } from "@/lib/master-data/data";
 import { createClient } from "@/lib/supabase/server";
@@ -132,30 +133,43 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const mode = url.searchParams.get("mode") === "update" ? "update" : "add";
   const sessionLabel = url.searchParams.get("sessionLabel")?.trim() ?? "";
+  const includeAllSessions = sessionLabel === "__all__";
   const normalizedSessionLabel = sessionLabel && sessionLabel !== "__all__" ? sessionLabel : null;
-
-  if (mode === "update") {
-    const workbook = buildUpdateStudentsTemplateWorkbook(
-      await buildUpdateRows(normalizedSessionLabel),
-    );
-    return xlsxResponse(workbookToXlsxBuffer(workbook), "student-update-template.xlsx");
-  }
-
   const [{ classOptions, routeOptions }, policy] = await Promise.all([
     getMasterDataOptions(),
     getFeePolicySummary(),
   ]);
-  const targetSessionLabel = normalizedSessionLabel || policy.academicSessionLabel || "";
+  const targetSessionLabel = includeAllSessions
+    ? ""
+    : normalizedSessionLabel || policy.academicSessionLabel || "";
   const sessionClasses = targetSessionLabel
     ? classOptions.filter((item) => item.sessionLabel === targetSessionLabel)
     : classOptions;
   const classesForTemplate = sessionClasses.length > 0 ? sessionClasses : classOptions;
+  const routesForTemplate = routeOptions.filter((item) => item.isActive).map((item) => ({
+    label: item.routeCode ? `${item.label} (${item.routeCode})` : item.label,
+  }));
+
+  if (mode === "update") {
+    const conventionalPolicies = targetSessionLabel
+      ? (await getConventionalDiscountPolicies(targetSessionLabel))
+          .filter((item) => item.isActive)
+          .map((item) => ({ label: item.displayName }))
+      : [];
+    const workbook = buildUpdateStudentsTemplateWorkbook(
+      await buildUpdateRows(normalizedSessionLabel),
+      {
+        classes: classesForTemplate.map((item) => ({ label: item.label })),
+        routes: routesForTemplate,
+        conventionalPolicies,
+      },
+    );
+    return xlsxResponse(workbookToXlsxBuffer(workbook), "student-update-template.xlsx");
+  }
 
   const workbook = buildAddStudentsTemplateWorkbook(
     classesForTemplate.map((item) => ({ label: item.label })),
-    routeOptions.filter((item) => item.isActive).map((item) => ({
-      label: item.routeCode ? `${item.label} (${item.routeCode})` : item.label,
-    })),
+    routesForTemplate,
   );
 
   return xlsxResponse(workbookToXlsxBuffer(workbook), "student-add-template.xlsx");

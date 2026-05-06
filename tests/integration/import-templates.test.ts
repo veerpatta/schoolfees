@@ -79,4 +79,58 @@ describe("student import templates", () => {
     );
     expect(rows[1]).toEqual(expect.arrayContaining(["student-1", "SR001", "Asha Sharma"]));
   });
+
+  it("adds office instructions, examples, and current route lists to update mode", () => {
+    const workbook = buildUpdateStudentsTemplateWorkbook(
+      [
+        {
+          studentId: "student-1",
+          admissionNo: "SR001",
+          fullName: "Asha Sharma",
+          classLabel: "Class 1",
+          fatherName: "Father",
+          fatherPhone: "9999999999",
+          transportRouteLabel: "Main Route (MR)",
+          studentTypeLabel: "Existing",
+          tuitionOverride: null,
+          transportOverride: null,
+          discountAmount: 0,
+          lateFeeWaiverAmount: 0,
+          otherAdjustmentHead: null,
+          otherAdjustmentAmount: null,
+          notes: null,
+        },
+      ],
+      {
+        classes: [{ label: "Class 1" }],
+        routes: [{ label: "Main Route (MR)" }],
+        conventionalPolicies: [{ label: "Staff Child" }],
+      },
+    );
+
+    expect(workbook.SheetNames).toEqual([
+      "Update Students Here",
+      "Read Me",
+      "Examples",
+      "Current Lists",
+    ]);
+
+    const updateRows = readSheet(workbook, "Update Students Here");
+    expect(updateRows[0]).toEqual(
+      expect.arrayContaining(["Student ID", "SR no", "Student name", "Class", "Route"]),
+    );
+
+    const readMeText = readSheet(workbook, "Read Me").flat().join(" ");
+    expect(readMeText).toContain("Student name is for checking only");
+    expect(readMeText).toContain("Do not use this file for payments");
+
+    const examples = readSheet(workbook, "Examples").flat();
+    expect(examples).toContain("Change phone only");
+    expect(examples).toContain("Main Route (MR)");
+
+    const currentLists = readSheet(workbook, "Current Lists").flat();
+    expect(currentLists).toContain("Class 1");
+    expect(currentLists).toContain("Main Route (MR)");
+    expect(currentLists).toContain("Staff Child");
+  });
 });
