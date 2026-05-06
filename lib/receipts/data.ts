@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import { buildReceiptAdjustmentTotals } from "@/lib/receipts/amounts";
 import type {
   ReceiptBreakdownItem,
   ReceiptDetail,
@@ -79,6 +80,7 @@ type HistoricalReceiptRow = {
 };
 
 type ReceiptAdjustmentRow = {
+  receipt_id: string;
   adjustment_type: "discount" | "writeoff" | "correction" | "reversal";
   amount_delta: number;
 };
@@ -143,10 +145,22 @@ function buildRouteLabel(routeRef: StudentRouteRow | StudentRouteRow[] | null) {
   return value.route_code ? `${value.route_name} (${value.route_code})` : value.route_name;
 }
 
-function buildFeeSummary(row: WorkbookFinancialRow | null): ReceiptFeeSummaryItem[] {
+function buildFeeSummary(
+  row: WorkbookFinancialRow | null,
+  receiptAdjustments: {
+    discountAmount: number;
+    lateFeeAmount: number;
+    lateFeeWaived: number;
+  },
+): ReceiptFeeSummaryItem[] {
   if (!row) {
     return [];
   }
+
+  const discountAmount =
+    receiptAdjustments.discountAmount > 0 ? receiptAdjustments.discountAmount : row.discount_amount;
+  const lateFeeWaived =
+    receiptAdjustments.lateFeeWaived > 0 ? receiptAdjustments.lateFeeWaived : row.late_fee_waiver_amount;
 
   return [
     { label: "Tuition fee", amount: row.tuition_fee },
@@ -156,9 +170,9 @@ function buildFeeSummary(row: WorkbookFinancialRow | null): ReceiptFeeSummaryIte
       label: row.other_adjustment_head ? `Other adj. (${row.other_adjustment_head})` : "Other adjustment",
       amount: row.other_adjustment_amount,
     },
-    { label: "Discount", amount: -row.discount_amount },
-    { label: "Late fee", amount: row.late_fee_total },
-    { label: "Late fee waived", amount: -row.late_fee_waiver_amount },
+    { label: "Discount", amount: -discountAmount },
+    { label: "Late fee", amount: receiptAdjustments.lateFeeAmount },
+    { label: "Late fee waived", amount: -lateFeeWaived },
   ];
 }
 
@@ -277,8 +291,8 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
       .order("created_at", { ascending: true }),
     supabase
       .from("receipt_adjustments")
-      .select("adjustment_type, amount_delta")
-      .eq("receipt_id", receipt.id),
+      .select("receipt_id, adjustment_type, amount_delta")
+      .eq("student_id", receipt.student_id),
   ]);
 
   if (paymentsError) {
@@ -326,23 +340,23 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
   const financial = (financialRaw ?? null) as WorkbookFinancialRow | null;
   const studentReceipts = (studentReceiptsRaw ?? []) as HistoricalReceiptRow[];
   const receiptAdjustments = (receiptAdjustmentsRaw ?? []) as ReceiptAdjustmentRow[];
-  const receiptDiscountAmount = receiptAdjustments
-    .filter((row) => row.adjustment_type === "discount")
-    .reduce((sum, row) => sum + Math.max(row.amount_delta ?? 0, 0), 0);
-  const receiptLateFeeWaived = receiptAdjustments
-    .filter((row) => row.adjustment_type === "writeoff")
-    .reduce((sum, row) => sum + Math.max(row.amount_delta ?? 0, 0), 0);
   const currentReceiptIndex = studentReceipts.findIndex((row) => row.id === receipt.id);
   const receiptsUpToCurrent = currentReceiptIndex === -1 ? [] : studentReceipts.slice(0, currentReceiptIndex + 1);
   const receiptsBeforeCurrent = currentReceiptIndex <= 0 ? [] : studentReceipts.slice(0, currentReceiptIndex);
   const totalPaidBeforeReceipt = receiptsBeforeCurrent.reduce((sum, row) => sum + row.total_amount, 0);
   const totalPaidToDate = receiptsUpToCurrent.reduce((sum, row) => sum + row.total_amount, 0);
-  const adjustmentsUpToCurrent = receiptAdjustments.reduce(
-    (sum, row) => sum + Math.max(row.amount_delta ?? 0, 0),
-    0,
-  );
+  const adjustmentTotals = buildReceiptAdjustmentTotals({
+    currentReceiptId: receipt.id,
+    receiptIdsUpToCurrent: receiptsUpToCurrent.map((row) => row.id),
+    financialLateFeeTotal: financial?.late_fee_total ?? 0,
+    adjustments: receiptAdjustments.map((row) => ({
+      receiptId: row.receipt_id,
+      adjustmentType: row.adjustment_type,
+      amountDelta: row.amount_delta,
+    })),
+  });
   const outstandingAfterReceipt = Math.max(
-    (financial?.total_due ?? totalPaidToDate) - totalPaidToDate - adjustmentsUpToCurrent,
+    (financial?.total_due ?? totalPaidToDate) - totalPaidToDate - adjustmentTotals.adjustmentsUpToCurrent,
     0,
   );
 
@@ -366,15 +380,19 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     sessionLabel: toSingleRecord(student?.class_ref ?? null)?.session_label ?? "2026-27",
     transportRouteLabel: buildRouteLabel(student?.route_ref ?? null),
     studentStatusLabel: financial?.student_status_label ?? "Old",
-    feeSummary: buildFeeSummary(financial),
+    feeSummary: buildFeeSummary(financial, {
+      discountAmount: adjustmentTotals.receiptDiscountAmount,
+      lateFeeAmount: adjustmentTotals.receiptLateFeeAmount,
+      lateFeeWaived: adjustmentTotals.receiptLateFeeWaived,
+    }),
     totalDue: financial?.total_due ?? totalPaidToDate,
     totalPaidBeforeReceipt,
     totalPaidToDate,
     outstandingAfterReceipt,
     currentOutstanding: financial?.outstanding_amount ?? outstandingAfterReceipt,
-    discountAmount: receiptDiscountAmount,
-    lateFeeAmount: financial?.late_fee_total ?? 0,
-    lateFeeWaived: receiptLateFeeWaived,
+    discountAmount: adjustmentTotals.receiptDiscountAmount,
+    lateFeeAmount: adjustmentTotals.receiptLateFeeAmount,
+    lateFeeWaived: adjustmentTotals.receiptLateFeeWaived,
     breakdown,
   };
 }

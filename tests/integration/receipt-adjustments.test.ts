@@ -38,11 +38,14 @@ describe("receipt-specific payment desk adjustments", () => {
 
   it("receipt detail reads discount from this receipt instead of current aggregate discount", () => {
     const receiptData = readFileSync(join(process.cwd(), "lib", "receipts", "data.ts"), "utf8");
+    const receiptAmounts = readFileSync(join(process.cwd(), "lib", "receipts", "amounts.ts"), "utf8");
 
     expect(receiptData).toContain('.from("receipt_adjustments")');
-    expect(receiptData).toContain('row.adjustment_type === "discount"');
-    expect(receiptData).toContain('row.adjustment_type === "writeoff"');
-    expect(receiptData).toContain("discountAmount: receiptDiscountAmount");
+    expect(receiptData).toContain("buildReceiptAdjustmentTotals");
+    expect(receiptAmounts).toContain('row.adjustmentType === type');
+    expect(receiptAmounts).toContain('sumAdjustments(currentReceiptAdjustments, "discount")');
+    expect(receiptAmounts).toContain('sumAdjustments(currentReceiptAdjustments, "writeoff")');
+    expect(receiptData).toContain("discountAmount: adjustmentTotals.receiptDiscountAmount");
     expect(receiptData).not.toContain("discountAmount: financial?.discount_amount");
   });
 });
