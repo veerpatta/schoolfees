@@ -1,7 +1,10 @@
+import { Suspense } from "react";
+
 import { PageHeader } from "@/components/admin/page-header";
 import { OfficeNotice, WorkflowGuard } from "@/components/office/office-ui";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { PaymentEntryClient } from "@/components/payments/payment-entry-client";
+import { PaymentDeskSkeleton } from "@/components/payments/payment-desk-skeleton";
 import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
 import { getPaymentDeskClassOptions, getPaymentEntryPageData } from "@/lib/payments/data";
 import { INITIAL_PAYMENT_ENTRY_ACTION_STATE } from "@/lib/payments/types";
@@ -35,12 +38,47 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
   const classId = normalizeStudentId(resolvedSearchParams?.classId);
   const repairNotice = (resolvedSearchParams?.repairNotice ?? "").trim();
 
-  const [staff, setup, classOptions] = await Promise.all([
+  const [staff, classOptions] = await Promise.all([
     requireStaffPermission("payments:view", { onDenied: "redirect" }),
-    getSetupWizardData(),
     getPaymentDeskClassOptions(),
   ]);
 
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Payments"
+        title="Payment Desk"
+        description="Select a student, review dues, collect payment, and print the receipt."
+      />
+
+      {repairNotice ? (
+        <OfficeNotice tone="warning">{repairNotice}</OfficeNotice>
+      ) : null}
+
+      <Suspense fallback={<PaymentDeskSkeleton />}>
+        <PaymentDeskDataLoader
+          staff={staff}
+          classOptions={classOptions}
+          studentId={studentId}
+          classId={classId}
+        />
+      </Suspense>
+    </div>
+  );
+}
+
+async function PaymentDeskDataLoader({
+  staff,
+  classOptions,
+  studentId,
+  classId,
+}: {
+  staff: Awaited<ReturnType<typeof requireStaffPermission>>;
+  classOptions: Array<{ id: string; label: string }>;
+  studentId: string | null;
+  classId: string | null;
+}) {
+  const setup = await getSetupWizardData();
   const readiness = getOfficeWorkflowReadiness(setup, staff.appRole);
   const canPostPayments =
     hasStaffPermission(staff, "payments:write") && readiness.postPayments.isReady;
@@ -56,18 +94,13 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
   });
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Payments"
-        title="Payment Desk"
-        description="Select a student, review dues, collect payment, and print the receipt."
-        actions={
-          <StatusBadge
-            label={canPostPayments ? "Posting enabled" : "Read-only access"}
-            tone={canPostPayments ? "good" : "warning"}
-          />
-        }
-      />
+    <>
+      <div className="flex justify-end">
+        <StatusBadge
+          label={canPostPayments ? "Posting enabled" : "Read-only access"}
+          tone={canPostPayments ? "good" : "warning"}
+        />
+      </div>
 
       {!readiness.postPayments.isReady ? (
         <WorkflowGuard
@@ -76,10 +109,6 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
           actionLabel={readiness.postPayments.actionLabel}
           actionHref={readiness.postPayments.actionHref}
         />
-      ) : null}
-
-      {repairNotice ? (
-        <OfficeNotice tone="warning">{repairNotice}</OfficeNotice>
       ) : null}
 
       <PaymentEntryClient
@@ -93,6 +122,6 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
         submitPaymentEntryAction={submitPaymentEntryAction}
         repairPaymentDeskStudentDuesAction={repairPaymentDeskStudentDuesAction}
       />
-    </div>
+    </>
   );
 }

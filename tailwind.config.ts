@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import containerQueries from "@tailwindcss/container-queries";
 import tailwindcssAnimate from "tailwindcss-animate";
 
 export default {
@@ -58,7 +59,16 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      height: {
+        svh: "100svh",
+        dvh: "100dvh",
+        lvh: "100lvh",
+      },
+      minHeight: {
+        svh: "100svh",
+        dvh: "100dvh",
+      },
     },
   },
-  plugins: [tailwindcssAnimate],
+  plugins: [tailwindcssAnimate, containerQueries],
 } satisfies Config;

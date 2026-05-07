@@ -34,11 +34,13 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@tailwindcss/container-queries": "^0.1.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitest/coverage-v8": "^4.1.5",
     "autoprefixer": "^10.4.20",
+    "critters": "^0.0.23",
     "eslint": "^9",
     "eslint-config-next": "15.3.1",
     "postcss": "^8",

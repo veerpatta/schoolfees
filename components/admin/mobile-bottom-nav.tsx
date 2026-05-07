@@ -21,7 +21,10 @@ export function MobileBottomNav({ staffRole }: MobileBottomNavProps) {
   );
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 py-1.5 backdrop-blur print:hidden md:hidden mobile-safe-bottom-padding">
+    <nav
+      aria-label="Primary navigation"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 py-1.5 backdrop-blur print:hidden md:hidden mobile-safe-bottom-padding landscape:h-12"
+    >
       <div
         className="mx-auto grid max-w-7xl gap-1"
         style={{ gridTemplateColumns: `repeat(${primaryMobileItems.length + 1}, minmax(0, 1fr))` }}
@@ -40,6 +43,13 @@ export function MobileBottomNav({ staffRole }: MobileBottomNavProps) {
             >
               <Icon className="size-4" aria-hidden="true" />
               <span className="mt-0.5 max-w-full truncate">{item.label}</span>
+              {active ? (
+                <span
+                  key={pathname}
+                  className="mt-0.5 size-1 rounded-full bg-sky-600 animate-slide-up-fade"
+                  aria-hidden="true"
+                />
+              ) : null}
             </Link>
           );
         })}

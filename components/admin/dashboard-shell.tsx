@@ -10,6 +10,7 @@ import { formatInr } from "@/lib/helpers/currency";
 
 import { AppTopBar } from "./app-topbar";
 import { MobileBottomNav } from "./mobile-bottom-nav";
+import { ScrollRestoringMain } from "./scroll-restoring-main";
 import { SidebarNav } from "./sidebar-nav";
 
 type DashboardShellProps = {
@@ -27,7 +28,7 @@ export async function DashboardShell({
   const homeHref = getDefaultProtectedHref(staffRole);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 lg:h-screen lg:overflow-hidden">
+    <div className="min-h-svh bg-slate-50 text-slate-900 lg:h-screen lg:overflow-hidden">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[250px] border-r border-slate-200 bg-white print:hidden lg:block">
         <div className="brand-grid flex h-full flex-col gap-3 overflow-y-auto px-3 py-4">
           <Link
@@ -69,9 +70,9 @@ export async function DashboardShell({
         <div className="relative min-w-0">
           <div className="relative z-10">
             <AppTopBar staffEmail={staffEmail} staffRole={staffRole} />
-            <main className="mx-auto max-w-7xl px-4 py-5 print:max-w-none print:px-0 print:py-0 sm:px-6 lg:px-8 lg:py-6 mobile-bottom-nav-clearance md:pb-5 lg:pb-6">
+            <ScrollRestoringMain className="mx-auto max-w-7xl px-4 py-5 print:max-w-none print:px-0 print:py-0 sm:px-6 lg:px-8 lg:py-6 mobile-bottom-nav-clearance md:pb-5 lg:pb-6">
               {children}
-            </main>
+            </ScrollRestoringMain>
             <MobileBottomNav staffRole={staffRole} />
           </div>
         </div>

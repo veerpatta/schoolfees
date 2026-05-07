@@ -54,11 +54,15 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    scroll-padding-bottom: var(--mobile-payment-with-nav-offset, 5rem);
     -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
   }
 
   * {
     @apply border-border;
+    -webkit-overflow-scrolling: touch;
+    -webkit-tap-highlight-color: transparent;
   }
 
   body {
@@ -105,7 +109,7 @@
   }
 
   .animate-reveal-up {
-    animation: reveal-up 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: reveal-up 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   .animate-float-slow {
@@ -117,7 +121,7 @@
   }
 
   .animate-bottom-sheet-up {
-    animation: bottom-sheet-up 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: bottom-sheet-up 220ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
   }
 
   .animate-success-check {
@@ -134,6 +138,32 @@
 
   .animate-receipt-settle {
     animation: receipt-settle 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .animate-slide-up-fade {
+    animation: slide-up-fade 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .animate-pop-in {
+    animation: pop-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  .animate-shimmer-fast {
+    animation: shimmer-fast 800ms ease-in-out infinite;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .payment-entry-mobile-layout,
+  .payment-entry-form {
+    contain: layout style;
   }
 
   .mobile-safe-bottom-padding {
@@ -165,7 +195,10 @@
   .animate-success-check,
   .animate-loading-bar,
   .animate-soft-shimmer,
-  .animate-receipt-settle {
+  .animate-receipt-settle,
+  .animate-slide-up-fade,
+  .animate-pop-in,
+  .animate-shimmer-fast {
     animation: none !important;
   }
 }
@@ -251,6 +284,55 @@
   to {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes slide-up-fade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+
+  60% {
+    transform: scale(1.06);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer-fast {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  :root {
+    --mobile-bottom-nav-height: 3rem;
+  }
+
+  .mobile-bottom-nav-clearance {
+    padding-bottom: calc(var(--mobile-bottom-nav-height) + var(--mobile-safe-area-bottom));
   }
 }
 

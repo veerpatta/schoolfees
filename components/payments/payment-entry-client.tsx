@@ -11,6 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingBlock } from "@/components/ui/loading-skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { MobilePaymentModeSheet } from "@/components/payments/mobile-payment-mode-sheet";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { useScrollIntoView } from "@/hooks/use-scroll-into-view";
 import { buildPaymentAllocation, buildReceiptPreviewAllocation } from "@/lib/payments/allocation";
 import { buildPaymentQuickAmounts } from "@/lib/payments/workflow";
 import {
@@ -65,6 +69,7 @@ const studentComboboxOverscan = 4;
 const paymentDeskLastClassStorageKey = "vpps.paymentDesk.lastClassId";
 const paymentDeskLastModeStorageKey = "vpps.paymentDesk.lastPaymentMode";
 const paymentDeskRecentStudentsStorageKey = "vpps.paymentDesk.recentStudents";
+const mobilePresetAmounts = [500, 1000, 2000, 5000, 10000];
 
 function desktopTabButtonClass(active: boolean) {
   return cn(
@@ -190,10 +195,13 @@ export function PaymentEntryClient({
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
   const [isLockedAfterSuccess, setIsLockedAfterSuccess] = useState(false);
   const [desktopPanelTab, setDesktopPanelTab] = useState<"collect" | "dues" | "receipt" | "notes">("collect");
+  const [expandedReceiptId, setExpandedReceiptId] = useState<string | null>(null);
   const [clientRequestId, setClientRequestId] = useState(createClientRequestId);
   const [dismissedActionStateKey, setDismissedActionStateKey] = useState<string | null>(null);
+  const isMobileView = useMediaQuery("(max-width: 767px)");
+  const { ref: amountInputRef, scrollIntoView: scrollAmountInputIntoView } = useScrollIntoView<HTMLInputElement>();
+  const { ref: refInputRef, scrollIntoView: scrollReferenceInputIntoView } = useScrollIntoView<HTMLInputElement>();
   const submittingRef = useRef(false);
-  const amountInputRef = useRef<HTMLInputElement>(null);
   const amountSectionRef = useRef<HTMLDivElement>(null);
   const classSectionRef = useRef<HTMLDivElement>(null);
   const studentSearchSectionRef = useRef<HTMLDivElement>(null);
@@ -278,6 +286,7 @@ export function PaymentEntryClient({
   const previewNextDue =
     previewBreakdown.find((item) => item.outstandingAmount > 0) ?? null;
   const paymentAmount = Number(paymentAmountInput) || 0;
+  const clientPreviewAmount = paymentAmount > 0 ? paymentAmount : null;
   const quickDiscountAmount = Number(quickDiscountInput) || 0;
   const pendingLateFeeAmount = previewBreakdown.reduce(
     (sum, item) => sum + Math.min(item.finalLateFee, item.outstandingAmount),
@@ -288,6 +297,8 @@ export function PaymentEntryClient({
   const creditBalance = selectedStudent?.creditBalance ?? 0;
   const refundableAmount = selectedStudent?.refundableAmount ?? 0;
   const studentSelectedFromIndex = Boolean(selectedStudentId && selectedStudentIndexItem);
+  const showReferenceField = paymentMode !== "cash";
+  const referenceInputMode = paymentMode === "cheque" ? "numeric" : "text";
 
   useEffect(() => {
     if (!selectedStudentId) {
@@ -605,7 +616,7 @@ export function PaymentEntryClient({
   }, [filteredStudents, selectedStudentId]);
 
   useEffect(() => {
-    if (!selectedStudent || studentSummaryLoading) {
+    if (!selectedStudent || studentSummaryLoading || !isMobileView) {
       return;
     }
 
@@ -614,11 +625,26 @@ export function PaymentEntryClient({
     }
 
     lastAmountFocusStudentIdRef.current = selectedStudent.id;
-    requestAnimationFrame(() => {
-      amountSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    scrollAmountInputIntoView();
+    setTimeout(() => {
       amountInputRef.current?.focus({ preventScroll: true });
-    });
-  }, [selectedStudent, studentSummaryLoading]);
+    }, 350);
+  }, [amountInputRef, isMobileView, scrollAmountInputIntoView, selectedStudent, studentSummaryLoading]);
+
+  useEffect(() => {
+    if (isConfirmOpen && isMobileView) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [isConfirmOpen, isMobileView]);
+
+  useEffect(() => {
+    if (showReferenceField && isMobileView) {
+      scrollReferenceInputIntoView();
+      setTimeout(() => {
+        refInputRef.current?.focus({ preventScroll: true });
+      }, 300);
+    }
+  }, [isMobileView, refInputRef, scrollReferenceInputIntoView, showReferenceField]);
 
   function focusStudentSearch(mode: "mobile" | "desktop") {
     requestAnimationFrame(() => {
@@ -768,7 +794,7 @@ export function PaymentEntryClient({
   }
 
   return (
-    <div className="space-y-6 mobile-payment-with-nav-clearance md:pb-4">
+    <div className="payment-entry-mobile-layout space-y-6 mobile-payment-with-nav-clearance md:pb-4">
       <OfficeRecentTracker
         student={
           selectedStudent
@@ -1019,7 +1045,7 @@ export function PaymentEntryClient({
                 </div>
               ) : null}
             </div>
-            <Input id="desktop-payment-amount" type="number" inputMode="decimal" min={1} max={previewTotalPending > 0 ? previewTotalPending : undefined} ref={amountInputRef} placeholder="Amount" value={paymentAmountInput} onChange={(event)=>{setPaymentAmountInput(event.target.value);setFormError(null);}} onKeyDown={(event)=>{if(event.key==="Enter"){event.preventDefault();openConfirmationDialog();}}} />
+            <Input id="desktop-payment-amount" type="number" inputMode="decimal" enterKeyHint="done" autoCapitalize="off" autoCorrect="off" min={1} max={previewTotalPending > 0 ? previewTotalPending : undefined} ref={amountInputRef} placeholder="Amount" value={paymentAmountInput} onChange={(event)=>{setPaymentAmountInput(event.target.value);setFormError(null);}} onKeyDown={(event)=>{if(event.key==="Enter"){event.preventDefault();openConfirmationDialog();}}} />
             <select id="desktop-payment-mode" className={selectClassName} value={paymentMode} onChange={(event)=>{setPaymentMode(event.target.value as typeof paymentMode);setFormError(null);}}>{data.modeOptions.map((modeOption)=><option key={modeOption.value} value={modeOption.value}>{modeOption.label}</option>)}</select>
             <Button type="button" disabled={confirmDisabled} onClick={openConfirmationDialog}>Confirm Payment</Button>
           </div>
@@ -1045,18 +1071,18 @@ export function PaymentEntryClient({
                   <p>Pending: {formatInr(previewTotalPending)} · Late fee: {formatInr(pendingLateFeeAmount)}</p>
                 </div>
                 <div className="grid gap-2 lg:grid-cols-2">
-                  <Input placeholder="Amount received" value={paymentAmountInput} onChange={(event)=>setPaymentAmountInput(event.target.value)} />
-                  <Input placeholder="Additional discount / concession" value={quickDiscountInput} onChange={(event)=>setQuickDiscountInput(event.target.value)} />
+                  <Input placeholder="Amount received" inputMode="decimal" enterKeyHint="done" autoCapitalize="off" autoCorrect="off" value={paymentAmountInput} onChange={(event)=>setPaymentAmountInput(event.target.value)} />
+                  <Input placeholder="Additional discount / concession" inputMode="decimal" enterKeyHint="next" value={quickDiscountInput} onChange={(event)=>setQuickDiscountInput(event.target.value)} />
                 </div>
                 <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2">
                   <input type="checkbox" checked={waiveFullLateFee} disabled={pendingLateFeeAmount <= 0} onChange={(event)=>setWaiveFullLateFee(event.target.checked)} />
                   <span>Waive full pending late fee ({formatInr(pendingLateFeeAmount)})</span>
                 </label>
                 <div className="grid gap-2 lg:grid-cols-2">
-                  <Input placeholder="Reference number" value={referenceNumber} onChange={(event)=>setReferenceNumber(event.target.value)} />
-                  <Input placeholder="Received by" value={receivedBy} onChange={(event)=>setReceivedBy(event.target.value)} />
+                  {showReferenceField ? <Input placeholder="Reference number" inputMode={referenceInputMode} enterKeyHint="done" autoCapitalize="off" autoCorrect="off" value={referenceNumber} onChange={(event)=>setReferenceNumber(event.target.value)} /> : null}
+                  <Input placeholder="Received by" enterKeyHint="next" autoComplete="name" value={receivedBy} onChange={(event)=>setReceivedBy(event.target.value)} />
                 </div>
-                <textarea className={textAreaClassName} placeholder="Remarks" value={remarks} onChange={(event)=>setRemarks(event.target.value)} />
+                <Textarea className={textAreaClassName} placeholder="Remarks" enterKeyHint="done" value={remarks} onChange={(event)=>setRemarks(event.target.value)} />
                 <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 sm:grid-cols-2">
                   <span>Pending before discount: {formatInr(previewTotalPending)}</span>
                   <span>Late fee waived: {formatInr(quickLateFeeWaiverAmount)}</span>
@@ -1158,7 +1184,7 @@ export function PaymentEntryClient({
             ) : null}
             <form
               action={formAction}
-              className="space-y-3"
+              className="payment-entry-form relative space-y-3"
               onSubmit={(event) => {
                 if (!isConfirmOpen) {
                   event.preventDefault();
@@ -1214,6 +1240,9 @@ export function PaymentEntryClient({
                       name="paymentAmount"
                       type="number"
                       inputMode="decimal"
+                      enterKeyHint="done"
+                      autoCapitalize="off"
+                      autoCorrect="off"
                       min={1}
                       max={previewTotalPending > 0 ? previewTotalPending : undefined}
                       className="mt-1 h-10 text-base"
@@ -1226,12 +1255,31 @@ export function PaymentEntryClient({
                       onKeyDown={(event) => {
                         if (event.key === "Enter") {
                           event.preventDefault();
+                          if (isMobileView) {
+                            event.currentTarget.blur();
+                            return;
+                          }
                           openConfirmationDialog();
                         }
                       }}
                       required
                     />
-                    <div className="mt-2 flex flex-wrap gap-2 md:flex-wrap">
+                    <div className="mt-2 flex gap-2 overflow-x-auto py-1 no-scrollbar md:hidden">
+                      {mobilePresetAmounts.map((presetAmount) => (
+                        <button
+                          key={presetAmount}
+                          type="button"
+                          className="shrink-0 rounded-full bg-slate-100 px-4 py-1.5 text-sm font-medium text-slate-800 transition-colors active:bg-slate-200"
+                          onClick={() => {
+                            setPaymentAmountInput(String(presetAmount));
+                            setFormError(null);
+                          }}
+                        >
+                          {formatInr(presetAmount)}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mt-2 hidden flex-wrap gap-2 md:flex">
                       {quickAmounts.map((quickAmount) => (
                         <Button
                           key={quickAmount.key}
@@ -1262,6 +1310,7 @@ export function PaymentEntryClient({
                       name="quickDiscountAmount"
                       type="number"
                       inputMode="decimal"
+                      enterKeyHint="next"
                       min={0}
                       max={previewTotalPending}
                       className="mt-1 h-10"
@@ -1310,10 +1359,20 @@ export function PaymentEntryClient({
                   </div>
                   <div>
                     <Label htmlFor="payment-mode">Payment mode</Label>
+                    <input type="hidden" name="paymentMode" value={paymentMode} />
+                    <div className="mt-1 md:hidden">
+                      <MobilePaymentModeSheet
+                        value={paymentMode}
+                        onChange={(value) => {
+                          setPaymentMode(value as typeof paymentMode);
+                          setFormError(null);
+                        }}
+                        disabled={!selectedStudent}
+                      />
+                    </div>
                     <select
                       id="payment-mode"
-                      name="paymentMode"
-                      className={`${selectClassName} mt-1 h-10`}
+                      className={`${selectClassName} mt-1 hidden h-10 md:flex`}
                       value={paymentMode}
                       onChange={(event) => {
                         setPaymentMode(event.target.value as typeof paymentMode);
@@ -1328,37 +1387,52 @@ export function PaymentEntryClient({
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <Label htmlFor="payment-reference-number">
-                      Reference number
-                    </Label>
-                    <Input
-                      id="payment-reference-number"
-                      name="referenceNumber"
-                      className="mt-1 h-10"
-                      placeholder="Optional"
-                      value={referenceNumber}
-                      onChange={(event) => {
-                        setReferenceNumber(event.target.value);
-                        setFormError(null);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          openConfirmationDialog();
-                        }
-                      }}
-                    />
-                    <p className="mt-1 text-[11px] text-slate-500">
-                      Reference is useful for matching bank/UPI records.
-                    </p>
-                  </div>
+                  {showReferenceField ? (
+                    <div>
+                      <Label htmlFor="payment-reference-number">
+                        Reference number
+                      </Label>
+                      <Input
+                        id="payment-reference-number"
+                        name="referenceNumber"
+                        className="mt-1 h-10"
+                        placeholder="Optional"
+                        ref={refInputRef}
+                        inputMode={referenceInputMode}
+                        enterKeyHint="done"
+                        autoCapitalize="off"
+                        autoCorrect="off"
+                        value={referenceNumber}
+                        onChange={(event) => {
+                          setReferenceNumber(event.target.value);
+                          setFormError(null);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            if (isMobileView) {
+                              event.currentTarget.blur();
+                              return;
+                            }
+                            openConfirmationDialog();
+                          }
+                        }}
+                      />
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        Reference is useful for matching bank/UPI records.
+                      </p>
+                    </div>
+                  ) : (
+                    <input type="hidden" name="referenceNumber" value="" />
+                  )}
                   <div>
                     <Label htmlFor="payment-received-by">Received by</Label>
                     <Input
                       id="payment-received-by"
                       name="receivedBy"
                       className="mt-1 h-10"
+                      enterKeyHint="next"
+                      autoComplete="name"
                       value={receivedBy}
                       onChange={(event) => {
                         setReceivedBy(event.target.value);
@@ -1375,11 +1449,12 @@ export function PaymentEntryClient({
                   </summary>
                 <div className="mt-3">
                   <Label htmlFor="payment-remarks">Remarks</Label>
-                  <textarea
+                  <Textarea
                     id="payment-remarks"
                     name="remarks"
                     className={`${textAreaClassName} mt-1 min-h-16`}
                     placeholder="Optional desk remarks"
+                    enterKeyHint="done"
                     value={remarks}
                     onChange={(event) => {
                       setRemarks(event.target.value);
@@ -1390,6 +1465,11 @@ export function PaymentEntryClient({
 
                 <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <p className="text-sm font-semibold text-slate-900">Installment allocation preview</p>
+                  {clientPreviewAmount && previewLoading ? (
+                    <p className="mt-2 inline-flex rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-900">
+                      Calculating... estimated amount {formatInr(clientPreviewAmount)}
+                    </p>
+                  ) : null}
                   <p className="mt-1 text-xs text-slate-600">
                     Amount is auto-allocated from oldest pending installment to newest. Final late fee and pending amount are recalculated for the selected payment date.
                   </p>
@@ -1413,8 +1493,12 @@ export function PaymentEntryClient({
                   ) : (
                     <>
                       <div className="mt-3 space-y-2 md:hidden">
-                        {allocationPreview.map((item) => (
-                          <div key={item.installmentId} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
+                        {allocationPreview.map((item, index) => (
+                          <div
+                            key={item.installmentId}
+                            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs animate-slide-up-fade"
+                            style={{ animationDelay: `${index * 40}ms` }}
+                          >
                             <p className="font-semibold text-slate-900">{item.installmentLabel}</p>
                             <p className="text-slate-500">{item.dueDate}</p>
                             <p>Allocated: {formatInr(item.allocatedAmount)}</p>
@@ -1474,6 +1558,15 @@ export function PaymentEntryClient({
                 </div>
               </fieldset>
 
+              {pending ? (
+                <div className="absolute inset-0 z-50 flex items-center justify-center rounded-xl bg-white/80 backdrop-blur-sm md:hidden">
+                  <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-center shadow-sm">
+                    <div className="mx-auto size-6 rounded-full border-2 border-slate-200 border-t-sky-600 animate-spin" />
+                    <p className="mt-2 text-sm font-medium text-slate-800">Processing payment...</p>
+                  </div>
+                </div>
+              ) : null}
+
               {selectedStudent ? (
                 <div
                   className="fixed inset-x-0 z-40 border-t border-slate-200 bg-white/95 p-2 shadow-[0_-8px_24px_rgba(15,23,42,0.12)] backdrop-blur md:hidden mobile-safe-bottom-padding"
@@ -1508,6 +1601,9 @@ export function PaymentEntryClient({
                       aria-label="Mobile amount received"
                       type="number"
                       inputMode="decimal"
+                      enterKeyHint="done"
+                      autoCapitalize="off"
+                      autoCorrect="off"
                       min={1}
                       placeholder="Amount"
                       className="h-9"
@@ -1515,6 +1611,12 @@ export function PaymentEntryClient({
                       onChange={(event) => {
                         setPaymentAmountInput(event.target.value);
                         setFormError(null);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          event.currentTarget.blur();
+                        }
                       }}
                     />
                     <Input
@@ -1543,31 +1645,38 @@ export function PaymentEntryClient({
                         }}
                       />
                     </label>
-                    <select
-                      aria-label="Mobile payment mode"
-                      className={`${selectClassName} h-9`}
-                      value={paymentMode}
-                      onChange={(event) => {
-                        setPaymentMode(event.target.value as typeof paymentMode);
-                        setFormError(null);
-                      }}
-                    >
-                      {data.modeOptions.map((modeOption) => (
-                        <option key={modeOption.value} value={modeOption.value}>
-                          {modeOption.label}
-                        </option>
-                      ))}
-                    </select>
-                    <Input
-                      aria-label="Mobile reference number"
-                      placeholder="Reference (optional)"
-                      className="h-9"
-                      value={referenceNumber}
-                      onChange={(event) => {
-                        setReferenceNumber(event.target.value);
-                        setFormError(null);
-                      }}
-                    />
+                    <div aria-label="Mobile payment mode" className={showReferenceField ? "" : "col-span-2"}>
+                      <MobilePaymentModeSheet
+                        value={paymentMode}
+                        onChange={(value) => {
+                          setPaymentMode(value as typeof paymentMode);
+                          setFormError(null);
+                        }}
+                        disabled={!selectedStudent}
+                      />
+                    </div>
+                    {showReferenceField ? (
+                      <Input
+                        aria-label="Mobile reference number"
+                        placeholder="Reference (optional)"
+                        className="h-11"
+                        inputMode={referenceInputMode}
+                        enterKeyHint="done"
+                        autoCapitalize="off"
+                        autoCorrect="off"
+                        value={referenceNumber}
+                        onChange={(event) => {
+                          setReferenceNumber(event.target.value);
+                          setFormError(null);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            event.currentTarget.blur();
+                          }
+                        }}
+                      />
+                    ) : null}
                   </div>
                   <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-slate-50 px-2 py-1 text-[11px] text-slate-600">
                     <span>Pending {formatInr(previewTotalPending)}</span>
@@ -1666,7 +1775,7 @@ export function PaymentEntryClient({
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 px-2 md:items-center md:px-4">
                   <div className="max-h-[92vh] w-full animate-bottom-sheet-up overflow-y-auto rounded-t-2xl border border-emerald-200 bg-white p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-xl md:rounded-xl md:p-5">
                     <div className="mb-2 flex items-center gap-2">
-                      <span className="inline-flex size-7 animate-success-check items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                      <span className="inline-flex size-7 animate-pop-in animate-success-check items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
                         ✓
                       </span>
                       <h2 className="text-lg font-semibold text-slate-950">Payment Successful</h2>
@@ -1813,8 +1922,17 @@ export function PaymentEntryClient({
             }
           >
             <div className="space-y-3 md:hidden">
-              {previewBreakdown.map((item) => (
-                <div key={item.installmentId} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+              {studentSummaryLoading && selectedStudent ? (
+                <div className="overflow-hidden rounded-full bg-slate-100" aria-live="polite">
+                  <div className="h-1 w-1/3 rounded-full bg-sky-500 animate-loading-bar" />
+                </div>
+              ) : null}
+              {previewBreakdown.map((item, index) => (
+                <div
+                  key={item.installmentId}
+                  className="rounded-xl border border-slate-200 bg-white p-3 text-sm animate-slide-up-fade"
+                  style={{ animationDelay: `${index * 40}ms` }}
+                >
                   <div className="flex items-center justify-between">
                     <p className="font-semibold text-slate-900">{item.installmentLabel}</p>
                     <ValueStatePill tone={item.balanceStatus === "paid" ? "locked" : item.balanceStatus === "partial" || item.balanceStatus === "overdue" ? "review" : "calculated"} className="normal-case tracking-normal">
@@ -1900,6 +2018,55 @@ export function PaymentEntryClient({
                   {formatInr(data.todayCollection.totalAmount)}
                 </p>
               </div>
+            </div>
+            <div className="space-y-2">
+              {data.recentReceipts.length === 0 ? (
+                <p className="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-500">
+                  No recent receipts yet.
+                </p>
+              ) : (
+                data.recentReceipts.map((receipt, index) => {
+                  const expanded = expandedReceiptId === receipt.id;
+
+                  return (
+                    <div
+                      key={receipt.id}
+                      className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm animate-slide-up-fade"
+                      style={{ animationDelay: `${index * 35}ms` }}
+                    >
+                      <button
+                        type="button"
+                        className="w-full text-left"
+                        onClick={() => setExpandedReceiptId(expanded ? null : receipt.id)}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="font-semibold text-slate-950">{receipt.receiptNumber}</span>
+                          <span className="text-xs text-slate-500">{receipt.paymentDate}</span>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between gap-3">
+                          <span className="font-semibold text-emerald-700">{formatInr(receipt.totalAmount)}</span>
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                            {receipt.paymentMode}
+                          </span>
+                        </div>
+                      </button>
+                      {expanded ? (
+                        <div className="mt-3 space-y-2 border-t border-slate-100 pt-3 text-sm text-slate-600 animate-slide-up-fade">
+                          <p>{receipt.studentLabel}</p>
+                          <div className="flex flex-wrap gap-2">
+                            <Button asChild size="sm" variant="outline">
+                              <Link href={`/protected/receipts/${receipt.id}`}>Print</Link>
+                            </Button>
+                            <Button asChild size="sm" variant="outline">
+                              <Link href={`/protected/students/${receipt.studentId}`}>Student</Link>
+                            </Button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </details>
