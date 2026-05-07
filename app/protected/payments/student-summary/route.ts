@@ -54,15 +54,18 @@ export async function GET(request: NextRequest) {
       pendingBeforeQuickDiscount - quickDiscountAmount - quickLateFeeWaiverAmount,
       0,
     );
-    return Response.json({
-      ...summary,
-      payablePreview: {
-        pendingBeforeQuickDiscount,
-        quickDiscountApplied: quickDiscountAmount,
-        lateFeeWaivedApplied: quickLateFeeWaiverAmount,
-        revisedPendingBeforePayment,
+    return Response.json(
+      {
+        ...summary,
+        payablePreview: {
+          pendingBeforeQuickDiscount,
+          quickDiscountApplied: quickDiscountAmount,
+          lateFeeWaivedApplied: quickLateFeeWaiverAmount,
+          revisedPendingBeforePayment,
+        },
       },
-    });
+      { headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" } },
+    );
   } catch (error) {
     return Response.json(
       {

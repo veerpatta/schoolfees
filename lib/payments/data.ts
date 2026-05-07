@@ -376,7 +376,8 @@ export async function getPaymentDeskStudentIndex() {
     .eq("status", "active")
     .eq("class_ref.session_label", policy.academicSessionLabel)
     .eq("class_ref.status", "active")
-    .order("full_name", { ascending: true });
+    .order("full_name", { ascending: true })
+    .limit(2000);
 
   if (error) {
     throw new Error(`Unable to load Payment Desk student index: ${error.message}`);
@@ -613,20 +614,6 @@ export async function preflightPaymentPosting(payload: {
       buildPaymentDiagnostic({
         ...baseDiagnostic,
         reason: "session_mismatch",
-      }),
-    );
-  }
-
-  if (
-    payload.paymentMode &&
-    (payload.paymentMode === "upi" || payload.paymentMode === "bank_transfer" || payload.paymentMode === "cheque") &&
-    !payload.referenceNumber?.trim()
-  ) {
-    throw new PaymentPostingPreflightError(
-      "Reference number is required for UPI, bank transfer, and cheque payments.",
-      buildPaymentDiagnostic({
-        ...baseDiagnostic,
-        reason: "reference_required_for_non_cash_payment",
       }),
     );
   }

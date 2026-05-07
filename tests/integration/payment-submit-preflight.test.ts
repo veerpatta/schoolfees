@@ -348,7 +348,7 @@ describe("payment submit preflight", () => {
     ).rejects.toThrow("Late fee waiver cannot be more than pending late fee.");
   });
 
-  it("server preflight requires references for UPI bank and cheque", async () => {
+  it("server preflight accepts UPI payment without a reference number", async () => {
     createClient.mockResolvedValueOnce(clientWithRpc([4], vi.fn()));
 
     const { preflightPaymentPosting } = await import("@/lib/payments/data");
@@ -361,7 +361,7 @@ describe("payment submit preflight", () => {
         paymentMode: "upi",
         referenceNumber: null,
       }),
-    ).rejects.toThrow("Reference number is required for UPI, bank transfer, and cheque payments.");
+    ).rejects.not.toThrow("Reference number is required for UPI, bank transfer, and cheque payments.");
   });
 
   it("payment submit passes quick adjustments to the adjustment RPC", async () => {

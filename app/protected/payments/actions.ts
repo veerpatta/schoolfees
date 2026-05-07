@@ -87,11 +87,6 @@ function parsePaymentDate(value: FormDataEntryValue | null) {
   return normalized;
 }
 
-function paymentModeNeedsReference(mode: PaymentMode) {
-  return mode === "upi" || mode === "bank_transfer" || mode === "cheque";
-}
-
-
 function toActionStateError(error: unknown): PaymentEntryActionState {
   if (error instanceof DuplicatePaymentWarning) {
     return {
@@ -152,9 +147,6 @@ export async function submitPaymentEntryAction(
     );
     const clientRequestId = parseUuid(formData.get("clientRequestId"), "Payment attempt");
     const referenceNumber = (formData.get("referenceNumber") ?? "").toString().trim() || null;
-    if (paymentModeNeedsReference(paymentMode) && !referenceNumber) {
-      throw new Error("Reference number is required for UPI, bank transfer, and cheque payments.");
-    }
     const receivedBy = parseRequiredString(formData.get("receivedBy"), "Received by");
 
     const receipt = await postStudentPayment({

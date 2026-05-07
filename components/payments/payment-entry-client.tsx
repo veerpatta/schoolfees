@@ -19,7 +19,6 @@ import {
   buildStudentSelectLabel,
   filterPaymentDeskStudents,
   buildPaymentActionStateKey,
-  paymentModeNeedsReference,
   resetPaymentDraftForNextPayment,
   shouldBlockClientSubmission,
   shouldShowPaymentActionState,
@@ -64,6 +63,8 @@ const studentComboboxRowHeight = 52;
 const studentComboboxPanelHeight = 312;
 const studentComboboxOverscan = 4;
 const paymentDeskLastClassStorageKey = "vpps.paymentDesk.lastClassId";
+const paymentDeskLastModeStorageKey = "vpps.paymentDesk.lastPaymentMode";
+const paymentDeskRecentStudentsStorageKey = "vpps.paymentDesk.recentStudents";
 
 function desktopTabButtonClass(active: boolean) {
   return cn(
@@ -174,7 +175,12 @@ export function PaymentEntryClient({
   const [previewNotice, setPreviewNotice] = useState<string | null>(null);
   const [previewUnavailable, setPreviewUnavailable] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [paymentMode, setPaymentMode] = useState(data.modeOptions[0]?.value ?? "cash");
+  const [paymentMode, setPaymentMode] = useState(() => {
+    const defaultMode = data.modeOptions[0]?.value ?? "cash";
+    if (typeof window === "undefined") return defaultMode;
+    const stored = window.localStorage.getItem(paymentDeskLastModeStorageKey);
+    return stored && data.modeOptions.some((m) => m.value === stored) ? stored : defaultMode;
+  });
   const [referenceNumber, setReferenceNumber] = useState("");
   const [receivedBy, setReceivedBy] = useState(defaultReceivedBy);
   const [remarks, setRemarks] = useState("");
@@ -200,13 +206,31 @@ export function PaymentEntryClient({
   const summaryRequestRef = useRef(0);
   const summaryAbortRef = useRef<AbortController | null>(null);
   const lastAmountFocusStudentIdRef = useRef<string | null>(null);
+  const prefetchCacheRef = useRef<Map<string, unknown>>(new Map());
   const [activeStudentPickerMode, setActiveStudentPickerMode] = useState<"mobile" | "desktop">("mobile");
+  const [recentStudentIds, setRecentStudentIds] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const stored = window.localStorage.getItem(paymentDeskRecentStudentsStorageKey);
+      return stored ? (JSON.parse(stored) as string[]).slice(0, 5) : [];
+    } catch {
+      return [];
+    }
+  });
   const mobileStudentListId = useId();
   const desktopStudentListId = useId();
 
   const studentSearchIndex = useMemo(
     () => buildPaymentDeskSearchIndex(data.studentIndex),
     [data.studentIndex],
+  );
+  const recentStudents = useMemo(
+    () =>
+      recentStudentIds
+        .map((id) => data.studentIndex.find((s) => s.id === id))
+        .filter((s): s is typeof data.studentIndex[number] => Boolean(s))
+        .filter((s) => !selectedClassId || s.classId === selectedClassId),
+    [recentStudentIds, data.studentIndex, selectedClassId],
   );
   const filteredStudents = useMemo(
     () =>
@@ -261,7 +285,6 @@ export function PaymentEntryClient({
   );
   const quickLateFeeWaiverAmount = waiveFullLateFee ? pendingLateFeeAmount : 0;
   const quickLateFeeWaiverInput = quickLateFeeWaiverAmount > 0 ? String(quickLateFeeWaiverAmount) : "";
-  const referenceRequired = paymentModeNeedsReference(paymentMode);
   const creditBalance = selectedStudent?.creditBalance ?? 0;
   const refundableAmount = selectedStudent?.refundableAmount ?? 0;
   const studentSelectedFromIndex = Boolean(selectedStudentId && selectedStudentIndexItem);
@@ -423,7 +446,6 @@ export function PaymentEntryClient({
     quickDiscountAmount,
     quickLateFeeWaiverAmount,
     isPreviewRefreshing: previewLoading,
-    referenceRequired,
     creditBalance,
   });
   const confirmDisabled =
@@ -447,7 +469,6 @@ export function PaymentEntryClient({
     quickDiscountAmount,
     quickLateFeeWaiverAmount,
     isPreviewRefreshing: previewLoading,
-    referenceRequired,
     creditBalance,
   });
   const netPayable = draftValidation.ok ? draftValidation.revisedPendingBeforePayment : Math.max(previewTotalPending - quickDiscountAmount - quickLateFeeWaiverAmount, 0);
@@ -536,6 +557,10 @@ export function PaymentEntryClient({
   }, [selectedClassId]);
 
   useEffect(() => {
+    window.localStorage.setItem(paymentDeskLastModeStorageKey, paymentMode);
+  }, [paymentMode]);
+
+  useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
       const target = event.target as Node;
       const isInsideMobilePicker = mobileStudentPickerRef.current?.contains(target);
@@ -612,6 +637,24 @@ export function PaymentEntryClient({
     });
   }
 
+  function prefetchStudentSummary(studentId: string) {
+    if (prefetchCacheRef.current.has(studentId) || studentId === selectedStudentId) {
+      return;
+    }
+    prefetchCacheRef.current.set(studentId, true);
+    const params = new URLSearchParams({ studentId, paymentDate, includeLatestReceipt: "false" });
+    fetch(`/protected/payments/student-summary?${params.toString()}`, {
+      method: "GET",
+      headers: { accept: "application/json" },
+    }).then(async (res) => {
+      if (res.ok) {
+        prefetchCacheRef.current.set(studentId, await res.json());
+      }
+    }).catch(() => {
+      prefetchCacheRef.current.delete(studentId);
+    });
+  }
+
   function clearSelectedStudent() {
     setSelectedStudentId("");
     setSelectedStudent(null);
@@ -664,6 +707,16 @@ export function PaymentEntryClient({
     lastAmountFocusStudentIdRef.current = null;
     mobileStudentSearchInputRef.current?.blur();
     desktopStudentSearchInputRef.current?.blur();
+
+    setRecentStudentIds((prev) => {
+      const next = [studentId, ...prev.filter((id) => id !== studentId)].slice(0, 5);
+      try {
+        window.localStorage.setItem(paymentDeskRecentStudentsStorageKey, JSON.stringify(next));
+      } catch {
+        // storage quota — ignore
+      }
+      return next;
+    });
   }
 
   function openConfirmationDialog() {
@@ -681,7 +734,6 @@ export function PaymentEntryClient({
       quickDiscountAmount,
       quickLateFeeWaiverAmount,
       isPreviewRefreshing: previewLoading,
-      referenceRequired,
       creditBalance,
     });
 
@@ -894,6 +946,25 @@ export function PaymentEntryClient({
                     style={{ height: `${studentComboboxPanelHeight}px` }}
                     onScroll={(event) => setStudentListScrollTop(event.currentTarget.scrollTop)}
                   >
+                    {!studentSearchQuery && recentStudents.length > 0 ? (
+                      <div className="border-b border-slate-100 pb-1">
+                        <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Recent</p>
+                        {recentStudents.map((student) => (
+                          <button
+                            key={`recent-${student.id}`}
+                            type="button"
+                            role="option"
+                            aria-selected={selectedStudentId === student.id}
+                            className={`flex min-h-10 w-full items-center border-b border-slate-100 px-3 py-1.5 text-left text-sm last:border-b-0 ${selectedStudentId === student.id ? "bg-blue-50 text-blue-900" : "bg-white text-slate-800 hover:bg-slate-50"}`}
+                            onMouseDown={(event) => event.preventDefault()}
+                            onMouseEnter={() => prefetchStudentSummary(student.id)}
+                            onClick={() => selectStudent(student.id)}
+                          >
+                            {buildStudentSelectLabel({ ...student, pendingAmount: null })}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                     {filteredStudents.length === 0 ? (
                       <p className="px-3 py-3 text-sm text-slate-600">No matching students.</p>
                     ) : (
@@ -915,6 +986,7 @@ export function PaymentEntryClient({
                                 isActive ? "bg-blue-50 text-blue-900" : "bg-white text-slate-800 hover:bg-slate-50"
                               }`}
                               onMouseDown={(event) => event.preventDefault()}
+                              onMouseEnter={() => prefetchStudentSummary(student.id)}
                               onClick={() => selectStudent(student.id)}
                             >
                               {label}
@@ -963,11 +1035,11 @@ export function PaymentEntryClient({
               <Input ref={desktopStudentSearchInputRef} role="combobox" aria-expanded={isStudentPickerOpen} aria-controls={desktopStudentListId} aria-activedescendant={activeStudentOptionIndex >= 0 ? `${desktopStudentListId}-option-${activeStudentOptionIndex}` : undefined} aria-autocomplete="list" placeholder="Search student" value={studentSearchQuery} onFocus={()=>{setActiveStudentPickerMode("desktop");setIsStudentPickerOpen(true);}} onChange={(event)=>{setActiveStudentPickerMode("desktop");setStudentSearchQuery(event.target.value);setIsStudentPickerOpen(true);setStudentListScrollTop(0);setActiveStudentOptionIndex(0);}} />
               {isStudentPickerOpen ? (
                 <div id={desktopStudentListId} role="listbox" ref={desktopStudentListRef} className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-md border border-slate-200 bg-white shadow-lg" style={{ height: `${studentComboboxPanelHeight}px` }} onScroll={(event) => setStudentListScrollTop(event.currentTarget.scrollTop)}>
-                  {filteredStudents.length === 0 ? <p className="px-3 py-3 text-sm text-slate-600">No matching students.</p> : <div style={{ paddingTop: topVisibleOffset, paddingBottom: bottomVisibleOffset }}>{visibleStudentOptions.map((student,index)=>{const optionIndex=firstVisibleStudentIndex+index;const label=buildStudentSelectLabel({ ...student, pendingAmount: null });const isActive=optionIndex===activeStudentOptionIndex;const isSelected=selectedStudentId===student.id;return <button key={student.id} id={`${desktopStudentListId}-option-${optionIndex}`} role="option" aria-selected={isSelected} type="button" className={`flex min-h-12 w-full items-center border-b border-slate-100 px-3 py-2 text-left text-sm last:border-b-0 ${isActive ? "bg-blue-50 text-blue-900" : "bg-white text-slate-800 hover:bg-slate-50"}`} onMouseDown={(event)=>event.preventDefault()} onClick={()=>selectStudent(student.id)}>{label}</button>;})}</div>}
+                  {filteredStudents.length === 0 ? <p className="px-3 py-3 text-sm text-slate-600">No matching students.</p> : <div style={{ paddingTop: topVisibleOffset, paddingBottom: bottomVisibleOffset }}>{visibleStudentOptions.map((student,index)=>{const optionIndex=firstVisibleStudentIndex+index;const label=buildStudentSelectLabel({ ...student, pendingAmount: null });const isActive=optionIndex===activeStudentOptionIndex;const isSelected=selectedStudentId===student.id;return <button key={student.id} id={`${desktopStudentListId}-option-${optionIndex}`} role="option" aria-selected={isSelected} type="button" className={`flex min-h-12 w-full items-center border-b border-slate-100 px-3 py-2 text-left text-sm last:border-b-0 ${isActive ? "bg-blue-50 text-blue-900" : "bg-white text-slate-800 hover:bg-slate-50"}`} onMouseDown={(event)=>event.preventDefault()} onMouseEnter={()=>prefetchStudentSummary(student.id)} onClick={()=>selectStudent(student.id)}>{label}</button>;})}</div>}
                 </div>
               ) : null}
             </div>
-            <Input id="desktop-payment-amount" type="number" inputMode="decimal" min={1} max={previewTotalPending > 0 ? previewTotalPending : undefined} ref={amountInputRef} placeholder="Amount" value={paymentAmountInput} onChange={(event)=>{setPaymentAmountInput(event.target.value);setFormError(null);}} />
+            <Input id="desktop-payment-amount" type="number" inputMode="decimal" min={1} max={previewTotalPending > 0 ? previewTotalPending : undefined} ref={amountInputRef} placeholder="Amount" value={paymentAmountInput} onChange={(event)=>{setPaymentAmountInput(event.target.value);setFormError(null);}} onKeyDown={(event)=>{if(event.key==="Enter"){event.preventDefault();openConfirmationDialog();}}} />
             <select id="desktop-payment-mode" className={selectClassName} value={paymentMode} onChange={(event)=>{setPaymentMode(event.target.value as typeof paymentMode);setFormError(null);}}>{data.modeOptions.map((modeOption)=><option key={modeOption.value} value={modeOption.value}>{modeOption.label}</option>)}</select>
             <Button type="button" disabled={confirmDisabled} onClick={openConfirmationDialog}>Confirm Payment</Button>
           </div>
@@ -1171,6 +1243,12 @@ export function PaymentEntryClient({
                         setPaymentAmountInput(event.target.value);
                         setFormError(null);
                       }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          openConfirmationDialog();
+                        }
+                      }}
                       required
                     />
                     <div className="mt-2 flex flex-wrap gap-2 md:flex-wrap">
@@ -1284,11 +1362,15 @@ export function PaymentEntryClient({
                         setReferenceNumber(event.target.value);
                         setFormError(null);
                       }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          openConfirmationDialog();
+                        }
+                      }}
                     />
                     <p className="mt-1 text-[11px] text-slate-500">
-                      {referenceRequired
-                        ? "Reference is required for UPI, bank transfer, and cheque payments."
-                        : "Reference is useful for matching bank/UPI records."}
+                      Reference is useful for matching bank/UPI records.
                     </p>
                   </div>
                   <div>
@@ -1498,7 +1580,7 @@ export function PaymentEntryClient({
                     </select>
                     <Input
                       aria-label="Mobile reference number"
-                      placeholder={referenceRequired ? "Reference required" : "Reference"}
+                      placeholder="Reference (optional)"
                       className="h-9"
                       value={referenceNumber}
                       onChange={(event) => {

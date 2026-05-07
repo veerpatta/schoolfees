@@ -34,10 +34,10 @@ export async function GET(request: NextRequest) {
   try {
     const rows = await getPaymentDateAwareInstallmentBalances({ studentId, paymentDate });
 
-    return Response.json({
-      rows,
-      notice: rows.length === 0 ? "No pending dues for selected payment date." : null,
-    });
+    return Response.json(
+      { rows, notice: rows.length === 0 ? "No pending dues for selected payment date." : null },
+      { headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=120" } },
+    );
   } catch (error) {
     const friendlyError = toFriendlyPaymentPreviewError(error);
     return Response.json(

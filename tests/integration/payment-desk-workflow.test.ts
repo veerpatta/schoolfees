@@ -8,7 +8,6 @@ import {
   buildPaymentConfirmationSummary,
   buildStudentSelectLabel,
   filterPaymentDeskStudents,
-  paymentModeNeedsReference,
   resetPaymentDraftForNextPayment,
   shouldBlockClientSubmission,
   shouldShowPaymentActionState,
@@ -216,23 +215,18 @@ describe("payment desk cashier workflow", () => {
     ).toEqual({ ok: false, message: "Wait for the dues preview to finish refreshing." });
   });
 
-  it("payment_reference_required_for_upi_bank_and_cheque", () => {
-    expect(
-      validatePaymentDraft({
-        selectedStudent,
-        amountInput: "1500",
-        paymentDate: "2026-04-25",
-        paymentMode: "upi",
-        paymentModeLabel: "UPI",
-        referenceNumber: "",
-        receivedBy: "Office Staff",
-        previewTotalPending: 4000,
-        referenceRequired: true,
-      }),
-    ).toEqual({
-      ok: false,
-      message: "Reference number is required for UPI, bank transfer, and cheque payments.",
+  it("payment_reference_optional_for_all_modes", () => {
+    const result = validatePaymentDraft({
+      selectedStudent,
+      amountInput: "1500",
+      paymentDate: "2026-04-25",
+      paymentMode: "upi",
+      paymentModeLabel: "UPI",
+      referenceNumber: "",
+      receivedBy: "Office Staff",
+      previewTotalPending: 4000,
     });
+    expect(result.ok).toBe(true);
   });
 
   it("payment_desk_blocks_payment_when_credit_and_no_pending", () => {
@@ -305,12 +299,6 @@ describe("payment desk cashier workflow", () => {
     ).toBe(false);
   });
 
-  it("marks reference-required payment modes for desk safety prompts", () => {
-    expect(paymentModeNeedsReference("upi")).toBe(true);
-    expect(paymentModeNeedsReference("bank_transfer")).toBe(true);
-    expect(paymentModeNeedsReference("cheque")).toBe(true);
-    expect(paymentModeNeedsReference("cash")).toBe(false);
-  });
 
   it("student labels stay short and show SR no", () => {
     expect(
