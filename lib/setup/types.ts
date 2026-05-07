@@ -84,6 +84,7 @@ export type SetupReadinessSummary = {
 export type SetupImportSummary = {
   completedBatches: number;
   batchesWithAnomalies: number;
+  firstAnomalyBatchId: string | null;
 };
 
 export type SetupWizardData = {

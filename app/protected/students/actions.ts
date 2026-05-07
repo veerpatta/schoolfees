@@ -10,6 +10,7 @@ import {
   updateStudent,
 } from "@/lib/students/data";
 import {
+  type StudentFormInput,
   type StudentFormActionState,
 } from "@/lib/students/types";
 import {
@@ -23,7 +24,13 @@ import {
   revalidateFinanceSurfaces,
 } from "@/lib/system-sync/finance-sync";
 
-function mapWriteErrorToState(message: string): StudentFormActionState {
+const STUDENT_SAVED_DUES_FAILED_MESSAGE =
+  "Student record was saved, but dues could not be prepared automatically. Go to Admin Tools \u2192 Prepare missing dues to complete setup.";
+
+function mapWriteErrorToState(
+  message: string,
+  submittedValues?: StudentFormInput,
+): StudentFormActionState {
   const normalizedMessage = message.toLowerCase();
 
   if (message.toLowerCase().includes("admission_no") || message.toLowerCase().includes("students_admission_no_key")) {
@@ -34,6 +41,7 @@ function mapWriteErrorToState(message: string): StudentFormActionState {
         admissionNo: "SR no already exists.",
       },
       studentId: null,
+      submittedValues,
     };
   }
 
@@ -49,6 +57,7 @@ function mapWriteErrorToState(message: string): StudentFormActionState {
         conventionalPolicyIds: message,
       },
       studentId: null,
+      submittedValues,
     };
   }
 
@@ -57,6 +66,7 @@ function mapWriteErrorToState(message: string): StudentFormActionState {
     message: "Unable to save student right now. Please try again.",
     fieldErrors: {},
     studentId: null,
+    submittedValues,
   };
 }
 
@@ -90,13 +100,24 @@ export async function createStudentAction(
       message: validated.message,
       fieldErrors: validated.fieldErrors,
       studentId: null,
+      submittedValues: input,
     };
   }
 
-  try {
-    const studentId = await createStudent(validated.data);
-    let syncMessage = "";
+  let studentId: string;
 
+  try {
+    studentId = await createStudent(validated.data);
+  } catch (error) {
+    return mapWriteErrorToState(
+      error instanceof Error ? error.message : "Unexpected error while creating student.",
+      input,
+    );
+  }
+
+  let syncMessage = "";
+
+  try {
     if (isDuesSyncRelevantStatus(validated.data.status)) {
       const duesResult = await prepareDuesForStudentsAutomatically({
         studentIds: [studentId],
@@ -119,10 +140,14 @@ export async function createStudentAction(
       fieldErrors: {},
       studentId,
     };
-  } catch (error) {
-    return mapWriteErrorToState(
-      error instanceof Error ? error.message : "Unexpected error while creating student.",
-    );
+  } catch {
+    return {
+      status: "error",
+      message: STUDENT_SAVED_DUES_FAILED_MESSAGE,
+      fieldErrors: {},
+      studentId,
+      submittedValues: input,
+    };
   }
 }
 
@@ -147,6 +172,7 @@ export async function updateStudentAction(
       message: validated.message,
       fieldErrors: validated.fieldErrors,
       studentId: null,
+      submittedValues: input,
     };
   }
 
@@ -159,6 +185,7 @@ export async function updateStudentAction(
         message: "Student record was not found.",
         fieldErrors: {},
         studentId: null,
+        submittedValues: input,
       };
     }
 
@@ -197,6 +224,7 @@ export async function updateStudentAction(
   } catch (error) {
     return mapWriteErrorToState(
       error instanceof Error ? error.message : "Unexpected error while updating student.",
+      input,
     );
   }
 }

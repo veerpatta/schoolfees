@@ -771,8 +771,14 @@ export async function createStudent(payload: StudentValidatedInput) {
   }
 
   const studentId = data.id as string;
-  await saveStudentFeeProfile(studentId, payload, null);
-  await saveStudentConventionalDiscountProfile(studentId, payload);
+  try {
+    await saveStudentFeeProfile(studentId, payload, null);
+    await saveStudentConventionalDiscountProfile(studentId, payload);
+  } catch (error) {
+    const adminClient = createAdminClient();
+    await adminClient.from("students").delete().eq("id", studentId);
+    throw error;
+  }
   return studentId;
 }
 

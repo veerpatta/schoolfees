@@ -86,14 +86,19 @@ export function StudentForm({
     INITIAL_STUDENT_FORM_ACTION_STATE,
   );
 
-  const disableSubmit = classOptions.length === 0;
+  const values =
+    state.status === "error" && state.submittedValues
+      ? state.submittedValues
+      : initialValues;
+  const recordAlreadySaved = state.status === "error" && Boolean(state.studentId);
+  const disableSubmit = classOptions.length === 0 || recordAlreadySaved;
 
   return (
     <form action={formAction} className="space-y-6">
       <div className="flex flex-wrap gap-2">
         <ValueStatePill tone="editable">Student Master</ValueStatePill>
         <ValueStatePill tone="policy">Fee exceptions</ValueStatePill>
-        {initialValues.conventionalPolicyIds.length > 0 ? (
+        {values.conventionalPolicyIds.length > 0 ? (
           <ValueStatePill tone="review">Conventional discount</ValueStatePill>
         ) : null}
       </div>
@@ -138,7 +143,7 @@ export function StudentForm({
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <Label htmlFor="fullName">Student name</Label>
-            <Input id="fullName" name="fullName" defaultValue={initialValues.fullName} className="mt-2" required />
+            <Input id="fullName" name="fullName" defaultValue={values.fullName} className="mt-2" required />
             <FieldError message={getFieldError(state, "fullName")} />
           </div>
 
@@ -147,7 +152,7 @@ export function StudentForm({
             <select
               id="classId"
               name="classId"
-              defaultValue={initialValues.classId}
+              defaultValue={values.classId}
               className={`${selectClassName} mt-2`}
               required
             >
@@ -166,7 +171,7 @@ export function StudentForm({
             <Input
               id="admissionNo"
               name="admissionNo"
-              defaultValue={initialValues.admissionNo}
+              defaultValue={values.admissionNo}
               className="mt-2"
               placeholder={mode === "add" ? "Leave blank for temporary SR no" : undefined}
               required={mode === "edit"}
@@ -176,12 +181,12 @@ export function StudentForm({
 
           <div>
             <Label htmlFor="fatherName">Father name</Label>
-            <Input id="fatherName" name="fatherName" defaultValue={initialValues.fatherName} className="mt-2" />
+            <Input id="fatherName" name="fatherName" defaultValue={values.fatherName} className="mt-2" />
           </div>
 
           <div>
             <Label htmlFor="fatherPhone">Phone</Label>
-            <Input id="fatherPhone" name="fatherPhone" type="tel" defaultValue={initialValues.fatherPhone} className="mt-2" />
+            <Input id="fatherPhone" name="fatherPhone" type="tel" defaultValue={values.fatherPhone} className="mt-2" />
             <FieldError message={getFieldError(state, "fatherPhone")} />
           </div>
 
@@ -190,7 +195,7 @@ export function StudentForm({
             <select
               id="transportRouteId"
               name="transportRouteId"
-              defaultValue={initialValues.transportRouteId}
+              defaultValue={values.transportRouteId}
               className={`${selectClassName} mt-2`}
             >
               <option value="">No Transport</option>
@@ -210,7 +215,7 @@ export function StudentForm({
             <select
               id="studentTypeOverride"
               name="studentTypeOverride"
-              defaultValue={initialValues.studentTypeOverride}
+              defaultValue={values.studentTypeOverride}
               className={`${selectClassName} mt-2`}
               required
             >
@@ -225,7 +230,7 @@ export function StudentForm({
             <textarea
               id="notes"
               name="notes"
-              defaultValue={initialValues.notes}
+              defaultValue={values.notes}
               className={`${textAreaClassName} mt-2`}
               placeholder="Optional office notes"
             />
@@ -240,16 +245,16 @@ export function StudentForm({
         <div className="grid gap-4 border-t border-slate-200 p-4 md:grid-cols-2">
           <div>
             <Label htmlFor="dateOfBirth">DOB</Label>
-            <Input id="dateOfBirth" name="dateOfBirth" type="date" defaultValue={initialValues.dateOfBirth} className="mt-2" />
+            <Input id="dateOfBirth" name="dateOfBirth" type="date" defaultValue={values.dateOfBirth} className="mt-2" />
             <FieldError message={getFieldError(state, "dateOfBirth")} />
           </div>
           <div>
             <Label htmlFor="motherName">Mother name</Label>
-            <Input id="motherName" name="motherName" defaultValue={initialValues.motherName} className="mt-2" />
+            <Input id="motherName" name="motherName" defaultValue={values.motherName} className="mt-2" />
           </div>
           <div>
             <Label htmlFor="motherPhone">Mother phone</Label>
-            <Input id="motherPhone" name="motherPhone" type="tel" defaultValue={initialValues.motherPhone} className="mt-2" />
+            <Input id="motherPhone" name="motherPhone" type="tel" defaultValue={values.motherPhone} className="mt-2" />
             <FieldError message={getFieldError(state, "motherPhone")} />
           </div>
           <div className="md:col-span-2">
@@ -257,7 +262,7 @@ export function StudentForm({
             <textarea
               id="address"
               name="address"
-              defaultValue={initialValues.address}
+              defaultValue={values.address}
               className={`${textAreaClassName} mt-2`}
             />
           </div>
@@ -290,7 +295,7 @@ export function StudentForm({
                         type="checkbox"
                         name="conventionalPolicyIds"
                         value={policy.id ?? ""}
-                        defaultChecked={initialValues.conventionalPolicyIds.includes(policy.id ?? "")}
+                        defaultChecked={values.conventionalPolicyIds.includes(policy.id ?? "")}
                         className="h-4 w-4 rounded border-slate-300"
                       />
                       {policy.displayName}
@@ -313,7 +318,7 @@ export function StudentForm({
               <Input
                 id="conventionalDiscountReason"
                 name="conventionalDiscountReason"
-                defaultValue={initialValues.conventionalDiscountReason}
+                defaultValue={values.conventionalDiscountReason}
                 className="mt-2"
                 placeholder="e.g. Approved by principal"
               />
@@ -324,7 +329,7 @@ export function StudentForm({
               <Input
                 id="conventionalDiscountFamilyGroup"
                 name="conventionalDiscountFamilyGroup"
-                defaultValue={initialValues.conventionalDiscountFamilyGroup}
+                defaultValue={values.conventionalDiscountFamilyGroup}
                 className="mt-2"
                 placeholder="Required for 3rd Child unless overridden"
               />
@@ -334,7 +339,7 @@ export function StudentForm({
               <Input
                 id="conventionalDiscountManualOverrideReason"
                 name="conventionalDiscountManualOverrideReason"
-                defaultValue={initialValues.conventionalDiscountManualOverrideReason}
+                defaultValue={values.conventionalDiscountManualOverrideReason}
                 className="mt-2"
                 placeholder="Only needed when 3rd Child eligibility is manually confirmed"
               />
@@ -344,7 +349,7 @@ export function StudentForm({
               <textarea
                 id="conventionalDiscountNotes"
                 name="conventionalDiscountNotes"
-                defaultValue={initialValues.conventionalDiscountNotes}
+                defaultValue={values.conventionalDiscountNotes}
                 className={`${textAreaClassName} mt-2`}
                 placeholder="Optional office notes"
               />
@@ -364,42 +369,42 @@ export function StudentForm({
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <div>
               <Label htmlFor="tuitionOverride">Tuition override</Label>
-              <Input id="tuitionOverride" name="tuitionOverride" type="number" inputMode="decimal" min={0} defaultValue={initialValues.tuitionOverride} className="mt-2" placeholder="Leave blank for class default" />
+              <Input id="tuitionOverride" name="tuitionOverride" type="number" inputMode="decimal" min={0} defaultValue={values.tuitionOverride} className="mt-2" placeholder="Leave blank for class default" />
               <FieldError message={getFieldError(state, "tuitionOverride")} />
             </div>
             <div>
               <Label htmlFor="transportOverride">Transport override</Label>
-              <Input id="transportOverride" name="transportOverride" type="number" inputMode="decimal" min={0} defaultValue={initialValues.transportOverride} className="mt-2" placeholder="Leave blank for route default" />
+              <Input id="transportOverride" name="transportOverride" type="number" inputMode="decimal" min={0} defaultValue={values.transportOverride} className="mt-2" placeholder="Leave blank for route default" />
               <FieldError message={getFieldError(state, "transportOverride")} />
             </div>
             <div>
               <Label htmlFor="discountAmount">Discount</Label>
-              <Input id="discountAmount" name="discountAmount" type="number" inputMode="decimal" min={0} defaultValue={initialValues.discountAmount} className="mt-2" />
+              <Input id="discountAmount" name="discountAmount" type="number" inputMode="decimal" min={0} defaultValue={values.discountAmount} className="mt-2" />
               <FieldError message={getFieldError(state, "discountAmount")} />
             </div>
             <div>
               <Label htmlFor="lateFeeWaiverAmount">Late fee waiver</Label>
-              <Input id="lateFeeWaiverAmount" name="lateFeeWaiverAmount" type="number" inputMode="decimal" min={0} defaultValue={initialValues.lateFeeWaiverAmount} className="mt-2" />
+              <Input id="lateFeeWaiverAmount" name="lateFeeWaiverAmount" type="number" inputMode="decimal" min={0} defaultValue={values.lateFeeWaiverAmount} className="mt-2" />
               <FieldError message={getFieldError(state, "lateFeeWaiverAmount")} />
             </div>
             <div>
               <Label htmlFor="otherAdjustmentHead">Other adjustment</Label>
-              <Input id="otherAdjustmentHead" name="otherAdjustmentHead" defaultValue={initialValues.otherAdjustmentHead} className="mt-2" placeholder="e.g. Uniform adj." />
+              <Input id="otherAdjustmentHead" name="otherAdjustmentHead" defaultValue={values.otherAdjustmentHead} className="mt-2" placeholder="e.g. Uniform adj." />
               <FieldError message={getFieldError(state, "otherAdjustmentHead")} />
             </div>
             <div>
               <Label htmlFor="otherAdjustmentAmount">Other adjustment amount</Label>
-              <Input id="otherAdjustmentAmount" name="otherAdjustmentAmount" type="number" inputMode="decimal" defaultValue={initialValues.otherAdjustmentAmount} className="mt-2" placeholder="Positive or negative" />
+              <Input id="otherAdjustmentAmount" name="otherAdjustmentAmount" type="number" inputMode="decimal" defaultValue={values.otherAdjustmentAmount} className="mt-2" placeholder="Positive or negative" />
               <FieldError message={getFieldError(state, "otherAdjustmentAmount")} />
             </div>
             <div className="md:col-span-2 xl:col-span-3">
               <Label htmlFor="feeProfileReason">Reason</Label>
-              <Input id="feeProfileReason" name="feeProfileReason" defaultValue={initialValues.feeProfileReason} className="mt-2" placeholder="e.g. Approved concession or route exception" />
+              <Input id="feeProfileReason" name="feeProfileReason" defaultValue={values.feeProfileReason} className="mt-2" placeholder="e.g. Approved concession or route exception" />
               <FieldError message={getFieldError(state, "feeProfileReason")} />
             </div>
             <div className="md:col-span-2 xl:col-span-3">
               <Label htmlFor="feeProfileNotes">Advanced notes</Label>
-              <textarea id="feeProfileNotes" name="feeProfileNotes" defaultValue={initialValues.feeProfileNotes} className={`${textAreaClassName} mt-2`} placeholder="Optional reason details for accounts review" />
+              <textarea id="feeProfileNotes" name="feeProfileNotes" defaultValue={values.feeProfileNotes} className={`${textAreaClassName} mt-2`} placeholder="Optional reason details for accounts review" />
             </div>
           </div>
         </div>
@@ -412,7 +417,7 @@ export function StudentForm({
         <div className="grid gap-4 border-t border-slate-200 p-4 md:grid-cols-2">
           <div>
             <Label htmlFor="status">Record status</Label>
-            <select id="status" name="status" defaultValue={initialValues.status} className={`${selectClassName} mt-2`} required>
+            <select id="status" name="status" defaultValue={values.status} className={`${selectClassName} mt-2`} required>
               {STUDENT_STATUSES.map((statusOption) => (
                 <option key={statusOption.value} value={statusOption.value}>
                   {statusOption.label}

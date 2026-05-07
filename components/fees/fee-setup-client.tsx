@@ -1859,7 +1859,11 @@ export function FeeSetupClient({
             <ReviewMetric label="Preview status" value={preview ? "Preview ready" : "Preview changes before publishing."} />
           </div>
 
-          {preview ? (
+          {isSaving ? (
+            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-6 text-sm text-blue-700">
+              Loading preview...
+            </div>
+          ) : preview ? (
             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <ReviewMetric label="Students affected" value={preview.studentsAffected} />
@@ -1890,6 +1894,10 @@ export function FeeSetupClient({
                 </div>
               </div>
             </div>
+          ) : saveState.status === "error" && saveState.message ? (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-6 text-sm text-red-700">
+              {saveState.message}
+            </div>
           ) : (
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
               Preview changes before publishing.
@@ -1910,7 +1918,7 @@ export function FeeSetupClient({
                     onClick={() => submitFeeSetup("preview")}
                     disabled={!canEdit || isSaving}
                   >
-                    {isSaving ? "Previewing..." : "Preview Changes"}
+                    {isSaving ? "Loading preview..." : "Preview Changes"}
                   </Button>
                   {preview ? (
                     <Button

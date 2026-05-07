@@ -3,10 +3,9 @@ import { OfficeNotice, WorkflowGuard } from "@/components/office/office-ui";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { PaymentEntryClient } from "@/components/payments/payment-entry-client";
 import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
-import { getPaymentEntryPageData } from "@/lib/payments/data";
+import { getPaymentDeskClassOptions, getPaymentEntryPageData } from "@/lib/payments/data";
 import { INITIAL_PAYMENT_ENTRY_ACTION_STATE } from "@/lib/payments/types";
 import { getSetupWizardData } from "@/lib/setup/data";
-import { getStudentFormOptions } from "@/lib/students/data";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 import {
@@ -36,10 +35,10 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
   const classId = normalizeStudentId(resolvedSearchParams?.classId);
   const repairNotice = (resolvedSearchParams?.repairNotice ?? "").trim();
 
-  const [staff, setup, { classOptions }] = await Promise.all([
+  const [staff, setup, classOptions] = await Promise.all([
     requireStaffPermission("payments:view", { onDenied: "redirect" }),
     getSetupWizardData(),
-    getStudentFormOptions(),
+    getPaymentDeskClassOptions(),
   ]);
 
   const readiness = getOfficeWorkflowReadiness(setup, staff.appRole);

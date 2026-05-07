@@ -206,7 +206,6 @@ export function PaymentEntryClient({
   const summaryRequestRef = useRef(0);
   const summaryAbortRef = useRef<AbortController | null>(null);
   const lastAmountFocusStudentIdRef = useRef<string | null>(null);
-  const prefetchCacheRef = useRef<Map<string, unknown>>(new Map());
   const [activeStudentPickerMode, setActiveStudentPickerMode] = useState<"mobile" | "desktop">("mobile");
   const [recentStudentIds, setRecentStudentIds] = useState<string[]>(() => {
     if (typeof window === "undefined") return [];
@@ -219,32 +218,33 @@ export function PaymentEntryClient({
   });
   const mobileStudentListId = useId();
   const desktopStudentListId = useId();
+  const studentIndex = data.studentIndex;
 
   const studentSearchIndex = useMemo(
-    () => buildPaymentDeskSearchIndex(data.studentIndex),
-    [data.studentIndex],
+    () => buildPaymentDeskSearchIndex(studentIndex),
+    [studentIndex],
   );
   const recentStudents = useMemo(
     () =>
       recentStudentIds
-        .map((id) => data.studentIndex.find((s) => s.id === id))
-        .filter((s): s is typeof data.studentIndex[number] => Boolean(s))
+        .map((id) => studentIndex.find((s) => s.id === id))
+        .filter((s): s is typeof studentIndex[number] => Boolean(s))
         .filter((s) => !selectedClassId || s.classId === selectedClassId),
-    [recentStudentIds, data.studentIndex, selectedClassId],
+    [recentStudentIds, studentIndex, selectedClassId],
   );
   const filteredStudents = useMemo(
     () =>
       filterPaymentDeskStudents({
-        students: data.studentIndex,
+        students: studentIndex,
         searchIndex: studentSearchIndex,
         selectedClassId,
         query: deferredStudentSearchQuery,
       }),
-    [data.studentIndex, deferredStudentSearchQuery, selectedClassId, studentSearchIndex],
+    [studentIndex, deferredStudentSearchQuery, selectedClassId, studentSearchIndex],
   );
   const selectedStudentIndexItem = useMemo(
-    () => data.studentIndex.find((student) => student.id === selectedStudentId) ?? null,
-    [data.studentIndex, selectedStudentId],
+    () => studentIndex.find((student) => student.id === selectedStudentId) ?? null,
+    [studentIndex, selectedStudentId],
   );
   const totalStudentRows = filteredStudents.length;
   const firstVisibleStudentIndex = Math.max(
@@ -637,24 +637,6 @@ export function PaymentEntryClient({
     });
   }
 
-  function prefetchStudentSummary(studentId: string) {
-    if (prefetchCacheRef.current.has(studentId) || studentId === selectedStudentId) {
-      return;
-    }
-    prefetchCacheRef.current.set(studentId, true);
-    const params = new URLSearchParams({ studentId, paymentDate, includeLatestReceipt: "false" });
-    fetch(`/protected/payments/student-summary?${params.toString()}`, {
-      method: "GET",
-      headers: { accept: "application/json" },
-    }).then(async (res) => {
-      if (res.ok) {
-        prefetchCacheRef.current.set(studentId, await res.json());
-      }
-    }).catch(() => {
-      prefetchCacheRef.current.delete(studentId);
-    });
-  }
-
   function clearSelectedStudent() {
     setSelectedStudentId("");
     setSelectedStudent(null);
@@ -688,7 +670,7 @@ export function PaymentEntryClient({
 
     if (
       selectedStudentId &&
-      data.studentIndex.some(
+      studentIndex.some(
         (student) => student.id === selectedStudentId && student.classId !== nextClassId,
       )
     ) {
@@ -957,7 +939,6 @@ export function PaymentEntryClient({
                             aria-selected={selectedStudentId === student.id}
                             className={`flex min-h-10 w-full items-center border-b border-slate-100 px-3 py-1.5 text-left text-sm last:border-b-0 ${selectedStudentId === student.id ? "bg-blue-50 text-blue-900" : "bg-white text-slate-800 hover:bg-slate-50"}`}
                             onMouseDown={(event) => event.preventDefault()}
-                            onMouseEnter={() => prefetchStudentSummary(student.id)}
                             onClick={() => selectStudent(student.id)}
                           >
                             {buildStudentSelectLabel({ ...student, pendingAmount: null })}
@@ -986,7 +967,6 @@ export function PaymentEntryClient({
                                 isActive ? "bg-blue-50 text-blue-900" : "bg-white text-slate-800 hover:bg-slate-50"
                               }`}
                               onMouseDown={(event) => event.preventDefault()}
-                              onMouseEnter={() => prefetchStudentSummary(student.id)}
                               onClick={() => selectStudent(student.id)}
                             >
                               {label}
@@ -1035,7 +1015,7 @@ export function PaymentEntryClient({
               <Input ref={desktopStudentSearchInputRef} role="combobox" aria-expanded={isStudentPickerOpen} aria-controls={desktopStudentListId} aria-activedescendant={activeStudentOptionIndex >= 0 ? `${desktopStudentListId}-option-${activeStudentOptionIndex}` : undefined} aria-autocomplete="list" placeholder="Search student" value={studentSearchQuery} onFocus={()=>{setActiveStudentPickerMode("desktop");setIsStudentPickerOpen(true);}} onChange={(event)=>{setActiveStudentPickerMode("desktop");setStudentSearchQuery(event.target.value);setIsStudentPickerOpen(true);setStudentListScrollTop(0);setActiveStudentOptionIndex(0);}} />
               {isStudentPickerOpen ? (
                 <div id={desktopStudentListId} role="listbox" ref={desktopStudentListRef} className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-md border border-slate-200 bg-white shadow-lg" style={{ height: `${studentComboboxPanelHeight}px` }} onScroll={(event) => setStudentListScrollTop(event.currentTarget.scrollTop)}>
-                  {filteredStudents.length === 0 ? <p className="px-3 py-3 text-sm text-slate-600">No matching students.</p> : <div style={{ paddingTop: topVisibleOffset, paddingBottom: bottomVisibleOffset }}>{visibleStudentOptions.map((student,index)=>{const optionIndex=firstVisibleStudentIndex+index;const label=buildStudentSelectLabel({ ...student, pendingAmount: null });const isActive=optionIndex===activeStudentOptionIndex;const isSelected=selectedStudentId===student.id;return <button key={student.id} id={`${desktopStudentListId}-option-${optionIndex}`} role="option" aria-selected={isSelected} type="button" className={`flex min-h-12 w-full items-center border-b border-slate-100 px-3 py-2 text-left text-sm last:border-b-0 ${isActive ? "bg-blue-50 text-blue-900" : "bg-white text-slate-800 hover:bg-slate-50"}`} onMouseDown={(event)=>event.preventDefault()} onMouseEnter={()=>prefetchStudentSummary(student.id)} onClick={()=>selectStudent(student.id)}>{label}</button>;})}</div>}
+                  {filteredStudents.length === 0 ? <p className="px-3 py-3 text-sm text-slate-600">No matching students.</p> : <div style={{ paddingTop: topVisibleOffset, paddingBottom: bottomVisibleOffset }}>{visibleStudentOptions.map((student,index)=>{const optionIndex=firstVisibleStudentIndex+index;const label=buildStudentSelectLabel({ ...student, pendingAmount: null });const isActive=optionIndex===activeStudentOptionIndex;const isSelected=selectedStudentId===student.id;return <button key={student.id} id={`${desktopStudentListId}-option-${optionIndex}`} role="option" aria-selected={isSelected} type="button" className={`flex min-h-12 w-full items-center border-b border-slate-100 px-3 py-2 text-left text-sm last:border-b-0 ${isActive ? "bg-blue-50 text-blue-900" : "bg-white text-slate-800 hover:bg-slate-50"}`} onMouseDown={(event)=>event.preventDefault()} onClick={()=>selectStudent(student.id)}>{label}</button>;})}</div>}
                 </div>
               ) : null}
             </div>

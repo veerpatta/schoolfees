@@ -18,24 +18,29 @@ import { requireStaffPermission } from "@/lib/supabase/session";
 
 type DefaultersPageProps = {
   searchParams?: Promise<{
-    classId?: string;
-    transportRouteId?: string;
-    overdue?: string;
-    minPendingAmount?: string;
-    query?: string;
+    classId?: string | string[];
+    transportRouteId?: string | string[];
+    overdue?: string | string[];
+    minPendingAmount?: string | string[];
+    query?: string | string[];
   }>;
 };
+
+function asString(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[value.length - 1] ?? "";
+  return value ?? "";
+}
 
 function normalizeFilters(
   params: Awaited<DefaultersPageProps["searchParams"]>,
 ): DefaulterFiltersType {
   const uuidPattern =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  const rawClassId = params?.classId?.trim() ?? "";
-  const rawRouteId = params?.transportRouteId?.trim() ?? "";
-  const rawOverdue = params?.overdue?.trim() ?? "";
-  const rawMinPendingAmount = params?.minPendingAmount?.trim() ?? "";
-  const rawSearchQuery = params?.query?.trim() ?? "";
+  const rawClassId = asString(params?.classId).trim();
+  const rawRouteId = asString(params?.transportRouteId).trim();
+  const rawOverdue = asString(params?.overdue).trim();
+  const rawMinPendingAmount = asString(params?.minPendingAmount).trim();
+  const rawSearchQuery = asString(params?.query).trim();
 
   return {
     classId: uuidPattern.test(rawClassId) ? rawClassId : EMPTY_DEFAULTER_FILTERS.classId,
@@ -411,8 +416,8 @@ export default async function DefaultersPage({
         title="Route-wise student list"
         description="Operational student list grouped by route for office calls and overdue follow-up."
       >
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full min-w-full text-left text-sm">
+        <div className="w-full overflow-x-auto rounded-xl border border-slate-200">
+          <table className="min-w-[900px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
               <tr>
                 <th className="px-4 py-3">Route</th>

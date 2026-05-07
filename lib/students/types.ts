@@ -196,6 +196,7 @@ export type StudentFormActionState = {
   message: string | null;
   fieldErrors: StudentFormFieldErrors;
   studentId: string | null;
+  submittedValues?: StudentFormInput;
 };
 
 export const INITIAL_STUDENT_FORM_ACTION_STATE: StudentFormActionState = {

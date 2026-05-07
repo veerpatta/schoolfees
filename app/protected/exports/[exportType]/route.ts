@@ -1,5 +1,4 @@
 import type { NextRequest } from "next/server";
-import * as XLSX from "xlsx";
 
 import { getOfficeWorkbookData } from "@/lib/office/dues";
 import type { OfficeWorkbookView } from "@/lib/office/workbook";
@@ -17,7 +16,8 @@ function todayStamp() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function workbookResponse(filename: string, rows: Array<Record<string, string | number>>) {
+async function workbookResponse(filename: string, rows: Array<Record<string, string | number>>) {
+  const XLSX = await import("xlsx");
   const workbook = XLSX.utils.book_new();
   const worksheet = XLSX.utils.json_to_sheet(rows);
   XLSX.utils.book_append_sheet(workbook, worksheet, "Export");

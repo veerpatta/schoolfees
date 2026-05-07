@@ -40,11 +40,21 @@ export function StudentListTable({
   return (
     <div className="rounded-xl border border-slate-200">
       <div className="space-y-3 p-3 md:hidden">
-        {students.map((student) => (
+        {students.map((student) => {
+          const srNoMissing = student.status === "active" && !student.admissionNo.trim();
+
+          return (
           <div key={student.id} className="rounded-xl border border-slate-200 bg-white p-3">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <p className="font-semibold text-slate-900">{student.fullName}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-semibold text-slate-900">{student.fullName}</p>
+                  {srNoMissing ? (
+                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-800">
+                      SR no missing
+                    </span>
+                  ) : null}
+                </div>
                 <p className="text-xs text-slate-500">SR no {student.admissionNo}</p>
               </div>
               <StatusBadge
@@ -77,7 +87,8 @@ export function StudentListTable({
               </Button>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
       <table className="hidden min-w-full divide-y divide-slate-200 md:table">
         <thead className="bg-slate-50">
@@ -106,7 +117,10 @@ export function StudentListTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 bg-white">
-          {students.map((student) => (
+          {students.map((student) => {
+            const srNoMissing = student.status === "active" && !student.admissionNo.trim();
+
+            return (
             <tr key={student.id} className="align-top">
               <td className="px-4 py-3 text-sm text-slate-700">
                 <p>{student.admissionNo}</p>
@@ -117,7 +131,14 @@ export function StudentListTable({
                 ) : null}
               </td>
               <td className="px-4 py-3">
-                <p className="text-sm font-medium text-slate-900">{student.fullName}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium text-slate-900">{student.fullName}</p>
+                  {srNoMissing ? (
+                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-800">
+                      SR no missing
+                    </span>
+                  ) : null}
+                </div>
                 {student.conventionalDiscountLabels.length > 0 ? (
                   <div className="mt-1 flex flex-wrap gap-1">
                     {student.conventionalDiscountLabels.map((label) => (
@@ -162,7 +183,8 @@ export function StudentListTable({
                 </div>
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>

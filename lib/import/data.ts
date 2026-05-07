@@ -1516,6 +1516,53 @@ async function updateImportRowAfterCommit(
   }
 }
 
+function mapImportSaveError(error: unknown): ImportIssue {
+  const rawMessage =
+    error instanceof Error ? error.message : "Unexpected error while importing this row.";
+  const message = rawMessage.toLowerCase();
+
+  if (
+    message.includes("student_fee_overrides") &&
+    message.includes("check constraint")
+  ) {
+    return {
+      code: "ERR_IMPORT_OVERRIDE_TUITION_INVALID",
+      field: "customTuitionFeeAmount",
+      message: "Tuition override value is invalid - must be a non-negative whole number.",
+    };
+  }
+
+  if (message.includes("custom_transport_fee_amount")) {
+    return {
+      code: "ERR_IMPORT_OVERRIDE_TRANSPORT_INVALID",
+      field: "customTransportFeeAmount",
+      message: "Transport override value is invalid - must be a non-negative whole number.",
+    };
+  }
+
+  if (message.includes("discount_amount")) {
+    return {
+      code: "ERR_IMPORT_DISCOUNT_INVALID",
+      field: "discountAmount",
+      message: "Discount value is invalid - must be a non-negative whole number.",
+    };
+  }
+
+  if (message.includes("late_fee_waiver_amount")) {
+    return {
+      code: "ERR_IMPORT_LATE_FEE_WAIVER_INVALID",
+      field: "lateFeeWaiverAmount",
+      message: "Late fee waiver value is invalid - must be a non-negative whole number.",
+    };
+  }
+
+  return {
+    code: "ERR_IMPORT_SAVE_FAILED",
+    field: "row",
+    message: `Import save failed: ${rawMessage}`,
+  };
+}
+
 export async function commitStudentImportBatch(batchId: string) {
   const [batchRow, rowRecords] = await Promise.all([
     getImportBatchById(batchId),
@@ -1624,18 +1671,11 @@ export async function commitStudentImportBatch(batchId: string) {
         importedOverrideId,
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected error while importing this row.";
-
       failedRows += 1;
 
       const failureErrors = [
         ...row.errors,
-        {
-          code: "ERR_IMPORT_SAVE_FAILED",
-          field: "row" as const,
-          message: `Import save failed: ${message}`,
-        },
+        mapImportSaveError(error),
       ];
 
       await updateImportRowAfterCommit(

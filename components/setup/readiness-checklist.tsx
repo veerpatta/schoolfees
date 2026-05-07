@@ -47,6 +47,31 @@ function labelForFlowStatus(status: SetupFlowStatus) {
   }
 }
 
+function ChecklistDetail({ item }: { item: SetupChecklistItem }) {
+  if (
+    item.key === "collection_desk_ready" &&
+    item.href.includes("#fee-data-troubleshooting") &&
+    item.detail.includes("Admin Tools")
+  ) {
+    const [before, after] = item.detail.split("Admin Tools");
+
+    return (
+      <p className="mt-2 text-sm leading-6 text-slate-600">
+        {before}
+        <Link
+          href="/protected/admin-tools#fee-data-troubleshooting"
+          className="font-medium text-slate-800 underline-offset-4 hover:text-slate-950 hover:underline"
+        >
+          Admin Tools
+        </Link>
+        {after}
+      </p>
+    );
+  }
+
+  return <p className="mt-2 text-sm leading-6 text-slate-600">{item.detail}</p>;
+}
+
 export function ReadinessChecklist({
   readiness,
   className,
@@ -112,7 +137,7 @@ export function ReadinessChecklist({
                     </span>
                   ) : null}
                 </div>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{item.detail}</p>
+                <ChecklistDetail item={item} />
               </div>
               <div className="flex shrink-0 items-center gap-3">
                 <StatusBadge

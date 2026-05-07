@@ -1,9 +1,4 @@
-import {
-  buildAddStudentsTemplateWorkbook,
-  buildUpdateStudentsTemplateWorkbook,
-  workbookToXlsxBuffer,
-  type UpdateTemplateStudent,
-} from "@/lib/import/templates";
+import type { UpdateTemplateStudent } from "@/lib/import/templates";
 import { getConventionalDiscountPolicies } from "@/lib/fees/conventional-discounts";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { getMasterDataOptions } from "@/lib/master-data/data";
@@ -151,6 +146,9 @@ export async function GET(request: Request) {
   }));
 
   if (mode === "update") {
+    const { buildUpdateStudentsTemplateWorkbook, workbookToXlsxBuffer } = await import(
+      "@/lib/import/templates"
+    );
     const conventionalPolicies = targetSessionLabel
       ? (await getConventionalDiscountPolicies(targetSessionLabel))
           .filter((item) => item.isActive)
@@ -167,6 +165,9 @@ export async function GET(request: Request) {
     return xlsxResponse(workbookToXlsxBuffer(workbook), "student-update-template.xlsx");
   }
 
+  const { buildAddStudentsTemplateWorkbook, workbookToXlsxBuffer } = await import(
+    "@/lib/import/templates"
+  );
   const workbook = buildAddStudentsTemplateWorkbook(
     classesForTemplate.map((item) => ({ label: item.label })),
     routesForTemplate,

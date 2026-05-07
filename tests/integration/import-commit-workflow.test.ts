@@ -7,6 +7,7 @@ const getFeePolicySummary = vi.fn();
 const createStudent = vi.fn();
 const updateStudent = vi.fn();
 const getStudentDetail = vi.fn();
+const importRowUpdates: Array<Record<string, unknown>> = [];
 
 const batchRow = {
   id: "batch-1",
@@ -157,7 +158,8 @@ vi.mock("@/lib/supabase/server", () => ({
           select() {
             return makeQueryBuilder({ data: [rowRecord], error: null });
           },
-          update() {
+          update(values: Record<string, unknown>) {
+            importRowUpdates.push(values);
             return makeQueryBuilder({ data: null, error: null });
           },
         };
@@ -179,6 +181,7 @@ vi.mock("@/lib/supabase/server", () => ({
 describe("student import commit workflow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    importRowUpdates.length = 0;
     getFeePolicySummary.mockResolvedValue({
       academicSessionLabel: "2026-27",
     });
@@ -207,5 +210,25 @@ describe("student import commit workflow", () => {
     expect(result.status).toBe("completed");
     expect(result.duesReadyCount).toBe(1);
     expect(result.duesAttentionCount).toBe(0);
+  }, 15000);
+
+  it("shows a field-level import error when fee override persistence fails", async () => {
+    const { commitStudentImportBatch } = await import("@/lib/import/data");
+    createStudent.mockRejectedValue(
+      new Error(
+        'new row for relation "student_fee_overrides" violates check constraint "student_fee_overrides_check"',
+      ),
+    );
+
+    const result = await commitStudentImportBatch("batch-1");
+
+    expect(result.status).toBe("failed");
+    const failedRowUpdate = importRowUpdates.find((item) => item.status === "invalid");
+    expect(failedRowUpdate?.errors).toContainEqual(
+      expect.objectContaining({
+        field: "customTuitionFeeAmount",
+        message: "Tuition override value is invalid - must be a non-negative whole number.",
+      }),
+    );
   }, 15000);
 });

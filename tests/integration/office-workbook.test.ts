@@ -12,6 +12,21 @@ describe("office workbook helpers", () => {
     expect(normalizeOfficeWorkbookView("not-a-view")).toBe("transactions");
   });
 
+  it("reports whether workbook view params were recognized", async () => {
+    const { resolveOfficeWorkbookView } = await import("@/lib/office/workbook");
+
+    expect(resolveOfficeWorkbookView("imports")).toEqual({
+      view: "transactions",
+      wasRecognized: false,
+      rawValue: "imports",
+    });
+    expect(resolveOfficeWorkbookView("dues")).toEqual({
+      view: "student_dues",
+      wasRecognized: true,
+      rawValue: "dues",
+    });
+  });
+
   it("builds workbook links while preserving class and session filters", () => {
     expect(
       buildOfficeWorkbookHref({

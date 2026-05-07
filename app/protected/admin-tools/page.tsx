@@ -1,10 +1,10 @@
 import Link from "next/link";
 
 import { PageHeader } from "@/components/admin/page-header";
+import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { OfficeNotice } from "@/components/office/office-ui";
-import { Button } from "@/components/ui/button";
 import { advancedHubSections } from "@/lib/config/navigation";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { getSystemSyncHealth } from "@/lib/system-sync/finance-sync";
@@ -91,27 +91,35 @@ export default async function AdvancedPage() {
 
           <div className="mt-4 flex flex-wrap gap-2">
             <form action={repairCurrentSessionDuesAction}>
-              <Button type="submit">Prepare missing dues</Button>
+              <PendingSubmitButton idleLabel="Prepare missing dues" pendingLabel="Preparing..." />
             </form>
             <form action={syncCurrentSessionAction}>
-              <Button type="submit" variant="outline">
-                Update fee records for this year
-              </Button>
+              <PendingSubmitButton
+                idleLabel="Update fee records for this year"
+                pendingLabel="Updating..."
+                variant="outline"
+              />
             </form>
             <form action={alignWorkingSessionWithFeeSetupAction}>
-              <Button type="submit" variant="outline">
-                Align year with Fee Setup
-              </Button>
+              <PendingSubmitButton
+                idleLabel="Align year with Fee Setup"
+                pendingLabel="Aligning..."
+                variant="outline"
+              />
             </form>
             <form action={repairPaymentDeskDataAction}>
-              <Button type="submit" variant="outline">
-                Fix Payment Desk dues
-              </Button>
+              <PendingSubmitButton
+                idleLabel="Fix Payment Desk dues"
+                pendingLabel="Fixing..."
+                variant="outline"
+              />
             </form>
             <form action={syncDashboardNowAction}>
-              <Button type="submit" variant="outline">
-                Refresh Dashboard totals
-              </Button>
+              <PendingSubmitButton
+                idleLabel="Refresh Dashboard totals"
+                pendingLabel="Refreshing..."
+                variant="outline"
+              />
             </form>
           </div>
 
@@ -125,7 +133,17 @@ export default async function AdvancedPage() {
               <div className="mt-3 space-y-2 text-sm text-slate-700">
                 <p>Current school setup year: {feeDataHealth.academicCurrentSession ?? "Not set"}</p>
                 <p>Fee Setup year: {feeDataHealth.activeFeePolicySession}</p>
-                <p>Classes without fee settings: {feeDataHealth.classesWithoutFeeSettings}</p>
+                {feeDataHealth.classesWithoutFeeSettings > 0 ? (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span>Classes without fee settings: {feeDataHealth.classesWithoutFeeSettings}</span>
+                      <StatusBadge label="Needs review" tone="warning" />
+                    </div>
+                    <p className="mt-1 text-xs">Students in these classes will have Rs 0 dues.</p>
+                  </div>
+                ) : (
+                  <p>Classes without fee settings: {feeDataHealth.classesWithoutFeeSettings}</p>
+                )}
                 <p>Prepared dues records: {feeDataHealth.workbookFinancialRowCount}</p>
               </div>
             </div>

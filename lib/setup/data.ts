@@ -13,6 +13,7 @@ import {
   upsertTransportDefault,
 } from "@/lib/fees/policy";
 import { createClient } from "@/lib/supabase/server";
+import { getSystemSyncHealth } from "@/lib/system-sync/finance-sync";
 import { getSetupLockedMessage } from "@/lib/setup/copy";
 
 import type {
@@ -56,6 +57,7 @@ type StudentRow = {
 };
 
 type ImportBatchRow = {
+  id: string;
   status: string;
   invalid_rows: number;
   duplicate_rows: number;
@@ -170,6 +172,7 @@ function buildReadinessSummary(payload: {
   acceptedPaymentModes: Array<{ label: string }>;
   receiptPrefix: string;
   completionState: SetupCompletionState;
+  studentsMissingDues: number;
 }): SetupReadinessSummary {
   const baseChecklist: SetupChecklistItem[] = [
     {
@@ -247,6 +250,10 @@ function buildReadinessSummary(payload: {
   const readyForCompletion =
     baseChecklist.every((item) => item.status === "complete");
   const collectionDeskReady = readyForCompletion && Boolean(payload.completionState.setupCompletedAt);
+  const collectionDeskRecoveryDetail =
+    payload.studentsMissingDues > 0
+      ? `${payload.studentsMissingDues} student(s) have no dues records. Run 'Prepare missing dues' in Admin Tools to fix this.`
+      : "Setup was marked complete earlier, but live blocking checks now need attention again.";
   const checklist: SetupChecklistItem[] = [
     ...baseChecklist,
     {
@@ -258,14 +265,17 @@ function buildReadinessSummary(payload: {
             timeStyle: "short",
           })}.`
         : payload.completionState.setupCompletedAt
-          ? "Setup was marked complete earlier, but live blocking checks now need attention again."
+          ? collectionDeskRecoveryDetail
           : `Confirm setup completion after reviewing payment modes (${payload.acceptedPaymentModes
               .map((item) => item.label)
               .join(", ")}), late fee Rs ${payload.lateFeeFlatAmount}, and receipt prefix ${payload.receiptPrefix}.`
           ,
       status: collectionDeskReady ? "complete" : "incomplete",
       blocking: true,
-      href: "/protected/setup#complete",
+      href:
+        payload.studentsMissingDues > 0
+          ? "/protected/admin-tools#fee-data-troubleshooting"
+          : "/protected/setup#complete",
     },
   ];
   const completedCount = checklist.filter((item) => item.status === "complete").length;
@@ -323,7 +333,11 @@ function buildFlowItems(payload: {
           : payload.importSummary.completedBatches > 0
             ? "No pending import anomalies are visible in recent batches."
             : "After import, review duplicates and invalid rows before ledger recalculation.",
-      href: "/protected/imports",
+      href: payload.importSummary.firstAnomalyBatchId
+        ? `/protected/imports?batchId=${payload.importSummary.firstAnomalyBatchId}`
+        : payload.importSummary.batchesWithAnomalies > 0
+          ? "/protected/imports?status=invalid"
+          : "/protected/imports",
       status:
         payload.importSummary.batchesWithAnomalies > 0
           ? "attention"
@@ -381,7 +395,7 @@ async function loadSetupWizardData(): Promise<SetupWizardData> {
       .in("status", ["active", "inactive"]),
     supabase
       .from("import_batches")
-      .select("status, invalid_rows, duplicate_rows, failed_rows")
+      .select("id, status, invalid_rows, duplicate_rows, failed_rows")
       .order("created_at", { ascending: false })
       .limit(20),
     supabase
@@ -412,6 +426,7 @@ async function loadSetupWizardData(): Promise<SetupWizardData> {
   const studentRows = (studentRowsRaw ?? []) as StudentRow[];
   const importBatches = (importBatchesRaw ?? []) as ImportBatchRow[];
   const completionRow = (completionRaw as SetupProgressRow | null) ?? null;
+  const syncHealth = await getSystemSyncHealth(activeSessionLabel);
   const activeSessionClasses = classRows
     .filter((row) => row.session_label === activeSessionLabel)
     .map(
@@ -484,6 +499,11 @@ async function loadSetupWizardData(): Promise<SetupWizardData> {
       (item) =>
         item.invalid_rows > 0 || item.duplicate_rows > 0 || item.failed_rows > 0,
     ).length,
+    firstAnomalyBatchId:
+      importBatches.find(
+        (item) =>
+          item.invalid_rows > 0 || item.duplicate_rows > 0 || item.failed_rows > 0,
+      )?.id ?? null,
   };
   const readiness = buildReadinessSummary({
     hasPolicyRecord: Boolean(setupData.globalPolicy.id),
@@ -499,6 +519,7 @@ async function loadSetupWizardData(): Promise<SetupWizardData> {
     acceptedPaymentModes: setupData.globalPolicy.acceptedPaymentModes,
     receiptPrefix: setupData.globalPolicy.receiptPrefix,
     completionState,
+    studentsMissingDues: syncHealth.studentsMissingInstallments.length,
   });
 
   return {

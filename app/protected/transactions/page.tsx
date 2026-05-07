@@ -16,9 +16,9 @@ import {
 import {
   buildOfficeWorkbookExportHref,
   buildOfficeWorkbookHref,
-  normalizeOfficeWorkbookView,
   officeWorkbookMeta,
   officeWorkbookViews,
+  resolveOfficeWorkbookView,
   type OfficeWorkbookView,
 } from "@/lib/office/workbook";
 import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
@@ -230,8 +230,8 @@ function TransactionsTable({
           ))
         )}
       </div>
-      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
-      <table className="w-full min-w-full text-left text-sm">
+      <div className="hidden w-full overflow-x-auto rounded-xl border border-slate-200 md:block">
+      <table className="min-w-[900px] text-left text-sm">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
           <tr>
             <th className="px-4 py-3">Date</th>
@@ -303,8 +303,8 @@ function InstallmentTrackerTable({ rows }: { rows: OfficeWorkbookStudentRow[] })
           ))
         )}
       </div>
-      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
-      <table className="w-full min-w-full text-left text-sm">
+      <div className="hidden w-full overflow-x-auto rounded-xl border border-slate-200 md:block">
+      <table className="min-w-[900px] text-left text-sm">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
           <tr>
             <th className="px-4 py-3">Student</th>
@@ -483,8 +483,8 @@ function StudentDuesTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
 
 function ClassRegisterTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200">
-      <table className="w-full min-w-full text-left text-sm">
+    <div className="w-full overflow-x-auto rounded-xl border border-slate-200">
+      <table className="min-w-[900px] text-left text-sm">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
           <tr>
             <th className="px-4 py-3">Student</th>
@@ -579,8 +579,8 @@ function ClassRegisterTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
 
 function DefaultersTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200">
-      <table className="w-full min-w-full text-left text-sm">
+    <div className="w-full overflow-x-auto rounded-xl border border-slate-200">
+      <table className="min-w-[900px] text-left text-sm">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
           <tr>
             <th className="px-4 py-3">Student</th>
@@ -754,7 +754,8 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
   );
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const activeView = normalizeOfficeWorkbookView(resolvedSearchParams?.view);
+  const resolvedView = resolveOfficeWorkbookView(resolvedSearchParams?.view);
+  const activeView = resolvedView.view;
   const classId = normalizeClassId(resolvedSearchParams?.classId);
   const routeId = normalizeClassId(resolvedSearchParams?.routeId);
   const sessionLabel = (resolvedSearchParams?.sessionLabel ?? "").trim();
@@ -851,6 +852,12 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
       <OfficeNotice tone="info" title="Read-only finance center">
         Use Payment Desk to collect money. This page is for checking, filtering, printing, and exporting saved records.
       </OfficeNotice>
+
+      {!resolvedView.wasRecognized ? (
+        <OfficeNotice tone="warning" title="Unknown view">
+          Unknown view &apos;{resolvedView.rawValue}&apos; - showing default view.
+        </OfficeNotice>
+      ) : null}
 
       <SectionCard
         title="Choose view"

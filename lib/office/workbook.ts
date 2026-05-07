@@ -70,6 +70,16 @@ export const officeWorkbookMeta: Record<
 export function normalizeOfficeWorkbookView(
   value: string | undefined | null,
 ): OfficeWorkbookView {
+  return resolveOfficeWorkbookView(value).view;
+}
+
+export function resolveOfficeWorkbookView(
+  value: string | undefined | null,
+): {
+  view: OfficeWorkbookView;
+  wasRecognized: boolean;
+  rawValue: string;
+} {
   const normalized = (value ?? "").trim();
   const aliases: Record<string, OfficeWorkbookView> = {
     receipts_today: "receipts",
@@ -80,12 +90,26 @@ export function normalizeOfficeWorkbookView(
   };
 
   if (aliases[normalized]) {
-    return aliases[normalized];
+    return {
+      view: aliases[normalized],
+      wasRecognized: true,
+      rawValue: normalized,
+    };
   }
 
-  return officeWorkbookViews.includes(normalized as OfficeWorkbookView)
-    ? (normalized as OfficeWorkbookView)
-    : "transactions";
+  if (officeWorkbookViews.includes(normalized as OfficeWorkbookView)) {
+    return {
+      view: normalized as OfficeWorkbookView,
+      wasRecognized: true,
+      rawValue: normalized,
+    };
+  }
+
+  return {
+    view: "transactions",
+    wasRecognized: normalized.length === 0,
+    rawValue: normalized,
+  };
 }
 
 export function buildOfficeWorkbookHref(payload: {

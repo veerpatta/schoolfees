@@ -66,6 +66,13 @@ type PaymentStudentBaseRow = {
     | null;
 };
 
+type PaymentDeskClassRow = {
+  id: string;
+  class_name: string;
+  section: string | null;
+  stream_name: string | null;
+};
+
 type StudentFinancialStateRow = {
   student_id: string;
   total_due: number | null;
@@ -365,10 +372,13 @@ function toStudentIndexItem(row: PaymentStudentBaseRow): PaymentStudentIndexItem
   };
 }
 
-export async function getPaymentDeskStudentIndex() {
+export async function getPaymentDeskStudentIndex(payload: {
+  classId?: string | null;
+  limit?: number;
+} = {}) {
   const policy = await getFeePolicySummary();
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("students")
     .select(
       "id, full_name, admission_no, father_name, primary_phone, secondary_phone, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name)",
@@ -376,8 +386,13 @@ export async function getPaymentDeskStudentIndex() {
     .eq("status", "active")
     .eq("class_ref.session_label", policy.academicSessionLabel)
     .eq("class_ref.status", "active")
-    .order("full_name", { ascending: true })
-    .limit(2000);
+    .order("full_name", { ascending: true });
+
+  if (payload.classId) {
+    query = query.eq("class_id", payload.classId);
+  }
+
+  const { data, error } = await query.limit(payload.limit ?? 2000);
 
   if (error) {
     throw new Error(`Unable to load Payment Desk student index: ${error.message}`);
@@ -385,8 +400,28 @@ export async function getPaymentDeskStudentIndex() {
 
   return ((data ?? []) as PaymentStudentBaseRow[])
     .map(toStudentIndexItem)
-    .filter((row): row is PaymentStudentIndexItem => Boolean(row))
-    .sort((left, right) => left.fullName.localeCompare(right.fullName));
+    .filter((row): row is PaymentStudentIndexItem => Boolean(row));
+}
+
+export async function getPaymentDeskClassOptions() {
+  const policy = await getFeePolicySummary();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("classes")
+    .select("id, class_name, section, stream_name")
+    .eq("session_label", policy.academicSessionLabel)
+    .eq("status", "active")
+    .order("sort_order", { ascending: true })
+    .order("class_name", { ascending: true });
+
+  if (error) {
+    throw new Error(`Unable to load Payment Desk class list: ${error.message}`);
+  }
+
+  return ((data ?? []) as PaymentDeskClassRow[]).map((row) => ({
+    id: row.id,
+    label: buildClassLabel(row),
+  }));
 }
 
 function summarizeStudent(
@@ -840,19 +875,19 @@ export async function getPaymentEntryPageData(payload: {
   autoPrepareMissingDues?: boolean;
 }): Promise<PaymentEntryPageData> {
   const policy = await getFeePolicySummary();
-  const [studentIndex, recentReceipts, todayCollection] = await Promise.all([
-    getPaymentDeskStudentIndex(),
+  const today = new Date().toISOString().slice(0, 10);
+  const [studentIndex, recentReceipts, todayCollection, summary] = await Promise.all([
+    getPaymentDeskStudentIndex({}),
     getRecentPaymentDeskReceipts(6),
     getTodayPaymentDeskCollection(),
+    payload.studentId
+      ? getPaymentDeskStudentSummary({
+          studentId: payload.studentId,
+          paymentDate: today,
+          autoPrepareMissingDues: payload.autoPrepareMissingDues,
+        })
+      : Promise.resolve(null),
   ]);
-  const today = new Date().toISOString().slice(0, 10);
-  const summary = payload.studentId
-    ? await getPaymentDeskStudentSummary({
-        studentId: payload.studentId,
-        paymentDate: today,
-        autoPrepareMissingDues: payload.autoPrepareMissingDues,
-      })
-    : null;
 
   return {
     studentIndex,

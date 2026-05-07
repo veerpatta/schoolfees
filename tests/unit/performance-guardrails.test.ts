@@ -78,13 +78,22 @@ describe("office performance guardrails", () => {
 
   it("keeps Payment Desk dues loading scoped to the selected student", () => {
     const paymentsData = readRepoFile("lib/payments/data.ts");
+    const paymentsPage = readRepoFile("app/protected/payments/page.tsx");
+    const paymentClient = readRepoFile("components/payments/payment-entry-client.tsx");
 
-    expect(paymentsData).toContain("getPaymentDeskStudentIndex()");
+    expect(paymentsData).toContain("getPaymentDeskStudentIndex(payload:");
+    expect(paymentsData).toContain("getPaymentDeskStudentIndex({})");
     expect(paymentsData).toContain("payload.studentId");
+    expect(paymentsData).toContain("const [studentIndex, recentReceipts, todayCollection, summary] = await Promise.all");
     expect(paymentsData).toContain("getPaymentDeskStudentSummary({");
     expect(paymentsData).toContain("studentId: payload.studentId");
     expect(paymentsData).toContain("getWorkbookStudentFinancials({");
     expect(paymentsData).toContain("studentId: payload.studentId");
     expect(paymentsData).not.toContain("getWorkbookStudentFinancials({\n      classId");
+    expect(paymentsData).not.toContain(".sort((left, right) => left.fullName.localeCompare(right.fullName))");
+    expect(paymentsPage).toContain("getPaymentDeskClassOptions()");
+    expect(paymentsPage).not.toContain("getStudentFormOptions()");
+    expect(paymentClient).not.toContain("onMouseEnter={() => prefetchStudentSummary");
+    expect(paymentClient).not.toContain("/protected/payments/student-index?");
   });
 });

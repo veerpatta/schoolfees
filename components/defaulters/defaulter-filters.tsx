@@ -25,16 +25,17 @@ export function DefaulterFilters({
   routeOptions,
 }: DefaulterFiltersProps) {
   return (
-    <AutoSubmitForm method="get" className="space-y-3">
+    <div className="space-y-3">
+    <AutoSubmitForm method="get" className="space-y-3 md:hidden">
       <details className="md:hidden">
         <summary className="cursor-pointer rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
           Open filters
         </summary>
         <div className="mt-3 grid gap-4">
           <div>
-            <Label htmlFor="query">Search</Label>
+            <Label htmlFor="query-mobile">Search</Label>
             <Input
-              id="query"
+              id="query-mobile"
               name="query"
               defaultValue={filters.searchQuery ?? ""}
               placeholder="Student, SR no, phone"
@@ -61,9 +62,44 @@ export function DefaulterFilters({
               </select>
             </div>
           </div>
+          <div>
+            <Label htmlFor="transportRouteId-mobile">Route</Label>
+            <select
+              id="transportRouteId-mobile"
+              name="transportRouteId"
+              defaultValue={filters.transportRouteId}
+              className={selectClassName}
+            >
+              <option value="">All routes</option>
+              {routeOptions.map((route) => (
+                <option key={route.id} value={route.id}>
+                  {route.routeCode ? `${route.label} (${route.routeCode})` : route.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <Label htmlFor="minPendingAmount-mobile">Amount pending</Label>
+            <Input
+              id="minPendingAmount-mobile"
+              name="minPendingAmount"
+              type="number"
+              min="0"
+              step="1"
+              defaultValue={filters.minPendingAmount}
+              placeholder="Minimum pending amount"
+              className="mt-2"
+            />
+          </div>
+          <div className="flex items-end gap-2">
+            <Button type="button" variant="outline" asChild>
+              <Link href="/protected/defaulters">Clear</Link>
+            </Button>
+          </div>
         </div>
       </details>
-      <div className="hidden grid-cols-1 gap-4 md:grid md:grid-cols-2 xl:grid-cols-5">
+    </AutoSubmitForm>
+    <AutoSubmitForm method="get" className="hidden grid-cols-1 gap-4 md:grid md:grid-cols-2 xl:grid-cols-5">
       <div>
         <Label htmlFor="query">Search</Label>
         <Input
@@ -140,7 +176,7 @@ export function DefaulterFilters({
           <Link href="/protected/defaulters">Clear</Link>
         </Button>
       </div>
-      </div>
     </AutoSubmitForm>
+    </div>
   );
 }
