@@ -30,6 +30,8 @@ export async function loginAction(
   _previous: LoginActionState,
   formData: FormData,
 ): Promise<LoginActionState> {
+  let targetHref: string | null = null;
+
   try {
     const email = getRequiredString(formData.get("email"), "Email");
     const password = getRequiredString(formData.get("password"), "Password");
@@ -66,10 +68,10 @@ export async function loginAction(
     const appRole = resolveStaffRole(
       (profileData as { role?: string | null } | null)?.role ?? null,
     );
-    const targetHref = next === "/protected" ? getDefaultProtectedHref(appRole) : next;
+    targetHref =
+      next === "/protected" ? getDefaultProtectedHref(appRole) : next;
 
     revalidatePath("/", "layout");
-    redirect(targetHref);
   } catch (error) {
     return {
       status: "error",
@@ -79,6 +81,8 @@ export async function loginAction(
           : "Unable to sign in right now. Please try again.",
     };
   }
+
+  redirect(targetHref);
 }
 
 export async function logoutAction() {

@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { AlertCircle, Eye, EyeOff, Loader2, School } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, Loader2 } from "lucide-react";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 
 import {
@@ -28,8 +29,15 @@ export default function Home() {
       <section className="w-full max-w-sm">
         <div className="rounded-xl border border-[#d8dedb] bg-white p-6 shadow-[0_18px_45px_-28px_rgba(15,23,42,0.35)] sm:p-8">
           <div className="mb-8 text-center">
-            <div className="mx-auto flex size-14 items-center justify-center rounded-xl bg-[#e7f2f0] text-[#01696f]">
-              <School className="size-7" aria-hidden="true" />
+            <div className="mx-auto flex size-20 items-center justify-center overflow-hidden rounded-xl border border-[#d8dedb] bg-white p-2 shadow-sm">
+              <Image
+                src="/branding/veer-patta-school-logo.jpg"
+                alt="Veer Patta Public School logo"
+                width={96}
+                height={96}
+                priority
+                className="h-full w-full object-contain"
+              />
             </div>
             <h1 className="mt-4 text-xl font-semibold leading-snug text-slate-950">
               Veer Patta Public School
