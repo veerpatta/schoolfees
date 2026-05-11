@@ -4,18 +4,45 @@ import { useEffect, useRef, useState } from "react";
 
 import { formatInr } from "@/lib/helpers/currency";
 
+type FormatType = "inr" | "percent" | "number";
+
 type CountUpProps = {
   /** Target value to animate towards. */
   value: number;
   /** Duration in ms. Defaults to 600ms — short enough to feel responsive. */
   duration?: number;
-  /** Format function. Defaults to INR. Pass a custom one for non-currency values. */
-  format?: (value: number) => string;
-  /** Optional className passed to the span. */
+  /**
+   * Built-in formatter. `inr` (default) renders Indian rupee currency.
+   * `percent` renders `42%`. `number` renders a comma-grouped integer.
+   *
+   * Use the string-token form whenever a Server Component renders `<CountUp>` —
+   * functions can't be serialized across the RSC boundary.
+   */
+  format?: FormatType;
+  /**
+   * Escape hatch for Client Components that need a custom formatter.
+   * Server Components MUST use `format` instead.
+   */
+  formatter?: (value: number) => string;
+  /** Optional className passed to the visible span. */
   className?: string;
-  /** Skip animation when the value is small or component just mounted with the final value (e.g., SSR). */
+  /** Override the initial value (default 0). */
   startFrom?: number;
 };
+
+const numberFormatter = new Intl.NumberFormat("en-IN");
+
+function formatBuiltIn(type: FormatType, value: number): string {
+  switch (type) {
+    case "percent":
+      return `${Math.round(value)}%`;
+    case "number":
+      return numberFormatter.format(value);
+    case "inr":
+    default:
+      return formatInr(value);
+  }
+}
 
 /**
  * Lightweight, dependency-free count-up. Uses `requestAnimationFrame` with an
@@ -28,7 +55,8 @@ type CountUpProps = {
 export function CountUp({
   value,
   duration = 600,
-  format = formatInr,
+  format = "inr",
+  formatter,
   className,
   startFrom = 0,
 }: CountUpProps) {
@@ -40,7 +68,6 @@ export function CountUp({
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // Honour reduced motion — snap, no animation.
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     if (reduced || value === fromRef.current) {
       setDisplay(value);
@@ -56,8 +83,7 @@ export function CountUp({
       if (startedAtRef.current === null) startedAtRef.current = now;
       const elapsed = now - startedAtRef.current;
       const t = Math.min(1, elapsed / duration);
-      // ease-out cubic — finishes calmly, no spring overshoot.
-      const eased = 1 - Math.pow(1 - t, 3);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic — no overshoot
       const current = Math.round(from + (to - from) * eased);
       setDisplay(current);
 
@@ -79,10 +105,12 @@ export function CountUp({
     };
   }, [value, duration]);
 
+  const render = formatter ?? ((v: number) => formatBuiltIn(format, v));
+
   return (
-    <span className={className} aria-label={format(value)}>
+    <span className={className} aria-label={render(value)}>
       <span aria-hidden="true" className="tabular">
-        {format(display)}
+        {render(display)}
       </span>
     </span>
   );

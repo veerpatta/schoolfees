@@ -116,7 +116,7 @@ function HeroKpis({
         value={
           <CountUp
             value={collectionRate}
-            format={(v) => `${v}%`}
+            format="percent"
             className="tabular text-foreground"
           />
         }
