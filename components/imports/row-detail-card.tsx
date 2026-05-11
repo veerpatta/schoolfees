@@ -112,7 +112,7 @@ function RowReviewForm({
   }
 
   return (
-    <form action={handleSubmit} className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+    <form action={handleSubmit} className="space-y-2 rounded-lg border border-border bg-surface-2 p-3">
       <input type="hidden" name="batchId" value={batchId} />
       <input type="hidden" name="importMode" value={mode} />
       <input type="hidden" name="rowId" value={row.id} />
@@ -141,7 +141,7 @@ function RowReviewForm({
             name="reviewNote"
             defaultValue={row.reviewNote ?? ""}
             disabled={!canManage || row.status === "imported" || submitting}
-            className="mt-1 block h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
+            className="mt-1 block h-9 w-full rounded-md border border-border-strong bg-card px-3 text-sm"
             placeholder="Reason or follow-up note"
           />
         </div>
@@ -166,14 +166,14 @@ function RawDataPreview({ row, batch }: { row: ImportRowDetail; batch: ImportBat
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="text-xs font-medium text-blue-700 underline"
+        className="text-xs font-medium text-info-soft-foreground underline"
       >
         {expanded ? "Hide raw data" : "Show raw data"}
       </button>
       {expanded ? (
-        <div className="mt-2 overflow-x-auto rounded-lg border border-slate-200 bg-slate-50">
-          <table className="min-w-full divide-y divide-slate-200 text-xs">
-            <thead className="bg-slate-100 text-left text-slate-600">
+        <div className="mt-2 overflow-x-auto rounded-lg border border-border bg-surface-2">
+          <table className="min-w-full divide-y divide-border text-xs">
+            <thead className="bg-surface-2 text-left text-muted-foreground">
               <tr>
                 <th className="px-3 py-2 font-medium">Field</th>
                 <th className="px-3 py-2 font-medium">Spreadsheet column</th>
@@ -181,7 +181,7 @@ function RawDataPreview({ row, batch }: { row: ImportRowDetail; batch: ImportBat
                 <th className="px-3 py-2 font-medium">Normalized</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border">
               {mappingKeys.map((key) => {
                 const header = batch.columnMapping[key as keyof typeof batch.columnMapping];
                 const rawValue = header ? stringifyCellValue(row.rawPayload[header]) : "-";
@@ -191,10 +191,10 @@ function RawDataPreview({ row, batch }: { row: ImportRowDetail; batch: ImportBat
 
                 return (
                   <tr key={key}>
-                    <td className="whitespace-nowrap px-3 py-1.5 font-medium text-slate-900">{key}</td>
-                    <td className="whitespace-nowrap px-3 py-1.5 text-slate-600">{header ?? "-"}</td>
-                    <td className="px-3 py-1.5 text-slate-700">{rawValue}</td>
-                    <td className="px-3 py-1.5 text-slate-700">{normalized}</td>
+                    <td className="whitespace-nowrap px-3 py-1.5 font-medium text-foreground">{key}</td>
+                    <td className="whitespace-nowrap px-3 py-1.5 text-muted-foreground">{header ?? "-"}</td>
+                    <td className="px-3 py-1.5 text-foreground">{rawValue}</td>
+                    <td className="px-3 py-1.5 text-foreground">{normalized}</td>
                   </tr>
                 );
               })}
@@ -215,9 +215,9 @@ type RowDetailCardProps = {
 
 export function RowDetailCard({ row, batch, canManage, mode }: RowDetailCardProps) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-slate-900">
+        <p className="text-sm font-semibold text-foreground">
           Row {row.rowIndex}: {row.normalizedPayload?.fullName ?? getMappedDisplayValue(batch, row, "fullName")}
         </p>
         <div className="flex flex-wrap gap-2">
@@ -233,7 +233,7 @@ export function RowDetailCard({ row, batch, canManage, mode }: RowDetailCardProp
         </div>
       </div>
 
-      <p className="mt-1 text-xs text-slate-600">
+      <p className="mt-1 text-xs text-muted-foreground">
         Class: {row.normalizedPayload?.classLabel ?? getMappedDisplayValue(batch, row, "classLabel")} | SR no: {row.normalizedPayload?.admissionNo ?? getMappedDisplayValue(batch, row, "admissionNo")}
         {row.normalizedPayload?.dateOfBirth ? ` | DOB: ${row.normalizedPayload.dateOfBirth}` : ""}
         {row.normalizedPayload?.fatherName ? ` | Father: ${row.normalizedPayload.fatherName}` : ""}
@@ -244,7 +244,7 @@ export function RowDetailCard({ row, batch, canManage, mode }: RowDetailCardProp
           {row.anomalyCategories.map((category) => (
             <span
               key={`${row.id}-${category}`}
-              className="rounded-full border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-800"
+              className="rounded-full border border-warning/40 bg-warning-soft px-2 py-1 text-xs text-warning-soft-foreground"
             >
               {CATEGORY_LABELS[category]}
             </span>
@@ -255,32 +255,32 @@ export function RowDetailCard({ row, batch, canManage, mode }: RowDetailCardProp
       {row.errors.length > 0 || row.warnings.length > 0 ? (
         <div className="mt-3 space-y-1 text-sm">
           {row.errors.map((issue) => (
-            <p key={`${row.id}-${issue.code}-${issue.message}`} className="text-red-700">
+            <p key={`${row.id}-${issue.code}-${issue.message}`} className="text-destructive-soft-foreground">
               Error: {issue.message}
             </p>
           ))}
           {row.warnings.map((warning) => (
-            <p key={`${row.id}-${warning}`} className="text-amber-700">
+            <p key={`${row.id}-${warning}`} className="text-warning-soft-foreground">
               Warning: {cleanWarningMessage(warning)}
             </p>
           ))}
         </div>
       ) : null}
 
-      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-600">
+      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         {row.targetStudentId || row.duplicateStudentId ? (
-          <Link href={`/protected/students/${row.targetStudentId ?? row.duplicateStudentId}/edit`} className="text-blue-700 underline">
+          <Link href={`/protected/students/${row.targetStudentId ?? row.duplicateStudentId}/edit`} className="text-info-soft-foreground underline">
             Review matched existing student
           </Link>
         ) : null}
         {row.importedStudentId ? (
-          <Link href={`/protected/students/${row.importedStudentId}/edit`} className="text-blue-700 underline">
+          <Link href={`/protected/students/${row.importedStudentId}/edit`} className="text-info-soft-foreground underline">
             Open saved student
           </Link>
         ) : null}
         {row.reviewedAt ? <span>Last reviewed: {formatShortDate(row.reviewedAt)}</span> : null}
         {row.reviewNote ? (
-          <span className="italic text-slate-500">Note: {row.reviewNote}</span>
+          <span className="italic text-muted-foreground">Note: {row.reviewNote}</span>
         ) : null}
       </div>
 

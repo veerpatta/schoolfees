@@ -35,7 +35,7 @@ export default async function StaffPage() {
           title="Server-side staff admin is not configured"
           description="Add SUPABASE_SERVICE_ROLE_KEY to the server environment before using staff account creation, password resets, or bootstrap provisioning."
         >
-          <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <p className="rounded-xl border bg-warning-soft px-4 py-3 text-sm text-warning-soft-foreground">
             Login can still work for already-seeded accounts. Admin staff
             management features stay blocked until the server-only service role
             key is configured.

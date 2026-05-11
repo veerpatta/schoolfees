@@ -56,11 +56,11 @@ function ChecklistDetail({ item }: { item: SetupChecklistItem }) {
     const [before, after] = item.detail.split("Admin Tools");
 
     return (
-      <p className="mt-2 text-sm leading-6 text-slate-600">
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">
         {before}
         <Link
           href="/protected/admin-tools#fee-data-troubleshooting"
-          className="font-medium text-slate-800 underline-offset-4 hover:text-slate-950 hover:underline"
+          className="font-medium text-foreground underline-offset-4 hover:text-foreground hover:underline"
         >
           Admin Tools
         </Link>
@@ -69,7 +69,7 @@ function ChecklistDetail({ item }: { item: SetupChecklistItem }) {
     );
   }
 
-  return <p className="mt-2 text-sm leading-6 text-slate-600">{item.detail}</p>;
+  return <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.detail}</p>;
 }
 
 export function ReadinessChecklist({
@@ -82,38 +82,38 @@ export function ReadinessChecklist({
   return (
     <div className={cn("space-y-4", className)}>
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+        <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Setup progress
           </p>
-          <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+          <p className="mt-3 text-2xl font-semibold tracking-tight text-foreground">
             {readiness.completedCount}/{readiness.totalCount}
           </p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
             Checks complete for first-time go-live.
           </p>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+        <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Blocking gaps
           </p>
-          <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+          <p className="mt-3 text-2xl font-semibold tracking-tight text-foreground">
             {readiness.missingBlockingItems.length}
           </p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
             Remaining items before collections should begin.
           </p>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+        <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Collection desk
           </p>
-          <p className="mt-3 text-lg font-semibold tracking-tight text-slate-950">
+          <p className="mt-3 text-lg font-semibold tracking-tight text-foreground">
             {readiness.collectionDeskReady ? "Ready" : "Not ready"}
           </p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
             {readiness.collectionDeskReady
               ? "Core setup, student readiness, and go-live confirmation are complete."
               : "Keep using the checklist until every blocking item is complete."}
@@ -125,14 +125,14 @@ export function ReadinessChecklist({
         {readiness.checklist.map((item) => (
           <li
             key={item.key}
-            className="rounded-xl border border-slate-200 bg-white px-4 py-4"
+            className="rounded-xl border border-border bg-card px-4 py-4"
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-semibold text-slate-950">{item.label}</p>
+                  <p className="text-sm font-semibold text-foreground">{item.label}</p>
                   {item.blocking ? (
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                    <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                       Blocking
                     </span>
                   ) : null}
@@ -152,7 +152,7 @@ export function ReadinessChecklist({
                 />
                 <Link
                   href={item.href}
-                  className="text-sm font-medium text-slate-700 underline-offset-4 hover:text-slate-950 hover:underline"
+                  className="text-sm font-medium text-foreground underline-offset-4 hover:text-foreground hover:underline"
                 >
                   Go to step
                 </Link>
@@ -171,17 +171,17 @@ export function SetupFlowList({ items }: { items: SetupFlowItem[] }) {
       {items.map((item, index) => (
         <li
           key={item.key}
-          className="rounded-xl border border-slate-200 bg-white px-4 py-4"
+          className="rounded-xl border border-border bg-card px-4 py-4"
         >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="inline-flex size-7 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+                <span className="inline-flex size-7 items-center justify-center rounded-full bg-foreground text-xs font-semibold text-white">
                   {index + 1}
                 </span>
-                <p className="text-sm font-semibold text-slate-950">{item.label}</p>
+                <p className="text-sm font-semibold text-foreground">{item.label}</p>
               </div>
-              <p className="mt-2 text-sm leading-6 text-slate-600">{item.detail}</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.detail}</p>
             </div>
             <div className="flex shrink-0 items-center gap-3">
               <StatusBadge
@@ -190,7 +190,7 @@ export function SetupFlowList({ items }: { items: SetupFlowItem[] }) {
               />
               <Link
                 href={item.href}
-                className="text-sm font-medium text-slate-700 underline-offset-4 hover:text-slate-950 hover:underline"
+                className="text-sm font-medium text-foreground underline-offset-4 hover:text-foreground hover:underline"
               >
                 Go there
               </Link>

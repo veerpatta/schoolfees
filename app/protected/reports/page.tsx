@@ -130,19 +130,19 @@ function ReportCatalog({
               })}
               className={`rounded-[24px] border px-4 py-4 transition-colors ${
                 isActive
-                  ? "border-blue-200 bg-blue-50/80"
-                  : "border-slate-200/80 bg-white hover:border-slate-300"
+                  ? "bg-info-soft/80"
+                  : "border-border/80 bg-card hover:border-border-strong"
               }`}
             >
               <div className="flex items-start justify-between gap-3">
-                <p className="text-base font-semibold text-slate-950">
+                <p className="text-base font-semibold text-foreground">
                   {definition.title}
                 </p>
                 {isActive ? (
                   <StatusBadge label="Open" tone="accent" />
                 ) : null}
               </div>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 {definition.description}
               </p>
             </Link>
@@ -696,9 +696,9 @@ function ReportTables({ report }: { report: ReportData }) {
           title={reportDefinitions[report.key].tableTitle}
           description={reportDefinitions[report.key].tableDescription}
         >
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full min-w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+              <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3">Student</th>
                   <th className="px-4 py-3">SR no</th>
@@ -717,14 +717,14 @@ function ReportTables({ report }: { report: ReportData }) {
               <tbody>
                 {report.rows.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="px-4 py-6 text-center text-slate-500">
+                    <td colSpan={12} className="px-4 py-6 text-center text-muted-foreground">
                       No outstanding rows found for the selected filters.
                     </td>
                   </tr>
                 ) : (
                   report.rows.map((row) => (
-                    <tr key={`${row.studentId}-${row.installmentNo}`} className="border-t border-slate-100 text-slate-700">
-                      <td className="px-4 py-3 font-medium text-slate-900">{row.fullName}</td>
+                    <tr key={`${row.studentId}-${row.installmentNo}`} className="border-t border-border text-foreground">
+                      <td className="px-4 py-3 font-medium text-foreground">{row.fullName}</td>
                       <td className="px-4 py-3">{row.admissionNo}</td>
                       <td className="px-4 py-3">{row.sessionLabel}</td>
                       <td className="px-4 py-3">{row.classLabel}</td>
@@ -736,7 +736,7 @@ function ReportTables({ report }: { report: ReportData }) {
                       <td className="px-4 py-3">{formatInr(row.amountDue)}</td>
                       <td className="px-4 py-3">{formatInr(row.paymentsTotal)}</td>
                       <td className="px-4 py-3">{formatInr(row.adjustmentsTotal)}</td>
-                      <td className="px-4 py-3 font-medium text-slate-900">
+                      <td className="px-4 py-3 font-medium text-foreground">
                         {formatInr(row.outstandingAmount)}
                       </td>
                       <td className="px-4 py-3 capitalize">{row.balanceStatus}</td>
@@ -757,20 +757,20 @@ function ReportTables({ report }: { report: ReportData }) {
           >
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {report.modeTotals.length === 0 ? (
-                <p className="text-sm text-slate-600">No payment totals available for this filter.</p>
+                <p className="text-sm text-muted-foreground">No payment totals available for this filter.</p>
               ) : (
                 report.modeTotals.map((row) => (
                   <div
                     key={row.paymentMode}
-                    className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4"
+                    className="rounded-xl border border-border bg-surface-2 px-4 py-4"
                   >
-                    <p className="text-sm font-medium text-slate-700">
+                    <p className="text-sm font-medium text-foreground">
                       {formatPaymentModeLabel(row.paymentMode)}
                     </p>
-                    <p className="mt-2 text-lg font-semibold text-slate-950">
+                    <p className="mt-2 text-lg font-semibold text-foreground">
                       {formatInr(row.totalAmount)}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       {row.receiptCount} receipt{row.receiptCount === 1 ? "" : "s"}
                     </p>
                   </div>
@@ -783,9 +783,9 @@ function ReportTables({ report }: { report: ReportData }) {
             title={reportDefinitions[report.key].tableTitle}
             description={reportDefinitions[report.key].tableDescription}
           >
-            <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <div className="overflow-x-auto rounded-xl border border-border">
               <table className="w-full min-w-full text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-4 py-3">Payment date</th>
                     <th className="px-4 py-3">Payment mode</th>
@@ -797,18 +797,18 @@ function ReportTables({ report }: { report: ReportData }) {
                 <tbody>
                   {report.rows.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
+                      <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
                         No collection summary rows found for the selected filters.
                       </td>
                     </tr>
                   ) : (
                     report.rows.map((row) => (
-                      <tr key={`${row.paymentDate}-${row.paymentMode}`} className="border-t border-slate-100 text-slate-700">
+                      <tr key={`${row.paymentDate}-${row.paymentMode}`} className="border-t border-border text-foreground">
                         <td className="px-4 py-3">{formatShortDate(row.paymentDate)}</td>
                         <td className="px-4 py-3">{formatPaymentModeLabel(row.paymentMode)}</td>
                         <td className="px-4 py-3">{row.receiptCount}</td>
                         <td className="px-4 py-3">{row.studentCount}</td>
-                        <td className="px-4 py-3 font-medium text-slate-900">
+                        <td className="px-4 py-3 font-medium text-foreground">
                           {formatInr(row.totalAmount)}
                         </td>
                       </tr>
@@ -827,7 +827,7 @@ function ReportTables({ report }: { report: ReportData }) {
             title="Student selection required"
             description="Choose a student to open the ledger report."
           >
-            <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            <p className="rounded-lg border border-dashed border-border-strong bg-surface-2 px-4 py-3 text-sm text-muted-foreground">
               Payments and adjustments are exportable only after a student is selected.
             </p>
           </SectionCard>
@@ -839,9 +839,9 @@ function ReportTables({ report }: { report: ReportData }) {
           title={`${report.selectedStudent.fullName} ledger`}
           description={reportDefinitions[report.key].tableDescription}
         >
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full min-w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+              <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3">Entry type</th>
                   <th className="px-4 py-3">Created at</th>
@@ -858,37 +858,37 @@ function ReportTables({ report }: { report: ReportData }) {
               <tbody>
                 {report.rows.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-4 py-6 text-center text-slate-500">
+                    <td colSpan={10} className="px-4 py-6 text-center text-muted-foreground">
                       No ledger rows found for the selected filters.
                     </td>
                   </tr>
                 ) : (
                   report.rows.map((row) => (
-                    <tr key={`${row.entryType}-${row.entryId}`} className="border-t border-slate-100 align-top text-slate-700">
+                    <tr key={`${row.entryType}-${row.entryId}`} className="border-t border-border align-top text-foreground">
                       <td className="px-4 py-3 capitalize">{row.entryType}</td>
                       <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(row.createdAt)}</td>
-                      <td className="px-4 py-3 font-medium text-slate-900">{row.receiptNumber}</td>
+                      <td className="px-4 py-3 font-medium text-foreground">{row.receiptNumber}</td>
                       <td className="px-4 py-3">{formatShortDate(row.paymentDate)}</td>
                       <td className="px-4 py-3">
-                        <div className="font-medium text-slate-900">{row.installmentLabel}</div>
-                        <div className="text-xs text-slate-500">Due {formatShortDate(row.dueDate)}</div>
+                        <div className="font-medium text-foreground">{row.installmentLabel}</div>
+                        <div className="text-xs text-muted-foreground">Due {formatShortDate(row.dueDate)}</div>
                       </td>
                       <td className="px-4 py-3">
                         <div>{formatPaymentModeLabel(row.paymentMode)}</div>
-                        <div className="text-xs text-slate-500">
+                        <div className="text-xs text-muted-foreground">
                           {row.referenceNumber ? `Ref ${row.referenceNumber}` : "No reference"}
                         </div>
                       </td>
                       <td className="px-4 py-3">{formatInr(row.paymentAmount)}</td>
                       <td className="px-4 py-3">
                         {row.adjustmentAmount === null ? (
-                          <span className="text-slate-500">-</span>
+                          <span className="text-muted-foreground">-</span>
                         ) : (
                           <div>
-                            <div className="font-medium text-slate-900">
+                            <div className="font-medium text-foreground">
                               {formatInr(row.adjustmentAmount)}
                             </div>
-                            <div className="text-xs text-slate-500 capitalize">
+                            <div className="text-xs text-muted-foreground capitalize">
                               {row.adjustmentType}
                             </div>
                           </div>
@@ -896,11 +896,11 @@ function ReportTables({ report }: { report: ReportData }) {
                       </td>
                       <td className="px-4 py-3">
                         <div>{row.reason ?? "-"}</div>
-                        <div className="text-xs text-slate-500">
+                        <div className="text-xs text-muted-foreground">
                           {row.createdByName ?? row.receivedBy ?? "Staff user"}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{row.notes || "-"}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{row.notes || "-"}</td>
                     </tr>
                   ))
                 )}
@@ -915,9 +915,9 @@ function ReportTables({ report }: { report: ReportData }) {
           title={reportDefinitions[report.key].tableTitle}
           description={reportDefinitions[report.key].tableDescription}
         >
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full min-w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+              <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3">Receipt no</th>
                   <th className="px-4 py-3">Payment date</th>
@@ -936,14 +936,14 @@ function ReportTables({ report }: { report: ReportData }) {
               <tbody>
                 {report.rows.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="px-4 py-6 text-center text-slate-500">
+                    <td colSpan={12} className="px-4 py-6 text-center text-muted-foreground">
                       No receipts found for the selected filters.
                     </td>
                   </tr>
                 ) : (
                   report.rows.map((row) => (
-                    <tr key={row.receiptId} className="border-t border-slate-100 text-slate-700">
-                      <td className="px-4 py-3 font-medium text-slate-900">{row.receiptNumber}</td>
+                    <tr key={row.receiptId} className="border-t border-border text-foreground">
+                      <td className="px-4 py-3 font-medium text-foreground">{row.receiptNumber}</td>
                       <td className="px-4 py-3">{formatShortDate(row.paymentDate)}</td>
                       <td className="px-4 py-3">{formatDateTime(row.createdAt)}</td>
                       <td className="px-4 py-3">{row.fullName}</td>
@@ -952,7 +952,7 @@ function ReportTables({ report }: { report: ReportData }) {
                       <td className="px-4 py-3">{row.classLabel}</td>
                       <td className="px-4 py-3">{row.transportRouteLabel}</td>
                       <td className="px-4 py-3">{formatPaymentModeLabel(row.paymentMode)}</td>
-                      <td className="px-4 py-3 font-medium text-slate-900">
+                      <td className="px-4 py-3 font-medium text-foreground">
                         {formatInr(row.totalAmount)}
                       </td>
                       <td className="px-4 py-3">{row.referenceNumber ?? "-"}</td>
@@ -972,9 +972,9 @@ function ReportTables({ report }: { report: ReportData }) {
             title="Batch summary"
             description="Use this table to compare batch totals before drilling into a selected batch."
           >
-            <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <div className="overflow-x-auto rounded-xl border border-border">
               <table className="w-full min-w-full text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-4 py-3">Batch</th>
                     <th className="px-4 py-3">Created</th>
@@ -990,14 +990,14 @@ function ReportTables({ report }: { report: ReportData }) {
                 <tbody>
                   {report.batchRows.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-4 py-6 text-center text-slate-500">
+                      <td colSpan={9} className="px-4 py-6 text-center text-muted-foreground">
                         No import batches found for the selected filters.
                       </td>
                     </tr>
                   ) : (
                     report.batchRows.map((row) => (
-                      <tr key={row.batchId} className="border-t border-slate-100 text-slate-700">
-                        <td className="px-4 py-3 font-medium text-slate-900">{row.filename}</td>
+                      <tr key={row.batchId} className="border-t border-border text-foreground">
+                        <td className="px-4 py-3 font-medium text-foreground">{row.filename}</td>
                         <td className="px-4 py-3">{formatDateTime(row.createdAt)}</td>
                         <td className="px-4 py-3 uppercase">{row.sourceFormat}</td>
                         <td className="px-4 py-3 capitalize">{row.status}</td>
@@ -1022,9 +1022,9 @@ function ReportTables({ report }: { report: ReportData }) {
             }
             description={reportDefinitions[report.key].tableDescription}
           >
-            <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <div className="overflow-x-auto rounded-xl border border-border">
               <table className="w-full min-w-full text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-4 py-3">Row</th>
                     <th className="px-4 py-3">Student</th>
@@ -1041,15 +1041,15 @@ function ReportTables({ report }: { report: ReportData }) {
                 <tbody>
                   {report.detailRows.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="px-4 py-6 text-center text-slate-500">
+                      <td colSpan={10} className="px-4 py-6 text-center text-muted-foreground">
                         No import detail rows found for the selected filters.
                       </td>
                     </tr>
                   ) : (
                     report.detailRows.map((row) => (
-                      <tr key={row.rowId} className="border-t border-slate-100 align-top text-slate-700">
+                      <tr key={row.rowId} className="border-t border-border align-top text-foreground">
                         <td className="px-4 py-3">{row.rowIndex}</td>
-                        <td className="px-4 py-3 font-medium text-slate-900">{row.fullName ?? "-"}</td>
+                        <td className="px-4 py-3 font-medium text-foreground">{row.fullName ?? "-"}</td>
                         <td className="px-4 py-3">{row.admissionNo ?? "-"}</td>
                         <td className="px-4 py-3">{row.classLabel ?? "-"}</td>
                         <td className="px-4 py-3 capitalize">{row.status}</td>
@@ -1170,7 +1170,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         ) : null}
       </ReportFiltersSection>
 
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+      <div className="rounded-2xl border border-border bg-surface-2 px-4 py-3 text-sm leading-6 text-foreground">
         Generated {formatDateTime(data.generatedAt)}. {getReportAuditNote(data.report.key)} Active policy session: {policy.academicSessionLabel}.
       </div>
 

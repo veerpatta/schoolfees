@@ -135,8 +135,8 @@ type ReceiptDocumentProps = {
 function BilingualLabel({ english, hindi }: { english: string; hindi: string }) {
   return (
     <span className="block">
-      <span className="block text-[10px] font-semibold uppercase text-slate-500">{english}</span>
-      <span className="block text-[10px] font-medium text-slate-500">{hindi}</span>
+      <span className="block text-[10px] font-semibold uppercase text-muted-foreground">{english}</span>
+      <span className="block text-[10px] font-medium text-muted-foreground">{hindi}</span>
     </span>
   );
 }
@@ -146,7 +146,7 @@ export function ReceiptDocument({ receipt, className }: ReceiptDocumentProps) {
 
   return (
     <article
-      className={`receipt-print-page animate-receipt-settle relative mx-auto w-full max-w-5xl overflow-hidden rounded-lg border border-slate-200 bg-white p-5 text-slate-900 shadow-sm print:max-w-none print:rounded-none print:border-slate-400 print:p-0 print:shadow-none ${className ?? ""}`.trim()}
+      className={`receipt-print-page anim-slide-up relative mx-auto w-full max-w-5xl overflow-hidden rounded-lg border border-border bg-card p-5 text-foreground shadow-sm print:max-w-none print:rounded-none print:border-border-strong print:p-0 print:shadow-none ${className ?? ""}`.trim()}
     >
       <style>{`
         @page {
@@ -201,16 +201,16 @@ export function ReceiptDocument({ receipt, className }: ReceiptDocumentProps) {
         }
       `}</style>
 
-      <div className="receipt-watermark pointer-events-none absolute inset-0 flex items-center justify-center text-center text-5xl font-semibold uppercase text-slate-100/50 print:text-slate-100/60">
+      <div className="receipt-watermark pointer-events-none absolute inset-0 flex items-center justify-center text-center text-5xl font-semibold uppercase text-foreground/8 print:text-foreground/8">
         VPPS Receipt
       </div>
-      <div className="security-strip absolute inset-x-0 top-0 h-2 bg-gradient-to-r from-emerald-600 via-sky-500 to-amber-500" />
+      <div className="security-strip absolute inset-x-0 top-0 h-2 bg-foreground/85" />
 
       <div className="relative z-10 space-y-3 pt-2">
-        <header className="rounded-lg border border-slate-200 bg-white p-4 print-compact">
+        <header className="rounded-lg border border-border bg-card p-4 print-compact">
           <div className="grid gap-3 md:grid-cols-[1fr_auto]">
             <div className="flex items-start gap-3">
-              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white">
+              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-border bg-card">
                 <Image
                   src="/branding/veer-patta-school-logo.jpg"
                   alt={`${schoolProfile.name} logo`}
@@ -221,49 +221,49 @@ export function ReceiptDocument({ receipt, className }: ReceiptDocumentProps) {
                 />
               </div>
               <div>
-                <p className="text-lg font-semibold uppercase text-slate-950">{schoolProfile.name}</p>
-                <p className="text-xs font-medium text-slate-600">Fee Receipt / शुल्क रसीद</p>
-                <p className="mt-1 text-xs text-slate-500">Academic Year / शैक्षणिक सत्र: {receipt.sessionLabel}</p>
+                <p className="text-lg font-semibold uppercase text-foreground">{schoolProfile.name}</p>
+                <p className="text-xs font-medium text-muted-foreground">Fee Receipt / शुल्क रसीद</p>
+                <p className="mt-1 text-xs text-muted-foreground">Academic Year / शैक्षणिक सत्र: {receipt.sessionLabel}</p>
               </div>
             </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-right">
+            <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-right">
               <BilingualLabel english="Receipt No" hindi="रसीद संख्या" />
-              <p className="mt-1 text-lg font-semibold text-slate-950">{receipt.receiptNumber}</p>
-              <p className="mt-1 text-xs text-slate-600">{formatDate(receipt.paymentDate)}</p>
+              <p className="mt-1 text-lg font-semibold text-foreground">{receipt.receiptNumber}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{formatDate(receipt.paymentDate)}</p>
             </div>
           </div>
         </header>
 
         <section className="grid gap-2 sm:grid-cols-4">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 print-compact">
+          <div className="rounded-lg border border-border bg-surface-2 px-3 py-3 print-compact">
             <BilingualLabel english="Total Fee Due" hindi="कुल देय शुल्क" />
-            <p className="mt-1 text-lg font-semibold text-slate-950">{formatInr(receipt.totalDue)}</p>
+            <p className="mt-1 text-lg font-semibold text-foreground">{formatInr(receipt.totalDue)}</p>
           </div>
-          <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-3 print-compact">
+          <div className="rounded-lg border bg-info-soft px-3 py-3 print-compact">
             <BilingualLabel english="Paid Till Date" hindi="अब तक जमा" />
-            <p className="mt-1 text-lg font-semibold text-sky-950">{formatInr(receipt.totalPaidToDate)}</p>
+            <p className="mt-1 text-lg font-semibold text-foreground">{formatInr(receipt.totalPaidToDate)}</p>
           </div>
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 print-compact">
+          <div className="rounded-lg border bg-success-soft px-3 py-3 print-compact">
             <BilingualLabel english="Paid Today" hindi="आज जमा" />
-            <p className="mt-1 text-xl font-semibold text-emerald-800">{formatInr(receipt.totalAmount)}</p>
+            <p className="mt-1 text-xl font-semibold text-success-soft-foreground">{formatInr(receipt.totalAmount)}</p>
           </div>
-           <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 print-compact">
+           <div className="rounded-lg border bg-warning-soft px-3 py-3 print-compact">
              <BilingualLabel english="Balance Due" hindi="शेष राशि" />
-             <p className="mt-1 text-lg font-semibold text-amber-950">{formatInr(receipt.outstandingAfterReceipt)}</p>
-             <p className="mt-1 text-[10px] text-amber-900">Balance after this receipt / इस रसीद के बाद शेष</p>
-             <p className="mt-1 text-[10px] text-amber-900">
+             <p className="mt-1 text-lg font-semibold text-warning-soft-foreground">{formatInr(receipt.outstandingAfterReceipt)}</p>
+             <p className="mt-1 text-[10px] text-warning-soft-foreground">Balance after this receipt / इस रसीद के बाद शेष</p>
+             <p className="mt-1 text-[10px] text-warning-soft-foreground">
                Current outstanding now / वर्तमान बकाया: {formatInr(receipt.currentOutstanding)}
              </p>
            </div>
         </section>
 
         <section className="grid gap-3 md:grid-cols-[1fr_0.82fr]">
-          <div className="rounded-lg border border-slate-200 bg-white/95 p-4 print-compact">
-            <h2 className="text-sm font-semibold text-slate-950">Student Details / विद्यार्थी विवरण</h2>
+          <div className="rounded-lg border border-border bg-card/95 p-4 print-compact">
+            <h2 className="text-sm font-semibold text-foreground">Student Details / विद्यार्थी विवरण</h2>
             <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
               <div>
                 <BilingualLabel english="Student Name" hindi="विद्यार्थी का नाम" />
-                <p className="font-semibold text-slate-950">{receipt.studentFullName}</p>
+                <p className="font-semibold text-foreground">{receipt.studentFullName}</p>
               </div>
               <div>
                 <BilingualLabel english="SR No" hindi="एस.आर. नंबर" />
@@ -288,8 +288,8 @@ export function ReceiptDocument({ receipt, className }: ReceiptDocumentProps) {
             </div>
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-white/95 p-4 print-compact">
-            <h2 className="text-sm font-semibold text-slate-950">Payment Details / भुगतान विवरण</h2>
+          <div className="rounded-lg border border-border bg-card/95 p-4 print-compact">
+            <h2 className="text-sm font-semibold text-foreground">Payment Details / भुगतान विवरण</h2>
             <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
               <div>
                 <BilingualLabel english="Date" hindi="दिनांक" />
@@ -311,14 +311,14 @@ export function ReceiptDocument({ receipt, className }: ReceiptDocumentProps) {
           </div>
         </section>
 
-        <section className="rounded-lg border border-slate-200 bg-white/95 p-4 print-compact">
+        <section className="rounded-lg border border-border bg-card/95 p-4 print-compact">
           <div className="mb-2 flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-slate-950">Installment Details / किस्त विवरण</h2>
-            <p className="text-xs text-slate-500">Paid today rows / आज जमा विवरण</p>
+            <h2 className="text-sm font-semibold text-foreground">Installment Details / किस्त विवरण</h2>
+            <p className="text-xs text-muted-foreground">Paid today rows / आज जमा विवरण</p>
           </div>
-          <div className="overflow-hidden rounded-md border border-slate-200">
+          <div className="overflow-hidden rounded-md border border-border">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-100 text-slate-600">
+              <thead className="bg-surface-2 text-muted-foreground">
                 <tr>
                   <th className="px-2 py-2">Installment / किस्त</th>
                   <th className="px-2 py-2">Due Date / देय दिनांक</th>
@@ -328,8 +328,8 @@ export function ReceiptDocument({ receipt, className }: ReceiptDocumentProps) {
               </thead>
               <tbody>
                 {receipt.breakdown.map((item) => (
-                  <tr key={item.paymentId} className="border-t border-slate-200">
-                    <td className="px-2 py-2 font-medium text-slate-900">{item.installmentLabel}</td>
+                  <tr key={item.paymentId} className="border-t border-border">
+                    <td className="px-2 py-2 font-medium text-foreground">{item.installmentLabel}</td>
                     <td className="px-2 py-2">{formatDate(item.dueDate)}</td>
                     <td className="px-2 py-2">{item.notes || "-"}</td>
                     <td className="px-2 py-2 text-right font-semibold">{formatInr(item.amount)}</td>
@@ -337,7 +337,7 @@ export function ReceiptDocument({ receipt, className }: ReceiptDocumentProps) {
                 ))}
               </tbody>
               <tfoot>
-                <tr className="border-t border-slate-300 bg-slate-50">
+                <tr className="border-t border-border-strong bg-surface-2">
                   <td colSpan={3} className="px-2 py-2 text-right font-semibold">Paid Today Total / आज कुल जमा</td>
                   <td className="px-2 py-2 text-right font-semibold">{formatInr(breakdownTotal)}</td>
                 </tr>
@@ -347,13 +347,13 @@ export function ReceiptDocument({ receipt, className }: ReceiptDocumentProps) {
         </section>
 
         <section className="grid gap-3 md:grid-cols-[0.95fr_1.05fr]">
-          <div className="rounded-lg border border-slate-200 bg-white/95 p-4 print-compact">
-            <h2 className="text-sm font-semibold text-slate-950">Fee Breakup / शुल्क विवरण</h2>
-            <div className="mt-2 overflow-hidden rounded-md border border-slate-200">
+          <div className="rounded-lg border border-border bg-card/95 p-4 print-compact">
+            <h2 className="text-sm font-semibold text-foreground">Fee Breakup / शुल्क विवरण</h2>
+            <div className="mt-2 overflow-hidden rounded-md border border-border">
               <table className="w-full text-left text-xs">
                 <tbody>
                   {receipt.feeSummary.map((item) => (
-                    <tr key={item.label} className="border-t border-slate-200 first:border-t-0">
+                    <tr key={item.label} className="border-t border-border first:border-t-0">
                       <td className="px-2 py-1.5">
                         {item.label} / {item.label === "Other Fees" ? "अन्य शुल्क" : feeLabelHindi(item.label)}
                       </td>
@@ -365,7 +365,7 @@ export function ReceiptDocument({ receipt, className }: ReceiptDocumentProps) {
             </div>
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm print-compact">
+          <div className="rounded-lg border border-border bg-surface-2 p-4 text-sm print-compact">
             <p>
               <span className="font-semibold">Amount in Words / राशि शब्दों में:</span>{" "}
               {amountInWords(receipt.totalAmount)}
@@ -377,19 +377,19 @@ export function ReceiptDocument({ receipt, className }: ReceiptDocumentProps) {
               <p><span className="font-semibold">Paid Before / पहले जमा:</span> {formatInr(receipt.totalPaidBeforeReceipt)}</p>
             </div>
             {receipt.notes ? (
-              <p className="mt-2 text-slate-700">
+              <p className="mt-2 text-foreground">
                 <span className="font-semibold">Remarks / टिप्पणी:</span> {receipt.notes}
               </p>
             ) : null}
           </div>
         </section>
 
-        <footer className="flex items-end justify-between gap-4 pt-2 text-xs text-slate-600">
+        <footer className="flex items-end justify-between gap-4 pt-2 text-xs text-muted-foreground">
           <div>
-            <p className="font-medium text-slate-900">This is an official school fee receipt. / यह विद्यालय की आधिकारिक शुल्क रसीद है।</p>
+            <p className="font-medium text-foreground">This is an official school fee receipt. / यह विद्यालय की आधिकारिक शुल्क रसीद है।</p>
             <p>Please keep this receipt for your records. / कृपया इस रसीद को सुरक्षित रखें।</p>
           </div>
-          <div className="min-w-48 border-t border-slate-400 pt-2 text-center">
+          <div className="min-w-48 border-t border-border-strong pt-2 text-center">
             Authorised Signature / अधिकृत हस्ताक्षर
           </div>
         </footer>

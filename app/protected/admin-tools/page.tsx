@@ -61,29 +61,29 @@ export default async function AdvancedPage() {
           }
         >
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+          <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Fee Setup year
             </p>
-            <p className="mt-2 font-semibold text-slate-950">{feeDataHealth.activeFeePolicySession}</p>
+            <p className="mt-2 font-semibold text-foreground">{feeDataHealth.activeFeePolicySession}</p>
           </div>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+          <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Students this year
             </p>
-            <p className="mt-2 font-semibold text-slate-950">{feeDataHealth.rawStudentsInActiveSession}</p>
+            <p className="mt-2 font-semibold text-foreground">{feeDataHealth.rawStudentsInActiveSession}</p>
           </div>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+          <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Dues not prepared
             </p>
-            <p className="mt-2 font-semibold text-slate-950">{feeDataHealth.studentsMissingDues}</p>
+            <p className="mt-2 font-semibold text-foreground">{feeDataHealth.studentsMissingDues}</p>
           </div>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+          <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Payment Desk
             </p>
-            <p className="mt-2 font-semibold text-slate-950">
+            <p className="mt-2 font-semibold text-foreground">
               {feeDataHealth.paymentDeskReady ? "Ready" : "Needs attention"}
             </p>
           </div>
@@ -123,18 +123,18 @@ export default async function AdvancedPage() {
             </form>
           </div>
 
-        <details className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white">
-          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-slate-900">
+        <details className="mt-4 overflow-hidden rounded-lg border border-border bg-card">
+          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-foreground">
             Technical details
           </summary>
-          <div className="grid gap-4 border-t border-slate-200 p-4 lg:grid-cols-2">
+          <div className="grid gap-4 border-t border-border p-4 lg:grid-cols-2">
             <div>
-              <p className="font-semibold text-slate-950">Setup status</p>
-              <div className="mt-3 space-y-2 text-sm text-slate-700">
+              <p className="font-semibold text-foreground">Setup status</p>
+              <div className="mt-3 space-y-2 text-sm text-foreground">
                 <p>Current school setup year: {feeDataHealth.academicCurrentSession ?? "Not set"}</p>
                 <p>Fee Setup year: {feeDataHealth.activeFeePolicySession}</p>
                 {feeDataHealth.classesWithoutFeeSettings > 0 ? (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+                  <div className="rounded-lg bg-warning-soft text-warning-soft-foreground px-3 py-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span>Classes without fee settings: {feeDataHealth.classesWithoutFeeSettings}</span>
                       <StatusBadge label="Needs review" tone="warning" />
@@ -148,10 +148,10 @@ export default async function AdvancedPage() {
               </div>
             </div>
             <div>
-            <p className="font-semibold text-slate-950">Payment preview setup</p>
-              <div className="mt-3 space-y-2 text-sm text-slate-700">
+            <p className="font-semibold text-foreground">Payment preview setup</p>
+              <div className="mt-3 space-y-2 text-sm text-foreground">
                 {databaseObjectStatuses.map((status) => (
-                  <div key={status.key} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <div key={status.key} className="rounded-lg border border-border bg-surface-2 px-3 py-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span>{status.objectName}</span>
                       <StatusBadge
@@ -159,7 +159,7 @@ export default async function AdvancedPage() {
                         tone={status.usable ? "good" : "warning"}
                       />
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">{status.message}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{status.message}</p>
                   </div>
                 ))}
               </div>
@@ -180,18 +180,18 @@ export default async function AdvancedPage() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-slate-300 hover:bg-white"
+                    className="rounded-xl border border-border bg-surface-2 p-4 transition-colors hover:border-border-strong hover:bg-card"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="rounded-full border border-slate-200 bg-white p-2.5 text-slate-700">
+                      <div className="rounded-full border border-border bg-card p-2.5 text-foreground">
                         <Icon className="size-4" />
                       </div>
                       <span className="inline-flex h-9 items-center rounded-md border border-input bg-background px-3 text-sm font-medium shadow-sm">
                         Open
                       </span>
                     </div>
-                    <p className="mt-3 text-sm font-semibold text-slate-950">{item.label}</p>
-                    <p className="mt-1 text-sm text-slate-600">{item.description}</p>
+                    <p className="mt-3 text-sm font-semibold text-foreground">{item.label}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
                   </Link>
                 );
               })}

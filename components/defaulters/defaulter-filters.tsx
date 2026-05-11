@@ -28,7 +28,7 @@ export function DefaulterFilters({
     <div className="space-y-3">
     <AutoSubmitForm method="get" className="space-y-3 md:hidden">
       <details className="md:hidden">
-        <summary className="cursor-pointer rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
+        <summary className="cursor-pointer rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-foreground">
           Open filters
         </summary>
         <div className="mt-3 grid gap-4">

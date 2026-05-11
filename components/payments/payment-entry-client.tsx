@@ -75,8 +75,8 @@ function desktopTabButtonClass(active: boolean) {
   return cn(
     "rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors",
     active
-      ? "border-slate-900 bg-slate-900 text-white"
-      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
+      ? "border-foreground bg-foreground text-background"
+      : "border-border bg-surface text-muted-foreground hover:border-border-strong hover:bg-surface-2 hover:text-foreground",
   );
 }
 
@@ -102,15 +102,15 @@ function ActionNotice({
       aria-live="polite"
       className={
         state.status === "error"
-          ? "rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+          ? "rounded-md bg-destructive-soft px-3 py-2 text-sm text-destructive-soft-foreground"
           : state.status === "duplicate"
-            ? "rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
-          : "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
+            ? "rounded-md bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground"
+          : "rounded-md bg-success-soft px-3 py-2 text-sm text-success-soft-foreground"
       }
     >
       {state.message}
       {state.status === "error" && state.diagnostic && canViewDiagnostics ? (
-        <details className="mt-2 rounded border border-red-200 bg-white/70 px-2 py-2 text-xs text-red-900">
+        <details className="mt-2 rounded border border-destructive/30 bg-card/70 px-2 py-2 text-xs text-destructive-soft-foreground">
           <summary className="cursor-pointer font-medium">Technical details</summary>
           <dl className="mt-2 grid gap-1 sm:grid-cols-2">
             <div>Reason: {state.diagnostic.reason}</div>
@@ -844,7 +844,7 @@ export function PaymentEntryClient({
               ))}
             </select>
           </div>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-muted-foreground">
             Student list stays ready for the selected class and remains in alphabetical order with SR no.
           </p>
         </div>
@@ -878,13 +878,13 @@ export function PaymentEntryClient({
               <div ref={mobileStudentPickerRef} className="relative mt-2 space-y-2">
                 <input type="hidden" id="payment-student-id" value={selectedStudentId} readOnly />
                 {selectedStudentIndexItem ? (
-                  <div className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-950">
+                  <div className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-full bg-info-soft px-3 py-2 text-sm text-info-soft-foreground">
                     <span className="truncate">
                       {buildStudentSelectLabel({ ...selectedStudentIndexItem, pendingAmount: null })}
                     </span>
                     <button
                       type="button"
-                      className="rounded-full border border-blue-300 bg-white px-2 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                      className="rounded-full border border-info/40 bg-card px-2 py-1 text-xs font-semibold text-info-soft-foreground transition hover:bg-info-soft"
                       onClick={() => {
                         clearSelectedStudent();
                         setIsStudentPickerOpen(false);
@@ -950,20 +950,20 @@ export function PaymentEntryClient({
                     id={mobileStudentListId}
                     role="listbox"
                     ref={mobileStudentListRef}
-                    className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-md border border-slate-200 bg-white shadow-lg"
+                    className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-md border border-border bg-card shadow-lg"
                     style={{ height: `${studentComboboxPanelHeight}px` }}
                     onScroll={(event) => setStudentListScrollTop(event.currentTarget.scrollTop)}
                   >
                     {!studentSearchQuery && recentStudents.length > 0 ? (
-                      <div className="border-b border-slate-100 pb-1">
-                        <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Recent</p>
+                      <div className="border-b border-border pb-1">
+                        <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-subtle-foreground">Recent</p>
                         {recentStudents.map((student) => (
                           <button
                             key={`recent-${student.id}`}
                             type="button"
                             role="option"
                             aria-selected={selectedStudentId === student.id}
-                            className={`flex min-h-10 w-full items-center border-b border-slate-100 px-3 py-1.5 text-left text-sm last:border-b-0 ${selectedStudentId === student.id ? "bg-blue-50 text-blue-900" : "bg-white text-slate-800 hover:bg-slate-50"}`}
+                            className={`flex min-h-10 w-full items-center border-b border-border px-3 py-1.5 text-left text-sm last:border-b-0 ${selectedStudentId === student.id ? "bg-info-soft text-info-soft-foreground" : "bg-card text-foreground hover:bg-surface-2"}`}
                             onMouseDown={(event) => event.preventDefault()}
                             onClick={() => selectStudent(student.id)}
                           >
@@ -973,7 +973,7 @@ export function PaymentEntryClient({
                       </div>
                     ) : null}
                     {filteredStudents.length === 0 ? (
-                      <p className="px-3 py-3 text-sm text-slate-600">No matching students.</p>
+                      <p className="px-3 py-3 text-sm text-muted-foreground">No matching students.</p>
                     ) : (
                       <div style={{ paddingTop: topVisibleOffset, paddingBottom: bottomVisibleOffset }}>
                         {visibleStudentOptions.map((student, index) => {
@@ -989,8 +989,8 @@ export function PaymentEntryClient({
                               role="option"
                               aria-selected={isSelected}
                               type="button"
-                      className={`flex min-h-12 w-full items-center border-b border-slate-100 px-3 py-2 text-left text-sm last:border-b-0 ${
-                                isActive ? "bg-blue-50 text-blue-900" : "bg-white text-slate-800 hover:bg-slate-50"
+                      className={`flex min-h-12 w-full items-center border-b border-border px-3 py-2 text-left text-sm last:border-b-0 ${
+                                isActive ? "bg-info-soft text-info-soft-foreground" : "bg-card text-foreground hover:bg-surface-2"
                               }`}
                               onMouseDown={(event) => event.preventDefault()}
                               onClick={() => selectStudent(student.id)}
@@ -1008,16 +1008,16 @@ export function PaymentEntryClient({
           </div>
           {studentSummaryLoading ? (
             <div className="space-y-2" aria-live="polite" aria-busy={studentSummaryLoading}>
-              <p className="text-sm text-slate-600">{studentSummaryNotice ?? "Loading students..."}</p>
+              <p className="text-sm text-muted-foreground">{studentSummaryNotice ?? "Loading students..."}</p>
               <div className="grid gap-2 sm:grid-cols-3">
-                <LoadingBlock className="h-16 rounded-xl border-0 bg-slate-100 p-3" lines={1} />
-                <LoadingBlock className="h-16 rounded-xl border-0 bg-slate-100 p-3" lines={1} />
-                <LoadingBlock className="h-16 rounded-xl border-0 bg-slate-100 p-3" lines={1} />
+                <LoadingBlock className="h-16 rounded-xl border-0 bg-surface-2 p-3" lines={1} />
+                <LoadingBlock className="h-16 rounded-xl border-0 bg-surface-2 p-3" lines={1} />
+                <LoadingBlock className="h-16 rounded-xl border-0 bg-surface-2 p-3" lines={1} />
               </div>
             </div>
           ) : null}
           {selectedStudentIndexItem ? (
-            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
+            <div className="rounded-xl bg-info-soft px-4 py-3 text-sm text-info-soft-foreground">
               Selected:{" "}
               <span className="font-semibold">
                 {selectedStudent?.fullName ?? selectedStudentIndexItem.fullName}
@@ -1032,7 +1032,7 @@ export function PaymentEntryClient({
 
 
       <section className="hidden md:flex md:h-[calc(100vh-140px)] md:min-h-[640px] md:flex-col md:gap-3">
-        <div className="sticky top-0 z-10 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="sticky top-0 z-10 rounded-lg border border-border bg-card p-3 shadow-sm">
           <div className="grid gap-2 lg:grid-cols-[180px_minmax(280px,1fr)_170px_170px_auto]">
             <select id="desktop-payment-class-id" value={selectedClassId} className={selectClassName} onChange={(event)=>handleClassChange(event.target.value, "desktop")}>
               <option value="">Class</option>{classOptions.map((classOption)=><option key={classOption.id} value={classOption.id}>{classOption.label}</option>)}
@@ -1040,8 +1040,8 @@ export function PaymentEntryClient({
             <div ref={desktopStudentPickerRef} className="relative">
               <Input ref={desktopStudentSearchInputRef} role="combobox" aria-expanded={isStudentPickerOpen} aria-controls={desktopStudentListId} aria-activedescendant={activeStudentOptionIndex >= 0 ? `${desktopStudentListId}-option-${activeStudentOptionIndex}` : undefined} aria-autocomplete="list" placeholder="Search student" value={studentSearchQuery} onFocus={()=>{setActiveStudentPickerMode("desktop");setIsStudentPickerOpen(true);}} onChange={(event)=>{setActiveStudentPickerMode("desktop");setStudentSearchQuery(event.target.value);setIsStudentPickerOpen(true);setStudentListScrollTop(0);setActiveStudentOptionIndex(0);}} />
               {isStudentPickerOpen ? (
-                <div id={desktopStudentListId} role="listbox" ref={desktopStudentListRef} className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-md border border-slate-200 bg-white shadow-lg" style={{ height: `${studentComboboxPanelHeight}px` }} onScroll={(event) => setStudentListScrollTop(event.currentTarget.scrollTop)}>
-                  {filteredStudents.length === 0 ? <p className="px-3 py-3 text-sm text-slate-600">No matching students.</p> : <div style={{ paddingTop: topVisibleOffset, paddingBottom: bottomVisibleOffset }}>{visibleStudentOptions.map((student,index)=>{const optionIndex=firstVisibleStudentIndex+index;const label=buildStudentSelectLabel({ ...student, pendingAmount: null });const isActive=optionIndex===activeStudentOptionIndex;const isSelected=selectedStudentId===student.id;return <button key={student.id} id={`${desktopStudentListId}-option-${optionIndex}`} role="option" aria-selected={isSelected} type="button" className={`flex min-h-12 w-full items-center border-b border-slate-100 px-3 py-2 text-left text-sm last:border-b-0 ${isActive ? "bg-blue-50 text-blue-900" : "bg-white text-slate-800 hover:bg-slate-50"}`} onMouseDown={(event)=>event.preventDefault()} onClick={()=>selectStudent(student.id)}>{label}</button>;})}</div>}
+                <div id={desktopStudentListId} role="listbox" ref={desktopStudentListRef} className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-md border border-border bg-card shadow-lg" style={{ height: `${studentComboboxPanelHeight}px` }} onScroll={(event) => setStudentListScrollTop(event.currentTarget.scrollTop)}>
+                  {filteredStudents.length === 0 ? <p className="px-3 py-3 text-sm text-muted-foreground">No matching students.</p> : <div style={{ paddingTop: topVisibleOffset, paddingBottom: bottomVisibleOffset }}>{visibleStudentOptions.map((student,index)=>{const optionIndex=firstVisibleStudentIndex+index;const label=buildStudentSelectLabel({ ...student, pendingAmount: null });const isActive=optionIndex===activeStudentOptionIndex;const isSelected=selectedStudentId===student.id;return <button key={student.id} id={`${desktopStudentListId}-option-${optionIndex}`} role="option" aria-selected={isSelected} type="button" className={`flex min-h-12 w-full items-center border-b border-border px-3 py-2 text-left text-sm last:border-b-0 ${isActive ? "bg-info-soft text-info-soft-foreground" : "bg-card text-foreground hover:bg-surface-2"}`} onMouseDown={(event)=>event.preventDefault()} onClick={()=>selectStudent(student.id)}>{label}</button>;})}</div>}
                 </div>
               ) : null}
             </div>
@@ -1051,12 +1051,12 @@ export function PaymentEntryClient({
           </div>
         </div>
         <div className="grid min-h-0 flex-1 grid-cols-[minmax(320px,420px)_1fr] gap-3">
-          <div className="min-h-0 overflow-y-auto rounded-lg border border-slate-200 bg-white p-3 text-sm">
+          <div className="min-h-0 overflow-y-auto rounded-lg border border-border bg-card p-3 text-sm">
             <p className="mb-2 font-medium">Students</p>
-            <p className="text-xs text-slate-500">Select class, then pick student.</p>
-            {selectedStudentIndexItem ? <p className="mt-2 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs">Selected: {selectedStudent?.fullName ?? selectedStudentIndexItem.fullName}</p> : null}
+            <p className="text-xs text-muted-foreground">Select class, then pick student.</p>
+            {selectedStudentIndexItem ? <p className="mt-2 rounded bg-info-soft px-2 py-1 text-xs text-info-soft-foreground">Selected: {selectedStudent?.fullName ?? selectedStudentIndexItem.fullName}</p> : null}
           </div>
-          <div className="min-h-0 overflow-y-auto rounded-lg border border-slate-200 bg-white p-3">
+          <div className="min-h-0 overflow-y-auto rounded-lg border border-border bg-card p-3">
             <div className="mb-2 flex gap-2 text-sm">
               <button type="button" className={desktopTabButtonClass(desktopPanelTab === "collect")} onClick={()=>setDesktopPanelTab("collect")}>Collect</button>
               <button type="button" className={desktopTabButtonClass(desktopPanelTab === "dues")} onClick={()=>setDesktopPanelTab("dues")}>Dues Details</button>
@@ -1065,7 +1065,7 @@ export function PaymentEntryClient({
             </div>
             {desktopPanelTab === "collect" ? (
               <div className="space-y-3 text-sm">
-                <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                <div className="rounded-md border border-border bg-surface-2 px-3 py-2">
                   <p className="font-semibold">{selectedStudent?.fullName ?? "Select student"}</p>
                   <p>Class: {selectedStudent?.classLabel ?? "-"} · SR {selectedStudent?.admissionNo ?? "-"}</p>
                   <p>Pending: {formatInr(previewTotalPending)} · Late fee: {formatInr(pendingLateFeeAmount)}</p>
@@ -1074,7 +1074,7 @@ export function PaymentEntryClient({
                   <Input placeholder="Amount received" inputMode="decimal" enterKeyHint="done" autoCapitalize="off" autoCorrect="off" value={paymentAmountInput} onChange={(event)=>setPaymentAmountInput(event.target.value)} />
                   <Input placeholder="Additional discount / concession" inputMode="decimal" enterKeyHint="next" value={quickDiscountInput} onChange={(event)=>setQuickDiscountInput(event.target.value)} />
                 </div>
-                <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2">
+                <label className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2">
                   <input type="checkbox" checked={waiveFullLateFee} disabled={pendingLateFeeAmount <= 0} onChange={(event)=>setWaiveFullLateFee(event.target.checked)} />
                   <span>Waive full pending late fee ({formatInr(pendingLateFeeAmount)})</span>
                 </label>
@@ -1083,7 +1083,7 @@ export function PaymentEntryClient({
                   <Input placeholder="Received by" enterKeyHint="next" autoComplete="name" value={receivedBy} onChange={(event)=>setReceivedBy(event.target.value)} />
                 </div>
                 <Textarea className={textAreaClassName} placeholder="Remarks" enterKeyHint="done" value={remarks} onChange={(event)=>setRemarks(event.target.value)} />
-                <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 sm:grid-cols-2">
+                <div className="grid gap-2 rounded-md border border-border bg-surface-2 px-3 py-2 text-xs text-foreground sm:grid-cols-2">
                   <span>Pending before discount: {formatInr(previewTotalPending)}</span>
                   <span>Late fee waived: {formatInr(quickLateFeeWaiverAmount)}</span>
                   <span>Discount/concession: {formatInr(quickDiscountAmount)}</span>
@@ -1094,9 +1094,9 @@ export function PaymentEntryClient({
                 <Button type="button" className="w-full" disabled={confirmDisabled} onClick={openConfirmationDialog}>Confirm Payment</Button>
               </div>
             ) : null}
-            {desktopPanelTab === "dues" ? <div className="text-sm"><p className="mb-2 font-medium">Installment breakdown</p><p className="text-xs text-slate-600">Preview allocated: {formatInr(allocatedPreviewTotal)} · Unallocated: {formatInr(unallocatedAmount)}</p></div> : null}
-            {desktopPanelTab === "receipt" ? <div className="text-sm">{latestPayment ? <><p>Latest receipt number: {latestPayment.receiptNumber}</p><p>Payment date: {latestPayment.paymentDate}</p><p>Amount: {formatInr(latestPayment.totalAmount)}</p><Link className="text-blue-700 underline" href={`/protected/receipts/${latestPayment.id}`}>Open/Print receipt</Link></> : <p>No recent receipt.</p>}</div> : null}
-            {desktopPanelTab === "notes" ? <div className="space-y-2 text-sm"><p>Remarks</p><textarea className={textAreaClassName} value={remarks} onChange={(event)=>setRemarks(event.target.value)} /><p className="text-xs text-slate-500">Reference helper: keep UPI/bank/cheque reference for reconciliation.</p>{canViewDiagnostics ? <p className="text-xs text-slate-500">Diagnostics visible for admin only.</p> : null}</div> : null}
+            {desktopPanelTab === "dues" ? <div className="text-sm"><p className="mb-2 font-medium">Installment breakdown</p><p className="text-xs text-muted-foreground">Preview allocated: {formatInr(allocatedPreviewTotal)} · Unallocated: {formatInr(unallocatedAmount)}</p></div> : null}
+            {desktopPanelTab === "receipt" ? <div className="text-sm">{latestPayment ? <><p>Latest receipt number: {latestPayment.receiptNumber}</p><p>Payment date: {latestPayment.paymentDate}</p><p>Amount: {formatInr(latestPayment.totalAmount)}</p><Link className="text-accent underline-offset-4 hover:underline" href={`/protected/receipts/${latestPayment.id}`}>Open/Print receipt</Link></> : <p>No recent receipt.</p>}</div> : null}
+            {desktopPanelTab === "notes" ? <div className="space-y-2 text-sm"><p>Remarks</p><textarea className={textAreaClassName} value={remarks} onChange={(event)=>setRemarks(event.target.value)} /><p className="text-xs text-muted-foreground">Reference helper: keep UPI/bank/cheque reference for reconciliation.</p>{canViewDiagnostics ? <p className="text-xs text-muted-foreground">Diagnostics visible for admin only.</p> : null}</div> : null}
           </div>
         </div>
       </section>
@@ -1115,7 +1115,7 @@ export function PaymentEntryClient({
           title="Choose a student to continue"
           description="Dues, installment breakup, and the payment form will appear after a student is selected."
         >
-          <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          <p className="rounded-lg border border-dashed border-border-strong bg-surface-2 px-4 py-3 text-sm text-muted-foreground">
             Search by SR no, student name, phone number, or receipt number, then continue with that student.
           </p>
         </SectionCard>
@@ -1144,13 +1144,13 @@ export function PaymentEntryClient({
             </SectionCard>
           ) : null}
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm text-foreground">
             {data.policyNote}
           </div>
 
 
           {selectedStudent && (creditBalance > 0 || selectedStudent.rowsKeptForReview > 0) ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <div className="rounded-xl bg-warning-soft px-4 py-3 text-sm text-warning-soft-foreground">
               {creditBalance > 0 ? (
                 <p className="font-semibold">
                   Amount to refund/adjust: {formatInr(refundableAmount || creditBalance)}
@@ -1176,7 +1176,7 @@ export function PaymentEntryClient({
             actions={<ValueStatePill tone="locked">Receipt saved after posting</ValueStatePill>}
           >
             {!canPost ? (
-              <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              <p className="rounded-lg border border-dashed border-border-strong bg-surface-2 px-4 py-3 text-sm text-muted-foreground">
                 {workflowGuard
                   ? workflowGuard.detail
                   : "You have view-only access for payment entry. Contact admin staff for posting access."}
@@ -1208,7 +1208,7 @@ export function PaymentEntryClient({
             >
               <ActionNotice state={visibleActionState} canViewDiagnostics={canViewDiagnostics} />
               {formError ? (
-                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                <div className="rounded-md bg-destructive-soft px-3 py-2 text-sm text-destructive-soft-foreground">
                   {formError}
                 </div>
               ) : null}
@@ -1220,16 +1220,16 @@ export function PaymentEntryClient({
                 <input type="hidden" name="clientRequestId" value={clientRequestId} />
 
                 {studentSummaryLoading ? (
-                  <p className="rounded-md border border-blue-100 bg-blue-50 px-2 py-1 text-xs text-blue-900">Loading dues...</p>
+                  <p className="rounded-md bg-info-soft px-2 py-1 text-xs text-info-soft-foreground">Loading dues...</p>
                 ) : null}
                 {selectedStudent ? (
-                  <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                    <p className="font-semibold text-slate-900">{selectedStudent.fullName} · SR {selectedStudent.admissionNo}</p>
+                  <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-xs text-foreground">
+                    <p className="font-semibold text-foreground">{selectedStudent.fullName} · SR {selectedStudent.admissionNo}</p>
                     <p>Pending: {formatInr(previewTotalPending)} · Overdue: {formatInr(previewOverdueAmount)}</p>
                     <p>
                       Next due: {previewNextDue ? `${previewNextDue.installmentLabel} (${formatInr(previewNextDue.outstandingAmount)})` : "No pending installment"}
                     </p>
-                    {creditBalance > 0 ? <p className="font-semibold text-amber-900">Credit/refund to adjust: {formatInr(refundableAmount || creditBalance)}</p> : null}
+                    {creditBalance > 0 ? <p className="font-semibold text-warning-soft-foreground">Credit/refund to adjust: {formatInr(refundableAmount || creditBalance)}</p> : null}
                   </div>
                 ) : null}
                 <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
@@ -1269,7 +1269,7 @@ export function PaymentEntryClient({
                         <button
                           key={presetAmount}
                           type="button"
-                          className="shrink-0 rounded-full bg-slate-100 px-4 py-1.5 text-sm font-medium text-slate-800 transition-colors active:bg-slate-200"
+                          className="shrink-0 rounded-full bg-surface-2 px-4 py-1.5 text-sm font-medium text-foreground transition-colors active:bg-surface-3"
                           onClick={() => {
                             setPaymentAmountInput(String(presetAmount));
                             setFormError(null);
@@ -1321,12 +1321,12 @@ export function PaymentEntryClient({
                       }}
                     />
                   </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 xl:col-span-2">
+                  <div className="rounded-lg border border-border bg-surface-2 px-3 py-2 xl:col-span-2">
                     <input type="hidden" name="quickLateFeeWaiverAmount" value={quickLateFeeWaiverAmount} />
-                    <label className="flex items-start gap-2 text-sm font-medium text-slate-900">
+                    <label className="flex items-start gap-2 text-sm font-medium text-foreground">
                       <input
                         type="checkbox"
-                        className="mt-1 size-4 rounded border-slate-300"
+                        className="mt-1 size-4 rounded border-border-strong"
                         checked={waiveFullLateFee}
                         disabled={pendingLateFeeAmount <= 0}
                         onChange={(event) => {
@@ -1336,7 +1336,7 @@ export function PaymentEntryClient({
                       />
                       <span>
                         Waive full pending late fee ({formatInr(pendingLateFeeAmount)})
-                        <span className="mt-1 block text-xs font-normal text-slate-500">
+                        <span className="mt-1 block text-xs font-normal text-muted-foreground">
                           Applies only to pending late fee.
                         </span>
                       </span>
@@ -1418,7 +1418,7 @@ export function PaymentEntryClient({
                           }
                         }}
                       />
-                      <p className="mt-1 text-[11px] text-slate-500">
+                      <p className="mt-1 text-[11px] text-muted-foreground">
                         Reference is useful for matching bank/UPI records.
                       </p>
                     </div>
@@ -1443,8 +1443,8 @@ export function PaymentEntryClient({
                   </div>
                 </div>
                 
-                <details className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                  <summary className="cursor-pointer text-sm font-medium text-slate-700">
+                <details className="rounded-lg border border-border bg-card px-3 py-2">
+                  <summary className="cursor-pointer text-sm font-medium text-foreground">
                     Remarks and allocation preview
                   </summary>
                 <div className="mt-3">
@@ -1463,14 +1463,14 @@ export function PaymentEntryClient({
                   />
                 </div>
 
-                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-sm font-semibold text-slate-900">Installment allocation preview</p>
+                <div className="mt-3 rounded-xl border border-border bg-surface-2 p-3">
+                  <p className="text-sm font-semibold text-foreground">Installment allocation preview</p>
                   {clientPreviewAmount && previewLoading ? (
-                    <p className="mt-2 inline-flex rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-900">
+                    <p className="mt-2 inline-flex rounded-full bg-info-soft px-2.5 py-1 text-[11px] font-medium text-info-soft-foreground">
                       Calculating... estimated amount {formatInr(clientPreviewAmount)}
                     </p>
                   ) : null}
-                  <p className="mt-1 text-xs text-slate-600">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     Amount is auto-allocated from oldest pending installment to newest. Final late fee and pending amount are recalculated for the selected payment date.
                   </p>
                   {previewNotice ? (
@@ -1478,8 +1478,8 @@ export function PaymentEntryClient({
                       aria-live="polite"
                       className={
                         previewUnavailable
-                          ? "mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
-                          : "mt-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-900"
+                          ? "mt-2 rounded-lg bg-warning-soft px-3 py-2 text-xs text-warning-soft-foreground"
+                          : "mt-2 rounded-lg bg-info-soft px-3 py-2 text-xs text-info-soft-foreground"
                       }
                     >
                       {previewNotice}
@@ -1487,7 +1487,7 @@ export function PaymentEntryClient({
                   ) : null}
 
                   {allocationPreview.length === 0 ? (
-                    <p className="mt-3 text-sm text-slate-600">
+                    <p className="mt-3 text-sm text-muted-foreground">
                       Enter a payment amount to preview allocation.
                     </p>
                   ) : (
@@ -1496,19 +1496,19 @@ export function PaymentEntryClient({
                         {allocationPreview.map((item, index) => (
                           <div
                             key={item.installmentId}
-                            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs animate-slide-up-fade"
+                            className="rounded-lg border border-border bg-card px-3 py-2 text-xs animate-slide-up-fade"
                             style={{ animationDelay: `${index * 40}ms` }}
                           >
-                            <p className="font-semibold text-slate-900">{item.installmentLabel}</p>
-                            <p className="text-slate-500">{item.dueDate}</p>
+                            <p className="font-semibold text-foreground">{item.installmentLabel}</p>
+                            <p className="text-muted-foreground">{item.dueDate}</p>
                             <p>Allocated: {formatInr(item.allocatedAmount)}</p>
                             <p>Remaining: {formatInr(item.outstandingAfter)}</p>
                           </div>
                         ))}
                       </div>
-                      <div className="mt-3 hidden overflow-x-auto rounded-lg border border-slate-200 bg-white md:block">
+                      <div className="mt-3 hidden overflow-x-auto rounded-lg border border-border bg-card md:block">
                       <table className="w-full min-w-[600px] text-left text-sm">
-                        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                        <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                           <tr>
                             <th className="px-3 py-2">Installment</th>
                             <th className="px-3 py-2">Due date</th>
@@ -1519,11 +1519,11 @@ export function PaymentEntryClient({
                         </thead>
                         <tbody>
                           {allocationPreview.map((item) => (
-                            <tr key={item.installmentId} className="border-t border-slate-100">
+                            <tr key={item.installmentId} className="border-t border-border">
                               <td className="px-3 py-2">{item.installmentLabel}</td>
                               <td className="px-3 py-2">{item.dueDate}</td>
                               <td className="px-3 py-2">{formatInr(item.outstandingBefore)}</td>
-                              <td className="px-3 py-2 font-medium text-slate-900">
+                              <td className="px-3 py-2 font-medium text-foreground">
                                 {formatInr(item.allocatedAmount)}
                               </td>
                               <td className="px-3 py-2">{formatInr(item.outstandingAfter)}</td>
@@ -1535,7 +1535,7 @@ export function PaymentEntryClient({
                     </>
                   )}
 
-                  <div className="mt-3 grid gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="mt-3 grid gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-foreground sm:grid-cols-2 lg:grid-cols-3">
                     <span>Pending before discount: {formatInr(previewTotalPending)}</span>
                     <span>Late fee pending: {formatInr(pendingLateFeeAmount)}</span>
                     <span>Late fee waived: {formatInr(quickLateFeeWaiverAmount)}</span>
@@ -1559,21 +1559,21 @@ export function PaymentEntryClient({
               </fieldset>
 
               {pending ? (
-                <div className="absolute inset-0 z-50 flex items-center justify-center rounded-xl bg-white/80 backdrop-blur-sm md:hidden">
-                  <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-center shadow-sm">
-                    <div className="mx-auto size-6 rounded-full border-2 border-slate-200 border-t-sky-600 animate-spin" />
-                    <p className="mt-2 text-sm font-medium text-slate-800">Processing payment...</p>
+                <div className="absolute inset-0 z-50 flex items-center justify-center rounded-xl bg-card/80 backdrop-blur-sm md:hidden">
+                  <div className="rounded-xl border border-border bg-card px-4 py-3 text-center shadow-sm">
+                    <div className="mx-auto size-6 rounded-full border-2 border-border border-t-accent animate-spin" />
+                    <p className="mt-2 text-sm font-medium text-foreground">Processing payment...</p>
                   </div>
                 </div>
               ) : null}
 
               {selectedStudent ? (
                 <div
-                  className="fixed inset-x-0 z-40 border-t border-slate-200 bg-white/95 p-2 shadow-[0_-8px_24px_rgba(15,23,42,0.12)] backdrop-blur md:hidden mobile-safe-bottom-padding"
+                  className="fixed inset-x-0 z-40 border-t border-border bg-card/95 p-2 shadow-[0_-8px_24px_rgba(15,23,42,0.12)] backdrop-blur md:hidden mobile-safe-bottom-padding"
                   style={{ bottom: "var(--mobile-bottom-nav-offset)" }}
                 >
-                  <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-slate-600">
-                    <span className="truncate font-medium text-slate-900">{selectedStudent.fullName}</span>
+                  <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                    <span className="truncate font-medium text-foreground">{selectedStudent.fullName}</span>
                     <span className="shrink-0">Net {formatInr(netPayable)}</span>
                   </div>
                   <div className="grid grid-cols-[1fr_1fr] gap-2">
@@ -1632,7 +1632,7 @@ export function PaymentEntryClient({
                         setFormError(null);
                       }}
                     />
-                    <label className="col-span-2 flex min-h-9 items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-2 text-xs font-medium text-slate-900">
+                    <label className="col-span-2 flex min-h-9 items-center justify-between rounded-md border border-border bg-surface-2 px-2 text-xs font-medium text-foreground">
                       <span>Waive late fee {formatInr(pendingLateFeeAmount)}</span>
                       <input
                         type="checkbox"
@@ -1678,7 +1678,7 @@ export function PaymentEntryClient({
                       />
                     ) : null}
                   </div>
-                  <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-slate-50 px-2 py-1 text-[11px] text-slate-600">
+                  <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-surface-2 px-2 py-1 text-[11px] text-muted-foreground">
                     <span>Pending {formatInr(previewTotalPending)}</span>
                     <span>Amount {paymentAmountInput ? formatInr(paymentAmount) : "Not entered"}</span>
                   </div>
@@ -1694,17 +1694,17 @@ export function PaymentEntryClient({
               ) : null}
 
               {isConfirmOpen && confirmationSummary ? (
-                <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 px-2 md:items-center md:px-4">
-                  <div className="max-h-[92vh] w-full animate-bottom-sheet-up overflow-y-auto rounded-t-2xl border border-slate-200 bg-slate-100 p-2 pb-[calc(0.5rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-4xl md:rounded-xl md:p-4">
-                    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div className="border-b border-dashed border-slate-300 pb-3 text-center">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 px-2 md:items-center md:px-4">
+                  <div className="max-h-[92vh] w-full anim-slide-up overflow-y-auto rounded-t-2xl border border-border bg-surface-2 p-2 pb-[calc(0.5rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-4xl md:rounded-xl md:p-4">
+                    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                    <div className="border-b border-dashed border-border-strong pb-3 text-center">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                         Shri Veer Patta Senior Secondary School
                       </p>
-                      <h2 className="mt-1 text-xl font-semibold text-slate-950">Receipt Preview</h2>
-                      <p className="text-sm text-slate-600">Confirm Payment</p>
+                      <h2 className="mt-1 text-xl font-semibold text-foreground">Receipt Preview</h2>
+                      <p className="text-sm text-muted-foreground">Confirm Payment</p>
                     </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm lg:grid-cols-4">
+                    <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg border border-border bg-surface-2 px-3 py-3 text-sm lg:grid-cols-4">
                       <span>Student name: {confirmationSummary.studentName}</span>
                       <span>SR no: {confirmationSummary.admissionNo}</span>
                       <span>Class: {confirmationSummary.classLabel}</span>
@@ -1714,17 +1714,17 @@ export function PaymentEntryClient({
                       <span>Reference number: {confirmationSummary.referenceNumber ?? "Not entered"}</span>
                       <span>Received by: {confirmationSummary.receivedBy}</span>
                     </div>
-                    <div className="mt-3 grid gap-2 rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm sm:grid-cols-2 lg:grid-cols-6">
+                    <div className="mt-3 grid gap-2 rounded-lg border border-border bg-card px-3 py-3 text-sm sm:grid-cols-2 lg:grid-cols-6">
                       <span>Pending before discount: {formatInr(confirmationSummary.pendingBeforeDiscount)}</span>
                       <span>Discount/concession: {formatInr(confirmationSummary.quickDiscountApplied)}</span>
                       <span>Late fee waived: {confirmationSummary.lateFeeWaivedApplied > 0 ? formatInr(confirmationSummary.lateFeeWaivedApplied) : "No late fee waived"}</span>
                       <span>Net payable: {formatInr(confirmationSummary.revisedPendingBeforePayment)}</span>
-                      <span className="font-semibold text-slate-950">Amount received: {formatInr(confirmationSummary.amount)}</span>
+                      <span className="font-semibold text-foreground">Amount received: {formatInr(confirmationSummary.amount)}</span>
                       <span>Remaining balance: {formatInr(confirmationSummary.remainingBalance)}</span>
                     </div>
-                    <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200">
+                    <div className="mt-3 overflow-x-auto rounded-lg border border-border">
                       <table className="w-full min-w-[760px] text-left text-xs md:text-sm">
-                        <thead className="bg-slate-100 text-[11px] uppercase tracking-wide text-slate-600">
+                        <thead className="bg-surface-2 text-[11px] uppercase tracking-wide text-muted-foreground">
                           <tr>
                             <th className="px-3 py-2">Installment</th>
                             <th className="px-3 py-2">Due date</th>
@@ -1737,23 +1737,23 @@ export function PaymentEntryClient({
                         </thead>
                         <tbody>
                           {receiptPreviewAllocation.map((item) => (
-                            <tr key={item.installmentId} className="border-t border-slate-100">
+                            <tr key={item.installmentId} className="border-t border-border">
                               <td className="px-3 py-2">{item.installmentLabel}</td>
                               <td className="px-3 py-2">{item.dueDate}</td>
                               <td className="px-3 py-2">{formatInr(item.pendingBefore)}</td>
                               <td className="px-3 py-2">{formatInr(item.discountApplied)}</td>
                               <td className="px-3 py-2">{formatInr(item.lateFeeWaived)}</td>
-                              <td className="px-3 py-2 font-medium text-slate-900">{formatInr(item.amountReceived)}</td>
+                              <td className="px-3 py-2 font-medium text-foreground">{formatInr(item.amountReceived)}</td>
                               <td className="px-3 py-2">{formatInr(item.remaining)}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
-                    <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    <p className="mt-3 rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground">
                       This will save an official receipt. Posted receipts stay in history.
                     </p>
-                    <div className="sticky bottom-0 mt-4 flex justify-end gap-2 border-t border-dashed border-slate-300 bg-white pt-3 mobile-safe-bottom-padding">
+                    <div className="sticky bottom-0 mt-4 flex justify-end gap-2 border-t border-dashed border-border-strong bg-card pt-3 mobile-safe-bottom-padding">
                       <Button
                         type="button"
                         variant="outline"
@@ -1772,22 +1772,22 @@ export function PaymentEntryClient({
               ) : null}
 
               {isSuccessOpen && visibleActionState.status === "success" && visibleReceiptHref && selectedStudent ? (
-                <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 px-2 md:items-center md:px-4">
-                  <div className="max-h-[92vh] w-full animate-bottom-sheet-up overflow-y-auto rounded-t-2xl border border-emerald-200 bg-white p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-xl md:rounded-xl md:p-5">
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 px-2 md:items-center md:px-4">
+                  <div className="max-h-[92vh] w-full anim-slide-up animate-bottom-sheet-up overflow-y-auto rounded-t-2xl border border-success/30 bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-xl md:rounded-xl md:p-5">
                     <div className="mb-2 flex items-center gap-2">
-                      <span className="inline-flex size-7 animate-pop-in animate-success-check items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                      <span className="inline-flex size-7 anim-scale-in animate-success-check items-center justify-center rounded-full bg-success-soft text-success-soft-foreground">
                         ✓
                       </span>
-                      <h2 className="text-lg font-semibold text-slate-950">Payment Successful</h2>
+                      <h2 className="text-lg font-semibold text-foreground">Payment Successful</h2>
                     </div>
-                    <p className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+                    <p className="mt-2 rounded-lg bg-success-soft px-3 py-2 text-sm text-success-soft-foreground">
                       Receipt has been saved.
                     </p>
-                    <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    <div className="mt-4 rounded-xl border border-border bg-surface-2 px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                         Receipt No
                       </p>
-                      <p className="mt-1 break-all text-2xl font-semibold text-slate-950">
+                      <p className="mt-1 break-all text-2xl font-semibold text-foreground">
                         {visibleActionState.receiptNumber}
                       </p>
                     </div>
@@ -1811,7 +1811,7 @@ export function PaymentEntryClient({
                         <span>Credit/refund state: {formatInr(refundableAmount || creditBalance)} to adjust/refund</span>
                       ) : null}
                     </div>
-                    <div className="sticky bottom-0 mt-5 flex flex-wrap justify-end gap-2 border-t border-slate-100 bg-white pt-3 mobile-safe-bottom-padding">
+                    <div className="sticky bottom-0 mt-5 flex flex-wrap justify-end gap-2 border-t border-border bg-card pt-3 mobile-safe-bottom-padding">
                       {printReceiptHref ? (
                         <Button asChild variant="outline">
                           <Link href={printReceiptHref} target="_blank">Print Receipt</Link>
@@ -1841,13 +1841,13 @@ export function PaymentEntryClient({
               ) : null}
 
               {isDuplicateOpen && visibleActionState.status === "duplicate" && visibleActionState.receiptId ? (
-                <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 px-2 md:items-center md:px-4">
-                  <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl border border-amber-200 bg-white p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-lg md:rounded-xl md:p-5">
-                    <h2 className="text-lg font-semibold text-slate-950">
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 px-2 md:items-center md:px-4">
+                  <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl border border-warning/30 bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-lg md:rounded-xl md:p-5">
+                    <h2 className="text-lg font-semibold text-foreground">
                       Similar payment already recorded
                     </h2>
-                    <p className="mt-3 text-sm text-slate-700">{visibleActionState.message}</p>
-                    <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    <p className="mt-3 text-sm text-foreground">{visibleActionState.message}</p>
+                    <p className="mt-3 rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground">
                       Latest receipt: {visibleActionState.receiptNumber}
                     </p>
                     <div className="mt-5 flex flex-wrap justify-end gap-2">
@@ -1866,11 +1866,11 @@ export function PaymentEntryClient({
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             {studentSummaryLoading && !selectedStudent ? (
               <>
-                <LoadingBlock className="h-24 rounded-2xl bg-slate-50" lines={1} />
-                <LoadingBlock className="h-24 rounded-2xl bg-slate-50" lines={1} />
-                <LoadingBlock className="h-24 rounded-2xl bg-slate-50" lines={1} />
-                <LoadingBlock className="h-24 rounded-2xl bg-slate-50" lines={1} />
-                <LoadingBlock className="h-24 rounded-2xl bg-slate-50" lines={1} />
+                <LoadingBlock className="h-24 rounded-2xl bg-surface-2" lines={1} />
+                <LoadingBlock className="h-24 rounded-2xl bg-surface-2" lines={1} />
+                <LoadingBlock className="h-24 rounded-2xl bg-surface-2" lines={1} />
+                <LoadingBlock className="h-24 rounded-2xl bg-surface-2" lines={1} />
+                <LoadingBlock className="h-24 rounded-2xl bg-surface-2" lines={1} />
               </>
             ) : selectedStudent ? (
               <>
@@ -1923,36 +1923,36 @@ export function PaymentEntryClient({
           >
             <div className="space-y-3 md:hidden">
               {studentSummaryLoading && selectedStudent ? (
-                <div className="overflow-hidden rounded-full bg-slate-100" aria-live="polite">
-                  <div className="h-1 w-1/3 rounded-full bg-sky-500 animate-loading-bar" />
+                <div className="overflow-hidden rounded-full bg-surface-2" aria-live="polite">
+                  <div className="h-1 w-1/3 rounded-full bg-accent anim-route-progress" />
                 </div>
               ) : null}
               {previewBreakdown.map((item, index) => (
                 <div
                   key={item.installmentId}
-                  className="rounded-xl border border-slate-200 bg-white p-3 text-sm animate-slide-up-fade"
+                  className="rounded-xl border border-border bg-card p-3 text-sm animate-slide-up-fade"
                   style={{ animationDelay: `${index * 40}ms` }}
                 >
                   <div className="flex items-center justify-between">
-                    <p className="font-semibold text-slate-900">{item.installmentLabel}</p>
+                    <p className="font-semibold text-foreground">{item.installmentLabel}</p>
                     <ValueStatePill tone={item.balanceStatus === "paid" ? "locked" : item.balanceStatus === "partial" || item.balanceStatus === "overdue" ? "review" : "calculated"} className="normal-case tracking-normal">
                       {item.balanceStatus}
                     </ValueStatePill>
                   </div>
-                  <p className="mt-1 text-xs text-slate-500">Due {item.dueDate}</p>
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                  <p className="mt-1 text-xs text-muted-foreground">Due {item.dueDate}</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                     <span>Base: {formatInr(item.amountDue - item.finalLateFee)}</span>
                     <span>Late: {formatInr(item.finalLateFee)}</span>
                     <span>Paid: {formatInr(item.paymentsTotal)}</span>
                     <span>Adj: {formatInr(item.adjustmentsTotal)}</span>
                   </div>
-                  <p className="mt-2 text-sm font-semibold text-slate-950">Outstanding: {formatInr(item.outstandingAmount)}</p>
+                  <p className="mt-2 text-sm font-semibold text-foreground">Outstanding: {formatInr(item.outstandingAmount)}</p>
                 </div>
               ))}
             </div>
-            <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
+            <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
               <table className="w-full min-w-[760px] text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-4 py-3">Installment</th>
                     <th className="px-4 py-3">Due date</th>
@@ -1966,14 +1966,14 @@ export function PaymentEntryClient({
                 </thead>
                 <tbody>
                   {previewBreakdown.map((item) => (
-                    <tr key={item.installmentId} className="border-t border-slate-100 text-slate-700">
+                    <tr key={item.installmentId} className="border-t border-border text-foreground">
                       <td className="px-4 py-3">{item.installmentLabel}</td>
                       <td className="px-4 py-3">{item.dueDate}</td>
                       <td className="px-4 py-3">{formatInr(item.amountDue - item.finalLateFee)}</td>
                       <td className="px-4 py-3">{formatInr(item.finalLateFee)}</td>
                       <td className="px-4 py-3">{formatInr(item.paymentsTotal)}</td>
                       <td className="px-4 py-3">{formatInr(item.adjustmentsTotal)}</td>
-                      <td className="px-4 py-3 font-medium text-slate-900">
+                      <td className="px-4 py-3 font-medium text-foreground">
                         {formatInr(item.outstandingAmount)}
                       </td>
                       <td className="px-4 py-3 capitalize">
@@ -2005,23 +2005,23 @@ export function PaymentEntryClient({
         className="mobile-payment-cta-clearance md:pb-4"
       >
         <details className="md:hidden">
-          <summary className="cursor-pointer rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
+          <summary className="cursor-pointer rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-foreground">
             Show desk totals & recent receipts
           </summary>
           <div className="mt-3 grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+              <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                   Today&apos;s collection
                 </p>
-                <p className="mt-2 text-2xl font-semibold text-slate-950">
+                <p className="mt-2 text-2xl font-semibold text-foreground">
                   {formatInr(data.todayCollection.totalAmount)}
                 </p>
               </div>
             </div>
             <div className="space-y-2">
               {data.recentReceipts.length === 0 ? (
-                <p className="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-500">
+                <p className="rounded-xl border border-border bg-card p-3 text-sm text-muted-foreground">
                   No recent receipts yet.
                 </p>
               ) : (
@@ -2031,7 +2031,7 @@ export function PaymentEntryClient({
                   return (
                     <div
                       key={receipt.id}
-                      className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm animate-slide-up-fade"
+                      className="rounded-xl border border-border bg-card p-3 shadow-sm animate-slide-up-fade"
                       style={{ animationDelay: `${index * 35}ms` }}
                     >
                       <button
@@ -2040,18 +2040,18 @@ export function PaymentEntryClient({
                         onClick={() => setExpandedReceiptId(expanded ? null : receipt.id)}
                       >
                         <div className="flex items-center justify-between gap-3">
-                          <span className="font-semibold text-slate-950">{receipt.receiptNumber}</span>
-                          <span className="text-xs text-slate-500">{receipt.paymentDate}</span>
+                          <span className="font-semibold text-foreground">{receipt.receiptNumber}</span>
+                          <span className="text-xs text-muted-foreground">{receipt.paymentDate}</span>
                         </div>
                         <div className="mt-2 flex items-center justify-between gap-3">
-                          <span className="font-semibold text-emerald-700">{formatInr(receipt.totalAmount)}</span>
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                          <span className="font-semibold text-success-soft-foreground">{formatInr(receipt.totalAmount)}</span>
+                          <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                             {receipt.paymentMode}
                           </span>
                         </div>
                       </button>
                       {expanded ? (
-                        <div className="mt-3 space-y-2 border-t border-slate-100 pt-3 text-sm text-slate-600 animate-slide-up-fade">
+                        <div className="mt-3 space-y-2 border-t border-border pt-3 text-sm text-muted-foreground animate-slide-up-fade">
                           <p>{receipt.studentLabel}</p>
                           <div className="flex flex-wrap gap-2">
                             <Button asChild size="sm" variant="outline">
@@ -2072,20 +2072,20 @@ export function PaymentEntryClient({
         </details>
         <div className="hidden gap-4 lg:grid-cols-[0.8fr_1.2fr] md:grid">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+            <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 Today&apos;s collection
               </p>
-              <p className="mt-2 text-2xl font-semibold text-slate-950">
+              <p className="mt-2 text-2xl font-semibold text-foreground">
                 {formatInr(data.todayCollection.totalAmount)}
               </p>
-              <p className="mt-2 text-sm text-slate-600">
+              <p className="mt-2 text-sm text-muted-foreground">
                 {data.todayCollection.receiptCount} receipt
                 {data.todayCollection.receiptCount === 1 ? "" : "s"} posted today.
               </p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+            <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 Quick actions
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -2108,9 +2108,9 @@ export function PaymentEntryClient({
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full min-w-[640px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+              <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3">Receipt</th>
                   <th className="px-4 py-3">Student</th>
@@ -2121,14 +2121,14 @@ export function PaymentEntryClient({
               <tbody>
                 {data.recentReceipts.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-5 text-center text-slate-500">
+                    <td colSpan={4} className="px-4 py-5 text-center text-muted-foreground">
                       No recent receipts yet.
                     </td>
                   </tr>
                 ) : (
                   data.recentReceipts.map((receipt) => (
-                    <tr key={receipt.id} className="border-t border-slate-100">
-                      <td className="px-4 py-3 font-medium text-slate-900">{receipt.receiptNumber}</td>
+                    <tr key={receipt.id} className="border-t border-border">
+                      <td className="px-4 py-3 font-medium text-foreground">{receipt.receiptNumber}</td>
                       <td className="px-4 py-3">{receipt.studentLabel}</td>
                       <td className="px-4 py-3">{formatInr(receipt.totalAmount)}</td>
                       <td className="px-4 py-3">

@@ -29,8 +29,8 @@ function NoticeBlock({
     <div
       className={
         tone === "error"
-          ? "rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-          : "rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
+          ? "rounded-xl border bg-destructive-soft px-4 py-3 text-sm text-destructive-soft-foreground"
+          : "rounded-xl border bg-success-soft px-4 py-3 text-sm text-success-soft-foreground"
       }
     >
       {message}
@@ -72,7 +72,7 @@ export function StudentImportWorkflow({
       {notice ? <NoticeBlock message={notice} tone="success" /> : null}
       {error ? <NoticeBlock message={error} tone="error" /> : null}
 
-      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+      <div className="rounded-xl border bg-warning-soft px-4 py-3 text-sm leading-6 text-warning-soft-foreground">
         {mode === "update"
           ? "Bulk update matches by Student ID first and SR no second. Name alone is never used for automatic updates."
           : "Bulk add can generate temporary SR numbers. Use the downloaded template so class and route names match the app."}
@@ -86,11 +86,11 @@ export function StudentImportWorkflow({
         supportedFormats={data.supportedFormats}
       />
 
-      <details className="rounded-xl border border-slate-200 bg-white">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-900">
+      <details className="rounded-xl border border-border bg-card">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">
           Previous uploads and history
         </summary>
-        <div className="border-t border-slate-200 p-4">
+        <div className="border-t border-border p-4">
           <ImportDashboard recentBatches={data.recentBatches} selectedBatch={selectedBatch} />
         </div>
       </details>

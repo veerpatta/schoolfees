@@ -25,7 +25,7 @@ import {
 import { formatInr } from "@/lib/helpers/currency";
 
 const selectClassName =
-  "flex h-11 w-full rounded-xl border border-input/80 bg-white/88 px-3.5 py-2 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-[border-color,box-shadow,background-color] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-100 disabled:cursor-not-allowed disabled:opacity-50";
+  "flex h-11 w-full rounded-xl border border-input/80 bg-card/88 px-3.5 py-2 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-[border-color,box-shadow,background-color] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50";
 
 type SessionItem = {
   id: string;
@@ -236,10 +236,10 @@ function ActionNotice({
 
   const toneClassName =
     state.status === "error"
-      ? "border-red-200 bg-red-50 text-red-700"
+      ? "bg-destructive-soft text-destructive-soft-foreground"
       : state.status === "preview"
-        ? "border-blue-200 bg-blue-50 text-blue-700"
-        : "border-emerald-200 bg-emerald-50 text-emerald-700";
+        ? "bg-info-soft text-info-soft-foreground"
+        : "bg-success-soft text-success-soft-foreground";
 
   return (
     <div className={`rounded-2xl border px-4 py-3 text-sm ${toneClassName}`}>
@@ -323,12 +323,12 @@ function ChecklistItem({ done, label }: { done: boolean; label: string }) {
     <div
       className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium ${
         done
-          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-          : "border-slate-200 bg-white text-slate-600"
+          ? "bg-success-soft text-success-soft-foreground"
+          : "border-border bg-card text-muted-foreground"
       }`}
     >
       <span
-        className={`size-2 rounded-full ${done ? "bg-emerald-500" : "bg-slate-300"}`}
+        className={`size-2 rounded-full ${done ? "bg-success" : "bg-border-strong"}`}
       />
       {label}
     </div>
@@ -345,25 +345,25 @@ function AdvancedDetails({
   children: React.ReactNode;
 }) {
   return (
-    <details className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-      <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-slate-900">
+    <details className="overflow-hidden rounded-2xl border border-border bg-card">
+      <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-foreground">
         {title}
         {description ? (
-          <span className="mt-1 block text-xs font-normal leading-5 text-slate-500">
+          <span className="mt-1 block text-xs font-normal leading-5 text-muted-foreground">
             {description}
           </span>
         ) : null}
       </summary>
-      <div className="border-t border-slate-200 p-4">{children}</div>
+      <div className="border-t border-border p-4">{children}</div>
     </details>
   );
 }
 
 function ReviewMetric({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
-      <p className="text-xs font-medium text-slate-500">{label}</p>
-      <p className="mt-1 font-semibold text-slate-950">{value}</p>
+    <div className="rounded-xl border border-border bg-card px-4 py-3 text-sm">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="mt-1 font-semibold text-foreground">{value}</p>
     </div>
   );
 }
@@ -626,19 +626,19 @@ export function FeeSetupClient({
       <ActionNotice state={saveState} />
 
       {!canEdit ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+        <div className="rounded-2xl border bg-warning-soft px-4 py-3 text-sm leading-6 text-warning-soft-foreground">
           Only admins can change Fee Setup. Accountant and read-only staff can review the current
           and saved setup here.
         </div>
       ) : null}
 
       {previewDirty ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+        <div className="rounded-2xl border bg-warning-soft px-4 py-3 text-sm leading-6 text-warning-soft-foreground">
           Changes were made after preview. Preview again before publishing.
         </div>
       ) : null}
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="rounded-2xl border border-border bg-card p-4">
         <div className="flex flex-wrap gap-2">
           <ChecklistItem done={Boolean(selectedSessionLabel)} label="Academic year selected" />
           <ChecklistItem done={feeRulesEntered} label="Fee rules entered" />
@@ -687,7 +687,7 @@ export function FeeSetupClient({
           </div>
 
           {selectedSessionIsTest ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+            <div className="rounded-xl border bg-warning-soft px-4 py-3 text-sm leading-6 text-warning-soft-foreground">
               This is a test academic year. Do not mix real students or real payments into test
               records.
             </div>
@@ -696,7 +696,7 @@ export function FeeSetupClient({
           {canEdit ? (
             <div className="grid gap-4 xl:grid-cols-2">
               <form
-                className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                className="rounded-2xl border border-border bg-surface-2 p-4"
                 onSubmit={(event) => {
                   event.preventDefault();
                   const formData = new FormData(event.currentTarget);
@@ -705,7 +705,7 @@ export function FeeSetupClient({
                   });
                 }}
               >
-                <p className="text-sm font-semibold text-slate-950">Copy Previous Year</p>
+                <p className="text-sm font-semibold text-foreground">Copy Previous Year</p>
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   <div>
                     <Label htmlFor="source-session-label">Copy from</Label>
@@ -741,7 +741,7 @@ export function FeeSetupClient({
               </form>
 
               <form
-                className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                className="rounded-2xl border border-border bg-surface-2 p-4"
                 onSubmit={(event) => {
                   event.preventDefault();
                   const formData = new FormData(event.currentTarget);
@@ -750,7 +750,7 @@ export function FeeSetupClient({
                   });
                 }}
               >
-                <p className="text-sm font-semibold text-slate-950">Create New Year</p>
+                <p className="text-sm font-semibold text-foreground">Create New Year</p>
                 <div className="mt-3">
                   <Label htmlFor="new-session-label">Academic year</Label>
                   <Input
@@ -777,9 +777,9 @@ export function FeeSetupClient({
             title="Advanced academic-year options"
             description="Old-year maintenance and saved setup details."
           >
-            <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
+            <div className="overflow-auto rounded-xl border border-border bg-card">
               <table className="w-full min-w-full text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-4 py-3">Session</th>
                     <th className="px-4 py-3">Status</th>
@@ -791,7 +791,7 @@ export function FeeSetupClient({
                 <tbody>
                   {sessionRows.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">
+                      <td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">
                         Create Academic Year
                       </td>
                     </tr>
@@ -803,7 +803,7 @@ export function FeeSetupClient({
                       );
 
                       return (
-                        <tr key={item.id} className="border-t border-slate-100 align-top">
+                        <tr key={item.id} className="border-t border-border align-top">
                           <td className="px-4 py-3">
                             <form
                               id={formId}
@@ -848,10 +848,10 @@ export function FeeSetupClient({
                               <option value="archived">Archived</option>
                             </select>
                           </td>
-                          <td className="px-4 py-3 text-slate-600">
+                          <td className="px-4 py-3 text-muted-foreground">
                             {snapshot ? (
                               <div className="space-y-1">
-                                <p className="font-medium text-slate-950">
+                                <p className="font-medium text-foreground">
                                   {snapshot.installmentCount} installments
                                 </p>
                                 <p>{snapshot.customFeeHeads.filter((head) => head.isActive).length} fee heads</p>
@@ -860,7 +860,7 @@ export function FeeSetupClient({
                               <span>No saved setup yet</span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-slate-600">
+                          <td className="px-4 py-3 text-muted-foreground">
                             {formatDateTime(snapshot?.updatedAt ?? item.updated_at)}
                           </td>
                           <td className="px-4 py-3">
@@ -938,8 +938,8 @@ export function FeeSetupClient({
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-slate-950">Installment Dates</p>
-                <p className="text-sm text-slate-600">These dates define this academic year&apos;s fee schedule.</p>
+                <p className="text-sm font-semibold text-foreground">Installment Dates</p>
+                <p className="text-sm text-muted-foreground">These dates define this academic year&apos;s fee schedule.</p>
               </div>
               {canEdit ? (
                 <Button type="button" variant="outline" onClick={addInstallmentDate}>
@@ -950,7 +950,7 @@ export function FeeSetupClient({
 
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {form.installmentDates.map((value, index) => (
-                <div key={`installment-${index}`} className="rounded-xl border border-slate-200 bg-white p-4">
+                <div key={`installment-${index}`} className="rounded-xl border border-border bg-card p-4">
                   <div className="flex items-center justify-between gap-3">
                     <Label htmlFor={`installment-date-${index}`}>Installment {index + 1}</Label>
                     {canEdit && form.installmentDates.length > 1 ? (
@@ -1029,11 +1029,11 @@ export function FeeSetupClient({
             </div>
           </div>
 
-          <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="space-y-4 rounded-xl border border-border bg-surface-2 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h3 className="text-sm font-semibold text-slate-950">Conventional Discounts</h3>
-                <p className="mt-1 text-sm text-slate-600">
+                <h3 className="text-sm font-semibold text-foreground">Conventional Discounts</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
                   Configure standard school policies. Student-specific approval is done from Students.
                 </p>
               </div>
@@ -1041,7 +1041,7 @@ export function FeeSetupClient({
             </div>
             <div className="grid gap-3 lg:grid-cols-3">
               {form.conventionalDiscountPolicies.map((policy) => (
-                <div key={policy.code} className="rounded-xl border border-slate-200 bg-white p-4">
+                <div key={policy.code} className="rounded-xl border border-border bg-card p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <Label htmlFor={`policy-name-${policy.code}`}>Policy name</Label>
@@ -1057,7 +1057,7 @@ export function FeeSetupClient({
                         disabled={!canEdit}
                       />
                     </div>
-                    <label className="mt-7 flex items-center gap-2 text-sm text-slate-700">
+                    <label className="mt-7 flex items-center gap-2 text-sm text-foreground">
                       <input
                         type="checkbox"
                         checked={policy.isActive}
@@ -1138,7 +1138,7 @@ export function FeeSetupClient({
             description="Most schools do not need this during normal yearly fee setup."
           >
             <div className="space-y-4">
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+              <div className="rounded-xl border bg-warning-soft px-4 py-3 text-sm leading-6 text-warning-soft-foreground">
                 Most schools do not need this during normal yearly fee setup. AY 2026-27 fee
                 calculation still uses tuition, transport, academic fee, and signed other adjustment.
               </div>
@@ -1148,13 +1148,13 @@ export function FeeSetupClient({
                 </Button>
               ) : null}
               {form.customFeeHeads.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+                <div className="rounded-xl border border-dashed border-border-strong bg-surface-2 px-4 py-6 text-sm text-muted-foreground">
                   No extra fee heads are configured for this session yet.
                 </div>
               ) : (
-                <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
+                <div className="overflow-auto rounded-xl border border-border bg-card">
                   <table className="w-full min-w-full text-left text-sm">
-                    <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                    <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                       <tr>
                         <th className="px-4 py-3">Fee Head Name</th>
                         <th className="px-4 py-3">Amount</th>
@@ -1170,7 +1170,7 @@ export function FeeSetupClient({
                     </thead>
                     <tbody>
                       {form.customFeeHeads.map((item) => (
-                        <tr key={item.rowId} className="border-t border-slate-100 align-top">
+                        <tr key={item.rowId} className="border-t border-border align-top">
                           <td className="px-4 py-3">
                             <Input
                               value={item.label}
@@ -1364,8 +1364,8 @@ export function FeeSetupClient({
           <ActionNotice state={classState} />
           <div className="space-y-3 md:hidden">
             {visibleClassRows.map((row) => (
-              <div key={`mobile-${selectedSessionLabel}-${row.label}`} className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="font-semibold text-slate-900">{row.label}</p>
+              <div key={`mobile-${selectedSessionLabel}-${row.label}`} className="rounded-xl border border-border bg-card p-3">
+                <p className="font-semibold text-foreground">{row.label}</p>
                 <Label className="mt-2 block" htmlFor={`class-fee-${row.label}`}>Annual tuition</Label>
                 <Input
                   id={`class-fee-${row.label}`}
@@ -1382,9 +1382,9 @@ export function FeeSetupClient({
               </div>
             ))}
           </div>
-          <div className="hidden overflow-auto rounded-xl border border-slate-200 bg-white md:block">
+          <div className="hidden overflow-auto rounded-xl border border-border bg-card md:block">
             <table className="w-full min-w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+              <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3">Class</th>
                   <th className="px-4 py-3">Annual Tuition Fee</th>
@@ -1393,14 +1393,14 @@ export function FeeSetupClient({
               <tbody>
                 {visibleClassRows.length === 0 ? (
                   <tr>
-                    <td colSpan={2} className="px-4 py-6 text-center text-sm text-slate-500">
+                    <td colSpan={2} className="px-4 py-6 text-center text-sm text-muted-foreground">
                       No classes found. Add classes from School Lists or First-time Setup.
                     </td>
                   </tr>
                 ) : (
                   visibleClassRows.map((row) => (
-                    <tr key={`${selectedSessionLabel}-${row.label}`} className="border-t border-slate-100">
-                      <td className="px-4 py-3 font-medium text-slate-950">{row.label}</td>
+                    <tr key={`${selectedSessionLabel}-${row.label}`} className="border-t border-border">
+                      <td className="px-4 py-3 font-medium text-foreground">{row.label}</td>
                       <td className="px-4 py-3">
                         <Input
                           type="number"
@@ -1426,7 +1426,7 @@ export function FeeSetupClient({
             <div className="space-y-4">
               {canEdit ? (
                 <form
-                  className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                  className="rounded-xl border border-border bg-surface-2 p-4"
                   onSubmit={(event) => {
                     event.preventDefault();
                     const formData = new FormData();
@@ -1463,9 +1463,9 @@ export function FeeSetupClient({
                 </form>
               ) : null}
 
-              <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
+              <div className="overflow-auto rounded-xl border border-border bg-card">
                 <table className="w-full min-w-full text-left text-sm">
-                  <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                  <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
                       <th className="px-4 py-3">Class Name</th>
                       <th className="px-4 py-3">Annual Tuition Fee</th>
@@ -1480,7 +1480,7 @@ export function FeeSetupClient({
                       const formId = row.classRecord ? `class-row-${row.classRecord.id}` : null;
 
                       return (
-                        <tr key={`${selectedSessionLabel}-${row.label}-advanced`} className="border-t border-slate-100 align-top">
+                        <tr key={`${selectedSessionLabel}-${row.label}-advanced`} className="border-t border-border align-top">
                           <td className="px-4 py-3">
                             {row.classRecord && formId ? (
                               <form
@@ -1509,8 +1509,8 @@ export function FeeSetupClient({
                               </form>
                             ) : (
                               <div>
-                                <p className="font-medium text-slate-950">{row.label}</p>
-                                <p className="mt-1 text-xs text-slate-500">Will be created on apply</p>
+                                <p className="font-medium text-foreground">{row.label}</p>
+                                <p className="mt-1 text-xs text-muted-foreground">Will be created on apply</p>
                               </div>
                             )}
                           </td>
@@ -1570,7 +1570,7 @@ export function FeeSetupClient({
                                   </Button>
                                 </>
                               ) : (
-                                <span className="text-xs text-slate-500">
+                                <span className="text-xs text-muted-foreground">
                                   Tuition will save when you publish.
                                 </span>
                               )}
@@ -1607,8 +1607,8 @@ export function FeeSetupClient({
           <ActionNotice state={routeState} />
           <div className="space-y-3 md:hidden">
             {visibleRouteRows.map((row) => (
-              <div key={`mobile-route-${row.routeName}`} className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="font-semibold text-slate-900">{row.routeName}</p>
+              <div key={`mobile-route-${row.routeName}`} className="rounded-xl border border-border bg-card p-3">
+                <p className="font-semibold text-foreground">{row.routeName}</p>
                 <Label className="mt-2 block" htmlFor={`route-fee-${row.routeName}`}>Annual transport fee</Label>
                 <Input
                   id={`route-fee-${row.routeName}`}
@@ -1622,15 +1622,15 @@ export function FeeSetupClient({
                   disabled={!canEdit}
                   className="mt-2"
                 />
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-muted-foreground">
                   Per installment {formatInr(Math.floor(row.annualFee / Math.max(form.installmentDates.length, 1)))}
                 </p>
               </div>
             ))}
           </div>
-          <div className="hidden overflow-auto rounded-xl border border-slate-200 bg-white md:block">
+          <div className="hidden overflow-auto rounded-xl border border-border bg-card md:block">
             <table className="w-full min-w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+              <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3">Route</th>
                   <th className="px-4 py-3">Annual Transport Fee</th>
@@ -1640,15 +1640,15 @@ export function FeeSetupClient({
               <tbody>
                 {visibleRouteRows.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="px-4 py-6 text-center text-sm text-slate-500">
+                    <td colSpan={3} className="px-4 py-6 text-center text-sm text-muted-foreground">
                       No transport routes found. Add routes from School Lists, or leave transport
                       blank if not used.
                     </td>
                   </tr>
                 ) : (
                   visibleRouteRows.map((row) => (
-                    <tr key={row.routeName} className="border-t border-slate-100">
-                      <td className="px-4 py-3 font-medium text-slate-950">{row.routeName}</td>
+                    <tr key={row.routeName} className="border-t border-border">
+                      <td className="px-4 py-3 font-medium text-foreground">{row.routeName}</td>
                       <td className="px-4 py-3">
                         <Input
                           type="number"
@@ -1660,7 +1660,7 @@ export function FeeSetupClient({
                           disabled={!canEdit}
                         />
                       </td>
-                      <td className="px-4 py-3 text-slate-700">
+                      <td className="px-4 py-3 text-foreground">
                         {formatInr(Math.floor(row.annualFee / Math.max(form.installmentDates.length, 1)))}
                       </td>
                     </tr>
@@ -1677,7 +1677,7 @@ export function FeeSetupClient({
             <div className="space-y-4">
               {canEdit ? (
                 <form
-                  className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                  className="rounded-xl border border-border bg-surface-2 p-4"
                   onSubmit={(event) => {
                     event.preventDefault();
                     const formData = new FormData();
@@ -1727,9 +1727,9 @@ export function FeeSetupClient({
                 </form>
               ) : null}
 
-              <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
+              <div className="overflow-auto rounded-xl border border-border bg-card">
                 <table className="w-full min-w-full text-left text-sm">
-                  <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                  <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
                       <th className="px-4 py-3">Route Name</th>
                       <th className="px-4 py-3">Code</th>
@@ -1744,7 +1744,7 @@ export function FeeSetupClient({
                       const formId = routeRecord ? `route-row-${routeRecord.id}` : null;
 
                       return (
-                        <tr key={`${row.routeName}-advanced`} className="border-t border-slate-100 align-top">
+                        <tr key={`${row.routeName}-advanced`} className="border-t border-border align-top">
                           <td className="px-4 py-3">
                             {routeRecord && formId ? (
                               <form
@@ -1775,12 +1775,12 @@ export function FeeSetupClient({
                               </form>
                             ) : (
                               <div>
-                                <p className="font-medium text-slate-950">{row.routeName}</p>
-                                <p className="mt-1 text-xs text-slate-500">Will be created on apply</p>
+                                <p className="font-medium text-foreground">{row.routeName}</p>
+                                <p className="mt-1 text-xs text-muted-foreground">Will be created on apply</p>
                               </div>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-slate-600">
+                          <td className="px-4 py-3 text-muted-foreground">
                             {routeRecord?.route_code ?? "-"}
                           </td>
                           <td className="px-4 py-3">{formatInr(row.annualFee)}</td>
@@ -1826,7 +1826,7 @@ export function FeeSetupClient({
                                   </Button>
                                 </>
                               ) : (
-                                <span className="text-xs text-slate-500">
+                                <span className="text-xs text-muted-foreground">
                                   Route fee will save when you publish.
                                 </span>
                               )}
@@ -1860,11 +1860,11 @@ export function FeeSetupClient({
           </div>
 
           {isSaving ? (
-            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-6 text-sm text-blue-700">
+            <div className="rounded-xl border bg-info-soft px-4 py-6 text-sm text-info-soft-foreground">
               Loading preview...
             </div>
           ) : preview ? (
-            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+            <div className="rounded-2xl border bg-info-soft p-4">
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <ReviewMetric label="Students affected" value={preview.studentsAffected} />
                 <ReviewMetric label="Dues rows changing" value={installmentChanges} />
@@ -1872,20 +1872,20 @@ export function FeeSetupClient({
                 <ReviewMetric label="Students in scope" value={preview.studentsInScope} />
               </div>
               <div className="mt-4">
-                <p className="text-sm font-semibold text-slate-950">Changed fields summary</p>
+                <p className="text-sm font-semibold text-foreground">Changed fields summary</p>
                 <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
                   {preview.changedFields.length === 0 ? (
-                    <div className="rounded-xl border border-blue-100 bg-white px-4 py-3 text-sm text-slate-600">
+                    <div className="rounded-xl border border-info/20 bg-card px-4 py-3 text-sm text-muted-foreground">
                       No changed fields in this preview.
                     </div>
                   ) : (
                     preview.changedFields.map((item) => (
                       <div
                         key={item.field}
-                        className="rounded-xl border border-blue-100 bg-white px-4 py-3 text-sm"
+                        className="rounded-xl border border-info/20 bg-card px-4 py-3 text-sm"
                       >
-                        <p className="font-medium text-slate-950">{item.label}</p>
-                        <p className="mt-1 text-xs leading-5 text-slate-600">
+                        <p className="font-medium text-foreground">{item.label}</p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
                           {item.beforeValue} {"->"} {item.afterValue}
                         </p>
                       </div>
@@ -1895,21 +1895,21 @@ export function FeeSetupClient({
               </div>
             </div>
           ) : saveState.status === "error" && saveState.message ? (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-6 text-sm text-red-700">
+            <div className="rounded-xl border bg-destructive-soft px-4 py-6 text-sm text-destructive-soft-foreground">
               {saveState.message}
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+            <div className="rounded-xl border border-dashed border-border-strong bg-surface-2 px-4 py-6 text-sm text-muted-foreground">
               Preview changes before publishing.
             </div>
           )}
 
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 pb-20 md:pb-4">
-            <p className="max-w-3xl text-sm leading-6 text-slate-600">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 pb-20 md:pb-4">
+            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
               Publishing updates future or unpaid dues only. Receipts stay saved in
               history, and paid or adjusted rows are kept for review.
             </p>
-            <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-slate-200 bg-white/95 p-3 backdrop-blur md:static md:border-0 md:bg-transparent md:p-0">
+            <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-border bg-card/95 p-3 backdrop-blur md:static md:border-0 md:bg-transparent md:p-0">
               {canEdit ? (
                 <>
                   <Button
@@ -1931,7 +1931,7 @@ export function FeeSetupClient({
                   ) : null}
                 </>
               ) : (
-                <p className="text-sm leading-6 text-slate-600">
+                <p className="text-sm leading-6 text-muted-foreground">
                   View-only users can review the setup. Only admins can publish changes.
                 </p>
               )}
@@ -1939,7 +1939,7 @@ export function FeeSetupClient({
           </div>
 
           {selectedPolicySnapshot?.id ? (
-            <p className="text-xs leading-5 text-slate-500">
+            <p className="text-xs leading-5 text-muted-foreground">
               Last saved fee setup: {formatDateTime(selectedPolicySnapshot.updatedAt ?? null)}
             </p>
           ) : null}

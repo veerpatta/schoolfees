@@ -1,5 +1,5 @@
-import { StatusBadge } from "@/components/admin/status-badge";
 import { LoadingBlock, LoadingProgress } from "@/components/ui/loading-skeleton";
+import { Badge } from "@/components/ui/badge";
 
 type RouteLoadingProps = {
   title: string;
@@ -15,21 +15,23 @@ export function RouteLoading({
   cards = 4,
 }: RouteLoadingProps) {
   return (
-    <div className="space-y-6">
-      <div className="rounded-[28px] border border-slate-200 bg-white/95 p-6 shadow-sm">
-        <StatusBadge label={badgeLabel} tone="neutral" />
-        <LoadingProgress className="mt-4 max-w-sm" label={title} />
-        <h2 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">
+    <div className="space-y-6 anim-fade-in">
+      <div className="space-y-3">
+        <Badge variant="neutral" dot="info">
+          {badgeLabel}
+        </Badge>
+        <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-foreground sm:text-2xl">
           {title}
         </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+        <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
           {description}
         </p>
+        <LoadingProgress className="max-w-sm" label={title} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         {Array.from({ length: cards }).map((_, index) => (
-          <LoadingBlock key={index} className="rounded-[24px] bg-white/80 p-5" />
+          <LoadingBlock key={index} />
         ))}
       </div>
     </div>

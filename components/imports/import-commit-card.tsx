@@ -52,26 +52,26 @@ export function ImportCommitCard({ batch, canManage, mode }: ImportCommitCardPro
     >
       <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
-            <p className="text-sm font-medium text-emerald-700">Ready to import</p>
-            <p className="mt-1 text-2xl font-semibold text-emerald-900">{batch.reviewSummary.readyToImportRows}</p>
+          <div className="rounded-xl border bg-success-soft px-4 py-3 text-center">
+            <p className="text-sm font-medium text-success-soft-foreground">Ready to import</p>
+            <p className="mt-1 text-2xl font-semibold text-success-soft-foreground">{batch.reviewSummary.readyToImportRows}</p>
           </div>
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-center">
-            <p className="text-sm font-medium text-amber-700">Pending decisions</p>
-            <p className="mt-1 text-2xl font-semibold text-amber-900">{batch.reviewSummary.pendingRows}</p>
+          <div className="rounded-xl border bg-warning-soft px-4 py-3 text-center">
+            <p className="text-sm font-medium text-warning-soft-foreground">Pending decisions</p>
+            <p className="mt-1 text-2xl font-semibold text-warning-soft-foreground">{batch.reviewSummary.pendingRows}</p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center">
-            <p className="text-sm font-medium text-slate-600">Already imported</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-900">{batch.importedRows}</p>
+          <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-center">
+            <p className="text-sm font-medium text-muted-foreground">Already imported</p>
+            <p className="mt-1 text-2xl font-semibold text-foreground">{batch.importedRows}</p>
           </div>
         </div>
 
         {safePendingRows > 0 && !isLocked ? (
-          <form action={handleApproveSafeRows} className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+          <form action={handleApproveSafeRows} className="rounded-xl border bg-info-soft px-4 py-3">
             <input type="hidden" name="batchId" value={batch.id} />
             <input type="hidden" name="importMode" value={mode} />
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm text-blue-900">
+              <p className="text-sm text-info-soft-foreground">
                 {safePendingRows} valid row{safePendingRows === 1 ? " is" : "s are"} pending. Approve all safe rows in one click.
               </p>
               <Button type="submit" size="sm" variant="outline" disabled={!canManage || approvingSafeRows}>
@@ -81,9 +81,9 @@ export function ImportCommitCard({ batch, canManage, mode }: ImportCommitCardPro
           </form>
         ) : null}
 
-        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-          <p className="font-semibold text-slate-900">What happens when you import:</p>
-          <ul className="mt-2 list-inside list-disc space-y-1 text-slate-600">
+        <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm text-foreground">
+          <p className="font-semibold text-foreground">What happens when you import:</p>
+          <ul className="mt-2 list-inside list-disc space-y-1 text-muted-foreground">
             <li>{approvedCreates} row{approvedCreates === 1 ? "" : "s"} will create new student records</li>
             <li>{approvedUpdates} row{approvedUpdates === 1 ? "" : "s"} will update existing students by Student ID or SR no</li>
             <li>Each imported student gets a permanent record linked back to this batch</li>
@@ -98,7 +98,7 @@ export function ImportCommitCard({ batch, canManage, mode }: ImportCommitCardPro
           <input type="hidden" name="batchId" value={batch.id} />
           <input type="hidden" name="importMode" value={mode} />
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-muted-foreground">
               {isLocked
                 ? batch.status === "completed"
                   ? "Students imported. Unresolved rows remain available for follow-up."

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Copy } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -23,8 +23,19 @@ export function CopyReminderButton({ text }: CopyReminderButtonProps) {
   }
 
   return (
-    <Button type="button" size="sm" variant="outline" onClick={handleCopy}>
-      <Copy className="size-3.5" />
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      onClick={handleCopy}
+      leadingIcon={
+        copied ? (
+          <Check className="size-3.5 text-success" />
+        ) : (
+          <Copy className="size-3.5" />
+        )
+      }
+    >
       {copied ? "Copied" : "Copy reminder"}
     </Button>
   );

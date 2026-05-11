@@ -47,7 +47,7 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
         title="Edit student"
         description={`Update student details and fee exceptions for ${student.fullName} (SR no ${student.admissionNo}).`}
         actions={
-          <Link className="text-sm font-medium text-slate-700 underline-offset-4 hover:underline" href={returnTo}>
+          <Link className="text-sm font-medium text-foreground underline-offset-4 hover:underline" href={returnTo}>
             Back to Students
           </Link>
         }
@@ -58,7 +58,7 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
         description="Keep record corrections and fee exceptions clear."
       >
         {hasSessionMismatch ? (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div className="mb-4 rounded-lg border bg-warning-soft px-4 py-3 text-sm text-warning-soft-foreground">
             This student is currently in {student.classSessionLabel || "another academic year"}, but Fee Setup is active for {resolvedSessionLabel}. Choose an active {resolvedSessionLabel} class before dues can be prepared.
           </div>
         ) : null}

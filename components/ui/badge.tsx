@@ -4,33 +4,95 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 text-xs font-medium leading-5",
   {
     variants: {
       variant: {
+        // Solid — strong emphasis (rare in this app)
         default:
-          "border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80",
+          "bg-primary text-primary-foreground",
         secondary:
-          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "bg-secondary text-secondary-foreground",
+        outline:
+          "border border-border bg-transparent text-foreground",
+        // Tonal — most common across the app
+        neutral:
+          "bg-surface-2 text-foreground",
+        accent:
+          "bg-accent-soft text-accent-soft-foreground",
+        success:
+          "bg-success-soft text-success-soft-foreground",
+        warning:
+          "bg-warning-soft text-warning-soft-foreground",
+        danger:
+          "bg-destructive-soft text-destructive-soft-foreground",
         destructive:
-          "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80",
-        outline: "text-foreground",
+          "bg-destructive text-destructive-foreground",
+        info:
+          "bg-info-soft text-info-soft-foreground",
       },
     },
     defaultVariants: {
-      variant: "default",
+      variant: "neutral",
     },
   },
 );
 
-export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {}
+type DotTone = "neutral" | "accent" | "success" | "warning" | "danger" | "info";
 
-function Badge({ className, variant, ...props }: BadgeProps) {
+const dotColors: Record<DotTone, string> = {
+  neutral: "bg-muted-foreground",
+  accent: "bg-accent",
+  success: "bg-success",
+  warning: "bg-warning",
+  danger: "bg-destructive",
+  info: "bg-info",
+};
+
+export interface BadgeProps
+  extends React.HTMLAttributes<HTMLSpanElement>,
+    VariantProps<typeof badgeVariants> {
+  /** Add a colored dot before the label. Pass a tone or `true` to infer from variant. */
+  dot?: boolean | DotTone;
+}
+
+function Badge({ className, variant, dot, children, ...props }: BadgeProps) {
+  const dotTone: DotTone | null =
+    dot === true
+      ? variantToDotTone(variant)
+      : dot
+        ? (dot as DotTone)
+        : null;
+
   return (
-    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+    <span className={cn(badgeVariants({ variant }), className)} {...props}>
+      {dotTone ? (
+        <span
+          className={cn("size-1.5 rounded-full", dotColors[dotTone])}
+          aria-hidden="true"
+        />
+      ) : null}
+      {children}
+    </span>
   );
+}
+
+function variantToDotTone(variant: BadgeProps["variant"]): DotTone {
+  switch (variant) {
+    case "accent":
+      return "accent";
+    case "success":
+      return "success";
+    case "warning":
+      return "warning";
+    case "danger":
+    case "destructive":
+      return "danger";
+    case "info":
+      return "info";
+    default:
+      return "neutral";
+  }
 }
 
 export { Badge, badgeVariants };

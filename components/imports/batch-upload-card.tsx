@@ -64,10 +64,10 @@ export function BatchUploadCard({
               type="file"
               accept=".csv,.xlsx"
               disabled={!canManage || submitting}
-              className="mt-2 block w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
+              className="mt-2 block w-full rounded-md border border-border px-3 py-2 text-sm text-foreground file:mr-3 file:rounded-md file:border-0 file:bg-foreground file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
               required
             />
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-muted-foreground">
               Supported formats: {supportedFormats.map((format) => format.toUpperCase()).join(", ")}. File size limit: 10 MB.
             </p>
           </div>
@@ -78,7 +78,7 @@ export function BatchUploadCard({
               name="sessionLabel"
               defaultValue={defaultSessionLabel}
               disabled={!canManage || submitting}
-              className="mt-2 block w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+              className="mt-2 block w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground"
               required={mode === "add"}
             >
               <option value="">Use current session</option>
@@ -88,7 +88,7 @@ export function BatchUploadCard({
                 </option>
               ))}
             </select>
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-muted-foreground">
               The selected session is stored with the batch and used for validation and dues generation.
             </p>
           </div>

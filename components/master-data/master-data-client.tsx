@@ -89,8 +89,8 @@ function ActionMessage({ state }: { state: MasterDataActionState }) {
     <div
       className={
         state.status === "error"
-          ? "rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-          : "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
+          ? "rounded-md border bg-destructive-soft px-3 py-2 text-sm text-destructive-soft-foreground"
+          : "rounded-md border bg-success-soft px-3 py-2 text-sm text-success-soft-foreground"
       }
     >
       {state.message}
@@ -207,16 +207,16 @@ export function MasterDataClient({
 
   return (
     <div className="space-y-8">
-      <section className="rounded-3xl border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur">
+      <section className="rounded-3xl border border-border bg-card/95 p-4 shadow-sm backdrop-blur">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
               Supporting lists overview
             </p>
-            <h2 className="mt-2 font-heading text-xl font-semibold text-slate-950">
+            <h2 className="mt-2 font-heading text-xl font-semibold text-foreground">
               Keep sessions, classes, routes, and fee catalogs moving fast
             </h2>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
               Use the compact controls below to add or adjust master data without losing the main
               fee setup workflow.
             </p>
@@ -241,31 +241,31 @@ export function MasterDataClient({
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-            Sessions: <strong className="text-slate-950">{sessions.length}</strong>
+          <div className="rounded-2xl border border-border bg-surface-2 px-4 py-3 text-sm text-foreground">
+            Sessions: <strong className="text-foreground">{sessions.length}</strong>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-            Classes: <strong className="text-slate-950">{classes.length}</strong>
+          <div className="rounded-2xl border border-border bg-surface-2 px-4 py-3 text-sm text-foreground">
+            Classes: <strong className="text-foreground">{classes.length}</strong>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-            Routes: <strong className="text-slate-950">{routes.length}</strong>
+          <div className="rounded-2xl border border-border bg-surface-2 px-4 py-3 text-sm text-foreground">
+            Routes: <strong className="text-foreground">{routes.length}</strong>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-            Fee heads: <strong className="text-slate-950">{feeHeads.length}</strong>
+          <div className="rounded-2xl border border-border bg-surface-2 px-4 py-3 text-sm text-foreground">
+            Fee heads: <strong className="text-foreground">{feeHeads.length}</strong>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-            Payment modes: <strong className="text-slate-950">{paymentModes.length}</strong>
+          <div className="rounded-2xl border border-border bg-surface-2 px-4 py-3 text-sm text-foreground">
+            Payment modes: <strong className="text-foreground">{paymentModes.length}</strong>
           </div>
         </div>
       </section>
 
-      <section id="master-data-sessions" className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 scroll-mt-24">
-        <h2 className="text-lg font-semibold text-slate-950">Academic Sessions</h2>
+      <section id="master-data-sessions" className="space-y-4 rounded-2xl border border-border bg-card p-4 scroll-mt-24">
+        <h2 className="text-lg font-semibold text-foreground">Academic Sessions</h2>
         <ActionMessage state={sessionCreateState} />
         <ActionMessage state={sessionUpdateState} />
         <ActionMessage state={sessionDeleteState} />
 
-        <form action={createSessionFormAction} className="grid gap-3 rounded-xl border border-slate-200 p-3 md:grid-cols-5">
+        <form action={createSessionFormAction} className="grid gap-3 rounded-xl border border-border p-3 md:grid-cols-5">
           <div className="md:col-span-2">
             <Label htmlFor="newSessionLabel">Session label</Label>
             <Input id="newSessionLabel" name="sessionLabel" placeholder="2026-27" className="mt-1" required />
@@ -290,13 +290,13 @@ export function MasterDataClient({
 
         <div className="max-h-[28rem] space-y-3 overflow-auto pr-1">
           {sessions.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+            <div className="rounded-xl border border-dashed border-border-strong bg-surface-2 px-4 py-6 text-sm text-muted-foreground">
               No academic sessions saved yet. Add the active session before configuring
               classes, fee defaults, or ledger generation.
             </div>
           ) : (
             sessions.map((session) => (
-              <div key={session.id} className="rounded-xl border border-slate-200 p-3">
+              <div key={session.id} className="rounded-xl border border-border p-3">
                 <form action={updateSessionFormAction} className="grid gap-3 md:grid-cols-5">
                   <input type="hidden" name="sessionId" value={session.id} />
                   <div className="md:col-span-2">
@@ -337,11 +337,11 @@ export function MasterDataClient({
       </section>
 
       <div className="grid gap-6 2xl:grid-cols-2">
-        <section id="master-data-classes" className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 scroll-mt-24">
+        <section id="master-data-classes" className="space-y-4 rounded-2xl border border-border bg-card p-4 scroll-mt-24">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-950">Classes</h2>
-            <p className="text-sm text-slate-600">
+            <h2 className="text-lg font-semibold text-foreground">Classes</h2>
+            <p className="text-sm text-muted-foreground">
               Search the class list, then edit rows inline. Delete actions stay on the same row.
             </p>
           </div>
@@ -354,7 +354,7 @@ export function MasterDataClient({
               placeholder="Class name, section, session"
               className="mt-1"
             />
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-muted-foreground">
               Showing {filteredClasses.length} of {classes.length} classes
             </p>
           </div>
@@ -363,7 +363,7 @@ export function MasterDataClient({
         <ActionMessage state={classUpdateState} />
         <ActionMessage state={classDeleteState} />
 
-        <form action={createClassFormAction} className="grid gap-3 rounded-xl border border-slate-200 p-3 md:grid-cols-6">
+        <form action={createClassFormAction} className="grid gap-3 rounded-xl border border-border p-3 md:grid-cols-6">
           <div>
             <Label>Session</Label>
             <select name="sessionLabel" className={selectClassName} required>
@@ -404,12 +404,12 @@ export function MasterDataClient({
 
         <div className="max-h-[32rem] space-y-3 overflow-auto pr-1">
           {filteredClasses.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+            <div className="rounded-xl border border-dashed border-border-strong bg-surface-2 px-4 py-6 text-sm text-muted-foreground">
               No matching classes found. Clear the search or add a new class row.
             </div>
           ) : (
             filteredClasses.map((item) => (
-              <div key={item.id} className="rounded-xl border border-slate-200 p-3">
+              <div key={item.id} className="rounded-xl border border-border p-3">
                 <form action={updateClassFormAction} className="grid gap-3 md:grid-cols-6">
                   <input type="hidden" name="classId" value={item.id} />
                   <div>
@@ -459,11 +459,11 @@ export function MasterDataClient({
         </div>
       </section>
 
-        <section id="master-data-routes" className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 scroll-mt-24">
+        <section id="master-data-routes" className="space-y-4 rounded-2xl border border-border bg-card p-4 scroll-mt-24">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-950">Transport Routes</h2>
-            <p className="text-sm text-slate-600">
+            <h2 className="text-lg font-semibold text-foreground">Transport Routes</h2>
+            <p className="text-sm text-muted-foreground">
               Search the route list, then edit route fee rows inline.
             </p>
           </div>
@@ -476,7 +476,7 @@ export function MasterDataClient({
               placeholder="Route code or route name"
               className="mt-1"
             />
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-muted-foreground">
               Showing {filteredRoutes.length} of {routes.length} routes
             </p>
           </div>
@@ -485,7 +485,7 @@ export function MasterDataClient({
         <ActionMessage state={routeUpdateState} />
         <ActionMessage state={routeDeleteState} />
 
-        <form action={createRouteFormAction} className="grid gap-3 rounded-xl border border-slate-200 p-3 md:grid-cols-5">
+        <form action={createRouteFormAction} className="grid gap-3 rounded-xl border border-border p-3 md:grid-cols-5">
           <div>
             <Label>Route code</Label>
             <Input name="routeCode" className="mt-1" />
@@ -514,12 +514,12 @@ export function MasterDataClient({
 
         <div className="max-h-[32rem] space-y-3 overflow-auto pr-1">
           {filteredRoutes.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+            <div className="rounded-xl border border-dashed border-border-strong bg-surface-2 px-4 py-6 text-sm text-muted-foreground">
               No matching routes found. Clear the search or add a new route row.
             </div>
           ) : (
             filteredRoutes.map((item) => (
-              <div key={item.id} className="rounded-xl border border-slate-200 p-3">
+              <div key={item.id} className="rounded-xl border border-border p-3">
                 <form action={updateRouteFormAction} className="grid gap-3 md:grid-cols-5">
                   <input type="hidden" name="routeId" value={item.id} />
                   <div>
@@ -571,23 +571,23 @@ export function MasterDataClient({
       </div>
 
       <div className="grid gap-6 2xl:grid-cols-2">
-        <section id="master-data-fee-heads" className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 scroll-mt-24">
+        <section id="master-data-fee-heads" className="space-y-4 rounded-2xl border border-border bg-card p-4 scroll-mt-24">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-950">Custom fee heads</h2>
-            <p className="text-sm text-slate-600">
+            <h2 className="text-lg font-semibold text-foreground">Custom fee heads</h2>
+            <p className="text-sm text-muted-foreground">
               Define the named fee-head catalog here, then use the live fee setup rows to assign
               amounts where needed.
             </p>
           </div>
-          <span className="text-xs uppercase tracking-[0.2em] text-slate-500">Editable</span>
+          <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Editable</span>
         </div>
 
         <ActionMessage state={feeHeadCreateState} />
         <ActionMessage state={feeHeadUpdateState} />
         <ActionMessage state={feeHeadDeleteState} />
 
-        <form action={createFeeHeadFormAction} className="flex flex-col gap-3 rounded-xl border border-slate-200 p-3 md:flex-row md:items-end">
+        <form action={createFeeHeadFormAction} className="flex flex-col gap-3 rounded-xl border border-border p-3 md:flex-row md:items-end">
           <div className="flex-1">
             <Label htmlFor="feeHeadLabel">Fee head label</Label>
             <Input id="feeHeadLabel" name="feeHeadLabel" className="mt-1" placeholder="Lab fee" required />
@@ -596,14 +596,14 @@ export function MasterDataClient({
         </form>
 
         {feeHeads.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+          <div className="rounded-xl border border-dashed border-border-strong bg-surface-2 px-4 py-6 text-sm text-muted-foreground">
             No custom fee heads are active right now. Add one above when the school needs an extra
             named fee type beyond tuition, transport, books, or admission/activity/misc.
           </div>
         ) : (
           <div className="space-y-3">
             {feeHeads.map((item) => (
-              <div key={item.id} className="rounded-xl border border-slate-200 p-3">
+              <div key={item.id} className="rounded-xl border border-border p-3">
                 <form action={updateFeeHeadFormAction} className="grid gap-3 md:grid-cols-[1fr_180px_auto] md:items-end">
                   <input type="hidden" name="feeHeadId" value={item.id} />
                   <div>
@@ -635,15 +635,15 @@ export function MasterDataClient({
         )}
       </section>
 
-        <section id="master-data-payment-modes" className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 scroll-mt-24">
+        <section id="master-data-payment-modes" className="space-y-4 rounded-2xl border border-border bg-card p-4 scroll-mt-24">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-950">Accepted payment modes</h2>
-            <p className="text-sm text-slate-600">
+            <h2 className="text-lg font-semibold text-foreground">Accepted payment modes</h2>
+            <p className="text-sm text-muted-foreground">
               Keep the accepted payment modes aligned with the live collection desk.
             </p>
           </div>
-          <span className="text-xs uppercase tracking-[0.2em] text-slate-500">Editable</span>
+          <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Editable</span>
         </div>
 
         <ActionMessage state={paymentModeState} />
@@ -653,13 +653,13 @@ export function MasterDataClient({
             <form
               key={item.value}
               action={setPaymentModeFormAction}
-              className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"
+              className="flex items-center justify-between gap-3 rounded-xl border border-border p-3"
             >
               <input type="hidden" name="paymentMode" value={item.value} />
               <input type="hidden" name="modeIsActive" value={item.isActive ? "no" : "yes"} />
               <div>
-                <p className="font-medium text-slate-900">{item.label}</p>
-                <p className="text-xs text-slate-500">{item.value}</p>
+                <p className="font-medium text-foreground">{item.label}</p>
+                <p className="text-xs text-muted-foreground">{item.value}</p>
               </div>
               <Button type="submit" variant="outline">
                 {item.isActive ? "Disable" : "Enable"}

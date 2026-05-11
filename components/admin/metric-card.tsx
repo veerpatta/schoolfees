@@ -1,23 +1,27 @@
 import { ReactNode } from "react";
 
+import { KpiCard } from "@/components/ui/kpi-card";
+
 type MetricCardProps = {
   title: string;
   value: ReactNode;
   hint?: ReactNode;
+  /** Optional accent rule on the left edge. */
+  accent?: "neutral" | "accent" | "success" | "warning" | "danger" | "info";
+  trailing?: ReactNode;
+  className?: string;
 };
 
-export function MetricCard({ title, value, hint }: MetricCardProps) {
+/** Backwards-compatible wrapper. New code should use `KpiCard` directly. */
+export function MetricCard({ title, value, hint, accent, trailing, className }: MetricCardProps) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-        {title}
-      </p>
-      <div className="mt-2 font-heading text-2xl font-semibold text-slate-950">
-        {value}
-      </div>
-      {hint ? (
-        <p className="mt-2 text-sm leading-6 text-slate-600">{hint}</p>
-      ) : null}
-    </div>
+    <KpiCard
+      label={title}
+      value={value}
+      hint={hint}
+      accent={accent}
+      trailing={trailing}
+      className={className}
+    />
   );
 }

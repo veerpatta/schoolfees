@@ -98,8 +98,8 @@ function ActionNotice({ state }: { state: SetupActionState }) {
 
   const toneClassName =
     state.status === "error"
-      ? "border-red-200 bg-red-50 text-red-700"
-      : "border-emerald-200 bg-emerald-50 text-emerald-700";
+      ? "bg-destructive-soft text-destructive-soft-foreground"
+      : "bg-success-soft text-success-soft-foreground";
 
   return (
     <div className={`rounded-md border px-3 py-2 text-sm ${toneClassName}`}>
@@ -109,7 +109,7 @@ function ActionNotice({ state }: { state: SetupActionState }) {
 }
 
 function SectionHint({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs text-slate-500">{children}</p>;
+  return <p className="text-xs text-muted-foreground">{children}</p>;
 }
 
 function useRefreshOnSuccess(states: SetupActionState[]) {
@@ -277,7 +277,7 @@ export function SetupWizardClient({
         <form id="session-policy" action={policyFormAction} className="space-y-5">
           <ActionNotice state={policyState} />
           {data.setupLocked ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950">
+            <div className="rounded-xl border bg-warning-soft px-4 py-4 text-sm text-warning-soft-foreground">
               Initial setup is already marked complete. Use{" "}
               <Link href="/protected/fee-setup" className="font-semibold underline">
                 Fee Setup
@@ -458,7 +458,7 @@ export function SetupWizardClient({
                 return (
                   <label
                     key={option.value}
-                    className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                    className="flex items-center gap-3 rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm text-foreground"
                   >
                     <input
                       type="checkbox"
@@ -506,9 +506,9 @@ export function SetupWizardClient({
           <fieldset disabled={data.setupLocked} className="space-y-5">
           <input type="hidden" name="sessionLabel" value={data.policy.academicSessionLabel} />
 
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full min-w-[980px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+              <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3">Class</th>
                   <th className="px-4 py-3">Section</th>
@@ -521,7 +521,7 @@ export function SetupWizardClient({
               </thead>
               <tbody>
                 {classRows.map((row) => (
-                  <tr key={row.key} className="border-t border-slate-100 align-top">
+                  <tr key={row.key} className="border-t border-border align-top">
                     <td className="px-4 py-3">
                       <input type="hidden" name="classId" value={row.id} />
                       <Input
@@ -687,9 +687,9 @@ export function SetupWizardClient({
           <ActionNotice state={routesState} />
           <fieldset disabled={data.setupLocked} className="space-y-5">
 
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full min-w-[980px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+              <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3">Code</th>
                   <th className="px-4 py-3">Route name</th>
@@ -702,7 +702,7 @@ export function SetupWizardClient({
               </thead>
               <tbody>
                 {routeRows.map((row) => (
-                  <tr key={row.key} className="border-t border-slate-100 align-top">
+                  <tr key={row.key} className="border-t border-border align-top">
                     <td className="px-4 py-3">
                       <input type="hidden" name="routeId" value={row.id} />
                       <Input
@@ -958,14 +958,14 @@ export function SetupWizardClient({
           <fieldset disabled={data.setupLocked} className="space-y-5">
 
           {classDefaultRows.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+            <div className="rounded-xl border border-dashed border-border-strong bg-surface-2 px-4 py-6 text-sm text-muted-foreground">
               Add classes first. Class-wise defaults are saved against the active session class
               list.
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <div className="overflow-x-auto rounded-xl border border-border">
               <table className="w-full min-w-[980px] text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-4 py-3">Class</th>
                     <th className="px-4 py-3">Tuition</th>
@@ -977,10 +977,10 @@ export function SetupWizardClient({
                 </thead>
                 <tbody>
                   {classDefaultRows.map((row) => (
-                    <tr key={row.key} className="border-t border-slate-100">
+                    <tr key={row.key} className="border-t border-border">
                       <td className="px-4 py-3">
                         <input type="hidden" name="defaultClassId" value={row.classId} />
-                        <div className="font-medium text-slate-900">{row.classLabel}</div>
+                        <div className="font-medium text-foreground">{row.classLabel}</div>
                       </td>
                       <td className="px-4 py-3">
                         <Input
@@ -1101,14 +1101,14 @@ export function SetupWizardClient({
           <ActionNotice state={completeState} />
 
           <div className="grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+            <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 Current status
               </p>
-              <p className="mt-3 text-lg font-semibold text-slate-950">
+              <p className="mt-3 text-lg font-semibold text-foreground">
                 {data.readiness.collectionDeskReady ? "Collection desk ready" : "Setup in progress"}
               </p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 Last completion mark: {formatSavedAt(data.completionState.setupCompletedAt)}
               </p>
             </div>
@@ -1127,12 +1127,12 @@ export function SetupWizardClient({
           </div>
 
           {data.readiness.readyForCompletion ? (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-800">
+            <div className="rounded-xl border bg-success-soft px-4 py-4 text-sm text-success-soft-foreground">
               Blocking setup checks are complete. Mark the setup stage complete, then move to
               student import, anomaly review, and the collection desk.
             </div>
           ) : (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
+            <div className="rounded-xl border bg-warning-soft px-4 py-4 text-sm text-warning-soft-foreground">
               Finish the remaining blocking checklist items before marking the setup stage
               complete.
             </div>

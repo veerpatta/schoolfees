@@ -1,9 +1,23 @@
 import type { Metadata, Viewport } from "next";
+import { Inter, Source_Serif_4 } from "next/font/google";
 
 import { schoolProfile } from "@/lib/config/school";
 import { getSiteUrl } from "@/lib/env";
 
 import "./globals.css";
+
+const fontSans = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
+
+const fontDisplay = Source_Serif_4({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+  weight: ["500", "600", "700"],
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
@@ -34,7 +48,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#0ea5e9",
+  themeColor: "#FAFAF7",
 };
 
 export default function RootLayout({
@@ -43,10 +57,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased">
-        {children}
-      </body>
+    <html lang="en" className={`${fontSans.variable} ${fontDisplay.variable}`}>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }

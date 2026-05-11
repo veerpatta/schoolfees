@@ -1,11 +1,11 @@
 "use client";
 
-import { MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { type StaffRole } from "@/lib/auth/roles";
-import { getMobileBottomNavigation, getVisibleProtectedNavigation } from "@/lib/config/navigation";
+import { getMobileBottomNavigation } from "@/lib/config/navigation";
+import { cn } from "@/lib/utils";
 
 type MobileBottomNavProps = {
   staffRole: StaffRole;
@@ -13,63 +13,50 @@ type MobileBottomNavProps = {
 
 export function MobileBottomNav({ staffRole }: MobileBottomNavProps) {
   const pathname = usePathname();
-  const primaryMobileItems = getMobileBottomNavigation(staffRole);
-  const allItems = getVisibleProtectedNavigation(staffRole);
-  const primarySet = new Set(primaryMobileItems.map((item) => item.href));
-  const moreItems = allItems.filter(
-    (item) => !primarySet.has(item.href) && item.href !== "/protected/transactions",
-  );
+  const items = getMobileBottomNavigation(staffRole).slice(0, 5);
 
   return (
     <nav
       aria-label="Primary navigation"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 py-1.5 backdrop-blur print:hidden md:hidden mobile-safe-bottom-padding landscape:h-12"
+      className={cn(
+        "fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur",
+        "px-2 pb-1 pt-1.5 mobile-safe-bottom-padding",
+        "print:hidden md:hidden landscape:py-1",
+      )}
     >
       <div
-        className="mx-auto grid max-w-7xl gap-1"
-        style={{ gridTemplateColumns: `repeat(${primaryMobileItems.length + 1}, minmax(0, 1fr))` }}
+        className="mx-auto grid max-w-7xl gap-0.5"
+        style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
       >
-        {primaryMobileItems.map((item) => {
+        {items.map((item) => {
           const Icon = item.icon;
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const active =
+            pathname === item.href || pathname.startsWith(`${item.href}/`);
 
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex min-h-11 min-w-0 flex-col items-center justify-center rounded-lg px-1 py-1 text-[10px] leading-3 ${
-                active ? "bg-sky-100 text-sky-900" : "text-slate-700"
-              }`}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "relative flex min-h-11 min-w-0 flex-col items-center justify-center rounded-md px-1 py-1.5 text-[11px] font-medium leading-tight transition-colors",
+                active
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
             >
-              <Icon className="size-4" aria-hidden="true" />
+              <Icon className="size-[18px]" aria-hidden="true" />
               <span className="mt-0.5 max-w-full truncate">{item.label}</span>
-              {active ? (
-                <span
-                  key={pathname}
-                  className="mt-0.5 size-1 rounded-full bg-sky-600 animate-slide-up-fade"
-                  aria-hidden="true"
-                />
-              ) : null}
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "absolute -top-px left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full transition-colors",
+                  active ? "bg-accent" : "bg-transparent",
+                )}
+              />
             </Link>
           );
         })}
-        <details className="relative">
-          <summary className="flex min-h-11 cursor-pointer list-none flex-col items-center justify-center rounded-lg px-1 text-[10px] leading-3 text-slate-700">
-            <MoreHorizontal className="size-4" aria-hidden="true" />
-            <span className="mt-0.5">More</span>
-          </summary>
-          <div className="absolute bottom-14 right-0 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
-            {moreItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        </details>
       </div>
     </nav>
   );

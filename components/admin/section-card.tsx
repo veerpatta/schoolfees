@@ -1,46 +1,31 @@
-import { ReactNode } from "react";
+import { type ReactNode } from "react";
 
-import { cn } from "@/lib/utils";
+import { Section } from "@/components/ui/section";
 
 type SectionCardProps = {
   id?: string;
-  title: string;
-  description?: string;
+  title: ReactNode;
+  description?: ReactNode;
   children: ReactNode;
   actions?: ReactNode;
   className?: string;
 };
 
-export function SectionCard({
-  id,
-  title,
-  description,
-  children,
-  actions,
-  className,
-}: SectionCardProps) {
+/**
+ * Backwards-compatible wrapper around the new `Section` primitive.
+ * Renders the canonical card chrome (rounded-lg border bg-card) so legacy callers
+ * keep their familiar shape. New code can import `Section` directly.
+ */
+export function SectionCard({ id, title, description, children, actions, className }: SectionCardProps) {
   return (
-    <section
+    <Section
       id={id}
-      className={cn(
-        "rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:p-5",
-        className,
-      )}
+      title={title}
+      description={description}
+      actions={actions}
+      className={`rounded-lg border-border bg-card ${className ?? ""}`.trim()}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="font-heading text-base font-semibold text-slate-950 sm:text-lg">
-            {title}
-          </h2>
-          {description ? (
-            <p className="mt-1.5 max-w-3xl text-sm leading-6 text-slate-600">
-              {description}
-            </p>
-          ) : null}
-        </div>
-        {actions ? <div className="shrink-0">{actions}</div> : null}
-      </div>
-      <div className="mt-5">{children}</div>
-    </section>
+      {children}
+    </Section>
   );
 }

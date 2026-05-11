@@ -127,7 +127,7 @@ export function AnomalyQueue({ batch, unresolvedRows, canManage, mode = "add" }:
       title="3. Rows needing correction"
       description="Only blocking rows stay here. Warning-only rows are still ready to import."
     >
-      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
+      <div className="flex flex-wrap gap-2 border-b border-border pb-3">
         {tabCounts.map((tab) => (
           <button
             key={tab.key}
@@ -135,18 +135,18 @@ export function AnomalyQueue({ batch, unresolvedRows, canManage, mode = "add" }:
             onClick={() => setActiveTab(tab.key)}
             className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
               activeTab === tab.key
-                ? "bg-slate-900 text-white"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                ? "bg-foreground text-white"
+                : "bg-surface-2 text-foreground hover:bg-surface-3"
             }`}
           >
             {tab.label}
             <span
               className={`ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-semibold ${
                 activeTab === tab.key
-                  ? "bg-white/20 text-white"
+                  ? "bg-card/20 text-white"
                   : tab.count > 0
-                    ? "bg-amber-100 text-amber-800"
-                    : "bg-slate-200 text-slate-500"
+                    ? "bg-warning-soft text-warning-soft-foreground"
+                    : "bg-surface-3 text-muted-foreground"
               }`}
             >
               {tab.count}
@@ -156,26 +156,26 @@ export function AnomalyQueue({ batch, unresolvedRows, canManage, mode = "add" }:
       </div>
 
       <div className="mt-4 space-y-3">
-        <p className="text-sm text-slate-600">{activeConfig.description}</p>
+        <p className="text-sm text-muted-foreground">{activeConfig.description}</p>
 
         {activeConfig.guidance ? (
-          <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          <div className="rounded-xl border bg-info-soft px-4 py-3 text-sm text-info-soft-foreground">
             <span className="font-semibold">Office guidance:</span> {activeConfig.guidance}
           </div>
         ) : null}
 
         {activeConfig.masterDataLink ? (
-          <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-            <span className="text-slate-600">Need to add a class or route?</span>
-            <Link href={activeConfig.masterDataLink} className="font-medium text-blue-700 underline">
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm">
+            <span className="text-muted-foreground">Need to add a class or route?</span>
+            <Link href={activeConfig.masterDataLink} className="font-medium text-info-soft-foreground underline">
               Open School Setup Lists
             </Link>
           </div>
         ) : null}
 
         {canManage && activeConfig.categories.length > 0 && filteredRows.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <span className="text-sm text-slate-600">
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface-2 px-4 py-3">
+            <span className="text-sm text-muted-foreground">
               Bulk action for {filteredRows.length} row{filteredRows.length === 1 ? "" : "s"}:
             </span>
             <Button size="sm" variant="outline" disabled={submittingBulk} onClick={handleBulkSkip}>
@@ -187,7 +187,7 @@ export function AnomalyQueue({ batch, unresolvedRows, canManage, mode = "add" }:
 
       <div className="mt-4">
         {filteredRows.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-700">
+          <div className="rounded-xl border border-dashed border-success/40 bg-success-soft p-4 text-sm text-success-soft-foreground">
             No rows are left in this queue.{" "}
             {activeTab === "all"
               ? "All import issues have been resolved."

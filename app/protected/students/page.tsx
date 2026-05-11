@@ -140,10 +140,10 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
                 defaultSessionLabel={filters.sessionLabel}
               />
               <details className="relative">
-                <summary className="inline-flex h-9 cursor-pointer list-none items-center justify-center rounded-lg border border-input bg-white px-4 py-2 text-sm font-semibold shadow-sm hover:bg-accent">
+                <summary className="inline-flex h-9 cursor-pointer list-none items-center justify-center rounded-lg border border-input bg-card px-4 py-2 text-sm font-semibold shadow-sm hover:bg-accent">
                   More templates
                 </summary>
-                <div className="absolute right-0 z-20 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
+                <div className="absolute right-0 z-20 mt-2 w-72 rounded-xl border border-border bg-card p-3 shadow-lg">
                   <div className="grid gap-2">
                     <Button asChild variant="outline">
                       <Link href={`/protected/imports/template?mode=add&sessionLabel=${encodeURIComponent(filters.sessionLabel)}`}>
@@ -191,9 +191,9 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
           title="Load warning"
           description="Some student workspace data could not be loaded safely. The page is still available."
         >
-          <div className="space-y-2 text-sm text-amber-900">
+          <div className="space-y-2 text-sm text-warning-soft-foreground">
             {loadWarnings.map((warning) => (
-              <p key={warning} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+              <p key={warning} className="rounded-lg border bg-warning-soft px-3 py-2">
                 {warning}
               </p>
             ))}

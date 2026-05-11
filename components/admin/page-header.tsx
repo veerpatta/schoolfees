@@ -3,9 +3,10 @@ import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 type PageHeaderProps = {
-  title: string;
-  description: string;
-  eyebrow?: string;
+  title: ReactNode;
+  description?: ReactNode;
+  /** Small label above the title (caps, tracked). */
+  eyebrow?: ReactNode;
   actions?: ReactNode;
   className?: string;
 };
@@ -20,24 +21,30 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex sm:items-start sm:justify-between sm:gap-4 sm:px-5",
+        "flex flex-col gap-3 pb-1 sm:flex-row sm:items-end sm:justify-between sm:gap-6",
         className,
       )}
     >
-      <div className="max-w-2xl">
+      <div className="min-w-0 max-w-3xl">
         {eyebrow ? (
-          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             {eyebrow}
           </p>
         ) : null}
-        <h1 className="mt-1 font-heading text-xl font-semibold text-slate-950 sm:text-2xl">
+        <h1 className="mt-1 text-[22px] font-semibold leading-tight tracking-tight text-foreground sm:text-[26px]">
           {title}
         </h1>
-        <p className="mt-1.5 max-w-3xl text-sm leading-6 text-slate-600">
-          {description}
-        </p>
+        {description ? (
+          <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
+            {description}
+          </p>
+        ) : null}
       </div>
-      {actions ? <div className="mt-3 shrink-0 self-start sm:mt-0">{actions}</div> : null}
+      {actions ? (
+        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+          {actions}
+        </div>
+      ) : null}
     </header>
   );
 }

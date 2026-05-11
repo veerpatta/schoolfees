@@ -69,7 +69,7 @@ function getFieldError(state: StudentFormActionState, fieldName: keyof StudentFo
 }
 
 function FieldError({ message }: { message: string | null }) {
-  return message ? <p className="mt-1 text-xs text-red-600">{message}</p> : null;
+  return message ? <p className="mt-1 text-xs text-destructive">{message}</p> : null;
 }
 
 export function StudentForm({
@@ -107,8 +107,8 @@ export function StudentForm({
         <div
           className={
             state.status === "error"
-              ? "rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-              : "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
+              ? "rounded-md border bg-destructive-soft px-3 py-2 text-sm text-destructive-soft-foreground"
+              : "rounded-md border bg-success-soft px-3 py-2 text-sm text-success-soft-foreground"
           }
         >
           {state.message}
@@ -128,15 +128,15 @@ export function StudentForm({
       ) : null}
 
       {disableSubmit ? (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        <div className="rounded-md border bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground">
           No class records found. Add classes before creating students.
         </div>
       ) : null}
 
       <div className="space-y-4">
         <div>
-          <h3 className="text-sm font-semibold text-slate-950">Student details</h3>
-          <p className="mt-1 text-sm text-slate-600">
+          <h3 className="text-sm font-semibold text-foreground">Student details</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
             Student name and class are required. SR no is recommended; a temporary SR no is generated if it is left blank.
           </p>
         </div>
@@ -238,11 +238,11 @@ export function StudentForm({
         </div>
       </div>
 
-      <details className="rounded-xl border border-slate-200 bg-white">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-900">
+      <details className="rounded-xl border border-border bg-card">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">
           Parent details and address
         </summary>
-        <div className="grid gap-4 border-t border-slate-200 p-4 md:grid-cols-2">
+        <div className="grid gap-4 border-t border-border p-4 md:grid-cols-2">
           <div>
             <Label htmlFor="dateOfBirth">DOB</Label>
             <Input id="dateOfBirth" name="dateOfBirth" type="date" defaultValue={values.dateOfBirth} className="mt-2" />
@@ -269,16 +269,16 @@ export function StudentForm({
         </div>
       </details>
 
-      <details className="rounded-xl border border-slate-200 bg-white">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-900">
+      <details className="rounded-xl border border-border bg-card">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">
           Conventional Discounts
         </summary>
-        <div className="space-y-4 border-t border-slate-200 p-4">
-          <p className="text-sm text-slate-600">
+        <div className="space-y-4 border-t border-border p-4">
+          <p className="text-sm text-muted-foreground">
             Use these only for approved school policies like RTE, Staff Child, or 3rd Child.
           </p>
           {conventionalDiscountPolicies.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+            <div className="rounded-xl border border-dashed border-border-strong bg-surface-2 px-4 py-4 text-sm text-muted-foreground">
               Conventional discounts are not configured for this year yet.
             </div>
           ) : (
@@ -288,19 +288,19 @@ export function StudentForm({
                 .map((policy) => (
                   <label
                     key={policy.id}
-                    className="flex min-h-24 cursor-pointer flex-col rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+                    className="flex min-h-24 cursor-pointer flex-col rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm"
                   >
-                    <span className="flex items-center gap-2 font-semibold text-slate-950">
+                    <span className="flex items-center gap-2 font-semibold text-foreground">
                       <input
                         type="checkbox"
                         name="conventionalPolicyIds"
                         value={policy.id ?? ""}
                         defaultChecked={values.conventionalPolicyIds.includes(policy.id ?? "")}
-                        className="h-4 w-4 rounded border-slate-300"
+                        className="h-4 w-4 rounded border-border-strong"
                       />
                       {policy.displayName}
                     </span>
-                    <span className="mt-2 text-slate-600">
+                    <span className="mt-2 text-muted-foreground">
                       {policy.calculationType === "tuition_zero"
                         ? "Tuition becomes Rs 0"
                         : policy.calculationType === "tuition_percentage"
@@ -358,12 +358,12 @@ export function StudentForm({
         </div>
       </details>
 
-      <details className="rounded-xl border border-slate-200 bg-white">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-900">
+      <details className="rounded-xl border border-border bg-card">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">
           Fee exceptions
         </summary>
-        <div className="border-t border-slate-200 p-4">
-          <p className="mb-4 text-sm text-slate-600">
+        <div className="border-t border-border p-4">
+          <p className="mb-4 text-sm text-muted-foreground">
             Student-specific exceptions only. School-wide defaults stay in Fee Setup.
           </p>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -410,11 +410,11 @@ export function StudentForm({
         </div>
       </details>
 
-      <details className="rounded-xl border border-slate-200 bg-white">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-900">
+      <details className="rounded-xl border border-border bg-card">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">
           Record status
         </summary>
-        <div className="grid gap-4 border-t border-slate-200 p-4 md:grid-cols-2">
+        <div className="grid gap-4 border-t border-border p-4 md:grid-cols-2">
           <div>
             <Label htmlFor="status">Record status</Label>
             <select id="status" name="status" defaultValue={values.status} className={`${selectClassName} mt-2`} required>
@@ -429,7 +429,7 @@ export function StudentForm({
         </div>
       </details>
 
-      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap gap-2 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:-mx-5 md:px-5">
+      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap gap-2 border-t border-border bg-card/95 px-4 py-3 backdrop-blur md:-mx-5 md:px-5">
         <Button type="submit" disabled={disableSubmit || isPending}>
           {isPending
             ? mode === "add"

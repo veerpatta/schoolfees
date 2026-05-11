@@ -124,8 +124,8 @@ function ViewTabs({
           href={buildHref(view)}
           className={
             view === activeView
-              ? "inline-flex w-full items-center justify-center rounded-full border border-slate-900 bg-slate-900 px-2 py-2 text-[11px] font-medium leading-4 text-white sm:px-3 sm:text-sm"
-              : "inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-2 py-2 text-[11px] font-medium leading-4 text-slate-700 hover:border-slate-300 sm:px-3 sm:text-sm"
+              ? "inline-flex w-full items-center justify-center rounded-full border border-foreground bg-foreground px-2 py-2 text-[11px] font-medium leading-4 text-white sm:px-3 sm:text-sm"
+              : "inline-flex w-full items-center justify-center rounded-full border border-border bg-card px-2 py-2 text-[11px] font-medium leading-4 text-foreground hover:border-border-strong sm:px-3 sm:text-sm"
           }
         >
           {officeWorkbookMeta[view].shortTitle}
@@ -163,27 +163,27 @@ function WorkbookSummaryCards({
     <div className="space-y-4">
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {essentialCards.map((card) => (
-          <div key={card.label} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+          <div key={card.label} className="rounded-xl border border-border bg-surface-2 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
               {card.label}
             </p>
-            <p className="mt-1.5 text-base font-semibold text-slate-950">{card.value}</p>
+            <p className="mt-1.5 text-base font-semibold text-foreground">{card.value}</p>
           </div>
         ))}
       </div>
 
       {showClassRegisterOnly || detailCards.length > 0 ? (
-        <details className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-slate-700">
+        <details className="overflow-hidden rounded-xl border border-border bg-surface-2">
+          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-foreground">
             More totals
           </summary>
-          <div className="grid gap-3 border-t border-slate-200 bg-white p-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 border-t border-border bg-card p-4 md:grid-cols-2 xl:grid-cols-4">
             {detailCards.map((card) => (
-              <div key={card.label} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+              <div key={card.label} className="rounded-xl border border-border bg-surface-2 px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                   {card.label}
                 </p>
-                <p className="mt-1.5 text-base font-semibold text-slate-950">{card.value}</p>
+                <p className="mt-1.5 text-base font-semibold text-foreground">{card.value}</p>
               </div>
             ))}
           </div>
@@ -208,16 +208,16 @@ function TransactionsTable({
     <>
       <div className="space-y-3 md:hidden">
         {rows.length === 0 ? (
-          <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 text-center text-sm text-slate-500">
+          <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
             No transactions found for this view.
           </p>
         ) : (
           rows.map((row) => (
-            <div key={row.receiptId} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
-              <p className="font-semibold text-slate-900">{row.receiptNumber}</p>
-              <p className="text-xs text-slate-500">{formatShortDate(row.paymentDate)} • {row.studentName}</p>
-              <p className="mt-1 text-xs text-slate-600">{row.classLabel} • {formatPaymentModeLabel(row.paymentMode)}</p>
-              <p className="mt-1 font-semibold text-slate-900">{formatInr(row.totalAmount)}</p>
+            <div key={row.receiptId} className="rounded-xl border border-border bg-card p-3 text-sm">
+              <p className="font-semibold text-foreground">{row.receiptNumber}</p>
+              <p className="text-xs text-muted-foreground">{formatShortDate(row.paymentDate)} • {row.studentName}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{row.classLabel} • {formatPaymentModeLabel(row.paymentMode)}</p>
+              <p className="mt-1 font-semibold text-foreground">{formatInr(row.totalAmount)}</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 <Button asChild size="sm" variant="outline">
                   <Link href={`/protected/receipts/${row.receiptId}?returnTo=${encodeURIComponent(returnTo)}`}>Open</Link>
@@ -230,9 +230,9 @@ function TransactionsTable({
           ))
         )}
       </div>
-      <div className="hidden w-full overflow-x-auto rounded-xl border border-slate-200 md:block">
+      <div className="hidden w-full overflow-x-auto rounded-xl border border-border md:block">
       <table className="min-w-[900px] text-left text-sm">
-        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+        <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
             <th className="px-4 py-3">Date</th>
             <th className="px-4 py-3">Receipt no</th>
@@ -246,21 +246,21 @@ function TransactionsTable({
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
+              <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
                 No transactions found for this view.
               </td>
             </tr>
           ) : (
             rows.map((row) => (
-              <tr key={row.receiptId} className="border-t border-slate-100">
+              <tr key={row.receiptId} className="border-t border-border">
                 <td className="px-4 py-3">{formatShortDate(row.paymentDate)}</td>
                 <td className="px-4 py-3">
-                  <div className="font-medium text-slate-900">{row.receiptNumber}</div>
+                  <div className="font-medium text-foreground">{row.receiptNumber}</div>
                 </td>
                 <td className="px-4 py-3">{row.studentName}</td>
                 <td className="px-4 py-3">{row.classLabel}</td>
                 <td className="px-4 py-3">{formatPaymentModeLabel(row.paymentMode)}</td>
-                <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.totalAmount)}</td>
+                <td className="px-4 py-3 font-medium text-foreground">{formatInr(row.totalAmount)}</td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
                     <Button asChild size="sm" variant="outline">
@@ -289,23 +289,23 @@ function InstallmentTrackerTable({ rows }: { rows: OfficeWorkbookStudentRow[] })
     <>
       <div className="space-y-3 md:hidden">
         {rows.length === 0 ? (
-          <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 text-center text-sm text-slate-500">
+          <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
             No dues tracker rows found.
           </p>
         ) : (
           rows.map((row) => (
-            <div key={`tracker-mobile-${row.studentId}`} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
-              <p className="font-semibold text-slate-900">{row.studentName}</p>
-              <p className="text-xs text-slate-500">{row.classLabel} • SR {row.admissionNo}</p>
-              <p className="mt-2 text-xs text-slate-600">Next due: {row.nextDueLabel ?? "No pending dues"}</p>
-              <p className="mt-1 font-semibold text-slate-900">Outstanding: {formatInr(row.outstandingAmount)}</p>
+            <div key={`tracker-mobile-${row.studentId}`} className="rounded-xl border border-border bg-card p-3 text-sm">
+              <p className="font-semibold text-foreground">{row.studentName}</p>
+              <p className="text-xs text-muted-foreground">{row.classLabel} • SR {row.admissionNo}</p>
+              <p className="mt-2 text-xs text-muted-foreground">Next due: {row.nextDueLabel ?? "No pending dues"}</p>
+              <p className="mt-1 font-semibold text-foreground">Outstanding: {formatInr(row.outstandingAmount)}</p>
             </div>
           ))
         )}
       </div>
-      <div className="hidden w-full overflow-x-auto rounded-xl border border-slate-200 md:block">
+      <div className="hidden w-full overflow-x-auto rounded-xl border border-border md:block">
       <table className="min-w-[900px] text-left text-sm">
-        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+        <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
             <th className="px-4 py-3">Student</th>
             <th className="px-4 py-3">Class</th>
@@ -330,19 +330,19 @@ function InstallmentTrackerTable({ rows }: { rows: OfficeWorkbookStudentRow[] })
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={18} className="px-4 py-6 text-center text-slate-500">
+              <td colSpan={18} className="px-4 py-6 text-center text-muted-foreground">
                 No dues tracker rows found.
               </td>
             </tr>
           ) : (
             rows.map((row) => (
-              <tr key={row.studentId} className="border-t border-slate-100">
-                <td className="px-4 py-3 font-medium text-slate-900">{row.studentName}</td>
+              <tr key={row.studentId} className="border-t border-border">
+                <td className="px-4 py-3 font-medium text-foreground">{row.studentName}</td>
                 <td className="px-4 py-3">{row.classLabel}</td>
                 <td className="px-4 py-3">{row.admissionNo}</td>
                 <td className="px-4 py-3">
                   <div>{row.fatherName ?? "-"}</div>
-                  <div className="text-xs text-slate-500">{row.fatherPhone ?? "-"}</div>
+                  <div className="text-xs text-muted-foreground">{row.fatherPhone ?? "-"}</div>
                 </td>
                 <td className="px-4 py-3">{formatInr(row.inst1Pending)}</td>
                 <td className="px-4 py-3">{formatInr(row.inst2Pending)}</td>
@@ -351,7 +351,7 @@ function InstallmentTrackerTable({ rows }: { rows: OfficeWorkbookStudentRow[] })
                 <td className="px-4 py-3">{formatInr(row.lateFeeTotal)}</td>
                 <td className="px-4 py-3">{formatInr(row.totalDue)}</td>
                 <td className="px-4 py-3">{formatInr(row.totalPaid)}</td>
-                <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.outstandingAmount)}</td>
+                <td className="px-4 py-3 font-medium text-foreground">{formatInr(row.outstandingAmount)}</td>
                 <td className="px-4 py-3">{formatOptionalDate(row.nextDueDate)}</td>
                 <td className="px-4 py-3">{formatInr(row.nextDueAmount ?? 0)}</td>
                 <td className="px-4 py-3">{formatInr(row.discountAmount)}</td>
@@ -386,26 +386,26 @@ function StudentDuesTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
     <>
       <div className="space-y-3 md:hidden">
         {rows.length === 0 ? (
-          <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 text-center text-sm text-slate-500">
+          <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
             No students found for statement view.
           </p>
         ) : (
           rows.map((row) => (
-            <div key={`dues-mobile-${row.studentId}`} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
-              <p className="font-semibold text-slate-900">{row.studentName}</p>
-              <p className="text-xs text-slate-500">{row.classLabel} • SR {row.admissionNo}</p>
-              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
+            <div key={`dues-mobile-${row.studentId}`} className="rounded-xl border border-border bg-card p-3 text-sm">
+              <p className="font-semibold text-foreground">{row.studentName}</p>
+              <p className="text-xs text-muted-foreground">{row.classLabel} • SR {row.admissionNo}</p>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                 <p>Total due: {formatInr(row.totalDue)}</p>
                 <p>Paid: {formatInr(row.totalPaid)}</p>
               </div>
-              <p className="mt-1 font-semibold text-slate-900">Outstanding: {formatInr(row.outstandingAmount)}</p>
+              <p className="mt-1 font-semibold text-foreground">Outstanding: {formatInr(row.outstandingAmount)}</p>
             </div>
           ))
         )}
       </div>
-      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
+      <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
       <table className="w-full min-w-full text-left text-sm">
-        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+        <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
             <th className="px-4 py-3">Student</th>
             <th className="px-4 py-3">Class</th>
@@ -425,16 +425,16 @@ function StudentDuesTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={13} className="px-4 py-6 text-center text-slate-500">
+              <td colSpan={13} className="px-4 py-6 text-center text-muted-foreground">
                 No students found for statement view.
               </td>
             </tr>
           ) : (
             rows.map((row) => (
-              <tr key={row.studentId} className="border-t border-slate-100">
+              <tr key={row.studentId} className="border-t border-border">
                 <td className="px-4 py-3">
-                  <div className="font-medium text-slate-900">{row.studentName}</div>
-                  <div className="text-xs text-slate-500">{row.admissionNo}</div>
+                  <div className="font-medium text-foreground">{row.studentName}</div>
+                  <div className="text-xs text-muted-foreground">{row.admissionNo}</div>
                 </td>
                 <td className="px-4 py-3">{row.classLabel}</td>
                 <td className="px-4 py-3">{formatInr(row.tuitionFee)}</td>
@@ -448,14 +448,14 @@ function StudentDuesTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
                 <td className="px-4 py-3">{formatInr(row.lateFeeTotal)}</td>
                 <td className="px-4 py-3">{formatInr(row.totalDue)}</td>
                 <td className="px-4 py-3">{formatInr(row.totalPaid)}</td>
-                <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.outstandingAmount)}</td>
+                <td className="px-4 py-3 font-medium text-foreground">{formatInr(row.outstandingAmount)}</td>
                 <td className="px-4 py-3">
                   <div>
                     {row.duesStatus === "missing_dues"
                       ? "Dues not prepared"
                       : row.nextDueLabel ?? "No pending dues"}
                   </div>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-muted-foreground">
                     {row.duesStatus === "missing_dues"
                       ? "Prepare dues before collection"
                       : row.nextDueDate ? `${formatShortDate(row.nextDueDate)} | ${formatInr(row.nextDueAmount ?? 0)}` : "-"}
@@ -483,9 +483,9 @@ function StudentDuesTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
 
 function ClassRegisterTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
   return (
-    <div className="w-full overflow-x-auto rounded-xl border border-slate-200">
+    <div className="w-full overflow-x-auto rounded-xl border border-border">
       <table className="min-w-[900px] text-left text-sm">
-        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+        <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
             <th className="px-4 py-3">Student</th>
             <th className="px-4 py-3">SR no</th>
@@ -514,14 +514,14 @@ function ClassRegisterTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={22} className="px-4 py-6 text-center text-slate-500">
+              <td colSpan={22} className="px-4 py-6 text-center text-muted-foreground">
                 No class register rows found.
               </td>
             </tr>
           ) : (
             rows.map((row) => (
-              <tr key={row.studentId} className="border-t border-slate-100 align-top">
-                <td className="px-4 py-3 font-medium text-slate-900">{row.studentName}</td>
+              <tr key={row.studentId} className="border-t border-border align-top">
+                <td className="px-4 py-3 font-medium text-foreground">{row.studentName}</td>
                 <td className="px-4 py-3">{row.admissionNo}</td>
                 <td className="px-4 py-3">{row.fatherName ?? "-"}</td>
                 <td className="px-4 py-3">{row.fatherPhone ?? "-"}</td>
@@ -529,7 +529,7 @@ function ClassRegisterTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
                 <td className="px-4 py-3">{row.transportRouteName ?? "No Transport"}</td>
                 <td className="px-4 py-3">{formatInr(row.totalDue)}</td>
                 <td className="px-4 py-3">{formatInr(row.totalPaid)}</td>
-                <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.outstandingAmount)}</td>
+                <td className="px-4 py-3 font-medium text-foreground">{formatInr(row.outstandingAmount)}</td>
                 <td className="px-4 py-3">{formatOptionalDate(row.nextDueDate)}</td>
                 <td className="px-4 py-3">{formatInr(row.nextDueAmount ?? 0)}</td>
                 <td className="px-4 py-3">
@@ -547,11 +547,11 @@ function ClassRegisterTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
                 <td className="px-4 py-3">{formatInr(row.academicFee)}</td>
                 <td className="px-4 py-3">
                   {row.receiptHistory.length === 0 ? (
-                    <span className="text-slate-500">No receipts yet</span>
+                    <span className="text-muted-foreground">No receipts yet</span>
                   ) : (
                     <div className="space-y-1">
                       {row.receiptHistory.map((item) => (
-                        <div key={`${row.studentId}-${item.receiptNumber}`} className="text-xs text-slate-700">
+                        <div key={`${row.studentId}-${item.receiptNumber}`} className="text-xs text-foreground">
                           {item.receiptNumber} | {formatShortDate(item.paymentDate)} | {formatInr(item.totalAmount)}
                         </div>
                       ))}
@@ -579,9 +579,9 @@ function ClassRegisterTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
 
 function DefaultersTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
   return (
-    <div className="w-full overflow-x-auto rounded-xl border border-slate-200">
+    <div className="w-full overflow-x-auto rounded-xl border border-border">
       <table className="min-w-[900px] text-left text-sm">
-        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+        <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
             <th className="px-4 py-3">Student</th>
             <th className="px-4 py-3">Class</th>
@@ -604,21 +604,21 @@ function DefaultersTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={16} className="px-4 py-6 text-center text-slate-500">
+              <td colSpan={16} className="px-4 py-6 text-center text-muted-foreground">
                 No overdue students found.
               </td>
             </tr>
           ) : (
             rows.map((row) => (
-              <tr key={row.studentId} className="border-t border-slate-100">
-                <td className="px-4 py-3 font-medium text-slate-900">{row.studentName}</td>
+              <tr key={row.studentId} className="border-t border-border">
+                <td className="px-4 py-3 font-medium text-foreground">{row.studentName}</td>
                 <td className="px-4 py-3">{row.classLabel}</td>
                 <td className="px-4 py-3">{row.admissionNo}</td>
                 <td className="px-4 py-3">{row.fatherName ?? "-"}</td>
                 <td className="px-4 py-3">{row.fatherPhone ?? "-"}</td>
                 <td className="px-4 py-3">{formatInr(row.totalDue)}</td>
                 <td className="px-4 py-3">{formatInr(row.totalPaid)}</td>
-                <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.outstandingAmount)}</td>
+                <td className="px-4 py-3 font-medium text-foreground">{formatInr(row.outstandingAmount)}</td>
                 <td className="px-4 py-3">{formatInr(row.lateFeeTotal)}</td>
                 <td className="px-4 py-3">{formatOptionalDate(row.nextDueDate)}</td>
                 <td className="px-4 py-3">{formatInr(row.nextDueAmount ?? 0)}</td>
@@ -655,9 +655,9 @@ function CollectionTable({
     : never;
 }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200">
+    <div className="overflow-x-auto rounded-xl border border-border">
       <table className="w-full min-w-full text-left text-sm">
-        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+        <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
             <th className="px-4 py-3">Date</th>
             <th className="px-4 py-3">Mode</th>
@@ -669,18 +669,18 @@ function CollectionTable({
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
+              <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
                 No collection rows found for today.
               </td>
             </tr>
           ) : (
             rows.map((row) => (
-              <tr key={`${row.paymentDate}-${row.paymentMode}`} className="border-t border-slate-100">
+              <tr key={`${row.paymentDate}-${row.paymentMode}`} className="border-t border-border">
                 <td className="px-4 py-3">{formatShortDate(row.paymentDate)}</td>
                 <td className="px-4 py-3">{row.paymentMode}</td>
                 <td className="px-4 py-3">{row.receiptCount}</td>
                 <td className="px-4 py-3">{row.studentCount}</td>
-                <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.totalAmount)}</td>
+                <td className="px-4 py-3 font-medium text-foreground">{formatInr(row.totalAmount)}</td>
               </tr>
             ))
           )}
@@ -700,9 +700,9 @@ function ImportIssuesTable({
     : never;
 }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200">
+    <div className="overflow-x-auto rounded-xl border border-border">
       <table className="w-full min-w-full text-left text-sm">
-        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+        <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
             <th className="px-4 py-3">Row</th>
             <th className="px-4 py-3">Student</th>
@@ -717,13 +717,13 @@ function ImportIssuesTable({
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
+              <td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">
                 No import issues found for this view.
               </td>
             </tr>
           ) : (
             rows.map((row) => (
-              <tr key={row.rowId} className="border-t border-slate-100 align-top">
+              <tr key={row.rowId} className="border-t border-border align-top">
                 <td className="px-4 py-3">{row.rowIndex}</td>
                 <td className="px-4 py-3">{row.fullName ?? "-"}</td>
                 <td className="px-4 py-3">{row.admissionNo ?? "-"}</td>
@@ -871,7 +871,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
           <AutoSubmitForm action="/protected/transactions" method="get" className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
             <input type="hidden" name="view" value={activeView} />
             <div className="xl:col-span-2">
-              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" htmlFor="transactions-query">
+              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="transactions-query">
                 Search
               </label>
               <input
@@ -883,7 +883,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
               />
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" htmlFor="transactions-class">
+              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="transactions-class">
                 Class
               </label>
               <select
@@ -901,7 +901,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" htmlFor="transactions-session">
+              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="transactions-session">
                 Academic year
               </label>
               <select
@@ -919,7 +919,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" htmlFor="transactions-route">
+              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="transactions-route">
                 Route
               </label>
               <select
@@ -937,7 +937,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" htmlFor="transactions-mode">
+              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="transactions-mode">
                 Mode
               </label>
               <select
@@ -955,7 +955,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" htmlFor="transactions-from">
+              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="transactions-from">
                 From
               </label>
               <input
@@ -967,7 +967,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
               />
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" htmlFor="transactions-to">
+              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="transactions-to">
                 To
               </label>
               <input
@@ -1081,9 +1081,9 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
             {officeWorkbookViews
               .filter((view) => view !== "exports")
               .map((view) => (
-                <div key={view} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-                  <p className="font-medium text-slate-950">{officeWorkbookMeta[view].title}</p>
-                  <p className="mt-1 text-sm text-slate-600">{officeWorkbookMeta[view].description}</p>
+                <div key={view} className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+                  <p className="font-medium text-foreground">{officeWorkbookMeta[view].title}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{officeWorkbookMeta[view].description}</p>
                   {canExport ? (
                     <Button asChild size="sm" variant="outline" className="mt-3">
                       <Link
@@ -1102,7 +1102,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                       </Link>
                     </Button>
                   ) : (
-                    <p className="mt-3 text-sm text-slate-500">CSV export requires reports access.</p>
+                    <p className="mt-3 text-sm text-muted-foreground">CSV export requires reports access.</p>
                   )}
                 </div>
               ))}

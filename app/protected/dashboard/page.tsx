@@ -3,23 +3,28 @@ import {
   AlertTriangle,
   ArrowRight,
   BadgeIndianRupee,
-  BarChart3,
   CalendarClock,
   CheckCircle2,
   CircleAlert,
   ClipboardList,
-  IndianRupee,
+  Inbox,
+  Phone,
   ReceiptText,
+  TrendingUp,
   UsersRound,
 } from "lucide-react";
 
-import { MetricCard } from "@/components/admin/metric-card";
 import { PageHeader } from "@/components/admin/page-header";
-import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { CopyReminderButton } from "@/components/dashboard/copy-reminder-button";
-import { OfficeNextActions, OfficeNotice } from "@/components/office/office-ui";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CountUp } from "@/components/ui/count-up";
+import { EmptyState } from "@/components/ui/empty-state";
+import { KpiCard } from "@/components/ui/kpi-card";
+import { Money } from "@/components/ui/money";
+import { Notice } from "@/components/ui/notice";
+import { Section } from "@/components/ui/section";
 import { getDashboardPageData, type DashboardAlert } from "@/lib/dashboard/data";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
@@ -27,35 +32,31 @@ import {
   hasStaffPermission,
   requireStaffPermission,
 } from "@/lib/supabase/session";
-import { cn } from "@/lib/utils";
 
 function formatPercent(value: number) {
   return `${value}%`;
 }
 
 function getBarWidth(value: number, maxValue: number) {
-  if (maxValue <= 0) {
-    return "0%";
-  }
-
+  if (maxValue <= 0) return "0%";
   return `${Math.max(4, Math.round((value / maxValue) * 100))}%`;
 }
 
-function getAlertToneClasses(tone: DashboardAlert["tone"]) {
+function alertTone(tone: DashboardAlert["tone"]): React.ComponentProps<typeof Notice>["tone"] {
   switch (tone) {
     case "danger":
-      return "border-red-200 bg-red-50 text-red-950";
+      return "danger";
     case "warning":
-      return "border-amber-200 bg-amber-50 text-amber-950";
+      return "warning";
     case "success":
-      return "border-emerald-200 bg-emerald-50 text-emerald-950";
+      return "success";
     case "info":
     default:
-      return "border-sky-200 bg-sky-50 text-sky-950";
+      return "info";
   }
 }
 
-function getAlertIcon(tone: DashboardAlert["tone"]) {
+function alertIcon(tone: DashboardAlert["tone"]) {
   switch (tone) {
     case "danger":
     case "warning":
@@ -68,97 +69,105 @@ function getAlertIcon(tone: DashboardAlert["tone"]) {
   }
 }
 
-function ActionButtons({
+/* ---------------------------------------------------------------------------
+   Hero strip — three KPIs that summarise "what should I look at today?"
+   --------------------------------------------------------------------------- */
+
+function HeroKpis({
+  collected,
+  pending,
+  collectionRate,
+  receiptsToday,
+  followUpCount,
+}: {
+  collected: number;
+  pending: number;
+  collectionRate: number;
+  receiptsToday: number;
+  followUpCount: number;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-3">
+      <KpiCard
+        accent="accent"
+        label="Today collection"
+        value={
+          <CountUp
+            value={collected}
+            className="text-2xl font-semibold tracking-tight md:text-[28px] md:leading-[34px]"
+          />
+        }
+        hint={`${receiptsToday} receipt${receiptsToday === 1 ? "" : "s"} posted today`}
+      />
+      <KpiCard
+        accent="warning"
+        label="Pending dues"
+        value={
+          <CountUp
+            value={pending}
+            className="text-2xl font-semibold tracking-tight md:text-[28px] md:leading-[34px]"
+          />
+        }
+        hint={`${followUpCount} student${followUpCount === 1 ? "" : "s"} need follow-up`}
+      />
+      <KpiCard
+        accent="info"
+        label="Collection rate"
+        value={
+          <CountUp
+            value={collectionRate}
+            format={(v) => `${v}%`}
+            className="tabular text-foreground"
+          />
+        }
+        hint="Current session, dues prepared"
+      />
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   Quick actions — single row of clear, labeled buttons (no icon-only confusion)
+   --------------------------------------------------------------------------- */
+
+function QuickActions({
   canWriteStudents,
+  canPostPayments,
 }: {
   canWriteStudents: boolean;
+  canPostPayments: boolean;
 }) {
   return (
     <div className="flex flex-wrap gap-2">
+      {canPostPayments ? (
+        <Button asChild variant="accent" leadingIcon={<BadgeIndianRupee className="size-4" />}>
+          <Link href="/protected/payments">Open Payment Desk</Link>
+        </Button>
+      ) : null}
       {canWriteStudents ? (
-        <Button asChild>
-          <Link href="/protected/students/new">
-            <UsersRound className="size-4" />
-            Add student
-          </Link>
+        <Button asChild variant="outline" leadingIcon={<UsersRound className="size-4" />}>
+          <Link href="/protected/students/new">Add student</Link>
         </Button>
       ) : (
-        <Button asChild>
-          <Link href="/protected/students">
-            <UsersRound className="size-4" />
-            Students
-          </Link>
+        <Button asChild variant="outline" leadingIcon={<UsersRound className="size-4" />}>
+          <Link href="/protected/students">Students</Link>
         </Button>
       )}
-      <Button asChild variant="outline">
-        <Link href="/protected/payments">
-          <BadgeIndianRupee className="size-4" />
-          Open Payment Desk
-        </Link>
+      <Button asChild variant="outline" leadingIcon={<ReceiptText className="size-4" />}>
+        <Link href="/protected/transactions">Transactions</Link>
       </Button>
-      <Button asChild variant="outline">
-        <Link href="/protected/transactions">
-          <ReceiptText className="size-4" />
-          Transactions
-        </Link>
+      <Button asChild variant="ghost" leadingIcon={<ClipboardList className="size-4" />}>
+        <Link href="/protected/defaulters">Defaulters</Link>
       </Button>
     </div>
   );
 }
 
-function ProgressCard({
-  collected,
-  expected,
-  pending,
-  rate,
-}: {
-  collected: number;
-  expected: number;
-  pending: number;
-  rate: number;
-}) {
-  return (
-    <SectionCard
-      title="Collection progress"
-      description={`${formatInr(collected)} collected out of ${formatInr(expected)} expected. ${formatInr(pending)} is still pending.`}
-      className="bg-[linear-gradient(135deg,rgba(255,255,255,0.94),rgba(239,246,255,0.92))]"
-      actions={<StatusBadge label={`${rate}% collected`} tone={rate >= 75 ? "good" : "accent"} />}
-    >
-      <div className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="font-heading text-4xl font-semibold tracking-tight text-slate-950">
-              {formatPercent(rate)}
-            </p>
-            <p className="mt-1 text-sm text-slate-600">Current session collection rate</p>
-          </div>
-          <div className="grid grid-cols-2 gap-3 text-sm sm:min-w-72">
-            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                Collected
-              </p>
-              <p className="mt-1 font-semibold text-emerald-950">{formatInr(collected)}</p>
-            </div>
-            <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
-                Pending
-              </p>
-              <p className="mt-1 font-semibold text-amber-950">{formatInr(pending)}</p>
-            </div>
-          </div>
-        </div>
-        <div className="h-4 overflow-hidden rounded-full bg-slate-100">
-          <div
-            className="h-full rounded-full bg-[linear-gradient(90deg,#2563eb,#0ea5e9,#10b981)]"
-            style={{ width: `${rate}%` }}
-          />
-        </div>
-      </div>
-    </SectionCard>
-  );
-}
+/* ---------------------------------------------------------------------------
+   Today panel — collection + payment-mode breakdown
+   --------------------------------------------------------------------------- */
 
-function TodayCard({
+function TodayPanel({
   amount,
   receiptCount,
   modes,
@@ -168,284 +177,53 @@ function TodayCard({
   modes: Array<{ paymentMode: string; amount: number; receiptCount: number }>;
 }) {
   return (
-    <SectionCard
-      title="Today's activity"
-      description="Collection posted at the payment desk for the current school day."
+    <Section
+      title="Today"
+      description="Collection posted at the desk for the current school day."
+      actions={
+        <Badge variant="accent" dot>
+          {receiptCount} receipt{receiptCount === 1 ? "" : "s"}
+        </Badge>
+      }
     >
       <div className="space-y-4">
-        <div className="rounded-3xl border border-sky-100 bg-sky-50/80 p-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
-            Today&apos;s collection
+        <div className="rounded-md bg-surface-2/70 p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            Collected today
           </p>
-          <p className="mt-2 font-heading text-3xl font-semibold tracking-tight text-slate-950">
-            {formatInr(amount)}
-          </p>
-          <p className="mt-1 text-sm text-slate-600">
-            {receiptCount} receipt{receiptCount === 1 ? "" : "s"} posted today.
-          </p>
+          <Money value={amount} size="display" className="mt-2" />
         </div>
-        <div className="space-y-2">
-          {modes.length === 0 ? (
-            <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              No payment-mode breakup yet for today.
-            </p>
-          ) : (
-            modes.map((mode) => (
-              <div
+
+        {modes.length === 0 ? (
+          <p className="rounded-md border border-dashed border-border bg-surface-2/40 px-4 py-3 text-sm text-muted-foreground">
+            No payment-mode breakup yet for today.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border rounded-md border border-border bg-card">
+            {modes.map((mode) => (
+              <li
                 key={mode.paymentMode}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
               >
-                <div>
-                  <p className="font-semibold text-slate-950">{mode.paymentMode}</p>
-                  <p className="text-xs text-slate-500">
+                <div className="min-w-0">
+                  <p className="font-medium text-foreground">{mode.paymentMode}</p>
+                  <p className="text-xs text-muted-foreground">
                     {mode.receiptCount} receipt{mode.receiptCount === 1 ? "" : "s"}
                   </p>
                 </div>
-                <p className="font-semibold text-slate-950">{formatInr(mode.amount)}</p>
-              </div>
-            ))
-          )}
-        </div>
+                <Money value={mode.amount} size="lg" />
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-    </SectionCard>
+    </Section>
   );
 }
 
-function TrendChart({
-  rows,
-}: {
-  rows: Array<{ date: string; amount: number; receiptCount: number }>;
-}) {
-  const maxAmount = Math.max(...rows.map((row) => row.amount), 0);
-
-  return (
-    <div className="space-y-3">
-      {rows.length === 0 ? (
-        <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-          Collection trend will appear after receipts are posted.
-        </p>
-      ) : (
-        rows.map((row) => (
-          <div key={row.date} className="grid gap-2 sm:grid-cols-[7rem_minmax(0,1fr)_8rem] sm:items-center">
-            <p className="text-sm font-medium text-slate-700">{formatShortDate(row.date)}</p>
-            <div className="h-3 overflow-hidden rounded-full bg-slate-100">
-              <div
-                className="h-full rounded-full bg-sky-500"
-                style={{ width: getBarWidth(row.amount, maxAmount) }}
-              />
-            </div>
-            <p className="text-sm font-semibold text-slate-950 sm:text-right">
-              {formatInr(row.amount)}
-            </p>
-          </div>
-        ))
-      )}
-    </div>
-  );
-}
-
-function ClassPendingChart({
-  rows,
-}: {
-  rows: Array<{
-    classLabel: string;
-    pendingAmount: number;
-    collectionRate: number;
-    totalStudents: number;
-    studentsWithGeneratedDues: number;
-  }>;
-}) {
-  const chartRows = rows.slice(0, 8);
-  const maxPending = Math.max(...chartRows.map((row) => row.pendingAmount), 0);
-
-  return (
-    <div className="space-y-3">
-      {chartRows.length === 0 ? (
-        <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-          Class-wise pending dues will appear after student fee data is ready.
-        </p>
-      ) : (
-        chartRows.map((row) => (
-          <div key={row.classLabel} className="grid gap-2 sm:grid-cols-[8rem_minmax(0,1fr)_8rem] sm:items-center">
-            <p className="truncate text-sm font-medium text-slate-700">{row.classLabel}</p>
-            <div className="h-3 overflow-hidden rounded-full bg-slate-100">
-              <div
-                className="h-full rounded-full bg-amber-500"
-                style={{ width: getBarWidth(row.pendingAmount, maxPending) }}
-              />
-            </div>
-            <p className="text-sm font-semibold text-slate-950 sm:text-right">
-              {row.studentsWithGeneratedDues === 0 && row.totalStudents > 0
-                ? "Not prepared"
-                : formatInr(row.pendingAmount)}
-            </p>
-          </div>
-        ))
-      )}
-    </div>
-  );
-}
-
-function BreakdownCard({
-  collected,
-  pending,
-}: {
-  collected: number;
-  pending: number;
-}) {
-  const total = collected + pending;
-  const collectedRate = total > 0 ? Math.round((collected / total) * 100) : 0;
-  const pendingRate = total > 0 ? 100 - collectedRate : 0;
-
-  return (
-    <div className="space-y-4">
-      <div className="flex h-44 items-end justify-center gap-4 rounded-3xl border border-slate-200 bg-slate-50 p-6">
-        <div className="flex h-full w-20 items-end rounded-t-2xl bg-white">
-          <div
-            className="w-full rounded-t-2xl bg-emerald-500"
-            style={{ height: `${Math.max(6, collectedRate)}%` }}
-          />
-        </div>
-        <div className="flex h-full w-20 items-end rounded-t-2xl bg-white">
-          <div
-            className="w-full rounded-t-2xl bg-amber-500"
-            style={{ height: `${Math.max(6, pendingRate)}%` }}
-          />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-3">
-          <p className="font-semibold text-emerald-950">Collected</p>
-          <p className="mt-1 text-emerald-800">{formatInr(collected)}</p>
-        </div>
-        <div className="rounded-2xl border border-amber-100 bg-amber-50 p-3">
-          <p className="font-semibold text-amber-950">Pending</p>
-          <p className="mt-1 text-amber-800">{formatInr(pending)}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function InstallmentStatus({
-  rows,
-}: {
-  rows: Array<{
-    installmentLabel: string;
-    dueDate: string | null;
-    expectedAmount: number;
-    collectedAmount: number;
-    pendingAmount: number;
-    overdueAmount: number;
-    collectionRate: number;
-  }>;
-}) {
-  return (
-    <div className="space-y-3">
-      {rows.length === 0 ? (
-        <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-          Installment status will appear after ledgers are generated.
-        </p>
-      ) : (
-        rows.map((row) => (
-          <div key={row.installmentLabel} className="rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-semibold text-slate-950">{row.installmentLabel}</p>
-                <p className="text-xs text-slate-500">
-                  Due {row.dueDate ? formatShortDate(row.dueDate) : "-"}
-                </p>
-              </div>
-              <p className="text-sm font-semibold text-slate-950">
-                {formatPercent(row.collectionRate)} collected
-              </p>
-            </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-              <div
-                className="h-full rounded-full bg-blue-600"
-                style={{ width: `${row.collectionRate}%` }}
-              />
-            </div>
-            <div className="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-3">
-              <span>Expected {formatInr(row.expectedAmount)}</span>
-              <span>Collected {formatInr(row.collectedAmount)}</span>
-              <span>Pending {formatInr(row.pendingAmount)}</span>
-            </div>
-          </div>
-        ))
-      )}
-    </div>
-  );
-}
-
-function ClassSummaryTable({
-  rows,
-}: {
-  rows: Array<{
-    classLabel: string;
-    totalStudents: number;
-    expectedAmount: number;
-    collectedAmount: number;
-    pendingAmount: number;
-    overdueAmount: number;
-    collectionRate: number;
-    studentsWithGeneratedDues: number;
-    missingDuesStudents: number;
-  }>;
-}) {
-  return (
-    <div className="overflow-x-auto rounded-2xl border border-slate-200">
-      <table className="w-full min-w-full text-left text-sm">
-        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
-          <tr>
-            <th className="px-4 py-3">Class</th>
-            <th className="px-4 py-3">Students</th>
-            <th className="px-4 py-3">Expected</th>
-            <th className="px-4 py-3">Collected</th>
-            <th className="px-4 py-3">Pending</th>
-            <th className="px-4 py-3">Overdue</th>
-            <th className="px-4 py-3">Collection %</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 ? (
-            <tr>
-              <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
-                No class-wise fee position is available yet.
-              </td>
-            </tr>
-          ) : (
-            rows.map((row) => (
-              <tr key={row.classLabel} className="border-t border-slate-100">
-                <td className="px-4 py-3 font-medium text-slate-950">{row.classLabel}</td>
-                <td className="px-4 py-3">{row.totalStudents}</td>
-                <td className="px-4 py-3">
-                  {row.studentsWithGeneratedDues === 0 && row.totalStudents > 0
-                    ? "Not prepared"
-                    : formatInr(row.expectedAmount)}
-                </td>
-                <td className="px-4 py-3">{formatInr(row.collectedAmount)}</td>
-                <td className="px-4 py-3 font-semibold text-slate-950">{formatInr(row.pendingAmount)}</td>
-                <td className="px-4 py-3 text-amber-800">{formatInr(row.overdueAmount)}</td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span>{formatPercent(row.collectionRate)}</span>
-                    {row.missingDuesStudents > 0 ? (
-                      <StatusBadge
-                        label={`${row.missingDuesStudents} dues not prepared`}
-                        tone="warning"
-                      />
-                    ) : null}
-                  </div>
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+/* ---------------------------------------------------------------------------
+   Follow-up queue
+   --------------------------------------------------------------------------- */
 
 function FollowUpQueue({
   rows,
@@ -464,46 +242,69 @@ function FollowUpQueue({
   }>;
   canPostPayments: boolean;
 }) {
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        variant="inline"
+        icon={CheckCircle2}
+        title="No defaulters in view"
+        description="No outstanding follow-up items in the current dashboard window."
+      />
+    );
+  }
+
   return (
-    <div className="space-y-3">
-      {rows.length === 0 ? (
-        <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-6 text-center text-sm text-emerald-800">
-          No defaulters found in the current dashboard data.
-        </p>
-      ) : (
-        rows.map((row) => (
-          <div key={row.studentId} className="rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="font-semibold text-slate-950">{row.studentName}</p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {row.classLabel} | SR {row.admissionNo} | {row.fatherPhone ?? "No phone"}
-                </p>
-              </div>
-              <div className="text-left sm:text-right">
-                <p className="font-semibold text-amber-800">{formatInr(row.outstandingAmount)}</p>
-                <p className="text-xs text-slate-500">
-                  {row.nextDueDate ? `Oldest due ${formatShortDate(row.nextDueDate)}` : row.statusLabel || "Pending"}
-                </p>
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button asChild size="sm" variant="outline">
-                <Link href={`/protected/students/${row.studentId}`}>Open student</Link>
-              </Button>
-              <Button asChild size="sm" variant={canPostPayments ? "default" : "outline"}>
-                <Link href={`/protected/payments?studentId=${row.studentId}`}>
-                  {canPostPayments ? "Post payment" : "Payment Desk"}
-                </Link>
-              </Button>
-              <CopyReminderButton text={row.reminderText} />
-            </div>
+    <ul className="divide-y divide-border rounded-md border border-border bg-card">
+      {rows.map((row) => (
+        <li
+          key={row.studentId}
+          className="flex flex-col gap-3 px-4 py-3.5 transition-colors hover:bg-surface-2/40 sm:flex-row sm:items-center sm:gap-4"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-foreground">{row.studentName}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {row.classLabel} · SR {row.admissionNo}
+              {row.fatherPhone ? (
+                <>
+                  {" · "}
+                  <span className="inline-flex items-center gap-1">
+                    <Phone className="size-3" aria-hidden="true" />
+                    {row.fatherPhone}
+                  </span>
+                </>
+              ) : null}
+            </p>
           </div>
-        ))
-      )}
-    </div>
+
+          <div className="text-left sm:text-right">
+            <Money value={row.outstandingAmount} size="lg" tone="warning" />
+            <p className="text-xs text-muted-foreground">
+              {row.nextDueDate
+                ? `Oldest due ${formatShortDate(row.nextDueDate)}`
+                : row.statusLabel || "Pending"}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 sm:shrink-0">
+            <Button asChild size="sm" variant="ghost">
+              <Link href={`/protected/students/${row.studentId}`}>Open</Link>
+            </Button>
+            <Button asChild size="sm" variant={canPostPayments ? "primary" : "outline"}>
+              <Link href={`/protected/payments?studentId=${row.studentId}`}>
+                {canPostPayments ? "Collect" : "Desk"}
+              </Link>
+            </Button>
+            <CopyReminderButton text={row.reminderText} />
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
+
+/* ---------------------------------------------------------------------------
+   Recent receipts
+   --------------------------------------------------------------------------- */
 
 function RecentReceipts({
   rows,
@@ -518,80 +319,336 @@ function RecentReceipts({
     amount: number;
   }>;
 }) {
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        variant="inline"
+        icon={Inbox}
+        title="No receipts yet"
+        description="Latest receipts will appear here after payment posting starts."
+      />
+    );
+  }
+
   return (
-    <div className="space-y-3">
-      {rows.length === 0 ? (
-        <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-          Latest receipts will appear after payment posting starts.
-        </p>
-      ) : (
-        rows.map((row) => (
+    <ul className="divide-y divide-border rounded-md border border-border bg-card">
+      {rows.map((row) => (
+        <li key={row.receiptId}>
           <Link
-            key={row.receiptId}
             href={`/protected/receipts/${row.receiptId}`}
-            className="block rounded-2xl border border-slate-200 bg-white p-4 transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-sky-50/60"
+            className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-2/40"
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-semibold text-slate-950">{row.receiptNumber}</p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {row.studentName} | {row.classLabel}
-                </p>
-              </div>
-              <p className="font-semibold text-slate-950">{formatInr(row.amount)}</p>
+            <div className="min-w-0">
+              <p className="font-medium text-foreground">{row.receiptNumber}</p>
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                {row.studentName} · {row.classLabel}
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {formatShortDate(row.paymentDate)} · {row.paymentMode}
+              </p>
             </div>
-            <p className="mt-2 text-xs text-slate-500">
-              {formatShortDate(row.paymentDate)} | {row.paymentMode}
-            </p>
+            <Money value={row.amount} size="lg" />
           </Link>
-        ))
-      )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   Class-wise pending — minimal hairline bar list
+   --------------------------------------------------------------------------- */
+
+function ClassPendingChart({
+  rows,
+}: {
+  rows: Array<{
+    classLabel: string;
+    pendingAmount: number;
+    collectionRate: number;
+    totalStudents: number;
+    studentsWithGeneratedDues: number;
+  }>;
+}) {
+  const chartRows = rows.slice(0, 8);
+  const maxPending = Math.max(...chartRows.map((row) => row.pendingAmount), 0);
+
+  if (chartRows.length === 0) {
+    return (
+      <EmptyState
+        variant="inline"
+        icon={ClipboardList}
+        title="No class-wise pending yet"
+        description="Class-wise pending dues will appear after student fee data is ready."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-2.5">
+      {chartRows.map((row) => (
+        <div
+          key={row.classLabel}
+          className="grid items-center gap-3 sm:grid-cols-[8rem_minmax(0,1fr)_8rem]"
+        >
+          <p className="truncate text-sm font-medium text-foreground">
+            {row.classLabel}
+          </p>
+          <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
+            <div
+              className="h-full rounded-full bg-warning"
+              style={{ width: getBarWidth(row.pendingAmount, maxPending) }}
+            />
+          </div>
+          <div className="text-sm font-medium tabular text-foreground sm:text-right">
+            {row.studentsWithGeneratedDues === 0 && row.totalStudents > 0 ? (
+              <span className="text-muted-foreground">Not prepared</span>
+            ) : (
+              formatInr(row.pendingAmount)
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
-function AlertsPanel({ alerts }: { alerts: DashboardAlert[] }) {
+/* ---------------------------------------------------------------------------
+   Collection trend
+   --------------------------------------------------------------------------- */
+
+function TrendChart({
+  rows,
+}: {
+  rows: Array<{ date: string; amount: number; receiptCount: number }>;
+}) {
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        variant="inline"
+        icon={TrendingUp}
+        title="No collection trend yet"
+        description="Trend will appear after receipts are posted."
+      />
+    );
+  }
+
+  const maxAmount = Math.max(...rows.map((r) => r.amount), 0);
+
   return (
-    <div className="grid gap-3 md:grid-cols-2">
-      {alerts.length === 0 ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-          <div className="flex items-center gap-2 font-semibold">
-            <CheckCircle2 className="size-4" />
-            No attention items
-          </div>
-          <p className="mt-1 text-emerald-800">No setup, import, or dues-update issues are visible right now.</p>
-        </div>
-      ) : (
-        alerts.slice(0, 6).map((alert) => {
-          const Icon = getAlertIcon(alert.tone);
-          return (
+    <div className="space-y-2.5">
+      {rows.map((row) => (
+        <div
+          key={row.date}
+          className="grid items-center gap-3 sm:grid-cols-[7rem_minmax(0,1fr)_8rem]"
+        >
+          <p className="text-sm font-medium text-foreground">
+            {formatShortDate(row.date)}
+          </p>
+          <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
             <div
-              key={alert.key}
-              className={cn("rounded-2xl border p-4 text-sm", getAlertToneClasses(alert.tone))}
-            >
-              <div className="flex items-start gap-3">
-                <Icon className="mt-0.5 size-4 shrink-0" />
-                <div className="min-w-0">
-                  <p className="font-semibold">{alert.title}</p>
-                  <p className="mt-1 leading-6 opacity-85">{alert.detail}</p>
-                  {alert.actionHref && alert.actionLabel ? (
-                    <Link
-                      href={alert.actionHref}
-                      className="mt-2 inline-flex items-center gap-1 font-semibold text-current underline-offset-4 hover:underline"
-                    >
-                      {alert.actionLabel}
-                      <ArrowRight className="size-3.5" />
-                    </Link>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          );
-        })
-      )}
+              className="h-full rounded-full bg-accent"
+              style={{ width: getBarWidth(row.amount, maxAmount) }}
+            />
+          </div>
+          <div className="text-sm font-medium tabular text-foreground sm:text-right">
+            {formatInr(row.amount)}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
+
+/* ---------------------------------------------------------------------------
+   Installment status
+   --------------------------------------------------------------------------- */
+
+function InstallmentStatus({
+  rows,
+}: {
+  rows: Array<{
+    installmentLabel: string;
+    dueDate: string | null;
+    expectedAmount: number;
+    collectedAmount: number;
+    pendingAmount: number;
+    overdueAmount: number;
+    collectionRate: number;
+  }>;
+}) {
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        variant="inline"
+        icon={CalendarClock}
+        title="No installment status yet"
+        description="Installment status will appear after ledgers are generated."
+      />
+    );
+  }
+
+  return (
+    <ul className="divide-y divide-border rounded-md border border-border bg-card">
+      {rows.map((row) => (
+        <li key={row.installmentLabel} className="space-y-2 px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-medium text-foreground">{row.installmentLabel}</p>
+              <p className="text-xs text-muted-foreground">
+                Due {row.dueDate ? formatShortDate(row.dueDate) : "—"}
+              </p>
+            </div>
+            <p className="text-sm font-semibold tabular text-foreground">
+              {formatPercent(row.collectionRate)}
+            </p>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
+            <div
+              className="h-full rounded-full bg-info"
+              style={{ width: `${row.collectionRate}%` }}
+            />
+          </div>
+          <div className="grid gap-1 text-[11px] text-muted-foreground sm:grid-cols-3">
+            <span>Expected · {formatInr(row.expectedAmount)}</span>
+            <span>Collected · {formatInr(row.collectedAmount)}</span>
+            <span>Pending · {formatInr(row.pendingAmount)}</span>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   Class summary table
+   --------------------------------------------------------------------------- */
+
+function ClassSummaryTable({
+  rows,
+}: {
+  rows: Array<{
+    classLabel: string;
+    totalStudents: number;
+    expectedAmount: number;
+    collectedAmount: number;
+    pendingAmount: number;
+    overdueAmount: number;
+    collectionRate: number;
+    studentsWithGeneratedDues: number;
+    missingDuesStudents: number;
+  }>;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-md border border-border">
+      <table className="w-full text-left text-sm">
+        <thead className="bg-surface-2/70">
+          <tr className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
+            <th className="px-4 py-2.5 font-medium">Class</th>
+            <th className="px-4 py-2.5 font-medium">Students</th>
+            <th className="px-4 py-2.5 font-medium">Expected</th>
+            <th className="px-4 py-2.5 font-medium">Collected</th>
+            <th className="px-4 py-2.5 font-medium">Pending</th>
+            <th className="px-4 py-2.5 font-medium">Overdue</th>
+            <th className="px-4 py-2.5 font-medium">Collection %</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border bg-card">
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
+                No class-wise fee position is available yet.
+              </td>
+            </tr>
+          ) : (
+            rows.map((row) => (
+              <tr key={row.classLabel} className="transition-colors hover:bg-surface-2/40">
+                <td className="px-4 py-2.5 font-medium text-foreground">{row.classLabel}</td>
+                <td className="px-4 py-2.5 tabular">{row.totalStudents}</td>
+                <td className="px-4 py-2.5 tabular">
+                  {row.studentsWithGeneratedDues === 0 && row.totalStudents > 0
+                    ? <span className="text-muted-foreground">Not prepared</span>
+                    : formatInr(row.expectedAmount)}
+                </td>
+                <td className="px-4 py-2.5 tabular">{formatInr(row.collectedAmount)}</td>
+                <td className="px-4 py-2.5 font-semibold tabular text-foreground">
+                  {formatInr(row.pendingAmount)}
+                </td>
+                <td className="px-4 py-2.5 tabular text-warning">
+                  {formatInr(row.overdueAmount)}
+                </td>
+                <td className="px-4 py-2.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="tabular">{formatPercent(row.collectionRate)}</span>
+                    {row.missingDuesStudents > 0 ? (
+                      <Badge variant="warning" dot>
+                        {row.missingDuesStudents} dues missing
+                      </Badge>
+                    ) : null}
+                  </div>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   Alerts panel
+   --------------------------------------------------------------------------- */
+
+function AlertsPanel({ alerts }: { alerts: DashboardAlert[] }) {
+  if (alerts.length === 0) {
+    return (
+      <Notice tone="success" iconless title="No attention items">
+        No setup, import, or dues-update issues are visible right now.
+      </Notice>
+    );
+  }
+
+  return (
+    <div className="grid gap-2.5 md:grid-cols-2">
+      {alerts.slice(0, 6).map((alert) => {
+        const Icon = alertIcon(alert.tone);
+        return (
+          <Notice
+            key={alert.key}
+            tone={alertTone(alert.tone)}
+            iconless
+            title={
+              <span className="flex items-center gap-2">
+                <Icon className="size-4 shrink-0" aria-hidden="true" />
+                {alert.title}
+              </span>
+            }
+            action={
+              alert.actionHref && alert.actionLabel ? (
+                <Button asChild size="sm" variant="ghost">
+                  <Link
+                    href={alert.actionHref}
+                    className="inline-flex items-center gap-1 text-current"
+                  >
+                    {alert.actionLabel}
+                    <ArrowRight className="size-3.5" />
+                  </Link>
+                </Button>
+              ) : null
+            }
+          >
+            {alert.detail}
+          </Notice>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   Fee-data attention banner
+   --------------------------------------------------------------------------- */
 
 function FeeDataAttentionBanner({
   health,
@@ -614,34 +671,30 @@ function FeeDataAttentionBanner({
   }
 
   return (
-    <SectionCard
+    <Notice
+      tone="warning"
       title="Fee records need attention"
-      description="Some fee records need attention. Open Admin Tools to check and prepare missing dues."
-      className="border-amber-100 bg-amber-50/70"
-      actions={
-        <div className="flex flex-wrap gap-2">
-          <StatusBadge label="Needs attention" tone="warning" />
-          <Button asChild size="sm">
-            <Link href="/protected/admin-tools#fee-data-troubleshooting">
-              Open Fee Data Troubleshooting
-            </Link>
-          </Button>
-        </div>
+      action={
+        <Button asChild size="sm" variant="outline">
+          <Link href="/protected/admin-tools#fee-data-troubleshooting">
+            Open Fee Data Troubleshooting
+          </Link>
+        </Button>
       }
     >
-      <p className="text-sm leading-6 text-amber-950">
-        {health.studentsMissingInstallmentRows > 0
-          ? `${health.studentsMissingInstallmentRows} student${health.studentsMissingInstallmentRows === 1 ? "" : "s"} have dues not prepared.`
-          : "Open Admin Tools for the detailed fee data status and follow-up actions."}
-      </p>
-    </SectionCard>
+      {health.studentsMissingInstallmentRows > 0
+        ? `${health.studentsMissingInstallmentRows} student${health.studentsMissingInstallmentRows === 1 ? "" : "s"} have dues not prepared.`
+        : "Open Admin Tools for the detailed fee data status and follow-up actions."}
+    </Notice>
   );
 }
 
+/* ---------------------------------------------------------------------------
+   Page
+   --------------------------------------------------------------------------- */
+
 type DashboardPageProps = {
-  searchParams?: Promise<{
-    notice?: string;
-  }>;
+  searchParams?: Promise<{ notice?: string }>;
 };
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
@@ -650,247 +703,206 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const data = await getDashboardPageData({ staffRole: staff.appRole });
   const canWriteStudents = hasStaffPermission(staff, "students:write");
   const canPostPayments = hasStaffPermission(staff, "payments:write");
-  const canViewReports = hasStaffPermission(staff, "reports:view");
   const maxChartCards = data.classSummary.slice(0, 8);
-  const nextActions = [
-    canWriteStudents
-      ? { href: "/protected/students/new", label: "Add student", icon: UsersRound }
-      : { href: "/protected/students", label: "Open students", icon: UsersRound },
-    { href: "/protected/defaulters", label: "Review defaulters", icon: CircleAlert },
-    { href: "/protected/payments", label: "Payment Desk", icon: BadgeIndianRupee },
-    { href: "/protected/fee-setup", label: "Fee Setup", icon: ClipboardList },
-    canViewReports
-      ? { href: "/protected/reports", label: "Export reports", icon: ReceiptText }
-      : null,
-  ].filter(
-    (
-      action,
-    ): action is {
-      href: string;
-      label: string;
-      icon: typeof UsersRound;
-    } => action !== null,
-  );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       <PageHeader
-        eyebrow="Dashboard"
+        eyebrow="Workspace"
         title="Dashboard"
-        description="Today collection, pending dues, students, and follow-up."
+        description="Today's collection, pending dues, and follow-up — at a glance."
         actions={
-          <div className="space-y-3">
-            <div className="flex flex-wrap justify-start gap-2 sm:justify-end">
-              <StatusBadge label={`Session ${data.currentSession}`} tone="accent" />
-              {data.currentInstallment ? (
-                <StatusBadge
-                  label={`${data.currentInstallment.label}: ${formatShortDate(data.currentInstallment.dueDate)}`}
-                  tone={data.currentInstallment.status === "overdue" ? "warning" : "neutral"}
-                />
-              ) : null}
-            </div>
-            <ActionButtons canWriteStudents={canWriteStudents} />
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            <StatusBadge label={`Session ${data.currentSession}`} tone="accent" />
+            {data.currentInstallment ? (
+              <StatusBadge
+                label={`${data.currentInstallment.label} · ${formatShortDate(data.currentInstallment.dueDate)}`}
+                tone={data.currentInstallment.status === "overdue" ? "warning" : "neutral"}
+              />
+            ) : null}
           </div>
         }
       />
 
       {resolvedSearchParams?.notice ? (
-        <OfficeNotice tone="success">{resolvedSearchParams.notice}</OfficeNotice>
+        <Notice tone="success" iconless={false}>
+          {resolvedSearchParams.notice}
+        </Notice>
       ) : null}
 
+      {/* Empty-state guidance */}
       {!data.emptyState.hasStudents ? (
-        <SectionCard
+        <Section
           title="No students yet"
           description="Start with student records, then review Fee Setup before collection."
-          actions={<StatusBadge label="Start testing" tone="accent" />}
+          actions={<StatusBadge label="Get started" tone="accent" />}
         >
-          <OfficeNextActions
-            actions={[
-              { href: "/protected/students/new", label: "Add student", detail: "Create one student record." },
-              { href: "/protected/students", label: "Bulk add students", detail: "Use the Students workspace for spreadsheet import." },
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            {[
+              { href: "/protected/students/new", label: "Add a student", detail: "Create one student record." },
+              { href: "/protected/imports/template", label: "Bulk-add students", detail: "Download the import template." },
               { href: "/protected/fee-setup", label: "Open Fee Setup", detail: "Check yearly fees before collection." },
-              { href: "/protected/imports/template", label: "Download template", detail: "Get the student import file." },
-            ]}
-          />
-        </SectionCard>
+              { href: "/protected/admin-tools", label: "Admin Tools", detail: "Setup, lists, and fixes." },
+            ].map((action) => (
+              <Link
+                key={action.href}
+                href={action.href}
+                className="group flex items-center justify-between gap-3 rounded-md border border-border bg-card px-4 py-3 transition-colors hover:border-border-strong hover:bg-surface-2"
+              >
+                <span>
+                  <span className="block text-sm font-semibold text-foreground">{action.label}</span>
+                  <span className="block text-xs text-muted-foreground">{action.detail}</span>
+                </span>
+                <ArrowRight
+                  className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-foreground"
+                  aria-hidden="true"
+                />
+              </Link>
+            ))}
+          </div>
+        </Section>
       ) : !data.emptyState.hasFinancialData ? (
-        <SectionCard
+        <Notice
+          tone="warning"
           title="Students found, dues missing"
-          description="Students exist for this year, but their payable dues are not ready yet."
-          actions={<StatusBadge label="Needs attention" tone="warning" />}
+          action={
+            <Button asChild size="sm" variant="outline">
+              <Link href="/protected/admin-tools#fee-data-troubleshooting">Prepare dues</Link>
+            </Button>
+          }
         >
-          <OfficeNextActions
-            actions={[
-              { href: "/protected/admin-tools#fee-data-troubleshooting", label: "Prepare missing dues", detail: "Admin-only repair for daily screens." },
-              { href: "/protected/students", label: "Open Students", detail: "Check student class and year." },
-              { href: "/protected/payments", label: "Open Payment Desk", detail: "Collect after dues are ready." },
-              { href: "/protected/fee-setup", label: "Open Fee Setup", detail: "Review yearly fee defaults." },
-            ]}
-          />
-        </SectionCard>
+          Students exist for this year, but their payable dues are not ready yet.
+        </Notice>
       ) : null}
 
       {staff.appRole === "admin" && data.systemSyncHealth ? (
-        <FeeDataAttentionBanner
-          health={data.systemSyncHealth}
-        />
+        <FeeDataAttentionBanner health={data.systemSyncHealth} />
       ) : null}
 
-      <div className="grid gap-3 sm:hidden">
-        <MetricCard
-          title="Today collection"
-          value={formatInr(data.kpis.todaysCollection)}
-          hint="Posted receipts today."
+      {/* Hero strip */}
+      <div className="space-y-4">
+        <HeroKpis
+          collected={data.kpis.todaysCollection}
+          pending={data.kpis.totalPending}
+          collectionRate={data.kpis.collectionRate}
+          receiptsToday={data.kpis.receiptsToday}
+          followUpCount={data.studentsWithPending}
         />
-        <MetricCard
-          title="Receipts today"
-          value={data.kpis.receiptsToday}
-          hint="Receipts saved by office staff."
-        />
-        <MetricCard
-          title="Total pending"
-          value={formatInr(data.kpis.totalPending)}
-          hint={`${data.studentsWithPending} student${data.studentsWithPending === 1 ? "" : "s"} need follow-up.`}
-        />
+        <QuickActions canWriteStudents={canWriteStudents} canPostPayments={canPostPayments} />
       </div>
 
-      <div className="hidden gap-4 sm:grid sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          title="Total Expected Fees"
-          value={formatInr(data.kpis.totalExpectedFees)}
-          hint="Total fee demand for prepared dues."
+      {/* Today + secondary KPIs */}
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+        <TodayPanel
+          amount={data.kpis.todaysCollection}
+          receiptCount={data.kpis.receiptsToday}
+          modes={data.todayPaymentModeBreakdown}
         />
-        <MetricCard
-          title="Total Collected"
-          value={formatInr(data.kpis.totalCollected)}
-          hint={`${formatPercent(data.kpis.collectionRate)} of expected fees collected.`}
-        />
-        <MetricCard
-          title="Total Pending"
-          value={formatInr(data.kpis.totalPending)}
-          hint={`${data.studentsWithPending} student${data.studentsWithPending === 1 ? "" : "s"} need follow-up.`}
-        />
-        <MetricCard
-          title="Collection %"
-          value={formatPercent(data.kpis.collectionRate)}
-          hint="Current session collection rate."
-        />
-        <MetricCard
-          title="Active Students"
-          value={data.kpis.totalStudents}
-          hint="Students in this academic year."
-        />
-        <MetricCard
-          title="Refund/Credit Due"
-          value={formatInr(data.totalRefundDue)}
-          hint="Credit balance after revised fee calculations."
-        />
-        <MetricCard
-          title="Receipts Today"
-          value={data.kpis.receiptsToday}
-          hint="Receipts saved today."
-        />
-        <MetricCard
-          title="This Month Collection"
-          value={formatInr(data.kpis.thisMonthCollection)}
-          hint="Receipts posted in the current month."
-        />
+        <div className="grid grid-cols-2 content-start gap-3">
+          <KpiCard
+            label="Total expected"
+            value={<Money value={data.kpis.totalExpectedFees} size="xl" />}
+          />
+          <KpiCard
+            label="Total collected"
+            value={<Money value={data.kpis.totalCollected} size="xl" tone="success" />}
+            hint={`${formatPercent(data.kpis.collectionRate)} of expected`}
+          />
+          <KpiCard
+            label="Active students"
+            value={
+              <span className="tabular">{data.kpis.totalStudents}</span>
+            }
+          />
+          <KpiCard
+            label="Refund / credit"
+            value={<Money value={data.totalRefundDue} size="xl" tone="muted" />}
+          />
+          <div className="col-span-2">
+            <KpiCard
+              label="This month"
+              value={<Money value={data.kpis.thisMonthCollection} size="xl" />}
+              hint="Receipts posted in the current month."
+            />
+          </div>
+        </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
-        <SectionCard
-          title="Class-wise pending"
-          description="Highest pending classes appear first."
-          actions={<ClipboardList className="size-5 text-amber-600" />}
-          className="hidden sm:block"
+      {/* Defaulters + Recent */}
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+        <Section
+          title="Top defaulters"
+          description="Students with the highest pending balances for daily follow-up."
+          actions={
+            <Button asChild size="sm" variant="ghost">
+              <Link
+                href="/protected/defaulters"
+                className="inline-flex items-center gap-1"
+              >
+                Open all
+                <ArrowRight className="size-3.5" />
+              </Link>
+            </Button>
+          }
         >
-          <ClassPendingChart rows={maxChartCards} />
-        </SectionCard>
-        <SectionCard
+          <FollowUpQueue rows={data.followUpQueue} canPostPayments={canPostPayments} />
+        </Section>
+
+        <Section
           title="Recent receipts"
           description="Latest receipts saved by the office."
+          actions={
+            <Button asChild size="sm" variant="ghost">
+              <Link
+                href="/protected/transactions"
+                className="inline-flex items-center gap-1"
+              >
+                All receipts
+                <ArrowRight className="size-3.5" />
+              </Link>
+            </Button>
+          }
         >
           <RecentReceipts rows={data.recentPayments} />
-        </SectionCard>
+        </Section>
       </div>
 
-      <SectionCard
-        title="Top Defaulters"
-        description="Students with overdue or high pending balances for daily follow-up."
-        actions={
-          <Button asChild size="sm" variant="outline">
-            <Link href="/protected/defaulters">Open Defaulters</Link>
-          </Button>
-        }
-      >
-        <FollowUpQueue rows={data.followUpQueue} canPostPayments={canPostPayments} />
-      </SectionCard>
-
-      <details className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-900">
-          More dashboard details
-        </summary>
-        <div className="grid gap-6 border-t border-slate-200 p-4 xl:grid-cols-2">
-          <ProgressCard
-            collected={data.kpis.totalCollected}
-            expected={data.kpis.totalExpectedFees}
-            pending={data.kpis.totalPending}
-            rate={data.kpis.collectionRate}
-          />
-          <TodayCard
-            amount={data.kpis.todaysCollection}
-            receiptCount={data.kpis.receiptsToday}
-            modes={data.todayPaymentModeBreakdown}
-          />
-          <SectionCard
-            title="Collection trend"
-            description="Recent receipt totals by payment date."
-            actions={<BarChart3 className="size-5 text-sky-600" />}
-          >
-            <TrendChart rows={data.collectionTrend} />
-          </SectionCard>
-          <SectionCard
-            title="Collected vs pending"
-            description="Simple split of the current fee position."
-            actions={<IndianRupee className="size-5 text-emerald-600" />}
-          >
-            <BreakdownCard
-              collected={data.kpis.totalCollected}
-              pending={data.kpis.totalPending}
-            />
-          </SectionCard>
-          <SectionCard
-            title="Installment status"
-            description="Expected, collected, and pending totals by installment."
-            actions={<CalendarClock className="size-5 text-blue-600" />}
-          >
-            <InstallmentStatus rows={data.installmentSummary} />
-          </SectionCard>
-          <SectionCard
-            title="Class-wise fee position"
-            description="Sorted by highest pending amount."
-          >
-            <ClassSummaryTable rows={data.classSummary} />
-          </SectionCard>
-        <SectionCard
-          title="Attention needed"
-          description="Setup, import, and dues-update items that may need review."
+      {/* Insights — promoted, no longer behind <details> */}
+      <div className="grid gap-5 xl:grid-cols-2">
+        <Section
+          title="Class-wise pending"
+          description="Highest pending classes appear first."
         >
-          <AlertsPanel alerts={data.alerts} />
-        </SectionCard>
-          <SectionCard
-            title="Next best actions"
-            description="Shortcuts only. Dashboard does not post payments or edit fee setup."
-          >
-            <OfficeNextActions
-              actions={nextActions.map((action) => ({
-                href: action.href,
-                label: action.label,
-              }))}
-            />
-          </SectionCard>
-        </div>
-      </details>
+          <ClassPendingChart rows={maxChartCards} />
+        </Section>
+        <Section
+          title="Collection trend"
+          description="Daily collection over the recent window."
+        >
+          <TrendChart rows={data.collectionTrend} />
+        </Section>
+        <Section
+          title="Installment status"
+          description="Expected, collected, and pending totals by installment."
+          className="xl:col-span-2"
+        >
+          <InstallmentStatus rows={data.installmentSummary} />
+        </Section>
+      </div>
+
+      <Section
+        title="Class-wise fee position"
+        description="Sorted by highest pending amount."
+      >
+        <ClassSummaryTable rows={data.classSummary} />
+      </Section>
+
+      <Section
+        title="Attention"
+        description="Setup, import, and dues-update items that may need review."
+      >
+        <AlertsPanel alerts={data.alerts} />
+      </Section>
     </div>
   );
 }

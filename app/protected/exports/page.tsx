@@ -48,11 +48,11 @@ export default async function ExportsPage() {
               {group.items.map(([key, label, detail]) => (
                 <div
                   key={key}
-                  className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-3 rounded-lg border border-border bg-surface-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <span>
-                    <span className="block text-sm font-medium text-slate-900">{label}</span>
-                    <span className="mt-1 block text-xs leading-5 text-slate-600">{detail}</span>
+                    <span className="block text-sm font-medium text-foreground">{label}</span>
+                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">{detail}</span>
                   </span>
                   <Button asChild size="sm" variant="outline">
                     <Link href={`/protected/exports/${key}`}>Download XLSX</Link>

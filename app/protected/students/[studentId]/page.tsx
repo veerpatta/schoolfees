@@ -146,32 +146,32 @@ export default async function StudentDetailPage({
           description="Keep student identity, dues, and action shortcuts together on one staff screen."
         >
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Class</p>
-              <p className="mt-2 font-semibold text-slate-950">{student.classLabel}</p>
+            <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Class</p>
+              <p className="mt-2 font-semibold text-foreground">{student.classLabel}</p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Route</p>
-              <p className="mt-2 font-semibold text-slate-950">{student.transportRouteLabel}</p>
+            <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Route</p>
+              <p className="mt-2 font-semibold text-foreground">{student.transportRouteLabel}</p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Student status</p>
-              <p className="mt-2 font-semibold text-slate-950">{student.studentStatusLabel}</p>
+            <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Student status</p>
+              <p className="mt-2 font-semibold text-foreground">{student.studentStatusLabel}</p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Primary contact</p>
-              <p className="mt-2 font-semibold text-slate-950">{student.fatherPhone ?? student.motherPhone ?? "-"}</p>
+            <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Primary contact</p>
+              <p className="mt-2 font-semibold text-foreground">{student.fatherPhone ?? student.motherPhone ?? "-"}</p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Outstanding</p>
-              <p className="mt-2 font-semibold text-slate-950">
+            <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Outstanding</p>
+              <p className="mt-2 font-semibold text-foreground">
                 {financialSnapshot ? formatInr(financialSnapshot.currentOutstanding) : "-"}
               </p>
             </div>
             {financialSnapshot?.creditBalance ? (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-700">Amount to refund</p>
-                <p className="mt-2 font-semibold text-amber-950">
+              <div className="rounded-xl border bg-warning-soft px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-warning-soft-foreground">Amount to refund</p>
+                <p className="mt-2 font-semibold text-warning-soft-foreground">
                   {formatInr(financialSnapshot.refundableAmount)}
                 </p>
               </div>
@@ -220,23 +220,23 @@ export default async function StudentDetailPage({
                   <ValueStatePill tone="review">Override active</ValueStatePill>
                 ) : null}
               </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-                <p className="text-sm font-semibold text-slate-950">{financialSnapshot.policy.academicSessionLabel}</p>
-                <p className="mt-2 text-sm text-slate-600">
+              <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+                <p className="text-sm font-semibold text-foreground">{financialSnapshot.policy.academicSessionLabel}</p>
+                <p className="mt-2 text-sm text-muted-foreground">
                   Next due: {financialSnapshot.nextDueLabel ?? "No pending dues"}
                 </p>
-                <p className="mt-1 text-sm text-slate-600">
+                <p className="mt-1 text-sm text-muted-foreground">
                   {financialSnapshot.nextDueDate && financialSnapshot.nextDueAmount !== null
                     ? `${formatShortDate(financialSnapshot.nextDueDate)} | ${formatInr(financialSnapshot.nextDueAmount)}`
                     : "All installments are settled"}
                 </p>
                 {financialSnapshot.activeOverrideReason ? (
-                  <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  <p className="mt-3 rounded-lg border bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground">
                     Override reason: {financialSnapshot.activeOverrideReason}
                   </p>
                 ) : null}
                 {student.conventionalDiscountLabels.length > 0 ? (
-                  <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
+                  <div className="mt-3 rounded-lg border bg-success-soft px-3 py-2 text-sm text-success-soft-foreground">
                     <p className="font-semibold">Conventional discounts</p>
                     <p className="mt-1">{student.conventionalDiscountLabels.join(", ")}</p>
                     <p className="mt-1">
@@ -246,24 +246,24 @@ export default async function StudentDetailPage({
                   </div>
                 ) : null}
                 {financialSnapshot.creditBalance > 0 ? (
-                  <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  <p className="mt-3 rounded-lg border bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground">
                     Amount to refund / adjust: {formatInr(financialSnapshot.refundableAmount)}.
                   </p>
                 ) : null}
                 {financialSnapshot.rowsKeptForReview > 0 ? (
-                  <p className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+                  <p className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground">
                     Rows kept for review: {financialSnapshot.rowsKeptForReview}.
                   </p>
                 ) : null}
                 {financialSnapshot.resolvedBreakdown.booksExcludedFromWorkbook ? (
-                  <p className="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+                  <p className="mt-3 rounded-lg border bg-info-soft px-3 py-2 text-sm text-info-soft-foreground">
                     Books are kept outside fee calculation for AY 2026-27.
                   </p>
                 ) : null}
               </div>
             </div>
           ) : (
-            <p className="text-sm text-slate-600">Fee summary is not available yet.</p>
+            <p className="text-sm text-muted-foreground">Fee summary is not available yet.</p>
           )}
         </SectionCard>
       </section>
@@ -276,8 +276,8 @@ export default async function StudentDetailPage({
               href={`/protected/students/${student.id}?tab=${tab.key}&returnTo=${encodedReturnTo}`}
               className={
                 activeTab === tab.key
-                  ? "inline-flex items-center rounded-full border border-slate-900 bg-slate-900 px-3 py-2 text-sm text-white"
-                  : "inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:border-slate-300"
+                  ? "inline-flex items-center rounded-full border border-foreground bg-foreground px-3 py-2 text-sm text-white"
+                  : "inline-flex items-center rounded-full border border-border bg-card px-3 py-2 text-sm text-foreground hover:border-border-strong"
               }
             >
               {tab.label}
@@ -289,51 +289,51 @@ export default async function StudentDetailPage({
       {activeTab === "profile" ? (
         <SectionCard title="Basic Details" description="Identity, family, class, and route.">
           <div className="grid gap-5 lg:grid-cols-2">
-            <dl className="space-y-3 text-sm text-slate-700">
+            <dl className="space-y-3 text-sm text-foreground">
               <div className="grid grid-cols-2 gap-2">
-                <dt className="font-medium text-slate-500">Student name</dt>
+                <dt className="font-medium text-muted-foreground">Student name</dt>
                 <dd>{student.fullName}</dd>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <dt className="font-medium text-slate-500">SR no</dt>
+                <dt className="font-medium text-muted-foreground">SR no</dt>
                 <dd>{student.admissionNo}</dd>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <dt className="font-medium text-slate-500">DOB</dt>
+                <dt className="font-medium text-muted-foreground">DOB</dt>
                 <dd>{formatDate(student.dateOfBirth)}</dd>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <dt className="font-medium text-slate-500">Address</dt>
+                <dt className="font-medium text-muted-foreground">Address</dt>
                 <dd>{readValue(student.address)}</dd>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <dt className="font-medium text-slate-500">Student status</dt>
+                <dt className="font-medium text-muted-foreground">Student status</dt>
                 <dd>{student.studentStatusLabel}</dd>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <dt className="font-medium text-slate-500">Record status</dt>
+                <dt className="font-medium text-muted-foreground">Record status</dt>
                 <dd>{student.status}</dd>
               </div>
             </dl>
-            <dl className="space-y-3 text-sm text-slate-700">
+            <dl className="space-y-3 text-sm text-foreground">
               <div className="grid grid-cols-2 gap-2">
-                <dt className="font-medium text-slate-500">Father</dt>
+                <dt className="font-medium text-muted-foreground">Father</dt>
                 <dd>{readValue(student.fatherName)}</dd>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <dt className="font-medium text-slate-500">Mother</dt>
+                <dt className="font-medium text-muted-foreground">Mother</dt>
                 <dd>{readValue(student.motherName)}</dd>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <dt className="font-medium text-slate-500">Father phone</dt>
+                <dt className="font-medium text-muted-foreground">Father phone</dt>
                 <dd>{readValue(student.fatherPhone)}</dd>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <dt className="font-medium text-slate-500">Mother phone</dt>
+                <dt className="font-medium text-muted-foreground">Mother phone</dt>
                 <dd>{readValue(student.motherPhone)}</dd>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <dt className="font-medium text-slate-500">Route</dt>
+                <dt className="font-medium text-muted-foreground">Route</dt>
                 <dd>{student.transportRouteLabel}</dd>
               </div>
             </dl>
@@ -349,37 +349,37 @@ export default async function StudentDetailPage({
           </div>
 
           <div className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Tuition override</p>
-              <p className="mt-2 font-semibold text-slate-950">
+            <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Tuition override</p>
+              <p className="mt-2 font-semibold text-foreground">
                 {student.tuitionOverride !== null ? formatInr(student.tuitionOverride) : "Class default"}
               </p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Transport override</p>
-              <p className="mt-2 font-semibold text-slate-950">
+            <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Transport override</p>
+              <p className="mt-2 font-semibold text-foreground">
                 {student.transportOverride !== null ? formatInr(student.transportOverride) : "Route default"}
               </p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Discount</p>
-              <p className="mt-2 font-semibold text-slate-950">{formatInr(student.discountAmount)}</p>
+            <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Discount</p>
+              <p className="mt-2 font-semibold text-foreground">{formatInr(student.discountAmount)}</p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Late fee waiver</p>
-              <p className="mt-2 font-semibold text-slate-950">{formatInr(student.lateFeeWaiverAmount)}</p>
+            <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Late fee waiver</p>
+              <p className="mt-2 font-semibold text-foreground">{formatInr(student.lateFeeWaiverAmount)}</p>
             </div>
           </div>
 
-          <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700">
-            <span className="font-semibold text-slate-900">Other fee / adjustment:</span>{" "}
+          <div className="mb-4 rounded-xl border border-border bg-surface-2 px-4 py-4 text-sm text-foreground">
+            <span className="font-semibold text-foreground">Other fee / adjustment:</span>{" "}
             {student.otherAdjustmentHead ? `${student.otherAdjustmentHead} | ` : ""}
             {formatInr(student.otherAdjustmentAmount ?? 0)}
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full min-w-[420px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+              <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3">Fee head</th>
                   <th className="px-4 py-3">Amount</th>
@@ -390,12 +390,12 @@ export default async function StudentDetailPage({
                   ...financialSnapshot.resolvedBreakdown.coreHeads,
                   ...financialSnapshot.resolvedBreakdown.customHeads,
                 ].map((item) => (
-                  <tr key={item.id} className="border-t border-slate-100">
+                  <tr key={item.id} className="border-t border-border">
                     <td className="px-4 py-3">{item.label}</td>
-                    <td className="px-4 py-3 font-medium text-slate-900">{formatInr(item.amount)}</td>
+                    <td className="px-4 py-3 font-medium text-foreground">{formatInr(item.amount)}</td>
                   </tr>
                 ))}
-                <tr className="border-t border-slate-200 bg-slate-50 font-semibold text-slate-900">
+                <tr className="border-t border-border bg-surface-2 font-semibold text-foreground">
                   <td className="px-4 py-3">Resolved annual total</td>
                   <td className="px-4 py-3">{formatInr(financialSnapshot.resolvedBreakdown.annualTotal)}</td>
                 </tr>
@@ -414,9 +414,9 @@ export default async function StudentDetailPage({
 
       {activeTab === "dues" ? (
         <SectionCard title="Dues" description="Current dues position for the student.">
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full min-w-[820px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+              <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3">Installment</th>
                   <th className="px-4 py-3">Due date</th>
@@ -431,20 +431,20 @@ export default async function StudentDetailPage({
               <tbody>
                 {installmentBalances.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
+                    <td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">
                       No installment balance rows are available yet.
                     </td>
                   </tr>
                 ) : (
                   installmentBalances.map((item) => (
-                    <tr key={item.installmentId} className="border-t border-slate-100">
+                    <tr key={item.installmentId} className="border-t border-border">
                       <td className="px-4 py-3">{item.installmentLabel}</td>
                       <td className="px-4 py-3">{formatShortDate(item.dueDate)}</td>
                       <td className="px-4 py-3">{formatInr(item.baseCharge)}</td>
                       <td className="px-4 py-3">{formatInr(item.finalLateFee)}</td>
                       <td className="px-4 py-3">{formatInr(item.paidAmount)}</td>
                       <td className="px-4 py-3">{formatInr(item.adjustmentAmount)}</td>
-                      <td className="px-4 py-3 font-medium text-slate-900">{formatInr(item.pendingAmount)}</td>
+                      <td className="px-4 py-3 font-medium text-foreground">{formatInr(item.pendingAmount)}</td>
                       <td className="px-4 py-3">
                         <ValueStatePill tone={installmentTone(item.balanceStatus)} className="normal-case tracking-normal">
                           {item.balanceStatus}
@@ -464,9 +464,9 @@ export default async function StudentDetailPage({
           <div className="mb-4 flex flex-wrap gap-2">
             <ValueStatePill tone="locked">Locked payment history</ValueStatePill>
           </div>
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full min-w-[760px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+              <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3">Posted at</th>
                   <th className="px-4 py-3">Receipt</th>
@@ -479,18 +479,18 @@ export default async function StudentDetailPage({
               <tbody>
                 {ledger.payments.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
+                    <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
                       No payment rows found for this student yet.
                     </td>
                   </tr>
                 ) : (
                   ledger.payments.map((payment) => (
-                    <tr key={payment.id} className="border-t border-slate-100">
+                    <tr key={payment.id} className="border-t border-border">
                       <td className="px-4 py-3">{formatDateTime(payment.createdAt)}</td>
-                      <td className="px-4 py-3 font-medium text-slate-900">{payment.receiptNumber}</td>
+                      <td className="px-4 py-3 font-medium text-foreground">{payment.receiptNumber}</td>
                       <td className="px-4 py-3">
                         {payment.installmentLabel}
-                        <div className="text-xs text-slate-500">Due {formatShortDate(payment.dueDate)}</div>
+                        <div className="text-xs text-muted-foreground">Due {formatShortDate(payment.dueDate)}</div>
                       </td>
                       <td className="px-4 py-3">{payment.paymentMode}</td>
                       <td className="px-4 py-3">{formatInr(payment.paymentAmount)}</td>
@@ -506,9 +506,9 @@ export default async function StudentDetailPage({
 
       {activeTab === "receipts" ? (
         <SectionCard title="Receipts" description="Latest receipts and quick print/open actions for this student.">
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full min-w-[760px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+              <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3">Receipt</th>
                   <th className="px-4 py-3">Date</th>
@@ -522,14 +522,14 @@ export default async function StudentDetailPage({
               <tbody>
                 {receipts.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
+                    <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
                       No receipts found for this student.
                     </td>
                   </tr>
                 ) : (
                   receipts.map((receipt) => (
-                    <tr key={receipt.id} className="border-t border-slate-100">
-                      <td className="px-4 py-3 font-medium text-slate-900">{receipt.receiptNumber}</td>
+                    <tr key={receipt.id} className="border-t border-border">
+                      <td className="px-4 py-3 font-medium text-foreground">{receipt.receiptNumber}</td>
                       <td className="px-4 py-3">{formatShortDate(receipt.paymentDate)}</td>
                       <td className="px-4 py-3">{receipt.paymentModeLabel}</td>
                       <td className="px-4 py-3">{formatInr(receipt.totalAmount)}</td>
@@ -553,7 +553,7 @@ export default async function StudentDetailPage({
 
       {activeTab === "notes" ? (
         <SectionCard title="Notes" description="Office notes remain part of the student master record.">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700">
+          <div className="rounded-xl border border-border bg-surface-2 px-4 py-4 text-sm text-foreground">
             {readValue(student.notes)}
           </div>
         </SectionCard>
@@ -562,28 +562,28 @@ export default async function StudentDetailPage({
       {activeTab === "history" ? (
         <SectionCard title="History" description="High-level record history.">
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Created</p>
-              <p className="mt-2 text-sm text-slate-900">{formatDateTime(student.createdAt)}</p>
+            <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Created</p>
+              <p className="mt-2 text-sm text-foreground">{formatDateTime(student.createdAt)}</p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Last updated</p>
-              <p className="mt-2 text-sm text-slate-900">{formatDateTime(student.updatedAt)}</p>
+            <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Last updated</p>
+              <p className="mt-2 text-sm text-foreground">{formatDateTime(student.updatedAt)}</p>
             </div>
           </div>
           {ledger ? (
             <div className="mt-4 grid gap-4 md:grid-cols-3">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Payment rows</p>
-                <p className="mt-2 text-lg font-semibold text-slate-950">{ledger.paymentOptions.length}</p>
+              <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Payment rows</p>
+                <p className="mt-2 text-lg font-semibold text-foreground">{ledger.paymentOptions.length}</p>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Adjustment rows</p>
-                <p className="mt-2 text-lg font-semibold text-slate-950">{ledger.adjustments.length}</p>
+              <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Adjustment rows</p>
+                <p className="mt-2 text-lg font-semibold text-foreground">{ledger.adjustments.length}</p>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Latest receipt</p>
-                <p className="mt-2 text-lg font-semibold text-slate-950">{receipts[0]?.receiptNumber ?? "-"}</p>
+              <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Latest receipt</p>
+                <p className="mt-2 text-lg font-semibold text-foreground">{receipts[0]?.receiptNumber ?? "-"}</p>
               </div>
             </div>
           ) : null}
@@ -591,12 +591,12 @@ export default async function StudentDetailPage({
       ) : null}
 
       {canEditStudent && deletionSafety ? (
-        <details className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-900">
+        <details className="overflow-hidden rounded-xl border border-border bg-card">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">
             Record actions
           </summary>
-          <div className="grid gap-4 border-t border-slate-200 p-4 lg:grid-cols-[1fr_auto] lg:items-start">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          <div className="grid gap-4 border-t border-border p-4 lg:grid-cols-[1fr_auto] lg:items-start">
+            <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm text-foreground">
               <p>
                 Receipts: {deletionSafety.receiptCount}, payments: {deletionSafety.paymentCount},
                 prepared dues: {deletionSafety.installmentCount}, adjustments: {deletionSafety.adjustmentCount},
@@ -604,12 +604,12 @@ export default async function StudentDetailPage({
               </p>
               {deletionSafety.blockedInstallmentCount > 0 ||
               deletionSafety.ledgerRegenerationRowCount > 0 ? (
-                <p className="mt-2 text-amber-700">
+                <p className="mt-2 text-warning-soft-foreground">
                   Fee review records are linked to this student. Withdraw student instead of deleting.
                 </p>
               ) : null}
               {deletionSafety.hardDeleteBlockers.length > 0 ? (
-                <p className="mt-2 text-amber-700">
+                <p className="mt-2 text-warning-soft-foreground">
                   Delete blockers: {deletionSafety.hardDeleteBlockers.join(", ")}.
                 </p>
               ) : null}
@@ -634,14 +634,14 @@ export default async function StudentDetailPage({
                   {deletionSafety.canForceDeleteTestRecord && !deletionSafety.hardDeleteAllowed ? (
                     <input type="hidden" name="forceTestRecord" value="yes" />
                   ) : null}
-                  <label className="text-xs font-medium text-slate-600" htmlFor="confirmDelete">
+                  <label className="text-xs font-medium text-muted-foreground" htmlFor="confirmDelete">
                     Type SR {deletionSafety.admissionNo} to confirm Delete wrong student
                   </label>
                   <input
                     id="confirmDelete"
                     name="confirmDelete"
                     required
-                    className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                    className="h-9 rounded-md border border-border-strong px-3 text-sm"
                     placeholder={deletionSafety.admissionNo}
                   />
                   <Button type="submit" variant="destructive">
@@ -654,7 +654,7 @@ export default async function StudentDetailPage({
             </div>
           </div>
 
-          <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-950">
+          <div className="mb-4 rounded-xl border bg-success-soft px-4 py-4 text-sm text-success-soft-foreground">
             <p className="font-semibold">Conventional Discounts</p>
             {student.conventionalDiscountLabels.length > 0 ? (
               <div className="mt-2 space-y-1">
@@ -671,7 +671,7 @@ export default async function StudentDetailPage({
                 ) : null}
               </div>
             ) : (
-              <p className="mt-2 text-emerald-900">No conventional discount is active.</p>
+              <p className="mt-2 text-success-soft-foreground">No conventional discount is active.</p>
             )}
           </div>
         </details>

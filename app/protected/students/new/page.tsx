@@ -83,7 +83,7 @@ export default async function NewStudentPage({ searchParams }: NewStudentPagePro
             action={createStudentAction}
           />
         ) : (
-          <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          <p className="rounded-lg border border-dashed border-border-strong bg-surface-2 px-4 py-3 text-sm text-muted-foreground">
             Student entry will open here as soon as the active session classes are ready.
           </p>
         )}

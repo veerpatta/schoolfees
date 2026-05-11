@@ -7,10 +7,10 @@ type StudentStatusBadgeProps = {
 };
 
 const statusClassMap: Record<StudentStatus, string> = {
-  active: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  inactive: "border-slate-200 bg-slate-100 text-slate-700",
-  left: "border-amber-200 bg-amber-50 text-amber-800",
-  graduated: "border-blue-200 bg-blue-50 text-blue-700",
+  active: "bg-success-soft text-success-soft-foreground",
+  inactive: "border-border bg-surface-2 text-foreground",
+  left: "bg-warning-soft text-warning-soft-foreground",
+  graduated: "bg-info-soft text-info-soft-foreground",
 };
 
 const statusLabelMap: Record<StudentStatus, string> = {

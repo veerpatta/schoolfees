@@ -111,7 +111,7 @@ export function StudentQuickLoad({
         description="Search by student name, SR no, or phone, then narrow by class, route, or status."
       >
         <details className="md:hidden">
-          <summary className="cursor-pointer rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
+          <summary className="cursor-pointer rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-foreground">
             Open filters
           </summary>
           <div className="mt-3 grid gap-3">
@@ -293,7 +293,7 @@ export function StudentQuickLoad({
             returnTo={returnTo}
           />
 
-          <div className="flex items-center justify-between text-sm text-slate-600">
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
             <p>
               Page {page} of {pageCount}
             </p>

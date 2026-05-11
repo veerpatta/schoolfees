@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Notice } from "@/components/ui/notice";
 import { cn } from "@/lib/utils";
 
 type ValueStateTone =
@@ -13,22 +15,22 @@ type ValueStateTone =
   | "policy"
   | "review";
 
-const toneClasses: Record<ValueStateTone, string> = {
-  editable: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  calculated: "border-slate-200 bg-slate-100 text-slate-700",
-  locked: "border-amber-200 bg-amber-50 text-amber-800",
-  policy: "border-blue-200 bg-blue-50 text-blue-700",
-  review: "border-rose-200 bg-rose-50 text-rose-700",
+const valueStateClasses: Record<ValueStateTone, string> = {
+  editable: "bg-success-soft text-success-soft-foreground",
+  calculated: "bg-surface-2 text-foreground",
+  locked: "bg-warning-soft text-warning-soft-foreground",
+  policy: "bg-info-soft text-info-soft-foreground",
+  review: "bg-destructive-soft text-destructive-soft-foreground",
 };
 
 type OfficeTone = "neutral" | "success" | "warning" | "danger" | "info";
 
-const officeToneClasses: Record<OfficeTone, string> = {
-  neutral: "border-slate-200 bg-slate-50 text-slate-700",
-  success: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  warning: "border-amber-200 bg-amber-50 text-amber-900",
-  danger: "border-rose-200 bg-rose-50 text-rose-800",
-  info: "border-sky-200 bg-sky-50 text-sky-800",
+const officeNoticeToneMap: Record<OfficeTone, React.ComponentProps<typeof Notice>["tone"]> = {
+  neutral: "neutral",
+  success: "success",
+  warning: "warning",
+  danger: "danger",
+  info: "info",
 };
 
 export function ValueStatePill({
@@ -43,8 +45,8 @@ export function ValueStatePill({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em]",
-        toneClasses[tone],
+        "inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.06em]",
+        valueStateClasses[tone],
         className,
       )}
     >
@@ -65,17 +67,19 @@ export function WorkflowGuard({
   actionHref: string | null;
 }) {
   return (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950">
-      <p className="font-semibold">{title}</p>
-      <p className="mt-2 leading-6">{detail}</p>
-      {actionLabel && actionHref ? (
-        <div className="mt-3">
+    <Notice
+      tone="warning"
+      title={title}
+      action={
+        actionLabel && actionHref ? (
           <Button asChild size="sm" variant="outline">
             <Link href={actionHref}>{actionLabel}</Link>
           </Button>
-        </div>
-      ) : null}
-    </div>
+        ) : null
+      }
+    >
+      {detail}
+    </Notice>
   );
 }
 
@@ -93,21 +97,14 @@ export function OfficeNotice({
   className?: string;
 }) {
   return (
-    <div
-      className={cn(
-        "rounded-lg border px-4 py-3 text-sm",
-        officeToneClasses[tone],
-        className,
-      )}
+    <Notice
+      tone={officeNoticeToneMap[tone]}
+      title={title}
+      action={action}
+      className={className}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          {title ? <p className="font-semibold">{title}</p> : null}
-          <div className={cn(title ? "mt-1.5" : "", "leading-6")}>{children}</div>
-        </div>
-        {action ? <div className="shrink-0">{action}</div> : null}
-      </div>
-    </div>
+      {children}
+    </Notice>
   );
 }
 
@@ -125,12 +122,14 @@ export function OfficeEmptyState({
   return (
     <div
       className={cn(
-        "rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-center",
+        "rounded-md border border-dashed border-border bg-surface-2/50 px-4 py-8 text-center",
         className,
       )}
     >
-      <p className="font-semibold text-slate-950">{title}</p>
-      <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-600">{detail}</p>
+      <p className="font-semibold text-foreground">{title}</p>
+      <p className="mx-auto mt-1.5 max-w-xl text-sm leading-6 text-muted-foreground">
+        {detail}
+      </p>
       {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
     </div>
   );
@@ -146,7 +145,7 @@ export function OfficeActionBar({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-3 shadow-sm",
+        "flex flex-wrap items-center gap-2 rounded-md border border-border bg-card px-3 py-2.5 shadow-xs",
         className,
       )}
     >
@@ -165,7 +164,7 @@ export function OfficeFilterBar({
   return (
     <div
       className={cn(
-        "rounded-lg border border-slate-200 bg-slate-50 p-3",
+        "rounded-md border border-border bg-surface-2 p-3",
         className,
       )}
     >
@@ -182,7 +181,12 @@ export function OfficeTableShell({
   className?: string;
 }) {
   return (
-    <div className={cn("overflow-x-auto rounded-lg border border-slate-200 bg-white", className)}>
+    <div
+      className={cn(
+        "overflow-x-auto rounded-md border border-border bg-card",
+        className,
+      )}
+    >
       {children}
     </div>
   );
@@ -209,12 +213,20 @@ export function OfficeNextActions({
         <Link
           key={`${action.href}-${action.label}`}
           href={action.href}
-          className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm transition hover:border-slate-300 hover:bg-slate-50"
+          className="group flex items-center justify-between gap-3 rounded-md border border-border bg-card px-4 py-3 text-sm transition-colors duration-150 hover:border-border-strong hover:bg-surface-2"
         >
-          <span className="font-semibold text-slate-950">{action.label}</span>
-          {action.detail ? (
-            <span className="mt-1 block leading-5 text-slate-600">{action.detail}</span>
-          ) : null}
+          <span className="min-w-0">
+            <span className="block font-semibold text-foreground">{action.label}</span>
+            {action.detail ? (
+              <span className="mt-0.5 block leading-5 text-muted-foreground">
+                {action.detail}
+              </span>
+            ) : null}
+          </span>
+          <ArrowRight
+            className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-foreground"
+            aria-hidden="true"
+          />
         </Link>
       ))}
     </div>
@@ -236,46 +248,36 @@ export function ClassTabs({
 }) {
   const buildHref = (classId: string) => {
     const params = new URLSearchParams();
-
     Object.entries(query).forEach(([key, value]) => {
-      if (value) {
-        params.set(key, value);
-      }
+      if (value) params.set(key, value);
     });
-
     if (classId) {
       params.set("classId", classId);
     } else {
       params.delete("classId");
     }
-
     const queryString = params.toString();
     return queryString ? `${basePath}?${queryString}` : basePath;
   };
 
+  const tabClass = (active: boolean) =>
+    cn(
+      "inline-flex items-center rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
+      active
+        ? "border-foreground bg-foreground text-background"
+        : "border-border bg-surface text-muted-foreground hover:border-border-strong hover:text-foreground",
+    );
+
   return (
-    <div className="flex flex-wrap gap-2">
-      <Link
-        href={buildHref("")}
-        className={cn(
-          "inline-flex items-center rounded-full border px-3 py-2 text-sm transition-colors",
-          activeClassId
-            ? "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
-            : "border-slate-900 bg-slate-900 text-white",
-        )}
-      >
+    <div className="flex flex-wrap gap-1.5 rounded-md bg-surface-2 p-1">
+      <Link href={buildHref("")} className={tabClass(!activeClassId)}>
         {allLabel}
       </Link>
       {classOptions.map((item) => (
         <Link
           key={item.id}
           href={buildHref(item.id)}
-          className={cn(
-            "inline-flex items-center rounded-full border px-3 py-2 text-sm transition-colors",
-            item.id === activeClassId
-              ? "border-slate-900 bg-slate-900 text-white"
-              : "border-slate-200 bg-white text-slate-700 hover:border-slate-300",
-          )}
+          className={tabClass(item.id === activeClassId)}
         >
           {item.label}
         </Link>
@@ -382,9 +384,12 @@ export function OfficeRecentActions() {
   return (
     <div className="grid gap-3 md:grid-cols-2">
       {cards.map((card) => (
-        <div key={card.title} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-          <p className="text-sm font-semibold text-slate-950">{card.title}</p>
-          <p className="mt-1 text-sm text-slate-600">{card.detail}</p>
+        <div
+          key={card.title}
+          className="rounded-md border border-border bg-surface-2/60 px-4 py-3.5"
+        >
+          <p className="text-sm font-semibold text-foreground">{card.title}</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">{card.detail}</p>
           <div className="mt-3">
             <Button asChild size="sm" variant="outline">
               <Link href={card.href}>{card.action}</Link>

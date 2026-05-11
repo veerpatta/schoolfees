@@ -55,7 +55,7 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
         description="Formal receipt view with print-friendly layout for office records and reprints."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Link className="text-sm font-medium text-slate-700 underline-offset-4 hover:underline" href={returnTo}>
+            <Link className="text-sm font-medium text-foreground underline-offset-4 hover:underline" href={returnTo}>
               Back to Transactions
             </Link>
             {canPrintReceipts ? <ReceiptPrintActions autoPrint={shouldAutoPrint} /> : null}

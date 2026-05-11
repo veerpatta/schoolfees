@@ -52,8 +52,8 @@ function AdjustmentNotice({ state }: { state: LedgerAdjustmentActionState }) {
     <div
       className={
         state.status === "error"
-          ? "rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-          : "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
+          ? "rounded-md border bg-destructive-soft px-3 py-2 text-sm text-destructive-soft-foreground"
+          : "rounded-md border bg-success-soft px-3 py-2 text-sm text-success-soft-foreground"
       }
     >
       {state.message}
@@ -121,7 +121,7 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
           title="Select a student to continue"
           description="Payment history, adjustments, and correction form will appear after selecting a student."
         >
-          <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          <p className="rounded-lg border border-dashed border-border-strong bg-surface-2 px-4 py-3 text-sm text-muted-foreground">
             Select a student to view payment history and corrections.
           </p>
         </SectionCard>
@@ -191,27 +191,27 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
             actions={<StatusBadge label="Newest first" tone="good" />}
           >
             {selectedStudent.payments.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              <p className="rounded-lg border border-dashed border-border-strong bg-surface-2 px-4 py-3 text-sm text-muted-foreground">
                 No payment rows found for current filter.
               </p>
             ) : (
               <>
                 <div className="space-y-3 md:hidden">
                   {selectedStudent.payments.map((payment) => (
-                    <div key={payment.id} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
-                      <p className="font-semibold text-slate-900">{payment.receiptNumber}</p>
-                      <p className="text-xs text-slate-500">{formatDateTime(payment.createdAt)}</p>
+                    <div key={payment.id} className="rounded-xl border border-border bg-card p-3 text-sm">
+                      <p className="font-semibold text-foreground">{payment.receiptNumber}</p>
+                      <p className="text-xs text-muted-foreground">{formatDateTime(payment.createdAt)}</p>
                       <p className="mt-1">{payment.installmentLabel} • {formatInr(payment.paymentAmount)}</p>
-                      <p className="text-xs text-slate-600 capitalize">
+                      <p className="text-xs text-muted-foreground capitalize">
                         {payment.paymentMode.replace("_", " ")} {payment.referenceNumber ? `• ${payment.referenceNumber}` : ""}
                       </p>
-                      <p className="mt-1 text-xs text-slate-600">{payment.notes || "-"}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{payment.notes || "-"}</p>
                     </div>
                   ))}
                 </div>
-                <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
+                <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
                 <table className="w-full min-w-[760px] text-left text-sm">
-                  <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                  <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
                       <th className="px-4 py-3">Posted on</th>
                       <th className="px-4 py-3">Receipt</th>
@@ -224,33 +224,33 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
                   </thead>
                   <tbody>
                     {selectedStudent.payments.map((payment) => (
-                      <tr key={payment.id} className="border-t border-slate-100 align-top text-slate-700">
+                      <tr key={payment.id} className="border-t border-border align-top text-foreground">
                         <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(payment.createdAt)}</td>
                         <td className="px-4 py-3">
-                          <div className="font-medium text-slate-900">{payment.receiptNumber}</div>
-                          <div className="text-xs text-slate-500">Payment date: {formatDate(payment.paymentDate)}</div>
+                          <div className="font-medium text-foreground">{payment.receiptNumber}</div>
+                          <div className="text-xs text-muted-foreground">Payment date: {formatDate(payment.paymentDate)}</div>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="font-medium text-slate-900">{payment.installmentLabel}</div>
-                          <div className="text-xs text-slate-500">Due: {formatDate(payment.dueDate)}</div>
+                          <div className="font-medium text-foreground">{payment.installmentLabel}</div>
+                          <div className="text-xs text-muted-foreground">Due: {formatDate(payment.dueDate)}</div>
                         </td>
-                        <td className="px-4 py-3 font-medium text-slate-900">{formatInr(payment.paymentAmount)}</td>
+                        <td className="px-4 py-3 font-medium text-foreground">{formatInr(payment.paymentAmount)}</td>
                         <td className="px-4 py-3">
                           <div className="capitalize">{payment.paymentMode.replace("_", " ")}</div>
-                          <div className="text-xs text-slate-500">
+                          <div className="text-xs text-muted-foreground">
                             {payment.referenceNumber ? `Ref: ${payment.referenceNumber}` : "No reference number"}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-slate-600">{payment.notes || "-"}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{payment.notes || "-"}</td>
                         <td className="px-4 py-3">
                           {payment.adjustmentCount === 0 ? (
-                            <span className="text-slate-500">None</span>
+                            <span className="text-muted-foreground">None</span>
                           ) : (
                             <div>
-                              <p className="font-medium text-slate-900">
+                              <p className="font-medium text-foreground">
                                 {payment.adjustmentCount} entry{payment.adjustmentCount > 1 ? "ies" : ""}
                               </p>
-                              <p className="text-xs text-slate-500">
+                              <p className="text-xs text-muted-foreground">
                                 Net impact: {formatInr(payment.adjustmentNetDelta)}
                               </p>
                             </div>
@@ -271,7 +271,7 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
             actions={<StatusBadge label="No payment edits" tone="warning" />}
           >
             {!canAddAdjustments ? (
-              <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              <p className="rounded-lg border border-dashed border-border-strong bg-surface-2 px-4 py-3 text-sm text-muted-foreground">
                 You can view ledger history but cannot add adjustments with your current role.
               </p>
             ) : null}
@@ -383,13 +383,13 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
             }
           >
             {selectedStudent.adjustments.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              <p className="rounded-lg border border-dashed border-border-strong bg-surface-2 px-4 py-3 text-sm text-muted-foreground">
                 No adjustment rows found for current filter.
               </p>
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <div className="overflow-x-auto rounded-xl border border-border">
                 <table className="w-full min-w-[760px] text-left text-sm">
-                  <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                  <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
                       <th className="px-4 py-3">Added on</th>
                       <th className="px-4 py-3">Linked payment</th>
@@ -402,23 +402,23 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
                   </thead>
                   <tbody>
                     {selectedStudent.adjustments.map((adjustment) => (
-                      <tr key={adjustment.id} className="border-t border-slate-100 align-top text-slate-700">
+                      <tr key={adjustment.id} className="border-t border-border align-top text-foreground">
                         <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(adjustment.createdAt)}</td>
                         <td className="px-4 py-3">
-                          <p className="font-medium text-slate-900">{adjustment.receiptNumber}</p>
-                          <p className="text-xs text-slate-500">
+                          <p className="font-medium text-foreground">{adjustment.receiptNumber}</p>
+                          <p className="text-xs text-muted-foreground">
                             {adjustment.installmentLabel} | Payment {formatInr(adjustment.paymentAmount)}
                           </p>
                         </td>
                         <td className="px-4 py-3 capitalize">{adjustment.adjustmentType}</td>
-                        <td className="px-4 py-3 font-medium text-slate-900">
+                        <td className="px-4 py-3 font-medium text-foreground">
                           {adjustment.amountDelta > 0 ? "Positive (+)" : "Negative (-)"} {formatInr(adjustment.amountDelta)}
                         </td>
                         <td className="px-4 py-3">{adjustment.reason}</td>
                         <td className="px-4 py-3">
                           {adjustment.createdByName ?? adjustment.createdBy ?? "Staff user"}
                         </td>
-                        <td className="px-4 py-3 text-slate-600">{adjustment.notes || "-"}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{adjustment.notes || "-"}</td>
                       </tr>
                     ))}
                   </tbody>

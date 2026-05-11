@@ -47,13 +47,13 @@ export default async function ImportsPage({ searchParams }: ImportsPageProps) {
   return (
     <div className="space-y-6">
       {importDataError ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="rounded-xl border bg-warning-soft px-4 py-3 text-sm text-warning-soft-foreground">
           Import data could not be loaded safely: {importDataError}
         </div>
       ) : null}
 
       {readinessError ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="rounded-xl border bg-warning-soft px-4 py-3 text-sm text-warning-soft-foreground">
           Import readiness could not be loaded safely: {readinessError}
         </div>
       ) : readiness && !readiness.isReady ? (

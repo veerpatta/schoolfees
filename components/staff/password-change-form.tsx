@@ -27,8 +27,8 @@ export function PasswordChangeForm({
         <div
           className={
             state.status === "error"
-              ? "rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-              : "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
+              ? "rounded-md border bg-destructive-soft px-3 py-2 text-sm text-destructive-soft-foreground"
+              : "rounded-md border bg-success-soft px-3 py-2 text-sm text-success-soft-foreground"
           }
         >
           {state.message}
@@ -55,7 +55,7 @@ export function PasswordChangeForm({
             className="mt-2"
             required
           />
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-muted-foreground">
             Use at least 8 characters with uppercase, lowercase, number, and
             special character.
           </p>

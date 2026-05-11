@@ -10,9 +10,17 @@ function SubmitButton({ className }: { className?: string }) {
   const { pending } = useFormStatus();
 
   return (
-    <Button type="submit" size="sm" variant="outline" disabled={pending} className={className}>
-      <LogOut className="size-4" />
-      {pending ? "Signing out..." : "Sign out"}
+    <Button
+      type="submit"
+      size="sm"
+      variant="outline"
+      disabled={pending}
+      loading={pending}
+      loadingText="Signing out…"
+      leadingIcon={<LogOut className="size-4" />}
+      className={className}
+    >
+      Sign out
     </Button>
   );
 }

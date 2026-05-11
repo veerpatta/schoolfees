@@ -66,13 +66,13 @@ function ActionNotice({ state }: { state: StaffFormActionState }) {
     <div
       className={
         state.status === "error"
-          ? "rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-          : "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
+          ? "rounded-md border bg-destructive-soft px-3 py-2 text-sm text-destructive-soft-foreground"
+          : "rounded-md border bg-success-soft px-3 py-2 text-sm text-success-soft-foreground"
       }
     >
       <p>{state.message}</p>
       {state.generatedPassword ? (
-        <p className="mt-2 font-medium text-slate-900">
+        <p className="mt-2 font-medium text-foreground">
           Generated password: {state.generatedPassword}
         </p>
       ) : null}
@@ -215,12 +215,12 @@ function StaffAccessForm({
             ))}
           </select>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+        <div className="rounded-lg border border-border bg-surface-2 px-3 py-3">
           <label
             htmlFor={`staffActive-${account.id}`}
             className="flex cursor-pointer items-center justify-between gap-3"
           >
-            <span className="text-sm font-medium text-slate-900">
+            <span className="text-sm font-medium text-foreground">
               Staff account active
             </span>
             <input
@@ -231,7 +231,7 @@ function StaffAccessForm({
               className="size-4"
             />
           </label>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-muted-foreground">
             Deactivated accounts cannot enter the protected app, even if the
             user can still authenticate.
           </p>
@@ -248,7 +248,7 @@ function StaffAccessForm({
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted-foreground">
           {currentStaffId === account.id
             ? "This is your current account. You cannot remove your own admin access here."
             : "Role and status changes are applied immediately."}
@@ -292,7 +292,7 @@ function ResetPasswordForm({
           className="mt-2"
           required
         />
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-muted-foreground">
           Password must be at least 8 characters and include uppercase,
           lowercase, number, and special character.
         </p>
@@ -347,17 +347,17 @@ export function StaffManagementClient({
           {accounts.map((account) => (
             <details
               key={account.id}
-              className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+              className="rounded-2xl border border-border bg-surface-2 p-4"
             >
               <summary className="flex cursor-pointer list-none flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-950">
+                  <p className="text-sm font-semibold text-foreground">
                     {account.fullName}
                   </p>
-                  <p className="mt-1 text-sm text-slate-600">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {account.email ?? "No email on file"}
                   </p>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     Last login: {formatTimestamp(account.lastLoginAt)}
                   </p>
                 </div>
@@ -378,11 +378,11 @@ export function StaffManagementClient({
               </summary>
 
               <div className="mt-5 grid gap-5 lg:grid-cols-2">
-                <section className="rounded-xl border border-slate-200 bg-white p-4">
-                  <h3 className="text-sm font-semibold text-slate-950">
+                <section className="rounded-xl border border-border bg-card p-4">
+                  <h3 className="text-sm font-semibold text-foreground">
                     Access and role
                   </h3>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     Email confirmed:{" "}
                     {account.emailConfirmedAt
                       ? formatTimestamp(account.emailConfirmedAt)
@@ -398,11 +398,11 @@ export function StaffManagementClient({
                   </div>
                 </section>
 
-                <section className="rounded-xl border border-slate-200 bg-white p-4">
-                  <h3 className="text-sm font-semibold text-slate-950">
+                <section className="rounded-xl border border-border bg-card p-4">
+                  <h3 className="text-sm font-semibold text-foreground">
                     Password reset
                   </h3>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     Use this only when the staff member cannot sign in or needs
                     a fresh password.
                   </p>

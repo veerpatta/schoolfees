@@ -125,10 +125,10 @@ export default async function SettingsPage() {
       />
 
       <section className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+        <div className="rounded-2xl border border-border bg-surface-2 p-4 text-sm text-foreground">
           This page is restricted to roles with settings access. It shows deployment readiness and active policy notes only.
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+        <div className="rounded-2xl border border-border bg-surface-2 p-4 text-sm text-foreground">
           Current defaults stay aligned to the canonical school policy: session {policy.academicSessionLabel}, late fee Rs {policy.lateFeeFlatAmount}, due dates {policy.installmentSchedule.map((item) => item.dueDateLabel).join(", ")}.
         </div>
       </section>
@@ -151,14 +151,14 @@ export default async function SettingsPage() {
         }
       >
         <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+          <div className="rounded-xl border bg-warning-soft px-4 py-3 text-sm leading-6 text-warning-soft-foreground">
             Use TEST-2026-27 for trial runs. Do not post test payments against real students.
           </div>
-          <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-900">
+          <div className="rounded-xl border bg-info-soft px-4 py-3 text-sm leading-6 text-info-soft-foreground">
             Fee Setup owns school-wide defaults. Students owns student-specific records and
             overrides.
           </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+          <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm leading-6 text-foreground">
             Manual UAT docs: <code>docs/uat-test-plan.md</code>,{" "}
             <code>docs/test-data-setup.md</code>, and{" "}
             <code>docs/before-real-data-checklist.md</code>.
@@ -171,20 +171,20 @@ export default async function SettingsPage() {
           title="Deployment profile"
           description="These values define how the app should behave in production."
         >
-          <ul className="space-y-3 text-sm leading-6 text-slate-700">
-            <li className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <ul className="space-y-3 text-sm leading-6 text-foreground">
+            <li className="rounded-xl border border-border bg-surface-2 px-4 py-3">
               School: {schoolProfile.name}
             </li>
-            <li className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <li className="rounded-xl border border-border bg-surface-2 px-4 py-3">
               Mode: {schoolProfile.appMode}
             </li>
-            <li className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <li className="rounded-xl border border-border bg-surface-2 px-4 py-3">
               Audience: {schoolProfile.staffAudience}
             </li>
-            <li className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <li className="rounded-xl border border-border bg-surface-2 px-4 py-3">
               Runtime environment: {deploymentEnvironment}
             </li>
-            <li className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <li className="rounded-xl border border-border bg-surface-2 px-4 py-3">
               Resolved site URL: {resolvedSiteUrl}
             </li>
           </ul>
@@ -194,14 +194,14 @@ export default async function SettingsPage() {
           title="Deployment checks"
           description="These checks are based on the current environment variables only. Secret values are never shown."
         >
-          <ul className="space-y-3 text-sm leading-6 text-slate-700">
+          <ul className="space-y-3 text-sm leading-6 text-foreground">
             {readinessChecks.map((check) => (
               <li
                 key={check.label}
-                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+                className="rounded-xl border border-border bg-surface-2 px-4 py-3"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-semibold text-slate-950">
+                  <span className="font-semibold text-foreground">
                     {check.label}
                   </span>
                   <StatusBadge
@@ -209,7 +209,7 @@ export default async function SettingsPage() {
                     tone={toneForStatus(check.healthy)}
                   />
                 </div>
-                <p className="mt-2 text-slate-600">{check.detail}</p>
+                <p className="mt-2 text-muted-foreground">{check.detail}</p>
               </li>
             ))}
           </ul>
@@ -227,11 +227,11 @@ export default async function SettingsPage() {
         title="Current policy notes"
         description="This shell should stay aligned with the active school defaults."
       >
-        <ul className="space-y-3 text-sm leading-6 text-slate-700">
+        <ul className="space-y-3 text-sm leading-6 text-foreground">
           {policyNotes.map((note) => (
             <li
               key={note}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+              className="rounded-xl border border-border bg-surface-2 px-4 py-3"
             >
               {note}
             </li>
@@ -244,7 +244,7 @@ export default async function SettingsPage() {
         description="Changes made through Fee Setup are recorded here with saved results and any rows that were held for manual review."
       >
         {recentConfigChanges.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+          <div className="rounded-xl border border-dashed border-border-strong bg-surface-2 px-4 py-6 text-sm text-muted-foreground">
             No recent Fee Setup changes are recorded yet. Initial setup writes are still captured by
             table-level audit logs.
           </div>
@@ -253,14 +253,14 @@ export default async function SettingsPage() {
             {recentConfigChanges.map((batch) => (
               <div
                 key={batch.id}
-                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700"
+                className="rounded-xl border border-border bg-surface-2 px-4 py-4 text-sm text-foreground"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="font-semibold text-slate-950">
+                    <p className="font-semibold text-foreground">
                       {batch.scopeLabel}: {batch.targetLabel}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       Created {formatDateTime(batch.createdAt)}
                       {batch.createdByName ? ` by ${batch.createdByName}` : ""}. Applied{" "}
                       {formatDateTime(batch.appliedAt)}.
@@ -269,7 +269,7 @@ export default async function SettingsPage() {
                   <StatusBadge label={batch.statusLabel} tone={toneForBatchStatus(batch.status)} />
                 </div>
 
-                <p className="mt-3 text-xs uppercase tracking-wide text-slate-500">
+                <p className="mt-3 text-xs uppercase tracking-wide text-muted-foreground">
                   Changed fields
                 </p>
                 <p className="mt-1">
@@ -280,26 +280,26 @@ export default async function SettingsPage() {
 
                 {batch.summary ? (
                   <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                    <div className="rounded-lg border border-border bg-card px-3 py-2">
                       Students affected: <strong>{batch.summary.studentsAffected}</strong>
                     </div>
-                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                    <div className="rounded-lg border border-border bg-card px-3 py-2">
                       Inserts: <strong>{batch.summary.installmentsToInsert}</strong>
                     </div>
-                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                    <div className="rounded-lg border border-border bg-card px-3 py-2">
                       Updates: <strong>{batch.summary.installmentsToUpdate}</strong>
                     </div>
-                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                    <div className="rounded-lg border border-border bg-card px-3 py-2">
                       Cancels: <strong>{batch.summary.installmentsToCancel}</strong>
                     </div>
-                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                    <div className="rounded-lg border border-border bg-card px-3 py-2">
                   Rows kept for review: <strong>{batch.blockedInstallmentCount}</strong>
                     </div>
                   </div>
                 ) : null}
 
                 {batch.applyNotes ? (
-                  <p className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-600">
+                  <p className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-muted-foreground">
                     {batch.applyNotes}
                   </p>
                 ) : null}

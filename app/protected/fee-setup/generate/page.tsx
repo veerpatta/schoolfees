@@ -39,10 +39,10 @@ export default async function GenerateLedgerPage() {
         >
           <div className="grid gap-3 md:grid-cols-3">
             {recentBatches.map((batch) => (
-              <div key={batch.id} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-                <p className="text-sm font-semibold text-slate-950">{batch.policyRevisionLabel}</p>
-                <p className="mt-1 text-sm text-slate-600">{batch.reason}</p>
-                <p className="mt-2 text-xs text-slate-500">
+              <div key={batch.id} className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+                <p className="text-sm font-semibold text-foreground">{batch.policyRevisionLabel}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{batch.reason}</p>
+                <p className="mt-2 text-xs text-muted-foreground">
                   {batch.rowsRecalculated} rows checked, {batch.rowsRequiringReview} rows held for review.
                 </p>
               </div>

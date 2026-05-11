@@ -50,16 +50,16 @@ export function ColumnMappingCard({
         <input type="hidden" name="batchId" value={batch.id} />
         <input type="hidden" name="importMode" value={mode} />
 
-        <details className="rounded-xl border border-slate-200 bg-white" open={hasRequiredMappingGap}>
-          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-900">
+        <details className="rounded-xl border border-border bg-card" open={hasRequiredMappingGap}>
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">
             Advanced column mapping
           </summary>
-          <div className="grid gap-4 border-t border-slate-200 p-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 border-t border-border p-4 md:grid-cols-2 xl:grid-cols-3">
             {fieldDefinitions
               .filter((field) => mode === "update" || field.key !== "studentId")
               .map((field) => (
-                <div key={field.key} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <Label htmlFor={`mapping-${field.key}`} className="text-sm font-semibold text-slate-900">
+                <div key={field.key} className="rounded-xl border border-border bg-surface-2 p-4">
+                  <Label htmlFor={`mapping-${field.key}`} className="text-sm font-semibold text-foreground">
                     {field.label}
                     {field.required ? " *" : ""}
                   </Label>
@@ -77,14 +77,14 @@ export function ColumnMappingCard({
                       </option>
                     ))}
                   </select>
-                  <p className="mt-2 text-xs leading-5 text-slate-600">{field.description}</p>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">{field.description}</p>
                 </div>
               ))}
           </div>
         </details>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-          <p className="text-sm text-slate-600">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface-2 px-4 py-3">
+          <p className="text-sm text-muted-foreground">
             {mode === "update"
               ? "Required for update: Student ID or SR no. Blank update cells mean no change."
               : "Required for add: student name and class. Blank SR no gets a temporary SR no."}

@@ -51,7 +51,7 @@ export function UpdatePasswordForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card className="w-full max-w-md border-slate-200/80 bg-white/95 shadow-2xl shadow-slate-200/60">
+      <Card className="w-full max-w-md border-border/80 bg-card/95 shadow-2xl shadow-md">
         <CardHeader>
           <CardTitle className="text-2xl">Set a new password</CardTitle>
           <CardDescription>
@@ -83,7 +83,7 @@ export function UpdatePasswordForm({
                   onChange={(e) => setConfirmPassword(e.target.value)}
                 />
               </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
+              {error && <p className="text-sm text-destructive">{error}</p>}
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Saving..." : "Save new password"}
               </Button>

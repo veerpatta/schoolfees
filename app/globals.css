@@ -2,54 +2,108 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =====================================================================
+   Veer Patta Fees — "Ledger Calm" design tokens
+   Foundation: warm off-white paper, ink near-black, single saffron accent.
+   Tokens are HSL triplets so Tailwind's `hsl(var(--token) / <alpha>)` works.
+   ===================================================================== */
+
 @layer base {
   :root {
     --font-sans:
-      Inter,
-      ui-sans-serif,
-      system-ui,
-      -apple-system,
-      BlinkMacSystemFont,
-      "Segoe UI",
-      sans-serif;
-    --font-heading:
-      ui-sans-serif,
-      system-ui,
-      "Segoe UI",
-      sans-serif;
-    --background: 210 20% 98%;
-    --foreground: 222 42% 12%;
+      "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+      "Segoe UI", sans-serif;
+    --font-display:
+      "Source Serif 4", "Source Serif Pro", "Iowan Old Style", "Georgia",
+      ui-serif, serif;
+
+    /* Surfaces ---------------------------------------------------------- */
+    --background: 48 33% 98%;        /* paper */
+    --foreground: 222 25% 11%;       /* ink */
     --card: 0 0% 100%;
-    --card-foreground: 222 42% 12%;
+    --card-foreground: 222 25% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222 42% 12%;
-    --primary: 217 82% 52%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 214 32% 94%;
-    --secondary-foreground: 222 42% 12%;
-    --muted: 214 32% 95%;
-    --muted-foreground: 217 17% 42%;
-    --accent: 213 55% 94%;
-    --accent-foreground: 222 42% 12%;
-    --destructive: 0 71% 45%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 214 26% 88%;
-    --input: 214 26% 88%;
-    --ring: 217 82% 52%;
-    --chart-1: 217 91% 60%;
-    --chart-2: 200 94% 50%;
-    --chart-3: 221 83% 53%;
-    --chart-4: 188 86% 43%;
-    --chart-5: 221 70% 42%;
-    --radius: 0.75rem;
+    --popover-foreground: 222 25% 11%;
+
+    --surface: 0 0% 100%;
+    --surface-2: 44 18% 96%;         /* subtle inset / hover row */
+    --surface-3: 44 14% 92%;         /* deeper inset */
+
+    /* Text -------------------------------------------------------------- */
+    --muted: 44 18% 96%;
+    --muted-foreground: 222 9% 42%;
+    --subtle-foreground: 222 6% 56%;
+
+    /* Lines ------------------------------------------------------------- */
+    --border: 40 14% 88%;
+    --border-strong: 40 12% 78%;
+    --input: 40 14% 86%;
+
+    /* Brand & action ---------------------------------------------------- */
+    --primary: 222 25% 11%;          /* ink — solid CTAs */
+    --primary-foreground: 48 33% 98%;
+    --secondary: 44 18% 94%;
+    --secondary-foreground: 222 25% 11%;
+    --accent: 20 86% 41%;            /* saffron — hero CTA, focus, brand */
+    --accent-foreground: 48 33% 99%;
+    --accent-soft: 28 92% 96%;       /* tinted accent surface */
+    --accent-soft-foreground: 20 86% 33%;
+    --ring: 20 86% 45%;
+
+    /* Semantic ---------------------------------------------------------- */
+    --success: 151 56% 24%;
+    --success-foreground: 0 0% 100%;
+    --success-soft: 151 64% 96%;
+    --success-soft-foreground: 151 56% 22%;
+
+    --warning: 30 84% 36%;
+    --warning-foreground: 0 0% 100%;
+    --warning-soft: 38 92% 96%;
+    --warning-soft-foreground: 30 84% 28%;
+
+    --destructive: 0 72% 41%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-soft: 0 84% 97%;
+    --destructive-soft-foreground: 0 72% 36%;
+
+    --info: 221 70% 38%;
+    --info-foreground: 0 0% 100%;
+    --info-soft: 221 90% 97%;
+    --info-soft-foreground: 221 70% 32%;
+
+    /* Charts (used sparingly — quiet hues) ------------------------------ */
+    --chart-1: 222 25% 22%;
+    --chart-2: 20 86% 41%;
+    --chart-3: 151 40% 32%;
+    --chart-4: 30 70% 42%;
+    --chart-5: 221 50% 38%;
+
+    /* Geometry ---------------------------------------------------------- */
+    --radius: 0.75rem;               /* 12px — cards / panels */
+    --radius-sm: 0.5rem;             /* 8px  — badges, inputs sm */
+    --radius-md: 0.625rem;           /* 10px — buttons, inputs */
+    --radius-lg: 0.75rem;            /* 12px — cards */
+    --radius-xl: 1rem;               /* 16px — sheets, modals */
+
+    /* Shadows ----------------------------------------------------------- */
+    --shadow-xs: 0 1px 2px hsl(222 25% 11% / 0.04);
+    --shadow-sm: 0 2px 4px -1px hsl(222 25% 11% / 0.05);
+    --shadow-md: 0 6px 18px -8px hsl(222 25% 11% / 0.10), 0 2px 4px -2px hsl(222 25% 11% / 0.04);
+    --shadow-lg: 0 24px 48px -16px hsl(222 25% 11% / 0.18);
+
+    /* Mobile geometry --------------------------------------------------- */
     --mobile-safe-area-bottom: env(safe-area-inset-bottom, 0px);
-    --mobile-bottom-nav-height: 4.25rem;
+    --mobile-bottom-nav-height: 4rem;
     --mobile-bottom-nav-offset: calc(var(--mobile-bottom-nav-height) + var(--mobile-safe-area-bottom));
     --mobile-payment-cta-height: 4.5rem;
     --mobile-payment-cta-offset: calc(var(--mobile-payment-cta-height) + var(--mobile-safe-area-bottom));
     --mobile-payment-with-nav-offset: calc(var(--mobile-payment-cta-height) + var(--mobile-bottom-nav-offset));
   }
 }
+
+/* =====================================================================
+   Base typography & body
+   ===================================================================== */
 
 @layer base {
   html {
@@ -66,10 +120,20 @@
   }
 
   body {
-    @apply min-h-screen bg-background text-foreground;
+    @apply min-h-screen bg-background text-foreground antialiased;
     font-family: var(--font-sans);
-    background-image: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    font-feature-settings: "ss01", "cv11";
     overscroll-behavior-y: contain;
+  }
+
+  /* Tabular numerals everywhere by default — currency must not jitter. */
+  body,
+  table,
+  input,
+  button,
+  select,
+  textarea {
+    font-variant-numeric: tabular-nums;
   }
 
   input,
@@ -77,6 +141,7 @@
   textarea,
   button {
     font: inherit;
+    font-variant-numeric: tabular-nums;
   }
 
   @media (max-width: 767px) {
@@ -88,68 +153,106 @@
   }
 
   ::selection {
-    background: hsl(var(--primary) / 0.18);
+    background: hsl(var(--accent) / 0.18);
+    color: hsl(var(--foreground));
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-semibold tracking-tight;
+    color: hsl(var(--foreground));
   }
 }
 
+/* =====================================================================
+   Utilities
+   ===================================================================== */
+
 @layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+
   .font-heading {
-    font-family: var(--font-heading);
+    font-family: var(--font-sans);
+    letter-spacing: -0.01em;
   }
 
-  .glass-panel {
-    @apply border border-slate-200 bg-white shadow-sm;
+  .tabular {
+    font-variant-numeric: tabular-nums;
   }
 
-  .brand-grid {
-    background-image:
-      linear-gradient(to right, rgba(148, 163, 184, 0.12) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(148, 163, 184, 0.12) 1px, transparent 1px);
-    background-size: 32px 32px;
+  /* Surfaces */
+  .surface {
+    background: hsl(var(--surface));
+  }
+  .surface-2 {
+    background: hsl(var(--surface-2));
+  }
+  .surface-3 {
+    background: hsl(var(--surface-3));
   }
 
-  .animate-reveal-up {
-    animation: reveal-up 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* Hairline divider that scales nicely on hi-dpi */
+  .hairline {
+    border-color: hsl(var(--border));
   }
 
-  .animate-float-slow {
-    animation: float-slow 20s ease-in-out infinite;
+  /* Status surfaces — used by Badge and inline notices */
+  .tone-success { background: hsl(var(--success-soft)); color: hsl(var(--success-soft-foreground)); }
+  .tone-warning { background: hsl(var(--warning-soft)); color: hsl(var(--warning-soft-foreground)); }
+  .tone-danger  { background: hsl(var(--destructive-soft)); color: hsl(var(--destructive-soft-foreground)); }
+  .tone-info    { background: hsl(var(--info-soft)); color: hsl(var(--info-soft-foreground)); }
+  .tone-accent  { background: hsl(var(--accent-soft)); color: hsl(var(--accent-soft-foreground)); }
+  .tone-neutral { background: hsl(var(--surface-2)); color: hsl(var(--foreground)); }
+
+  /* Animation primitives — kept minimal on purpose. */
+  .anim-fade-in {
+    animation: fade-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
-  .animate-float-delayed {
-    animation: float-slow 20s ease-in-out infinite 5s;
+  .anim-slide-up {
+    animation: slide-up 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
-  .animate-bottom-sheet-up {
-    animation: bottom-sheet-up 220ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  .anim-scale-in {
+    animation: scale-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
-  .animate-success-check {
-    animation: success-check-pop 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* Legacy aliases — kept so existing class names and tests keep working.
+     They all route to the four canonical keyframes above. */
+  .animate-bottom-sheet-up { animation: slide-up 220ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .animate-success-check { animation: scale-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .animate-loading-bar { animation: route-progress 1000ms cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+  .animate-soft-shimmer { animation: fade-in 1400ms ease-in-out infinite alternate; }
+  .animate-slide-up-fade { animation: slide-up 220ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .animate-reveal-up { animation: slide-up 220ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .animate-pop-in { animation: scale-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .animate-receipt-settle { animation: slide-up 220ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+  .anim-shimmer {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .anim-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(var(--foreground) / 0.06) 50%,
+      transparent 100%
+    );
+    transform: translate3d(-100%, 0, 0);
+    animation: shimmer-x 1500ms cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    will-change: transform;
   }
 
-  .animate-loading-bar {
-    animation: loading-bar 1200ms ease-in-out infinite;
-  }
-
-  .animate-soft-shimmer {
-    animation: soft-shimmer 1300ms ease-in-out infinite;
-  }
-
-  .animate-receipt-settle {
-    animation: receipt-settle 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-
-  .animate-slide-up-fade {
-    animation: slide-up-fade 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-
-  .animate-pop-in {
-    animation: pop-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
-  }
-
-  .animate-shimmer-fast {
-    animation: shimmer-fast 800ms ease-in-out infinite;
+  /* Top progress bar (route changes) */
+  .anim-route-progress {
+    animation: route-progress 1000ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
   }
 
   .no-scrollbar::-webkit-scrollbar {
@@ -181,150 +284,76 @@
   .mobile-payment-with-nav-clearance {
     padding-bottom: var(--mobile-payment-with-nav-offset);
   }
+
+  /* Focus ring — saffron, single recipe used everywhere */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
 }
+
+/* =====================================================================
+   Reduced motion — silence everything decorative.
+   ===================================================================== */
 
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
 
-  .animate-reveal-up,
-  .animate-float-slow,
-  .animate-float-delayed,
+  .anim-fade-in,
+  .anim-slide-up,
+  .anim-scale-in,
+  .anim-shimmer,
+  .anim-route-progress,
   .animate-bottom-sheet-up,
   .animate-success-check,
   .animate-loading-bar,
   .animate-soft-shimmer,
-  .animate-receipt-settle,
   .animate-slide-up-fade,
+  .animate-reveal-up,
   .animate-pop-in,
-  .animate-shimmer-fast {
+  .animate-receipt-settle {
     animation: none !important;
   }
-}
 
-@keyframes reveal-up {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 14px, 0);
-  }
-
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
+  .anim-shimmer::after {
+    animation: none !important;
+    display: none;
   }
 }
 
-@keyframes float-slow {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0);
-  }
+/* =====================================================================
+   Keyframes — four primitives, nothing more.
+   ===================================================================== */
 
-  50% {
-    transform: translate3d(0, -12px, 0);
-  }
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-@keyframes bottom-sheet-up {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 14px, 0);
-  }
-
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
+@keyframes slide-up {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
-@keyframes success-check-pop {
-  from {
-    opacity: 0;
-    transform: scale(0.82);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
 }
 
-@keyframes loading-bar {
-  0% {
-    transform: translateX(-120%);
-  }
-
-  50% {
-    transform: translateX(90%);
-  }
-
-  100% {
-    transform: translateX(260%);
-  }
+@keyframes shimmer-x {
+  0% { transform: translate3d(-100%, 0, 0); }
+  100% { transform: translate3d(100%, 0, 0); }
 }
 
-@keyframes soft-shimmer {
-  0%,
-  100% {
-    opacity: 0.55;
-  }
-
-  50% {
-    opacity: 1;
-  }
+@keyframes route-progress {
+  0% { transform: translate3d(-100%, 0, 0); }
+  100% { transform: translate3d(100%, 0, 0); }
 }
 
-@keyframes receipt-settle {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 10px, 0) scale(0.99);
-  }
-
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-}
-
-@keyframes slide-up-fade {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes pop-in {
-  0% {
-    opacity: 0;
-    transform: scale(0.88);
-  }
-
-  60% {
-    transform: scale(1.06);
-  }
-
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes shimmer-fast {
-  0%,
-  100% {
-    opacity: 0.5;
-  }
-
-  50% {
-    opacity: 1;
-  }
-}
+/* =====================================================================
+   Print styles
+   ===================================================================== */
 
 @media (orientation: landscape) and (max-height: 500px) {
   :root {

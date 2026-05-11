@@ -22,63 +22,63 @@ export function MasterStatementDocument({
   const totalPaid = installmentBalances.reduce((sum, item) => sum + item.paidAmount, 0);
 
   return (
-    <article className="mx-auto w-full max-w-4xl rounded-xl border border-slate-300 bg-white p-6 text-slate-900 shadow-sm print:max-w-none print:rounded-none print:border-slate-400 print:p-0 print:shadow-none">
-      <header className="border-b border-slate-300 pb-4">
+    <article className="mx-auto w-full max-w-4xl rounded-xl border border-border-strong bg-card p-6 text-foreground shadow-sm print:max-w-none print:rounded-none print:border-border-strong print:p-0 print:shadow-none">
+      <header className="border-b border-border-strong pb-4">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-lg font-semibold uppercase tracking-wide">{schoolProfile.name}</p>
-            <p className="text-sm text-slate-600">Master fee statement</p>
-            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
+            <p className="text-sm text-muted-foreground">Master fee statement</p>
+            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-muted-foreground">
               Academic session {financialSnapshot.policy.academicSessionLabel}
             </p>
           </div>
           <div className="text-right text-sm">
-            <p className="font-semibold text-slate-950">{student.fullName}</p>
-            <p className="text-slate-600">SR no {student.admissionNo}</p>
+            <p className="font-semibold text-foreground">{student.fullName}</p>
+            <p className="text-muted-foreground">SR no {student.admissionNo}</p>
           </div>
         </div>
       </header>
 
-      <section className="grid gap-3 border-b border-slate-300 py-4 text-sm md:grid-cols-3">
+      <section className="grid gap-3 border-b border-border-strong py-4 text-sm md:grid-cols-3">
         <div>
-          <p className="text-xs uppercase tracking-wider text-slate-500">Class</p>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Class</p>
           <p className="font-medium">{student.classLabel}</p>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-wider text-slate-500">Student status</p>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Student status</p>
           <p className="font-medium">{student.studentStatusLabel}</p>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-wider text-slate-500">Transport route</p>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Transport route</p>
           <p className="font-medium">{student.transportRouteLabel}</p>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-wider text-slate-500">Father</p>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Father</p>
           <p className="font-medium">{student.fatherName || "-"}</p>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-wider text-slate-500">Father phone</p>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Father phone</p>
           <p className="font-medium">{student.fatherPhone || "-"}</p>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-wider text-slate-500">Mother phone</p>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Mother phone</p>
           <p className="font-medium">{student.motherPhone || "-"}</p>
         </div>
       </section>
 
-      <section className="grid gap-4 border-b border-slate-300 py-4 lg:grid-cols-[1fr_1fr]">
+      <section className="grid gap-4 border-b border-border-strong py-4 lg:grid-cols-[1fr_1fr]">
         <div>
-          <p className="mb-2 text-xs uppercase tracking-wider text-slate-500">Fee breakup</p>
-          <div className="overflow-hidden rounded-md border border-slate-300">
+          <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Fee breakup</p>
+          <div className="overflow-hidden rounded-md border border-border-strong">
             <table className="w-full border-collapse text-left text-sm">
               <tbody>
                 {feeHeads.map((item) => (
-                  <tr key={item.id} className="border-t border-slate-200 first:border-t-0">
+                  <tr key={item.id} className="border-t border-border first:border-t-0">
                     <td className="px-3 py-2">{item.label}</td>
                     <td className="px-3 py-2 text-right font-medium">{formatInr(item.amount)}</td>
                   </tr>
                 ))}
-                <tr className="border-t border-slate-300 bg-slate-50">
+                <tr className="border-t border-border-strong bg-surface-2">
                   <td className="px-3 py-2 font-semibold">Resolved annual total</td>
                   <td className="px-3 py-2 text-right font-semibold">
                     {formatInr(financialSnapshot.resolvedBreakdown.annualTotal)}
@@ -90,45 +90,45 @@ export function MasterStatementDocument({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3">
-            <p className="text-xs uppercase tracking-wider text-slate-500">Total due</p>
-            <p className="mt-1 font-semibold text-slate-950">{formatInr(totalDue)}</p>
+          <div className="rounded-md border border-border bg-surface-2 px-3 py-3">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Total due</p>
+            <p className="mt-1 font-semibold text-foreground">{formatInr(totalDue)}</p>
           </div>
-          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3">
-            <p className="text-xs uppercase tracking-wider text-slate-500">Total paid</p>
-            <p className="mt-1 font-semibold text-slate-950">{formatInr(totalPaid)}</p>
+          <div className="rounded-md border border-border bg-surface-2 px-3 py-3">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Total paid</p>
+            <p className="mt-1 font-semibold text-foreground">{formatInr(totalPaid)}</p>
           </div>
-          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3">
-            <p className="text-xs uppercase tracking-wider text-slate-500">Outstanding</p>
-            <p className="mt-1 font-semibold text-slate-950">{formatInr(financialSnapshot.currentOutstanding)}</p>
+          <div className="rounded-md border border-border bg-surface-2 px-3 py-3">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Outstanding</p>
+            <p className="mt-1 font-semibold text-foreground">{formatInr(financialSnapshot.currentOutstanding)}</p>
           </div>
-          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3">
-            <p className="text-xs uppercase tracking-wider text-slate-500">Open installments</p>
-            <p className="mt-1 font-semibold text-slate-950">{financialSnapshot.openInstallments}</p>
+          <div className="rounded-md border border-border bg-surface-2 px-3 py-3">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Open installments</p>
+            <p className="mt-1 font-semibold text-foreground">{financialSnapshot.openInstallments}</p>
           </div>
-          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3">
-            <p className="text-xs uppercase tracking-wider text-slate-500">Overdue installments</p>
-            <p className="mt-1 font-semibold text-slate-950">{financialSnapshot.overdueInstallments}</p>
+          <div className="rounded-md border border-border bg-surface-2 px-3 py-3">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Overdue installments</p>
+            <p className="mt-1 font-semibold text-foreground">{financialSnapshot.overdueInstallments}</p>
           </div>
-          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3">
-            <p className="text-xs uppercase tracking-wider text-slate-500">Next due</p>
-            <p className="mt-1 font-semibold text-slate-950">{financialSnapshot.nextDueLabel ?? "No pending dues"}</p>
-            <p className="mt-1 text-xs text-slate-500">
+          <div className="rounded-md border border-border bg-surface-2 px-3 py-3">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Next due</p>
+            <p className="mt-1 font-semibold text-foreground">{financialSnapshot.nextDueLabel ?? "No pending dues"}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
               {financialSnapshot.nextDueDate ? `${formatShortDate(financialSnapshot.nextDueDate)} | ${formatInr(financialSnapshot.nextDueAmount ?? 0)}` : "-"}
             </p>
           </div>
-          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3">
-            <p className="text-xs uppercase tracking-wider text-slate-500">Override reason</p>
-            <p className="mt-1 font-semibold text-slate-950">{financialSnapshot.activeOverrideReason || "-"}</p>
+          <div className="rounded-md border border-border bg-surface-2 px-3 py-3">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Override reason</p>
+            <p className="mt-1 font-semibold text-foreground">{financialSnapshot.activeOverrideReason || "-"}</p>
           </div>
         </div>
       </section>
 
       <section className="py-4">
-        <p className="mb-2 text-xs uppercase tracking-wider text-slate-500">Installment-wise dues</p>
-        <div className="overflow-hidden rounded-md border border-slate-300">
+        <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Installment-wise dues</p>
+        <div className="overflow-hidden rounded-md border border-border-strong">
           <table className="w-full border-collapse text-left text-sm">
-            <thead className="bg-slate-100 text-xs uppercase tracking-wide text-slate-600">
+            <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-3 py-2">Installment</th>
                 <th className="px-3 py-2">Due date</th>
@@ -140,7 +140,7 @@ export function MasterStatementDocument({
             </thead>
             <tbody>
               {installmentBalances.map((item) => (
-                <tr key={item.installmentId} className="border-t border-slate-200">
+                <tr key={item.installmentId} className="border-t border-border">
                   <td className="px-3 py-2">{item.installmentLabel}</td>
                   <td className="px-3 py-2">{formatShortDate(item.dueDate)}</td>
                   <td className="px-3 py-2">{formatInr(item.baseCharge)}</td>
@@ -154,7 +154,7 @@ export function MasterStatementDocument({
         </div>
       </section>
 
-      <section className="border-t border-slate-300 pt-4 text-sm">
+      <section className="border-t border-border-strong pt-4 text-sm">
         <div className="grid gap-3 md:grid-cols-4">
           <div>
             <span className="font-semibold">Tuition override:</span>{" "}

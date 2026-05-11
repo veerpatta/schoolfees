@@ -71,8 +71,8 @@ function ActionNotice({ state }: { state: FinanceControlsActionState }) {
     <div
       className={
         state.status === "error"
-          ? "rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-          : "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
+          ? "rounded-md border bg-destructive-soft px-3 py-2 text-sm text-destructive-soft-foreground"
+          : "rounded-md border bg-success-soft px-3 py-2 text-sm text-success-soft-foreground"
       }
     >
       {state.message}
@@ -235,13 +235,13 @@ function ModeTotalsSection({ data }: { data: FinanceControlsPageData }) {
     >
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {data.modeTotals.length === 0 ? (
-          <p className="text-sm text-slate-600">No receipts were posted for this date.</p>
+          <p className="text-sm text-muted-foreground">No receipts were posted for this date.</p>
         ) : (
           data.modeTotals.map((row) => (
-            <div key={row.paymentMode} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <p className="text-sm font-medium text-slate-700">{formatPaymentModeLabel(row.paymentMode)}</p>
-              <p className="mt-2 text-lg font-semibold text-slate-950">{formatInr(row.totalAmount)}</p>
-              <p className="mt-1 text-xs text-slate-500">
+            <div key={row.paymentMode} className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+              <p className="text-sm font-medium text-foreground">{formatPaymentModeLabel(row.paymentMode)}</p>
+              <p className="mt-2 text-lg font-semibold text-foreground">{formatInr(row.totalAmount)}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
                 {row.receiptCount} receipt{row.receiptCount === 1 ? "" : "s"}
               </p>
             </div>
@@ -258,9 +258,9 @@ function ReceivedBySection({ data }: { data: FinanceControlsPageData }) {
       title="Cashier / received-by totals"
       description="Who received the money, and how much was posted under each name."
     >
-      <div className="overflow-x-auto rounded-xl border border-slate-200">
+      <div className="overflow-x-auto rounded-xl border border-border">
         <table className="w-full min-w-[640px] text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+          <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="px-4 py-3">Received by</th>
               <th className="px-4 py-3">Receipt count</th>
@@ -270,16 +270,16 @@ function ReceivedBySection({ data }: { data: FinanceControlsPageData }) {
           <tbody>
             {data.receivedByTotals.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={3} className="px-4 py-6 text-center text-muted-foreground">
                   No cashier totals found for this date.
                 </td>
               </tr>
             ) : (
               data.receivedByTotals.map((row) => (
-                <tr key={row.receivedBy} className="border-t border-slate-100 text-slate-700">
-                  <td className="px-4 py-3 font-medium text-slate-900">{row.receivedBy}</td>
+                <tr key={row.receivedBy} className="border-t border-border text-foreground">
+                  <td className="px-4 py-3 font-medium text-foreground">{row.receivedBy}</td>
                   <td className="px-4 py-3">{row.receiptCount}</td>
-                  <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.totalAmount)}</td>
+                  <td className="px-4 py-3 font-medium text-foreground">{formatInr(row.totalAmount)}</td>
                 </tr>
               ))
             )}
@@ -391,8 +391,8 @@ function DayCloseSection({
           />
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700">
-          <p className="font-semibold text-slate-900">Captured for {formatShortDate(data.selectedDate)}</p>
+        <div className="rounded-xl border border-border bg-surface-2 px-4 py-4 text-sm text-foreground">
+          <p className="font-semibold text-foreground">Captured for {formatShortDate(data.selectedDate)}</p>
           <p className="mt-1">
             Receipts: {summary.receiptCount}. Refund requests: {summary.refundRequestCount}. Processed refund outflow:{" "}
             {formatInr(summary.refundProcessedTotal)}. Cash deposit status:{" "}
@@ -443,9 +443,9 @@ function DayBookSection({ data }: { data: FinanceControlsPageData }) {
         />
       }
     >
-      <div className="overflow-x-auto rounded-xl border border-slate-200">
+      <div className="overflow-x-auto rounded-xl border border-border">
         <table className="w-full min-w-[1440px] text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+          <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="px-4 py-3">Type</th>
               <th className="px-4 py-3">Posted at</th>
@@ -464,28 +464,28 @@ function DayBookSection({ data }: { data: FinanceControlsPageData }) {
           <tbody>
             {data.dayBookRows.length === 0 ? (
               <tr>
-                <td colSpan={12} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={12} className="px-4 py-6 text-center text-muted-foreground">
                   No day book rows found for the selected date.
                 </td>
               </tr>
             ) : (
               data.dayBookRows.map((row) => (
-                <tr key={`${row.entryType}-${row.entryId}`} className="border-t border-slate-100 align-top text-slate-700">
+                <tr key={`${row.entryType}-${row.entryId}`} className="border-t border-border align-top text-foreground">
                   <td className="px-4 py-3 capitalize">{row.entryType}</td>
                   <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(row.postedAt)}</td>
                   <td className="px-4 py-3">
-                    <div className="font-medium text-slate-900">{row.studentName}</div>
-                    <div className="text-xs text-slate-500">{row.admissionNo ?? "-"}</div>
+                    <div className="font-medium text-foreground">{row.studentName}</div>
+                    <div className="text-xs text-muted-foreground">{row.admissionNo ?? "-"}</div>
                   </td>
                   <td className="px-4 py-3">{row.classLabel ?? "-"}</td>
                   <td className="px-4 py-3">
-                    <div className="font-medium text-slate-900">{row.receiptNumber ?? "-"}</div>
-                    <div className="text-xs text-slate-500">{row.referenceNumber ?? "-"}</div>
+                    <div className="font-medium text-foreground">{row.receiptNumber ?? "-"}</div>
+                    <div className="text-xs text-muted-foreground">{row.referenceNumber ?? "-"}</div>
                   </td>
                   <td className="px-4 py-3">{row.paymentMode ? formatPaymentModeLabel(row.paymentMode) : "-"}</td>
-                  <td className="px-4 py-3 font-medium text-emerald-700">{row.cashIn > 0 ? formatInr(row.cashIn) : "-"}</td>
-                  <td className="px-4 py-3 font-medium text-rose-700">{row.cashOut > 0 ? formatInr(row.cashOut) : "-"}</td>
-                  <td className="px-4 py-3 font-medium text-slate-900">
+                  <td className="px-4 py-3 font-medium text-success-soft-foreground">{row.cashIn > 0 ? formatInr(row.cashIn) : "-"}</td>
+                  <td className="px-4 py-3 font-medium text-destructive-soft-foreground">{row.cashOut > 0 ? formatInr(row.cashOut) : "-"}</td>
+                  <td className="px-4 py-3 font-medium text-foreground">
                     {row.ledgerEffect === 0 ? "-" : formatInr(row.ledgerEffect)}
                   </td>
                   <td className="px-4 py-3">
@@ -494,7 +494,7 @@ function DayBookSection({ data }: { data: FinanceControlsPageData }) {
                   <td className="px-4 py-3">
                     <div>{row.receivedBy ?? row.createdByName ?? "-"}</div>
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{row.note ?? "-"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{row.note ?? "-"}</td>
                 </tr>
               ))
             )}
@@ -629,9 +629,9 @@ function RefundRequestsSection({
         </div>
       </form>
 
-      <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200">
+      <div className="mt-6 overflow-x-auto rounded-xl border border-border">
         <table className="w-full min-w-[1400px] text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+          <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="px-4 py-3">Receipt</th>
               <th className="px-4 py-3">Student</th>
@@ -646,20 +646,20 @@ function RefundRequestsSection({
           <tbody>
             {data.refundRequests.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">
                   No refund requests found for the selected date.
                 </td>
               </tr>
             ) : (
               data.refundRequests.map((row) => (
-                <tr key={row.refundRequestId} className="border-t border-slate-100 align-top text-slate-700">
-                  <td className="px-4 py-3 font-medium text-slate-900">{row.receiptNumber}</td>
+                <tr key={row.refundRequestId} className="border-t border-border align-top text-foreground">
+                  <td className="px-4 py-3 font-medium text-foreground">{row.receiptNumber}</td>
                   <td className="px-4 py-3">
-                    <div className="font-medium text-slate-900">{row.studentName}</div>
-                    <div className="text-xs text-slate-500">{row.admissionNo}</div>
+                    <div className="font-medium text-foreground">{row.studentName}</div>
+                    <div className="text-xs text-muted-foreground">{row.admissionNo}</div>
                   </td>
                   <td className="px-4 py-3">{formatPaymentModeLabel(row.refundMethod)}</td>
-                  <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.requestedAmount)}</td>
+                  <td className="px-4 py-3 font-medium text-foreground">{formatInr(row.requestedAmount)}</td>
                   <td className="px-4 py-3">
                     <StatusBadge
                       label={
@@ -684,11 +684,11 @@ function RefundRequestsSection({
                   </td>
                   <td className="px-4 py-3">
                     <div>{row.requestedByName ?? "-"}</div>
-                    <div className="text-xs text-slate-500">{formatDateTime(row.requestedAt)}</div>
+                    <div className="text-xs text-muted-foreground">{formatDateTime(row.requestedAt)}</div>
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-muted-foreground">
                     <div>{row.reason}</div>
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-muted-foreground">
                       {row.approvalNote ?? row.processingNote ?? row.notes ?? "-"}
                     </div>
                   </td>
@@ -728,9 +728,9 @@ function CorrectionReviewSection({
       }
     >
       <ActionNotice state={state} />
-      <div className="overflow-x-auto rounded-xl border border-slate-200">
+      <div className="overflow-x-auto rounded-xl border border-border">
         <table className="w-full min-w-[1600px] text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+          <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="px-4 py-3">Receipt</th>
               <th className="px-4 py-3">Student</th>
@@ -745,30 +745,30 @@ function CorrectionReviewSection({
           <tbody>
             {data.correctionRows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">
                   No correction rows found for the selected date.
                 </td>
               </tr>
             ) : (
               data.correctionRows.map((row) => (
-                <tr key={row.paymentAdjustmentId} className="border-t border-slate-100 align-top text-slate-700">
-                  <td className="px-4 py-3 font-medium text-slate-900">
+                <tr key={row.paymentAdjustmentId} className="border-t border-border align-top text-foreground">
+                  <td className="px-4 py-3 font-medium text-foreground">
                     <div>{row.receiptNumber}</div>
-                    <div className="text-xs text-slate-500">{row.paymentDate}</div>
+                    <div className="text-xs text-muted-foreground">{row.paymentDate}</div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="font-medium text-slate-900">{row.studentName}</div>
-                    <div className="text-xs text-slate-500">{row.admissionNo}</div>
-                    <div className="text-xs text-slate-500">{row.classLabel}</div>
+                    <div className="font-medium text-foreground">{row.studentName}</div>
+                    <div className="text-xs text-muted-foreground">{row.admissionNo}</div>
+                    <div className="text-xs text-muted-foreground">{row.classLabel}</div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="font-medium text-slate-900">{row.adjustmentType}</div>
-                    <div className="text-xs text-slate-500">{row.installmentLabel}</div>
+                    <div className="font-medium text-foreground">{row.adjustmentType}</div>
+                    <div className="text-xs text-muted-foreground">{row.installmentLabel}</div>
                   </td>
-                  <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.amountDelta)}</td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 font-medium text-foreground">{formatInr(row.amountDelta)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">
                     <div>{row.reason}</div>
-                    <div className="text-xs text-slate-500">{row.notes ?? "-"}</div>
+                    <div className="text-xs text-muted-foreground">{row.notes ?? "-"}</div>
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge
@@ -790,12 +790,12 @@ function CorrectionReviewSection({
                       }
                     />
                     {row.reviewNote ? (
-                      <p className="mt-2 text-xs text-slate-500">{row.reviewNote}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">{row.reviewNote}</p>
                     ) : null}
                   </td>
                   <td className="px-4 py-3">
                     <div>{row.reviewedByName ?? row.createdByName ?? "-"}</div>
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-muted-foreground">
                       {row.reviewedAt ? formatDateTime(row.reviewedAt) : formatDateTime(row.postedAt)}
                     </div>
                   </td>
@@ -809,11 +809,11 @@ function CorrectionReviewSection({
         </table>
       </div>
       {!canApprove ? (
-        <p className="mt-4 text-sm text-slate-600">
+        <p className="mt-4 text-sm text-muted-foreground">
           Review actions stay hidden for non-admin staff. The queue remains visible for audit and follow-up.
         </p>
       ) : null}
-      <div className="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+      <div className="mt-4 rounded-lg border border-dashed border-border-strong bg-surface-2 px-4 py-3 text-sm text-foreground">
         Saving a review records a separate audit event. The original adjustment row remains unchanged.
       </div>
     </SectionCard>

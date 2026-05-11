@@ -12,31 +12,28 @@ type SchoolBrandProps = {
 const variantStyles = {
   hero: {
     root: "gap-4",
-    frame: "size-20 rounded-[28px] p-2.5 shadow-[0_24px_60px_-28px_rgba(37,99,235,0.5)]",
-    eyebrow:
-      "text-[0.65rem] font-semibold uppercase tracking-[0.34em] text-sky-600/90",
-    title: "mt-1 font-heading text-2xl font-semibold tracking-tight text-slate-950",
-    subtitle: "mt-1 text-sm leading-6 text-slate-600",
+    frame: "size-16 rounded-xl p-1.5 shadow-sm",
+    eyebrow: "text-[10px] font-semibold uppercase tracking-[0.16em] text-accent",
+    title: "mt-1 font-display text-2xl font-semibold tracking-tight text-foreground",
+    subtitle: "mt-0.5 text-sm leading-6 text-muted-foreground",
   },
   sidebar: {
     root: "gap-3",
-    frame: "size-14 rounded-[22px] p-2 shadow-[0_18px_44px_-24px_rgba(37,99,235,0.45)]",
-    eyebrow:
-      "text-[0.6rem] font-semibold uppercase tracking-[0.32em] text-sky-600/90",
-    title: "mt-1 font-heading text-base font-semibold tracking-tight text-slate-950",
-    subtitle: "mt-1 text-xs leading-5 text-slate-600",
+    frame: "size-11 rounded-lg p-1 shadow-xs",
+    eyebrow: "text-[10px] font-semibold uppercase tracking-[0.14em] text-accent",
+    title: "mt-0.5 font-display text-[15px] font-semibold leading-tight tracking-tight text-foreground",
+    subtitle: "mt-0.5 text-[11px] leading-4 text-muted-foreground",
   },
   compact: {
-    root: "gap-3",
-    frame: "size-12 rounded-[20px] p-1.5 shadow-[0_16px_36px_-24px_rgba(37,99,235,0.45)]",
-    eyebrow:
-      "text-[0.58rem] font-semibold uppercase tracking-[0.3em] text-sky-600/90",
-    title: "mt-0.5 font-heading text-sm font-semibold tracking-tight text-slate-950",
-    subtitle: "mt-0.5 text-xs leading-5 text-slate-600",
+    root: "gap-2.5",
+    frame: "size-10 rounded-md p-1 shadow-xs",
+    eyebrow: "text-[10px] font-semibold uppercase tracking-[0.14em] text-accent",
+    title: "font-display text-sm font-semibold leading-tight tracking-tight text-foreground",
+    subtitle: "text-[11px] leading-4 text-muted-foreground",
   },
   icon: {
     root: "gap-0",
-    frame: "size-11 rounded-[18px] p-1.5 shadow-[0_14px_30px_-22px_rgba(37,99,235,0.4)]",
+    frame: "size-9 rounded-md p-0.5 shadow-xs",
     eyebrow: "",
     title: "",
     subtitle: "",
@@ -54,7 +51,7 @@ export function SchoolBrand({
     <div className={cn("flex items-center", style.root, className)}>
       <div
         className={cn(
-          "shrink-0 overflow-hidden border border-white/80 bg-white/95 ring-1 ring-sky-100/80",
+          "shrink-0 overflow-hidden border border-border bg-surface",
           style.frame,
         )}
       >
@@ -70,9 +67,9 @@ export function SchoolBrand({
 
       {variant === "icon" ? null : (
         <div className="min-w-0">
-          <p className={style.eyebrow}>School Office</p>
-          <h2 className={style.title}>Fee Management System</h2>
-          <p className={style.subtitle}>Shri Veer Patta Senior Secondary School</p>
+          <p className={style.eyebrow}>VPPS · Fee Office</p>
+          <h2 className={style.title}>Fee Management</h2>
+          <p className={style.subtitle}>{schoolProfile.shortName ?? "Veer Patta School"}</p>
         </div>
       )}
     </div>

@@ -42,7 +42,7 @@ export default async function AccessDeniedPage({
         title="Why you were stopped"
         description="This page explains the block clearly instead of silently redirecting you."
       >
-        <div className="space-y-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+        <div className="space-y-4 rounded-2xl border bg-warning-soft p-4 text-sm text-warning-soft-foreground">
           <p>
             Signed in as <strong>{staff.email ?? "staff user"}</strong> with role{" "}
             <strong>{roleLabels[staff.appRole]}</strong>.

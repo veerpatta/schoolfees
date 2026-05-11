@@ -118,19 +118,19 @@ export function ReceiptsQuickLoad({
         <div className="space-y-4">
           <div className="space-y-3 md:hidden">
             {receipts.length === 0 ? (
-              <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 text-center text-sm text-slate-500">
+              <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
                 No receipts found for this filter.
               </p>
             ) : (
               receipts.map((receipt) => {
                 const returnTo = `/protected/receipts${params.toString() ? `?${params.toString()}` : ""}`;
                 return (
-                  <div key={receipt.id} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
-                    <p className="font-semibold text-slate-900">{receipt.receiptNumber}</p>
-                    <p className="text-xs text-slate-500">{receipt.paymentDate}</p>
+                  <div key={receipt.id} className="rounded-xl border border-border bg-card p-3 text-sm">
+                    <p className="font-semibold text-foreground">{receipt.receiptNumber}</p>
+                    <p className="text-xs text-muted-foreground">{receipt.paymentDate}</p>
                     <p className="mt-1">{receipt.studentFullName} ({receipt.admissionNo})</p>
-                    <p className="text-xs text-slate-600">{receipt.classLabel} • {paymentModeLabel(receipt.paymentMode)}</p>
-                    <p className="mt-1 font-semibold text-slate-900">{formatInr(receipt.totalAmount)}</p>
+                    <p className="text-xs text-muted-foreground">{receipt.classLabel} • {paymentModeLabel(receipt.paymentMode)}</p>
+                    <p className="mt-1 font-semibold text-foreground">{formatInr(receipt.totalAmount)}</p>
                     <Button className="mt-2" asChild variant="outline" size="sm">
                       <Link href={`/protected/receipts/${receipt.id}?returnTo=${encodeURIComponent(returnTo)}`}>
                         {canPrintReceipts ? "Open / Print" : "Open"}
@@ -141,9 +141,9 @@ export function ReceiptsQuickLoad({
               })
             )}
           </div>
-          <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
+          <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
             <table className="w-full min-w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+              <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3">Receipt no</th>
                   <th className="px-4 py-3">Date</th>
@@ -157,7 +157,7 @@ export function ReceiptsQuickLoad({
               <tbody>
                 {receipts.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
+                    <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
                       No receipts found for this filter.
                     </td>
                   </tr>
@@ -165,8 +165,8 @@ export function ReceiptsQuickLoad({
                   receipts.map((receipt) => {
                     const returnTo = `/protected/receipts${params.toString() ? `?${params.toString()}` : ""}`;
                     return (
-                      <tr key={receipt.id} className="border-t border-slate-100 text-slate-700">
-                        <td className="px-4 py-3 font-medium text-slate-900">{receipt.receiptNumber}</td>
+                      <tr key={receipt.id} className="border-t border-border text-foreground">
+                        <td className="px-4 py-3 font-medium text-foreground">{receipt.receiptNumber}</td>
                         <td className="px-4 py-3">{receipt.paymentDate}</td>
                         <td className="px-4 py-3">
                           {receipt.studentFullName} ({receipt.admissionNo})
@@ -189,7 +189,7 @@ export function ReceiptsQuickLoad({
             </table>
           </div>
 
-          <div className="flex items-center justify-between text-sm text-slate-600">
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
             <p>
               Page {page} of {pageCount}
             </p>

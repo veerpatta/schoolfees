@@ -102,62 +102,62 @@ export default async function DefaultersPage({
       </SectionCard>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+        <div className="rounded-lg border border-border bg-card p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Students listed
           </p>
-          <div className="mt-2 text-2xl font-semibold text-slate-950">
+          <div className="mt-2 text-2xl font-semibold text-foreground">
             {data.metrics.totalStudents}
           </div>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
             Students currently matching the selected follow-up filters.
           </p>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+        <div className="rounded-lg border border-border bg-card p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Pending amount
           </p>
-          <div className="mt-2 text-2xl font-semibold text-slate-950">
+          <div className="mt-2 text-2xl font-semibold text-foreground">
             {formatInr(data.metrics.totalPending)}
           </div>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
             Current outstanding balance across listed students.
           </p>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+        <div className="rounded-lg border border-border bg-card p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Overdue installments
           </p>
-          <div className="mt-2 text-2xl font-semibold text-slate-950">
+          <div className="mt-2 text-2xl font-semibold text-foreground">
             {data.metrics.overdueInstallments}
           </div>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
             Installments already past due date and still unpaid.
           </p>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+        <div className="rounded-lg border border-border bg-card p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Open installments
           </p>
-          <div className="mt-2 text-2xl font-semibold text-slate-950">
+          <div className="mt-2 text-2xl font-semibold text-foreground">
             {data.metrics.openInstallments}
           </div>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
             Pending, partial, and overdue installments across the listed rows.
           </p>
         </div>
 
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-700">
+        <div className="rounded-lg border bg-warning-soft p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-warning-soft-foreground">
             Dues not prepared
           </p>
-          <div className="mt-2 text-2xl font-semibold text-amber-950">
+          <div className="mt-2 text-2xl font-semibold text-warning-soft-foreground">
             {data.metrics.missingDuesStudents}
           </div>
-          <p className="mt-2 text-sm leading-6 text-amber-900">
+          <p className="mt-2 text-sm leading-6 text-warning-soft-foreground">
             Active students whose dues need preparation, not counted as true defaulters.
           </p>
         </div>
@@ -170,19 +170,19 @@ export default async function DefaultersPage({
         >
           <div className="space-y-3 md:hidden">
             {data.missingDuesRows.map((row) => (
-              <div key={`missing-mobile-${row.studentId}`} className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">
-                <p className="font-semibold text-amber-950">{row.fullName}</p>
-                <p className="text-xs text-amber-900">{row.classLabel} • SR {row.admissionNo}</p>
-                <p className="mt-1 text-xs text-amber-900">Phone: {row.fatherPhone ?? "-"}</p>
+              <div key={`missing-mobile-${row.studentId}`} className="rounded-xl border bg-warning-soft p-3 text-sm">
+                <p className="font-semibold text-warning-soft-foreground">{row.fullName}</p>
+                <p className="text-xs text-warning-soft-foreground">{row.classLabel} • SR {row.admissionNo}</p>
+                <p className="mt-1 text-xs text-warning-soft-foreground">Phone: {row.fatherPhone ?? "-"}</p>
                 <Button asChild size="sm" variant="outline" className="mt-3">
                   <Link href={`/protected/payments?studentId=${row.studentId}`}>Prepare dues</Link>
                 </Button>
               </div>
             ))}
           </div>
-          <div className="hidden overflow-x-auto rounded-xl border border-amber-200 md:block">
+          <div className="hidden overflow-x-auto rounded-xl border border-warning/30 md:block">
             <table className="w-full min-w-full text-left text-sm">
-              <thead className="bg-amber-50 text-xs uppercase tracking-wide text-amber-800">
+              <thead className="bg-warning-soft text-xs uppercase tracking-wide text-warning-soft-foreground">
                 <tr>
                   <th className="px-4 py-3">Student</th>
                   <th className="px-4 py-3">Class</th>
@@ -195,8 +195,8 @@ export default async function DefaultersPage({
               </thead>
               <tbody>
                 {data.missingDuesRows.map((row) => (
-                  <tr key={`missing-${row.studentId}`} className="border-t border-amber-100 text-slate-700">
-                    <td className="px-4 py-3 font-medium text-slate-900">{row.fullName}</td>
+                  <tr key={`missing-${row.studentId}`} className="border-t border-warning/30 text-foreground">
+                    <td className="px-4 py-3 font-medium text-foreground">{row.fullName}</td>
                     <td className="px-4 py-3">{row.classLabel}</td>
                     <td className="px-4 py-3">{row.admissionNo}</td>
                     <td className="px-4 py-3">{row.fatherName ?? "-"}</td>
@@ -204,7 +204,7 @@ export default async function DefaultersPage({
                     <td className="px-4 py-3">{row.transportRouteLabel}</td>
                     <td className="px-4 py-3">
                       <Link
-                        className="text-xs font-medium text-blue-700 hover:underline"
+                        className="text-xs font-medium text-info-soft-foreground hover:underline"
                         href={`/protected/payments?studentId=${row.studentId}`}
                       >
                         Prepare dues
@@ -224,21 +224,21 @@ export default async function DefaultersPage({
       >
         <div className="space-y-3 md:hidden">
           {data.rows.length === 0 ? (
-            <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 text-center text-sm text-slate-500">
+            <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
               No defaulters found for the selected filters.
             </p>
           ) : (
             data.rows.map((row) => (
-              <div key={row.studentId} className="rounded-xl border border-slate-200 bg-white p-3">
+              <div key={row.studentId} className="rounded-xl border border-border bg-card p-3">
                 <div className="flex items-center justify-between">
-                  <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-900">
+                  <span className="rounded-full bg-warning-soft px-2 py-1 text-xs font-semibold text-warning-soft-foreground">
                     Rank #{row.rank}
                   </span>
-                  <span className="text-sm font-semibold text-slate-900">{formatInr(row.totalPending)}</span>
+                  <span className="text-sm font-semibold text-foreground">{formatInr(row.totalPending)}</span>
                 </div>
-                <p className="mt-2 font-semibold text-slate-900">{row.fullName}</p>
-                <p className="text-xs text-slate-500">SR no {row.admissionNo} • {row.classLabel}</p>
-                <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                <p className="mt-2 font-semibold text-foreground">{row.fullName}</p>
+                <p className="text-xs text-muted-foreground">SR no {row.admissionNo} • {row.classLabel}</p>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                   <p>Days overdue: {row.daysOverdue}</p>
                   <p>Oldest due: {row.oldestDueDate ? formatShortDate(row.oldestDueDate) : "-"}</p>
                   <p>Father: {row.fatherName ?? "-"}</p>
@@ -261,9 +261,9 @@ export default async function DefaultersPage({
             ))
           )}
         </div>
-        <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
+        <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
           <table className="w-full min-w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+            <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-4 py-3">Rank</th>
                 <th className="px-4 py-3">Student</th>
@@ -280,7 +280,7 @@ export default async function DefaultersPage({
             <tbody>
               {data.rows.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-6 text-center text-slate-500">
+                  <td colSpan={10} className="px-4 py-6 text-center text-muted-foreground">
                     No defaulters found for the selected filters.
                   </td>
                 </tr>
@@ -288,17 +288,17 @@ export default async function DefaultersPage({
                 data.rows.map((row) => (
                   <tr
                     key={row.studentId}
-                    className="border-t border-slate-100 text-slate-700"
+                    className="border-t border-border text-foreground"
                   >
-                    <td className="px-4 py-3 font-semibold text-slate-950">#{row.rank}</td>
+                    <td className="px-4 py-3 font-semibold text-foreground">#{row.rank}</td>
                     <td className="px-4 py-3">
-                      <div className="font-medium text-slate-900">{row.fullName}</div>
-                      <div className="text-xs text-slate-500">SR no {row.admissionNo}</div>
+                      <div className="font-medium text-foreground">{row.fullName}</div>
+                      <div className="text-xs text-muted-foreground">SR no {row.admissionNo}</div>
                     </td>
                     <td className="px-4 py-3">{row.classLabel}</td>
                     <td className="px-4 py-3">{row.fatherName ?? "-"}</td>
                     <td className="px-4 py-3">{row.fatherPhone ?? "-"}</td>
-                    <td className="px-4 py-3 font-medium text-slate-900">
+                    <td className="px-4 py-3 font-medium text-foreground">
                       {formatInr(row.totalPending)}
                     </td>
                     <td className="px-4 py-3">
@@ -312,13 +312,13 @@ export default async function DefaultersPage({
                       <div className="flex flex-wrap gap-2">
                         <Link
                           href={`/protected/students/${row.studentId}`}
-                          className="text-sm font-semibold text-sky-700 hover:text-sky-900"
+                          className="text-sm font-semibold text-info-soft-foreground hover:text-info-soft-foreground"
                         >
                           View
                         </Link>
                         <Link
                           href={`/protected/payments?studentId=${row.studentId}`}
-                          className="text-sm font-semibold text-sky-700 hover:text-sky-900"
+                          className="text-sm font-semibold text-info-soft-foreground hover:text-info-soft-foreground"
                         >
                           Payment
                         </Link>
@@ -338,26 +338,26 @@ export default async function DefaultersPage({
       >
         <div className="space-y-3 md:hidden">
           {data.routeSummaryRows.length === 0 ? (
-            <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 text-center text-sm text-slate-500">
+            <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
               No route-wise outstanding rows for the selected filters.
             </p>
           ) : (
             data.routeSummaryRows.map((row) => (
-              <div key={`route-mobile-${row.routeId ?? row.routeLabel}`} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
-                <p className="font-semibold text-slate-900">{row.routeLabel}</p>
-                <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
+              <div key={`route-mobile-${row.routeId ?? row.routeLabel}`} className="rounded-xl border border-border bg-card p-3 text-sm">
+                <p className="font-semibold text-foreground">{row.routeLabel}</p>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                   <p>Students: {row.studentCount}</p>
                   <p>Open installments: {row.openInstallments}</p>
                   <p>Overdue installments: {row.overdueInstallments}</p>
-                  <p className="font-semibold text-slate-900">Pending: {formatInr(row.totalPending)}</p>
+                  <p className="font-semibold text-foreground">Pending: {formatInr(row.totalPending)}</p>
                 </div>
               </div>
             ))
           )}
         </div>
-        <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
+        <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
           <table className="w-full min-w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+            <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-4 py-3">Route</th>
                 <th className="px-4 py-3">Students with dues</th>
@@ -371,16 +371,16 @@ export default async function DefaultersPage({
             <tbody>
               {data.routeSummaryRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
+                  <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
                     No route-wise outstanding rows for the selected filters.
                   </td>
                 </tr>
               ) : (
                 data.routeSummaryRows.map((row) => (
-                  <tr key={`${row.routeId ?? "no-route"}-${row.routeLabel}`} className="border-t border-slate-100 text-slate-700">
-                    <td className="px-4 py-3 font-medium text-slate-900">{row.routeLabel}</td>
+                  <tr key={`${row.routeId ?? "no-route"}-${row.routeLabel}`} className="border-t border-border text-foreground">
+                    <td className="px-4 py-3 font-medium text-foreground">{row.routeLabel}</td>
                     <td className="px-4 py-3">{row.studentCount}</td>
-                    <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.totalPending)}</td>
+                    <td className="px-4 py-3 font-medium text-foreground">{formatInr(row.totalPending)}</td>
                     <td className="px-4 py-3">{row.overdueInstallments}</td>
                     <td className="px-4 py-3">{row.openInstallments}</td>
                     <td className="px-4 py-3">{formatShortDate(row.oldestDueDate)}</td>
@@ -388,20 +388,20 @@ export default async function DefaultersPage({
                       {row.routeId ? (
                         <div className="flex flex-wrap gap-2">
                           <Link
-                            className="text-xs font-medium text-blue-700 hover:underline"
+                            className="text-xs font-medium text-info-soft-foreground hover:underline"
                             href={`/protected/defaulters?transportRouteId=${row.routeId}`}
                           >
                             Open defaulters
                           </Link>
                           <Link
-                            className="text-xs font-medium text-blue-700 hover:underline"
+                            className="text-xs font-medium text-info-soft-foreground hover:underline"
                             href={`/protected/students?transportRouteId=${row.routeId}`}
                           >
                             Open students
                           </Link>
                         </div>
                       ) : (
-                        <span className="text-xs text-slate-500">No direct route filter</span>
+                        <span className="text-xs text-muted-foreground">No direct route filter</span>
                       )}
                     </td>
                   </tr>
@@ -416,9 +416,9 @@ export default async function DefaultersPage({
         title="Route-wise student list"
         description="Operational student list grouped by route for office calls and overdue follow-up."
       >
-        <div className="w-full overflow-x-auto rounded-xl border border-slate-200">
+        <div className="w-full overflow-x-auto rounded-xl border border-border">
           <table className="min-w-[900px] text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+            <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-4 py-3">Route</th>
                 <th className="px-4 py-3">Student</th>
@@ -435,7 +435,7 @@ export default async function DefaultersPage({
             <tbody>
               {data.rows.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-6 text-center text-slate-500">
+                  <td colSpan={10} className="px-4 py-6 text-center text-muted-foreground">
                     No route-wise students for the selected filters.
                   </td>
                 </tr>
@@ -451,14 +451,14 @@ export default async function DefaultersPage({
                     return left.fullName.localeCompare(right.fullName);
                   })
                   .map((row) => (
-                    <tr key={`route-${row.studentId}`} className="border-t border-slate-100 text-slate-700">
+                    <tr key={`route-${row.studentId}`} className="border-t border-border text-foreground">
                       <td className="px-4 py-3">{row.transportRouteLabel}</td>
-                      <td className="px-4 py-3 font-medium text-slate-900">{row.fullName}</td>
+                      <td className="px-4 py-3 font-medium text-foreground">{row.fullName}</td>
                       <td className="px-4 py-3">{row.admissionNo}</td>
                       <td className="px-4 py-3">{row.classLabel}</td>
                       <td className="px-4 py-3">{row.fatherName ?? "-"}</td>
                       <td className="px-4 py-3">{row.fatherPhone ?? "-"}</td>
-                      <td className="px-4 py-3 font-medium text-slate-900">{formatInr(row.totalPending)}</td>
+                      <td className="px-4 py-3 font-medium text-foreground">{formatInr(row.totalPending)}</td>
                       <td className="px-4 py-3">{formatInr(row.lateFee)}</td>
                       <td className="px-4 py-3">
                         {row.nextDueDate ? `${formatShortDate(row.nextDueDate)} | ${formatInr(row.nextDueAmount ?? 0)}` : "-"}

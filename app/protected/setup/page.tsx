@@ -45,7 +45,7 @@ export default async function SetupPage() {
         }
       />
 
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+      <div className="rounded-2xl border bg-warning-soft px-4 py-3 text-sm leading-6 text-warning-soft-foreground">
         Use this only for first-time go-live preparation. After setup is complete, yearly fee
         changes must go through Fee Setup so preview, publish, and audit logging stay attached.
       </div>

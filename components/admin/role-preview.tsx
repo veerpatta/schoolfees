@@ -21,12 +21,12 @@ export function RolePreview({
       {hasIntro ? (
         <div>
           {title ? (
-            <h2 className="text-lg font-semibold tracking-tight text-slate-950">
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">
               {title}
             </h2>
           ) : null}
           {description ? (
-            <p className="mt-1 text-sm leading-6 text-slate-600">
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
               {description}
             </p>
           ) : null}
@@ -37,15 +37,15 @@ export function RolePreview({
         {staffRoles.map((role) => (
           <div
             key={role}
-            className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+            className="rounded-2xl border border-border bg-surface-2 p-4"
           >
-            <p className="text-base font-semibold text-slate-950">
+            <p className="text-base font-semibold text-foreground">
               {roleLabels[role]}
             </p>
-            <p className="mt-1 text-sm leading-6 text-slate-600">
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
               {roleDescriptions[role]}
             </p>
-            <ul className="mt-4 space-y-2 text-sm leading-6 text-slate-700">
+            <ul className="mt-4 space-y-2 text-sm leading-6 text-foreground">
               {rolePermissions[role].map((permission) => (
                 <li key={permission}>{permission}</li>
               ))}

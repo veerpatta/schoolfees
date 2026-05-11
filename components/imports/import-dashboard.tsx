@@ -40,13 +40,13 @@ export function ImportDashboard({ recentBatches, selectedBatch }: ImportDashboar
   return (
     <SectionCard title="Upload history" description="Recent uploads and import progress.">
       {recentBatches.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-600">
+        <div className="rounded-xl border border-dashed border-border-strong bg-surface-2 p-6 text-sm text-muted-foreground">
         No import batches yet. Upload the first spreadsheet to begin staged import.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-600">
+        <div className="overflow-x-auto rounded-xl border border-border">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-surface-2 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-4 py-3">Upload</th>
                 <th className="px-4 py-3">Status</th>
@@ -58,16 +58,16 @@ export function ImportDashboard({ recentBatches, selectedBatch }: ImportDashboar
                 <th className="px-4 py-3 text-right">Open</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
+            <tbody className="divide-y divide-border bg-card">
               {recentBatches.map((batch) => {
                 const isSelected = selectedBatch?.id === batch.id;
                 const progress = getProgressPercent(batch);
 
                 return (
-                  <tr key={batch.id} className={isSelected ? "bg-slate-50/80" : undefined}>
-                    <td className="px-4 py-3 text-sm text-slate-700">
-                      <p className="font-medium text-slate-900">{batch.filename}</p>
-                      <p className="text-xs text-slate-500">
+                  <tr key={batch.id} className={isSelected ? "bg-surface-2/80" : undefined}>
+                    <td className="px-4 py-3 text-sm text-foreground">
+                      <p className="font-medium text-foreground">{batch.filename}</p>
+                      <p className="text-xs text-muted-foreground">
                         {batch.sourceFormat.toUpperCase()}
                         {batch.worksheetName ? ` | ${batch.worksheetName}` : ""}
                       </p>
@@ -75,27 +75,27 @@ export function ImportDashboard({ recentBatches, selectedBatch }: ImportDashboar
                     <td className="px-4 py-3">
                       <StatusBadge label={getStatusLabel(batch.status)} tone={getBatchTone(batch.status)} />
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-700">{batch.totalRows}</td>
+                    <td className="px-4 py-3 text-sm text-foreground">{batch.totalRows}</td>
                     <td className="px-4 py-3 text-sm">
-                      <span className="text-emerald-700">{batch.validRows}</span>
+                      <span className="text-success-soft-foreground">{batch.validRows}</span>
                       {" / "}
-                      <span className="text-red-600">{batch.invalidRows}</span>
+                      <span className="text-destructive">{batch.invalidRows}</span>
                       {" / "}
-                      <span className="text-amber-700">{batch.duplicateRows}</span>
+                      <span className="text-warning-soft-foreground">{batch.duplicateRows}</span>
                     </td>
-                    <td className="px-4 py-3 text-sm font-medium text-blue-700">{batch.importedRows}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-info-soft-foreground">{batch.importedRows}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <div className="h-2 w-20 overflow-hidden rounded-full bg-slate-200">
+                        <div className="h-2 w-20 overflow-hidden rounded-full bg-surface-3">
                           <div
-                            className="h-full rounded-full bg-emerald-500 transition-all"
+                            className="h-full rounded-full bg-success transition-all"
                             style={{ width: `${progress}%` }}
                           />
                         </div>
-                        <span className="text-xs text-slate-500">{progress}%</span>
+                        <span className="text-xs text-muted-foreground">{progress}%</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-700">{formatShortDate(batch.updatedAt)}</td>
+                    <td className="px-4 py-3 text-sm text-foreground">{formatShortDate(batch.updatedAt)}</td>
                     <td className="px-4 py-3 text-right">
                       <Button variant={isSelected ? "secondary" : "outline"} size="sm" asChild>
                         <Link href={`/protected/imports?mode=${batch.importMode}&batchId=${batch.id}`}>Open</Link>

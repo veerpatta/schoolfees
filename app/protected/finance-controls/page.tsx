@@ -61,7 +61,7 @@ export default async function FinanceControlsPage({ searchParams }: FinanceContr
         }
       />
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4">
+      <section className="rounded-2xl border border-border bg-card p-4">
         <form action="/protected/finance-controls" method="get" className="flex flex-wrap items-end gap-3">
           <div>
             <Input
@@ -80,7 +80,7 @@ export default async function FinanceControlsPage({ searchParams }: FinanceContr
         </form>
       </section>
 
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+      <div className="rounded-2xl border border-border bg-surface-2 px-4 py-3 text-sm leading-6 text-foreground">
         Selected day: {data.selectedDate}. Cash deposit status, refund approvals, and correction review rows all stay visible without changing the original receipts.
       </div>
 

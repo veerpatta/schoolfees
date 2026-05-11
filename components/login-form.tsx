@@ -32,7 +32,7 @@ export function LoginForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card className="w-full border-slate-200 bg-white shadow-sm">
+      <Card className="w-full border-border bg-card shadow-sm">
         <CardContent className="p-5 sm:p-6">
           <form action={formAction} className="space-y-6">
             <input type="hidden" name="next" value={next} />
@@ -42,7 +42,7 @@ export function LoginForm({
                   Email / Username
                 </Label>
                 <div className="relative">
-                  <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                  <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle-foreground" />
                   <Input
                     id="email"
                     name="email"
@@ -61,13 +61,13 @@ export function LoginForm({
                   </Label>
                   <Link
                     href="/auth/forgot-password"
-                    className="text-sm font-medium text-sky-700 transition hover:text-sky-900"
+                    className="text-sm font-medium text-info-soft-foreground transition hover:text-info-soft-foreground"
                   >
                     Forgot password?
                   </Link>
                 </div>
                 <div className="relative">
-                  <LockKeyhole className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                  <LockKeyhole className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle-foreground" />
                   <Input
                     id="password"
                     name="password"
@@ -81,7 +81,7 @@ export function LoginForm({
               {state.message ? (
                 <p
                   aria-live="polite"
-                  className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm leading-6 text-red-700"
+                  className="rounded-md border bg-destructive-soft px-3 py-2 text-sm leading-6 text-destructive-soft-foreground"
                 >
                   {state.message}
                 </p>

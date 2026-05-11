@@ -233,17 +233,17 @@ export function StudentBulkImportDialogTrigger({
       {mounted && open
         ? createPortal(
             <div
-              className="fixed inset-0 z-[9999] flex items-start justify-center bg-slate-900/50 p-4 pt-10 backdrop-blur-[2px]"
+              className="fixed inset-0 z-[9999] flex items-start justify-center bg-foreground/50 p-4 pt-10 backdrop-blur-[2px]"
               role="dialog"
               aria-modal="true"
             >
-              <div className="max-h-[90vh] w-full max-w-5xl overflow-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+              <div className="max-h-[90vh] w-full max-w-5xl overflow-auto rounded-2xl border border-border bg-card p-5 shadow-2xl">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-950">
+                    <h2 className="text-lg font-semibold text-foreground">
                       {mode === "update" ? "Bulk Update Existing Students" : "Bulk Add Students"}
                     </h2>
-                    <p className="mt-1 text-sm text-slate-600">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       {mode === "update"
                         ? "Select session scope, upload edited sheet, preview changes, and confirm update."
                         : "Select academic year, upload sheet, review validation result, and import valid rows."}
@@ -254,7 +254,7 @@ export function StudentBulkImportDialogTrigger({
                   </Button>
                 </div>
 
-                <div className="mt-4 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 md:grid-cols-3">
+                <div className="mt-4 grid gap-3 rounded-xl border border-border bg-surface-2 p-3 text-sm text-foreground md:grid-cols-3">
                   <p>1. Select academic year</p>
                   <p>2. Download template and upload file</p>
                   <p>3. Import valid students</p>
@@ -262,12 +262,12 @@ export function StudentBulkImportDialogTrigger({
 
                 <div className="mt-4 grid gap-4 md:grid-cols-[260px_1fr_auto] md:items-end">
                   <div>
-                    <label htmlFor="bulk-session" className="text-sm font-medium text-slate-900">
+                    <label htmlFor="bulk-session" className="text-sm font-medium text-foreground">
                       Academic year
                     </label>
                     <select
                       id="bulk-session"
-                      className="mt-2 h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
+                      className="mt-2 h-9 w-full rounded-md border border-border-strong px-2 text-sm"
                       value={sessionLabel}
                       onChange={(event) => setSessionLabel(event.target.value)}
                       disabled={uploading || committing}
@@ -281,7 +281,7 @@ export function StudentBulkImportDialogTrigger({
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="bulk-file" className="text-sm font-medium text-slate-900">
+                    <label htmlFor="bulk-file" className="text-sm font-medium text-foreground">
                       Spreadsheet file
                     </label>
                     <input
@@ -289,7 +289,7 @@ export function StudentBulkImportDialogTrigger({
                       type="file"
                       accept=".csv,.xlsx"
                       onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
-                      className="mt-2 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                      className="mt-2 block w-full rounded-md border border-border-strong px-3 py-2 text-sm"
                       disabled={uploading || committing}
                     />
                   </div>
@@ -308,14 +308,14 @@ export function StudentBulkImportDialogTrigger({
                 </div>
 
                 {statusText ? (
-                  <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+                  <div className="mt-3 rounded-xl border bg-info-soft px-3 py-2 text-sm text-info-soft-foreground">
                     {statusText}
                     {uploading ? ` (${uploadPercent}%)` : ""}
                   </div>
                 ) : null}
 
                 {errorText ? (
-                  <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  <div className="mt-3 rounded-xl border bg-destructive-soft px-3 py-2 text-sm text-destructive-soft-foreground">
                     {errorText}
                   </div>
                 ) : null}
@@ -323,30 +323,30 @@ export function StudentBulkImportDialogTrigger({
                 {summary ? (
                   <div className="mt-4 space-y-4">
                     <div className="grid gap-3 md:grid-cols-4">
-                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                        <p className="text-sm text-emerald-700">Ready to import</p>
-                        <p className="text-2xl font-semibold text-emerald-900">{summary.reviewSummary.readyToImportRows}</p>
+                      <div className="rounded-xl border bg-success-soft p-3">
+                        <p className="text-sm text-success-soft-foreground">Ready to import</p>
+                        <p className="text-2xl font-semibold text-success-soft-foreground">{summary.reviewSummary.readyToImportRows}</p>
                       </div>
-                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                        <p className="text-sm text-amber-700">Needs correction</p>
-                        <p className="text-2xl font-semibold text-amber-900">{summary.reviewSummary.correctionRows}</p>
+                      <div className="rounded-xl border bg-warning-soft p-3">
+                        <p className="text-sm text-warning-soft-foreground">Needs correction</p>
+                        <p className="text-2xl font-semibold text-warning-soft-foreground">{summary.reviewSummary.correctionRows}</p>
                       </div>
-                      <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
-                        <p className="text-sm text-blue-700">Warnings</p>
-                        <p className="text-2xl font-semibold text-blue-900">{summary.reviewSummary.warningRows}</p>
+                      <div className="rounded-xl border bg-info-soft p-3">
+                        <p className="text-sm text-info-soft-foreground">Warnings</p>
+                        <p className="text-2xl font-semibold text-info-soft-foreground">{summary.reviewSummary.warningRows}</p>
                       </div>
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p className="text-sm text-slate-700">Duplicates blocked</p>
-                        <p className="text-2xl font-semibold text-slate-900">{duplicatesBlocked}</p>
+                      <div className="rounded-xl border border-border bg-surface-2 p-3">
+                        <p className="text-sm text-foreground">Duplicates blocked</p>
+                        <p className="text-2xl font-semibold text-foreground">{duplicatesBlocked}</p>
                       </div>
                     </div>
 
                     {summary.warningSummary.length > 0 ? (
-                      <div className="rounded-xl border border-slate-200 p-3">
-                        <p className="text-sm font-semibold text-slate-900">Warnings summary</p>
+                      <div className="rounded-xl border border-border p-3">
+                        <p className="text-sm font-semibold text-foreground">Warnings summary</p>
                         <div className="mt-2 grid gap-2 md:grid-cols-2">
                           {summary.warningSummary.map((item) => (
-                            <p key={item.label} className="text-sm text-slate-700">
+                            <p key={item.label} className="text-sm text-foreground">
                               {item.count} x {item.label}
                             </p>
                           ))}
@@ -355,15 +355,15 @@ export function StudentBulkImportDialogTrigger({
                     ) : null}
 
                     {summary.problemRows.length > 0 ? (
-                      <div className="rounded-xl border border-slate-200 p-3">
-                        <p className="text-sm font-semibold text-slate-900">Problem rows first</p>
+                      <div className="rounded-xl border border-border p-3">
+                        <p className="text-sm font-semibold text-foreground">Problem rows first</p>
                         <div className="mt-2 max-h-64 space-y-2 overflow-auto">
                           {summary.problemRows.map((row) => (
-                            <div key={row.id} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
-                              <p className="font-medium text-amber-900">
+                            <div key={row.id} className="rounded-lg border bg-warning-soft px-3 py-2 text-sm">
+                              <p className="font-medium text-warning-soft-foreground">
                                 Row {row.rowIndex} - {row.normalizedPayload?.fullName || "Unknown student"}
                               </p>
-                              <p className="text-amber-800">
+                              <p className="text-warning-soft-foreground">
                                 {row.errors.map((issue) => issue.message).join("; ")}
                               </p>
                             </div>
@@ -373,9 +373,9 @@ export function StudentBulkImportDialogTrigger({
                     ) : null}
 
                     {readyRows.length > 0 ? (
-                      <div className="rounded-xl border border-slate-200 p-3">
-                        <p className="text-sm font-semibold text-slate-900">Ready row preview</p>
-                        <div className="mt-2 max-h-48 overflow-auto text-sm text-slate-700">
+                      <div className="rounded-xl border border-border p-3">
+                        <p className="text-sm font-semibold text-foreground">Ready row preview</p>
+                        <div className="mt-2 max-h-48 overflow-auto text-sm text-foreground">
                           {readyRows.map((row) => (
                             <p key={row.id}>
                               Row {row.rowIndex}: {row.normalizedPayload?.fullName} - {row.normalizedPayload?.classLabel}
@@ -428,8 +428,8 @@ export function StudentBulkImportDialogTrigger({
                   <div
                     className={`rounded-xl border p-3 text-sm ${
                       commitResult.ledgerSyncError
-                        ? "border-amber-200 bg-amber-50 text-amber-950"
-                        : "border-emerald-200 bg-emerald-50 text-emerald-900"
+                        ? "bg-warning-soft text-warning-soft-foreground"
+                        : "bg-success-soft text-success-soft-foreground"
                     }`}
                   >
                     <p className="font-semibold">
@@ -445,7 +445,7 @@ export function StudentBulkImportDialogTrigger({
                       Ready for payment: {commitResult.duesReadyCount} | Dues not prepared: {commitResult.duesAttentionCount}
                     </p>
                     {commitResult.ledgerSyncError ? (
-                      <div className="mt-2 rounded-lg border border-amber-300 bg-white/70 px-3 py-2 text-amber-950">
+                      <div className="mt-2 rounded-lg border border-warning/40 bg-card/70 px-3 py-2 text-warning-soft-foreground">
                         <p className="font-medium">Dues could not be prepared.</p>
                         <p className="mt-1">{commitResult.duesReasonSummary ?? commitResult.ledgerSyncError}</p>
                       </div>
