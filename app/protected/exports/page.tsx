@@ -6,6 +6,8 @@ import { OfficeNotice } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
+export const revalidate = 60;
+
 const exportGroups = [
   {
     title: "Students",

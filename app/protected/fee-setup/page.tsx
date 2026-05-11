@@ -26,6 +26,8 @@ const INITIAL_MASTER_DATA_ACTION_STATE: MasterDataActionState = {
   message: "",
 };
 
+export const revalidate = 60;
+
 export default async function FeeSetupPage() {
   const [staff, data, masterData] = await Promise.all([
     requireStaffPermission("fees:view", { onDenied: "redirect" }),

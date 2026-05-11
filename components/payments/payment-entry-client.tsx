@@ -34,6 +34,7 @@ import type {
   InstallmentBalanceItem,
   PaymentEntryActionState,
   PaymentEntryPageData,
+  PaymentStudentIndexItem,
 } from "@/lib/payments/types";
 import { formatInr } from "@/lib/helpers/currency";
 import { cn } from "@/lib/utils";
@@ -69,6 +70,7 @@ const studentComboboxOverscan = 4;
 const paymentDeskLastClassStorageKey = "vpps.paymentDesk.lastClassId";
 const paymentDeskLastModeStorageKey = "vpps.paymentDesk.lastPaymentMode";
 const paymentDeskRecentStudentsStorageKey = "vpps.paymentDesk.recentStudents";
+const paymentDeskStudentIndexCacheKey = "vpps.paymentDesk.studentIndex";
 const mobilePresetAmounts = [500, 1000, 2000, 5000, 10000];
 
 function desktopTabButtonClass(active: boolean) {
@@ -158,6 +160,7 @@ export function PaymentEntryClient({
     initialState,
   );
   const [selectedClassId, setSelectedClassId] = useState(data.initialClassId);
+  const [studentIndex, setStudentIndex] = useState<PaymentStudentIndexItem[]>(data.studentIndex);
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
   const deferredStudentSearchQuery = useDeferredValue(studentSearchQuery);
   const [selectedStudentId, setSelectedStudentId] = useState(data.initialStudentId ?? "");
@@ -213,6 +216,8 @@ export function PaymentEntryClient({
   const desktopStudentListRef = useRef<HTMLDivElement>(null);
   const summaryRequestRef = useRef(0);
   const summaryAbortRef = useRef<AbortController | null>(null);
+  const studentIndexLoadedRef = useRef(data.studentIndex.length > 0);
+  const prefetchCache = useRef<Map<string, Promise<PaymentDeskStudentSummary | null>>>(new Map());
   const lastAmountFocusStudentIdRef = useRef<string | null>(null);
   const [activeStudentPickerMode, setActiveStudentPickerMode] = useState<"mobile" | "desktop">("mobile");
   const [recentStudentIds, setRecentStudentIds] = useState<string[]>(() => {
@@ -226,7 +231,6 @@ export function PaymentEntryClient({
   });
   const mobileStudentListId = useId();
   const desktopStudentListId = useId();
-  const studentIndex = data.studentIndex;
 
   const studentSearchIndex = useMemo(
     () => buildPaymentDeskSearchIndex(studentIndex),
@@ -300,6 +304,104 @@ export function PaymentEntryClient({
   const showReferenceField = paymentMode !== "cash";
   const referenceInputMode = paymentMode === "cheque" ? "numeric" : "text";
 
+  function buildStudentSummaryCacheKey(studentId: string, requestedPaymentDate: string) {
+    return `${studentId}:${requestedPaymentDate}`;
+  }
+
+  async function fetchStudentSummary(payload: {
+    studentId: string;
+    requestedPaymentDate: string;
+    includeLatestReceipt: boolean;
+    signal?: AbortSignal;
+  }) {
+    const params = new URLSearchParams({
+      studentId: payload.studentId,
+      paymentDate: payload.requestedPaymentDate,
+      includeLatestReceipt: String(payload.includeLatestReceipt),
+    });
+    const response = await fetch(`/protected/payments/student-summary?${params.toString()}`, {
+      method: "GET",
+      headers: { accept: "application/json" },
+      signal: payload.signal,
+    });
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => null);
+      throw new Error(errorPayload?.error ?? "Unable to refresh payment preview.");
+    }
+
+    return response.json() as Promise<PaymentDeskStudentSummary>;
+  }
+
+  function prefetchStudentSummary(studentId: string) {
+    const today = new Date().toISOString().slice(0, 10);
+    const cacheKey = buildStudentSummaryCacheKey(studentId, today);
+
+    if (prefetchCache.current.has(cacheKey)) {
+      return;
+    }
+
+    const promise = fetchStudentSummary({
+      studentId,
+      requestedPaymentDate: today,
+      includeLatestReceipt: false,
+    }).catch(() => null);
+
+    prefetchCache.current.set(cacheKey, promise);
+  }
+
+  useEffect(() => {
+    if (studentIndexLoadedRef.current) {
+      return;
+    }
+
+    studentIndexLoadedRef.current = true;
+
+    try {
+      const cached = sessionStorage.getItem(paymentDeskStudentIndexCacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached) as {
+          ts?: number;
+          data?: PaymentStudentIndexItem[];
+        };
+
+        if (
+          typeof parsed.ts === "number" &&
+          Array.isArray(parsed.data) &&
+          Date.now() - parsed.ts < 5 * 60 * 1000
+        ) {
+          setStudentIndex(parsed.data);
+          return;
+        }
+      }
+    } catch {
+      // Ignore unavailable or malformed cache.
+    }
+
+    fetch("/protected/students/index?purpose=paymentDesk", {
+      headers: { accept: "application/json" },
+    })
+      .then((response) => response.json())
+      .then((json: { students?: PaymentStudentIndexItem[] }) => {
+        if (!Array.isArray(json.students)) {
+          return;
+        }
+
+        setStudentIndex(json.students);
+        try {
+          sessionStorage.setItem(
+            paymentDeskStudentIndexCacheKey,
+            JSON.stringify({ ts: Date.now(), data: json.students }),
+          );
+        } catch {
+          // Storage may be unavailable or full.
+        }
+      })
+      .catch(() => {
+        // The search box remains usable once the next navigation retries.
+      });
+  }, []);
+
   useEffect(() => {
     if (!selectedStudentId) {
       setDateAwareBreakdown(null);
@@ -316,33 +418,28 @@ export function PaymentEntryClient({
     const controller = new AbortController();
     summaryAbortRef.current = controller;
     const requestId = ++summaryRequestRef.current;
-    const params = new URLSearchParams({
-      studentId: selectedStudentId,
-      paymentDate,
-      includeLatestReceipt: "true",
-    });
+    const prefetchKey = buildStudentSummaryCacheKey(selectedStudentId, paymentDate);
 
     setStudentSummaryLoading(true);
     setStudentSummaryNotice("Loading dues...");
     setPreviewNotice("Refreshing pending amount for selected payment date...");
     setPreviewLoading(true);
 
-    fetch(`/protected/payments/student-summary?${params.toString()}`, {
-      method: "GET",
-      headers: { accept: "application/json" },
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          const payload = await response.json().catch(() => null);
-          throw new Error(payload?.error ?? "Unable to refresh payment preview.");
-        }
-
-        return response.json() as Promise<PaymentDeskStudentSummary>;
+    (
+      prefetchCache.current.get(prefetchKey) ??
+      fetchStudentSummary({
+        studentId: selectedStudentId,
+        requestedPaymentDate: paymentDate,
+        includeLatestReceipt: true,
+        signal: controller.signal,
       })
+    )
       .then((payload) => {
         if (requestId !== summaryRequestRef.current) {
           return;
+        }
+        if (!payload) {
+          throw new Error("Unable to refresh payment preview.");
         }
 
         setSelectedStudent(payload.student);
@@ -517,6 +614,11 @@ export function PaymentEntryClient({
     submittingRef.current = false;
 
     if (state.status === "success") {
+      try {
+        sessionStorage.removeItem(paymentDeskStudentIndexCacheKey);
+      } catch {
+        // Session storage may be unavailable.
+      }
       setDismissedActionStateKey(null);
       setIsConfirmOpen(false);
       setIsSuccessOpen(true);
@@ -854,7 +956,7 @@ export function PaymentEntryClient({
       <div ref={studentSearchSectionRef} className="md:hidden">
       <SectionCard
         title="2. Search Student"
-        description="Use SR no, student name, father name, or phone number to reach the right student quickly."
+        description="Use SR no, student name, or class to reach the right student quickly."
       >
             <div className="space-y-2 md:space-y-4">
               <div className="grid gap-2 md:gap-4 md:grid-cols-2">
@@ -869,7 +971,7 @@ export function PaymentEntryClient({
                   setIsStudentPickerOpen(true);
                   setStudentListScrollTop(0);
                 }}
-                placeholder="SR no, student, father, or phone"
+                placeholder="SR no or student"
                 className="mt-2"
               />
             </div>
@@ -965,6 +1067,8 @@ export function PaymentEntryClient({
                             aria-selected={selectedStudentId === student.id}
                             className={`flex min-h-10 w-full items-center border-b border-border px-3 py-1.5 text-left text-sm last:border-b-0 ${selectedStudentId === student.id ? "bg-info-soft text-info-soft-foreground" : "bg-card text-foreground hover:bg-surface-2"}`}
                             onMouseDown={(event) => event.preventDefault()}
+                            onMouseEnter={() => prefetchStudentSummary(student.id)}
+                            onFocus={() => prefetchStudentSummary(student.id)}
                             onClick={() => selectStudent(student.id)}
                           >
                             {buildStudentSelectLabel({ ...student, pendingAmount: null })}
@@ -993,6 +1097,8 @@ export function PaymentEntryClient({
                                 isActive ? "bg-info-soft text-info-soft-foreground" : "bg-card text-foreground hover:bg-surface-2"
                               }`}
                               onMouseDown={(event) => event.preventDefault()}
+                              onMouseEnter={() => prefetchStudentSummary(student.id)}
+                              onFocus={() => prefetchStudentSummary(student.id)}
                               onClick={() => selectStudent(student.id)}
                             >
                               {label}
@@ -1041,7 +1147,7 @@ export function PaymentEntryClient({
               <Input ref={desktopStudentSearchInputRef} role="combobox" aria-expanded={isStudentPickerOpen} aria-controls={desktopStudentListId} aria-activedescendant={activeStudentOptionIndex >= 0 ? `${desktopStudentListId}-option-${activeStudentOptionIndex}` : undefined} aria-autocomplete="list" placeholder="Search student" value={studentSearchQuery} onFocus={()=>{setActiveStudentPickerMode("desktop");setIsStudentPickerOpen(true);}} onChange={(event)=>{setActiveStudentPickerMode("desktop");setStudentSearchQuery(event.target.value);setIsStudentPickerOpen(true);setStudentListScrollTop(0);setActiveStudentOptionIndex(0);}} />
               {isStudentPickerOpen ? (
                 <div id={desktopStudentListId} role="listbox" ref={desktopStudentListRef} className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-md border border-border bg-card shadow-lg" style={{ height: `${studentComboboxPanelHeight}px` }} onScroll={(event) => setStudentListScrollTop(event.currentTarget.scrollTop)}>
-                  {filteredStudents.length === 0 ? <p className="px-3 py-3 text-sm text-muted-foreground">No matching students.</p> : <div style={{ paddingTop: topVisibleOffset, paddingBottom: bottomVisibleOffset }}>{visibleStudentOptions.map((student,index)=>{const optionIndex=firstVisibleStudentIndex+index;const label=buildStudentSelectLabel({ ...student, pendingAmount: null });const isActive=optionIndex===activeStudentOptionIndex;const isSelected=selectedStudentId===student.id;return <button key={student.id} id={`${desktopStudentListId}-option-${optionIndex}`} role="option" aria-selected={isSelected} type="button" className={`flex min-h-12 w-full items-center border-b border-border px-3 py-2 text-left text-sm last:border-b-0 ${isActive ? "bg-info-soft text-info-soft-foreground" : "bg-card text-foreground hover:bg-surface-2"}`} onMouseDown={(event)=>event.preventDefault()} onClick={()=>selectStudent(student.id)}>{label}</button>;})}</div>}
+                  {filteredStudents.length === 0 ? <p className="px-3 py-3 text-sm text-muted-foreground">No matching students.</p> : <div style={{ paddingTop: topVisibleOffset, paddingBottom: bottomVisibleOffset }}>{visibleStudentOptions.map((student,index)=>{const optionIndex=firstVisibleStudentIndex+index;const label=buildStudentSelectLabel({ ...student, pendingAmount: null });const isActive=optionIndex===activeStudentOptionIndex;const isSelected=selectedStudentId===student.id;return <button key={student.id} id={`${desktopStudentListId}-option-${optionIndex}`} role="option" aria-selected={isSelected} type="button" className={`flex min-h-12 w-full items-center border-b border-border px-3 py-2 text-left text-sm last:border-b-0 ${isActive ? "bg-info-soft text-info-soft-foreground" : "bg-card text-foreground hover:bg-surface-2"}`} onMouseDown={(event)=>event.preventDefault()} onMouseEnter={()=>prefetchStudentSummary(student.id)} onFocus={()=>prefetchStudentSummary(student.id)} onClick={()=>selectStudent(student.id)}>{label}</button>;})}</div>}
                 </div>
               ) : null}
             </div>
@@ -1116,7 +1222,7 @@ export function PaymentEntryClient({
           description="Dues, installment breakup, and the payment form will appear after a student is selected."
         >
           <p className="rounded-lg border border-dashed border-border-strong bg-surface-2 px-4 py-3 text-sm text-muted-foreground">
-            Search by SR no, student name, phone number, or receipt number, then continue with that student.
+            Search by SR no, student name, or receipt number, then continue with that student.
           </p>
         </SectionCard>
       ) : (

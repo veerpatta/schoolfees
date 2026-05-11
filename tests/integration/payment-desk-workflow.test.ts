@@ -317,7 +317,7 @@ describe("payment desk cashier workflow", () => {
     ).toBe("Asha Sharma — SR: SR-1");
   });
 
-  it("payment_search_matches_name_sr_father_phone_and_class_label", () => {
+  it("payment_search_matches_name_sr_and_class_label", () => {
     const students = [
       {
         id: "s1",
@@ -325,9 +325,6 @@ describe("payment desk cashier workflow", () => {
         admissionNo: "SR-001",
         classId: "c1",
         classLabel: "Class 1",
-        fatherName: "Ramesh Sharma",
-        fatherPhone: "9999999999",
-        motherPhone: null,
         studentStatus: "active",
       },
       {
@@ -336,9 +333,6 @@ describe("payment desk cashier workflow", () => {
         admissionNo: "SR-099",
         classId: "c1",
         classLabel: "Class 1",
-        fatherName: "Mahesh Patel",
-        fatherPhone: "8888888888",
-        motherPhone: null,
         studentStatus: "active",
       },
     ];
@@ -346,8 +340,8 @@ describe("payment desk cashier workflow", () => {
 
     expect(filterPaymentDeskStudents({ students, searchIndex, selectedClassId: "c1", query: "SR-099" })).toHaveLength(1);
     expect(filterPaymentDeskStudents({ students, searchIndex, selectedClassId: "c1", query: "Asha" })).toHaveLength(1);
-    expect(filterPaymentDeskStudents({ students, searchIndex, selectedClassId: "c1", query: "Ramesh" })).toHaveLength(1);
-    expect(filterPaymentDeskStudents({ students, searchIndex, selectedClassId: "c1", query: "8888" })).toHaveLength(1);
+    expect(filterPaymentDeskStudents({ students, searchIndex, selectedClassId: "c1", query: "Ramesh" })).toHaveLength(0);
+    expect(filterPaymentDeskStudents({ students, searchIndex, selectedClassId: "c1", query: "8888" })).toHaveLength(0);
     expect(filterPaymentDeskStudents({ students, searchIndex, selectedClassId: "c1", query: "class 1" })).toHaveLength(2);
   });
 

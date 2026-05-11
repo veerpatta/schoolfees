@@ -14,7 +14,7 @@ import type { PaymentEntryActionState } from "@/lib/payments/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import {
   prepareDuesForStudentsAutomatically,
-  revalidateCoreFinancePaths,
+  revalidateAfterPaymentPosting,
 } from "@/lib/system-sync/finance-sync";
 
 function parseRequiredString(value: FormDataEntryValue | null, fieldLabel: string) {
@@ -162,7 +162,7 @@ export async function submitPaymentEntryAction(
       clientRequestId,
     });
 
-    revalidateCoreFinancePaths([studentId]);
+    revalidateAfterPaymentPosting([studentId]);
 
     return {
       status: "success",

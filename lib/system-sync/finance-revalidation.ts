@@ -30,3 +30,23 @@ export function revalidateCoreFinancePaths(studentIds: readonly string[] = []) {
     revalidatePath(`/protected/payments?studentId=${studentId}`);
   }
 }
+
+export function revalidateAfterPaymentPosting(studentIds: readonly string[] = []) {
+  const paymentPaths = [
+    "/protected/dashboard",
+    "/protected/payments",
+    "/protected/transactions",
+    "/protected/receipts",
+    "/protected/defaulters",
+  ] as const;
+
+  for (const path of paymentPaths) {
+    revalidatePath(path);
+  }
+
+  for (const studentId of new Set(studentIds.filter(Boolean))) {
+    revalidatePath(`/protected/students/${studentId}`);
+    revalidatePath(`/protected/students/${studentId}/statement`);
+    revalidatePath(`/protected/payments?studentId=${studentId}`);
+  }
+}

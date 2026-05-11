@@ -7,9 +7,14 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: [
       "lucide-react",
+      "@radix-ui/react-checkbox",
       "@radix-ui/react-dialog",
+      "@radix-ui/react-dropdown-menu",
+      "@radix-ui/react-label",
       "@radix-ui/react-select",
+      "@radix-ui/react-slot",
       "@radix-ui/react-sheet",
+      "class-variance-authority",
     ],
     optimizeCss: true,
     scrollRestoration: true,

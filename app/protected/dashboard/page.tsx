@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -25,7 +26,11 @@ import { KpiCard } from "@/components/ui/kpi-card";
 import { Money } from "@/components/ui/money";
 import { Notice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
-import { getDashboardPageData, type DashboardAlert } from "@/lib/dashboard/data";
+import {
+  getDashboardAboveFoldData,
+  getDashboardPageData,
+  type DashboardAlert,
+} from "@/lib/dashboard/data";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import {
@@ -689,146 +694,39 @@ function FeeDataAttentionBanner({
   );
 }
 
-/* ---------------------------------------------------------------------------
-   Page
-   --------------------------------------------------------------------------- */
+function DashboardBelowFoldSkeleton() {
+  return (
+    <div className="space-y-5" aria-label="Loading dashboard details">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+        <div className="h-64 rounded-md border border-border bg-surface-2/60" />
+        <div className="h-64 rounded-md border border-border bg-surface-2/60" />
+      </div>
+      <div className="grid gap-5 xl:grid-cols-2">
+        <div className="h-72 rounded-md border border-border bg-surface-2/60" />
+        <div className="h-72 rounded-md border border-border bg-surface-2/60" />
+        <div className="h-80 rounded-md border border-border bg-surface-2/60 xl:col-span-2" />
+      </div>
+      <div className="h-80 rounded-md border border-border bg-surface-2/60" />
+    </div>
+  );
+}
 
-type DashboardPageProps = {
-  searchParams?: Promise<{ notice?: string }>;
-};
-
-export default async function DashboardPage({ searchParams }: DashboardPageProps) {
-  const staff = await requireStaffPermission("dashboard:view", { onDenied: "redirect" });
-  const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const data = await getDashboardPageData({ staffRole: staff.appRole });
-  const canWriteStudents = hasStaffPermission(staff, "students:write");
-  const canPostPayments = hasStaffPermission(staff, "payments:write");
+async function DashboardBelowFold({
+  staffRole,
+  canPostPayments,
+}: {
+  staffRole: Awaited<ReturnType<typeof requireStaffPermission>>["appRole"];
+  canPostPayments: boolean;
+}) {
+  const data = await getDashboardPageData({ staffRole });
   const maxChartCards = data.classSummary.slice(0, 8);
 
   return (
-    <div className="space-y-7">
-      <PageHeader
-        eyebrow="Workspace"
-        title="Dashboard"
-        description="Today's collection, pending dues, and follow-up — at a glance."
-        actions={
-          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-            <StatusBadge label={`Session ${data.currentSession}`} tone="accent" />
-            {data.currentInstallment ? (
-              <StatusBadge
-                label={`${data.currentInstallment.label} · ${formatShortDate(data.currentInstallment.dueDate)}`}
-                tone={data.currentInstallment.status === "overdue" ? "warning" : "neutral"}
-              />
-            ) : null}
-          </div>
-        }
-      />
-
-      {resolvedSearchParams?.notice ? (
-        <Notice tone="success" iconless={false}>
-          {resolvedSearchParams.notice}
-        </Notice>
-      ) : null}
-
-      {/* Empty-state guidance */}
-      {!data.emptyState.hasStudents ? (
-        <Section
-          title="No students yet"
-          description="Start with student records, then review Fee Setup before collection."
-          actions={<StatusBadge label="Get started" tone="accent" />}
-        >
-          <div className="grid gap-2.5 sm:grid-cols-2">
-            {[
-              { href: "/protected/students/new", label: "Add a student", detail: "Create one student record." },
-              { href: "/protected/imports/template", label: "Bulk-add students", detail: "Download the import template." },
-              { href: "/protected/fee-setup", label: "Open Fee Setup", detail: "Check yearly fees before collection." },
-              { href: "/protected/admin-tools", label: "Admin Tools", detail: "Setup, lists, and fixes." },
-            ].map((action) => (
-              <Link
-                key={action.href}
-                href={action.href}
-                className="group flex items-center justify-between gap-3 rounded-md border border-border bg-card px-4 py-3 transition-colors hover:border-border-strong hover:bg-surface-2"
-              >
-                <span>
-                  <span className="block text-sm font-semibold text-foreground">{action.label}</span>
-                  <span className="block text-xs text-muted-foreground">{action.detail}</span>
-                </span>
-                <ArrowRight
-                  className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-foreground"
-                  aria-hidden="true"
-                />
-              </Link>
-            ))}
-          </div>
-        </Section>
-      ) : !data.emptyState.hasFinancialData ? (
-        <Notice
-          tone="warning"
-          title="Students found, dues missing"
-          action={
-            <Button asChild size="sm" variant="outline">
-              <Link href="/protected/admin-tools#fee-data-troubleshooting">Prepare dues</Link>
-            </Button>
-          }
-        >
-          Students exist for this year, but their payable dues are not ready yet.
-        </Notice>
-      ) : null}
-
-      {staff.appRole === "admin" && data.systemSyncHealth ? (
+    <>
+      {staffRole === "admin" && data.systemSyncHealth ? (
         <FeeDataAttentionBanner health={data.systemSyncHealth} />
       ) : null}
 
-      {/* Hero strip */}
-      <div className="space-y-4">
-        <HeroKpis
-          collected={data.kpis.todaysCollection}
-          pending={data.kpis.totalPending}
-          collectionRate={data.kpis.collectionRate}
-          receiptsToday={data.kpis.receiptsToday}
-          followUpCount={data.studentsWithPending}
-        />
-        <QuickActions canWriteStudents={canWriteStudents} canPostPayments={canPostPayments} />
-      </div>
-
-      {/* Today + secondary KPIs */}
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
-        <TodayPanel
-          amount={data.kpis.todaysCollection}
-          receiptCount={data.kpis.receiptsToday}
-          modes={data.todayPaymentModeBreakdown}
-        />
-        <div className="grid grid-cols-2 content-start gap-3">
-          <KpiCard
-            label="Total expected"
-            value={<Money value={data.kpis.totalExpectedFees} size="xl" />}
-          />
-          <KpiCard
-            label="Total collected"
-            value={<Money value={data.kpis.totalCollected} size="xl" tone="success" />}
-            hint={`${formatPercent(data.kpis.collectionRate)} of expected`}
-          />
-          <KpiCard
-            label="Active students"
-            value={
-              <span className="tabular">{data.kpis.totalStudents}</span>
-            }
-          />
-          <KpiCard
-            label="Refund / credit"
-            value={<Money value={data.totalRefundDue} size="xl" tone="muted" />}
-          />
-          <div className="col-span-2">
-            <KpiCard
-              label="This month"
-              value={<Money value={data.kpis.thisMonthCollection} size="xl" />}
-              hint="Receipts posted in the current month."
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Defaulters + Recent */}
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <Section
           title="Top defaulters"
@@ -867,7 +765,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </Section>
       </div>
 
-      {/* Insights — promoted, no longer behind <details> */}
       <div className="grid gap-5 xl:grid-cols-2">
         <Section
           title="Class-wise pending"
@@ -903,6 +800,151 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       >
         <AlertsPanel alerts={data.alerts} />
       </Section>
+    </>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   Page
+   --------------------------------------------------------------------------- */
+
+type DashboardPageProps = {
+  searchParams?: Promise<{ notice?: string }>;
+};
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const staff = await requireStaffPermission("dashboard:view", { onDenied: "redirect" });
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const aboveFold = await getDashboardAboveFoldData({ staffRole: staff.appRole });
+  const canWriteStudents = hasStaffPermission(staff, "students:write");
+  const canPostPayments = hasStaffPermission(staff, "payments:write");
+
+  return (
+    <div className="space-y-7">
+      <PageHeader
+        eyebrow="Workspace"
+        title="Dashboard"
+        description="Today's collection, pending dues, and follow-up — at a glance."
+        actions={
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            <StatusBadge label={`Session ${aboveFold.currentSession}`} tone="accent" />
+            {aboveFold.currentInstallment ? (
+              <StatusBadge
+                label={`${aboveFold.currentInstallment.label} · ${formatShortDate(aboveFold.currentInstallment.dueDate)}`}
+                tone={aboveFold.currentInstallment.status === "overdue" ? "warning" : "neutral"}
+              />
+            ) : null}
+          </div>
+        }
+      />
+
+      {resolvedSearchParams?.notice ? (
+        <Notice tone="success" iconless={false}>
+          {resolvedSearchParams.notice}
+        </Notice>
+      ) : null}
+
+      {/* Empty-state guidance */}
+      {!aboveFold.emptyState.hasStudents ? (
+        <Section
+          title="No students yet"
+          description="Start with student records, then review Fee Setup before collection."
+          actions={<StatusBadge label="Get started" tone="accent" />}
+        >
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            {[
+              { href: "/protected/students/new", label: "Add a student", detail: "Create one student record." },
+              { href: "/protected/imports/template", label: "Bulk-add students", detail: "Download the import template." },
+              { href: "/protected/fee-setup", label: "Open Fee Setup", detail: "Check yearly fees before collection." },
+              { href: "/protected/admin-tools", label: "Admin Tools", detail: "Setup, lists, and fixes." },
+            ].map((action) => (
+              <Link
+                key={action.href}
+                href={action.href}
+                className="group flex items-center justify-between gap-3 rounded-md border border-border bg-card px-4 py-3 transition-colors hover:border-border-strong hover:bg-surface-2"
+              >
+                <span>
+                  <span className="block text-sm font-semibold text-foreground">{action.label}</span>
+                  <span className="block text-xs text-muted-foreground">{action.detail}</span>
+                </span>
+                <ArrowRight
+                  className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-foreground"
+                  aria-hidden="true"
+                />
+              </Link>
+            ))}
+          </div>
+        </Section>
+      ) : !aboveFold.emptyState.hasFinancialData ? (
+        <Notice
+          tone="warning"
+          title="Students found, dues missing"
+          action={
+            <Button asChild size="sm" variant="outline">
+              <Link href="/protected/admin-tools#fee-data-troubleshooting">Prepare dues</Link>
+            </Button>
+          }
+        >
+          Students exist for this year, but their payable dues are not ready yet.
+        </Notice>
+      ) : null}
+
+      {/* Hero strip */}
+      <div className="space-y-4">
+        <HeroKpis
+          collected={aboveFold.kpis.todaysCollection}
+          pending={aboveFold.kpis.totalPending}
+          collectionRate={aboveFold.kpis.collectionRate}
+          receiptsToday={aboveFold.kpis.receiptsToday}
+          followUpCount={aboveFold.studentsWithPending}
+        />
+        <QuickActions canWriteStudents={canWriteStudents} canPostPayments={canPostPayments} />
+      </div>
+
+      {/* Today + secondary KPIs */}
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+        <TodayPanel
+          amount={aboveFold.kpis.todaysCollection}
+          receiptCount={aboveFold.kpis.receiptsToday}
+          modes={aboveFold.todayPaymentModeBreakdown}
+        />
+        <div className="grid grid-cols-2 content-start gap-3">
+          <KpiCard
+            label="Total expected"
+            value={<Money value={aboveFold.kpis.totalExpectedFees} size="xl" />}
+          />
+          <KpiCard
+            label="Total collected"
+            value={<Money value={aboveFold.kpis.totalCollected} size="xl" tone="success" />}
+            hint={`${formatPercent(aboveFold.kpis.collectionRate)} of expected`}
+          />
+          <KpiCard
+            label="Active students"
+            value={
+              <span className="tabular">{aboveFold.kpis.totalStudents}</span>
+            }
+          />
+          <KpiCard
+            label="Refund / credit"
+            value={<Money value={aboveFold.totalRefundDue} size="xl" tone="muted" />}
+          />
+          <div className="col-span-2">
+            <KpiCard
+              label="This month"
+              value={<Money value={aboveFold.kpis.thisMonthCollection} size="xl" />}
+              hint="Receipts posted in the current month."
+            />
+          </div>
+        </div>
+      </div>
+
+      <Suspense fallback={<DashboardBelowFoldSkeleton />}>
+        <DashboardBelowFold
+          staffRole={staff.appRole}
+          canPostPayments={canPostPayments}
+        />
+      </Suspense>
+
     </div>
   );
 }

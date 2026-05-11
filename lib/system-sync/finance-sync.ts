@@ -19,9 +19,12 @@ import {
   type FinancialSyncResult,
   type SystemSyncHealth,
 } from "@/lib/system-sync/financial-sync";
-import { revalidateCoreFinancePaths } from "@/lib/system-sync/finance-revalidation";
+import {
+  revalidateAfterPaymentPosting,
+  revalidateCoreFinancePaths,
+} from "@/lib/system-sync/finance-revalidation";
 
-export { revalidateCoreFinancePaths };
+export { revalidateAfterPaymentPosting, revalidateCoreFinancePaths };
 export {
   hasPreparedDues,
   revalidateFinanceSurfaces,

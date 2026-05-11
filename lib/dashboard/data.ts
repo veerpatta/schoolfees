@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { StaffRole } from "@/lib/auth/roles";
+import { hasAnyRolePermission, type StaffRole } from "@/lib/auth/roles";
 import { getRecentConfigChangeLog } from "@/lib/fees/change-log";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
@@ -114,32 +114,6 @@ function getSchoolDateStamp(referenceDate = new Date()) {
 
 function toErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
-}
-
-function toSingleRecord<T>(value: T | T[] | null) {
-  if (Array.isArray(value)) {
-    return value[0] ?? null;
-  }
-
-  return value;
-}
-
-function buildClassLabel(value: {
-  class_name: string;
-  section: string | null;
-  stream_name: string | null;
-}) {
-  const parts = [value.class_name];
-
-  if (value.section) {
-    parts.push(`Section ${value.section}`);
-  }
-
-  if (value.stream_name) {
-    parts.push(value.stream_name);
-  }
-
-  return parts.join(" - ");
 }
 
 async function optionalLoad<T>(
@@ -310,6 +284,81 @@ async function getSetupAlerts(
   return alerts;
 }
 
+export async function getDashboardAboveFoldData(options: { staffRole?: StaffRole } = {}) {
+  const staffRole = options.staffRole ?? "admin";
+  const warnings: string[] = [];
+  const today = getSchoolDateStamp();
+  const policy = await getFeePolicySummary();
+  const [financialRows, transactions, todayTransactions, refundStateRows] = await Promise.all([
+    optionalLoad(
+      "workbook student financials",
+      () => getWorkbookStudentFinancials({ sessionLabel: policy.academicSessionLabel }),
+      [],
+      warnings,
+    ),
+    optionalLoad(
+      "receipt activity",
+      () => getWorkbookTransactions({ limit: 20, sessionLabel: policy.academicSessionLabel }),
+      [],
+      warnings,
+    ),
+    optionalLoad(
+      "today receipt activity",
+      () => getWorkbookTransactions({ todayOnly: true, sessionLabel: policy.academicSessionLabel }),
+      [],
+      warnings,
+    ),
+    optionalLoad(
+      "refund due state",
+      async () => {
+        const supabase = await createClient();
+        const { data, error } = await supabase
+          .from("v_student_financial_state")
+          .select("refundable_amount")
+          .gt("refundable_amount", 0);
+        if (error) throw new Error(error.message);
+        return (data ?? []) as Array<{ refundable_amount: number | null }>;
+      },
+      [],
+      warnings,
+    ),
+  ]);
+  const activeStudents: ActiveStudentRow[] = financialRows.map((row) => ({
+    studentId: row.studentId,
+    classId: row.classId,
+    sessionLabel: row.sessionLabel,
+    classLabel: row.classLabel,
+  }));
+  const summary = buildDashboardSummary({
+    financialRows,
+    studentRows: activeStudents,
+    classRows: [],
+    installmentRows: [],
+    overdueInstallments: [],
+    transactions,
+    todayTransactions,
+    rawStudentCount: activeStudents.length,
+  });
+  const totalRefundDue = refundStateRows.reduce(
+    (sum, row) => sum + Math.max(Number(row.refundable_amount ?? 0), 0),
+    0,
+  );
+
+  return {
+    currentSession: policy.academicSessionLabel,
+    currentInstallment: buildCurrentInstallment(policy, today),
+    kpis: summary.kpis,
+    todayPaymentModeBreakdown: summary.todayPaymentModeBreakdown,
+    recentPayments: summary.recentPayments,
+    followUpQueue: summary.followUpQueue,
+    emptyState: summary.emptyState,
+    studentsWithPending: financialRows.filter((row) => row.outstandingAmount > 0).length,
+    totalRefundDue,
+    canPostPayments: hasAnyRolePermission(staffRole, ["payments:write"]),
+    loadWarnings: warnings,
+  };
+}
+
 export async function getDashboardPageData(options: { staffRole?: StaffRole } = {}): Promise<DashboardPageData> {
   const staffRole = options.staffRole ?? "admin";
   const warnings: string[] = [];
@@ -317,7 +366,6 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
 
   const policy = await getFeePolicySummary();
   const [
-    activeStudents,
     rawStudentCount,
     rawClassSummary,
     financialRows,
@@ -330,61 +378,6 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
     ledgerAlerts,
     setupAlerts,
   ] = await Promise.all([
-    optionalLoad(
-      "active students",
-      async () => {
-        const supabase = await createClient();
-        const { data, error } = await supabase
-          .from("students")
-          .select(
-            "id, class_id, status, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name)",
-          )
-          .eq("status", "active")
-          .eq("class_ref.session_label", policy.academicSessionLabel)
-          .eq("class_ref.status", "active");
-
-        if (error) {
-          throw new Error(error.message);
-        }
-
-        return ((data ?? []) as Array<{
-          id: string;
-          class_id: string;
-          class_ref:
-            | {
-                id: string;
-                session_label: string;
-                class_name: string;
-                section: string | null;
-                stream_name: string | null;
-              }
-            | Array<{
-                id: string;
-                session_label: string;
-                class_name: string;
-                section: string | null;
-                stream_name: string | null;
-              }>
-            | null;
-        }>)
-          .map((row) => {
-            const classRef = toSingleRecord(row.class_ref);
-            if (!classRef) {
-              return null;
-            }
-
-            return {
-              studentId: row.id,
-              classId: row.class_id,
-              sessionLabel: classRef.session_label,
-              classLabel: buildClassLabel(classRef),
-            } satisfies ActiveStudentRow;
-          })
-          .filter((row): row is ActiveStudentRow => Boolean(row));
-      },
-      [],
-      warnings,
-    ),
     optionalLoad(
       "raw active student count",
       () => getRawActiveSessionStudentCount(policy.academicSessionLabel),
@@ -447,6 +440,12 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
   const overdueInstallments = installmentRows.filter(
     (row) => row.balanceStatus === "overdue" && row.pendingAmount > 0,
   );
+  const activeStudents: ActiveStudentRow[] = financialRows.map((row) => ({
+    studentId: row.studentId,
+    classId: row.classId,
+    sessionLabel: row.sessionLabel,
+    classLabel: row.classLabel,
+  }));
 
   const summary = buildDashboardSummary({
     financialRows,

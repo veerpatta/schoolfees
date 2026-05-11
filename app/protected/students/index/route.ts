@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { getPaymentDeskStudentIndex } from "@/lib/payments/data";
 import { STUDENT_STATUSES } from "@/lib/students/constants";
 import { getStudentsPage } from "@/lib/students/data";
 import { EMPTY_STUDENT_FILTERS, type StudentListFilters } from "@/lib/students/types";
@@ -42,9 +43,25 @@ function normalizePage(value: string | null) {
 }
 
 export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const purpose = searchParams.get("purpose")?.trim() ?? "";
+
+  if (purpose === "paymentDesk") {
+    await requireStaffPermission("payments:view");
+    const students = await getPaymentDeskStudentIndex();
+
+    return Response.json(
+      { students },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=120, stale-while-revalidate=300",
+        },
+      },
+    );
+  }
+
   await requireStaffPermission("students:view");
 
-  const { searchParams } = new URL(request.url);
   const filters = normalizeFilters(searchParams);
   const page = normalizePage(searchParams.get("page"));
   const payload = await getStudentsPage(filters, { page, pageSize: 40 });

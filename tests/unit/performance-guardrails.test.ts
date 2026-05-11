@@ -12,6 +12,9 @@ describe("office performance guardrails", () => {
     const dashboardData = readRepoFile("lib/dashboard/data.ts");
 
     expect(dashboardData).not.toContain("overdue workbook installments");
+    expect(dashboardData).not.toContain('"active students"');
+    expect(dashboardData).toContain("financialRows.map((row) => ({");
+    expect(dashboardData).toContain("getDashboardAboveFoldData");
     expect(dashboardData).toContain('row.balanceStatus === "overdue"');
     expect(dashboardData).toContain("row.pendingAmount > 0");
     expect(dashboardData).toContain('.gt("refundable_amount", 0)');
@@ -82,7 +85,8 @@ describe("office performance guardrails", () => {
     const paymentClient = readRepoFile("components/payments/payment-entry-client.tsx");
 
     expect(paymentsData).toContain("getPaymentDeskStudentIndex(payload:");
-    expect(paymentsData).toContain("getPaymentDeskStudentIndex({})");
+    expect(paymentsData).toContain("shouldEagerLoadStudentIndex");
+    expect(paymentsData).toContain("Promise.resolve([])");
     expect(paymentsData).toContain("payload.studentId");
     expect(paymentsData).toContain("const [studentIndex, recentReceipts, todayCollection, summary] = await Promise.all");
     expect(paymentsData).toContain("getPaymentDeskStudentSummary({");
@@ -92,8 +96,22 @@ describe("office performance guardrails", () => {
     expect(paymentsData).not.toContain("getWorkbookStudentFinancials({\n      classId");
     expect(paymentsData).not.toContain(".sort((left, right) => left.fullName.localeCompare(right.fullName))");
     expect(paymentsPage).toContain("getPaymentDeskClassOptions()");
+    expect(paymentsPage).toContain("getSetupWizardData()");
     expect(paymentsPage).not.toContain("getStudentFormOptions()");
-    expect(paymentClient).not.toContain("onMouseEnter={() => prefetchStudentSummary");
-    expect(paymentClient).not.toContain("/protected/payments/student-index?");
+    expect(paymentClient).toContain("paymentDeskStudentIndexCacheKey");
+    expect(paymentClient).toContain("prefetchStudentSummary");
+    expect(paymentClient).toContain("onMouseEnter={() => prefetchStudentSummary");
+    expect(paymentClient).toContain("sessionStorage.removeItem(paymentDeskStudentIndexCacheKey)");
+  });
+
+  it("keeps payment posting revalidation focused", () => {
+    const paymentActions = readRepoFile("app/protected/payments/actions.ts");
+    const revalidation = readRepoFile("lib/system-sync/finance-revalidation.ts");
+    const syncFacade = readRepoFile("lib/system-sync/finance-sync.ts");
+
+    expect(paymentActions).toContain("revalidateAfterPaymentPosting([studentId])");
+    expect(paymentActions).not.toContain("revalidateCoreFinancePaths([studentId])");
+    expect(revalidation).toContain("export function revalidateAfterPaymentPosting");
+    expect(syncFacade).toContain("revalidateAfterPaymentPosting");
   });
 });

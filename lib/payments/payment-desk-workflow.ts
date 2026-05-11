@@ -162,7 +162,9 @@ export function buildPaymentConfirmationSummary(
   };
 }
 
-export function buildStudentSelectLabel(student: PaymentStudentOption) {
+export function buildStudentSelectLabel(
+  student: Pick<PaymentStudentOption, "fullName" | "admissionNo"> & Record<string, unknown>,
+) {
   return `${student.fullName} — SR: ${student.admissionNo}`;
 }
 
@@ -170,7 +172,7 @@ export function buildPaymentDeskSearchIndex(students: PaymentStudentIndexItem[])
   return new Map(
     students.map((student) => [
       student.id,
-      `${student.fullName} ${student.admissionNo} ${student.classLabel} ${student.fatherName ?? ""} ${student.fatherPhone ?? ""} ${student.motherPhone ?? ""}`
+      `${student.fullName} ${student.admissionNo} ${student.classLabel}`
         .toLowerCase()
         .replace(/\s+/g, " ")
         .trim(),

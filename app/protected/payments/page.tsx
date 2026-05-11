@@ -41,6 +41,7 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
   const [staff, classOptions] = await Promise.all([
     requireStaffPermission("payments:view", { onDenied: "redirect" }),
     getPaymentDeskClassOptions(),
+    getSetupWizardData(),
   ]);
 
   return (

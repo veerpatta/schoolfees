@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { redirect } from "next/navigation";
 
 import {
@@ -35,7 +36,7 @@ type StaffProfileRow = {
   last_login_at: string | null;
 };
 
-export async function getAuthenticatedStaff() {
+const _getAuthenticatedStaffOnce = cache(async () => {
   if (!hasRequiredEnvVars) {
     return null;
   }
@@ -65,6 +66,10 @@ export async function getAuthenticatedStaff() {
     fullName: profile?.full_name ?? null,
     lastLoginAt: profile?.last_login_at ?? null,
   } satisfies AuthenticatedStaffSession;
+});
+
+export async function getAuthenticatedStaff() {
+  return _getAuthenticatedStaffOnce();
 }
 
 export async function requireAuthenticatedStaff(redirectTo = "/auth/login") {

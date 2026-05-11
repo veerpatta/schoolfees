@@ -18,6 +18,8 @@ import {
   syncDashboardNowAction,
 } from "../dashboard/actions";
 
+export const revalidate = 60;
+
 export default async function AdvancedPage() {
   const staff = await requireAnyStaffPermission(["finance:view", "settings:view"], {
     onDenied: "redirect",

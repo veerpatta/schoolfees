@@ -43,9 +43,6 @@ type PaymentStudentBaseRow = {
   id: string;
   full_name: string;
   admission_no: string;
-  father_name: string | null;
-  primary_phone: string | null;
-  secondary_phone: string | null;
   class_ref:
     | {
         id: string;
@@ -365,9 +362,6 @@ function toStudentIndexItem(row: PaymentStudentBaseRow): PaymentStudentIndexItem
     admissionNo: row.admission_no,
     classId: classRef.id,
     classLabel: buildClassLabel(classRef),
-    fatherName: row.father_name,
-    fatherPhone: row.primary_phone,
-    motherPhone: row.secondary_phone,
     studentStatus: "active",
   };
 }
@@ -381,7 +375,7 @@ export async function getPaymentDeskStudentIndex(payload: {
   let query = supabase
     .from("students")
     .select(
-      "id, full_name, admission_no, father_name, primary_phone, secondary_phone, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name)",
+      "id, full_name, admission_no, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name)",
     )
     .eq("status", "active")
     .eq("class_ref.session_label", policy.academicSessionLabel)
@@ -876,8 +870,11 @@ export async function getPaymentEntryPageData(payload: {
 }): Promise<PaymentEntryPageData> {
   const policy = await getFeePolicySummary();
   const today = new Date().toISOString().slice(0, 10);
+  const shouldEagerLoadStudentIndex = Boolean(payload.studentId || payload.classId);
   const [studentIndex, recentReceipts, todayCollection, summary] = await Promise.all([
-    getPaymentDeskStudentIndex({}),
+    shouldEagerLoadStudentIndex
+      ? getPaymentDeskStudentIndex({})
+      : Promise.resolve([]),
     getRecentPaymentDeskReceipts(6),
     getTodayPaymentDeskCollection(),
     payload.studentId
