@@ -6,7 +6,11 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { PaymentEntryClient } from "@/components/payments/payment-entry-client";
 import { PaymentDeskSkeleton } from "@/components/payments/payment-desk-skeleton";
 import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
-import { getPaymentDeskClassOptions, getPaymentEntryPageData } from "@/lib/payments/data";
+import {
+  getPaymentDeskClassOptions,
+  getPaymentDeskStudentSummary,
+  getPaymentEntryPageData,
+} from "@/lib/payments/data";
 import { INITIAL_PAYMENT_ENTRY_ACTION_STATE } from "@/lib/payments/types";
 import { getSetupWizardData } from "@/lib/setup/data";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
@@ -41,7 +45,6 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
   const [staff, classOptions] = await Promise.all([
     requireStaffPermission("payments:view", { onDenied: "redirect" }),
     getPaymentDeskClassOptions(),
-    getSetupWizardData(),
   ]);
 
   return (
@@ -87,11 +90,20 @@ async function PaymentDeskDataLoader({
     hasStaffPermission(staff, "payments:write") &&
     staff.appRole === "admin" &&
     readiness.recalculateLedgers.isReady;
+  const today = new Date().toISOString().slice(0, 10);
+  const initialSelectedSummary = studentId
+    ? await getPaymentDeskStudentSummary({
+        studentId,
+        paymentDate: today,
+        autoPrepareMissingDues: canRepairOrPrepareDues,
+      })
+    : null;
   const data = await getPaymentEntryPageData({
     searchQuery: "",
     studentId,
     classId: classId ?? undefined,
     autoPrepareMissingDues: canRepairOrPrepareDues,
+    initialSelectedSummary,
   });
 
   return (

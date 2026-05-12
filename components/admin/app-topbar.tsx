@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, KeyRound, LogOut, UserRound } from "lucide-react";
+import { ChevronDown, KeyRound, LogOut, MoreVertical, UserRound } from "lucide-react";
 
 import { roleLabels, type StaffRole } from "@/lib/auth/roles";
 import { getProtectedRouteMeta } from "@/lib/config/navigation";
@@ -15,6 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SchoolBrand } from "@/components/branding/school-brand";
 
 import { SidebarNav } from "./sidebar-nav";
 import { StatusBadge } from "./status-badge";
@@ -37,7 +38,7 @@ export function AppTopBar({ staffEmail, staffRole }: AppTopBarProps) {
   const routeMeta = getProtectedRouteMeta(pathname);
 
   return (
-    <header className="z-20 border-b border-border bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70 print:hidden md:sticky md:top-0">
+    <header className="z-20 hidden border-b border-border bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70 print:hidden md:sticky md:top-0 md:flex md:flex-col">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
         <div className="min-w-0">
           <h1 className="truncate text-base font-semibold tracking-tight text-foreground sm:text-lg">
@@ -97,6 +98,69 @@ export function AppTopBar({ staffEmail, staffRole }: AppTopBarProps) {
       {/* Tablet (md) compact nav — sidebar hidden, bottom-nav also hidden here. */}
       <div className="hidden border-t border-border bg-background/60 px-4 py-2 sm:px-6 md:block lg:hidden">
         <SidebarNav staffRole={staffRole} mode="topbar" />
+      </div>
+    </header>
+  );
+}
+
+export function MobileHeader({
+  staffEmail,
+  staffRole,
+  sessionLabel,
+  homeHref,
+}: AppTopBarProps & {
+  sessionLabel: string;
+  homeHref: string;
+}) {
+  return (
+    <header className="sticky top-0 z-30 flex h-11 items-center justify-between border-b border-border bg-background/90 px-3 backdrop-blur print:hidden md:hidden">
+      <Link href={homeHref} aria-label="Open home" className="min-w-0">
+        <SchoolBrand variant="icon" priority />
+      </Link>
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-xs font-semibold text-foreground">
+          {sessionLabel}
+        </span>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className="grid size-9 place-items-center rounded-md border border-border bg-surface text-foreground transition-colors hover:bg-surface-2 focus-ring"
+            aria-label="Account menu"
+          >
+            <MoreVertical className="size-5" aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-60">
+            <DropdownMenuLabel className="flex items-center gap-2 py-2">
+              <UserRound className="size-4 text-muted-foreground" aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-foreground">
+                  {staffEmail}
+                </p>
+                <p className="text-xs font-normal text-muted-foreground">
+                  {roleLabels[staffRole]}
+                </p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/protected/password" className="flex items-center gap-2">
+                <KeyRound className="size-4 text-muted-foreground" aria-hidden="true" />
+                Change password
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <form action={logoutAction}>
+              <DropdownMenuItem asChild>
+                <button
+                  type="submit"
+                  className="flex w-full items-center gap-2 text-destructive focus:text-destructive"
+                >
+                  <LogOut className="size-4" aria-hidden="true" />
+                  Sign out
+                </button>
+              </DropdownMenuItem>
+            </form>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

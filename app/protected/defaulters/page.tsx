@@ -175,7 +175,7 @@ export default async function DefaultersPage({
                 <p className="text-xs text-warning-soft-foreground">{row.classLabel} • SR {row.admissionNo}</p>
                 <p className="mt-1 text-xs text-warning-soft-foreground">Phone: {row.fatherPhone ?? "-"}</p>
                 <Button asChild size="sm" variant="outline" className="mt-3">
-                  <Link href={`/protected/payments?studentId=${row.studentId}`}>Prepare dues</Link>
+                  <Link href={`/protected/payments?studentId=${row.studentId}${row.classId ? `&classId=${row.classId}` : ""}`}>Prepare dues</Link>
                 </Button>
               </div>
             ))}
@@ -205,7 +205,7 @@ export default async function DefaultersPage({
                     <td className="px-4 py-3">
                       <Link
                         className="text-xs font-medium text-info-soft-foreground hover:underline"
-                        href={`/protected/payments?studentId=${row.studentId}`}
+                        href={`/protected/payments?studentId=${row.studentId}${row.classId ? `&classId=${row.classId}` : ""}`}
                       >
                         Prepare dues
                       </Link>
@@ -254,7 +254,7 @@ export default async function DefaultersPage({
                     <Link href={`/protected/students/${row.studentId}`}>Open Student</Link>
                   </Button>
                   <Button asChild size="sm" variant="outline">
-                    <Link href={`/protected/payments?studentId=${row.studentId}`}>Open Payment</Link>
+                    <Link href={`/protected/payments?studentId=${row.studentId}${row.classId ? `&classId=${row.classId}` : ""}`}>Collect</Link>
                   </Button>
                 </div>
               </div>
@@ -320,7 +320,7 @@ export default async function DefaultersPage({
                           href={`/protected/payments?studentId=${row.studentId}`}
                           className="text-sm font-semibold text-info-soft-foreground hover:text-info-soft-foreground"
                         >
-                          Payment
+                          Collect
                         </Link>
                       </div>
                     </td>

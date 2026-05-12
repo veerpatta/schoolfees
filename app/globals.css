@@ -278,7 +278,7 @@
   }
 
   .mobile-payment-cta-clearance {
-    padding-bottom: var(--mobile-payment-cta-offset);
+    padding-bottom: calc(var(--mobile-payment-cta-offset) + var(--keyboard-offset, 0px));
   }
 
   .mobile-payment-with-nav-clearance {

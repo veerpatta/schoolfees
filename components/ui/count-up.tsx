@@ -69,7 +69,8 @@ export function CountUp({
     if (typeof window === "undefined") return;
 
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    if (reduced || value === fromRef.current) {
+    const mobile = window.matchMedia?.("(max-width: 767px)")?.matches;
+    if (reduced || mobile || value === fromRef.current) {
       setDisplay(value);
       fromRef.current = value;
       return;

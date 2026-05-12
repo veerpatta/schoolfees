@@ -63,7 +63,7 @@ describe("receipt print and loading UX", () => {
   it("supports print-ready receipt links from Payment Desk success", () => {
     const receiptPage = readRepoFile("app/protected/receipts/[receiptId]/page.tsx");
     const printActions = readRepoFile("components/receipts/receipt-print-actions.tsx");
-    const paymentDesk = readRepoFile("components/payments/payment-entry-client.tsx");
+    const paymentDesk = readRepoFile("components/payments/payment-desk-mobile.tsx");
 
     expect(receiptPage).toContain("print?: string");
     expect(receiptPage).toContain('resolvedSearchParams?.print === "1"');
@@ -77,7 +77,7 @@ describe("receipt print and loading UX", () => {
     const loading = readRepoFile("components/ui/loading-skeleton.tsx");
     const routeLoading = readRepoFile("components/admin/route-loading.tsx");
     const globals = readRepoFile("app/globals.css");
-    const paymentDesk = readRepoFile("components/payments/payment-entry-client.tsx");
+    const paymentDesk = readRepoFile("components/payments/payment-desk-mobile.tsx");
 
     expect(loading).toContain("export function LoadingProgress");
     expect(loading).toContain("export function LoadingBlock");

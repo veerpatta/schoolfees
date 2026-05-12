@@ -82,7 +82,7 @@ describe("office performance guardrails", () => {
   it("keeps Payment Desk dues loading scoped to the selected student", () => {
     const paymentsData = readRepoFile("lib/payments/data.ts");
     const paymentsPage = readRepoFile("app/protected/payments/page.tsx");
-    const paymentClient = readRepoFile("components/payments/payment-entry-client.tsx");
+    const paymentClient = readRepoFile("components/payments/payment-desk-mobile.tsx");
 
     expect(paymentsData).toContain("getPaymentDeskStudentIndex(payload:");
     expect(paymentsData).toContain("shouldEagerLoadStudentIndex");
@@ -101,7 +101,14 @@ describe("office performance guardrails", () => {
     expect(paymentClient).toContain("paymentDeskStudentIndexCacheKey");
     expect(paymentClient).toContain("prefetchStudentSummary");
     expect(paymentClient).toContain("onMouseEnter={() => prefetchStudentSummary");
+    expect(paymentClient).toContain("onTouchStart={() => prefetchStudentSummary");
     expect(paymentClient).toContain("sessionStorage.removeItem(paymentDeskStudentIndexCacheKey)");
+  });
+
+  it("keeps payment desk student index privately cacheable within the staff session", () => {
+    const route = readRepoFile("app/protected/students/index/route.ts");
+
+    expect(route).toContain('"Cache-Control": "private, max-age=300, stale-while-revalidate=900"');
   });
 
   it("keeps payment posting revalidation focused", () => {

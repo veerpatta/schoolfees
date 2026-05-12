@@ -395,11 +395,24 @@ describe("payment desk cashier workflow", () => {
     expect(matches[0]?.admissionNo).toBe("SR-4999");
   });
 
-  it("payment desk component contains the required cashier dialogs and locked states", () => {
-    const component = readFileSync(
+  it("payment desk split keeps the required cashier dialogs and locked states", () => {
+    const wrapper = readFileSync(
       join(process.cwd(), "components/payments/payment-entry-client.tsx"),
       "utf8",
     );
+    const mobile = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+    const desktop = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-desktop.tsx"),
+      "utf8",
+    );
+    const duplicate = readFileSync(
+      join(process.cwd(), "components/payments/duplicate-receipt-sheet.tsx"),
+      "utf8",
+    );
+    const component = [wrapper, mobile, desktop, duplicate].join("\n");
 
     expect(component).toContain("Receipt Preview");
     expect(component).toContain("Confirm Payment");
@@ -428,8 +441,8 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("Will leave");
     expect(component).toContain("Fully clears pending dues");
     expect(component).toContain("createPortal");
-    expect(component).toContain('form="payment-entry-form"');
-    expect(component).toContain('id="payment-entry-form"');
+    expect(component).toContain("form={formId}");
+    expect(component).toContain('formId = "payment-entry-form"');
     expect(component).toContain("mounted && isConfirmOpen");
     expect(component).toContain("mounted && isSuccessOpen");
     expect(component).toContain("mounted && isDuplicateOpen");
@@ -439,9 +452,24 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("धन्यवाद — Veer Patta School");
   });
 
+  it("payment desk wrapper emits mobile and desktop branches with responsive classes", () => {
+    const wrapper = readFileSync(
+      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      "utf8",
+    );
+
+    expect(wrapper).toContain("PaymentDeskMobile");
+    expect(wrapper).toContain("PaymentDeskDesktop");
+    expect(wrapper).toContain("md:hidden");
+    expect(wrapper).toContain("hidden md:block");
+    expect(wrapper).toContain("dynamic(");
+    expect(wrapper).toContain("ssr: true");
+    expect(wrapper).not.toContain("isMobileView ? (");
+  });
+
   it("all three payment desk overlay dialogs are rendered via createPortal", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
       "utf8",
     );
 
@@ -459,7 +487,7 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("mounted &&");
 
     // form attribute connects portaled submit buttons to the form
-    expect(component).toContain('form="payment-entry-form"');
+    expect(component).toContain("form={formId}");
   });
 
   it("confirm receipt sheet has no horizontal scrolling allocation table", () => {
@@ -518,7 +546,7 @@ describe("payment desk cashier workflow", () => {
 
   it("collect another payment dismisses stale receipt success state in the component", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
       "utf8",
     );
 
@@ -532,7 +560,7 @@ describe("payment desk cashier workflow", () => {
 
   it("keeps mobile and desktop student picker refs separate for touch selection", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
       "utf8",
     );
 
@@ -550,7 +578,7 @@ describe("payment desk cashier workflow", () => {
 
   it("late fee waiver is a checkbox and not a normal free text amount field", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
       "utf8",
     );
 
@@ -562,7 +590,7 @@ describe("payment desk cashier workflow", () => {
 
   it("quick discount and late fee waiver update locally without refetching dues", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
       "utf8",
     );
 
@@ -573,7 +601,7 @@ describe("payment desk cashier workflow", () => {
 
   it("payment desk student picker uses accessible combobox with virtualized result rows", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
       "utf8",
     );
 
@@ -596,7 +624,7 @@ describe("payment desk cashier workflow", () => {
 
   it("class selection auto-opens student picker without jumping the page", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
       "utf8",
     );
 
@@ -611,7 +639,7 @@ describe("payment desk cashier workflow", () => {
 
   it("fast payment form keeps amount entry ahead of dues review and does not auto-fill amount", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
       "utf8",
     );
 
@@ -628,13 +656,13 @@ describe("payment desk cashier workflow", () => {
 
   it("mobile cashier CTA remains disabled while summary or preview is loading", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
       "utf8",
     );
 
     expect(component).toContain("previewLoading ||");
     expect(component).toContain("studentSummaryLoading ||");
-    expect(component).toContain("Enter amount to continue");
+    expect(component).toContain("Enter amount");
     expect(component).toContain("desktop-payment-class-id");
     expect(component).toContain("Mobile amount received");
     expect(component).toContain("Mobile discount");
@@ -643,7 +671,7 @@ describe("payment desk cashier workflow", () => {
 
   it("mobile navigation and payment entry remain optimized for fast cashier flow", () => {
     const paymentDesk = readFileSync(
-      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
       "utf8",
     );
     const topbar = readFileSync(

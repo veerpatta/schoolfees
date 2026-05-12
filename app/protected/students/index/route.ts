@@ -54,7 +54,7 @@ export async function GET(request: Request) {
       { students },
       {
         headers: {
-          "Cache-Control": "private, max-age=120, stale-while-revalidate=300",
+          "Cache-Control": "private, max-age=300, stale-while-revalidate=900",
         },
       },
     );

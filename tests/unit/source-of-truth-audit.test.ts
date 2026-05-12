@@ -52,7 +52,7 @@ describe("source of truth audit fixes", () => {
   it("payment_desk_pending_matches_rpc_for_payment_date", () => {
     const paymentData = readRepoFile("lib/payments/data.ts");
     const previewRoute = readRepoFile("app/protected/payments/preview/route.ts");
-    const paymentClient = readRepoFile("components/payments/payment-entry-client.tsx");
+    const paymentClient = readRepoFile("components/payments/payment-desk-mobile.tsx");
     const migration = readRepoFile("supabase/migrations/20260425090000_payment_date_workbook_preview.sql");
 
     expect(paymentData).toContain("preview_workbook_payment_allocation");

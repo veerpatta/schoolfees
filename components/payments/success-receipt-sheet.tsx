@@ -24,6 +24,7 @@ type SuccessReceiptSheetProps = {
   creditBalance: number;
   refundableAmount: number;
   whatsappMessage: string;
+  whatsappPhone?: string | null;
   printReceiptHref: string | null;
   visibleReceiptHref: string;
   autoPrint: boolean;
@@ -48,6 +49,7 @@ export function SuccessReceiptSheet({
   creditBalance,
   refundableAmount,
   whatsappMessage,
+  whatsappPhone,
   printReceiptHref,
   visibleReceiptHref,
   autoPrint,
@@ -79,6 +81,11 @@ export function SuccessReceiptSheet({
   }
 
   const creditOrRefund = refundableAmount || creditBalance;
+  const normalizedWhatsappPhone = (whatsappPhone ?? "").replace(/\D/g, "");
+  const whatsappHref =
+    normalizedWhatsappPhone && whatsappMessage
+      ? `https://wa.me/${normalizedWhatsappPhone}?text=${encodeURIComponent(whatsappMessage)}`
+      : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 px-2 md:items-center md:px-4">
@@ -150,18 +157,17 @@ export function SuccessReceiptSheet({
         </div>
 
         <div className="sticky bottom-0 mt-5 grid gap-2 border-t border-border bg-card pt-3 mobile-safe-bottom-padding sm:grid-cols-2">
-          {printReceiptHref ? (
-            <Button asChild variant="outline">
-              <Link href={printReceiptHref} target="_blank">Print Receipt</Link>
+          {whatsappHref ? (
+            <Button asChild className="sm:col-span-2" variant="accent">
+              <Link href={whatsappHref} target="_blank" rel="noreferrer">
+                Send Receipt on WhatsApp
+              </Link>
             </Button>
-          ) : null}
-          <Button asChild variant="outline">
-            <Link href={visibleReceiptHref}>Open Receipt</Link>
-          </Button>
-          {whatsappMessage ? (
+          ) : whatsappMessage ? (
             <Button
               type="button"
               variant="outline"
+              className="sm:col-span-2"
               onClick={async () => {
                 await navigator.clipboard.writeText(whatsappMessage);
                 setCopyStatus("copied");
@@ -170,9 +176,24 @@ export function SuccessReceiptSheet({
               {copyStatus === "copied" ? "Copied ✓" : "Copy WhatsApp Message"}
             </Button>
           ) : null}
-          <Button type="button" className="sm:col-span-2" variant="accent" onClick={onCollectAnother}>
+          <Button type="button" className="sm:col-span-2" variant="outline" onClick={onCollectAnother}>
             Collect Another Payment
           </Button>
+          <details className="sm:col-span-2">
+            <summary className="cursor-pointer rounded-md border border-border bg-surface-2 px-3 py-2 text-center text-sm font-medium text-foreground">
+              More
+            </summary>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {printReceiptHref ? (
+                <Button asChild variant="outline">
+                  <Link href={printReceiptHref} target="_blank">Print Receipt</Link>
+                </Button>
+              ) : null}
+              <Button asChild variant="outline">
+                <Link href={visibleReceiptHref}>Open Receipt</Link>
+              </Button>
+            </div>
+          </details>
         </div>
       </div>
     </div>

@@ -15,6 +15,7 @@ import type {
 
 type BaseDefaulterStudentRow = {
   id: string;
+  class_id: string | null;
   admission_no: string;
   full_name: string;
   father_name: string | null;
@@ -107,7 +108,7 @@ async function getActiveSessionStudents(filters: DefaulterFilters) {
   let query = supabase
     .from("students")
     .select(
-      "id, admission_no, full_name, father_name, primary_phone, transport_route_id, class_ref:classes!inner(session_label, status, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code)",
+      "id, class_id, admission_no, full_name, father_name, primary_phone, transport_route_id, class_ref:classes!inner(session_label, status, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code)",
     )
     .eq("status", "active")
     .eq("class_ref.session_label", policy.academicSessionLabel)
@@ -139,6 +140,7 @@ async function getActiveSessionStudents(filters: DefaulterFilters) {
     return [
       {
         studentId: row.id,
+        classId: row.class_id,
         admissionNo: row.admission_no,
         fullName: row.full_name,
         fatherName: row.father_name,
@@ -194,6 +196,7 @@ export async function getDefaultersPageData(
 
         return {
           studentId: row.studentId,
+          classId: row.classId,
           admissionNo: row.admissionNo,
           fullName: row.studentName,
           fatherName: row.fatherName,

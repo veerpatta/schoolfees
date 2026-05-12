@@ -867,6 +867,7 @@ export async function getPaymentEntryPageData(payload: {
   searchQuery: string;
   classId?: string;
   autoPrepareMissingDues?: boolean;
+  initialSelectedSummary?: PaymentDeskStudentSummary | null;
 }): Promise<PaymentEntryPageData> {
   const policy = await getFeePolicySummary();
   const today = new Date().toISOString().slice(0, 10);
@@ -877,7 +878,9 @@ export async function getPaymentEntryPageData(payload: {
       : Promise.resolve([]),
     getRecentPaymentDeskReceipts(6),
     getTodayPaymentDeskCollection(),
-    payload.studentId
+    payload.initialSelectedSummary !== undefined
+      ? Promise.resolve(payload.initialSelectedSummary)
+      : payload.studentId
       ? getPaymentDeskStudentSummary({
           studentId: payload.studentId,
           paymentDate: today,

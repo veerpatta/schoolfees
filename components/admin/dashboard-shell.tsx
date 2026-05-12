@@ -8,7 +8,7 @@ import { getDefaultProtectedHref } from "@/lib/config/navigation";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { formatInr } from "@/lib/helpers/currency";
 
-import { AppTopBar } from "./app-topbar";
+import { AppTopBar, MobileHeader } from "./app-topbar";
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { RouteProgress } from "./route-progress";
 import { ScrollRestoringMain } from "./scroll-restoring-main";
@@ -64,6 +64,12 @@ export async function DashboardShell({
       </aside>
 
       <div className="relative min-w-0 lg:ml-[252px] lg:h-screen lg:overflow-y-auto">
+        <MobileHeader
+          staffEmail={staffEmail}
+          staffRole={staffRole}
+          sessionLabel={policy.academicSessionLabel}
+          homeHref={homeHref}
+        />
         <AppTopBar staffEmail={staffEmail} staffRole={staffRole} />
         <ScrollRestoringMain
           className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8 lg:py-7 mobile-bottom-nav-clearance md:pb-6 lg:pb-8 print:max-w-none print:px-0 print:py-0"

@@ -13,6 +13,7 @@ export type DefaulterFilters = {
 
 export type DefaulterSummaryRow = {
   studentId: string;
+  classId: string | null;
   admissionNo: string;
   fullName: string;
   fatherName: string | null;
@@ -41,6 +42,7 @@ export type DefaulterSummaryRow = {
 
 export type MissingDuesWarningRow = {
   studentId: string;
+  classId: string | null;
   admissionNo: string;
   fullName: string;
   fatherName: string | null;
