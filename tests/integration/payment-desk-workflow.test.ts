@@ -420,6 +420,71 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("animate-success-check");
     expect(component).toContain("Similar payment already recorded");
     expect(component).toContain("isLockedAfterSuccess");
+    expect(component).toContain("PayeeSummaryStrip");
+    expect(component).toContain("latestReceiptToday");
+    expect(component).toContain("ConfirmReceiptSheet");
+    expect(component).toContain("SuccessReceiptSheet");
+    expect(component).toContain("Review Receipt");
+    expect(component).toContain("Will leave");
+    expect(component).toContain("Fully clears pending dues");
+    expect(component).toContain("प्रिय अभिभावक / Dear Parent,");
+    expect(component).toContain("शुल्क प्राप्त / Payment received:");
+    expect(component).toContain("रसीद / Receipt:");
+    expect(component).toContain("धन्यवाद — Veer Patta School");
+  });
+
+  it("confirm receipt sheet has no horizontal scrolling allocation table", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/confirm-receipt-sheet.tsx"),
+      "utf8",
+    );
+
+    expect(component).not.toContain("min-w-[760px]");
+    expect(component).not.toContain("overflow-x-auto");
+    expect(component).toContain("Installment");
+    expect(component).toContain("किस्त");
+    expect(component).toContain("Allocated");
+    expect(component).toContain("आवंटित");
+    expect(component).toContain("Remaining");
+    expect(component).toContain("शेष");
+    expect(component).toContain("Save & Print Receipt");
+    expect(component).toContain("Save Only");
+    expect(component).toContain("Back / Edit");
+    expect(component).toContain("Posted receipts stay in history");
+  });
+
+  it("success receipt sheet shows receipt number prominently and has collect another CTA", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/success-receipt-sheet.tsx"),
+      "utf8",
+    );
+
+    expect(component).toContain("Payment Successful");
+    expect(component).toContain("Receipt has been saved");
+    expect(component).toContain("Print Receipt");
+    expect(component).toContain("Open Receipt");
+    expect(component).toContain("Copy WhatsApp Message");
+    expect(component).toContain("Collect Another Payment");
+    expect(component).toContain("autoPrint");
+    expect(component).toContain("onCollectAnother");
+  });
+
+  it("payee summary strip component contains sticky header and risk pills", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payee-summary-strip.tsx"),
+      "utf8",
+    );
+
+    expect(component).toContain("sticky");
+    expect(component).toContain("latestReceiptToday");
+    expect(component).toContain("Overdue");
+    expect(component).toContain("Credit");
+    expect(component).toContain("Paid today");
+    expect(component).toContain("tel:");
+    expect(component).toContain("fatherPhone");
+    expect(component).toContain("totalPending");
+    expect(component).toContain("creditBalance");
+    expect(component).toContain("overdueAmount");
   });
 
   it("collect another payment dismisses stale receipt success state in the component", () => {

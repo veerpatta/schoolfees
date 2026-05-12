@@ -3,6 +3,7 @@ import Image from "next/image";
 import { schoolProfile } from "@/lib/config/school";
 import { formatInr } from "@/lib/helpers/currency";
 import type { ReceiptDetail } from "@/lib/receipts/types";
+import { cn } from "@/lib/utils";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -130,19 +131,23 @@ function feeLabelHindi(label: string) {
 type ReceiptDocumentProps = {
   receipt: ReceiptDetail;
   className?: string;
+  mode?: ReceiptDocumentMode;
 };
 
-function BilingualLabel({ english, hindi }: { english: string; hindi: string }) {
+type ReceiptDocumentMode = "print" | "draft" | "saved";
+
+export function BilingualLabel({ english, hindi }: { english: string; hindi: string }) {
   return (
-    <span className="block">
-      <span className="block text-[10px] font-semibold uppercase text-muted-foreground">{english}</span>
-      <span className="block text-[10px] font-medium text-muted-foreground">{hindi}</span>
+    <span className="block text-[10px] font-medium text-muted-foreground">
+      {english} / {hindi}
     </span>
   );
 }
 
-export function ReceiptDocument({ receipt, className }: ReceiptDocumentProps) {
+export function ReceiptDocument({ receipt, className, mode = "print" }: ReceiptDocumentProps) {
   const breakdownTotal = receipt.breakdown.reduce((sum, item) => sum + item.amount, 0);
+  const isDraft = mode === "draft";
+  const isSaved = mode === "saved";
 
   return (
     <article
@@ -201,8 +206,13 @@ export function ReceiptDocument({ receipt, className }: ReceiptDocumentProps) {
         }
       `}</style>
 
-      <div className="receipt-watermark pointer-events-none absolute inset-0 flex items-center justify-center text-center text-5xl font-semibold uppercase text-foreground/8 print:text-foreground/8">
-        VPPS Receipt
+      <div
+        className={cn(
+          "receipt-watermark pointer-events-none absolute inset-0 flex items-center justify-center text-center text-5xl font-semibold uppercase print:text-foreground/8",
+          isDraft ? "text-foreground/12" : "text-foreground/8",
+        )}
+      >
+        {isDraft ? "DRAFT — NOT YET SAVED" : "VPPS Receipt"}
       </div>
       <div className="security-strip absolute inset-x-0 top-0 h-2 bg-foreground/85" />
 
@@ -228,8 +238,20 @@ export function ReceiptDocument({ receipt, className }: ReceiptDocumentProps) {
             </div>
             <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-right">
               <BilingualLabel english="Receipt No" hindi="रसीद संख्या" />
-              <p className="mt-1 text-lg font-semibold text-foreground">{receipt.receiptNumber}</p>
+              <p className="mt-1 text-lg font-semibold text-foreground">
+                {isDraft ? "— (not yet saved) —" : receipt.receiptNumber}
+              </p>
               <p className="mt-1 text-xs text-muted-foreground">{formatDate(receipt.paymentDate)}</p>
+              {isDraft ? (
+                <span className="mt-2 inline-flex rounded bg-warning-soft px-2 py-0.5 text-[10px] font-semibold text-warning-soft-foreground">
+                  DRAFT / प्रारूप
+                </span>
+              ) : null}
+              {isSaved ? (
+                <span className="mt-2 inline-flex rounded bg-success-soft px-2 py-0.5 text-[10px] font-semibold text-success-soft-foreground">
+                  SAVED · Receipt {receipt.receiptNumber} / सहेजा गया
+                </span>
+              ) : null}
             </div>
           </div>
         </header>

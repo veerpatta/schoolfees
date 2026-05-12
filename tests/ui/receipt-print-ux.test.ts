@@ -46,6 +46,20 @@ describe("receipt print and loading UX", () => {
     expect(receiptDocument).not.toContain("bg-slate-950");
   });
 
+  it("receipt-document renders draft watermark text in draft mode", () => {
+    // This is a string-presence test on the component source.
+    // Verify that the component contains the strings required for all three modes.
+    const receiptDocument = readRepoFile("components/receipts/receipt-document.tsx");
+
+    expect(receiptDocument).toContain("DRAFT — NOT YET SAVED");
+    expect(receiptDocument).toContain("प्रारूप");
+    expect(receiptDocument).toContain("SAVED");
+    expect(receiptDocument).toContain("सहेजा गया");
+    expect(receiptDocument).toContain('mode === "draft"');
+    expect(receiptDocument).toContain('mode === "saved"');
+    expect(receiptDocument).toContain("not yet saved");
+  });
+
   it("supports print-ready receipt links from Payment Desk success", () => {
     const receiptPage = readRepoFile("app/protected/receipts/[receiptId]/page.tsx");
     const printActions = readRepoFile("components/receipts/receipt-print-actions.tsx");

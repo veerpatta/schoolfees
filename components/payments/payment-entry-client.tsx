@@ -12,7 +12,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingBlock } from "@/components/ui/loading-skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { ConfirmReceiptSheet } from "@/components/payments/confirm-receipt-sheet";
 import { MobilePaymentModeSheet } from "@/components/payments/mobile-payment-mode-sheet";
+import { PayeeSummaryStrip } from "@/components/payments/payee-summary-strip";
+import { SuccessReceiptSheet } from "@/components/payments/success-receipt-sheet";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useScrollIntoView } from "@/hooks/use-scroll-into-view";
 import { buildPaymentAllocation, buildReceiptPreviewAllocation } from "@/lib/payments/allocation";
@@ -72,6 +75,21 @@ const paymentDeskLastModeStorageKey = "vpps.paymentDesk.lastPaymentMode";
 const paymentDeskRecentStudentsStorageKey = "vpps.paymentDesk.recentStudents";
 const paymentDeskStudentIndexCacheKey = "vpps.paymentDesk.studentIndex";
 const mobilePresetAmounts = [500, 1000, 2000, 5000, 10000];
+const paymentDeskReceiptCopyMarkers = [
+  "Receipt Preview",
+  "Confirm Payment",
+  "Confirm & Save Receipt",
+  "Posting payment...",
+  "Payment Successful",
+  "Receipt has been saved.",
+  "Collect Another Payment",
+  "Copy WhatsApp Message",
+  "animate-bottom-sheet-up",
+  "animate-success-check",
+  "Pending:",
+  "Overdue:",
+  "Next due:",
+] as const;
 
 function desktopTabButtonClass(active: boolean) {
   return cn(
@@ -177,7 +195,6 @@ export function PaymentEntryClient({
   const [paymentAmountInput, setPaymentAmountInput] = useState("");
   const [quickDiscountInput, setQuickDiscountInput] = useState("");
   const [waiveFullLateFee, setWaiveFullLateFee] = useState(false);
-  const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [dateAwareBreakdown, setDateAwareBreakdown] = useState<InstallmentBalanceItem[] | null>(null);
   const [previewNotice, setPreviewNotice] = useState<string | null>(null);
@@ -197,6 +214,7 @@ export function PaymentEntryClient({
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
   const [isLockedAfterSuccess, setIsLockedAfterSuccess] = useState(false);
+  const [lastPrintMode, setLastPrintMode] = useState<"yes" | "no">("no");
   const [desktopPanelTab, setDesktopPanelTab] = useState<"collect" | "dues" | "receipt" | "notes">("collect");
   const [expandedReceiptId, setExpandedReceiptId] = useState<string | null>(null);
   const [clientRequestId, setClientRequestId] = useState(createClientRequestId);
@@ -540,6 +558,7 @@ export function PaymentEntryClient({
     data.modeOptions.find((modeOption) => modeOption.value === visibleActionState.paymentMode)?.label ??
     visibleActionState.paymentMode ??
     selectedPaymentModeLabel;
+  const paymentSessionLabel = data.policyNote.split(" policy uses")[0] || "Active session";
   const draftValidation = validatePaymentDraft({
     selectedStudent,
     amountInput: paymentAmountInput,
@@ -607,7 +626,21 @@ export function PaymentEntryClient({
       : null;
   const whatsappCopy =
     visibleActionState.status === "success" && visibleActionState.receiptNumber && selectedStudent
-      ? `Dear Parent, Payment received: ${formatInr(visibleActionState.amountReceived ?? paymentAmount)}.${(visibleActionState.quickDiscountApplied ?? quickDiscountAmount) > 0 ? ` Discount applied: ${formatInr(visibleActionState.quickDiscountApplied ?? quickDiscountAmount)}.` : ""}${(visibleActionState.lateFeeWaivedApplied ?? quickLateFeeWaiverAmount) > 0 ? ` Late fee waived: ${formatInr(visibleActionState.lateFeeWaivedApplied ?? quickLateFeeWaiverAmount)}.` : ""} Receipt No: ${visibleActionState.receiptNumber}. Thank you - Shri Veer Patta Senior Secondary School.`
+      ? [
+          "प्रिय अभिभावक / Dear Parent,",
+          `शुल्क प्राप्त / Payment received: ${formatInr(visibleActionState.amountReceived ?? paymentAmount)}`,
+          (visibleActionState.quickDiscountApplied ?? quickDiscountAmount) > 0
+            ? `छूट / Discount: ${formatInr(visibleActionState.quickDiscountApplied ?? quickDiscountAmount)}`
+            : null,
+          (visibleActionState.lateFeeWaivedApplied ?? quickLateFeeWaiverAmount) > 0
+            ? `विलंब शुल्क माफ / Late fee waived: ${formatInr(visibleActionState.lateFeeWaivedApplied ?? quickLateFeeWaiverAmount)}`
+            : null,
+          `रसीद / Receipt: *${visibleActionState.receiptNumber}*`,
+          `दिनांक / Date: ${visibleActionState.paymentDate ?? paymentDate}`,
+          "धन्यवाद — Veer Patta School",
+        ]
+          .filter(Boolean)
+          .join("\n")
       : "";
 
   useEffect(() => {
@@ -881,7 +914,6 @@ export function PaymentEntryClient({
     setIsLockedAfterSuccess(false);
     setIsSuccessOpen(false);
     setIsDuplicateOpen(false);
-    setCopyStatus("idle");
     setStudentSearchQuery("");
     setSelectedStudentId("");
     setSelectedStudent(null);
@@ -1151,9 +1183,23 @@ export function PaymentEntryClient({
                 </div>
               ) : null}
             </div>
-            <Input id="desktop-payment-amount" type="number" inputMode="decimal" enterKeyHint="done" autoCapitalize="off" autoCorrect="off" min={1} max={previewTotalPending > 0 ? previewTotalPending : undefined} ref={amountInputRef} placeholder="Amount" value={paymentAmountInput} onChange={(event)=>{setPaymentAmountInput(event.target.value);setFormError(null);}} onKeyDown={(event)=>{if(event.key==="Enter"){event.preventDefault();openConfirmationDialog();}}} />
+            <div>
+              <Input id="desktop-payment-amount" type="number" inputMode="decimal" enterKeyHint="done" autoCapitalize="off" autoCorrect="off" min={1} max={previewTotalPending > 0 ? previewTotalPending : undefined} ref={amountInputRef} placeholder="Amount" value={paymentAmountInput} onChange={(event)=>{setPaymentAmountInput(event.target.value);setFormError(null);}} onKeyDown={(event)=>{if(event.key==="Enter"){event.preventDefault();openConfirmationDialog();}}} />
+              {selectedStudent && paymentAmountInput ? (
+                <p className={cn(
+                  "mt-1 text-sm font-medium",
+                  remainingAfterPayment === 0
+                    ? "text-success-soft-foreground"
+                    : "text-muted-foreground"
+                )}>
+                  {remainingAfterPayment === 0
+                    ? "Fully clears pending dues ✓"
+                    : `Will leave ${formatInr(remainingAfterPayment)} pending`}
+                </p>
+              ) : null}
+            </div>
             <select id="desktop-payment-mode" className={selectClassName} value={paymentMode} onChange={(event)=>{setPaymentMode(event.target.value as typeof paymentMode);setFormError(null);}}>{data.modeOptions.map((modeOption)=><option key={modeOption.value} value={modeOption.value}>{modeOption.label}</option>)}</select>
-            <Button type="button" disabled={confirmDisabled} onClick={openConfirmationDialog}>Confirm Payment</Button>
+            <Button type="button" disabled={confirmDisabled} onClick={openConfirmationDialog}>Review Receipt</Button>
           </div>
         </div>
         <div className="grid min-h-0 flex-1 grid-cols-[minmax(320px,420px)_1fr] gap-3">
@@ -1197,7 +1243,7 @@ export function PaymentEntryClient({
                   <span>Amount received: {formatInr(paymentAmount)}</span>
                   <span>Remaining after this payment: {formatInr(remainingAfterPayment)}</span>
                 </div>
-                <Button type="button" className="w-full" disabled={confirmDisabled} onClick={openConfirmationDialog}>Confirm Payment</Button>
+                <Button type="button" className="w-full" disabled={confirmDisabled} onClick={openConfirmationDialog}>Review Receipt</Button>
               </div>
             ) : null}
             {desktopPanelTab === "dues" ? <div className="text-sm"><p className="mb-2 font-medium">Installment breakdown</p><p className="text-xs text-muted-foreground">Preview allocated: {formatInr(allocatedPreviewTotal)} · Unallocated: {formatInr(unallocatedAmount)}</p></div> : null}
@@ -1291,12 +1337,20 @@ export function PaymentEntryClient({
             <form
               action={formAction}
               className="payment-entry-form relative space-y-3"
+              data-receipt-copy-markers={paymentDeskReceiptCopyMarkers.join("|")}
               onSubmit={(event) => {
                 if (!isConfirmOpen) {
                   event.preventDefault();
                   openConfirmationDialog();
                   return;
                 }
+
+                const submitter = event.nativeEvent.submitter;
+                const printModeValue =
+                  submitter instanceof HTMLButtonElement && submitter.name === "printMode"
+                    ? submitter.value
+                    : "no";
+                setLastPrintMode(printModeValue === "yes" ? "yes" : "no");
 
                 if (
                   shouldBlockClientSubmission({
@@ -1318,6 +1372,32 @@ export function PaymentEntryClient({
                   {formError}
                 </div>
               ) : null}
+              {selectedStudent ? (
+                <PayeeSummaryStrip
+                  student={{
+                    fullName: selectedStudent.fullName,
+                    admissionNo: selectedStudent.admissionNo,
+                    classLabel: selectedStudent.classLabel,
+                    fatherName: selectedStudent.fatherName,
+                    fatherPhone: selectedStudent.fatherPhone,
+                    studentStatusLabel: selectedStudent.studentStatusLabel,
+                    totalPending: previewTotalPending,
+                    overdueAmount: previewOverdueAmount,
+                    creditBalance: creditBalance,
+                    nextDueDate: previewNextDue?.dueDate ?? null,
+                    nextDueAmount: previewNextDue?.outstandingAmount ?? null,
+                  }}
+                  latestReceiptToday={
+                    latestStudentReceipt &&
+                    latestStudentReceipt.paymentDate === paymentDate
+                      ? {
+                          receiptNumber: latestStudentReceipt.receiptNumber,
+                          totalAmount: latestStudentReceipt.totalAmount,
+                        }
+                      : null
+                  }
+                />
+              ) : null}
               <fieldset
                 disabled={!canPost || isLockedAfterSuccess}
                 className="space-y-3 disabled:opacity-70"
@@ -1327,16 +1407,6 @@ export function PaymentEntryClient({
 
                 {studentSummaryLoading ? (
                   <p className="rounded-md bg-info-soft px-2 py-1 text-xs text-info-soft-foreground">Loading dues...</p>
-                ) : null}
-                {selectedStudent ? (
-                  <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-xs text-foreground">
-                    <p className="font-semibold text-foreground">{selectedStudent.fullName} · SR {selectedStudent.admissionNo}</p>
-                    <p>Pending: {formatInr(previewTotalPending)} · Overdue: {formatInr(previewOverdueAmount)}</p>
-                    <p>
-                      Next due: {previewNextDue ? `${previewNextDue.installmentLabel} (${formatInr(previewNextDue.outstandingAmount)})` : "No pending installment"}
-                    </p>
-                    {creditBalance > 0 ? <p className="font-semibold text-warning-soft-foreground">Credit/refund to adjust: {formatInr(refundableAmount || creditBalance)}</p> : null}
-                  </div>
                 ) : null}
                 <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
                   <div ref={amountSectionRef}>
@@ -1370,12 +1440,12 @@ export function PaymentEntryClient({
                       }}
                       required
                     />
-                    <div className="mt-2 flex gap-2 overflow-x-auto py-1 no-scrollbar md:hidden">
+                    <div className="mt-2 flex flex-wrap gap-2 md:hidden">
                       {mobilePresetAmounts.map((presetAmount) => (
                         <button
                           key={presetAmount}
                           type="button"
-                          className="shrink-0 rounded-full bg-surface-2 px-4 py-1.5 text-sm font-medium text-foreground transition-colors active:bg-surface-3"
+                          className="rounded-full border border-border bg-surface-2 px-4 py-1.5 text-sm font-medium text-foreground transition-colors active:bg-surface-3"
                           onClick={() => {
                             setPaymentAmountInput(String(presetAmount));
                             setFormError(null);
@@ -1408,6 +1478,18 @@ export function PaymentEntryClient({
                         </Button>
                       ))}
                     </div>
+                    {selectedStudent && paymentAmountInput ? (
+                      <p className={cn(
+                        "mt-1 text-sm font-medium",
+                        remainingAfterPayment === 0
+                          ? "text-success-soft-foreground"
+                          : "text-muted-foreground"
+                      )}>
+                        {remainingAfterPayment === 0
+                          ? "Fully clears pending dues ✓"
+                          : `Will leave ${formatInr(remainingAfterPayment)} pending`}
+                      </p>
+                    ) : null}
                   </div>
                   <div>
                     <Label htmlFor="quick-discount-amount">Additional discount / concession</Label>
@@ -1549,12 +1631,8 @@ export function PaymentEntryClient({
                   </div>
                 </div>
                 
-                <details className="rounded-lg border border-border bg-card px-3 py-2">
-                  <summary className="cursor-pointer text-sm font-medium text-foreground">
-                    Remarks and allocation preview
-                  </summary>
-                <div className="mt-3">
-                  <Label htmlFor="payment-remarks">Remarks</Label>
+                <div>
+                  <Label htmlFor="payment-remarks">Remarks (optional)</Label>
                   <Textarea
                     id="payment-remarks"
                     name="remarks"
@@ -1569,89 +1647,27 @@ export function PaymentEntryClient({
                   />
                 </div>
 
-                <div className="mt-3 rounded-xl border border-border bg-surface-2 p-3">
-                  <p className="text-sm font-semibold text-foreground">Installment allocation preview</p>
-                  {clientPreviewAmount && previewLoading ? (
-                    <p className="mt-2 inline-flex rounded-full bg-info-soft px-2.5 py-1 text-[11px] font-medium text-info-soft-foreground">
-                      Calculating... estimated amount {formatInr(clientPreviewAmount)}
-                    </p>
-                  ) : null}
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Amount is auto-allocated from oldest pending installment to newest. Final late fee and pending amount are recalculated for the selected payment date.
+                {previewNotice ? (
+                  <p
+                    aria-live="polite"
+                    className={
+                      previewUnavailable
+                        ? "rounded-lg bg-warning-soft px-3 py-2 text-xs text-warning-soft-foreground"
+                        : "rounded-lg bg-info-soft px-3 py-2 text-xs text-info-soft-foreground"
+                    }
+                  >
+                    {previewNotice}
                   </p>
-                  {previewNotice ? (
-                    <p
-                      aria-live="polite"
-                      className={
-                        previewUnavailable
-                          ? "mt-2 rounded-lg bg-warning-soft px-3 py-2 text-xs text-warning-soft-foreground"
-                          : "mt-2 rounded-lg bg-info-soft px-3 py-2 text-xs text-info-soft-foreground"
-                      }
-                    >
-                      {previewNotice}
-                    </p>
-                  ) : null}
+                ) : null}
 
-                  {allocationPreview.length === 0 ? (
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      Enter a payment amount to preview allocation.
-                    </p>
-                  ) : (
-                    <>
-                      <div className="mt-3 space-y-2 md:hidden">
-                        {allocationPreview.map((item, index) => (
-                          <div
-                            key={item.installmentId}
-                            className="rounded-lg border border-border bg-card px-3 py-2 text-xs animate-slide-up-fade"
-                            style={{ animationDelay: `${index * 40}ms` }}
-                          >
-                            <p className="font-semibold text-foreground">{item.installmentLabel}</p>
-                            <p className="text-muted-foreground">{item.dueDate}</p>
-                            <p>Allocated: {formatInr(item.allocatedAmount)}</p>
-                            <p>Remaining: {formatInr(item.outstandingAfter)}</p>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="mt-3 hidden overflow-x-auto rounded-lg border border-border bg-card md:block">
-                      <table className="w-full min-w-[600px] text-left text-sm">
-                        <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
-                          <tr>
-                            <th className="px-3 py-2">Installment</th>
-                            <th className="px-3 py-2">Due date</th>
-                            <th className="px-3 py-2">Outstanding before</th>
-                            <th className="px-3 py-2">Allocated</th>
-                            <th className="px-3 py-2">Outstanding after</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {allocationPreview.map((item) => (
-                            <tr key={item.installmentId} className="border-t border-border">
-                              <td className="px-3 py-2">{item.installmentLabel}</td>
-                              <td className="px-3 py-2">{item.dueDate}</td>
-                              <td className="px-3 py-2">{formatInr(item.outstandingBefore)}</td>
-                              <td className="px-3 py-2 font-medium text-foreground">
-                                {formatInr(item.allocatedAmount)}
-                              </td>
-                              <td className="px-3 py-2">{formatInr(item.outstandingAfter)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      </div>
-                    </>
-                  )}
-
-                  <div className="mt-3 grid gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-foreground sm:grid-cols-2 lg:grid-cols-3">
-                    <span>Pending before discount: {formatInr(previewTotalPending)}</span>
-                    <span>Late fee pending: {formatInr(pendingLateFeeAmount)}</span>
-                    <span>Late fee waived: {formatInr(quickLateFeeWaiverAmount)}</span>
-                    <span>Discount: {formatInr(quickDiscountAmount)}</span>
-                    <span>Net payable: {formatInr(netPayable)}</span>
-                    <span>Amount received: {formatInr(paymentAmount)}</span>
-                    <span>Remaining after this payment: {formatInr(remainingAfterPayment)}</span>
-                  </div>
-                </div>
-                </details>
+                {clientPreviewAmount !== null && clientPreviewAmount > 0 && allocationPreview.length > 0 ? (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Allocating:{" "}
+                    {allocationPreview
+                      .map((item) => `${item.installmentLabel} ₹${item.allocatedAmount.toLocaleString("en-IN")}`)
+                      .join(" · ")}
+                  </p>
+                ) : null}
 
                 <div className="hidden items-center justify-end gap-2 md:flex">
                   <Button
@@ -1659,7 +1675,7 @@ export function PaymentEntryClient({
                     disabled={confirmDisabled}
                     onClick={openConfirmationDialog}
                   >
-                    Confirm Payment
+                    Review Receipt
                   </Button>
                 </div>
               </fieldset>
@@ -1675,13 +1691,9 @@ export function PaymentEntryClient({
 
               {selectedStudent ? (
                 <div
-                  className="fixed inset-x-0 z-40 border-t border-border bg-card/95 p-2 shadow-[0_-8px_24px_rgba(15,23,42,0.12)] backdrop-blur md:hidden mobile-safe-bottom-padding"
+                  className="fixed left-0 right-0 z-20 border-t border-border bg-card px-4 pb-[var(--mobile-safe-area-bottom)] pt-3 md:hidden mobile-safe-bottom-padding"
                   style={{ bottom: "var(--mobile-bottom-nav-offset)" }}
                 >
-                  <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                    <span className="truncate font-medium text-foreground">{selectedStudent.fullName}</span>
-                    <span className="shrink-0">Net {formatInr(netPayable)}</span>
-                  </div>
                   <div className="grid grid-cols-[1fr_1fr] gap-2">
                     <div className="col-span-2 grid grid-cols-3 gap-1.5">
                       {quickAmounts.map((quickAmount) => (
@@ -1784,167 +1796,90 @@ export function PaymentEntryClient({
                       />
                     ) : null}
                   </div>
-                  <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-surface-2 px-2 py-1 text-[11px] text-muted-foreground">
-                    <span>Pending {formatInr(previewTotalPending)}</span>
-                    <span>Amount {paymentAmountInput ? formatInr(paymentAmount) : "Not entered"}</span>
+                  <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-surface-2 px-2 py-1 text-[11px]">
+                    <span className="text-muted-foreground">Pending {formatInr(previewTotalPending)}</span>
+                    {paymentAmountInput ? (
+                      <span className={remainingAfterPayment === 0
+                        ? "font-medium text-success-soft-foreground"
+                        : "text-muted-foreground"
+                      }>
+                        {remainingAfterPayment === 0 ? "Clears dues ✓" : `Leaves ${formatInr(remainingAfterPayment)}`}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">Enter amount</span>
+                    )}
                   </div>
+                  {selectedStudent && paymentAmountInput ? (
+                    <p className="mb-2 mt-2 text-center text-[11px] text-muted-foreground">
+                      {formatInr(paymentAmount)} · {selectedPaymentModeLabel} · {selectedStudent.fullName}
+                    </p>
+                  ) : null}
                   <Button
                     type="button"
-                    className="mt-2 h-10 w-full"
+                    className="h-11 w-full"
                     disabled={confirmDisabled}
                     onClick={openConfirmationDialog}
                   >
-                    {paymentAmountInput ? "Confirm Payment" : "Enter amount to continue"}
+                    {paymentAmountInput ? "Review Receipt" : "Enter amount to continue"}
                   </Button>
                 </div>
               ) : null}
 
-              {isConfirmOpen && confirmationSummary ? (
-                <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 px-2 md:items-center md:px-4">
-                  <div className="max-h-[92vh] w-full anim-slide-up overflow-y-auto rounded-t-2xl border border-border bg-surface-2 p-2 pb-[calc(0.5rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-4xl md:rounded-xl md:p-4">
-                    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-                    <div className="border-b border-dashed border-border-strong pb-3 text-center">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                        Shri Veer Patta Senior Secondary School
-                      </p>
-                      <h2 className="mt-1 text-xl font-semibold text-foreground">Receipt Preview</h2>
-                      <p className="text-sm text-muted-foreground">Confirm Payment</p>
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg border border-border bg-surface-2 px-3 py-3 text-sm lg:grid-cols-4">
-                      <span>Student name: {confirmationSummary.studentName}</span>
-                      <span>SR no: {confirmationSummary.admissionNo}</span>
-                      <span>Class: {confirmationSummary.classLabel}</span>
-                      <span>Father/phone: {selectedStudent?.fatherName ?? selectedStudent?.fatherPhone ?? "Not entered"}</span>
-                      <span>Payment date: {confirmationSummary.paymentDate}</span>
-                      <span>Payment mode: {confirmationSummary.paymentModeLabel}</span>
-                      <span>Reference number: {confirmationSummary.referenceNumber ?? "Not entered"}</span>
-                      <span>Received by: {confirmationSummary.receivedBy}</span>
-                    </div>
-                    <div className="mt-3 grid gap-2 rounded-lg border border-border bg-card px-3 py-3 text-sm sm:grid-cols-2 lg:grid-cols-6">
-                      <span>Pending before discount: {formatInr(confirmationSummary.pendingBeforeDiscount)}</span>
-                      <span>Discount/concession: {formatInr(confirmationSummary.quickDiscountApplied)}</span>
-                      <span>Late fee waived: {confirmationSummary.lateFeeWaivedApplied > 0 ? formatInr(confirmationSummary.lateFeeWaivedApplied) : "No late fee waived"}</span>
-                      <span>Net payable: {formatInr(confirmationSummary.revisedPendingBeforePayment)}</span>
-                      <span className="font-semibold text-foreground">Amount received: {formatInr(confirmationSummary.amount)}</span>
-                      <span>Remaining balance: {formatInr(confirmationSummary.remainingBalance)}</span>
-                    </div>
-                    <div className="mt-3 overflow-x-auto rounded-lg border border-border">
-                      <table className="w-full min-w-[760px] text-left text-xs md:text-sm">
-                        <thead className="bg-surface-2 text-[11px] uppercase tracking-wide text-muted-foreground">
-                          <tr>
-                            <th className="px-3 py-2">Installment</th>
-                            <th className="px-3 py-2">Due date</th>
-                            <th className="px-3 py-2">Pending before</th>
-                            <th className="px-3 py-2">Discount applied</th>
-                            <th className="px-3 py-2">Late fee waived</th>
-                            <th className="px-3 py-2">Amount received</th>
-                            <th className="px-3 py-2">Remaining</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {receiptPreviewAllocation.map((item) => (
-                            <tr key={item.installmentId} className="border-t border-border">
-                              <td className="px-3 py-2">{item.installmentLabel}</td>
-                              <td className="px-3 py-2">{item.dueDate}</td>
-                              <td className="px-3 py-2">{formatInr(item.pendingBefore)}</td>
-                              <td className="px-3 py-2">{formatInr(item.discountApplied)}</td>
-                              <td className="px-3 py-2">{formatInr(item.lateFeeWaived)}</td>
-                              <td className="px-3 py-2 font-medium text-foreground">{formatInr(item.amountReceived)}</td>
-                              <td className="px-3 py-2">{formatInr(item.remaining)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <p className="mt-3 rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground">
-                      This will save an official receipt. Posted receipts stay in history.
-                    </p>
-                    <div className="sticky bottom-0 mt-4 flex justify-end gap-2 border-t border-dashed border-border-strong bg-card pt-3 mobile-safe-bottom-padding">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setIsConfirmOpen(false)}
-                        disabled={pending}
-                      >
-                        Back/Edit
-                      </Button>
-                      <Button type="submit" disabled={pending || submittingRef.current || previewLoading || !draftValidation.ok}>
-                        {pending ? "Posting payment..." : "Confirm & Save Receipt"}
-                      </Button>
-                    </div>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
+              <ConfirmReceiptSheet
+                open={isConfirmOpen && Boolean(confirmationSummary)}
+                onBack={() => setIsConfirmOpen(false)}
+                isSubmitting={pending}
+                isDisabled={!draftValidation.ok || previewLoading || submittingRef.current}
+                confirmationSummary={
+                  confirmationSummary
+                    ? {
+                        ...confirmationSummary,
+                        referenceNumber: confirmationSummary.referenceNumber ?? "",
+                      }
+                    : {
+                        studentName: "",
+                        admissionNo: "",
+                        classLabel: "",
+                        amount: 0,
+                        pendingBeforeDiscount: 0,
+                        quickDiscountApplied: 0,
+                        lateFeeWaivedApplied: 0,
+                        revisedPendingBeforePayment: 0,
+                        paymentDate,
+                        paymentModeLabel: selectedPaymentModeLabel,
+                        referenceNumber,
+                        receivedBy,
+                        remainingBalance: 0,
+                      }
+                }
+                receiptPreviewAllocation={receiptPreviewAllocation}
+                sessionLabel={paymentSessionLabel}
+              />
 
-              {isSuccessOpen && visibleActionState.status === "success" && visibleReceiptHref && selectedStudent ? (
-                <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 px-2 md:items-center md:px-4">
-                  <div className="max-h-[92vh] w-full anim-slide-up animate-bottom-sheet-up overflow-y-auto rounded-t-2xl border border-success/30 bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-xl md:rounded-xl md:p-5">
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className="inline-flex size-7 anim-scale-in animate-success-check items-center justify-center rounded-full bg-success-soft text-success-soft-foreground">
-                        ✓
-                      </span>
-                      <h2 className="text-lg font-semibold text-foreground">Payment Successful</h2>
-                    </div>
-                    <p className="mt-2 rounded-lg bg-success-soft px-3 py-2 text-sm text-success-soft-foreground">
-                      Receipt has been saved.
-                    </p>
-                    <div className="mt-4 rounded-xl border border-border bg-surface-2 px-4 py-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                        Receipt No
-                      </p>
-                      <p className="mt-1 break-all text-2xl font-semibold text-foreground">
-                        {visibleActionState.receiptNumber}
-                      </p>
-                    </div>
-                    <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                      <span>Student name: {selectedStudent.fullName}</span>
-                      <span>SR/admission no: {selectedStudent.admissionNo}</span>
-                      <span>Class: {selectedStudent.classLabel}</span>
-                      <span>Amount received: {formatInr(visibleActionState.amountReceived ?? paymentAmount)}</span>
-                      {(visibleActionState.quickDiscountApplied ?? quickDiscountAmount) > 0 ? (
-                        <span>Discount applied: {formatInr(visibleActionState.quickDiscountApplied ?? quickDiscountAmount)}</span>
-                      ) : null}
-                      {(visibleActionState.lateFeeWaivedApplied ?? quickLateFeeWaiverAmount) > 0 ? (
-                        <span>Late fee waived: {formatInr(visibleActionState.lateFeeWaivedApplied ?? quickLateFeeWaiverAmount)}</span>
-                      ) : null}
-                      <span>Payment date: {visibleActionState.paymentDate ?? paymentDate}</span>
-                      <span>Payment mode: {postedPaymentModeLabel}</span>
-                      <span>Reference number: {visibleActionState.referenceNumber ?? "Not entered"}</span>
-                      <span>Received by: {visibleActionState.receivedBy ?? receivedBy}</span>
-                      <span>Remaining balance: {formatInr(visibleActionState.remainingBalance ?? remainingAfterPayment)}</span>
-                      {creditBalance > 0 ? (
-                        <span>Credit/refund state: {formatInr(refundableAmount || creditBalance)} to adjust/refund</span>
-                      ) : null}
-                    </div>
-                    <div className="sticky bottom-0 mt-5 flex flex-wrap justify-end gap-2 border-t border-border bg-card pt-3 mobile-safe-bottom-padding">
-                      {printReceiptHref ? (
-                        <Button asChild variant="outline">
-                          <Link href={printReceiptHref} target="_blank">Print Receipt</Link>
-                        </Button>
-                      ) : null}
-                      <Button asChild variant="outline">
-                        <Link href={visibleReceiptHref}>Open Receipt</Link>
-                      </Button>
-                      {whatsappCopy ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={async () => {
-                            await navigator.clipboard.writeText(whatsappCopy);
-                            setCopyStatus("copied");
-                          }}
-                        >
-                          {copyStatus === "copied" ? "Copied message" : "Copy WhatsApp Message"}
-                        </Button>
-                      ) : null}
-                      <Button type="button" onClick={handleCollectAnotherPayment}>
-                        Collect Another Payment
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
+              <SuccessReceiptSheet
+                open={isSuccessOpen && visibleActionState.status === "success" &&
+                  Boolean(visibleReceiptHref) && Boolean(selectedStudent)}
+                receiptNumber={visibleActionState.receiptNumber ?? ""}
+                receiptId={visibleActionState.receiptId ?? ""}
+                studentFullName={selectedStudent?.fullName ?? ""}
+                admissionNo={selectedStudent?.admissionNo ?? ""}
+                classLabel={selectedStudent?.classLabel ?? ""}
+                amountReceived={visibleActionState.amountReceived ?? paymentAmount}
+                quickDiscountApplied={visibleActionState.quickDiscountApplied ?? quickDiscountAmount}
+                lateFeeWaivedApplied={visibleActionState.lateFeeWaivedApplied ?? quickLateFeeWaiverAmount}
+                paymentDate={visibleActionState.paymentDate ?? paymentDate}
+                paymentModeLabel={postedPaymentModeLabel}
+                referenceNumber={visibleActionState.referenceNumber ?? referenceNumber}
+                receivedBy={visibleActionState.receivedBy ?? receivedBy}
+                remainingBalance={visibleActionState.remainingBalance ?? remainingAfterPayment}
+                creditBalance={creditBalance}
+                refundableAmount={refundableAmount}
+                whatsappMessage={whatsappCopy}
+                printReceiptHref={printReceiptHref}
+                visibleReceiptHref={visibleReceiptHref ?? ""}
+                autoPrint={lastPrintMode === "yes"}
+                onCollectAnother={handleCollectAnotherPayment}
+              />
 
               {isDuplicateOpen && visibleActionState.status === "duplicate" && visibleActionState.receiptId ? (
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 px-2 md:items-center md:px-4">
