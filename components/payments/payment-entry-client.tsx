@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 
 import { MetricCard } from "@/components/admin/metric-card";
@@ -215,6 +216,7 @@ export function PaymentEntryClient({
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
   const [isLockedAfterSuccess, setIsLockedAfterSuccess] = useState(false);
   const [lastPrintMode, setLastPrintMode] = useState<"yes" | "no">("no");
+  const [mounted, setMounted] = useState(false);
   const [desktopPanelTab, setDesktopPanelTab] = useState<"collect" | "dues" | "receipt" | "notes">("collect");
   const [expandedReceiptId, setExpandedReceiptId] = useState<string | null>(null);
   const [clientRequestId, setClientRequestId] = useState(createClientRequestId);
@@ -367,6 +369,22 @@ export function PaymentEntryClient({
 
     prefetchCache.current.set(cacheKey, promise);
   }
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const anyOpen = isConfirmOpen || isSuccessOpen || isDuplicateOpen;
+    if (!anyOpen) return;
+
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [isConfirmOpen, isSuccessOpen, isDuplicateOpen]);
 
   useEffect(() => {
     if (studentIndexLoadedRef.current) {
@@ -1335,6 +1353,7 @@ export function PaymentEntryClient({
               </p>
             ) : null}
             <form
+              id="payment-entry-form"
               action={formAction}
               className="payment-entry-form relative space-y-3"
               data-receipt-copy-markers={paymentDeskReceiptCopyMarkers.join("|")}
@@ -1825,83 +1844,78 @@ export function PaymentEntryClient({
                 </div>
               ) : null}
 
-              <ConfirmReceiptSheet
-                open={isConfirmOpen && Boolean(confirmationSummary)}
-                onBack={() => setIsConfirmOpen(false)}
-                isSubmitting={pending}
-                isDisabled={!draftValidation.ok || previewLoading || submittingRef.current}
-                confirmationSummary={
-                  confirmationSummary
-                    ? {
+              {mounted && isConfirmOpen && confirmationSummary
+                ? createPortal(
+                    <ConfirmReceiptSheet
+                      open
+                      form="payment-entry-form"
+                      onBack={() => setIsConfirmOpen(false)}
+                      isSubmitting={pending}
+                      isDisabled={!draftValidation.ok || previewLoading || submittingRef.current}
+                      confirmationSummary={{
                         ...confirmationSummary,
                         referenceNumber: confirmationSummary.referenceNumber ?? "",
-                      }
-                    : {
-                        studentName: "",
-                        admissionNo: "",
-                        classLabel: "",
-                        amount: 0,
-                        pendingBeforeDiscount: 0,
-                        quickDiscountApplied: 0,
-                        lateFeeWaivedApplied: 0,
-                        revisedPendingBeforePayment: 0,
-                        paymentDate,
-                        paymentModeLabel: selectedPaymentModeLabel,
-                        referenceNumber,
-                        receivedBy,
-                        remainingBalance: 0,
-                      }
-                }
-                receiptPreviewAllocation={receiptPreviewAllocation}
-                sessionLabel={paymentSessionLabel}
-              />
+                      }}
+                      receiptPreviewAllocation={receiptPreviewAllocation}
+                      sessionLabel={paymentSessionLabel}
+                    />,
+                    document.body,
+                  )
+                : null}
 
-              <SuccessReceiptSheet
-                open={isSuccessOpen && visibleActionState.status === "success" &&
-                  Boolean(visibleReceiptHref) && Boolean(selectedStudent)}
-                receiptNumber={visibleActionState.receiptNumber ?? ""}
-                receiptId={visibleActionState.receiptId ?? ""}
-                studentFullName={selectedStudent?.fullName ?? ""}
-                admissionNo={selectedStudent?.admissionNo ?? ""}
-                classLabel={selectedStudent?.classLabel ?? ""}
-                amountReceived={visibleActionState.amountReceived ?? paymentAmount}
-                quickDiscountApplied={visibleActionState.quickDiscountApplied ?? quickDiscountAmount}
-                lateFeeWaivedApplied={visibleActionState.lateFeeWaivedApplied ?? quickLateFeeWaiverAmount}
-                paymentDate={visibleActionState.paymentDate ?? paymentDate}
-                paymentModeLabel={postedPaymentModeLabel}
-                referenceNumber={visibleActionState.referenceNumber ?? referenceNumber}
-                receivedBy={visibleActionState.receivedBy ?? receivedBy}
-                remainingBalance={visibleActionState.remainingBalance ?? remainingAfterPayment}
-                creditBalance={creditBalance}
-                refundableAmount={refundableAmount}
-                whatsappMessage={whatsappCopy}
-                printReceiptHref={printReceiptHref}
-                visibleReceiptHref={visibleReceiptHref ?? ""}
-                autoPrint={lastPrintMode === "yes"}
-                onCollectAnother={handleCollectAnotherPayment}
-              />
+              {mounted && isSuccessOpen && visibleActionState.status === "success" && visibleReceiptHref && selectedStudent
+                ? createPortal(
+                    <SuccessReceiptSheet
+                      open
+                      receiptNumber={visibleActionState.receiptNumber ?? ""}
+                      receiptId={visibleActionState.receiptId ?? ""}
+                      studentFullName={selectedStudent.fullName}
+                      admissionNo={selectedStudent.admissionNo}
+                      classLabel={selectedStudent.classLabel}
+                      amountReceived={visibleActionState.amountReceived ?? paymentAmount}
+                      quickDiscountApplied={visibleActionState.quickDiscountApplied ?? quickDiscountAmount}
+                      lateFeeWaivedApplied={visibleActionState.lateFeeWaivedApplied ?? quickLateFeeWaiverAmount}
+                      paymentDate={visibleActionState.paymentDate ?? paymentDate}
+                      paymentModeLabel={postedPaymentModeLabel}
+                      referenceNumber={visibleActionState.referenceNumber ?? referenceNumber}
+                      receivedBy={visibleActionState.receivedBy ?? receivedBy}
+                      remainingBalance={visibleActionState.remainingBalance ?? remainingAfterPayment}
+                      creditBalance={creditBalance}
+                      refundableAmount={refundableAmount}
+                      whatsappMessage={whatsappCopy}
+                      printReceiptHref={printReceiptHref}
+                      visibleReceiptHref={visibleReceiptHref}
+                      autoPrint={lastPrintMode === "yes"}
+                      onCollectAnother={handleCollectAnotherPayment}
+                    />,
+                    document.body,
+                  )
+                : null}
 
-              {isDuplicateOpen && visibleActionState.status === "duplicate" && visibleActionState.receiptId ? (
-                <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 px-2 md:items-center md:px-4">
-                  <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl border border-warning/30 bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-lg md:rounded-xl md:p-5">
-                    <h2 className="text-lg font-semibold text-foreground">
-                      Similar payment already recorded
-                    </h2>
-                    <p className="mt-3 text-sm text-foreground">{visibleActionState.message}</p>
-                    <p className="mt-3 rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground">
-                      Latest receipt: {visibleActionState.receiptNumber}
-                    </p>
-                    <div className="mt-5 flex flex-wrap justify-end gap-2">
-                      <Button asChild variant="outline">
-                        <Link href={`/protected/receipts/${visibleActionState.receiptId}`}>Open latest receipt</Link>
-                      </Button>
-                      <Button type="button" onClick={handleCollectAnotherPayment}>
-                        Start new payment
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
+              {mounted && isDuplicateOpen && visibleActionState.status === "duplicate" && visibleActionState.receiptId
+                ? createPortal(
+                    <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 px-2 md:items-center md:px-4">
+                      <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl border border-warning/30 bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-lg md:rounded-xl md:p-5">
+                        <h2 className="text-lg font-semibold text-foreground">
+                          Similar payment already recorded
+                        </h2>
+                        <p className="mt-3 text-sm text-foreground">{visibleActionState.message}</p>
+                        <p className="mt-3 rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground">
+                          Latest receipt: {visibleActionState.receiptNumber}
+                        </p>
+                        <div className="mt-5 flex flex-wrap justify-end gap-2">
+                          <Button asChild variant="outline">
+                            <Link href={`/protected/receipts/${visibleActionState.receiptId}`}>Open latest receipt</Link>
+                          </Button>
+                          <Button type="button" onClick={handleCollectAnotherPayment}>
+                            Start new payment
+                          </Button>
+                        </div>
+                      </div>
+                    </div>,
+                    document.body,
+                  )
+                : null}
             </form>
           </SectionCard>
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">

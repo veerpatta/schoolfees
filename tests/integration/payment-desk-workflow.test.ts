@@ -427,10 +427,39 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("Review Receipt");
     expect(component).toContain("Will leave");
     expect(component).toContain("Fully clears pending dues");
+    expect(component).toContain("createPortal");
+    expect(component).toContain('form="payment-entry-form"');
+    expect(component).toContain('id="payment-entry-form"');
+    expect(component).toContain("mounted && isConfirmOpen");
+    expect(component).toContain("mounted && isSuccessOpen");
+    expect(component).toContain("mounted && isDuplicateOpen");
     expect(component).toContain("प्रिय अभिभावक / Dear Parent,");
     expect(component).toContain("शुल्क प्राप्त / Payment received:");
     expect(component).toContain("रसीद / Receipt:");
     expect(component).toContain("धन्यवाद — Veer Patta School");
+  });
+
+  it("all three payment desk overlay dialogs are rendered via createPortal", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      "utf8",
+    );
+
+    // createPortal is used for viewport-level overlays
+    // (fixes contain:layout containing block trap)
+    const portalCount = (component.match(/createPortal\(/g) ?? []).length;
+    expect(portalCount).toBeGreaterThanOrEqual(3);
+
+    // Body scroll is locked while any dialog is open
+    expect(component).toContain("document.body.style.overflow");
+    expect(component).toContain("isConfirmOpen || isSuccessOpen || isDuplicateOpen");
+
+    // SSR safety - portals are guarded by mounted state
+    expect(component).toContain("setMounted(true)");
+    expect(component).toContain("mounted &&");
+
+    // form attribute connects portaled submit buttons to the form
+    expect(component).toContain('form="payment-entry-form"');
   });
 
   it("confirm receipt sheet has no horizontal scrolling allocation table", () => {

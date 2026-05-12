@@ -5,6 +5,7 @@ import { formatInr } from "@/lib/helpers/currency";
 
 type ConfirmReceiptSheetProps = {
   open: boolean;
+  form?: string;
   onBack: () => void;
   isSubmitting: boolean;
   isDisabled: boolean;
@@ -46,6 +47,7 @@ function BilingualLabel({ english, hindi }: { english: string; hindi: string }) 
 
 export function ConfirmReceiptSheet({
   open,
+  form,
   onBack,
   isSubmitting,
   isDisabled,
@@ -189,6 +191,7 @@ export function ConfirmReceiptSheet({
           <Button
             variant="secondary"
             type="submit"
+            form={form}
             name="printMode"
             value="no"
             disabled={isSubmitting || isDisabled}
@@ -197,6 +200,7 @@ export function ConfirmReceiptSheet({
           </Button>
           <Button
             type="submit"
+            form={form}
             name="printMode"
             value="yes"
             disabled={isSubmitting || isDisabled}
