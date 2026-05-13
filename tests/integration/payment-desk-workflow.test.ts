@@ -299,6 +299,26 @@ describe("payment desk cashier workflow", () => {
     ).toBe(false);
   });
 
+  it("collect another payment preserves class filter and re-opens student picker", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+    const body = component.match(
+      /function handleCollectAnotherPayment\(\) \{([\s\S]*?)\n  \}/,
+    )?.[1] ?? "";
+
+    expect(body).not.toContain("setSelectedClassId");
+    expect(body).toContain("setStudentSearchQuery(\"\")");
+    expect(body).toContain("setSelectedStudentId(\"\")");
+    expect(body).toContain("setIsStudentPickerOpen(Boolean(selectedClassId))");
+    expect(body.indexOf("setIsStudentPickerOpen(Boolean(selectedClassId))")).toBeLessThan(
+      body.indexOf("setStudentListScrollTop(0)"),
+    );
+    expect(body).toContain("setActiveStudentOptionIndex(0)");
+    expect(body).toContain("focusStudentSearch(activeStudentPickerMode)");
+  });
+
 
   it("student labels stay short and show SR no", () => {
     expect(

@@ -1034,6 +1034,7 @@ export function PaymentDeskMobile({
     setLatestStudentReceipt(null);
     lastAmountFocusStudentIdRef.current = null;
     setIsStudentPickerOpen(Boolean(selectedClassId));
+    setStudentListScrollTop(0);
     if (selectedClassId) {
       setActiveStudentOptionIndex(0);
       focusStudentSearch(activeStudentPickerMode);
