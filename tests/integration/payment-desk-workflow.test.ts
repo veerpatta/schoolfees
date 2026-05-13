@@ -499,15 +499,20 @@ describe("payment desk cashier workflow", () => {
     expect(component).not.toContain("min-w-[760px]");
     expect(component).not.toContain("overflow-x-auto");
     expect(component).toContain("Installment");
-    expect(component).toContain("किस्त");
     expect(component).toContain("Allocated");
-    expect(component).toContain("आवंटित");
     expect(component).toContain("Remaining");
-    expect(component).toContain("शेष");
     expect(component).toContain("Save & Print Receipt");
     expect(component).toContain("Save Only");
     expect(component).toContain("Back / Edit");
     expect(component).toContain("Posted receipts stay in history");
+    // Change 2: Hindi toggle removed
+    expect(component).not.toContain("screenLanguage");
+    expect(component).not.toContain("aria-pressed");
+    // Change 5: new simplified layout
+    expect(component).toContain("Confirm & Save Payment");
+    expect(component).toContain("Installment details");
+    expect(component).toContain("Amount received");
+    expect(component).toContain("Balance after");
   });
 
   it("success receipt sheet shows receipt number prominently and has collect another CTA", () => {
@@ -586,6 +591,10 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain('type="checkbox"');
     expect(component).toContain('type="hidden" name="quickLateFeeWaiverAmount"');
     expect(component).not.toContain('id="quick-late-fee-waiver-amount"');
+    // Change 3: waiver must appear before the inline mode segment in source order
+    expect(component.indexOf("Waive full pending late fee")).toBeLessThan(
+      component.indexOf("grid-cols-4 divide-x divide-border"),
+    );
   });
 
   it("quick discount and late fee waiver update locally without refetching dues", () => {
@@ -708,5 +717,44 @@ describe("payment desk cashier workflow", () => {
 
     expect(component).toContain("Balance after this receipt");
     expect(component).toContain("Current outstanding now");
+  });
+
+  it("mobile payment mode is an inline 4-button segment, not a sheet", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+
+    // Inline segments present
+    expect(component).toContain("grid-cols-4");
+    expect(component).toContain('"cash"');
+    expect(component).toContain('"upi"');
+    expect(component).toContain('"bank_transfer"');
+    expect(component).toContain('"cheque"');
+    // MobilePaymentModeSheet no longer rendered inline
+    expect(component).not.toContain("<MobilePaymentModeSheet");
+  });
+
+  it("error banner renders above the payment card, not below the review button", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+
+    // formError display must come before the amount input in source order
+    expect(component.indexOf("formError")).toBeLessThan(
+      component.indexOf("Mobile amount received"),
+    );
+    // Must have role="alert" for accessibility
+    expect(component).toContain('role="alert"');
+  });
+
+  it("review button is wrapped in a sticky container on mobile", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+
+    expect(component).toContain("sticky bottom-0");
   });
 });

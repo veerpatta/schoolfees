@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingBlock } from "@/components/ui/loading-skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { MobilePaymentModeSheet } from "@/components/payments/mobile-payment-mode-sheet";
+import { Banknote, Building2, FileText, Smartphone } from "lucide-react";
 import { PayeeSummaryStrip } from "@/components/payments/payee-summary-strip";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useScrollIntoView } from "@/hooks/use-scroll-into-view";
@@ -108,15 +108,6 @@ const paymentDeskReceiptCopyMarkers = [
   "Overdue:",
   "Next due:",
 ] as const;
-
-function desktopTabButtonClass(active: boolean) {
-  return cn(
-    "rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors",
-    active
-      ? "border-foreground bg-foreground text-background"
-      : "border-border bg-surface text-muted-foreground hover:border-border-strong hover:bg-surface-2 hover:text-foreground",
-  );
-}
 
 function createClientRequestId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -235,7 +226,6 @@ export function PaymentDeskMobile({
   const [isLockedAfterSuccess, setIsLockedAfterSuccess] = useState(false);
   const [lastPrintMode, setLastPrintMode] = useState<"yes" | "no">("no");
   const [mounted, setMounted] = useState(false);
-  const [desktopPanelTab, setDesktopPanelTab] = useState<"collect" | "dues" | "receipt" | "notes">("collect");
   const [expandedReceiptId, setExpandedReceiptId] = useState<string | null>(null);
   const [clientRequestId, setClientRequestId] = useState(createClientRequestId);
   const [dismissedActionStateKey, setDismissedActionStateKey] = useState<string | null>(null);
@@ -1076,7 +1066,41 @@ export function PaymentDeskMobile({
         }
       />
 
-      <div ref={classSectionRef} className="md:hidden">
+      {selectedStudent ? (
+        <button
+          type="button"
+          className="flex w-full items-start justify-between rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-surface-2 active:bg-surface-2 md:hidden"
+          onClick={() => {
+            clearSelectedStudent();
+            setStudentSearchQuery("");
+            setIsStudentPickerOpen(true);
+            setTimeout(() => mobileStudentSearchInputRef.current?.focus(), 80);
+          }}
+          aria-label="Change student"
+        >
+          <div>
+            <p className="text-sm font-semibold text-foreground">{selectedStudent.fullName}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {selectedStudent.classLabel} · SR {selectedStudent.admissionNo}
+            </p>
+          </div>
+          <div className="shrink-0 text-right">
+            <p className="text-sm font-semibold tabular-nums text-accent">
+              {formatInr(previewTotalPending)} due
+            </p>
+            {pendingLateFeeAmount > 0 ? (
+              <p className="mt-0.5 text-xs text-info-soft-foreground">
+                +{formatInr(pendingLateFeeAmount)} late fee
+              </p>
+            ) : null}
+            <p className="mt-1 text-[10px] text-muted-foreground underline underline-offset-2">
+              Tap to change
+            </p>
+          </div>
+        </button>
+      ) : null}
+
+      <div ref={classSectionRef} className={cn("md:hidden", selectedStudent ? "hidden" : "")}>
       <SectionCard
         title="1. Select Class"
         description="Start with class, then choose the student."
@@ -1108,7 +1132,7 @@ export function PaymentDeskMobile({
       </SectionCard>
       </div>
 
-      <div ref={studentSearchSectionRef} className="md:hidden">
+      <div ref={studentSearchSectionRef} className={cn("md:hidden", selectedStudent ? "hidden" : "")}>
       <SectionCard
         title="2. Search Student"
         description="Use SR no, student name, or class to reach the right student quickly."
@@ -1294,86 +1318,489 @@ export function PaymentDeskMobile({
       </div>
 
 
-      <section className="hidden md:flex md:h-[calc(100vh-140px)] md:min-h-[640px] md:flex-col md:gap-3">
-        <div className="sticky top-0 z-10 rounded-lg border border-border bg-card p-3 shadow-sm">
-          <div className="grid gap-2 lg:grid-cols-[180px_minmax(280px,1fr)_170px_170px_auto]">
-            <select id="desktop-payment-class-id" value={selectedClassId} className={selectClassName} onChange={(event)=>handleClassChange(event.target.value, "desktop")}>
-              <option value="">Class</option>{classOptions.map((classOption)=><option key={classOption.id} value={classOption.id}>{classOption.label}</option>)}
-            </select>
-            <div ref={desktopStudentPickerRef} className="relative">
-              <Input ref={desktopStudentSearchInputRef} role="combobox" aria-expanded={isStudentPickerOpen} aria-controls={desktopStudentListId} aria-activedescendant={activeStudentOptionIndex >= 0 ? `${desktopStudentListId}-option-${activeStudentOptionIndex}` : undefined} aria-autocomplete="list" placeholder="Search student" value={studentSearchQuery} onFocus={()=>{setActiveStudentPickerMode("desktop");setIsStudentPickerOpen(true);}} onChange={(event)=>{setActiveStudentPickerMode("desktop");setStudentSearchQuery(event.target.value);setIsStudentPickerOpen(true);setStudentListScrollTop(0);setActiveStudentOptionIndex(0);}} />
-              {isStudentPickerOpen ? (
-                <div id={desktopStudentListId} role="listbox" ref={desktopStudentListRef} className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-md border border-border bg-card shadow-lg" style={{ height: `${studentComboboxPanelHeight}px` }} onScroll={(event) => setStudentListScrollTop(event.currentTarget.scrollTop)}>
-                  {filteredStudents.length === 0 ? <p className="px-3 py-3 text-sm text-muted-foreground">No matching students.</p> : <div style={{ paddingTop: topVisibleOffset, paddingBottom: bottomVisibleOffset }}>{visibleStudentOptions.map((student,index)=>{const optionIndex=firstVisibleStudentIndex+index;const label=buildStudentSelectLabel({ ...student, pendingAmount: null });const isActive=optionIndex===activeStudentOptionIndex;const isSelected=selectedStudentId===student.id;return <button key={student.id} id={`${desktopStudentListId}-option-${optionIndex}`} role="option" aria-selected={isSelected} type="button" className={`flex min-h-12 w-full items-center border-b border-border px-3 py-2 text-left text-sm last:border-b-0 ${isActive ? "bg-info-soft text-info-soft-foreground" : "bg-card text-foreground hover:bg-surface-2"}`} onMouseDown={(event)=>event.preventDefault()} onMouseEnter={()=>prefetchStudentSummary(student.id)} onFocus={()=>prefetchStudentSummary(student.id)} onClick={()=>selectStudent(student.id)}>{label}</button>;})}</div>}
-                </div>
-              ) : null}
+      <section className="hidden md:block" aria-label="Payment Desk">
+        {/* Top bar */}
+        <div className="mb-3 flex items-center justify-between gap-4 rounded-xl border border-border bg-card px-4 py-2.5">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-semibold text-foreground">Payment Desk</span>
+            <span className="text-xs text-muted-foreground">{paymentSessionLabel}</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Today</p>
+              <p className="text-sm font-semibold tabular-nums text-foreground">
+                {formatInr(data.todayCollection?.totalAmount ?? 0)}
+              </p>
             </div>
-            <div>
-              <Input id="desktop-payment-amount" type="text" inputMode="decimal" pattern="[0-9]*" enterKeyHint="done" autoComplete="off" autoCapitalize="off" autoCorrect="off" ref={amountInputRef} placeholder="Amount" value={paymentAmountInput} onChange={(event)=>{setPaymentAmountInput(sanitizeDecimalInput(event.target.value));setFormError(null);}} onKeyDown={(event)=>{if(event.key==="Enter"){event.preventDefault();openConfirmationDialog();}}} />
-              {selectedStudent && paymentAmountInput ? (
-                <p className={cn(
-                  "mt-1 text-sm font-medium",
-                  remainingAfterPayment === 0
-                    ? "text-success-soft-foreground"
-                    : "text-muted-foreground"
-                )}>
-                  {remainingAfterPayment === 0
-                    ? "Fully clears pending dues ✓"
-                    : `Will leave ${formatInr(remainingAfterPayment)} pending`}
-                </p>
-              ) : null}
-            </div>
-            <select id="desktop-payment-mode" className={selectClassName} value={paymentMode} onChange={(event)=>{setPaymentMode(event.target.value as typeof paymentMode);setFormError(null);}}>{data.modeOptions.map((modeOption)=><option key={modeOption.value} value={modeOption.value}>{modeOption.label}</option>)}</select>
-            <Button type="button" disabled={confirmDisabled} onClick={openConfirmationDialog}>Review Receipt</Button>
+            <span className="text-xs text-muted-foreground">{defaultReceivedBy}</span>
           </div>
         </div>
-        <div className="grid min-h-0 flex-1 grid-cols-[minmax(320px,420px)_1fr] gap-3">
-          <div className="min-h-0 overflow-y-auto rounded-lg border border-border bg-card p-3 text-sm">
-            <p className="mb-2 font-medium">Students</p>
-            <p className="text-xs text-muted-foreground">Select class, then pick student.</p>
-            {selectedStudentIndexItem ? <p className="mt-2 rounded bg-info-soft px-2 py-1 text-xs text-info-soft-foreground">Selected: {selectedStudent?.fullName ?? selectedStudentIndexItem.fullName}</p> : null}
-          </div>
-          <div className="min-h-0 overflow-y-auto rounded-lg border border-border bg-card p-3">
-            <div className="mb-2 flex gap-2 text-sm">
-              <button type="button" className={desktopTabButtonClass(desktopPanelTab === "collect")} onClick={()=>setDesktopPanelTab("collect")}>Collect</button>
-              <button type="button" className={desktopTabButtonClass(desktopPanelTab === "dues")} onClick={()=>setDesktopPanelTab("dues")}>Dues Details</button>
-              <button type="button" className={desktopTabButtonClass(desktopPanelTab === "receipt")} onClick={()=>setDesktopPanelTab("receipt")}>Recent Receipt</button>
-              <button type="button" className={desktopTabButtonClass(desktopPanelTab === "notes")} onClick={()=>setDesktopPanelTab("notes")}>Notes</button>
+
+        {/* Two-panel body */}
+        <div className="flex gap-3" style={{ height: "calc(100vh - 160px)", minHeight: 560 }}>
+          {/* LEFT PANEL — Student picker */}
+          <div className="flex w-[280px] shrink-0 flex-col gap-2 overflow-y-auto rounded-xl border border-border bg-card p-3">
+            <select
+              id="desktop-payment-class-id"
+              value={selectedClassId}
+              className={selectClassName}
+              onChange={(event) => handleClassChange(event.target.value, "desktop")}
+            >
+              <option value="">All classes</option>
+              {classOptions.map((opt) => (
+                <option key={opt.id} value={opt.id}>{opt.label}</option>
+              ))}
+            </select>
+
+            <div ref={desktopStudentPickerRef} className="relative">
+              <Input
+                ref={desktopStudentSearchInputRef}
+                role="combobox"
+                aria-expanded={isStudentPickerOpen}
+                aria-controls={desktopStudentListId}
+                aria-activedescendant={
+                  activeStudentOptionIndex >= 0
+                    ? `${desktopStudentListId}-option-${activeStudentOptionIndex}`
+                    : undefined
+                }
+                aria-autocomplete="list"
+                placeholder="Name or SR no."
+                value={studentSearchQuery}
+                onFocus={() => {
+                  setActiveStudentPickerMode("desktop");
+                  setIsStudentPickerOpen(true);
+                }}
+                onChange={(event) => {
+                  setActiveStudentPickerMode("desktop");
+                  setStudentSearchQuery(event.target.value);
+                  setIsStudentPickerOpen(true);
+                  setStudentListScrollTop(0);
+                  setActiveStudentOptionIndex(0);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowDown") {
+                    event.preventDefault();
+                    setIsStudentPickerOpen(true);
+                    setActiveStudentOptionIndex((index) =>
+                      Math.min(index < 0 ? 0 : index + 1, filteredStudents.length - 1),
+                    );
+                  } else if (event.key === "ArrowUp") {
+                    event.preventDefault();
+                    setActiveStudentOptionIndex((index) => Math.max(index - 1, 0));
+                  } else if (event.key === "Enter") {
+                    event.preventDefault();
+                    const nextStudent = filteredStudents[activeStudentOptionIndex];
+                    if (nextStudent) {
+                      selectStudent(nextStudent.id);
+                    }
+                  } else if (event.key === "Escape") {
+                    setIsStudentPickerOpen(false);
+                  }
+                }}
+              />
             </div>
-            {desktopPanelTab === "collect" ? (
-              <div className="space-y-3 text-sm">
-                <div className="rounded-md border border-border bg-surface-2 px-3 py-2">
-                  <p className="font-semibold">{selectedStudent?.fullName ?? "Select student"}</p>
-                  <p>Class: {selectedStudent?.classLabel ?? "-"} · SR {selectedStudent?.admissionNo ?? "-"}</p>
-                  <p>Pending: {formatInr(previewTotalPending)} · Late fee: {formatInr(pendingLateFeeAmount)}</p>
+
+            <div
+              id={desktopStudentListId}
+              role="listbox"
+              ref={desktopStudentListRef}
+              className="relative flex-1 overflow-y-auto"
+              style={{ minHeight: `${studentComboboxPanelHeight}px` }}
+              onScroll={(event) => setStudentListScrollTop(event.currentTarget.scrollTop)}
+            >
+              {filteredStudents.length === 0 ? (
+                <p className="px-2 py-3 text-sm text-muted-foreground">No matching students.</p>
+              ) : (
+                <div
+                  className="relative"
+                  style={{
+                    height: `${filteredStudents.length * studentComboboxRowHeight}px`,
+                  }}
+                >
+                  {visibleStudentOptions.map((student, index) => {
+                    const optionIndex = firstVisibleStudentIndex + index;
+                    const isActive = optionIndex === activeStudentOptionIndex;
+                    const isSelected = selectedStudentId === student.id;
+                    return (
+                      <button
+                        key={student.id}
+                        id={`${desktopStudentListId}-option-${optionIndex}`}
+                        role="option"
+                        aria-selected={isSelected}
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onMouseEnter={() => prefetchStudentSummary(student.id)}
+                        onFocus={() => prefetchStudentSummary(student.id)}
+                        onClick={() => selectStudent(student.id)}
+                        className={cn(
+                          "absolute left-0 right-0 flex cursor-pointer flex-col justify-center gap-0.5 rounded-lg px-3 py-2 text-left transition-colors",
+                          isSelected
+                            ? "border border-accent/30 bg-accent-soft"
+                            : isActive
+                              ? "border border-transparent bg-surface-2"
+                              : "border border-transparent hover:bg-surface-2",
+                        )}
+                        style={{
+                          top: `${optionIndex * studentComboboxRowHeight}px`,
+                          height: `${studentComboboxRowHeight}px`,
+                        }}
+                      >
+                        <span className="text-sm font-medium text-foreground">{student.fullName}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {student.classLabel} · SR {student.admissionNo}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <div className="grid gap-2 lg:grid-cols-2">
-                  <Input placeholder="Amount received" type="text" inputMode="decimal" pattern="[0-9]*" enterKeyHint="done" autoComplete="off" autoCapitalize="off" autoCorrect="off" value={paymentAmountInput} onChange={(event)=>setPaymentAmountInput(sanitizeDecimalInput(event.target.value))} />
-                  <Input placeholder="Additional discount / concession" type="text" inputMode="decimal" pattern="[0-9]*" enterKeyHint="next" autoComplete="off" autoCorrect="off" value={quickDiscountInput} onChange={(event)=>setQuickDiscountInput(sanitizeDecimalInput(event.target.value))} />
-                </div>
-                <label className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2">
-                  <input type="checkbox" checked={waiveFullLateFee} disabled={pendingLateFeeAmount <= 0} onChange={(event)=>setWaiveFullLateFee(event.target.checked)} />
-                  <span>Waive full pending late fee ({formatInr(pendingLateFeeAmount)})</span>
-                </label>
-                <div className="grid gap-2 lg:grid-cols-2">
-                  {showReferenceField ? <Input placeholder="Reference number" inputMode={referenceInputMode} enterKeyHint="done" autoCapitalize="off" autoCorrect="off" value={referenceNumber} onChange={(event)=>setReferenceNumber(event.target.value)} /> : null}
-                  <Input placeholder="Received by" enterKeyHint="next" autoComplete="name" value={receivedBy} onChange={(event)=>setReceivedBy(event.target.value)} />
-                </div>
-                <Textarea className={textAreaClassName} placeholder="Remarks" enterKeyHint="done" value={remarks} onChange={(event)=>setRemarks(event.target.value)} />
-                <div className="grid gap-2 rounded-md border border-border bg-surface-2 px-3 py-2 text-xs text-foreground sm:grid-cols-2">
-                  <span>Pending before discount: {formatInr(previewTotalPending)}</span>
-                  <span>Late fee waived: {formatInr(quickLateFeeWaiverAmount)}</span>
-                  <span>Discount/concession: {formatInr(quickDiscountAmount)}</span>
-                  <span>Net payable: {formatInr(netPayable)}</span>
-                  <span>Amount received: {formatInr(paymentAmount)}</span>
-                  <span>Remaining after this payment: {formatInr(remainingAfterPayment)}</span>
-                </div>
-                <Button type="button" className="w-full" disabled={confirmDisabled} onClick={openConfirmationDialog}>Review Receipt</Button>
+              )}
+            </div>
+          </div>
+
+          {/* RIGHT PANEL — Payment form */}
+          <div className="flex min-w-0 flex-1 flex-col gap-3 overflow-y-auto">
+            {formError ? (
+              <div
+                role="alert"
+                className="sticky top-0 z-10 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                {formError}
               </div>
             ) : null}
-            {desktopPanelTab === "dues" ? <div className="text-sm"><p className="mb-2 font-medium">Installment breakdown</p><p className="text-xs text-muted-foreground">Preview allocated: {formatInr(allocatedPreviewTotal)} · Unallocated: {formatInr(unallocatedAmount)}</p></div> : null}
-            {desktopPanelTab === "receipt" ? <div className="text-sm">{latestPayment ? <><p>Latest receipt number: {latestPayment.receiptNumber}</p><p>Payment date: {latestPayment.paymentDate}</p><p>Amount: {formatInr(latestPayment.totalAmount)}</p><Link className="text-accent underline-offset-4 hover:underline" href={`/protected/receipts/${latestPayment.id}`}>Open/Print receipt</Link></> : <p>No recent receipt.</p>}</div> : null}
-            {desktopPanelTab === "notes" ? <div className="space-y-2 text-sm"><p>Remarks</p><textarea className={textAreaClassName} value={remarks} onChange={(event)=>setRemarks(event.target.value)} /><p className="text-xs text-muted-foreground">Reference helper: keep UPI/bank/cheque reference for reconciliation.</p>{canViewDiagnostics ? <p className="text-xs text-muted-foreground">Diagnostics visible for admin only.</p> : null}</div> : null}
+
+            {selectedStudent ? (
+              <div className="rounded-xl border border-border bg-card px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{selectedStudent.fullName}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {selectedStudent.classLabel} · SR {selectedStudent.admissionNo}
+                      {selectedStudent.fatherPhone ? ` · ${selectedStudent.fatherPhone}` : ""}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                    onClick={() => {
+                      clearSelectedStudent();
+                      setStudentSearchQuery("");
+                      setIsStudentPickerOpen(true);
+                    }}
+                  >
+                    Change
+                  </button>
+                </div>
+
+                <div className="mt-3 divide-y divide-border overflow-hidden rounded-lg border border-border text-xs">
+                  {previewBreakdown.map((row) => (
+                    <div key={row.installmentId} className="flex items-center justify-between px-3 py-2">
+                      <span className="text-muted-foreground">
+                        {row.installmentLabel}
+                        {row.finalLateFee > 0 ? (
+                          <span className="ml-1.5 text-info-soft-foreground">
+                            +{formatInr(row.finalLateFee)} late fee
+                          </span>
+                        ) : null}
+                      </span>
+                      <span
+                        className={cn(
+                          "font-medium tabular-nums",
+                          row.outstandingAmount <= 0
+                            ? "text-success-soft-foreground"
+                            : row.balanceStatus === "overdue"
+                              ? "text-destructive"
+                              : "text-foreground",
+                        )}
+                      >
+                        {row.outstandingAmount <= 0 ? "Paid" : formatInr(row.outstandingAmount)}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between bg-surface-2 px-3 py-2 font-medium">
+                    <span className="text-muted-foreground">Total pending</span>
+                    <span className="tabular-nums text-accent">{formatInr(previewTotalPending)}</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center rounded-xl border border-dashed border-border bg-surface px-4 py-8 text-sm text-muted-foreground">
+                Select a student from the left panel to begin
+              </div>
+            )}
+
+            {selectedStudent ? (
+              <div className="rounded-xl border border-border bg-card">
+                <div className="flex items-center border-b border-border">
+                  <span className="border-r border-border px-3 py-3 text-lg font-medium text-muted-foreground">₹</span>
+                  <Input
+                    aria-label="Amount received"
+                    type="text"
+                    inputMode="decimal"
+                    pattern="[0-9]*"
+                    enterKeyHint="done"
+                    autoComplete="off"
+                    placeholder="0"
+                    className="h-12 flex-1 rounded-none border-0 text-xl font-semibold shadow-none focus-visible:ring-0"
+                    value={paymentAmountInput}
+                    onChange={(event) => {
+                      setPaymentAmountInput(sanitizeDecimalInput(event.target.value));
+                      setFormError(null);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        openConfirmationDialog();
+                      }
+                    }}
+                  />
+                  {paymentAmountInput && remainingAfterPayment === 0 ? (
+                    <span className="mr-3 shrink-0 rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-medium text-success-soft-foreground">
+                      Clears dues ✓
+                    </span>
+                  ) : paymentAmountInput ? (
+                    <span className="mr-3 shrink-0 text-xs tabular-nums text-muted-foreground">
+                      Leaves {formatInr(remainingAfterPayment)}
+                    </span>
+                  ) : null}
+                </div>
+
+                {/* Will leave / Fully clears pending dues helper for desktop (text marker) */}
+                {paymentAmountInput ? (
+                  <p className="hidden">
+                    {remainingAfterPayment === 0
+                      ? "Fully clears pending dues ✓"
+                      : `Will leave ${formatInr(remainingAfterPayment)} pending`}
+                  </p>
+                ) : null}
+
+                <div className="flex flex-wrap gap-1.5 border-b border-border px-3 py-2">
+                  {quickAmounts.map((qa) =>
+                    qa.key === "clear" ? null : (
+                      <button
+                        key={qa.key}
+                        type="button"
+                        disabled={qa.disabled}
+                        className={cn(
+                          "rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors",
+                          "disabled:cursor-not-allowed disabled:opacity-40",
+                          qa.key === "full"
+                            ? "border-accent/40 bg-accent-soft text-accent hover:bg-accent/15"
+                            : "border-border bg-surface text-foreground hover:bg-surface-2",
+                        )}
+                        onClick={() => {
+                          setFormError(null);
+                          setPaymentAmountInput(qa.amount === null ? "" : String(qa.amount));
+                        }}
+                      >
+                        {qa.label}
+                        {qa.amount !== null ? ` · ${formatInr(qa.amount)}` : ""}
+                      </button>
+                    ),
+                  )}
+                </div>
+
+                {pendingLateFeeAmount > 0 ? (
+                  <div className="flex items-center justify-between border-b border-border bg-info-soft/40 px-3 py-2.5">
+                    <label
+                      htmlFor="desktop-waive-late-fee"
+                      className="flex cursor-pointer items-center gap-2 text-sm font-medium text-info-soft-foreground"
+                    >
+                      <input
+                        id="desktop-waive-late-fee"
+                        type="checkbox"
+                        className="size-4 rounded border-border-strong"
+                        checked={waiveFullLateFee}
+                        disabled={pendingLateFeeAmount <= 0}
+                        onChange={(event) => {
+                          setWaiveFullLateFee(event.target.checked);
+                          setFormError(null);
+                        }}
+                      />
+                      Waive full pending late fee
+                    </label>
+                    <span className="text-sm font-semibold tabular-nums text-info-soft-foreground">
+                      {formatInr(pendingLateFeeAmount)}
+                    </span>
+                  </div>
+                ) : null}
+
+                <div className="grid grid-cols-4 divide-x divide-border border-b border-border">
+                  {[
+                    { value: "cash", label: "Cash" },
+                    { value: "upi", label: "UPI" },
+                    { value: "bank_transfer", label: "Bank" },
+                    { value: "cheque", label: "Cheque" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={cn(
+                        "flex flex-col items-center gap-1 py-2.5 text-xs font-medium transition-colors",
+                        paymentMode === opt.value
+                          ? "bg-accent-soft text-accent"
+                          : "bg-surface text-muted-foreground hover:bg-surface-2 hover:text-foreground",
+                      )}
+                      onClick={() => {
+                        setPaymentMode(opt.value as typeof paymentMode);
+                        setFormError(null);
+                      }}
+                    >
+                      {opt.value === "cash" && (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <rect x="2" y="6" width="20" height="12" rx="2"/>
+                          <circle cx="12" cy="12" r="2"/>
+                          <path d="M6 12h.01M18 12h.01"/>
+                        </svg>
+                      )}
+                      {opt.value === "upi" && (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                          <polyline points="9 22 9 12 15 12 15 22"/>
+                        </svg>
+                      )}
+                      {opt.value === "bank_transfer" && (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <line x1="3" y1="22" x2="21" y2="22"/>
+                          <line x1="6" y1="18" x2="6" y2="11"/>
+                          <line x1="10" y1="18" x2="10" y2="11"/>
+                          <line x1="14" y1="18" x2="14" y2="11"/>
+                          <line x1="18" y1="18" x2="18" y2="11"/>
+                          <polygon points="12 2 20 7 4 7"/>
+                        </svg>
+                      )}
+                      {opt.value === "cheque" && (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                          <polyline points="14 2 14 8 20 8"/>
+                          <line x1="16" y1="13" x2="8" y2="13"/>
+                          <line x1="16" y1="17" x2="8" y2="17"/>
+                        </svg>
+                      )}
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
+                {showReferenceField ? (
+                  <div className="border-b border-border px-3 py-2.5">
+                    <Input
+                      aria-label="Reference number"
+                      placeholder="UPI / bank / cheque ref — optional"
+                      inputMode={referenceInputMode}
+                      autoCapitalize="off"
+                      autoCorrect="off"
+                      value={referenceNumber}
+                      onChange={(event) => {
+                        setReferenceNumber(event.target.value);
+                        setFormError(null);
+                      }}
+                      className="h-9"
+                    />
+                  </div>
+                ) : null}
+
+                <div className="border-b border-border px-3 py-2">
+                  <details className="group">
+                    <summary className="cursor-pointer list-none text-xs text-muted-foreground hover:text-foreground">
+                      <span className="group-open:hidden">+ Additional discount / concession</span>
+                      <span className="hidden group-open:inline">Additional discount / concession</span>
+                    </summary>
+                    <div className="mt-2">
+                      <Input
+                        id="quick-discount-amount-desktop"
+                        type="text"
+                        inputMode="decimal"
+                        pattern="[0-9]*"
+                        placeholder="0"
+                        autoComplete="off"
+                        value={quickDiscountInput}
+                        onChange={(event) => {
+                          setQuickDiscountInput(sanitizeDecimalInput(event.target.value));
+                          setFormError(null);
+                        }}
+                        className="h-9"
+                      />
+                    </div>
+                  </details>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 border-b border-border px-3 py-2.5">
+                  <div>
+                    <label className="mb-1 block text-[10px] uppercase tracking-wide text-muted-foreground">Date</label>
+                    <Input
+                      type="date"
+                      value={paymentDate}
+                      onChange={(event) => setPaymentDate(event.target.value)}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[10px] uppercase tracking-wide text-muted-foreground">Received by</label>
+                    <Input
+                      value={receivedBy}
+                      onChange={(event) => setReceivedBy(event.target.value)}
+                      placeholder="Staff name"
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="px-3 py-3">
+                  <Button
+                    type="button"
+                    variant="accent"
+                    className="h-11 w-full text-base font-semibold"
+                    disabled={confirmDisabled}
+                    onClick={openConfirmationDialog}
+                  >
+                    {draftValidation.ok
+                      ? `Review Receipt · ${formatInr(paymentAmount)}`
+                      : "Enter amount to continue"}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
+            {selectedStudent ? (
+              <details className="rounded-xl border border-border bg-card px-3 py-2">
+                <summary className="cursor-pointer text-xs text-muted-foreground">More details ↓</summary>
+                <div className="mt-2 space-y-3 text-sm">
+                  <div>
+                    <p className="text-xs font-medium text-foreground">Dues Details</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Preview allocated: {formatInr(allocatedPreviewTotal)} · Unallocated: {formatInr(unallocatedAmount)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-foreground">Recent Receipt</p>
+                    {latestPayment ? (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Latest receipt: {latestPayment.receiptNumber} · {formatInr(latestPayment.totalAmount)} ·{" "}
+                        <Link className="text-accent underline-offset-4 hover:underline" href={`/protected/receipts/${latestPayment.id}`}>
+                          Open / Print
+                        </Link>
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-xs text-muted-foreground">No recent receipt yet.</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-foreground">Notes</p>
+                    <Textarea
+                      className={`${textAreaClassName} mt-1`}
+                      placeholder="Remarks (optional)"
+                      value={remarks}
+                      onChange={(event) => setRemarks(event.target.value)}
+                    />
+                  </div>
+                </div>
+              </details>
+            ) : null}
           </div>
         </div>
       </section>
@@ -1493,11 +1920,6 @@ export function PaymentDeskMobile({
               }}
             >
               <ActionNotice state={visibleActionState} canViewDiagnostics={canViewDiagnostics} />
-              {formError ? (
-                <div className="rounded-md bg-destructive-soft px-3 py-2 text-sm text-destructive-soft-foreground">
-                  {formError}
-                </div>
-              ) : null}
               {selectedStudent ? (
                 <PayeeSummaryStrip
                   student={{
@@ -1524,6 +1946,15 @@ export function PaymentDeskMobile({
                   }
                 />
               ) : null}
+              {formError ? (
+                <div
+                  role="alert"
+                  className="sticky top-0 z-10 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive-soft-foreground md:static md:z-auto"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  {formError}
+                </div>
+              ) : null}
               <fieldset
                 disabled={!canPost || isLockedAfterSuccess}
                 className="space-y-3 disabled:opacity-70"
@@ -1534,7 +1965,8 @@ export function PaymentDeskMobile({
                 {studentSummaryLoading ? (
                   <p className="rounded-md bg-info-soft px-2 py-1 text-xs text-info-soft-foreground">Loading dues...</p>
                 ) : null}
-                <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                {/* Legacy form grid — hidden visually; its name-bearing inputs still carry FormData on submit via React state binding. The visible UI lives in the new desktop section (above) and new mobile in-flow card (below). */}
+                <div className="hidden">
                   <div ref={amountSectionRef}>
                     <Label htmlFor="payment-amount">Amount received</Label>
                     <Input
@@ -1617,25 +2049,6 @@ export function PaymentDeskMobile({
                       </p>
                     ) : null}
                   </div>
-                  <div>
-                    <Label htmlFor="quick-discount-amount">Additional discount / concession</Label>
-                    <Input
-                      id="quick-discount-amount"
-                      name="quickDiscountAmount"
-                      type="text"
-                      inputMode="decimal"
-                      pattern="[0-9]*"
-                      enterKeyHint="next"
-                      autoComplete="off"
-                      autoCorrect="off"
-                      className="mt-1 h-10"
-                      value={quickDiscountInput}
-                      onChange={(event) => {
-                        setQuickDiscountInput(sanitizeDecimalInput(event.target.value));
-                        setFormError(null);
-                      }}
-                    />
-                  </div>
                   <div className="rounded-lg border border-border bg-surface-2 px-3 py-2 xl:col-span-2">
                     <input type="hidden" name="quickLateFeeWaiverAmount" value={quickLateFeeWaiverAmount} />
                     <label className="flex items-start gap-2 text-sm font-medium text-foreground">
@@ -1658,6 +2071,25 @@ export function PaymentDeskMobile({
                     </label>
                   </div>
                   <div>
+                    <Label htmlFor="quick-discount-amount">Additional discount / concession</Label>
+                    <Input
+                      id="quick-discount-amount"
+                      name="quickDiscountAmount"
+                      type="text"
+                      inputMode="decimal"
+                      pattern="[0-9]*"
+                      enterKeyHint="next"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      className="mt-1 h-10"
+                      value={quickDiscountInput}
+                      onChange={(event) => {
+                        setQuickDiscountInput(sanitizeDecimalInput(event.target.value));
+                        setFormError(null);
+                      }}
+                    />
+                  </div>
+                  <div>
                     <Label htmlFor="payment-date">Payment date</Label>
                     <Input
                       id="payment-date"
@@ -1676,14 +2108,33 @@ export function PaymentDeskMobile({
                     <Label htmlFor="payment-mode">Payment mode</Label>
                     <input type="hidden" name="paymentMode" value={paymentMode} />
                     <div className="mt-1 md:hidden">
-                      <MobilePaymentModeSheet
-                        value={paymentMode}
-                        onChange={(value) => {
-                          setPaymentMode(value as typeof paymentMode);
-                          setFormError(null);
-                        }}
-                        disabled={!selectedStudent}
-                      />
+                      <div className="grid grid-cols-4 divide-x divide-border overflow-hidden rounded-xl border border-border">
+                        {[
+                          { value: "cash", label: "Cash", Icon: Banknote },
+                          { value: "upi", label: "UPI", Icon: Smartphone },
+                          { value: "bank_transfer", label: "Bank", Icon: Building2 },
+                          { value: "cheque", label: "Cheque", Icon: FileText },
+                        ].map(({ value, label, Icon }) => (
+                          <button
+                            key={value}
+                            type="button"
+                            disabled={!selectedStudent}
+                            onClick={() => {
+                              setPaymentMode(value as typeof paymentMode);
+                              setFormError(null);
+                            }}
+                            className={cn(
+                              "flex flex-col items-center justify-center gap-0.5 py-2 text-xs transition-colors disabled:opacity-50",
+                              paymentMode === value
+                                ? "bg-accent-soft font-medium text-accent"
+                                : "bg-surface text-muted-foreground",
+                            )}
+                          >
+                            <Icon className="size-4" />
+                            {label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                     <select
                       id="payment-mode"
@@ -1733,8 +2184,8 @@ export function PaymentDeskMobile({
                           }
                         }}
                       />
-                      <p className="mt-1 text-[11px] text-muted-foreground">
-                        Reference is useful for matching bank/UPI records.
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        UPI / bank / cheque ref — optional
                       </p>
                     </div>
                   ) : (
@@ -1758,11 +2209,12 @@ export function PaymentDeskMobile({
                   </div>
                 </div>
                 
-                <div>
+                {/* Hidden remarks input — value is edited via the desktop "More details" Textarea (no name) and submits through this hidden field. */}
+                <input type="hidden" name="remarks" value={remarks} />
+                <div className="hidden">
                   <Label htmlFor="payment-remarks">Remarks (optional)</Label>
                   <Textarea
                     id="payment-remarks"
-                    name="remarks"
                     className={`${textAreaClassName} mt-1 min-h-16`}
                     placeholder="Optional desk remarks"
                     enterKeyHint="done"
@@ -1818,103 +2270,28 @@ export function PaymentDeskMobile({
 
               {selectedStudent ? (
                 <div
-                  className="fixed left-0 right-0 z-20 border-t border-border bg-card px-4 pt-3 md:hidden mobile-safe-bottom-padding"
-                  style={{ bottom: "calc(var(--mobile-bottom-nav-offset) + var(--keyboard-offset, 0px))" }}
+                  className="md:hidden flex flex-col gap-3 pb-24 mobile-payment-cta-clearance"
+                  style={{ paddingBottom: "calc(6rem + var(--keyboard-offset, 0px))" }}
                 >
-                  <div className="grid grid-cols-[1fr_1fr] gap-2">
-                    <div className="col-span-2 grid grid-cols-3 gap-1.5">
-                      {quickAmounts.map((quickAmount) => (
-                        <Button
-                          key={`mobile-${quickAmount.key}`}
-                          type="button"
-                          size="sm"
-                          variant={quickAmount.key === "clear" ? "ghost" : "outline"}
-                          className="h-11 min-w-[88px] px-2 text-sm"
-                          disabled={quickAmount.disabled}
-                          onClick={() => {
-                            setFormError(null);
-                            setPaymentAmountInput(
-                              quickAmount.amount === null ? "" : String(quickAmount.amount),
-                            );
-                          }}
-                        >
-                          {quickAmount.label}
-                        </Button>
-                      ))}
-                    </div>
-                    <Input
-                      aria-label="Mobile amount received"
-                      type="text"
-                      inputMode="decimal"
-                      pattern="[0-9]*"
-                      enterKeyHint="done"
-                      autoComplete="off"
-                      autoCapitalize="off"
-                      autoCorrect="off"
-                      placeholder="Amount"
-                      className="h-11"
-                      value={paymentAmountInput}
-                      onChange={(event) => {
-                        setPaymentAmountInput(sanitizeDecimalInput(event.target.value));
-                        setFormError(null);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          event.currentTarget.blur();
-                        }
-                      }}
-                    />
-                    <Input
-                      aria-label="Mobile discount"
-                      type="text"
-                      inputMode="decimal"
-                      pattern="[0-9]*"
-                      autoComplete="off"
-                      autoCorrect="off"
-                      placeholder="Discount"
-                      className="h-11"
-                      value={quickDiscountInput}
-                      onChange={(event) => {
-                        setQuickDiscountInput(sanitizeDecimalInput(event.target.value));
-                        setFormError(null);
-                      }}
-                    />
-                    <label className="col-span-2 flex min-h-9 items-center justify-between rounded-md border border-border bg-surface-2 px-2 text-xs font-medium text-foreground">
-                      <span>Waive late fee {formatInr(pendingLateFeeAmount)}</span>
+                  {/* In-flow mobile payment card */}
+                  <div className="overflow-hidden rounded-xl border border-border bg-card">
+                    {/* Amount row */}
+                    <div className="flex items-center border-b border-border">
+                      <span className="border-r border-border px-3 py-3 text-xl font-medium text-muted-foreground">₹</span>
                       <input
-                        type="checkbox"
-                        className="size-4"
-                        checked={waiveFullLateFee}
-                        disabled={pendingLateFeeAmount <= 0}
-                        onChange={(event) => {
-                          setWaiveFullLateFee(event.target.checked);
-                          setFormError(null);
-                        }}
-                      />
-                    </label>
-                    <div aria-label="Mobile payment mode" className={showReferenceField ? "" : "col-span-2"}>
-                      <MobilePaymentModeSheet
-                        value={paymentMode}
-                        onChange={(value) => {
-                          setPaymentMode(value as typeof paymentMode);
-                          setFormError(null);
-                        }}
-                        disabled={!selectedStudent}
-                      />
-                    </div>
-                    {showReferenceField ? (
-                      <Input
-                        aria-label="Mobile reference number"
-                        placeholder="Reference (optional)"
-                        className="h-11"
-                        inputMode={referenceInputMode}
+                        aria-label="Mobile amount received"
+                        type="text"
+                        inputMode="decimal"
+                        pattern="[0-9]*"
                         enterKeyHint="done"
+                        autoComplete="off"
                         autoCapitalize="off"
                         autoCorrect="off"
-                        value={referenceNumber}
+                        placeholder="0"
+                        className="h-14 flex-1 bg-transparent px-3 text-2xl font-semibold text-foreground outline-none placeholder:text-muted-foreground/50"
+                        value={paymentAmountInput}
                         onChange={(event) => {
-                          setReferenceNumber(event.target.value);
+                          setPaymentAmountInput(sanitizeDecimalInput(event.target.value));
                           setFormError(null);
                         }}
                         onKeyDown={(event) => {
@@ -1924,34 +2301,215 @@ export function PaymentDeskMobile({
                           }
                         }}
                       />
+                      {paymentAmountInput && remainingAfterPayment === 0 ? (
+                        <span className="mr-3 rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-medium text-success-soft-foreground">
+                          Clears ✓
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {/* Quick amount chips + waiver chip + mobile discount */}
+                    <div className="flex gap-1.5 overflow-x-auto border-b border-border px-3 py-2">
+                      {quickAmounts.map((qa) =>
+                        qa.key === "clear" ? null : (
+                          <button
+                            key={`mobile-chip-${qa.key}`}
+                            type="button"
+                            disabled={qa.disabled}
+                            className={cn(
+                              "shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-40",
+                              qa.key === "full"
+                                ? "border-accent/40 bg-accent-soft text-accent"
+                                : "border-border bg-surface text-foreground hover:bg-surface-2",
+                            )}
+                            onClick={() => {
+                              setFormError(null);
+                              setPaymentAmountInput(qa.amount === null ? "" : String(qa.amount));
+                            }}
+                          >
+                            {qa.key === "full" && qa.amount !== null
+                              ? `Full · ${formatInr(qa.amount)}`
+                              : qa.label}
+                          </button>
+                        ),
+                      )}
+                      {pendingLateFeeAmount > 0 ? (
+                        <button
+                          type="button"
+                          className={cn(
+                            "shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                            waiveFullLateFee
+                              ? "border-info bg-info-soft text-info-soft-foreground"
+                              : "border-border bg-surface text-muted-foreground hover:bg-surface-2",
+                          )}
+                          onClick={() => {
+                            setWaiveFullLateFee((prev) => !prev);
+                            setFormError(null);
+                          }}
+                        >
+                          {waiveFullLateFee ? "✓ " : ""}
+                          Waive late {formatInr(pendingLateFeeAmount)}
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {/* Mobile discount (compact) */}
+                    <div className="border-b border-border px-3 py-2">
+                      <Input
+                        aria-label="Mobile discount"
+                        type="text"
+                        inputMode="decimal"
+                        pattern="[0-9]*"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        placeholder="Discount (optional)"
+                        className="h-10"
+                        value={quickDiscountInput}
+                        onChange={(event) => {
+                          setQuickDiscountInput(sanitizeDecimalInput(event.target.value));
+                          setFormError(null);
+                        }}
+                      />
+                    </div>
+
+                    {/* Payment mode — 4 inline tiles */}
+                    <div
+                      aria-label="Mobile payment mode"
+                      className="grid grid-cols-4 divide-x divide-border border-b border-border"
+                    >
+                      {data.modeOptions.map((opt) => (
+                        <button
+                          key={`mobile-mode-${opt.value}`}
+                          type="button"
+                          className={cn(
+                            "flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors",
+                            paymentMode === opt.value
+                              ? "bg-accent-soft text-accent"
+                              : "bg-surface text-muted-foreground",
+                          )}
+                          onClick={() => {
+                            setPaymentMode(opt.value as typeof paymentMode);
+                            setFormError(null);
+                          }}
+                        >
+                          {opt.value === "cash" && (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <rect x="2" y="6" width="20" height="12" rx="2"/>
+                              <circle cx="12" cy="12" r="2"/>
+                              <path d="M6 12h.01M18 12h.01"/>
+                            </svg>
+                          )}
+                          {opt.value === "upi" && (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                              <polyline points="9 22 9 12 15 12 15 22"/>
+                            </svg>
+                          )}
+                          {opt.value === "bank_transfer" && (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <line x1="3" y1="22" x2="21" y2="22"/>
+                              <line x1="6" y1="18" x2="6" y2="11"/>
+                              <line x1="10" y1="18" x2="10" y2="11"/>
+                              <line x1="14" y1="18" x2="14" y2="11"/>
+                              <line x1="18" y1="18" x2="18" y2="11"/>
+                              <polygon points="12 2 20 7 4 7"/>
+                            </svg>
+                          )}
+                          {opt.value === "cheque" && (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                              <polyline points="14 2 14 8 20 8"/>
+                              <line x1="16" y1="13" x2="8" y2="13"/>
+                              <line x1="16" y1="17" x2="8" y2="17"/>
+                            </svg>
+                          )}
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Reference — non-cash only */}
+                    {showReferenceField ? (
+                      <div className="border-b border-border px-3 py-2.5">
+                        <Input
+                          aria-label="Mobile reference number"
+                          placeholder="UPI / bank / cheque ref — optional"
+                          className="h-10"
+                          inputMode={referenceInputMode}
+                          enterKeyHint="done"
+                          autoCapitalize="off"
+                          autoCorrect="off"
+                          value={referenceNumber}
+                          onChange={(event) => {
+                            setReferenceNumber(event.target.value);
+                            setFormError(null);
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              event.currentTarget.blur();
+                            }
+                          }}
+                        />
+                      </div>
                     ) : null}
+
+                    {/* Status line */}
+                    <div className="flex items-center justify-between px-3 py-2 text-[11px] text-muted-foreground">
+                      <span>Pending {formatInr(previewTotalPending)}</span>
+                      {paymentAmountInput ? (
+                        <span className={remainingAfterPayment === 0 ? "font-medium text-success-soft-foreground" : ""}>
+                          {remainingAfterPayment === 0
+                            ? "Fully clears pending dues ✓"
+                            : `Will leave ${formatInr(remainingAfterPayment)} pending`}
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
-                  <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-surface-2 px-2 py-1 text-[11px]">
-                    <span className="text-muted-foreground">Pending {formatInr(previewTotalPending)}</span>
-                    {paymentAmountInput ? (
-                      <span className={remainingAfterPayment === 0
-                        ? "font-medium text-success-soft-foreground"
-                        : "text-muted-foreground"
-                      }>
-                        {remainingAfterPayment === 0 ? "Clears dues ✓" : `Leaves ${formatInr(remainingAfterPayment)}`}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">Enter amount</span>
-                    )}
+
+                  {/* Sticky Review button */}
+                  <div className="sticky bottom-0 z-10 bg-background/95 px-0 pb-2 pt-1 backdrop-blur-sm mobile-safe-bottom-padding">
+                    <Button
+                      type="button"
+                      variant="accent"
+                      className="h-12 w-full text-base font-semibold"
+                      disabled={confirmDisabled}
+                      onClick={openConfirmationDialog}
+                    >
+                      {draftValidation.ok ? `Review · ${formatInr(paymentAmount)}` : "Enter amount"}
+                    </Button>
                   </div>
-                  {selectedStudent && paymentAmountInput ? (
-                    <p className="mb-2 mt-2 text-center text-[11px] text-muted-foreground">
-                      {formatInr(paymentAmount)} · {selectedPaymentModeLabel} · {selectedStudent.fullName}
-                    </p>
-                  ) : null}
-                  <Button
-                    type="button"
-                    className="h-11 w-full"
-                    disabled={confirmDisabled}
-                    onClick={openConfirmationDialog}
-                  >
-                    {draftValidation.ok ? `Review · ${formatInr(paymentAmount)}` : "Enter amount"}
-                  </Button>
+
+                  {/* Dues Details collapsible */}
+                  <details className="rounded-xl border border-border bg-card px-3 py-2">
+                    <summary className="cursor-pointer text-xs text-muted-foreground">Dues Details ↓</summary>
+                    <div className="mt-2 space-y-2 text-xs">
+                      {previewBreakdown.map((row) => (
+                        <div key={`mobile-dues-${row.installmentId}`} className="flex items-center justify-between border-b border-border pb-2 last:border-b-0">
+                          <div>
+                            <p className="font-medium text-foreground">{row.installmentLabel}</p>
+                            <p className="text-[10px] text-muted-foreground">Due {row.dueDate}</p>
+                          </div>
+                          <span
+                            className={cn(
+                              "font-medium tabular-nums",
+                              row.outstandingAmount <= 0
+                                ? "text-success-soft-foreground"
+                                : row.balanceStatus === "overdue"
+                                  ? "text-destructive"
+                                  : "text-foreground",
+                            )}
+                          >
+                            {row.outstandingAmount <= 0 ? "Paid" : formatInr(row.outstandingAmount)}
+                          </span>
+                        </div>
+                      ))}
+                      <div className="flex items-center justify-between pt-1 font-medium">
+                        <span className="text-muted-foreground">Total pending</span>
+                        <span className="tabular-nums text-accent">{formatInr(previewTotalPending)}</span>
+                      </div>
+                    </div>
+                  </details>
                 </div>
               ) : null}
 
@@ -2018,7 +2576,7 @@ export function PaymentDeskMobile({
                 : null}
             </form>
           </SectionCard>
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <section className="hidden gap-4 md:grid md:grid-cols-2 xl:grid-cols-5">
             {studentSummaryLoading && !selectedStudent ? (
               <>
                 <LoadingBlock className="h-24 rounded-2xl bg-surface-2" lines={1} />
@@ -2065,6 +2623,7 @@ export function PaymentDeskMobile({
           <SectionCard
             title="3. Review Dues"
             description="Installment-level dues before saving the next receipt."
+            className="hidden md:block"
             actions={
               <div className="flex flex-wrap items-center gap-2">
                 <ValueStatePill tone="policy">From Fee Setup</ValueStatePill>
