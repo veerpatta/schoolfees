@@ -1756,6 +1756,12 @@ export function PaymentDeskMobile({
                     </button>
                   ))}
                 </div>
+                {!selectedStudentId && paymentMode !== "cash" ? (
+                  <p className="mt-1 px-3 text-[11px] text-muted-foreground">
+                    Mode kept from last payment:{" "}
+                    <span className="font-medium">{selectedPaymentModeLabel}</span> - change if needed.
+                  </p>
+                ) : null}
 
                 {showReferenceField ? (
                   <div className="border-b border-border px-3 py-2.5">
@@ -2492,8 +2498,14 @@ export function PaymentDeskMobile({
                         </button>
                       ))}
                     </div>
+                    {!selectedStudentId && paymentMode !== "cash" ? (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Mode kept from last payment:{" "}
+                        <span className="font-medium">{selectedPaymentModeLabel}</span> - change if needed.
+                      </p>
+                    ) : null}
 
-                    {/* Reference — non-cash only */}
+                    {/* Reference - non-cash only */}
                     {showReferenceField ? (
                       <div className="border-b border-border px-3 py-2.5">
                         <Input

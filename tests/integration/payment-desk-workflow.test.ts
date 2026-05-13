@@ -349,6 +349,17 @@ describe("payment desk cashier workflow", () => {
     expect(chipHelpers).toContain("Full Due ${formatInr(quickAmount.amount)}");
   });
 
+  it("mode kept reminder appears only before the next student is selected", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+
+    expect(component).toContain("Mode kept from last payment:");
+    expect(component).toContain('!selectedStudentId && paymentMode !== "cash"');
+    expect(component).toContain("{selectedPaymentModeLabel}");
+  });
+
 
   it("student labels stay short and show SR no", () => {
     expect(
