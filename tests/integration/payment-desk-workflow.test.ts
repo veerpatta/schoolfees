@@ -547,6 +547,9 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("Open Receipt");
     expect(component).toContain("Copy WhatsApp Message");
     expect(component).toContain("Collect Another Payment");
+    expect(component.indexOf("Print Receipt")).toBeLessThan(
+      component.indexOf("Collect Another Payment"),
+    );
     expect(component).toContain("autoPrint");
     expect(component).toContain("onCollectAnother");
   });

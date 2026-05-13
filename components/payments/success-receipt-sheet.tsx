@@ -157,8 +157,15 @@ export function SuccessReceiptSheet({
         </div>
 
         <div className="sticky bottom-0 mt-5 grid gap-2 border-t border-border bg-card pt-3 mobile-safe-bottom-padding sm:grid-cols-2">
+          {printReceiptHref ? (
+            <Button asChild variant="outline" className={whatsappMessage ? "" : "sm:col-span-2"}>
+              <Link href={printReceiptHref} target="_blank">
+                Print Receipt
+              </Link>
+            </Button>
+          ) : null}
           {whatsappHref ? (
-            <Button asChild className="sm:col-span-2" variant="accent">
+            <Button asChild className={printReceiptHref ? "" : "sm:col-span-2"} variant="accent">
               <Link href={whatsappHref} target="_blank" rel="noreferrer">
                 Send Receipt on WhatsApp
               </Link>
@@ -167,7 +174,7 @@ export function SuccessReceiptSheet({
             <Button
               type="button"
               variant="outline"
-              className="sm:col-span-2"
+              className={printReceiptHref ? "" : "sm:col-span-2"}
               onClick={async () => {
                 await navigator.clipboard.writeText(whatsappMessage);
                 setCopyStatus("copied");
@@ -184,11 +191,6 @@ export function SuccessReceiptSheet({
               More
             </summary>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              {printReceiptHref ? (
-                <Button asChild variant="outline">
-                  <Link href={printReceiptHref} target="_blank">Print Receipt</Link>
-                </Button>
-              ) : null}
               <Button asChild variant="outline">
                 <Link href={visibleReceiptHref}>Open Receipt</Link>
               </Button>
