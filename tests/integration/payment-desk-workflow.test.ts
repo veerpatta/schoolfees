@@ -403,6 +403,26 @@ describe("payment desk cashier workflow", () => {
     expect(backdatedBlock).not.toContain("setDismissed");
   });
 
+  it("desktop amount input supports F1-F4 payment mode hotkeys and Enter to review", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+    const desktopAmountInput = component.match(
+      /aria-label="Amount received"[\s\S]*?onKeyDown=\{\(event\) => \{([\s\S]*?)\n                    \}\}/,
+    )?.[0] ?? "";
+
+    expect(desktopAmountInput).toContain('event.key === "F1"');
+    expect(desktopAmountInput).toContain('event.key === "F2"');
+    expect(desktopAmountInput).toContain('event.key === "F3"');
+    expect(desktopAmountInput).toContain('event.key === "F4"');
+    expect(desktopAmountInput).toContain('event.key === "Enter"');
+    expect(desktopAmountInput.indexOf("draftValidation.ok")).toBeLessThan(
+      desktopAmountInput.indexOf("openConfirmationDialog()"),
+    );
+    expect(component).toContain("F1 Cash");
+  });
+
 
   it("student labels stay short and show SR no", () => {
     expect(

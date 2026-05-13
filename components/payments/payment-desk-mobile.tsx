@@ -1443,6 +1443,11 @@ export function PaymentDeskMobile({
                 Backdated · {paymentDate}
               </span>
             ) : null}
+            {selectedStudentId && !isLockedAfterSuccess ? (
+              <span className="text-[10px] text-muted-foreground">
+                F1 Cash · F2 UPI · F3 Bank · F4 Cheque · ↵ Review
+              </span>
+            ) : null}
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
@@ -1680,8 +1685,32 @@ export function PaymentDeskMobile({
                       setFormError(null);
                     }}
                     onKeyDown={(event) => {
-                      if (event.key === "Enter") {
+                      if (!selectedStudentId || isLockedAfterSuccess) {
+                        return;
+                      }
+
+                      if (event.key === "F1") {
                         event.preventDefault();
+                        setPaymentMode("cash");
+                        setFormError(null);
+                      } else if (event.key === "F2") {
+                        event.preventDefault();
+                        setPaymentMode("upi");
+                        setFormError(null);
+                      } else if (event.key === "F3") {
+                        event.preventDefault();
+                        setPaymentMode("bank_transfer");
+                        setFormError(null);
+                      } else if (event.key === "F4") {
+                        event.preventDefault();
+                        setPaymentMode("cheque");
+                        setFormError(null);
+                      } else if (event.key === "Enter") {
+                        if (!draftValidation.ok) {
+                          setFormError(draftValidation.message);
+                          return;
+                        }
+
                         openConfirmationDialog();
                       }
                     }}
