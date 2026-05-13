@@ -319,6 +319,22 @@ describe("payment desk cashier workflow", () => {
     expect(body).toContain("focusStudentSearch(activeStudentPickerMode)");
   });
 
+  it("shows today receipt banner when same student has a receipt on payment date", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+    const collectAnotherBody = component.match(
+      /function handleCollectAnotherPayment\(\) \{([\s\S]*?)\n  \}/,
+    )?.[1] ?? "";
+
+    expect(component).toContain("const latestReceiptToday = (() =>");
+    expect(component).toContain("dismissedTodayReceiptId");
+    expect(collectAnotherBody).toContain("setDismissedTodayReceiptId(null)");
+    expect(component).toContain("already issued today");
+    expect(component).toContain("onClick={() => setDismissedTodayReceiptId(latestReceiptToday.id)}");
+  });
+
 
   it("student labels stay short and show SR no", () => {
     expect(

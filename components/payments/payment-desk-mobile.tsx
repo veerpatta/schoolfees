@@ -229,6 +229,7 @@ export function PaymentDeskMobile({
   const [expandedReceiptId, setExpandedReceiptId] = useState<string | null>(null);
   const [clientRequestId, setClientRequestId] = useState(createClientRequestId);
   const [dismissedActionStateKey, setDismissedActionStateKey] = useState<string | null>(null);
+  const [dismissedTodayReceiptId, setDismissedTodayReceiptId] = useState<string | null>(null);
   const isMobileView = useMediaQuery("(max-width: 767px)");
   const { ref: amountInputRef, scrollIntoView: scrollAmountInputIntoView } = useScrollIntoView<HTMLInputElement>();
   const { ref: refInputRef, scrollIntoView: scrollReferenceInputIntoView } = useScrollIntoView<HTMLInputElement>();
@@ -539,6 +540,12 @@ export function PaymentDeskMobile({
     [paymentAmount, previewBreakdown, quickDiscountAmount, quickLateFeeWaiverAmount],
   );
   const latestReceipt = selectedStudentId ? latestStudentReceipt : data.recentReceipts[0] ?? null;
+  const latestReceiptToday = (() => {
+    if (!latestStudentReceipt) return null;
+    if (latestStudentReceipt.studentId !== selectedStudentId) return null;
+    if (latestStudentReceipt.paymentDate !== paymentDate) return null;
+    return latestStudentReceipt;
+  })();
   const latestStudentPaymentAmount =
     latestStudentReceipt?.studentId === selectedStudentId ? latestStudentReceipt.totalAmount : null;
   const quickAmounts = useMemo(() => {
@@ -668,6 +675,39 @@ export function PaymentDeskMobile({
           .filter(Boolean)
           .join("\n")
       : "";
+  const todayReceiptWarning =
+    latestReceiptToday && latestReceiptToday.id !== dismissedTodayReceiptId ? (
+      <div
+        role="status"
+        className="flex items-start justify-between gap-2 rounded-xl bg-info-soft px-3 py-2.5 text-sm text-info-soft-foreground"
+      >
+        <span>
+          <span className="font-semibold">
+            Receipt {latestReceiptToday.receiptNumber} already issued today
+          </span>
+          {" - "}
+          {formatInr(latestReceiptToday.totalAmount)}
+          {latestReceiptToday.paymentMode ? ` (${latestReceiptToday.paymentMode})` : ""}
+          {". "}
+          <Link
+            href={`/protected/receipts/${latestReceiptToday.id}`}
+            className="underline underline-offset-2"
+            target="_blank"
+          >
+            Review receipt
+          </Link>{" "}
+          before collecting again.
+        </span>
+        <button
+          type="button"
+          aria-label="Dismiss"
+          className="shrink-0 text-info-soft-foreground opacity-60 hover:opacity-100"
+          onClick={() => setDismissedTodayReceiptId(latestReceiptToday.id)}
+        >
+          x
+        </button>
+      </div>
+    ) : null;
 
   useEffect(() => {
     submittingRef.current = false;
@@ -922,6 +962,7 @@ export function PaymentDeskMobile({
     setWaiveFullLateFee(false);
     setLatestStudentReceipt(null);
     setFormError(null);
+    setDismissedTodayReceiptId(null);
     lastAmountFocusStudentIdRef.current = null;
   }
 
@@ -958,6 +999,7 @@ export function PaymentDeskMobile({
     setQuickDiscountInput("");
     setWaiveFullLateFee(false);
     setFormError(null);
+    setDismissedTodayReceiptId(null);
     setIsStudentPickerOpen(false);
     setActiveStudentOptionIndex(-1);
     lastAmountFocusStudentIdRef.current = null;
@@ -1024,6 +1066,7 @@ export function PaymentDeskMobile({
     setStudentSummaryLoading(false);
     setStudentSummaryNotice(null);
     setDismissedActionStateKey(actionStateKey);
+    setDismissedTodayReceiptId(null);
     setIsLockedAfterSuccess(false);
     setIsSuccessOpen(false);
     setIsDuplicateOpen(false);
@@ -1535,6 +1578,8 @@ export function PaymentDeskMobile({
             )}
 
             {selectedStudent ? (
+              <>
+              {todayReceiptWarning}
               <div className="rounded-xl border border-border bg-card">
                 <div className="flex items-center border-b border-border">
                   <span className="border-r border-border px-3 py-3 text-lg font-medium text-muted-foreground">₹</span>
@@ -1765,6 +1810,7 @@ export function PaymentDeskMobile({
                   </Button>
                 </div>
               </div>
+              </>
             ) : null}
 
             {selectedStudent ? (
@@ -1937,11 +1983,10 @@ export function PaymentDeskMobile({
                     nextDueAmount: previewNextDue?.outstandingAmount ?? null,
                   }}
                   latestReceiptToday={
-                    latestStudentReceipt &&
-                    latestStudentReceipt.paymentDate === paymentDate
+                    latestReceiptToday
                       ? {
-                          receiptNumber: latestStudentReceipt.receiptNumber,
-                          totalAmount: latestStudentReceipt.totalAmount,
+                          receiptNumber: latestReceiptToday.receiptNumber,
+                          totalAmount: latestReceiptToday.totalAmount,
                         }
                       : null
                   }
@@ -2274,6 +2319,7 @@ export function PaymentDeskMobile({
                   className="md:hidden flex flex-col gap-3 pb-24 mobile-payment-cta-clearance"
                   style={{ paddingBottom: "calc(6rem + var(--keyboard-offset, 0px))" }}
                 >
+                  {todayReceiptWarning}
                   {/* In-flow mobile payment card */}
                   <div className="overflow-hidden rounded-xl border border-border bg-card">
                     {/* Amount row */}
