@@ -360,6 +360,21 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("{selectedPaymentModeLabel}");
   });
 
+  it("selected student banner has an accessible change button that clears the student", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+    const selectedBanner = component.match(
+      /Selected:\{" "\}[\s\S]*?studentSearchSectionRef\.current\?\.scrollIntoView[\s\S]*?<\/button>/,
+    )?.[0] ?? "";
+
+    expect(component).toContain('aria-label="Change student"');
+    expect(selectedBanner).toContain("clearSelectedStudent()");
+    expect(selectedBanner).toContain("setStudentSearchQuery(\"\")");
+    expect(selectedBanner).toContain("studentSearchSectionRef.current?.scrollIntoView");
+  });
+
 
   it("student labels stay short and show SR no", () => {
     expect(

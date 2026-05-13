@@ -1380,13 +1380,30 @@ export function PaymentDeskMobile({
             </div>
           ) : null}
           {selectedStudentIndexItem ? (
-            <div className="rounded-xl bg-info-soft px-4 py-3 text-sm text-info-soft-foreground">
-              Selected:{" "}
-              <span className="font-semibold">
-                {selectedStudent?.fullName ?? selectedStudentIndexItem.fullName}
-              </span>{" "}
-              · {selectedStudent?.classLabel ?? selectedStudentIndexItem.classLabel} · SR No{" "}
-              {selectedStudent?.admissionNo ?? selectedStudentIndexItem.admissionNo}
+            <div className="flex items-center justify-between gap-3 rounded-xl bg-info-soft px-4 py-3 text-sm text-info-soft-foreground">
+              <span>
+                Selected:{" "}
+                <span className="font-semibold">
+                  {selectedStudent?.fullName ?? selectedStudentIndexItem.fullName}
+                </span>{" "}
+                · {selectedStudent?.classLabel ?? selectedStudentIndexItem.classLabel} · SR No{" "}
+                {selectedStudent?.admissionNo ?? selectedStudentIndexItem.admissionNo}
+              </span>
+              <button
+                type="button"
+                aria-label="Change student"
+                className="shrink-0 text-xs font-medium text-info-soft-foreground underline underline-offset-2"
+                onClick={() => {
+                  clearSelectedStudent();
+                  setStudentSearchQuery("");
+                  setIsStudentPickerOpen(true);
+                  setActiveStudentOptionIndex(0);
+                  mobileStudentSearchInputRef.current?.focus({ preventScroll: false });
+                  studentSearchSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+              >
+                Change x
+              </button>
             </div>
           ) : null}
         </div>
