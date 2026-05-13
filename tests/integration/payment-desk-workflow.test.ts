@@ -335,6 +335,20 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("onClick={() => setDismissedTodayReceiptId(latestReceiptToday.id)}");
   });
 
+  it("quick amount chips have priority visual ranking with full due as accent", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+    const chipHelpers = component.match(
+      /function getQuickAmountChipVariant[\s\S]*?function getQuickAmountChipClassName/,
+    )?.[0] ?? "";
+
+    expect(chipHelpers).toContain('quickAmount.key === "full") return "accent"');
+    expect(chipHelpers).toContain('quickAmount.key === "clear") return "ghost"');
+    expect(chipHelpers).toContain("Full Due ${formatInr(quickAmount.amount)}");
+  });
+
 
   it("student labels stay short and show SR no", () => {
     expect(

@@ -568,6 +568,38 @@ export function PaymentDeskMobile({
     previewTotalPending,
     selectedStudent,
   ]);
+  function getQuickAmountChipVariant(quickAmount: (typeof quickAmounts)[number]) {
+    if (quickAmount.key === "full") return "accent";
+    if (quickAmount.key === "next") return "soft";
+    if (quickAmount.key === "clear") return "ghost";
+    return "outline";
+  }
+
+  function getQuickAmountChipLabel(quickAmount: (typeof quickAmounts)[number]) {
+    if (quickAmount.key === "full") {
+      return quickAmount.disabled || quickAmount.amount === null
+        ? "Full Due"
+        : `Full Due ${formatInr(quickAmount.amount)}`;
+    }
+
+    if (quickAmount.key === "next") {
+      return quickAmount.disabled || quickAmount.amount === null
+        ? "Next"
+        : `Next ${formatInr(quickAmount.amount)}`;
+    }
+
+    if (quickAmount.key === "overdue") return "Overdue";
+    if (quickAmount.key === "lateFee") return "Late Fee";
+    if (quickAmount.key === "lastAmount") return "Last";
+    return "Clear x";
+  }
+
+  function getQuickAmountChipClassName(quickAmount: (typeof quickAmounts)[number]) {
+    return cn(
+      "shrink-0 disabled:cursor-not-allowed disabled:opacity-40",
+      quickAmount.key === "overdue" && (quickAmount.amount ?? 0) > 0 ? "text-destructive" : "",
+    );
+  }
 
   const allocatedPreviewTotal = allocationPreview.reduce(
     (sum, item) => sum + item.allocatedAmount,
@@ -1625,29 +1657,22 @@ export function PaymentDeskMobile({
                 ) : null}
 
                 <div className="flex flex-wrap gap-1.5 border-b border-border px-3 py-2">
-                  {quickAmounts.map((qa) =>
-                    qa.key === "clear" ? null : (
-                      <button
+                  {quickAmounts.map((qa) => (
+                      <Button
                         key={qa.key}
                         type="button"
+                        size="sm"
+                        variant={qa.key === "full" ? "accent" : getQuickAmountChipVariant(qa)}
                         disabled={qa.disabled}
-                        className={cn(
-                          "rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors",
-                          "disabled:cursor-not-allowed disabled:opacity-40",
-                          qa.key === "full"
-                            ? "border-accent/40 bg-accent-soft text-accent hover:bg-accent/15"
-                            : "border-border bg-surface text-foreground hover:bg-surface-2",
-                        )}
+                        className={getQuickAmountChipClassName(qa)}
                         onClick={() => {
                           setFormError(null);
                           setPaymentAmountInput(qa.amount === null ? "" : String(qa.amount));
                         }}
                       >
-                        {qa.label}
-                        {qa.amount !== null ? ` · ${formatInr(qa.amount)}` : ""}
-                      </button>
-                    ),
-                  )}
+                        {getQuickAmountChipLabel(qa)}
+                      </Button>
+                    ))}
                 </div>
 
                 {pendingLateFeeAmount > 0 ? (
@@ -2065,8 +2090,8 @@ export function PaymentDeskMobile({
                           key={quickAmount.key}
                           type="button"
                           size="sm"
-                          variant={quickAmount.key === "clear" ? "ghost" : "outline"}
-                          className="h-8 px-2 text-xs"
+                          variant={quickAmount.key === "full" ? "accent" : getQuickAmountChipVariant(quickAmount)}
+                          className={cn("h-8 px-2 text-xs", getQuickAmountChipClassName(quickAmount))}
                           disabled={quickAmount.disabled}
                           onClick={() => {
                             setFormError(null);
@@ -2078,7 +2103,7 @@ export function PaymentDeskMobile({
                             setPaymentAmountInput(String(quickAmount.amount));
                           }}
                         >
-                          {quickAmount.label}
+                          {getQuickAmountChipLabel(quickAmount)}
                         </Button>
                       ))}
                     </div>
@@ -2357,29 +2382,22 @@ export function PaymentDeskMobile({
 
                     {/* Quick amount chips + waiver chip + mobile discount */}
                     <div className="flex gap-1.5 overflow-x-auto border-b border-border px-3 py-2">
-                      {quickAmounts.map((qa) =>
-                        qa.key === "clear" ? null : (
-                          <button
+                      {quickAmounts.map((qa) => (
+                          <Button
                             key={`mobile-chip-${qa.key}`}
                             type="button"
+                            size="sm"
+                            variant={qa.key === "clear" ? "ghost" : qa.key === "full" ? "accent" : getQuickAmountChipVariant(qa)}
                             disabled={qa.disabled}
-                            className={cn(
-                              "shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-40",
-                              qa.key === "full"
-                                ? "border-accent/40 bg-accent-soft text-accent"
-                                : "border-border bg-surface text-foreground hover:bg-surface-2",
-                            )}
+                            className={getQuickAmountChipClassName(qa)}
                             onClick={() => {
                               setFormError(null);
                               setPaymentAmountInput(qa.amount === null ? "" : String(qa.amount));
                             }}
                           >
-                            {qa.key === "full" && qa.amount !== null
-                              ? `Full · ${formatInr(qa.amount)}`
-                              : qa.label}
-                          </button>
-                        ),
-                      )}
+                            {getQuickAmountChipLabel(qa)}
+                          </Button>
+                        ))}
                       {pendingLateFeeAmount > 0 ? (
                         <button
                           type="button"
