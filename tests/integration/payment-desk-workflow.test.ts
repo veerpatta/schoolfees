@@ -375,6 +375,20 @@ describe("payment desk cashier workflow", () => {
     expect(selectedBanner).toContain("studentSearchSectionRef.current?.scrollIntoView");
   });
 
+  it("today collection ticker receives optimistic increment after success", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+    const successEffect = component.match(
+      /if \(state\.status === "success"\) \{[\s\S]*?if \(state\.studentId\)/,
+    )?.[0] ?? "";
+
+    expect(component).toContain("optimisticCollectionAdd");
+    expect(successEffect).toContain("setOptimisticCollectionAdd");
+    expect(component).toContain("(data.todayCollection?.totalAmount ?? 0) + optimisticCollectionAdd");
+  });
+
 
   it("student labels stay short and show SR no", () => {
     expect(

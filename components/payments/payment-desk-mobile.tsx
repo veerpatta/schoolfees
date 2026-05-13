@@ -230,6 +230,8 @@ export function PaymentDeskMobile({
   const [clientRequestId, setClientRequestId] = useState(createClientRequestId);
   const [dismissedActionStateKey, setDismissedActionStateKey] = useState<string | null>(null);
   const [dismissedTodayReceiptId, setDismissedTodayReceiptId] = useState<string | null>(null);
+  const [optimisticCollectionAdd, setOptimisticCollectionAdd] = useState(0);
+  const [lastAddedAmount, setLastAddedAmount] = useState<number | null>(null);
   const isMobileView = useMediaQuery("(max-width: 767px)");
   const { ref: amountInputRef, scrollIntoView: scrollAmountInputIntoView } = useScrollIntoView<HTMLInputElement>();
   const { ref: refInputRef, scrollIntoView: scrollReferenceInputIntoView } = useScrollIntoView<HTMLInputElement>();
@@ -245,6 +247,7 @@ export function PaymentDeskMobile({
   const desktopStudentListRef = useRef<HTMLDivElement>(null);
   const summaryRequestRef = useRef(0);
   const summaryAbortRef = useRef<AbortController | null>(null);
+  const optimisticReceiptKeyRef = useRef<string | null>(null);
   const studentIndexLoadedRef = useRef(data.studentIndex.length > 0);
   const prefetchCache = useRef<Map<string, Promise<PaymentDeskStudentSummary | null>>>(new Map());
   const lastAmountFocusStudentIdRef = useRef<string | null>(null);
@@ -745,6 +748,13 @@ export function PaymentDeskMobile({
     submittingRef.current = false;
 
     if (state.status === "success") {
+      if (actionStateKey !== optimisticReceiptKeyRef.current) {
+        optimisticReceiptKeyRef.current = actionStateKey;
+        if (state.amountReceived && state.amountReceived > 0) {
+          setOptimisticCollectionAdd((prev) => prev + state.amountReceived!);
+          setLastAddedAmount(state.amountReceived);
+        }
+      }
       if (state.studentId) {
         void clearDraft({
           sessionLabel: paymentSessionLabel,
@@ -780,7 +790,16 @@ export function PaymentDeskMobile({
       setIsConfirmOpen(false);
       setFormError(state.message);
     }
-  }, [paymentDate, paymentSessionLabel, state]);
+  }, [actionStateKey, paymentDate, paymentSessionLabel, state]);
+
+  useEffect(() => {
+    if (lastAddedAmount === null) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setLastAddedAmount(null), 1500);
+    return () => window.clearTimeout(timer);
+  }, [lastAddedAmount]);
 
   useEffect(() => {
     if (data.initialClassId || selectedClassId) {
@@ -1421,9 +1440,16 @@ export function PaymentDeskMobile({
           <div className="flex items-center gap-4">
             <div className="text-right">
               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Today</p>
-              <p className="text-sm font-semibold tabular-nums text-foreground">
-                {formatInr(data.todayCollection?.totalAmount ?? 0)}
-              </p>
+              <div className="flex items-center justify-end gap-1.5">
+                <p className="text-sm font-semibold tabular-nums text-foreground">
+                  {formatInr((data.todayCollection?.totalAmount ?? 0) + optimisticCollectionAdd)}
+                </p>
+                {lastAddedAmount !== null ? (
+                  <span className="anim-fade-in text-[11px] font-medium text-success-soft-foreground">
+                    +{formatInr(lastAddedAmount)}
+                  </span>
+                ) : null}
+              </div>
             </div>
             <span className="text-xs text-muted-foreground">{defaultReceivedBy}</span>
           </div>
