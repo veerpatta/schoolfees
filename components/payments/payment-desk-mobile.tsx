@@ -622,6 +622,8 @@ export function PaymentDeskMobile({
   const printReceiptHref = visibleReceiptHref ? `${visibleReceiptHref}?print=1` : null;
   const selectedPaymentModeLabel =
     data.modeOptions.find((modeOption) => modeOption.value === paymentMode)?.label ?? paymentMode;
+  const todayDateString = new Date().toISOString().slice(0, 10);
+  const paymentDateIsBackdated = paymentDate !== todayDateString;
   const postedPaymentModeLabel =
     data.modeOptions.find((modeOption) => modeOption.value === visibleActionState.paymentMode)?.label ??
     visibleActionState.paymentMode ??
@@ -1436,6 +1438,11 @@ export function PaymentDeskMobile({
           <div className="flex items-center gap-3">
             <span className="text-sm font-semibold text-foreground">Payment Desk</span>
             <span className="text-xs text-muted-foreground">{paymentSessionLabel}</span>
+            {paymentDateIsBackdated ? (
+              <span className="rounded bg-warning-soft px-2 py-0.5 text-[10px] font-semibold text-warning-soft-foreground">
+                Backdated · {paymentDate}
+              </span>
+            ) : null}
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
@@ -1851,7 +1858,14 @@ export function PaymentDeskMobile({
 
                 <div className="grid grid-cols-2 gap-2 border-b border-border px-3 py-2.5">
                   <div>
-                    <label className="mb-1 block text-[10px] uppercase tracking-wide text-muted-foreground">Date</label>
+                    <label className="mb-1 block text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Date
+                      {paymentDateIsBackdated ? (
+                        <span className="ml-2 rounded bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold text-warning-soft-foreground">
+                          BACKDATED
+                        </span>
+                      ) : null}
+                    </label>
                     <Input
                       type="date"
                       value={paymentDate}
@@ -2573,6 +2587,26 @@ export function PaymentDeskMobile({
                         />
                       </div>
                     ) : null}
+
+                    <div className="border-b border-border px-3 py-2.5">
+                      <label className="mb-1 block text-[10px] uppercase tracking-wide text-muted-foreground">
+                        Payment date
+                        {paymentDateIsBackdated ? (
+                          <span className="ml-2 rounded bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold text-warning-soft-foreground">
+                            BACKDATED
+                          </span>
+                        ) : null}
+                      </label>
+                      <Input
+                        type="date"
+                        value={paymentDate}
+                        onChange={(event) => {
+                          setPaymentDate(event.target.value);
+                          setFormError(null);
+                        }}
+                        className="h-10"
+                      />
+                    </div>
 
                     {/* Status line */}
                     <div className="flex items-center justify-between px-3 py-2 text-[11px] text-muted-foreground">

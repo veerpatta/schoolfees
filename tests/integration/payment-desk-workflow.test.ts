@@ -389,6 +389,20 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("(data.todayCollection?.totalAmount ?? 0) + optimisticCollectionAdd");
   });
 
+  it("payment date backdated warning is visible and non-dismissable", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+    const backdatedBlock = component.match(
+      /paymentDateIsBackdated \? \([\s\S]*?BACKDATED[\s\S]*?\) : null/,
+    )?.[0] ?? "";
+
+    expect(component).toContain("const paymentDateIsBackdated = paymentDate !== todayDateString");
+    expect(backdatedBlock).toContain("BACKDATED");
+    expect(backdatedBlock).not.toContain("setDismissed");
+  });
+
 
   it("student labels stay short and show SR no", () => {
     expect(
