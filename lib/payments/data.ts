@@ -3,7 +3,7 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 
 import type { PaymentMode } from "@/lib/db/types";
-import { getFeePolicySummary } from "@/lib/fees/data";
+import { getFeePolicyForSession, getFeePolicySummary } from "@/lib/fees/data";
 import { createClient } from "@/lib/supabase/server";
 import { getStudentDetail } from "@/lib/students/data";
 import {
@@ -628,9 +628,15 @@ export async function countNonCancelledInstallments(studentId: string) {
   return count ?? 0;
 }
 
-async function getSelectedStudentPreflightContext(studentId: string) {
+async function getSelectedStudentPreflightContext(
+  studentId: string,
+  sessionLabel?: string | null,
+) {
+  const requestedSessionLabel = sessionLabel?.trim() || null;
   const [policy, student, installmentCount] = await Promise.all([
-    getFeePolicySummary(),
+    requestedSessionLabel
+      ? getFeePolicyForSession(requestedSessionLabel)
+      : getFeePolicySummary(),
     getStudentDetail(studentId),
     countNonCancelledInstallments(studentId),
   ]);
@@ -668,8 +674,12 @@ export async function preflightPaymentPosting(payload: {
   quickLateFeeWaiverAmount?: number;
   paymentMode?: PaymentMode;
   referenceNumber?: string | null;
+  sessionLabel?: string | null;
 }) {
-  const context = await getSelectedStudentPreflightContext(payload.studentId);
+  const context = await getSelectedStudentPreflightContext(
+    payload.studentId,
+    payload.sessionLabel,
+  );
   let installmentCount = context.installmentCount;
   let autoPrepareAttempted = false;
   let autoPrepareWorked: boolean | null = null;
@@ -934,7 +944,9 @@ export async function getPaymentEntryPageData(payload: {
   autoPrepareMissingDues?: boolean;
   initialSelectedSummary?: PaymentDeskStudentSummary | null;
 }): Promise<PaymentEntryPageData> {
-  const policy = await getFeePolicySummary();
+  const policy = payload.sessionLabel
+    ? await getFeePolicyForSession(payload.sessionLabel)
+    : await getFeePolicySummary();
   const sessionLabel = payload.sessionLabel ?? policy.academicSessionLabel;
   const today = new Date().toISOString().slice(0, 10);
   const shouldEagerLoadStudentIndex = Boolean(payload.studentId || payload.classId);
@@ -978,7 +990,9 @@ export async function getPaymentDeskStudentSummary(payload: {
   autoPrepareMissingDues?: boolean;
   includeLatestReceipt?: boolean;
 }): Promise<PaymentDeskStudentSummary> {
-  const policy = await getFeePolicySummary();
+  const policy = payload.sessionLabel
+    ? await getFeePolicyForSession(payload.sessionLabel)
+    : await getFeePolicySummary();
   const sessionLabel = payload.sessionLabel ?? policy.academicSessionLabel;
   const [selectedWorkbookRows, selectedStudentDetail] = await Promise.all([
     getWorkbookStudentFinancials({
@@ -1006,7 +1020,7 @@ export async function getPaymentDeskStudentSummary(payload: {
     if (breakdown.length === 0 && payload.autoPrepareMissingDues) {
       const autoPrepareIssue = await tryAutoPrepareSelectedStudentDues({
         studentId: selectedFinancial.studentId,
-        policySessionLabel: policy.academicSessionLabel,
+        policySessionLabel: sessionLabel,
       });
 
       if (!autoPrepareIssue) {
@@ -1104,8 +1118,11 @@ export async function postStudentPayment(payload: {
   remarks: string | null;
   receivedBy: string;
   clientRequestId: string;
+  sessionLabel?: string | null;
 }) {
-  const policy = await getFeePolicySummary();
+  const policy = payload.sessionLabel
+    ? await getFeePolicyForSession(payload.sessionLabel)
+    : await getFeePolicySummary();
   const existingReceipt = await findReceiptByClientRequestId({
     studentId: payload.studentId,
     clientRequestId: payload.clientRequestId,
@@ -1123,6 +1140,7 @@ export async function postStudentPayment(payload: {
     quickLateFeeWaiverAmount: payload.quickLateFeeWaiverAmount,
     paymentMode: payload.paymentMode,
     referenceNumber: payload.referenceNumber,
+    sessionLabel: payload.sessionLabel,
   });
   const duplicateReceipt = await findLikelyDuplicateReceipt({
     studentId: payload.studentId,

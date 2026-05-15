@@ -3,6 +3,8 @@ import { StudentImportWorkflow } from "@/components/imports/student-import-workf
 import { createEmptyImportPageData, getStudentImportPageData } from "@/lib/import/data";
 import { getStudentImportWorkflowReadiness } from "@/lib/import/readiness";
 import { getStudentFormOptions } from "@/lib/students/data";
+import { getViewSessionCookie } from "@/lib/session/cookie";
+import { resolveViewSession } from "@/lib/session/resolver";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 type ImportsPageProps = {
@@ -11,6 +13,8 @@ type ImportsPageProps = {
     mode?: string;
     notice?: string;
     error?: string;
+    session?: string;
+    sessionLabel?: string;
   }>;
 };
 
@@ -19,9 +23,15 @@ export default async function ImportsPage({ searchParams }: ImportsPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const selectedBatchId = resolvedSearchParams?.batchId?.trim() ?? "";
   const mode = resolvedSearchParams?.mode === "update" ? "update" : "add";
+  const viewSession = await resolveViewSession({
+    searchParamSession: resolvedSearchParams?.session ?? resolvedSearchParams?.sessionLabel,
+    cookieSession: await getViewSessionCookie(),
+  });
   let data = createEmptyImportPageData(mode);
   let importDataError: string | null = null;
-  const studentFormOptions = await getStudentFormOptions();
+  const studentFormOptions = await getStudentFormOptions({
+    sessionLabel: viewSession.sessionLabel,
+  });
 
   try {
     data = await getStudentImportPageData(selectedBatchId || null, mode);
@@ -68,7 +78,7 @@ export default async function ImportsPage({ searchParams }: ImportsPageProps) {
       <StudentImportWorkflow
         data={data}
         canManage={canManageImports}
-        currentSessionLabel={studentFormOptions.currentSessionLabel}
+        currentSessionLabel={viewSession.sessionLabel}
         sessionOptions={studentFormOptions.sessionOptions}
         notice={resolvedSearchParams?.notice?.trim() || null}
         error={resolvedSearchParams?.error?.trim() || null}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useActionState, useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -20,6 +20,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { useScrollIntoView } from "@/hooks/use-scroll-into-view";
 import { buildPaymentAllocation, buildReceiptPreviewAllocation } from "@/lib/payments/allocation";
 import { buildPaymentQuickAmounts } from "@/lib/payments/workflow";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 import {
   buildPaymentConfirmationSummary,
   buildPaymentDeskSearchIndex,
@@ -336,20 +337,21 @@ export function PaymentDeskMobile({
   const showReferenceField = paymentMode !== "cash";
   const referenceInputMode = paymentMode === "cheque" ? "numeric" : "text";
 
-  function buildStudentSummaryCacheKey(studentId: string, requestedPaymentDate: string) {
-    return `${studentId}:${requestedPaymentDate}`;
-  }
+  const buildStudentSummaryCacheKey = useCallback((studentId: string, requestedPaymentDate: string) => {
+    return `${data.sessionLabel}:${studentId}:${requestedPaymentDate}`;
+  }, [data.sessionLabel]);
 
-  async function fetchStudentSummary(payload: {
+  const fetchStudentSummary = useCallback(async (payload: {
     studentId: string;
     requestedPaymentDate: string;
     includeLatestReceipt: boolean;
     signal?: AbortSignal;
-  }) {
+  }) => {
     const params = new URLSearchParams({
       studentId: payload.studentId,
       paymentDate: payload.requestedPaymentDate,
       includeLatestReceipt: String(payload.includeLatestReceipt),
+      session: data.sessionLabel,
     });
     const response = await fetch(`/protected/payments/student-summary?${params.toString()}`, {
       method: "GET",
@@ -363,7 +365,7 @@ export function PaymentDeskMobile({
     }
 
     return response.json() as Promise<PaymentDeskStudentSummary>;
-  }
+  }, [data.sessionLabel]);
 
   function prefetchStudentSummary(studentId: string) {
     const today = new Date().toISOString().slice(0, 10);
@@ -406,7 +408,7 @@ export function PaymentDeskMobile({
     studentIndexLoadedRef.current = true;
 
     try {
-      const cached = sessionStorage.getItem(paymentDeskStudentIndexCacheKey);
+      const cached = sessionStorage.getItem(`${paymentDeskStudentIndexCacheKey}:${data.sessionLabel}`);
       if (cached) {
         const parsed = JSON.parse(cached) as {
           ts?: number;
@@ -438,7 +440,7 @@ export function PaymentDeskMobile({
         setStudentIndex(json.students);
         try {
           sessionStorage.setItem(
-            paymentDeskStudentIndexCacheKey,
+            `${paymentDeskStudentIndexCacheKey}:${data.sessionLabel}`,
             JSON.stringify({ ts: Date.now(), data: json.students }),
           );
         } catch {
@@ -523,7 +525,7 @@ export function PaymentDeskMobile({
     return () => {
       controller.abort();
     };
-  }, [paymentDate, selectedStudentId]);
+  }, [buildStudentSummaryCacheKey, fetchStudentSummary, paymentDate, selectedStudentId]);
 
   const allocationPreview = useMemo(() => {
     if (!selectedStudent) {
@@ -617,9 +619,11 @@ export function PaymentDeskMobile({
     ? state
     : initialState;
   const visibleReceiptHref = visibleActionState.receiptId
-    ? `/protected/receipts/${visibleActionState.receiptId}`
+    ? appendSessionParam(`/protected/receipts/${visibleActionState.receiptId}`, data.sessionLabel)
     : null;
-  const printReceiptHref = visibleReceiptHref ? `${visibleReceiptHref}?print=1` : null;
+  const printReceiptHref = visibleActionState.receiptId
+    ? appendSessionParam(`/protected/receipts/${visibleActionState.receiptId}?print=1`, data.sessionLabel)
+    : null;
   const selectedPaymentModeLabel =
     data.modeOptions.find((modeOption) => modeOption.value === paymentMode)?.label ?? paymentMode;
   const todayDateString = new Date().toISOString().slice(0, 10);
@@ -629,6 +633,7 @@ export function PaymentDeskMobile({
     visibleActionState.paymentMode ??
     selectedPaymentModeLabel;
   const paymentSessionLabel = data.sessionLabel || "Active session";
+  const withSession = (href: string) => appendSessionParam(href, data.sessionLabel);
   const draftValidation = validatePaymentDraft({
     selectedStudent,
     amountInput: paymentAmountInput,
@@ -727,7 +732,7 @@ export function PaymentDeskMobile({
           {latestReceiptToday.paymentMode ? ` (${latestReceiptToday.paymentMode})` : ""}
           {". "}
           <Link
-            href={`/protected/receipts/${latestReceiptToday.id}`}
+            href={withSession(`/protected/receipts/${latestReceiptToday.id}`)}
             className="underline underline-offset-2"
             target="_blank"
           >
@@ -765,7 +770,7 @@ export function PaymentDeskMobile({
         });
       }
       try {
-        sessionStorage.removeItem(paymentDeskStudentIndexCacheKey);
+        sessionStorage.removeItem(`${paymentDeskStudentIndexCacheKey}:${paymentSessionLabel}`);
       } catch {
         // Session storage may be unavailable.
       }
@@ -1945,7 +1950,7 @@ export function PaymentDeskMobile({
                     {latestPayment ? (
                       <p className="mt-1 text-xs text-muted-foreground">
                         Latest receipt: {latestPayment.receiptNumber} · {formatInr(latestPayment.totalAmount)} ·{" "}
-                        <Link className="text-accent underline-offset-4 hover:underline" href={`/protected/receipts/${latestPayment.id}`}>
+                        <Link className="text-accent underline-offset-4 hover:underline" href={withSession(`/protected/receipts/${latestPayment.id}`)}>
                           Open / Print
                         </Link>
                       </p>
@@ -1998,6 +2003,7 @@ export function PaymentDeskMobile({
                 {selectedStudentIssue.repairStudentId && selectedStudentIssue.actionLabel && canPost ? (
                   <form action={repairPaymentDeskStudentDuesAction}>
                     <input type="hidden" name="studentId" value={selectedStudentIssue.repairStudentId} />
+                    <input type="hidden" name="sessionLabel" value={data.sessionLabel} />
                     <Button type="submit">{selectedStudentIssue.actionLabel}</Button>
                   </form>
                 ) : selectedStudentIssue.actionHref && selectedStudentIssue.actionLabel ? (
@@ -2006,7 +2012,7 @@ export function PaymentDeskMobile({
                   </Button>
                 ) : null}
                 <Button asChild variant="outline">
-                  <Link href="/protected/students">Open Students</Link>
+                  <Link href={withSession("/protected/students")}>Open Students</Link>
                 </Button>
               </div>
             </SectionCard>
@@ -2123,6 +2129,7 @@ export function PaymentDeskMobile({
                 className="space-y-3 disabled:opacity-70"
               >
                 <input type="hidden" name="studentId" value={selectedStudentId} />
+                <input type="hidden" name="sessionLabel" value={data.sessionLabel} />
                 <input type="hidden" name="clientRequestId" value={clientRequestId} />
 
                 {studentSummaryLoading ? (
@@ -2952,10 +2959,10 @@ export function PaymentDeskMobile({
                           <p>{receipt.studentLabel}</p>
                           <div className="flex flex-wrap gap-2">
                             <Button asChild size="sm" variant="outline">
-                              <Link href={`/protected/receipts/${receipt.id}`}>Print</Link>
+                              <Link href={withSession(`/protected/receipts/${receipt.id}`)}>Print</Link>
                             </Button>
                             <Button asChild size="sm" variant="outline">
-                              <Link href={`/protected/students/${receipt.studentId}`}>Student</Link>
+                              <Link href={withSession(`/protected/students/${receipt.studentId}`)}>Student</Link>
                             </Button>
                           </div>
                         </div>
@@ -2996,7 +3003,7 @@ export function PaymentDeskMobile({
               <div className="mt-3">
                 {latestPayment ? (
                   <Button asChild size="sm" variant="outline">
-                    <Link href={`/protected/receipts/${latestPayment.id}`}>Open latest receipt</Link>
+                    <Link href={withSession(`/protected/receipts/${latestPayment.id}`)}>Open latest receipt</Link>
                   </Button>
                 ) : (
                   <OfficeRecentActions />
@@ -3031,10 +3038,10 @@ export function PaymentDeskMobile({
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-2">
                           <Button asChild size="sm" variant="outline">
-                            <Link href={`/protected/receipts/${receipt.id}`}>Print</Link>
+                            <Link href={withSession(`/protected/receipts/${receipt.id}`)}>Print</Link>
                           </Button>
                           <Button asChild size="sm" variant="outline">
-                            <Link href={`/protected/students/${receipt.studentId}`}>Student</Link>
+                            <Link href={withSession(`/protected/students/${receipt.studentId}`)}>Student</Link>
                           </Button>
                         </div>
                       </td>

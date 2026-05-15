@@ -9,6 +9,7 @@ import {
   getStudentDeletionSafety,
   updateStudent,
 } from "@/lib/students/data";
+import { parseAcademicSessionLabel } from "@/lib/config/fee-rules";
 import {
   type StudentFormInput,
   type StudentFormActionState,
@@ -33,6 +34,20 @@ type RecentImportRealignRpcRow = {
   attention_count: number;
   moved_student_ids: string[] | null;
 };
+
+function getSubmittedSessionLabel(formData: FormData) {
+  const raw = (formData.get("sessionLabel") ?? "").toString().trim();
+
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return parseAcademicSessionLabel(raw).normalizedLabel;
+  } catch {
+    return null;
+  }
+}
 
 function mapWriteErrorToState(
   message: string,
@@ -92,7 +107,10 @@ export async function createStudentAction(
 ): Promise<StudentFormActionState> {
   await requireStaffPermission("students:write");
   const input = getStudentFormInput(formData);
-  const { classOptions, routeOptions, resolvedSessionLabel } = await getStudentFormOptions();
+  const submittedSessionLabel = getSubmittedSessionLabel(formData);
+  const { classOptions, routeOptions, resolvedSessionLabel } = await getStudentFormOptions({
+    sessionLabel: submittedSessionLabel,
+  });
 
   const validated = validateStudentInput(input, {
     classIds: new Set(classOptions.map((option) => option.id)),
@@ -165,7 +183,10 @@ export async function updateStudentAction(
 ): Promise<StudentFormActionState> {
   await requireStaffPermission("students:write");
   const input = getStudentFormInput(formData);
-  const { classOptions, routeOptions, resolvedSessionLabel } = await getStudentFormOptions();
+  const submittedSessionLabel = getSubmittedSessionLabel(formData);
+  const { classOptions, routeOptions, resolvedSessionLabel } = await getStudentFormOptions({
+    sessionLabel: submittedSessionLabel,
+  });
 
   const validated = validateStudentInput(input, {
     classIds: new Set(classOptions.map((option) => option.id)),

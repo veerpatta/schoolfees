@@ -8,8 +8,11 @@ import { getActiveSessionLabel } from "@/lib/session/active";
 
 export type ResolvedViewSession = {
   sessionLabel: string;
-  source: "url" | "cookie" | "policy";
+  source: "url" | "cookie" | "default";
   isTest: boolean;
+  isProduction: boolean;
+  isEditable: boolean;
+  isCollectable: boolean;
 };
 
 function normalizeValidSessionLabel(value: string | null | undefined) {
@@ -30,10 +33,15 @@ function buildResolvedSession(
   sessionLabel: string,
   source: ResolvedViewSession["source"],
 ): ResolvedViewSession {
+  const isTest = isTestAcademicSessionLabel(sessionLabel);
+
   return {
     sessionLabel,
     source,
-    isTest: isTestAcademicSessionLabel(sessionLabel),
+    isTest,
+    isProduction: !isTest,
+    isEditable: true,
+    isCollectable: true,
   };
 }
 
@@ -60,5 +68,5 @@ export async function resolveViewSession({
   const policySession =
     normalizeValidSessionLabel(activeSessionLabel) ?? activeSessionLabel;
 
-  return buildResolvedSession(policySession, "policy");
+  return buildResolvedSession(policySession, "default");
 }

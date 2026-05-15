@@ -990,12 +990,14 @@ export async function upsertGlobalFeePolicy(payload: {
   receiptPrefix: string;
   customFeeHeads: FeeHeadDefinition[];
   notes: string | null;
+  activateSession?: boolean;
 }) {
   const supabase = await createClient();
   const values = buildPolicyPayload(payload);
+  const shouldActivateSession = payload.activateSession ?? true;
   const { data: existing, error: existingError } = await supabase
     .from("fee_policy_configs")
-    .select("id, academic_session_label")
+    .select("id, academic_session_label, is_active")
     .eq("academic_session_label", values.academic_session_label)
     .maybeSingle();
 
@@ -1004,6 +1006,8 @@ export async function upsertGlobalFeePolicy(payload: {
   }
 
   if (existing?.id) {
+    values.is_active = shouldActivateSession ? true : Boolean(existing.is_active);
+
     const { error } = await supabase
       .from("fee_policy_configs")
       .update(values)
@@ -1013,10 +1017,14 @@ export async function upsertGlobalFeePolicy(payload: {
       throw new Error(error.message);
     }
 
-    await setActiveSessionLabel(values.academic_session_label);
+    if (shouldActivateSession) {
+      await setActiveSessionLabel(values.academic_session_label);
+    }
 
     return existing.id as string;
   }
+
+  values.is_active = shouldActivateSession;
 
   const { data, error } = await supabase
     .from("fee_policy_configs")
@@ -1033,7 +1041,9 @@ export async function upsertGlobalFeePolicy(payload: {
   }
 
   await syncAcademicSessionFromPolicy(values.academic_session_label);
-  await setActiveSessionLabel(values.academic_session_label);
+  if (shouldActivateSession) {
+    await setActiveSessionLabel(values.academic_session_label);
+  }
 
   return data.id as string;
 }

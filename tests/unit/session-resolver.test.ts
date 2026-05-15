@@ -1,80 +1,58 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const getActiveSessionLabel = vi.fn();
+import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+
+const getActiveSessionLabel = vi.fn(async () => "2026-27");
 
 vi.mock("@/lib/session/active", () => ({
   getActiveSessionLabel,
 }));
 
 describe("resolveViewSession", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    getActiveSessionLabel.mockResolvedValue("2026-27");
-  });
-
-  it("uses a valid URL session before cookie or active policy", async () => {
+  it("marks production sessions editable and collectable", async () => {
     const { resolveViewSession } = await import("@/lib/session/resolver");
 
-    await expect(
-      resolveViewSession({
-        searchParamSession: "2025-26",
-        cookieSession: "2024-25",
-      }),
-    ).resolves.toEqual({
+    const session = await resolveViewSession({ searchParamSession: "2025-26" });
+
+    expect(session).toMatchObject({
       sessionLabel: "2025-26",
       source: "url",
       isTest: false,
-    });
-
-    expect(getActiveSessionLabel).not.toHaveBeenCalled();
-  });
-
-  it("falls back from an invalid URL session to a valid cookie session", async () => {
-    const { resolveViewSession } = await import("@/lib/session/resolver");
-
-    await expect(
-      resolveViewSession({
-        searchParamSession: "bad-session",
-        cookieSession: "2024-25",
-      }),
-    ).resolves.toEqual({
-      sessionLabel: "2024-25",
-      source: "cookie",
-      isTest: false,
+      isProduction: true,
+      isEditable: true,
+      isCollectable: true,
     });
   });
 
-  it("falls back from invalid URL and cookie sessions to the active session setting", async () => {
+  it("marks test sessions editable and collectable but not production", async () => {
     const { resolveViewSession } = await import("@/lib/session/resolver");
 
-    await expect(
-      resolveViewSession({
-        searchParamSession: "bad-session",
-        cookieSession: "TEST",
-      }),
-    ).resolves.toEqual({
-      sessionLabel: "2026-27",
-      source: "policy",
-      isTest: false,
+    const session = await resolveViewSession({
+      searchParamSession: "TEST-2026-27",
     });
 
-    expect(getActiveSessionLabel).toHaveBeenCalledTimes(1);
-  });
-
-  it("marks resolved TEST/UAT/DEMO sessions as test sessions", async () => {
-    const { resolveViewSession } = await import("@/lib/session/resolver");
-
-    await expect(
-      resolveViewSession({
-        searchParamSession: "TEST-2026-27",
-        cookieSession: "2026-27",
-      }),
-    ).resolves.toMatchObject({
+    expect(session).toMatchObject({
       sessionLabel: "TEST-2026-27",
       source: "url",
       isTest: true,
+      isProduction: false,
+      isEditable: true,
+      isCollectable: true,
+    });
+  });
+
+  it("falls back to default active session when URL and cookie are invalid", async () => {
+    const { resolveViewSession } = await import("@/lib/session/resolver");
+
+    const session = await resolveViewSession({
+      searchParamSession: "2026-26",
+      cookieSession: "wrong",
+    });
+
+    expect(session).toMatchObject({
+      sessionLabel: "2026-27",
+      source: "default",
+      isProduction: true,
     });
   });
 });

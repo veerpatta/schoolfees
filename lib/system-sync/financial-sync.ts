@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getFeePolicySummary } from "@/lib/fees/data";
+import { getFeePolicyForSession, getFeePolicySummary } from "@/lib/fees/data";
 import { setActiveSessionLabel } from "@/lib/session/set-active";
 import {
   generateSessionLedgersAction,
@@ -569,22 +569,11 @@ export async function syncSessionFinancials(payload: {
   reason: string;
   useSystemClient?: boolean;
 }) {
-  const policy = await getFeePolicySummary();
   const requestedSession = payload.sessionLabel.trim();
   const warnings: string[] = [];
 
-  if (
-    requestedSession &&
-    requestedSession.toLowerCase() !== policy.academicSessionLabel.trim().toLowerCase()
-  ) {
-    warnings.push(
-      `Dues were not prepared because ${requestedSession} is not active in Fee Setup. The active year is ${policy.academicSessionLabel}.`,
-    );
-    revalidateCoreFinancePaths();
-    return buildEmptySyncResult(payload.reason, warnings);
-  }
-
   const result = await generateSessionLedgersAction({
+    scopedSessionLabel: requestedSession,
     useAdminClient: payload.useSystemClient,
   });
   revalidateCoreFinancePaths();
@@ -606,6 +595,7 @@ export async function generateMissingSessionDues(payload: {
   }
 
   const result = await generateSessionLedgersAction({
+    scopedSessionLabel: payload.sessionLabel,
     scopedStudentIds: studentIds,
     useAdminClient: payload.useSystemClient,
   });
@@ -643,8 +633,11 @@ export function revalidateFinanceSurfaces(payload: { studentIds?: readonly strin
 
 export async function getSystemSyncHealth(sessionLabel?: string): Promise<SystemSyncHealth> {
   const supabase = await createClient();
-  const policy = await getFeePolicySummary();
-  const activeSession = sessionLabel?.trim() || policy.academicSessionLabel;
+  const requestedSession = sessionLabel?.trim();
+  const policy = requestedSession
+    ? await getFeePolicyForSession(requestedSession)
+    : await getFeePolicySummary();
+  const activeSession = requestedSession || policy.academicSessionLabel;
   const activeFeePolicyCalculationModel = policy.calculationModel ?? "unknown";
   const warnings: string[] = [];
   const errors: string[] = [];

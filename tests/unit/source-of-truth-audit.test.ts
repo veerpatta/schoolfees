@@ -152,4 +152,16 @@ describe("source of truth audit fixes", () => {
     expect(verifyScript).not.toContain(".update(");
     expect(verifyScript).not.toContain(".delete(");
   });
+
+  it("workbook_fee_setup_saves_selected_session_without_switching_default", () => {
+    const workbookSetupChange = readRepoFile("lib/fees/workbook-setup-change.ts");
+    const feePolicy = readRepoFile("lib/fees/policy.ts");
+
+    expect(workbookSetupChange).toContain("activateSession: false");
+    expect(workbookSetupChange).toContain("getFeeSetupPageData({\n    sessionLabel: payload.academicSessionLabel");
+    expect(workbookSetupChange).toContain("getFeeSetupPageData({\n    sessionLabel: currentFormPayload.academicSessionLabel");
+    expect(feePolicy).toContain("activateSession?: boolean");
+    expect(feePolicy).toContain("const shouldActivateSession = payload.activateSession ?? true");
+    expect(feePolicy).toContain("if (shouldActivateSession) {\n      await setActiveSessionLabel");
+  });
 });

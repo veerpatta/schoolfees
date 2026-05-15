@@ -243,6 +243,7 @@ function TodayPanel({
 function FollowUpQueue({
   rows,
   canPostPayments,
+  sessionLabel,
 }: {
   rows: Array<{
     studentId: string;
@@ -256,7 +257,10 @@ function FollowUpQueue({
     reminderText: string;
   }>;
   canPostPayments: boolean;
+  sessionLabel: string;
 }) {
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+
   if (rows.length === 0) {
     return (
       <EmptyState
@@ -302,10 +306,10 @@ function FollowUpQueue({
 
           <div className="flex flex-wrap gap-1.5 sm:shrink-0">
             <Button asChild size="sm" variant="ghost">
-              <Link href={`/protected/students/${row.studentId}`}>Open</Link>
+              <Link href={withSession(`/protected/students/${row.studentId}`)}>Open</Link>
             </Button>
             <Button asChild size="sm" variant={canPostPayments ? "primary" : "outline"}>
-              <Link href={`/protected/payments?studentId=${row.studentId}`}>
+              <Link href={withSession(`/protected/payments?studentId=${row.studentId}`)}>
                 {canPostPayments ? "Collect" : "Desk"}
               </Link>
             </Button>
@@ -323,6 +327,7 @@ function FollowUpQueue({
 
 function RecentReceipts({
   rows,
+  sessionLabel,
 }: {
   rows: Array<{
     receiptId: string;
@@ -333,7 +338,10 @@ function RecentReceipts({
     paymentMode: string;
     amount: number;
   }>;
+  sessionLabel: string;
 }) {
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+
   if (rows.length === 0) {
     return (
       <EmptyState
@@ -350,7 +358,7 @@ function RecentReceipts({
       {rows.map((row) => (
         <li key={row.receiptId}>
           <Link
-            href={`/protected/receipts/${row.receiptId}`}
+            href={withSession(`/protected/receipts/${row.receiptId}`)}
             className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-2/40"
           >
             <div className="min-w-0">
@@ -804,7 +812,11 @@ async function DashboardBelowFold({
             </Button>
           }
         >
-          <FollowUpQueue rows={data.followUpQueue} canPostPayments={canPostPayments} />
+          <FollowUpQueue
+            rows={data.followUpQueue}
+            canPostPayments={canPostPayments}
+            sessionLabel={sessionLabel}
+          />
         </Section>
 
         <Section
@@ -822,7 +834,7 @@ async function DashboardBelowFold({
             </Button>
           }
         >
-          <RecentReceipts rows={data.recentPayments} />
+          <RecentReceipts rows={data.recentPayments} sessionLabel={sessionLabel} />
         </Section>
       </div>
 
@@ -888,7 +900,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const canPostPayments = hasStaffPermission(staff, "payments:write");
   const canAutoPrepareDues = hasStaffPermission(staff, "fees:write");
   const preparedCount = Number.parseInt(resolvedSearchParams?.prepared ?? "", 10);
-  const withSession = (href: string) => appendSessionParam(href, resolvedSearchParams?.session);
+  const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
 
   return (
     <div className="space-y-7">
@@ -978,7 +990,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         <QuickActions
           canWriteStudents={canWriteStudents}
           canPostPayments={canPostPayments}
-          sessionLabel={resolvedSearchParams?.session}
+          sessionLabel={viewSession.sessionLabel}
         />
       </div>
 

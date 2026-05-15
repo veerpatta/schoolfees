@@ -42,7 +42,7 @@ export default async function FeeSetupPage({ searchParams }: FeeSetupPageProps) 
   });
   const [staff, data, masterData] = await Promise.all([
     requireStaffPermission("fees:view", { onDenied: "redirect" }),
-    getFeeSetupPageData(),
+    getFeeSetupPageData({ sessionLabel: viewSession.sessionLabel }),
     getMasterDataPageData(),
   ]);
 

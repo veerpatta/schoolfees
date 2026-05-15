@@ -7,6 +7,7 @@ import { SectionCard } from "@/components/admin/section-card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { uploadStudentImportBatchAction } from "@/app/protected/imports/actions";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 import type { SupportedImportFormat } from "@/lib/import/types";
 import type { ImportMode } from "@/lib/import/types";
 
@@ -28,6 +29,10 @@ export function BatchUploadCard({
   const formRef = useRef<HTMLFormElement>(null);
   const [submitting, setSubmitting] = useState(false);
   const defaultSessionLabel = currentSessionLabel ?? sessionOptions[0]?.value ?? "";
+  const templateHref = appendSessionParam(
+    `/protected/imports/template?mode=${mode}&sessionLabel=${encodeURIComponent(defaultSessionLabel)}`,
+    defaultSessionLabel,
+  );
 
   async function handleSubmit(formData: FormData) {
     setSubmitting(true);
@@ -47,7 +52,7 @@ export function BatchUploadCard({
         : "Upload the add-students file. Student name and class are enough to create a row."}
       actions={
         <Button asChild size="sm" variant="outline">
-          <Link href={`/protected/imports/template?mode=${mode}`}>
+          <Link href={templateHref}>
             {mode === "update" ? "Download Existing Students for Update" : "Download Add Template"}
           </Link>
         </Button>

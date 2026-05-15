@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const getFeePolicySummary = vi.fn();
+const getFeePolicyForSession = vi.fn();
 const getStudentDetail = vi.fn();
 const getWorkbookStudentFinancials = vi.fn();
 const getWorkbookInstallmentBalances = vi.fn();
@@ -12,6 +13,7 @@ const prepareDuesForStudentsAutomatically = vi.fn();
 
 vi.mock("@/lib/fees/data", () => ({
   getFeePolicySummary,
+  getFeePolicyForSession,
 }));
 
 vi.mock("@/lib/students/data", () => ({
@@ -44,6 +46,17 @@ describe("payment entry data", () => {
         { value: "upi", label: "UPI" },
       ],
     });
+    getFeePolicyForSession.mockImplementation((sessionLabel: string) =>
+      Promise.resolve({
+        academicSessionLabel: sessionLabel,
+        receiptPrefix: "SVP",
+        lateFeeLabel: "Flat Rs 1000",
+        acceptedPaymentModes: [
+          { value: "cash", label: "Cash" },
+          { value: "upi", label: "UPI" },
+        ],
+      }),
+    );
     getWorkbookTransactions.mockResolvedValue([]);
     const emptyStudentQuery = {
       select: vi.fn().mockReturnThis(),

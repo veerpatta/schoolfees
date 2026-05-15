@@ -1,6 +1,6 @@
 import type { UpdateTemplateStudent } from "@/lib/import/templates";
 import { getConventionalDiscountPolicies } from "@/lib/fees/conventional-discounts";
-import { getFeePolicySummary } from "@/lib/fees/data";
+import { getFeePolicyForSession, getFeePolicySummary } from "@/lib/fees/data";
 import { getMasterDataOptions } from "@/lib/master-data/data";
 import { createClient } from "@/lib/supabase/server";
 import { requireAnyStaffPermission } from "@/lib/supabase/session";
@@ -127,12 +127,15 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const mode = url.searchParams.get("mode") === "update" ? "update" : "add";
-  const sessionLabel = url.searchParams.get("sessionLabel")?.trim() ?? "";
+  const sessionLabel =
+    (url.searchParams.get("sessionLabel") ?? url.searchParams.get("session"))?.trim() ?? "";
   const includeAllSessions = sessionLabel === "__all__";
   const normalizedSessionLabel = sessionLabel && sessionLabel !== "__all__" ? sessionLabel : null;
   const [{ classOptions, routeOptions }, policy] = await Promise.all([
     getMasterDataOptions(),
-    getFeePolicySummary(),
+    normalizedSessionLabel
+      ? getFeePolicyForSession(normalizedSessionLabel)
+      : getFeePolicySummary(),
   ]);
   const targetSessionLabel = includeAllSessions
     ? ""

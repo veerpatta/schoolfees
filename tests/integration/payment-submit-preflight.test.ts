@@ -9,6 +9,7 @@ const prepareDuesForStudentsAutomatically = vi.fn();
 
 vi.mock("@/lib/fees/data", () => ({
   getFeePolicySummary,
+  getFeePolicyForSession: getFeePolicySummary,
 }));
 
 vi.mock("@/lib/students/data", () => ({

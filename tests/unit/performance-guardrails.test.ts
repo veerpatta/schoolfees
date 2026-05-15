@@ -102,7 +102,7 @@ describe("office performance guardrails", () => {
     expect(paymentClient).toContain("prefetchStudentSummary");
     expect(paymentClient).toContain("onMouseEnter={() => prefetchStudentSummary");
     expect(paymentClient).toContain("onTouchStart={() => prefetchStudentSummary");
-    expect(paymentClient).toContain("sessionStorage.removeItem(paymentDeskStudentIndexCacheKey)");
+    expect(paymentClient).toContain("sessionStorage.removeItem(`${paymentDeskStudentIndexCacheKey}:${paymentSessionLabel}`)");
   });
 
   it("keeps payment desk student index privately cacheable within the staff session", () => {

@@ -3,7 +3,8 @@
 import { redirect } from "next/navigation";
 
 import type { PaymentMode } from "@/lib/db/types";
-import { getFeePolicySummary } from "@/lib/fees/data";
+import { getFeePolicyForSession } from "@/lib/fees/data";
+import { parseAcademicSessionLabel } from "@/lib/config/fee-rules";
 import {
   DuplicatePaymentWarning,
   getPaymentPostingDiagnostic,
@@ -66,9 +67,22 @@ function parseOptionalPaymentAdjustment(value: FormDataEntryValue | null, fieldL
   return numeric;
 }
 
-async function parsePaymentMode(value: FormDataEntryValue | null): Promise<PaymentMode> {
+function parseSessionLabel(value: FormDataEntryValue | null) {
   const normalized = (value ?? "").toString().trim();
-  const policy = await getFeePolicySummary();
+
+  if (!normalized) {
+    throw new Error("Academic session is required.");
+  }
+
+  return parseAcademicSessionLabel(normalized).normalizedLabel;
+}
+
+async function parsePaymentMode(
+  value: FormDataEntryValue | null,
+  sessionLabel: string,
+): Promise<PaymentMode> {
+  const normalized = (value ?? "").toString().trim();
+  const policy = await getFeePolicyForSession(sessionLabel);
 
   if (policy.acceptedPaymentModes.some((item) => item.value === normalized)) {
     return normalized as PaymentMode;
@@ -135,8 +149,9 @@ export async function submitPaymentEntryAction(
   try {
     await requireStaffPermission("payments:write");
     const studentId = parseUuid(formData.get("studentId"), "Student");
+    const sessionLabel = parseSessionLabel(formData.get("sessionLabel"));
     const paymentDate = parsePaymentDate(formData.get("paymentDate"));
-    const paymentMode = await parsePaymentMode(formData.get("paymentMode"));
+    const paymentMode = await parsePaymentMode(formData.get("paymentMode"), sessionLabel);
     const paymentAmount = parsePaymentAmount(formData.get("paymentAmount"));
     const quickDiscountAmount = parseOptionalPaymentAdjustment(
       formData.get("quickDiscountAmount"),
@@ -149,9 +164,21 @@ export async function submitPaymentEntryAction(
     const clientRequestId = parseUuid(formData.get("clientRequestId"), "Payment attempt");
     const referenceNumber = (formData.get("referenceNumber") ?? "").toString().trim() || null;
     const receivedBy = parseRequiredString(formData.get("receivedBy"), "Received by");
+    const student = await getStudentDetail(studentId);
+
+    if (!student) {
+      throw new Error("Selected student could not be found. Refresh Payment Desk and select the student again.");
+    }
+
+    if (student.classSessionLabel !== sessionLabel) {
+      throw new Error(
+        `Selected student belongs to ${student.classSessionLabel || "another year"}, but this payment desk is working in ${sessionLabel}. Change the session before collecting.`,
+      );
+    }
 
     const receipt = await postStudentPayment({
       studentId,
+      sessionLabel,
       paymentDate,
       paymentMode,
       paymentAmount,
@@ -162,8 +189,7 @@ export async function submitPaymentEntryAction(
       receivedBy,
       clientRequestId,
     });
-    const student = await getStudentDetail(studentId);
-    const resolvedSessionLabel = student?.classSessionLabel || (await getFeePolicySummary()).academicSessionLabel;
+    const resolvedSessionLabel = student.classSessionLabel || sessionLabel;
 
     revalidateSessionFinance(resolvedSessionLabel, [studentId]);
 
@@ -192,6 +218,18 @@ export async function submitPaymentEntryAction(
 export async function repairPaymentDeskStudentDuesAction(formData: FormData) {
   await requireStaffPermission("payments:write");
   const studentId = parseUuid(formData.get("studentId"), "Student");
+  const sessionLabel = parseSessionLabel(formData.get("sessionLabel"));
+  const student = await getStudentDetail(studentId);
+
+  if (!student) {
+    throw new Error("Student record was not found.");
+  }
+
+  if (student.classSessionLabel !== sessionLabel) {
+    throw new Error(
+      `Selected student belongs to ${student.classSessionLabel || "another year"}, but this payment desk is working in ${sessionLabel}.`,
+    );
+  }
 
   const result = await prepareDuesForStudentsAutomatically({
     studentIds: [studentId],
@@ -211,6 +249,7 @@ export async function repairPaymentDeskStudentDuesAction(formData: FormData) {
 
   const params = new URLSearchParams({
     studentId,
+    session: sessionLabel,
     repairNotice: noticeParts.join("; "),
   });
 

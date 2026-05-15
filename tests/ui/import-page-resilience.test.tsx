@@ -7,6 +7,8 @@ const getStudentImportWorkflowReadiness = vi.fn();
 const getStudentFormOptions = vi.fn();
 const requireStaffPermission = vi.fn();
 const hasStaffPermission = vi.fn();
+const getViewSessionCookie = vi.fn();
+const resolveViewSession = vi.fn();
 
 vi.mock("server-only", () => ({}));
 
@@ -34,6 +36,14 @@ vi.mock("@/lib/supabase/session", () => ({
   hasStaffPermission,
 }));
 
+vi.mock("@/lib/session/cookie", () => ({
+  getViewSessionCookie,
+}));
+
+vi.mock("@/lib/session/resolver", () => ({
+  resolveViewSession,
+}));
+
 vi.mock("@/components/imports/student-import-workflow", () => ({
   StudentImportWorkflow: ({ data }: { data: { selectedBatch: unknown } }) =>
     React.createElement("div", null, data.selectedBatch ? "batch" : "empty"),
@@ -49,6 +59,8 @@ describe("imports page resilience", () => {
     vi.clearAllMocks();
     requireStaffPermission.mockResolvedValue({ appRole: "admin" });
     hasStaffPermission.mockReturnValue(true);
+    getViewSessionCookie.mockResolvedValue(null);
+    resolveViewSession.mockResolvedValue({ sessionLabel: "2026-27" });
     getStudentFormOptions.mockResolvedValue({
       currentSessionLabel: "2026-27",
       sessionOptions: [],

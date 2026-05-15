@@ -59,7 +59,7 @@ function workbookApplyForm(sessionLabel: string) {
   return formData;
 }
 
-describe("Fee Setup publish active-session guard", () => {
+describe("Fee Setup publish working-session behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireStaffPermission.mockResolvedValue({ appRole: "admin" });
@@ -89,15 +89,13 @@ describe("Fee Setup publish active-session guard", () => {
     expect(applyWorkbookFeeSetupBatch).toHaveBeenCalled();
   });
 
-  it("refuses to publish a different session as a silent active-session switch", async () => {
+  it("publishes a different working session without switching the default active session", async () => {
     const { saveWorkbookFeeSetupAction } = await import("@/app/protected/fee-setup/actions");
 
     const result = await saveWorkbookFeeSetupAction(previousState, workbookApplyForm("2025-26"));
 
-    expect(result.status).toBe("error");
-    expect(result.message).toContain("Refusing to switch the active session");
-    expect(result.message).toContain("Current active is 2026-27");
-    expect(applyWorkbookFeeSetupBatch).not.toHaveBeenCalled();
+    expect(result.status).toBe("success");
+    expect(applyWorkbookFeeSetupBatch).toHaveBeenCalled();
     expect(setActiveSessionLabel).not.toHaveBeenCalled();
   });
 

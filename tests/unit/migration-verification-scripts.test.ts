@@ -29,6 +29,25 @@ describe("phase 1 migration verification scripts", () => {
     expect(readme).toContain("node scripts/verify-phase1-migrations.mjs");
   });
 
+  it("documents and implements the required academic sessions verifier", () => {
+    const scriptPath = "scripts/verify-required-sessions.mjs";
+    expect(existsSync(join(repoRoot, scriptPath))).toBe(true);
+
+    const script = readRepoFile(scriptPath);
+    expect(script).toContain('"2025-26", "2026-27", "TEST-2026-27"');
+    expect(script).toContain("academic_sessions");
+    expect(script).toContain("fee_policy_configs");
+    expect(script).toContain("classes");
+    expect(script).toContain("fee_settings");
+    expect(script).toContain("process.exit(1)");
+    expect(script).not.toContain(".insert(");
+    expect(script).not.toContain(".update(");
+    expect(script).not.toContain(".delete(");
+
+    const readme = readRepoFile("README.md");
+    expect(readme).toContain("node scripts/verify-required-sessions.mjs");
+  });
+
   it("keeps the public TEST-data audit helper read-only", () => {
     const scriptPath = "scripts/audit-test-data-in-public.mjs";
     expect(existsSync(join(repoRoot, scriptPath))).toBe(true);

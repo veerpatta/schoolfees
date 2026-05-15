@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ConventionalDiscountPolicy } from "@/lib/fees/types";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 import { STUDENT_STATUSES } from "@/lib/students/constants";
 import {
   INITIAL_STUDENT_FORM_ACTION_STATE,
@@ -49,6 +50,7 @@ type StudentFormProps = {
   mode: "add" | "edit";
   classOptions: StudentClassOption[];
   routeOptions: StudentRouteOption[];
+  sessionLabel: string;
   conventionalDiscountPolicies?: ConventionalDiscountPolicy[];
   initialValues: StudentFormValues;
   returnTo?: string;
@@ -76,6 +78,7 @@ export function StudentForm({
   mode,
   classOptions,
   routeOptions,
+  sessionLabel,
   conventionalDiscountPolicies = [],
   initialValues,
   returnTo = "/protected/students",
@@ -92,9 +95,11 @@ export function StudentForm({
       : initialValues;
   const recordAlreadySaved = state.status === "error" && Boolean(state.studentId);
   const disableSubmit = classOptions.length === 0 || recordAlreadySaved;
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
   return (
     <form action={formAction} className="space-y-6">
+      <input type="hidden" name="sessionLabel" value={sessionLabel} />
       <div className="flex flex-wrap gap-2">
         <ValueStatePill tone="editable">Student Master</ValueStatePill>
         <ValueStatePill tone="policy">Fee exceptions</ValueStatePill>
@@ -115,10 +120,10 @@ export function StudentForm({
           {state.status === "success" && state.studentId ? (
             <div className="mt-3 flex flex-wrap gap-2">
               <Button asChild size="sm">
-                <Link href={`/protected/payments?studentId=${state.studentId}`}>Open Payment Desk</Link>
+                <Link href={withSession(`/protected/payments?studentId=${state.studentId}`)}>Open Payment Desk</Link>
               </Button>
               <Button asChild size="sm" variant="outline">
-                <Link href={`/protected/students/${state.studentId}?returnTo=${encodeURIComponent(returnTo)}`}>
+                <Link href={withSession(`/protected/students/${state.studentId}?returnTo=${encodeURIComponent(returnTo)}`)}>
                   Open student
                 </Link>
               </Button>
@@ -440,7 +445,7 @@ export function StudentForm({
               : "Update student"}
         </Button>
         <Button type="button" variant="outline" asChild>
-          <Link href={returnTo}>Cancel</Link>
+          <Link href={withSession(returnTo)}>Cancel</Link>
         </Button>
       </div>
     </form>

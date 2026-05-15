@@ -35,10 +35,15 @@ function buildImportsUrl(
   notice?: string,
   error?: string,
   mode: ImportMode = "add",
+  sessionLabel?: string | null,
 ) {
   const searchParams = new URLSearchParams();
 
   searchParams.set("mode", mode);
+
+  if (sessionLabel?.trim()) {
+    searchParams.set("session", sessionLabel.trim());
+  }
 
   if (batchId) {
     searchParams.set("batchId", batchId);
@@ -78,7 +83,7 @@ export async function uploadStudentImportBatchAction(formData: FormData) {
     const message =
       error instanceof Error ? error.message : "Unable to upload the import file.";
 
-    redirect(buildImportsUrl(batchId, undefined, message, mode));
+    redirect(buildImportsUrl(batchId, undefined, message, mode, sessionLabel));
   }
 
   revalidatePath("/protected/imports");
@@ -90,6 +95,7 @@ export async function uploadStudentImportBatchAction(formData: FormData) {
         : "Upload complete. Match spreadsheet columns, then check rows.",
       undefined,
       mode,
+      sessionLabel,
     ),
   );
 }

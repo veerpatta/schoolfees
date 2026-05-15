@@ -632,6 +632,7 @@ async function applyWorkbookSetupPayload(
       receiptPrefix: basePolicy.receiptPrefix,
       customFeeHeads: payload.customFeeHeads,
       notes: basePolicy.notes,
+      activateSession: false,
     });
   }
 
@@ -658,7 +659,9 @@ async function applyWorkbookSetupPayload(
     }
   }
 
-  let refreshedSetupData = await getFeeSetupPageData();
+  let refreshedSetupData = await getFeeSetupPageData({
+    sessionLabel: payload.academicSessionLabel,
+  });
   let refreshedPlan = buildWorkbookSetupPlan(refreshedSetupData, payload);
 
   for (const row of refreshedPlan.classRows.filter(
@@ -697,7 +700,9 @@ async function applyWorkbookSetupPayload(
     });
   }
 
-  refreshedSetupData = await getFeeSetupPageData();
+  refreshedSetupData = await getFeeSetupPageData({
+    sessionLabel: payload.academicSessionLabel,
+  });
   refreshedPlan = buildWorkbookSetupPlan(refreshedSetupData, payload);
 
   return {
@@ -778,7 +783,9 @@ function buildWorkbookImpactPreview(payload: {
 export async function createWorkbookFeeSetupPreview(
   payload: WorkbookFeeSetupFormPayload,
 ) {
-  const setupData = await getFeeSetupPageData();
+  const setupData = await getFeeSetupPageData({
+    sessionLabel: payload.academicSessionLabel,
+  });
   const plan = buildWorkbookSetupPlan(setupData, payload);
 
   if (plan.changedFields.length === 0) {
@@ -864,7 +871,9 @@ export async function applyWorkbookFeeSetupBatch(
     throw new Error("The Fee Setup form changed after review. Review the changes again before saving.");
   }
 
-  const currentSetupData = await getFeeSetupPageData();
+  const currentSetupData = await getFeeSetupPageData({
+    sessionLabel: currentFormPayload.academicSessionLabel,
+  });
   const currentBeforeSnapshot = buildWorkbookSetupSnapshot(
     currentSetupData,
     storedPayload.academicSessionLabel,

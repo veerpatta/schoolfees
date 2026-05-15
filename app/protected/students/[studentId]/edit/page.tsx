@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StudentForm } from "@/components/students/student-form";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 import { getStudentDetail, getStudentFormOptions } from "@/lib/students/data";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
@@ -36,9 +37,10 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
     routeOptions,
     conventionalDiscountPolicies,
     resolvedSessionLabel,
-  } = await getStudentFormOptions();
+  } = await getStudentFormOptions({ sessionLabel: student.classSessionLabel });
   const hasSessionMismatch =
     student.classSessionLabel.trim().toLowerCase() !== resolvedSessionLabel.trim().toLowerCase();
+  const sessionAwareReturnTo = appendSessionParam(returnTo, resolvedSessionLabel);
 
   return (
     <div className="space-y-6">
@@ -47,7 +49,7 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
         title="Edit student"
         description={`Update student details and fee exceptions for ${student.fullName} (SR no ${student.admissionNo}).`}
         actions={
-          <Link className="text-sm font-medium text-foreground underline-offset-4 hover:underline" href={returnTo}>
+          <Link className="text-sm font-medium text-foreground underline-offset-4 hover:underline" href={sessionAwareReturnTo}>
             Back to Students
           </Link>
         }
@@ -66,6 +68,7 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
           mode="edit"
           classOptions={classOptions}
           routeOptions={routeOptions}
+          sessionLabel={resolvedSessionLabel}
           conventionalDiscountPolicies={conventionalDiscountPolicies}
           initialValues={{
             fullName: student.fullName,
@@ -96,7 +99,7 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
               student.conventionalDiscountManualOverrideReason ?? "",
             notes: student.notes ?? "",
           }}
-          returnTo={returnTo}
+          returnTo={sessionAwareReturnTo}
           action={updateStudentAction.bind(null, student.id)}
         />
       </SectionCard>

@@ -1,10 +1,11 @@
 import type { NextRequest } from "next/server";
 
+import { parseAcademicSessionLabel } from "@/lib/config/fee-rules";
 import { getPaymentDeskStudentSummary } from "@/lib/payments/data";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i;
 
 function normalizeStudentId(value: string | null) {
   const normalized = (value ?? "").trim();
@@ -19,6 +20,21 @@ function normalizePaymentDate(value: string | null) {
 function normalizeIncludeLatestReceipt(value: string | null) {
   return (value ?? "").trim().toLowerCase() !== "false";
 }
+
+function normalizeSessionLabel(value: string | null) {
+  const normalized = (value ?? "").trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  try {
+    return parseAcademicSessionLabel(normalized).normalizedLabel;
+  } catch {
+    return null;
+  }
+}
+
 function normalizeWhole(value: string | null) {
   const n = Number((value ?? "").trim());
   return Number.isInteger(n) && n >= 0 ? n : 0;
@@ -31,8 +47,11 @@ export async function GET(request: NextRequest) {
   const includeLatestReceipt = normalizeIncludeLatestReceipt(
     request.nextUrl.searchParams.get("includeLatestReceipt"),
   );
+  const sessionLabel = normalizeSessionLabel(request.nextUrl.searchParams.get("session"));
   const quickDiscountAmount = normalizeWhole(request.nextUrl.searchParams.get("quickDiscountAmount"));
-  const quickLateFeeWaiverAmount = normalizeWhole(request.nextUrl.searchParams.get("quickLateFeeWaiverAmount"));
+  const quickLateFeeWaiverAmount = normalizeWhole(
+    request.nextUrl.searchParams.get("quickLateFeeWaiverAmount"),
+  );
 
   if (!studentId || !paymentDate) {
     return Response.json(
@@ -45,6 +64,7 @@ export async function GET(request: NextRequest) {
     const summary = await getPaymentDeskStudentSummary({
       studentId,
       paymentDate,
+      sessionLabel: sessionLabel ?? undefined,
       autoPrepareMissingDues: true,
       includeLatestReceipt,
     });

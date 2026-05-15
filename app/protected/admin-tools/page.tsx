@@ -7,7 +7,9 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { OfficeNotice } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { advancedHubSections } from "@/lib/config/navigation";
-import { getFeePolicySummary } from "@/lib/fees/data";
+import { appendSessionParam } from "@/lib/navigation/session-href";
+import { getViewSessionCookie } from "@/lib/session/cookie";
+import { resolveViewSession } from "@/lib/session/resolver";
 import { getSystemSyncHealth } from "@/lib/system-sync/finance-sync";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/lib/supabase/session";
 
@@ -21,14 +23,23 @@ import {
 
 export const revalidate = 60;
 
-export default async function AdvancedPage() {
+type AdvancedPageProps = {
+  searchParams?: Promise<{ session?: string }>;
+};
+
+export default async function AdvancedPage({ searchParams }: AdvancedPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const viewSession = await resolveViewSession({
+    searchParamSession: resolvedSearchParams?.session,
+    cookieSession: await getViewSessionCookie(),
+  });
   const staff = await requireAnyStaffPermission(["finance:view", "settings:view"], {
     onDenied: "redirect",
   });
   const canRepairFeeData = hasStaffPermission(staff, "fees:write");
-  const policy = await getFeePolicySummary();
-  const feeDataHealth = await getSystemSyncHealth(policy.academicSessionLabel);
+  const feeDataHealth = await getSystemSyncHealth(viewSession.sessionLabel);
   const databaseObjectStatuses = Object.values(feeDataHealth.requiredDatabaseObjectsStatus);
+  const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
 
   const visibleSections = advancedHubSections
     .map((section) => ({
@@ -76,7 +87,7 @@ export default async function AdvancedPage() {
                 tone={feeDataHealth.dashboardReady && feeDataHealth.paymentDeskReady ? "good" : "warning"}
               />
               <Button asChild>
-                <Link href="/protected/admin-tools/session-health">Open Session Health</Link>
+                <Link href={withSession("/protected/admin-tools/session-health")}>Open Session Health</Link>
               </Button>
             </div>
           </div>
@@ -120,9 +131,11 @@ export default async function AdvancedPage() {
               </p>
               <div className="flex flex-wrap gap-2">
               <form action={repairCurrentSessionDuesAction}>
+                <input type="hidden" name="sessionLabel" value={viewSession.sessionLabel} />
                 <PendingSubmitButton idleLabel="Prepare missing dues" pendingLabel="Preparing..." />
               </form>
               <form action={syncCurrentSessionAction}>
+                <input type="hidden" name="sessionLabel" value={viewSession.sessionLabel} />
                 <PendingSubmitButton
                   idleLabel="Update fee records for this year"
                   pendingLabel="Updating..."
@@ -130,6 +143,7 @@ export default async function AdvancedPage() {
                 />
               </form>
               <form action={alignWorkingSessionWithFeeSetupAction}>
+                <input type="hidden" name="sessionLabel" value={viewSession.sessionLabel} />
                 <PendingSubmitButton
                   idleLabel="Align year with Fee Setup"
                   pendingLabel="Aligning..."
@@ -137,6 +151,7 @@ export default async function AdvancedPage() {
                 />
               </form>
               <form action={repairPaymentDeskDataAction}>
+                <input type="hidden" name="sessionLabel" value={viewSession.sessionLabel} />
                 <PendingSubmitButton
                   idleLabel="Fix Payment Desk dues"
                   pendingLabel="Fixing..."
@@ -144,6 +159,7 @@ export default async function AdvancedPage() {
                 />
               </form>
               <form action={syncDashboardNowAction}>
+                <input type="hidden" name="sessionLabel" value={viewSession.sessionLabel} />
                 <PendingSubmitButton
                   idleLabel="Refresh Dashboard totals"
                   pendingLabel="Refreshing..."
@@ -210,7 +226,7 @@ export default async function AdvancedPage() {
                 return (
                   <Link
                     key={item.href}
-                    href={item.href}
+                    href={withSession(item.href)}
                     className="rounded-xl border border-border bg-surface-2 p-4 transition-colors hover:border-border-strong hover:bg-card"
                   >
                     <div className="flex items-start justify-between gap-3">

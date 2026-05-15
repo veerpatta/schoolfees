@@ -11,6 +11,7 @@ import { createStudentAction } from "../actions";
 
 type NewStudentPageProps = {
   searchParams?: Promise<{
+    session?: string;
     sessionLabel?: string;
   }>;
 };
@@ -18,8 +19,12 @@ type NewStudentPageProps = {
 export default async function NewStudentPage({ searchParams }: NewStudentPageProps) {
   const staff = await requireStaffPermission("students:write", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const requestedSessionLabel = resolvedSearchParams?.sessionLabel?.trim() ?? null;
-  const [{ classOptions, routeOptions, conventionalDiscountPolicies }, setup] = await Promise.all([
+  const requestedSessionLabel =
+    (resolvedSearchParams?.session ?? resolvedSearchParams?.sessionLabel)?.trim() ?? null;
+  const [
+    { classOptions, routeOptions, conventionalDiscountPolicies, resolvedSessionLabel },
+    setup,
+  ] = await Promise.all([
     getStudentFormOptions({ sessionLabel: requestedSessionLabel }),
     getSetupWizardData(),
   ]);
@@ -51,6 +56,7 @@ export default async function NewStudentPage({ searchParams }: NewStudentPagePro
             mode="add"
             classOptions={classOptions}
             routeOptions={routeOptions}
+            sessionLabel={resolvedSessionLabel}
             conventionalDiscountPolicies={conventionalDiscountPolicies}
             initialValues={{
               fullName: "",

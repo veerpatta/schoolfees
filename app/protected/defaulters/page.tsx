@@ -13,6 +13,7 @@ import {
 } from "@/lib/defaulters/types";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
 import { requireStaffPermission } from "@/lib/supabase/session";
@@ -69,6 +70,7 @@ export default async function DefaultersPage({
     cookieSession: await getViewSessionCookie(),
   });
   const data = await getDefaultersPageData(filters, viewSession.sessionLabel);
+  const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
 
   return (
     <div className="space-y-6">
@@ -83,7 +85,7 @@ export default async function DefaultersPage({
               tone="accent"
             />
             <Button asChild size="sm" variant="outline">
-              <Link href="/protected/exports/defaulters">Export</Link>
+              <Link href={withSession("/protected/exports/defaulters")}>Export</Link>
             </Button>
           </div>
         }
@@ -179,7 +181,7 @@ export default async function DefaultersPage({
                 <p className="text-xs text-warning-soft-foreground">{row.classLabel} • SR {row.admissionNo}</p>
                 <p className="mt-1 text-xs text-warning-soft-foreground">Phone: {row.fatherPhone ?? "-"}</p>
                 <Button asChild size="sm" variant="outline" className="mt-3">
-                  <Link href={`/protected/payments?studentId=${row.studentId}${row.classId ? `&classId=${row.classId}` : ""}`}>Prepare dues</Link>
+                  <Link href={withSession(`/protected/payments?studentId=${row.studentId}${row.classId ? `&classId=${row.classId}` : ""}`)}>Prepare dues</Link>
                 </Button>
               </div>
             ))}
@@ -209,7 +211,7 @@ export default async function DefaultersPage({
                     <td className="px-4 py-3">
                       <Link
                         className="text-xs font-medium text-info-soft-foreground hover:underline"
-                        href={`/protected/payments?studentId=${row.studentId}${row.classId ? `&classId=${row.classId}` : ""}`}
+                        href={withSession(`/protected/payments?studentId=${row.studentId}${row.classId ? `&classId=${row.classId}` : ""}`)}
                       >
                         Prepare dues
                       </Link>
@@ -255,10 +257,10 @@ export default async function DefaultersPage({
                     </Button>
                   ) : null}
                   <Button asChild size="sm" variant="outline">
-                    <Link href={`/protected/students/${row.studentId}`}>Open Student</Link>
+                    <Link href={withSession(`/protected/students/${row.studentId}`)}>Open Student</Link>
                   </Button>
                   <Button asChild size="sm" variant="outline">
-                    <Link href={`/protected/payments?studentId=${row.studentId}${row.classId ? `&classId=${row.classId}` : ""}`}>Collect</Link>
+                    <Link href={withSession(`/protected/payments?studentId=${row.studentId}${row.classId ? `&classId=${row.classId}` : ""}`)}>Collect</Link>
                   </Button>
                 </div>
               </div>
@@ -315,13 +317,13 @@ export default async function DefaultersPage({
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2">
                         <Link
-                          href={`/protected/students/${row.studentId}`}
+                          href={withSession(`/protected/students/${row.studentId}`)}
                           className="text-sm font-semibold text-info-soft-foreground hover:text-info-soft-foreground"
                         >
                           View
                         </Link>
                         <Link
-                          href={`/protected/payments?studentId=${row.studentId}`}
+                          href={withSession(`/protected/payments?studentId=${row.studentId}`)}
                           className="text-sm font-semibold text-info-soft-foreground hover:text-info-soft-foreground"
                         >
                           Collect
@@ -393,13 +395,13 @@ export default async function DefaultersPage({
                         <div className="flex flex-wrap gap-2">
                           <Link
                             className="text-xs font-medium text-info-soft-foreground hover:underline"
-                            href={`/protected/defaulters?transportRouteId=${row.routeId}`}
+                            href={withSession(`/protected/defaulters?transportRouteId=${row.routeId}`)}
                           >
                             Open defaulters
                           </Link>
                           <Link
                             className="text-xs font-medium text-info-soft-foreground hover:underline"
-                            href={`/protected/students?transportRouteId=${row.routeId}`}
+                            href={withSession(`/protected/students?transportRouteId=${row.routeId}`)}
                           >
                             Open students
                           </Link>

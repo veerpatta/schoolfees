@@ -259,6 +259,7 @@ npm run typecheck
 npm run test
 npm run build
 node scripts/verify-phase1-migrations.mjs
+node scripts/verify-required-sessions.mjs
 ```
 
 ## 12) Testing / UAT rules

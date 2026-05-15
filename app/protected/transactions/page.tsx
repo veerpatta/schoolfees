@@ -8,6 +8,7 @@ import { OfficeNotice, ValueStatePill, WorkflowGuard } from "@/components/office
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 import {
   getOfficeWorkbookData,
   type OfficeWorkbookStudentRow,
@@ -199,6 +200,7 @@ function WorkbookSummaryCards({
 function TransactionsTable({
   rows,
   returnTo,
+  sessionLabel,
 }: {
   rows: Awaited<ReturnType<typeof getOfficeWorkbookData>> extends infer T
     ? T extends { view: "transactions" | "receipts"; rows: infer R }
@@ -206,7 +208,10 @@ function TransactionsTable({
       : never
     : never;
   returnTo: string;
+  sessionLabel: string;
 }) {
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+
   return (
     <>
       <div className="space-y-3 md:hidden">
@@ -223,10 +228,10 @@ function TransactionsTable({
               <p className="mt-1 font-semibold text-foreground">{formatInr(row.totalAmount)}</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 <Button asChild size="sm" variant="outline">
-                  <Link href={`/protected/receipts/${row.receiptId}?returnTo=${encodeURIComponent(returnTo)}`}>Open</Link>
+                  <Link href={withSession(`/protected/receipts/${row.receiptId}?returnTo=${encodeURIComponent(returnTo)}`)}>Open</Link>
                 </Button>
                 <Button asChild size="sm" variant="outline">
-                  <Link href={`/protected/payments?studentId=${row.studentId}`}>Payment</Link>
+                  <Link href={withSession(`/protected/payments?studentId=${row.studentId}`)}>Payment</Link>
                 </Button>
               </div>
             </div>
@@ -267,13 +272,13 @@ function TransactionsTable({
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/protected/receipts/${row.receiptId}?returnTo=${encodeURIComponent(returnTo)}`}>Print</Link>
+                      <Link href={withSession(`/protected/receipts/${row.receiptId}?returnTo=${encodeURIComponent(returnTo)}`)}>Print</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/protected/students/${row.studentId}?returnTo=${encodeURIComponent(returnTo)}`}>Student</Link>
+                      <Link href={withSession(`/protected/students/${row.studentId}?returnTo=${encodeURIComponent(returnTo)}`)}>Student</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/protected/payments?studentId=${row.studentId}`}>Payment Desk</Link>
+                      <Link href={withSession(`/protected/payments?studentId=${row.studentId}`)}>Payment Desk</Link>
                     </Button>
                   </div>
                 </td>
@@ -287,7 +292,15 @@ function TransactionsTable({
   );
 }
 
-function InstallmentTrackerTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
+function InstallmentTrackerTable({
+  rows,
+  sessionLabel,
+}: {
+  rows: OfficeWorkbookStudentRow[];
+  sessionLabel: string;
+}) {
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+
   return (
     <>
       <div className="space-y-3 md:hidden">
@@ -367,10 +380,10 @@ function InstallmentTrackerTable({ rows }: { rows: OfficeWorkbookStudentRow[] })
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/protected/payments?studentId=${row.studentId}`}>Payment</Link>
+                      <Link href={withSession(`/protected/payments?studentId=${row.studentId}`)}>Payment</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/protected/students/${row.studentId}/statement`}>Statement</Link>
+                      <Link href={withSession(`/protected/students/${row.studentId}/statement`)}>Statement</Link>
                     </Button>
                   </div>
                 </td>
@@ -384,7 +397,15 @@ function InstallmentTrackerTable({ rows }: { rows: OfficeWorkbookStudentRow[] })
   );
 }
 
-function StudentDuesTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
+function StudentDuesTable({
+  rows,
+  sessionLabel,
+}: {
+  rows: OfficeWorkbookStudentRow[];
+  sessionLabel: string;
+}) {
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+
   return (
     <>
       <div className="space-y-3 md:hidden">
@@ -467,10 +488,10 @@ function StudentDuesTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/protected/students/${row.studentId}/statement`}>Print statement</Link>
+                      <Link href={withSession(`/protected/students/${row.studentId}/statement`)}>Print statement</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/protected/payments?studentId=${row.studentId}`}>Payment</Link>
+                      <Link href={withSession(`/protected/payments?studentId=${row.studentId}`)}>Payment</Link>
                     </Button>
                   </div>
                 </td>
@@ -484,7 +505,15 @@ function StudentDuesTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
   );
 }
 
-function ClassRegisterTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
+function ClassRegisterTable({
+  rows,
+  sessionLabel,
+}: {
+  rows: OfficeWorkbookStudentRow[];
+  sessionLabel: string;
+}) {
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+
   return (
     <div className="w-full overflow-x-auto rounded-xl border border-border">
       <table className="min-w-[900px] text-left text-sm">
@@ -564,10 +593,10 @@ function ClassRegisterTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/protected/students/${row.studentId}`}>Student</Link>
+                      <Link href={withSession(`/protected/students/${row.studentId}`)}>Student</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/protected/payments?studentId=${row.studentId}`}>Payment</Link>
+                      <Link href={withSession(`/protected/payments?studentId=${row.studentId}`)}>Payment</Link>
                     </Button>
                   </div>
                 </td>
@@ -580,7 +609,15 @@ function ClassRegisterTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
   );
 }
 
-function DefaultersTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
+function DefaultersTable({
+  rows,
+  sessionLabel,
+}: {
+  rows: OfficeWorkbookStudentRow[];
+  sessionLabel: string;
+}) {
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+
   return (
     <div className="w-full overflow-x-auto rounded-xl border border-border">
       <table className="min-w-[900px] text-left text-sm">
@@ -632,10 +669,10 @@ function DefaultersTable({ rows }: { rows: OfficeWorkbookStudentRow[] }) {
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/protected/payments?studentId=${row.studentId}`}>Payment</Link>
+                      <Link href={withSession(`/protected/payments?studentId=${row.studentId}`)}>Payment</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/protected/students/${row.studentId}`}>Student</Link>
+                      <Link href={withSession(`/protected/students/${row.studentId}`)}>Student</Link>
                     </Button>
                   </div>
                 </td>
@@ -695,13 +732,17 @@ function CollectionTable({
 
 function ImportIssuesTable({
   rows,
+  sessionLabel,
 }: {
   rows: Awaited<ReturnType<typeof getOfficeWorkbookData>> extends infer T
     ? T extends { view: "import_issues"; rows: infer R }
       ? R
       : never
     : never;
+  sessionLabel: string;
 }) {
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+
   return (
     <div className="overflow-x-auto rounded-xl border border-border">
       <table className="w-full min-w-full text-left text-sm">
@@ -736,7 +777,7 @@ function ImportIssuesTable({
                 <td className="px-4 py-3">{row.warnings.length > 0 ? row.warnings.join(" | ") : "-"}</td>
                 <td className="px-4 py-3">
                   <Button asChild size="sm" variant="outline">
-                    <Link href={`/protected/imports?batchId=${row.batchId}`}>Open batch</Link>
+                  <Link href={withSession(`/protected/imports?batchId=${row.batchId}`)}>Open batch</Link>
                   </Button>
                 </td>
               </tr>
@@ -816,6 +857,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
   if (routeId) returnParams.set("routeId", routeId);
   if (sessionLabel) returnParams.set("session", sessionLabel);
   const returnTo = `/protected/transactions?${returnParams.toString()}`;
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
   return (
     <div className="space-y-6">
@@ -831,7 +873,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
               </Button>
             ) : null}
             <Button asChild size="sm" variant="outline">
-              <Link href="/protected/payments">Open Payment Desk</Link>
+              <Link href={withSession("/protected/payments")}>Open Payment Desk</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
                 <Link href={buildOfficeWorkbookHref({ view: "collection_today", classId, sessionLabel })}>
@@ -1021,7 +1063,11 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
               : "Receipt register with print, student, and payment desk shortcuts."
           }
         >
-          <TransactionsTable rows={workbook.rows} returnTo={returnTo} />
+          <TransactionsTable
+            rows={workbook.rows}
+            returnTo={returnTo}
+            sessionLabel={sessionLabel}
+          />
         </SectionCard>
       ) : null}
 
@@ -1030,7 +1076,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
           title="Dues tracker"
           description="Student-wise dues tracker with pending installments and next due details."
         >
-          <InstallmentTrackerTable rows={workbook.rows} />
+          <InstallmentTrackerTable rows={workbook.rows} sessionLabel={sessionLabel} />
         </SectionCard>
       ) : null}
 
@@ -1039,7 +1085,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
           title="Student dues"
           description="Student-wise dues, paid, pending, discount, and next-due details."
         >
-          <StudentDuesTable rows={workbook.rows} />
+          <StudentDuesTable rows={workbook.rows} sessionLabel={sessionLabel} />
         </SectionCard>
       ) : null}
 
@@ -1048,7 +1094,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
           title="Class register"
           description="Class register with dues status, paid, pending, and actions."
         >
-          <ClassRegisterTable rows={workbook.rows} />
+          <ClassRegisterTable rows={workbook.rows} sessionLabel={sessionLabel} />
         </SectionCard>
       ) : null}
 
@@ -1057,7 +1103,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
           title="Defaulters"
           description="Overdue-only follow-up register with phone-ready details."
         >
-          <DefaultersTable rows={workbook.rows} />
+          <DefaultersTable rows={workbook.rows} sessionLabel={sessionLabel} />
         </SectionCard>
       ) : null}
 
@@ -1075,7 +1121,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
           title="Import issues"
           description="Recent staged rows that still need review or cleanup."
         >
-          <ImportIssuesTable rows={workbook.rows} />
+          <ImportIssuesTable rows={workbook.rows} sessionLabel={sessionLabel} />
         </SectionCard>
       ) : null}
 
