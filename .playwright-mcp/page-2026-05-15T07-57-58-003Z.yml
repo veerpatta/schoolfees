@@ -1,0 +1,442 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - link "AI Timey" [ref=e826] [cursor=pointer]:
+        - /url: /projects
+        - img "AI Timey" [ref=e827]
+      - button [ref=e931] [cursor=pointer]:
+        - img [ref=e933]
+      - generic [ref=e8]:
+        - generic [ref=e9]:
+          - img [ref=e12] [cursor=pointer]
+          - paragraph [ref=e14] [cursor=pointer]: Dashboard
+        - generic [ref=e15]:
+          - img [ref=e18] [cursor=pointer]
+          - paragraph [ref=e20] [cursor=pointer]: Live Chat
+        - generic [ref=e21]:
+          - img [ref=e24] [cursor=pointer]
+          - paragraph [ref=e26] [cursor=pointer]: History
+        - generic [ref=e27]:
+          - img [ref=e30] [cursor=pointer]
+          - paragraph [ref=e32] [cursor=pointer]: Contacts
+        - generic [ref=e33]:
+          - img [ref=e36] [cursor=pointer]
+          - paragraph [ref=e38] [cursor=pointer]: Campaigns
+        - generic [ref=e39]:
+          - img [ref=e42] [cursor=pointer]
+          - paragraph [ref=e44] [cursor=pointer]: Ads Manager
+        - generic [ref=e45]:
+          - img [ref=e49] [cursor=pointer]
+          - paragraph [ref=e52] [cursor=pointer]: Flows
+        - generic [ref=e53]:
+          - img [ref=e56] [cursor=pointer]
+          - paragraph [ref=e58] [cursor=pointer]: Manage
+        - generic [ref=e59]:
+          - img [ref=e62] [cursor=pointer]
+          - paragraph [ref=e64] [cursor=pointer]: Integrations
+      - generic [ref=e69]:
+        - generic [ref=e70] [cursor=pointer]:
+          - img [ref=e73]
+          - paragraph [ref=e76]: Developer
+        - generic [ref=e77]:
+          - img [ref=e80] [cursor=pointer]
+          - paragraph [ref=e82] [cursor=pointer]: All Projects
+        - img "J" [ref=e828] [cursor=pointer]
+    - generic [ref=e935]:
+      - generic [ref=e938]:
+        - heading "Manage" [level=3] [ref=e940]
+        - button "Template Message" [ref=e941] [cursor=pointer]:
+          - generic [ref=e942]:
+            - img [ref=e945]
+            - paragraph [ref=e948]: Template Message
+        - button "Optin Management" [ref=e949] [cursor=pointer]:
+          - generic [ref=e950]:
+            - img [ref=e953]
+            - paragraph [ref=e956]: Optin Management
+        - button "Live Chat Settings" [ref=e957] [cursor=pointer]:
+          - generic [ref=e958]:
+            - img [ref=e961]
+            - paragraph [ref=e964]: Live Chat Settings
+        - button "Campaign Settings" [ref=e965] [cursor=pointer]:
+          - generic [ref=e966]:
+            - img [ref=e969]
+            - paragraph [ref=e973]: Campaign Settings
+        - button "User Attributes" [ref=e974] [cursor=pointer]:
+          - generic [ref=e975]:
+            - img [ref=e978]
+            - paragraph [ref=e981]: User Attributes
+        - button "Canned Message" [ref=e982] [cursor=pointer]:
+          - generic [ref=e983]:
+            - img [ref=e986]
+            - paragraph [ref=e989]: Canned Message
+        - button "Agents" [ref=e990] [cursor=pointer]:
+          - generic [ref=e991]:
+            - img [ref=e994]
+            - paragraph [ref=e997]: Agents
+        - button "Tags" [ref=e998] [cursor=pointer]:
+          - generic [ref=e999]:
+            - img [ref=e1002]
+            - paragraph [ref=e1007]: Tags
+        - button "Analytics" [ref=e1008] [cursor=pointer]:
+          - generic [ref=e1009]:
+            - img [ref=e1012]
+            - paragraph [ref=e1015]: Analytics
+        - button "Billing & Usage" [ref=e1016] [cursor=pointer]:
+          - generic [ref=e1017]:
+            - img [ref=e1020]
+            - paragraph [ref=e1023]: Billing & Usage
+        - button "Notification Preferences" [ref=e1024] [cursor=pointer]:
+          - generic [ref=e1025]:
+            - img [ref=e1028]
+            - paragraph [ref=e1031]: Notification Preferences
+      - generic [ref=e1034]:
+        - generic [ref=e1036]:
+          - heading "Template Messages" [level=3] [ref=e1038]
+          - button "New" [ref=e1040] [cursor=pointer]:
+            - generic [ref=e1041]:
+              - img [ref=e1043]
+              - text: New
+        - generic [ref=e1046]:
+          - generic [ref=e1050]:
+            - generic [ref=e1052]:
+              - generic [ref=e1053]: TRY AI
+              - generic [ref=e1054]:
+                - img [ref=e1056]
+                - generic [ref=e1059]:
+                  - paragraph [ref=e1061]: Introducing AI Messages.
+                  - paragraph [ref=e1062]: Power your chatbot with AI-driven, context-aware responses.
+              - button "Try AI Messages" [ref=e1063] [cursor=pointer]:
+                - generic [ref=e1064]: Try AI Messages
+            - generic [ref=e1066]:
+              - generic [ref=e1067]: TRY AI
+              - generic [ref=e1068]:
+                - img [ref=e1070]
+                - generic [ref=e1073]:
+                  - paragraph [ref=e1075]: Introducing AI-Flows.
+                  - paragraph [ref=e1076]: Instantly create smart, high-converting WhatsApp flows with AI.
+              - button "Generate flow with AI" [ref=e1077] [cursor=pointer]:
+                - generic [ref=e1078]: Generate flow with AI
+            - generic [ref=e1080]:
+              - generic [ref=e1081]:
+                - img [ref=e1083]
+                - generic [ref=e1086]:
+                  - paragraph [ref=e1087]: "Introducing AI-powered Magic: Generate Powerful WhatsApp Templates in seconds!"
+                  - paragraph [ref=e1088]: Smarter. Faster. Zero guesswork.
+              - button "Generate Now" [ref=e1091] [cursor=pointer]:
+                - generic [ref=e1092]:
+                  - img [ref=e1093]
+                  - generic [ref=e1095]: Generate Now
+            - generic [ref=e1097]:
+              - generic [ref=e1098]: TRY AI
+              - generic [ref=e1099]:
+                - img [ref=e1101]
+                - generic [ref=e1104]:
+                  - paragraph [ref=e1106]: Introducing AI Messages.
+                  - paragraph [ref=e1107]: Power your chatbot with AI-driven, context-aware responses.
+              - button "Try AI Messages" [ref=e1108] [cursor=pointer]:
+                - generic [ref=e1109]: Try AI Messages
+          - generic [ref=e1111]:
+            - heading "Quick Guide" [level=4] [ref=e1112]
+            - paragraph [ref=e1113]: You can Initiate a Conversation with users on WhatsApp using these template messages.
+            - generic [ref=e1114]:
+              - link "How to Create WhatsApp Template Message?" [ref=e1116] [cursor=pointer]:
+                - /url: https://faq.aisensy.com/how-to-create-whatsapp-template-messages-in-aisensy/
+                - generic [ref=e1117]:
+                  - img [ref=e1118]
+                  - paragraph [ref=e1121]: How to Create WhatsApp Template Message?
+              - link "Use chatbot parameters for leads" [ref=e1123] [cursor=pointer]:
+                - /url: https://m.aisensy.com/how-to-use-parameters-in-whatsapp-template-message
+                - generic [ref=e1124]:
+                  - img [ref=e1125]
+                  - paragraph [ref=e1128]: Use chatbot parameters for leads
+              - link "Add Quick Reply to WhatsApp Template Message" [ref=e1130] [cursor=pointer]:
+                - /url: https://m.aisensy.com/how-to-add-quick-reply-to-whatsapp-template-message
+                - generic [ref=e1131]:
+                  - img [ref=e1132]
+                  - paragraph [ref=e1135]: Add Quick Reply to WhatsApp Template Message
+              - link "Message formatting guideline (Bold, Italic & more)" [ref=e1137] [cursor=pointer]:
+                - /url: https://faq.aisensy.com/whatsapp-template-message-guidelines/
+                - generic [ref=e1138]:
+                  - img [ref=e1139]
+                  - paragraph [ref=e1142]: Message formatting guideline (Bold, Italic & more)
+        - generic [ref=e1143]:
+          - generic [ref=e1145]:
+            - generic [ref=e1147]:
+              - textbox "Search templates (status, name etc.)" [ref=e1148]
+              - button [ref=e1150] [cursor=pointer]:
+                - img [ref=e1152]
+            - button "Sync Status" [ref=e1155] [cursor=pointer]:
+              - generic [ref=e1156]:
+                - img [ref=e1158]
+                - text: Sync Status
+          - generic [ref=e1162]:
+            - generic:
+              - img
+            - tablist "scrollable auto tabs example" [ref=e1165]:
+              - tab "Explore" [selected] [ref=e1166] [cursor=pointer]:
+                - generic [ref=e1168]:
+                  - img [ref=e1169]
+                  - text: Explore
+              - tab "All" [ref=e1172] [cursor=pointer]:
+                - generic [ref=e1174]:
+                  - img [ref=e1175]
+                  - text: All
+              - tab "Draft" [ref=e1178] [cursor=pointer]:
+                - generic [ref=e1180]:
+                  - img [ref=e1181]
+                  - text: Draft
+              - tab "Pending" [ref=e1184] [cursor=pointer]:
+                - generic [ref=e1186]:
+                  - img [ref=e1187]
+                  - text: Pending
+              - tab "Approved" [ref=e1190] [cursor=pointer]:
+                - generic [ref=e1192]:
+                  - img [ref=e1193]
+                  - text: Approved
+              - tab "Action Required" [ref=e1196] [cursor=pointer]:
+                - generic [ref=e1198]:
+                  - img [ref=e1199]
+                  - text: Action Required
+            - img [ref=e1206] [cursor=pointer]
+        - generic [ref=e1210]:
+          - generic [ref=e1212]:
+            - generic [ref=e1213]:
+              - img [ref=e1215]
+              - paragraph [ref=e1217]: Trending
+            - generic [ref=e1218]:
+              - img [ref=e1220]
+              - paragraph [ref=e1222]: General
+            - generic [ref=e1223]:
+              - img [ref=e1225]
+              - paragraph [ref=e1227]: Top Rated
+            - generic [ref=e1228]:
+              - button "Industry" [expanded] [ref=e1229] [cursor=pointer]:
+                - paragraph [ref=e1231]: Industry
+                - img [ref=e1234]
+              - region "Industry" [ref=e1239]:
+                - generic [ref=e1241]:
+                  - generic [ref=e1243]:
+                    - img [ref=e1245]
+                    - paragraph [ref=e1247]: Ecommerce
+                  - generic [ref=e1249]:
+                    - img [ref=e1251]
+                    - paragraph [ref=e1253]: Education
+                  - generic [ref=e1255]:
+                    - img [ref=e1257]
+                    - paragraph [ref=e1259]: Banking
+                  - generic [ref=e1261]:
+                    - img [ref=e1263]
+                    - paragraph [ref=e1265]: Webinar
+                  - paragraph [ref=e1266]: MORE
+          - generic [ref=e1267]:
+            - generic [ref=e1268]:
+              - generic [ref=e1270]:
+                - generic [ref=e1271]:
+                  - img [ref=e1273]
+                  - generic [ref=e1274]:
+                    - paragraph [ref=e1275]: Holi Abandoned Cart
+                    - generic [ref=e1276]:
+                      - paragraph [ref=e1277]: TEXT
+                      - img [ref=e1279]
+                - generic [ref=e1281]: 5X RECOVERY
+                - paragraph [ref=e1283]: "Hi [Shivam], Your cart is still waiting 👀 With Holi around the corner, stocks are moving fast. Complete your order now and use code HOLI20 to get 20% OFF + Free Shipping 🎉 Products in your cart: [Headway Bassheads] Don’t let this deal slip away before the celebrations begin."
+                - generic [ref=e1284]:
+                  - button "Preview" [ref=e1285] [cursor=pointer]:
+                    - generic [ref=e1286]: Preview
+                  - button "Submit" [ref=e1288] [cursor=pointer]:
+                    - generic [ref=e1289]: Submit
+              - generic [ref=e1291]:
+                - generic [ref=e1292]:
+                  - img [ref=e1294]
+                  - generic [ref=e1295]:
+                    - paragraph [ref=e1296]: Holi Wishes & Offer
+                    - generic [ref=e1297]:
+                      - paragraph [ref=e1298]: IMAGE
+                      - img [ref=e1300]
+                - paragraph [ref=e1303]: "🎨✨ *Holi Special: Exclusive Discounts Just for You [Shivam]* Enjoy *[25%] % OFF* on [Bassheads 225] & celebrate this festival with BIG savings! But don’t wait too long—offer ends in [24 hours]! 🚀 💰 Get your Holi deal now! 👇"
+                - generic [ref=e1304]:
+                  - button "Preview" [ref=e1305] [cursor=pointer]:
+                    - generic [ref=e1306]: Preview
+                  - button "Submit" [ref=e1308] [cursor=pointer]:
+                    - generic [ref=e1309]: Submit
+              - generic [ref=e1311]:
+                - generic [ref=e1312]:
+                  - img [ref=e1314]
+                  - generic [ref=e1315]:
+                    - paragraph [ref=e1316]: Holi Wishes + Offer
+                    - generic [ref=e1317]:
+                      - paragraph [ref=e1318]: IMAGE
+                      - img [ref=e1320]
+                - paragraph [ref=e1323]: 🎉 Hey [Shivam], Holi is here & so are the best festive deals!🎉 Enjoy *[20%] % OFF* on [Bassheads 225]—because celebrations are better with savings! 💰 Grab your Holi offer now! 🎊👇
+                - generic [ref=e1324]:
+                  - button "Preview" [ref=e1325] [cursor=pointer]:
+                    - generic [ref=e1326]: Preview
+                  - button "Submit" [ref=e1328] [cursor=pointer]:
+                    - generic [ref=e1329]: Submit
+              - generic [ref=e1331]:
+                - generic [ref=e1332]:
+                  - img [ref=e1334]
+                  - generic [ref=e1335]:
+                    - paragraph [ref=e1336]: First Message
+                    - generic [ref=e1337]:
+                      - paragraph [ref=e1338]: IMAGE
+                      - img [ref=e1340]
+                - paragraph [ref=e1343]: "The firsts are always special, like your first salary, your first car & your first date😌 Do you know what’s special for us? *YOUR FIRST ORDER 😍* We want to make it special for you too - Get a FLAT DISCOUNT of [50%] on your first order worth *[Rs 100]* or more, along with *FREE DELIVERY* Just use code: *[OFF100]🤑*"
+                - generic [ref=e1344]:
+                  - button "Preview" [ref=e1345] [cursor=pointer]:
+                    - generic [ref=e1346]: Preview
+                  - button "Submit" [ref=e1348] [cursor=pointer]:
+                    - generic [ref=e1349]: Submit
+              - generic [ref=e1351]:
+                - generic [ref=e1352]:
+                  - img [ref=e1354]
+                  - generic [ref=e1355]:
+                    - paragraph [ref=e1356]: Offer Message
+                    - generic [ref=e1357]:
+                      - paragraph [ref=e1358]: IMAGE
+                      - img [ref=e1360]
+                - paragraph [ref=e1363]: "*Final Hours to Go ! Offer Ends Soon* 👋 [20%]% Discount on Any purchase | It's Time to Action 💥 Use Discount Code 👉 [20OFF] & Get *[20%] Discount* Expires Tonight ❗ 👉[FREE Delivery] 👉[Zero EMI] 👉[1 Year Warranty] Happy Shopping 🥳🥳"
+                - generic [ref=e1364]:
+                  - button "Preview" [ref=e1365] [cursor=pointer]:
+                    - generic [ref=e1366]: Preview
+                  - button "Submit" [ref=e1368] [cursor=pointer]:
+                    - generic [ref=e1369]: Submit
+              - generic [ref=e1371]:
+                - generic [ref=e1372]:
+                  - img [ref=e1374]
+                  - generic [ref=e1375]:
+                    - paragraph [ref=e1376]: Event Invite
+                    - generic [ref=e1377]:
+                      - paragraph [ref=e1378]: IMAGE
+                      - img [ref=e1380]
+                - paragraph [ref=e1383]: "Dear [Ayush], [AiSensy] is back with another [WhatsApp Marketing] event for you. Event Details: Date - [3rd December] Time - [3 PM - 6 PM] Location - [Meta Headquarters, Gurugram] Hurry, click the below button. Looking forward to seeing you! Best Regards, Team [AiSensy]"
+                - generic [ref=e1384]:
+                  - button "Preview" [ref=e1385] [cursor=pointer]:
+                    - generic [ref=e1386]: Preview
+                  - button "Submit" [ref=e1388] [cursor=pointer]:
+                    - generic [ref=e1389]: Submit
+              - generic [ref=e1391]:
+                - generic [ref=e1392]:
+                  - img [ref=e1394]
+                  - generic [ref=e1395]:
+                    - paragraph [ref=e1396]: Property Promotion
+                    - generic [ref=e1397]:
+                      - paragraph [ref=e1398]: IMAGE
+                      - img [ref=e1400]
+                - paragraph [ref=e1403]: Hey [Ankit], Did you like [73/37, Golf Course Road]? Get more information about similar homes in [Golf Course Road] by clicking the button below 👇
+                - generic [ref=e1404]:
+                  - button "Preview" [ref=e1405] [cursor=pointer]:
+                    - generic [ref=e1406]: Preview
+                  - button "Submit" [ref=e1408] [cursor=pointer]:
+                    - generic [ref=e1409]: Submit
+              - generic [ref=e1411]:
+                - generic [ref=e1412]:
+                  - img [ref=e1414]
+                  - generic [ref=e1415]:
+                    - paragraph [ref=e1416]: C.O.D to Prepaid
+                    - generic [ref=e1417]:
+                      - paragraph [ref=e1418]: IMAGE
+                      - img [ref=e1420]
+                - paragraph [ref=e1423]: Hey [Preeti], your order for *[Basshead 446]* is confirmed🎉 Pay Now & Get Flat *[10%]* off on your purchase. 🤑 Click the below link & apply Coupon Code [PREPAID10] 👇
+                - generic [ref=e1424]:
+                  - button "Preview" [ref=e1425] [cursor=pointer]:
+                    - generic [ref=e1426]: Preview
+                  - button "Submit" [ref=e1428] [cursor=pointer]:
+                    - generic [ref=e1429]: Submit
+              - generic [ref=e1431]:
+                - generic [ref=e1432]:
+                  - img [ref=e1434]
+                  - generic [ref=e1435]:
+                    - paragraph [ref=e1436]: Birthday Promotion
+                    - generic [ref=e1437]:
+                      - paragraph [ref=e1438]: TEXT
+                      - img [ref=e1440]
+                - paragraph [ref=e1443]: Happy birthday, [Ayush]! 🎂🎉 To help you celebrate, here’s an exciting offer. 😍 Enjoy [40%]% off storewide this month. Use discount code [BDAY40] to avail the offer.
+                - generic [ref=e1444]:
+                  - button "Preview" [ref=e1445] [cursor=pointer]:
+                    - generic [ref=e1446]: Preview
+                  - button "Submit" [ref=e1448] [cursor=pointer]:
+                    - generic [ref=e1449]: Submit
+              - generic [ref=e1451]:
+                - generic [ref=e1452]:
+                  - img [ref=e1454]
+                  - generic [ref=e1455]:
+                    - paragraph [ref=e1456]: Loyalty Program
+                    - generic [ref=e1457]:
+                      - paragraph [ref=e1458]: TEXT
+                      - img [ref=e1460]
+                - paragraph [ref=e1463]: Hey [Shivam], We just wanted to say thanks for being a valued customer for over [3 years]! 😉✨ As a token of appreciation, get *[50%] off* on your next purchase with us. 😍 With Love, [Headway India]
+                - generic [ref=e1464]:
+                  - button "Preview" [ref=e1465] [cursor=pointer]:
+                    - generic [ref=e1466]: Preview
+                  - button "Submit" [ref=e1468] [cursor=pointer]:
+                    - generic [ref=e1469]: Submit
+              - generic [ref=e1471]:
+                - generic [ref=e1472]:
+                  - img [ref=e1474]
+                  - generic [ref=e1475]:
+                    - paragraph [ref=e1476]: Webinar Upsell
+                    - generic [ref=e1477]:
+                      - paragraph [ref=e1478]: TEXT
+                      - generic [ref=e1479]: Quick Replies
+                - paragraph [ref=e1481]: Hello there, Greetings from [Marketing School]. 🔥🔥🔥 Hope you enjoyed the Linkedin Workshop by [Shivam Aggarwal] !!. A lot of you have sent us DMs, asking for details about the [Content Marketing 101] Program mentioned in yesterday's workshop. Want to know more about it? Please click YES and our team will call you to help you understand if this program is the right fit for you. Request a Call Back👇👇
+                - generic [ref=e1482]:
+                  - button "Preview" [ref=e1483] [cursor=pointer]:
+                    - generic [ref=e1484]: Preview
+                  - button "Submit" [ref=e1486] [cursor=pointer]:
+                    - generic [ref=e1487]: Submit
+              - generic [ref=e1489]:
+                - generic [ref=e1490]:
+                  - img [ref=e1492]
+                  - generic [ref=e1493]:
+                    - paragraph [ref=e1494]: Limited Time Sale
+                    - generic [ref=e1495]:
+                      - paragraph [ref=e1496]: VIDEO
+                      - img [ref=e1498]
+                - paragraph [ref=e1501]: "[Shivam], here's a special E-Gift Voucher for you😍 Applicable on minimum purchase of *[Rs 500]*. Apply Coupon Code *[DISC40]* and get Flat *[40%]* off. 🔥 Valid for Today only. Hurry Up!! ⏳ T&C Apply*"
+                - generic [ref=e1502]:
+                  - button "Preview" [ref=e1503] [cursor=pointer]:
+                    - generic [ref=e1504]: Preview
+                  - button "Submit" [ref=e1506] [cursor=pointer]:
+                    - generic [ref=e1507]: Submit
+            - generic [ref=e1512]:
+              - paragraph [ref=e1513]: 1-12 of 14
+              - generic [ref=e1514]:
+                - button "Previous page" [disabled]:
+                  - generic:
+                    - img
+                - button "Next page" [ref=e1515] [cursor=pointer]:
+                  - img [ref=e1517]
+  - iframe [ref=e672]:
+    
+  - dialog "AiSensy Demo (English) JAN24.mp4":
+    - generic [ref=e776]:
+      - generic "AiSensy Demo (English) JAN24.mp4" [ref=e778]
+      - generic [ref=e780]:
+        - generic [ref=e781]:
+          - generic:
+            - 'button "Play Video: AiSensy Demo (English) JAN24.mp4"'
+          - img "Video Thumbnail" [ref=e783]
+        - 'button "Play Video: AiSensy Demo (English) JAN24.mp4" [ref=e785] [cursor=pointer]':
+          - img [ref=e788]
+    - button "Close" [ref=e790] [cursor=pointer]:
+      - img "Click to close video" [ref=e791]
+  - dialog "AiSensyWhatsAppDemo_Hindi_14082023_01.mp4":
+    - generic [ref=e797]:
+      - generic "AiSensyWhatsAppDemo_Hindi_14082023_01.mp4" [ref=e799]
+      - generic [ref=e801]:
+        - generic [ref=e802]:
+          - generic:
+            - 'button "Play Video: AiSensyWhatsAppDemo_Hindi_14082023_01.mp4"'
+          - img "Video Thumbnail" [ref=e804]
+        - 'button "Play Video: AiSensyWhatsAppDemo_Hindi_14082023_01.mp4" [ref=e806] [cursor=pointer]':
+          - img [ref=e809]
+    - button "Close" [ref=e811] [cursor=pointer]:
+      - img "Click to close video" [ref=e812]
+  - iframe [ref=e823]:
+    - generic [active] [ref=f35e1]:
+      - generic "Intercom":
+        - region "Intercom messenger":
+          - button "Open Intercom Messenger" [ref=f35e2] [cursor=pointer]:
+            - img [ref=f35e4]
+            - img [ref=f35e7]

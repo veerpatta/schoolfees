@@ -42,3 +42,9 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# VPPS import workbooks and backup snapshots (sensitive student data)
+/data/imports/*.xlsx
+/data/imports/backups/
+/docs/import-previews/*/apply-reports/
+/docs/import-previews/*/backups/

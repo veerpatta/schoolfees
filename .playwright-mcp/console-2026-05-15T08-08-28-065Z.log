@@ -1,0 +1,988 @@
+[     172ms] [WARNING] The value "1maximum-scale" for key "initial-scale" was truncated to its numeric prefix. @ https://www.app.aisensy.com/projects/6919fcc9dcce0f0d43a2567f/dashboard:0
+[     172ms] [WARNING] The key "1" is not recognized and ignored. @ https://www.app.aisensy.com/projects/6919fcc9dcce0f0d43a2567f/dashboard:0
+[     257ms] [LOG] 
+                         _                          _       _   _
+                        | |                        | |     | | (_)
+  __ _  ___   ___   __ _| | ___    __ _ _ __   __ _| |_   _| |_ _  ___ ___
+ / _` |/ _ \ / _ \ / _` | |/ _ \  / _` | '_ \ / _` | | | | | __| |/ __/ __|
+| (_| | (_) | (_) | (_| | |  __/ | (_| | | | | (_| | | |_| | |_| | (__\__ \
+ \__, |\___/ \___/ \__, |_|\___|  \__,_|_| |_|\__,_|_|\__, |\__|_|\___|___/
+  __/ |             __/ |                              __/ |
+ |___/             |___/                              |___/
+ @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     257ms] [WARNING] Running analytics_debug.js. This script is intended for testing and debugging only. @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     258ms] [INFO] Creating new tracker: gtm4 @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     259ms] [INFO] Auto cookieDomain found: "aisensy.com" @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     259ms] [INFO] Plugin "linker" intialized on tracker "gtm4". @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     260ms] [INFO] 
+Sent beacon:
+v=1&_v=j102d&a=703316528&t=pageview&_s=1&dl=https%3A%2F%2Fwww.app.aisensy.com%2Fprojects%2F6919fcc9dcce0f0d43a2567f%2Fdashboard&ul=en-us&sr=1366x768&vp=1366x641&_u=QCCACEABBAAAACAAI~&jid=&gjid=&cid=1247690549.1778831776&tid=UA-202972885-1&_gid=1704848281.1778831777&_slc=1&gtm=45He65d0n81NRR25F8v848835053za200zd848835053&gcd=13l3l3l3l1l1&dma=0&tag_exp=0~115938466~115938469~118689382&z=354350289
+
+ @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     261ms] [INFO] <unknown>        (&dma)     0 @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     261ms] [INFO] <unknown>        (&gcd)     13l3l3l3l1l1 @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     261ms] [INFO] <unknown>        (&gtm)     45He65d0n81NRR25F8v848835053za200zd848835053 @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     261ms] [INFO] <unknown>        (&tag_exp) 0~115938466~115938469~118689382 @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     261ms] [INFO] _j1              (&jid)      @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     261ms] [INFO] _j2              (&gjid)     @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     261ms] [INFO] adSenseId        (&a)       703316528 @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     261ms] [INFO] apiVersion       (&v)       1 @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     261ms] [INFO] clientId         (&cid)     1247690549.1778831776 @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     262ms] [INFO] hitType          (&t)       pageview @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     262ms] [INFO] language         (&ul)      en-us @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     262ms] [INFO] location         (&dl)      https://www.app.aisensy.com/projects/6919fcc9dcce0f0d43a2567f/dashboard @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     262ms] [INFO] screenResolution (&sr)      1366x768 @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     262ms] [INFO] trackingId       (&tid)     UA-202972885-1 @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     262ms] [INFO] viewportSize     (&vp)      1366x641 @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     262ms] [INFO] Registered new plugin: ga(provide, "render", Function) @ https://www.google-analytics.com/u/analytics_debug.js:48
+[     291ms] [WARNING] [Meta Pixel] - Duplicate Pixel ID: 255162156131712. @ https://connect.facebook.net/en_US/fbevents.js:181
+[   17597ms] [LOG] route {id: dashboard, name: Dashboard, to: /dashboard, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17597ms] [LOG] route {id: liveChat, name: Live Chat, to: /live, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17597ms] [LOG] route {id: history, name: History, to: /history, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17597ms] [LOG] route {id: contacts, name: Contacts, to: /contacts, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17597ms] [LOG] route {id: templateMessage, name: Template Message, to: /template-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17597ms] [LOG] route {id: optinManagement, name: Optin Management, to: /optout, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17597ms] [LOG] route {id: liveChatSettings, name: Live Chat Settings, to: /chat-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: campaignSettings, name: Campaign Settings, to: /campaign-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: userAttributes, name: User Attributes, to: /user-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: cannedMessage, name: Canned Message, to: /canned-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: agents, name: Agents, to: /agents, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: tags, name: Tags, to: /tags, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: campaigns, name: Campaigns, to: /campaigns, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: adsManagerLayout, name: Ads Manager, to: /advertisement, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: adsManagerMainPage, name: Ads Manager, to: /ads-manager, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: Event, name: Events, to: /events, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: EventDetails, name: Event Details, to: /events/:eventId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: leads, name: Leads, to: /leads, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: audiences, name: Audiences, to: /audiences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: setup, name: Setup, to: /setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: createAds, name: Create Ads, to: /create, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: editAds, name: Edit Ads, to: /edit/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: duplicateAds, name: Duplicate Ads, to: /duplicate/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: analytics, name: Analiytics, to: /:id/personal-analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: flows, name: Flows, to: /flows, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: flowBuilder, name: Flow Builder, to: /flow-builder, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: globalAttributes, name: Global Attributes, to: /global-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: manageCatalogues, name: Manage Catalogues, to: /mnage-catalogues, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: products, name: Products, to: /products, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: connectCatalogue, name: Connect Catalogue, to: /connect-catalgue, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17598ms] [LOG] route {id: flowBuilder, name: Flow-Builder, to: /flow-page/:flowId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17599ms] [LOG] route {id: waPay, name: WA Pay, to: /wa-pay, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17599ms] [LOG] route {id: payments, name: Payments, to: /payments, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17599ms] [LOG] route {id: setupMessages, name: Setup Messages, to: /setup-messages, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17599ms] [LOG] route {id: settings, name: Settings, to: /settings, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17599ms] [LOG] route {id: analyticsPage, name: Analytics, to: /analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17599ms] [LOG] route {id: developerHub, name: Developer Hub, to: /developer, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17599ms] [LOG] route {id: billings, name: Billing & Usage, to: /billings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17599ms] [LOG] route {id: manage, name: Manage, to: /manage, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17599ms] [LOG] route {id: integrations, name: Integrations, to: /integrations, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17599ms] [LOG] route {id: discover, name: Discover, to: /appstore/discover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17599ms] [LOG] route {id: waPaySettings, name: WhatsApp Pay, to: /wa-pay/settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17599ms] [LOG] route {id: storeSetup, name: Store Setup, to: /store-setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17599ms] [LOG] route {id: notificationPreferences, name: Notification Preferences, to: /notification-preferences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17599ms] [LOG] route {id: dialogueflowIntegration, name: Dialogflow Integration, to: /dialogflow, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17599ms] [LOG] route {id: appStore, name: App Store, to: /appstore/ecomdiscover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17627ms] [WARNING] No assistantId found in URL @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17650ms] [WARNING] The provided value 'stream' is not a valid enum value of type XMLHttpRequestResponseType. @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17658ms] [LOG] ******** No tracking parameters @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   17683ms] [WARNING] Manifest: property 'start_url' ignored, URL is invalid. @ blob:https://www.app.aisensy.com/61e4ca25-6a69-4bee-8044-a9c51373ae8c:0
+[   17683ms] [WARNING] Manifest: property 'src' ignored, URL is invalid. @ blob:https://www.app.aisensy.com/61e4ca25-6a69-4bee-8044-a9c51373ae8c:0
+[   17683ms] [WARNING] Manifest: property 'src' ignored, URL is invalid. @ blob:https://www.app.aisensy.com/61e4ca25-6a69-4bee-8044-a9c51373ae8c:0
+[   17683ms] [WARNING] Manifest: property 'src' ignored, URL is invalid. @ blob:https://www.app.aisensy.com/61e4ca25-6a69-4bee-8044-a9c51373ae8c:0
+[   17698ms] ReferenceError: webengage_fs_configurationMap is not defined
+    at t.onload (https://inz826171c3.in.webengage.co/storage-frame-1.13.htm?cdn=y&cbf=webengage-engagement-callback-frame&lc=in~826171c3:1:2858)
+[   18032ms] [LOG] socket connect @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   18374ms] [WARNING] LogRocket: Session quota exceeded. Please upgrade your plan. Disabling ... @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   18661ms] [INFO] Compiling or instantiating a WebAssembly module violates the following Content Security policy directive because 'unsafe-eval' is not an allowed source of script: "script-src 'nonce-ApyOL4BHj8cJ1VMg7ueV374m' 'self' https://js.chargebee.com https://js1.chargebee.com https://cnstatic.devcb.in https://dgkxwewtzsnml.cloudfront.net https://go.referralcandy.com https://*.sentry-cdn.com https://hcaptcha.com https://*.hcaptcha.com https://cdn.pendo.io https://*.pendo.com data: https://*.google.com https://*.googleapis.com https://maps.googleapis.com https://google.com https://*.cardinalcommerce.com https://*.cardinaltrusted.com https://*.kaptcha.com https://*.salesflare.com https://*.paytmpayments.com https://core.spreedly.com https://www.paypalobjects.com https://www.paypal.com https://cdn.sift.com https://forms.finixpymnts.com https://cdn.mathjax.org https://js.cobrowse.io https://js.stripe.com https://assets.payfurl.com https://ebanx-js.ebanx.com https://connect.facebook.net 'sha256-jjMRnD48p+PyMPVGFijWfgSnkelbj/APH3uJacPuoB0=' 'sha256-5kvpNcCH36zRfzE9xhEm3430TJr9pqZRQNPw/JcNCAI=' 'sha256-0QF6XTN2zxURUBa+L8+AMfQzCALzVVwaW9xEOsMf/X0=' 'sha256-1e5RR2OpHhuX2h0Bat19DsNTmqbo4M3T1pqfeTXCHaA=' 'sha256-sNwJrI1ys8g8vRBMMn91qrdGGZ/g4YN5Ko0ti/yuNk8=' 'sha256-cFgMlKU09Tr4M0TzLaoHXoHqRlsSDP2JKUTVjBUsKwA=' 'sha256-6UjTMctmhk38SzYW5Wggf6yrdhprh/M0mTizwnEELl8=' 'sha256-b+mf6EIMFYxuAIdk6/2IF09zTUsJrlW6qZaw4opG6QU=' 'sha256-qlWkm8fetBd204B6qK6AnpRMW1ilEmMugM43R0MJINY=' 'sha256-idXcl/I72NrKqcrCjsjRVPVJBtjd2Y6PyKVx8W3ndjw=' 'sha256-iVfin/zxP7iUxfueU0JXFFnY/41IhM5gpR3ocB+ZrMY=' 'sha256-lHMfYllZf/q0E78OM3FGfdI9E1AFkt8jUPPZHT5eJNw=' 'sha256-42/foZPGaEBG0IpG0ime8VINAWcVs3CcZByMO183Cjw=' blob: https://aisensy.chargebeestaticv2.com http://js1.chargebeestatic.com/static/app-static-assets/hp/hp-9.4.9/ https://*.adyen.com https://*.payments-amazon.com https://*.paypal.com https://checkout.stripe.com https://connect-js.stripe.com https://*.stripecdn.com https://pay.google.com https://*.bluesnap.com https://*.razorpay.com". The policy is report-only, so the violation has been logged but no further action has been taken. @ https://js.chargebee.com/hcaptcha.js?onload=hCaptchaOnLoad:3
+[   18661ms] [INFO] Compiling or instantiating a WebAssembly module violates the following Content Security policy directive because 'unsafe-eval' is not an allowed source of script: "script-src 'nonce-ApyOL4BHj8cJ1VMg7ueV374m' 'self' https://js.chargebee.com https://js1.chargebee.com https://cnstatic.devcb.in https://dgkxwewtzsnml.cloudfront.net https://go.referralcandy.com https://*.sentry-cdn.com https://hcaptcha.com https://*.hcaptcha.com https://cdn.pendo.io https://*.pendo.com data: https://*.google.com https://*.googleapis.com https://maps.googleapis.com https://google.com https://*.cardinalcommerce.com https://*.cardinaltrusted.com https://*.kaptcha.com https://*.salesflare.com https://*.paytmpayments.com https://core.spreedly.com https://www.paypalobjects.com https://www.paypal.com https://cdn.sift.com https://forms.finixpymnts.com https://cdn.mathjax.org https://js.cobrowse.io https://js.stripe.com https://assets.payfurl.com https://ebanx-js.ebanx.com https://connect.facebook.net 'sha256-jjMRnD48p+PyMPVGFijWfgSnkelbj/APH3uJacPuoB0=' 'sha256-5kvpNcCH36zRfzE9xhEm3430TJr9pqZRQNPw/JcNCAI=' 'sha256-0QF6XTN2zxURUBa+L8+AMfQzCALzVVwaW9xEOsMf/X0=' 'sha256-1e5RR2OpHhuX2h0Bat19DsNTmqbo4M3T1pqfeTXCHaA=' 'sha256-sNwJrI1ys8g8vRBMMn91qrdGGZ/g4YN5Ko0ti/yuNk8=' 'sha256-cFgMlKU09Tr4M0TzLaoHXoHqRlsSDP2JKUTVjBUsKwA=' 'sha256-6UjTMctmhk38SzYW5Wggf6yrdhprh/M0mTizwnEELl8=' 'sha256-b+mf6EIMFYxuAIdk6/2IF09zTUsJrlW6qZaw4opG6QU=' 'sha256-qlWkm8fetBd204B6qK6AnpRMW1ilEmMugM43R0MJINY=' 'sha256-idXcl/I72NrKqcrCjsjRVPVJBtjd2Y6PyKVx8W3ndjw=' 'sha256-iVfin/zxP7iUxfueU0JXFFnY/41IhM5gpR3ocB+ZrMY=' 'sha256-lHMfYllZf/q0E78OM3FGfdI9E1AFkt8jUPPZHT5eJNw=' 'sha256-42/foZPGaEBG0IpG0ime8VINAWcVs3CcZByMO183Cjw=' blob: https://aisensy.chargebeestaticv2.com http://js1.chargebeestatic.com/static/app-static-assets/hp/hp-9.4.9/ https://*.adyen.com https://*.payments-amazon.com https://*.paypal.com https://checkout.stripe.com https://connect-js.stripe.com https://*.stripecdn.com https://pay.google.com https://*.bluesnap.com https://*.razorpay.com". The policy is report-only, so the violation has been logged but no further action has been taken. @ https://js.chargebee.com/hcaptcha.js?onload=hCaptchaOnLoad:3
+[   19363ms] [LOG] route {id: dashboard, name: Dashboard, to: /dashboard, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19363ms] [LOG] route {id: liveChat, name: Live Chat, to: /live, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19363ms] [LOG] route {id: history, name: History, to: /history, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19363ms] [LOG] route {id: contacts, name: Contacts, to: /contacts, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19363ms] [LOG] route {id: templateMessage, name: Template Message, to: /template-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19363ms] [LOG] route {id: optinManagement, name: Optin Management, to: /optout, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19363ms] [LOG] route {id: liveChatSettings, name: Live Chat Settings, to: /chat-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19363ms] [LOG] route {id: campaignSettings, name: Campaign Settings, to: /campaign-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19363ms] [LOG] route {id: userAttributes, name: User Attributes, to: /user-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19363ms] [LOG] route {id: cannedMessage, name: Canned Message, to: /canned-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19364ms] [LOG] route {id: agents, name: Agents, to: /agents, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19364ms] [LOG] route {id: tags, name: Tags, to: /tags, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19364ms] [LOG] route {id: campaigns, name: Campaigns, to: /campaigns, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19364ms] [LOG] route {id: adsManagerLayout, name: Ads Manager, to: /advertisement, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19364ms] [LOG] route {id: adsManagerMainPage, name: Ads Manager, to: /ads-manager, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19364ms] [LOG] route {id: Event, name: Events, to: /events, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19364ms] [LOG] route {id: EventDetails, name: Event Details, to: /events/:eventId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19364ms] [LOG] route {id: leads, name: Leads, to: /leads, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19364ms] [LOG] route {id: audiences, name: Audiences, to: /audiences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19364ms] [LOG] route {id: setup, name: Setup, to: /setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19364ms] [LOG] route {id: createAds, name: Create Ads, to: /create, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19364ms] [LOG] route {id: editAds, name: Edit Ads, to: /edit/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19364ms] [LOG] route {id: duplicateAds, name: Duplicate Ads, to: /duplicate/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19365ms] [LOG] route {id: analytics, name: Analiytics, to: /:id/personal-analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19365ms] [LOG] route {id: flows, name: Flows, to: /flows, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19365ms] [LOG] route {id: flowBuilder, name: Flow Builder, to: /flow-builder, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19365ms] [LOG] route {id: globalAttributes, name: Global Attributes, to: /global-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19365ms] [LOG] route {id: manageCatalogues, name: Manage Catalogues, to: /mnage-catalogues, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19365ms] [LOG] route {id: products, name: Products, to: /products, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19365ms] [LOG] route {id: connectCatalogue, name: Connect Catalogue, to: /connect-catalgue, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19365ms] [LOG] route {id: flowBuilder, name: Flow-Builder, to: /flow-page/:flowId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19365ms] [LOG] route {id: waPay, name: WA Pay, to: /wa-pay, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19365ms] [LOG] route {id: payments, name: Payments, to: /payments, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19365ms] [LOG] route {id: setupMessages, name: Setup Messages, to: /setup-messages, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19365ms] [LOG] route {id: settings, name: Settings, to: /settings, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19365ms] [LOG] route {id: analyticsPage, name: Analytics, to: /analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19365ms] [LOG] route {id: developerHub, name: Developer Hub, to: /developer, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19366ms] [LOG] route {id: billings, name: Billing & Usage, to: /billings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19366ms] [LOG] route {id: manage, name: Manage, to: /manage, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19366ms] [LOG] route {id: integrations, name: Integrations, to: /integrations, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19366ms] [LOG] route {id: discover, name: Discover, to: /appstore/discover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19366ms] [LOG] route {id: waPaySettings, name: WhatsApp Pay, to: /wa-pay/settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19366ms] [LOG] route {id: storeSetup, name: Store Setup, to: /store-setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19366ms] [LOG] route {id: notificationPreferences, name: Notification Preferences, to: /notification-preferences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19366ms] [LOG] route {id: dialogueflowIntegration, name: Dialogflow Integration, to: /dialogflow, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19366ms] [LOG] route {id: appStore, name: App Store, to: /appstore/ecomdiscover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19473ms] [LOG] route {id: dashboard, name: Dashboard, to: /dashboard, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19473ms] [LOG] route {id: liveChat, name: Live Chat, to: /live, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19473ms] [LOG] route {id: history, name: History, to: /history, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19474ms] [LOG] route {id: contacts, name: Contacts, to: /contacts, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19474ms] [LOG] route {id: templateMessage, name: Template Message, to: /template-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19474ms] [LOG] route {id: optinManagement, name: Optin Management, to: /optout, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19474ms] [LOG] route {id: liveChatSettings, name: Live Chat Settings, to: /chat-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19474ms] [LOG] route {id: campaignSettings, name: Campaign Settings, to: /campaign-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19474ms] [LOG] route {id: userAttributes, name: User Attributes, to: /user-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19474ms] [LOG] route {id: cannedMessage, name: Canned Message, to: /canned-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19474ms] [LOG] route {id: agents, name: Agents, to: /agents, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19474ms] [LOG] route {id: tags, name: Tags, to: /tags, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19474ms] [LOG] route {id: campaigns, name: Campaigns, to: /campaigns, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19475ms] [LOG] route {id: adsManagerLayout, name: Ads Manager, to: /advertisement, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19475ms] [LOG] route {id: adsManagerMainPage, name: Ads Manager, to: /ads-manager, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19475ms] [LOG] route {id: Event, name: Events, to: /events, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19475ms] [LOG] route {id: EventDetails, name: Event Details, to: /events/:eventId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19475ms] [LOG] route {id: leads, name: Leads, to: /leads, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19475ms] [LOG] route {id: audiences, name: Audiences, to: /audiences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19475ms] [LOG] route {id: setup, name: Setup, to: /setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19475ms] [LOG] route {id: createAds, name: Create Ads, to: /create, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19475ms] [LOG] route {id: editAds, name: Edit Ads, to: /edit/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19475ms] [LOG] route {id: duplicateAds, name: Duplicate Ads, to: /duplicate/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19475ms] [LOG] route {id: analytics, name: Analiytics, to: /:id/personal-analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19475ms] [LOG] route {id: flows, name: Flows, to: /flows, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19476ms] [LOG] route {id: flowBuilder, name: Flow Builder, to: /flow-builder, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19476ms] [LOG] route {id: globalAttributes, name: Global Attributes, to: /global-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19476ms] [LOG] route {id: manageCatalogues, name: Manage Catalogues, to: /mnage-catalogues, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19476ms] [LOG] route {id: products, name: Products, to: /products, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19476ms] [LOG] route {id: connectCatalogue, name: Connect Catalogue, to: /connect-catalgue, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19476ms] [LOG] route {id: flowBuilder, name: Flow-Builder, to: /flow-page/:flowId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19476ms] [LOG] route {id: waPay, name: WA Pay, to: /wa-pay, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19476ms] [LOG] route {id: payments, name: Payments, to: /payments, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19476ms] [LOG] route {id: setupMessages, name: Setup Messages, to: /setup-messages, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19476ms] [LOG] route {id: settings, name: Settings, to: /settings, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19476ms] [LOG] route {id: analyticsPage, name: Analytics, to: /analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19477ms] [LOG] route {id: developerHub, name: Developer Hub, to: /developer, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19477ms] [LOG] route {id: billings, name: Billing & Usage, to: /billings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19477ms] [LOG] route {id: manage, name: Manage, to: /manage, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19477ms] [LOG] route {id: integrations, name: Integrations, to: /integrations, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19477ms] [LOG] route {id: discover, name: Discover, to: /appstore/discover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19477ms] [LOG] route {id: waPaySettings, name: WhatsApp Pay, to: /wa-pay/settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19477ms] [LOG] route {id: storeSetup, name: Store Setup, to: /store-setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19477ms] [LOG] route {id: notificationPreferences, name: Notification Preferences, to: /notification-preferences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19477ms] [LOG] route {id: dialogueflowIntegration, name: Dialogflow Integration, to: /dialogflow, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19477ms] [LOG] route {id: appStore, name: App Store, to: /appstore/ecomdiscover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19557ms] [WARNING] [Meta Pixel] - You are sending a non-standard event 'FFP_ACTIVATED'. The preferred way to send these events is using trackCustom. See 'https://developers.facebook.com/docs/ads-for-websites/pixel-events/#events' for more information. @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19594ms] [LOG] route {id: dashboard, name: Dashboard, to: /dashboard, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19594ms] [LOG] route {id: liveChat, name: Live Chat, to: /live, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19594ms] [LOG] route {id: history, name: History, to: /history, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19594ms] [LOG] route {id: contacts, name: Contacts, to: /contacts, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19595ms] [LOG] route {id: templateMessage, name: Template Message, to: /template-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19595ms] [LOG] route {id: optinManagement, name: Optin Management, to: /optout, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19595ms] [LOG] route {id: liveChatSettings, name: Live Chat Settings, to: /chat-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19595ms] [LOG] route {id: campaignSettings, name: Campaign Settings, to: /campaign-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19595ms] [LOG] route {id: userAttributes, name: User Attributes, to: /user-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19595ms] [LOG] route {id: cannedMessage, name: Canned Message, to: /canned-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19596ms] [LOG] route {id: agents, name: Agents, to: /agents, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19596ms] [LOG] route {id: tags, name: Tags, to: /tags, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19596ms] [LOG] route {id: campaigns, name: Campaigns, to: /campaigns, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19596ms] [LOG] route {id: adsManagerLayout, name: Ads Manager, to: /advertisement, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19596ms] [LOG] route {id: adsManagerMainPage, name: Ads Manager, to: /ads-manager, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19596ms] [LOG] route {id: Event, name: Events, to: /events, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19596ms] [LOG] route {id: EventDetails, name: Event Details, to: /events/:eventId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19596ms] [LOG] route {id: leads, name: Leads, to: /leads, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19596ms] [LOG] route {id: audiences, name: Audiences, to: /audiences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19596ms] [LOG] route {id: setup, name: Setup, to: /setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19596ms] [LOG] route {id: createAds, name: Create Ads, to: /create, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19596ms] [LOG] route {id: editAds, name: Edit Ads, to: /edit/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19597ms] [LOG] route {id: duplicateAds, name: Duplicate Ads, to: /duplicate/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19597ms] [LOG] route {id: analytics, name: Analiytics, to: /:id/personal-analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19597ms] [LOG] route {id: flows, name: Flows, to: /flows, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19597ms] [LOG] route {id: flowBuilder, name: Flow Builder, to: /flow-builder, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19597ms] [LOG] route {id: globalAttributes, name: Global Attributes, to: /global-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19597ms] [LOG] route {id: manageCatalogues, name: Manage Catalogues, to: /mnage-catalogues, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19597ms] [LOG] route {id: products, name: Products, to: /products, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19597ms] [LOG] route {id: connectCatalogue, name: Connect Catalogue, to: /connect-catalgue, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19598ms] [LOG] route {id: flowBuilder, name: Flow-Builder, to: /flow-page/:flowId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19598ms] [LOG] route {id: waPay, name: WA Pay, to: /wa-pay, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19598ms] [LOG] route {id: payments, name: Payments, to: /payments, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19598ms] [LOG] route {id: setupMessages, name: Setup Messages, to: /setup-messages, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19598ms] [LOG] route {id: settings, name: Settings, to: /settings, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19598ms] [LOG] route {id: analyticsPage, name: Analytics, to: /analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19598ms] [LOG] route {id: developerHub, name: Developer Hub, to: /developer, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19598ms] [LOG] route {id: billings, name: Billing & Usage, to: /billings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19598ms] [LOG] route {id: manage, name: Manage, to: /manage, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19598ms] [LOG] route {id: integrations, name: Integrations, to: /integrations, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19599ms] [LOG] route {id: discover, name: Discover, to: /appstore/discover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19599ms] [LOG] route {id: waPaySettings, name: WhatsApp Pay, to: /wa-pay/settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19599ms] [LOG] route {id: storeSetup, name: Store Setup, to: /store-setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19599ms] [LOG] route {id: notificationPreferences, name: Notification Preferences, to: /notification-preferences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19599ms] [LOG] route {id: dialogueflowIntegration, name: Dialogflow Integration, to: /dialogflow, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19599ms] [LOG] route {id: appStore, name: App Store, to: /appstore/ecomdiscover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19716ms] [LOG] route {id: dashboard, name: Dashboard, to: /dashboard, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19716ms] [LOG] route {id: liveChat, name: Live Chat, to: /live, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19716ms] [LOG] route {id: history, name: History, to: /history, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19716ms] [LOG] route {id: contacts, name: Contacts, to: /contacts, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19716ms] [LOG] route {id: templateMessage, name: Template Message, to: /template-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19716ms] [LOG] route {id: optinManagement, name: Optin Management, to: /optout, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19716ms] [LOG] route {id: liveChatSettings, name: Live Chat Settings, to: /chat-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19716ms] [LOG] route {id: campaignSettings, name: Campaign Settings, to: /campaign-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19716ms] [LOG] route {id: userAttributes, name: User Attributes, to: /user-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19716ms] [LOG] route {id: cannedMessage, name: Canned Message, to: /canned-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19716ms] [LOG] route {id: agents, name: Agents, to: /agents, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19716ms] [LOG] route {id: tags, name: Tags, to: /tags, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19716ms] [LOG] route {id: campaigns, name: Campaigns, to: /campaigns, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19716ms] [LOG] route {id: adsManagerLayout, name: Ads Manager, to: /advertisement, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19717ms] [LOG] route {id: adsManagerMainPage, name: Ads Manager, to: /ads-manager, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19717ms] [LOG] route {id: Event, name: Events, to: /events, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19717ms] [LOG] route {id: EventDetails, name: Event Details, to: /events/:eventId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19717ms] [LOG] route {id: leads, name: Leads, to: /leads, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19717ms] [LOG] route {id: audiences, name: Audiences, to: /audiences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19717ms] [LOG] route {id: setup, name: Setup, to: /setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19717ms] [LOG] route {id: createAds, name: Create Ads, to: /create, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19717ms] [LOG] route {id: editAds, name: Edit Ads, to: /edit/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19717ms] [LOG] route {id: duplicateAds, name: Duplicate Ads, to: /duplicate/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19717ms] [LOG] route {id: analytics, name: Analiytics, to: /:id/personal-analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19717ms] [LOG] route {id: flows, name: Flows, to: /flows, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19717ms] [LOG] route {id: flowBuilder, name: Flow Builder, to: /flow-builder, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19717ms] [LOG] route {id: globalAttributes, name: Global Attributes, to: /global-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19717ms] [LOG] route {id: manageCatalogues, name: Manage Catalogues, to: /mnage-catalogues, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19717ms] [LOG] route {id: products, name: Products, to: /products, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19717ms] [LOG] route {id: connectCatalogue, name: Connect Catalogue, to: /connect-catalgue, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19717ms] [LOG] route {id: flowBuilder, name: Flow-Builder, to: /flow-page/:flowId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19717ms] [LOG] route {id: waPay, name: WA Pay, to: /wa-pay, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19717ms] [LOG] route {id: payments, name: Payments, to: /payments, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19718ms] [LOG] route {id: setupMessages, name: Setup Messages, to: /setup-messages, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19718ms] [LOG] route {id: settings, name: Settings, to: /settings, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19718ms] [LOG] route {id: analyticsPage, name: Analytics, to: /analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19718ms] [LOG] route {id: developerHub, name: Developer Hub, to: /developer, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19718ms] [LOG] route {id: billings, name: Billing & Usage, to: /billings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19718ms] [LOG] route {id: manage, name: Manage, to: /manage, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19718ms] [LOG] route {id: integrations, name: Integrations, to: /integrations, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19718ms] [LOG] route {id: discover, name: Discover, to: /appstore/discover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19718ms] [LOG] route {id: waPaySettings, name: WhatsApp Pay, to: /wa-pay/settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19718ms] [LOG] route {id: storeSetup, name: Store Setup, to: /store-setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19718ms] [LOG] route {id: notificationPreferences, name: Notification Preferences, to: /notification-preferences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19718ms] [LOG] route {id: dialogueflowIntegration, name: Dialogflow Integration, to: /dialogflow, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19718ms] [LOG] route {id: appStore, name: App Store, to: /appstore/ecomdiscover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   19899ms] [INFO] Slow network is detected. See https://www.chromestatus.com/feature/5636954674692096 for more details. Fallback font will be used while loading: https://fonts.gstatic.com/s/roboto/v48/KFO7CnqEu92Fr1ME7kSn66aGLdTylUAMa3yUBA.woff2 @ https://www.youtube.com/embed/EC6R24Lt5i4:0
+[   19899ms] [INFO] Slow network is detected. See https://www.chromestatus.com/feature/5636954674692096 for more details. Fallback font will be used while loading: https://fonts.gstatic.com/s/roboto/v48/KFO7CnqEu92Fr1ME7kSn66aGLdTylUAMa3yUBA.woff2 @ https://www.youtube.com/embed/EC6R24Lt5i4:0
+[   19899ms] [INFO] Slow network is detected. See https://www.chromestatus.com/feature/5636954674692096 for more details. Fallback font will be used while loading: https://fonts.gstatic.com/s/roboto/v48/KFO7CnqEu92Fr1ME7kSn66aGLdTylUAMa3yUBA.woff2 @ https://www.youtube.com/embed/EC6R24Lt5i4:0
+[   20059ms] [ERROR] Permissions policy violation: compute-pressure is not allowed in this document. @ https://www.youtube.com/s/player/55b1ff8b/player_embed_es6.vflset/en_US/base.js:5099
+[   20385ms] [LOG] route {id: dashboard, name: Dashboard, to: /dashboard, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20385ms] [LOG] route {id: liveChat, name: Live Chat, to: /live, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20385ms] [LOG] route {id: history, name: History, to: /history, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20385ms] [LOG] route {id: contacts, name: Contacts, to: /contacts, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20385ms] [LOG] route {id: templateMessage, name: Template Message, to: /template-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20385ms] [LOG] route {id: optinManagement, name: Optin Management, to: /optout, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20385ms] [LOG] route {id: liveChatSettings, name: Live Chat Settings, to: /chat-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20385ms] [LOG] route {id: campaignSettings, name: Campaign Settings, to: /campaign-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20385ms] [LOG] route {id: userAttributes, name: User Attributes, to: /user-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20385ms] [LOG] route {id: cannedMessage, name: Canned Message, to: /canned-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20385ms] [LOG] route {id: agents, name: Agents, to: /agents, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20386ms] [LOG] route {id: tags, name: Tags, to: /tags, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20386ms] [LOG] route {id: campaigns, name: Campaigns, to: /campaigns, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20386ms] [LOG] route {id: adsManagerLayout, name: Ads Manager, to: /advertisement, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20386ms] [LOG] route {id: adsManagerMainPage, name: Ads Manager, to: /ads-manager, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20386ms] [LOG] route {id: Event, name: Events, to: /events, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20386ms] [LOG] route {id: EventDetails, name: Event Details, to: /events/:eventId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20386ms] [LOG] route {id: leads, name: Leads, to: /leads, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20386ms] [LOG] route {id: audiences, name: Audiences, to: /audiences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20386ms] [LOG] route {id: setup, name: Setup, to: /setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20386ms] [LOG] route {id: createAds, name: Create Ads, to: /create, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20386ms] [LOG] route {id: editAds, name: Edit Ads, to: /edit/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20386ms] [LOG] route {id: duplicateAds, name: Duplicate Ads, to: /duplicate/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20386ms] [LOG] route {id: analytics, name: Analiytics, to: /:id/personal-analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20386ms] [LOG] route {id: flows, name: Flows, to: /flows, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20386ms] [LOG] route {id: flowBuilder, name: Flow Builder, to: /flow-builder, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20386ms] [LOG] route {id: globalAttributes, name: Global Attributes, to: /global-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20386ms] [LOG] route {id: manageCatalogues, name: Manage Catalogues, to: /mnage-catalogues, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20386ms] [LOG] route {id: products, name: Products, to: /products, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20386ms] [LOG] route {id: connectCatalogue, name: Connect Catalogue, to: /connect-catalgue, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20387ms] [LOG] route {id: flowBuilder, name: Flow-Builder, to: /flow-page/:flowId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20387ms] [LOG] route {id: waPay, name: WA Pay, to: /wa-pay, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20387ms] [LOG] route {id: payments, name: Payments, to: /payments, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20387ms] [LOG] route {id: setupMessages, name: Setup Messages, to: /setup-messages, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20387ms] [LOG] route {id: settings, name: Settings, to: /settings, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20387ms] [LOG] route {id: analyticsPage, name: Analytics, to: /analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20387ms] [LOG] route {id: developerHub, name: Developer Hub, to: /developer, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20387ms] [LOG] route {id: billings, name: Billing & Usage, to: /billings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20387ms] [LOG] route {id: manage, name: Manage, to: /manage, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20387ms] [LOG] route {id: integrations, name: Integrations, to: /integrations, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20387ms] [LOG] route {id: discover, name: Discover, to: /appstore/discover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20387ms] [LOG] route {id: waPaySettings, name: WhatsApp Pay, to: /wa-pay/settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20387ms] [LOG] route {id: storeSetup, name: Store Setup, to: /store-setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20387ms] [LOG] route {id: notificationPreferences, name: Notification Preferences, to: /notification-preferences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20387ms] [LOG] route {id: dialogueflowIntegration, name: Dialogflow Integration, to: /dialogflow, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20387ms] [LOG] route {id: appStore, name: App Store, to: /appstore/ecomdiscover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20400ms] [LOG] route {id: dashboard, name: Dashboard, to: /dashboard, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20400ms] [LOG] route {id: liveChat, name: Live Chat, to: /live, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20401ms] [LOG] route {id: history, name: History, to: /history, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20401ms] [LOG] route {id: contacts, name: Contacts, to: /contacts, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20401ms] [LOG] route {id: templateMessage, name: Template Message, to: /template-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20401ms] [LOG] route {id: optinManagement, name: Optin Management, to: /optout, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20401ms] [LOG] route {id: liveChatSettings, name: Live Chat Settings, to: /chat-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20401ms] [LOG] route {id: campaignSettings, name: Campaign Settings, to: /campaign-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20401ms] [LOG] route {id: userAttributes, name: User Attributes, to: /user-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20401ms] [LOG] route {id: cannedMessage, name: Canned Message, to: /canned-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20401ms] [LOG] route {id: agents, name: Agents, to: /agents, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20401ms] [LOG] route {id: tags, name: Tags, to: /tags, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20401ms] [LOG] route {id: campaigns, name: Campaigns, to: /campaigns, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20401ms] [LOG] route {id: adsManagerLayout, name: Ads Manager, to: /advertisement, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20401ms] [LOG] route {id: adsManagerMainPage, name: Ads Manager, to: /ads-manager, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20401ms] [LOG] route {id: Event, name: Events, to: /events, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20401ms] [LOG] route {id: EventDetails, name: Event Details, to: /events/:eventId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20401ms] [LOG] route {id: leads, name: Leads, to: /leads, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20401ms] [LOG] route {id: audiences, name: Audiences, to: /audiences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20402ms] [LOG] route {id: setup, name: Setup, to: /setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20402ms] [LOG] route {id: createAds, name: Create Ads, to: /create, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20402ms] [LOG] route {id: editAds, name: Edit Ads, to: /edit/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20402ms] [LOG] route {id: duplicateAds, name: Duplicate Ads, to: /duplicate/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20402ms] [LOG] route {id: analytics, name: Analiytics, to: /:id/personal-analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20402ms] [LOG] route {id: flows, name: Flows, to: /flows, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20402ms] [LOG] route {id: flowBuilder, name: Flow Builder, to: /flow-builder, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20402ms] [LOG] route {id: globalAttributes, name: Global Attributes, to: /global-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20402ms] [LOG] route {id: manageCatalogues, name: Manage Catalogues, to: /mnage-catalogues, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20402ms] [LOG] route {id: products, name: Products, to: /products, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20402ms] [LOG] route {id: connectCatalogue, name: Connect Catalogue, to: /connect-catalgue, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20402ms] [LOG] route {id: flowBuilder, name: Flow-Builder, to: /flow-page/:flowId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20402ms] [LOG] route {id: waPay, name: WA Pay, to: /wa-pay, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20402ms] [LOG] route {id: payments, name: Payments, to: /payments, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20402ms] [LOG] route {id: setupMessages, name: Setup Messages, to: /setup-messages, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20402ms] [LOG] route {id: settings, name: Settings, to: /settings, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20403ms] [LOG] route {id: analyticsPage, name: Analytics, to: /analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20403ms] [LOG] route {id: developerHub, name: Developer Hub, to: /developer, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20403ms] [LOG] route {id: billings, name: Billing & Usage, to: /billings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20403ms] [LOG] route {id: manage, name: Manage, to: /manage, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20403ms] [LOG] route {id: integrations, name: Integrations, to: /integrations, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20403ms] [LOG] route {id: discover, name: Discover, to: /appstore/discover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20403ms] [LOG] route {id: waPaySettings, name: WhatsApp Pay, to: /wa-pay/settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20403ms] [LOG] route {id: storeSetup, name: Store Setup, to: /store-setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20403ms] [LOG] route {id: notificationPreferences, name: Notification Preferences, to: /notification-preferences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20403ms] [LOG] route {id: dialogueflowIntegration, name: Dialogflow Integration, to: /dialogflow, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   20403ms] [LOG] route {id: appStore, name: App Store, to: /appstore/ecomdiscover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21208ms] [LOG] route {id: dashboard, name: Dashboard, to: /dashboard, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21208ms] [LOG] route {id: liveChat, name: Live Chat, to: /live, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21209ms] [LOG] route {id: history, name: History, to: /history, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21209ms] [LOG] route {id: contacts, name: Contacts, to: /contacts, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21209ms] [LOG] route {id: templateMessage, name: Template Message, to: /template-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21209ms] [LOG] route {id: optinManagement, name: Optin Management, to: /optout, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21209ms] [LOG] route {id: liveChatSettings, name: Live Chat Settings, to: /chat-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21209ms] [LOG] route {id: campaignSettings, name: Campaign Settings, to: /campaign-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21209ms] [LOG] route {id: userAttributes, name: User Attributes, to: /user-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21209ms] [LOG] route {id: cannedMessage, name: Canned Message, to: /canned-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21210ms] [LOG] route {id: agents, name: Agents, to: /agents, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21210ms] [LOG] route {id: tags, name: Tags, to: /tags, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21210ms] [LOG] route {id: campaigns, name: Campaigns, to: /campaigns, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21210ms] [LOG] route {id: adsManagerLayout, name: Ads Manager, to: /advertisement, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21210ms] [LOG] route {id: adsManagerMainPage, name: Ads Manager, to: /ads-manager, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21210ms] [LOG] route {id: Event, name: Events, to: /events, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21210ms] [LOG] route {id: EventDetails, name: Event Details, to: /events/:eventId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21211ms] [LOG] route {id: leads, name: Leads, to: /leads, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21211ms] [LOG] route {id: audiences, name: Audiences, to: /audiences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21211ms] [LOG] route {id: setup, name: Setup, to: /setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21211ms] [LOG] route {id: createAds, name: Create Ads, to: /create, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21211ms] [LOG] route {id: editAds, name: Edit Ads, to: /edit/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21211ms] [LOG] route {id: duplicateAds, name: Duplicate Ads, to: /duplicate/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21211ms] [LOG] route {id: analytics, name: Analiytics, to: /:id/personal-analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21211ms] [LOG] route {id: flows, name: Flows, to: /flows, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21211ms] [LOG] route {id: flowBuilder, name: Flow Builder, to: /flow-builder, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21211ms] [LOG] route {id: globalAttributes, name: Global Attributes, to: /global-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21211ms] [LOG] route {id: manageCatalogues, name: Manage Catalogues, to: /mnage-catalogues, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21212ms] [LOG] route {id: products, name: Products, to: /products, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21212ms] [LOG] route {id: connectCatalogue, name: Connect Catalogue, to: /connect-catalgue, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21212ms] [LOG] route {id: flowBuilder, name: Flow-Builder, to: /flow-page/:flowId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21212ms] [LOG] route {id: waPay, name: WA Pay, to: /wa-pay, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21212ms] [LOG] route {id: payments, name: Payments, to: /payments, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21212ms] [LOG] route {id: setupMessages, name: Setup Messages, to: /setup-messages, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21212ms] [LOG] route {id: settings, name: Settings, to: /settings, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21212ms] [LOG] route {id: analyticsPage, name: Analytics, to: /analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21212ms] [LOG] route {id: developerHub, name: Developer Hub, to: /developer, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21212ms] [LOG] route {id: billings, name: Billing & Usage, to: /billings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21213ms] [LOG] route {id: manage, name: Manage, to: /manage, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21213ms] [LOG] route {id: integrations, name: Integrations, to: /integrations, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21213ms] [LOG] route {id: discover, name: Discover, to: /appstore/discover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21213ms] [LOG] route {id: waPaySettings, name: WhatsApp Pay, to: /wa-pay/settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21213ms] [LOG] route {id: storeSetup, name: Store Setup, to: /store-setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21213ms] [LOG] route {id: notificationPreferences, name: Notification Preferences, to: /notification-preferences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21213ms] [LOG] route {id: dialogueflowIntegration, name: Dialogflow Integration, to: /dialogflow, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21213ms] [LOG] route {id: appStore, name: App Store, to: /appstore/ecomdiscover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21231ms] [LOG] route {id: dashboard, name: Dashboard, to: /dashboard, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21231ms] [LOG] route {id: liveChat, name: Live Chat, to: /live, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21231ms] [LOG] route {id: history, name: History, to: /history, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21231ms] [LOG] route {id: contacts, name: Contacts, to: /contacts, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21231ms] [LOG] route {id: templateMessage, name: Template Message, to: /template-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21231ms] [LOG] route {id: optinManagement, name: Optin Management, to: /optout, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21232ms] [LOG] route {id: liveChatSettings, name: Live Chat Settings, to: /chat-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21232ms] [LOG] route {id: campaignSettings, name: Campaign Settings, to: /campaign-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21232ms] [LOG] route {id: userAttributes, name: User Attributes, to: /user-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21232ms] [LOG] route {id: cannedMessage, name: Canned Message, to: /canned-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21232ms] [LOG] route {id: agents, name: Agents, to: /agents, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21232ms] [LOG] route {id: tags, name: Tags, to: /tags, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21232ms] [LOG] route {id: campaigns, name: Campaigns, to: /campaigns, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21232ms] [LOG] route {id: adsManagerLayout, name: Ads Manager, to: /advertisement, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21232ms] [LOG] route {id: adsManagerMainPage, name: Ads Manager, to: /ads-manager, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21232ms] [LOG] route {id: Event, name: Events, to: /events, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21233ms] [LOG] route {id: EventDetails, name: Event Details, to: /events/:eventId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21233ms] [LOG] route {id: leads, name: Leads, to: /leads, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21233ms] [LOG] route {id: audiences, name: Audiences, to: /audiences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21233ms] [LOG] route {id: setup, name: Setup, to: /setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21233ms] [LOG] route {id: createAds, name: Create Ads, to: /create, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21233ms] [LOG] route {id: editAds, name: Edit Ads, to: /edit/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21233ms] [LOG] route {id: duplicateAds, name: Duplicate Ads, to: /duplicate/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21233ms] [LOG] route {id: analytics, name: Analiytics, to: /:id/personal-analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21233ms] [LOG] route {id: flows, name: Flows, to: /flows, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21233ms] [LOG] route {id: flowBuilder, name: Flow Builder, to: /flow-builder, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21233ms] [LOG] route {id: globalAttributes, name: Global Attributes, to: /global-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21234ms] [LOG] route {id: manageCatalogues, name: Manage Catalogues, to: /mnage-catalogues, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21234ms] [LOG] route {id: products, name: Products, to: /products, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21234ms] [LOG] route {id: connectCatalogue, name: Connect Catalogue, to: /connect-catalgue, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21234ms] [LOG] route {id: flowBuilder, name: Flow-Builder, to: /flow-page/:flowId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21234ms] [LOG] route {id: waPay, name: WA Pay, to: /wa-pay, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21234ms] [LOG] route {id: payments, name: Payments, to: /payments, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21235ms] [LOG] route {id: setupMessages, name: Setup Messages, to: /setup-messages, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21235ms] [LOG] route {id: settings, name: Settings, to: /settings, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21235ms] [LOG] route {id: analyticsPage, name: Analytics, to: /analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21235ms] [LOG] route {id: developerHub, name: Developer Hub, to: /developer, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21235ms] [LOG] route {id: billings, name: Billing & Usage, to: /billings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21235ms] [LOG] route {id: manage, name: Manage, to: /manage, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21235ms] [LOG] route {id: integrations, name: Integrations, to: /integrations, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21235ms] [LOG] route {id: discover, name: Discover, to: /appstore/discover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21235ms] [LOG] route {id: waPaySettings, name: WhatsApp Pay, to: /wa-pay/settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21235ms] [LOG] route {id: storeSetup, name: Store Setup, to: /store-setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21236ms] [LOG] route {id: notificationPreferences, name: Notification Preferences, to: /notification-preferences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21236ms] [LOG] route {id: dialogueflowIntegration, name: Dialogflow Integration, to: /dialogflow, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21236ms] [LOG] route {id: appStore, name: App Store, to: /appstore/ecomdiscover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   21891ms] [LOG] [Featurebase SDK] Initializing SDK! @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22134ms] [LOG] route {id: dashboard, name: Dashboard, to: /dashboard, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22134ms] [LOG] route {id: liveChat, name: Live Chat, to: /live, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22134ms] [LOG] route {id: history, name: History, to: /history, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22134ms] [LOG] route {id: contacts, name: Contacts, to: /contacts, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22134ms] [LOG] route {id: templateMessage, name: Template Message, to: /template-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22135ms] [LOG] route {id: optinManagement, name: Optin Management, to: /optout, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22135ms] [LOG] route {id: liveChatSettings, name: Live Chat Settings, to: /chat-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22135ms] [LOG] route {id: campaignSettings, name: Campaign Settings, to: /campaign-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22135ms] [LOG] route {id: userAttributes, name: User Attributes, to: /user-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22135ms] [LOG] route {id: cannedMessage, name: Canned Message, to: /canned-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22135ms] [LOG] route {id: agents, name: Agents, to: /agents, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22135ms] [LOG] route {id: tags, name: Tags, to: /tags, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22135ms] [LOG] route {id: campaigns, name: Campaigns, to: /campaigns, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22135ms] [LOG] route {id: adsManagerLayout, name: Ads Manager, to: /advertisement, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22135ms] [LOG] route {id: adsManagerMainPage, name: Ads Manager, to: /ads-manager, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22135ms] [LOG] route {id: Event, name: Events, to: /events, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22135ms] [LOG] route {id: EventDetails, name: Event Details, to: /events/:eventId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22135ms] [LOG] route {id: leads, name: Leads, to: /leads, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22135ms] [LOG] route {id: audiences, name: Audiences, to: /audiences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22135ms] [LOG] route {id: setup, name: Setup, to: /setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22135ms] [LOG] route {id: createAds, name: Create Ads, to: /create, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22136ms] [LOG] route {id: editAds, name: Edit Ads, to: /edit/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22136ms] [LOG] route {id: duplicateAds, name: Duplicate Ads, to: /duplicate/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22136ms] [LOG] route {id: analytics, name: Analiytics, to: /:id/personal-analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22136ms] [LOG] route {id: flows, name: Flows, to: /flows, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22136ms] [LOG] route {id: flowBuilder, name: Flow Builder, to: /flow-builder, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22136ms] [LOG] route {id: globalAttributes, name: Global Attributes, to: /global-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22136ms] [LOG] route {id: manageCatalogues, name: Manage Catalogues, to: /mnage-catalogues, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22136ms] [LOG] route {id: products, name: Products, to: /products, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22136ms] [LOG] route {id: connectCatalogue, name: Connect Catalogue, to: /connect-catalgue, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22136ms] [LOG] route {id: flowBuilder, name: Flow-Builder, to: /flow-page/:flowId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22136ms] [LOG] route {id: waPay, name: WA Pay, to: /wa-pay, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22136ms] [LOG] route {id: payments, name: Payments, to: /payments, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22136ms] [LOG] route {id: setupMessages, name: Setup Messages, to: /setup-messages, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22136ms] [LOG] route {id: settings, name: Settings, to: /settings, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22136ms] [LOG] route {id: analyticsPage, name: Analytics, to: /analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22136ms] [LOG] route {id: developerHub, name: Developer Hub, to: /developer, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22137ms] [LOG] route {id: billings, name: Billing & Usage, to: /billings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22137ms] [LOG] route {id: manage, name: Manage, to: /manage, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22137ms] [LOG] route {id: integrations, name: Integrations, to: /integrations, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22137ms] [LOG] route {id: discover, name: Discover, to: /appstore/discover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22137ms] [LOG] route {id: waPaySettings, name: WhatsApp Pay, to: /wa-pay/settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22137ms] [LOG] route {id: storeSetup, name: Store Setup, to: /store-setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22137ms] [LOG] route {id: notificationPreferences, name: Notification Preferences, to: /notification-preferences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22137ms] [LOG] route {id: dialogueflowIntegration, name: Dialogflow Integration, to: /dialogflow, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22137ms] [LOG] route {id: appStore, name: App Store, to: /appstore/ecomdiscover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22709ms] [LOG] route {id: dashboard, name: Dashboard, to: /dashboard, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22709ms] [LOG] route {id: liveChat, name: Live Chat, to: /live, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22709ms] [LOG] route {id: history, name: History, to: /history, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22709ms] [LOG] route {id: contacts, name: Contacts, to: /contacts, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22709ms] [LOG] route {id: templateMessage, name: Template Message, to: /template-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22710ms] [LOG] route {id: optinManagement, name: Optin Management, to: /optout, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22710ms] [LOG] route {id: liveChatSettings, name: Live Chat Settings, to: /chat-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22710ms] [LOG] route {id: campaignSettings, name: Campaign Settings, to: /campaign-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22710ms] [LOG] route {id: userAttributes, name: User Attributes, to: /user-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22710ms] [LOG] route {id: cannedMessage, name: Canned Message, to: /canned-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22710ms] [LOG] route {id: agents, name: Agents, to: /agents, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22710ms] [LOG] route {id: tags, name: Tags, to: /tags, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22710ms] [LOG] route {id: campaigns, name: Campaigns, to: /campaigns, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22710ms] [LOG] route {id: adsManagerLayout, name: Ads Manager, to: /advertisement, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22710ms] [LOG] route {id: adsManagerMainPage, name: Ads Manager, to: /ads-manager, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22711ms] [LOG] route {id: Event, name: Events, to: /events, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22711ms] [LOG] route {id: EventDetails, name: Event Details, to: /events/:eventId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22711ms] [LOG] route {id: leads, name: Leads, to: /leads, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22711ms] [LOG] route {id: audiences, name: Audiences, to: /audiences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22711ms] [LOG] route {id: setup, name: Setup, to: /setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22711ms] [LOG] route {id: createAds, name: Create Ads, to: /create, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22711ms] [LOG] route {id: editAds, name: Edit Ads, to: /edit/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22711ms] [LOG] route {id: duplicateAds, name: Duplicate Ads, to: /duplicate/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22711ms] [LOG] route {id: analytics, name: Analiytics, to: /:id/personal-analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22711ms] [LOG] route {id: flows, name: Flows, to: /flows, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22711ms] [LOG] route {id: flowBuilder, name: Flow Builder, to: /flow-builder, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22712ms] [LOG] route {id: globalAttributes, name: Global Attributes, to: /global-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22712ms] [LOG] route {id: manageCatalogues, name: Manage Catalogues, to: /mnage-catalogues, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22712ms] [LOG] route {id: products, name: Products, to: /products, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22712ms] [LOG] route {id: connectCatalogue, name: Connect Catalogue, to: /connect-catalgue, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22712ms] [LOG] route {id: flowBuilder, name: Flow-Builder, to: /flow-page/:flowId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22712ms] [LOG] route {id: waPay, name: WA Pay, to: /wa-pay, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22712ms] [LOG] route {id: payments, name: Payments, to: /payments, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22712ms] [LOG] route {id: setupMessages, name: Setup Messages, to: /setup-messages, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22712ms] [LOG] route {id: settings, name: Settings, to: /settings, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22712ms] [LOG] route {id: analyticsPage, name: Analytics, to: /analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22712ms] [LOG] route {id: developerHub, name: Developer Hub, to: /developer, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22712ms] [LOG] route {id: billings, name: Billing & Usage, to: /billings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22713ms] [LOG] route {id: manage, name: Manage, to: /manage, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22713ms] [LOG] route {id: integrations, name: Integrations, to: /integrations, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22713ms] [LOG] route {id: discover, name: Discover, to: /appstore/discover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22713ms] [LOG] route {id: waPaySettings, name: WhatsApp Pay, to: /wa-pay/settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22713ms] [LOG] route {id: storeSetup, name: Store Setup, to: /store-setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22713ms] [LOG] route {id: notificationPreferences, name: Notification Preferences, to: /notification-preferences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22713ms] [LOG] route {id: dialogueflowIntegration, name: Dialogflow Integration, to: /dialogflow, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22713ms] [LOG] route {id: appStore, name: App Store, to: /appstore/ecomdiscover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22714ms] [LOG] route {id: dashboard, name: Dashboard, to: /dashboard, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22714ms] [LOG] route {id: liveChat, name: Live Chat, to: /live, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22714ms] [LOG] route {id: history, name: History, to: /history, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22714ms] [LOG] route {id: contacts, name: Contacts, to: /contacts, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22715ms] [LOG] route {id: templateMessage, name: Template Message, to: /template-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22715ms] [LOG] route {id: optinManagement, name: Optin Management, to: /optout, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22715ms] [LOG] route {id: liveChatSettings, name: Live Chat Settings, to: /chat-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22715ms] [LOG] route {id: campaignSettings, name: Campaign Settings, to: /campaign-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22715ms] [LOG] route {id: userAttributes, name: User Attributes, to: /user-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22715ms] [LOG] route {id: cannedMessage, name: Canned Message, to: /canned-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22715ms] [LOG] route {id: agents, name: Agents, to: /agents, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22715ms] [LOG] route {id: tags, name: Tags, to: /tags, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22715ms] [LOG] route {id: campaigns, name: Campaigns, to: /campaigns, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22715ms] [LOG] route {id: adsManagerLayout, name: Ads Manager, to: /advertisement, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22716ms] [LOG] route {id: adsManagerMainPage, name: Ads Manager, to: /ads-manager, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22716ms] [LOG] route {id: Event, name: Events, to: /events, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22716ms] [LOG] route {id: EventDetails, name: Event Details, to: /events/:eventId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22716ms] [LOG] route {id: leads, name: Leads, to: /leads, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22716ms] [LOG] route {id: audiences, name: Audiences, to: /audiences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22716ms] [LOG] route {id: setup, name: Setup, to: /setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22716ms] [LOG] route {id: createAds, name: Create Ads, to: /create, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22716ms] [LOG] route {id: editAds, name: Edit Ads, to: /edit/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22716ms] [LOG] route {id: duplicateAds, name: Duplicate Ads, to: /duplicate/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22716ms] [LOG] route {id: analytics, name: Analiytics, to: /:id/personal-analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22717ms] [LOG] route {id: flows, name: Flows, to: /flows, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22717ms] [LOG] route {id: flowBuilder, name: Flow Builder, to: /flow-builder, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22717ms] [LOG] route {id: globalAttributes, name: Global Attributes, to: /global-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22717ms] [LOG] route {id: manageCatalogues, name: Manage Catalogues, to: /mnage-catalogues, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22717ms] [LOG] route {id: products, name: Products, to: /products, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22717ms] [LOG] route {id: connectCatalogue, name: Connect Catalogue, to: /connect-catalgue, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22717ms] [LOG] route {id: flowBuilder, name: Flow-Builder, to: /flow-page/:flowId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22717ms] [LOG] route {id: waPay, name: WA Pay, to: /wa-pay, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22717ms] [LOG] route {id: payments, name: Payments, to: /payments, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22717ms] [LOG] route {id: setupMessages, name: Setup Messages, to: /setup-messages, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22717ms] [LOG] route {id: settings, name: Settings, to: /settings, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22718ms] [LOG] route {id: analyticsPage, name: Analytics, to: /analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22718ms] [LOG] route {id: developerHub, name: Developer Hub, to: /developer, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22718ms] [LOG] route {id: billings, name: Billing & Usage, to: /billings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22718ms] [LOG] route {id: manage, name: Manage, to: /manage, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22718ms] [LOG] route {id: integrations, name: Integrations, to: /integrations, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22718ms] [LOG] route {id: discover, name: Discover, to: /appstore/discover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22718ms] [LOG] route {id: waPaySettings, name: WhatsApp Pay, to: /wa-pay/settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22718ms] [LOG] route {id: storeSetup, name: Store Setup, to: /store-setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22718ms] [LOG] route {id: notificationPreferences, name: Notification Preferences, to: /notification-preferences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22718ms] [LOG] route {id: dialogueflowIntegration, name: Dialogflow Integration, to: /dialogflow, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22719ms] [LOG] route {id: appStore, name: App Store, to: /appstore/ecomdiscover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22754ms] [LOG] route {id: dashboard, name: Dashboard, to: /dashboard, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22754ms] [LOG] route {id: liveChat, name: Live Chat, to: /live, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22754ms] [LOG] route {id: history, name: History, to: /history, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22754ms] [LOG] route {id: contacts, name: Contacts, to: /contacts, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22754ms] [LOG] route {id: templateMessage, name: Template Message, to: /template-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22754ms] [LOG] route {id: optinManagement, name: Optin Management, to: /optout, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22754ms] [LOG] route {id: liveChatSettings, name: Live Chat Settings, to: /chat-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22754ms] [LOG] route {id: campaignSettings, name: Campaign Settings, to: /campaign-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22754ms] [LOG] route {id: userAttributes, name: User Attributes, to: /user-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22754ms] [LOG] route {id: cannedMessage, name: Canned Message, to: /canned-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22755ms] [LOG] route {id: agents, name: Agents, to: /agents, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22755ms] [LOG] route {id: tags, name: Tags, to: /tags, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22755ms] [LOG] route {id: campaigns, name: Campaigns, to: /campaigns, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22755ms] [LOG] route {id: adsManagerLayout, name: Ads Manager, to: /advertisement, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22755ms] [LOG] route {id: adsManagerMainPage, name: Ads Manager, to: /ads-manager, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22755ms] [LOG] route {id: Event, name: Events, to: /events, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22755ms] [LOG] route {id: EventDetails, name: Event Details, to: /events/:eventId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22755ms] [LOG] route {id: leads, name: Leads, to: /leads, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22755ms] [LOG] route {id: audiences, name: Audiences, to: /audiences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22755ms] [LOG] route {id: setup, name: Setup, to: /setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22755ms] [LOG] route {id: createAds, name: Create Ads, to: /create, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22755ms] [LOG] route {id: editAds, name: Edit Ads, to: /edit/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22755ms] [LOG] route {id: duplicateAds, name: Duplicate Ads, to: /duplicate/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22755ms] [LOG] route {id: analytics, name: Analiytics, to: /:id/personal-analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22755ms] [LOG] route {id: flows, name: Flows, to: /flows, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22755ms] [LOG] route {id: flowBuilder, name: Flow Builder, to: /flow-builder, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22756ms] [LOG] route {id: globalAttributes, name: Global Attributes, to: /global-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22756ms] [LOG] route {id: manageCatalogues, name: Manage Catalogues, to: /mnage-catalogues, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22756ms] [LOG] route {id: products, name: Products, to: /products, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22756ms] [LOG] route {id: connectCatalogue, name: Connect Catalogue, to: /connect-catalgue, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22756ms] [LOG] route {id: flowBuilder, name: Flow-Builder, to: /flow-page/:flowId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22756ms] [LOG] route {id: waPay, name: WA Pay, to: /wa-pay, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22756ms] [LOG] route {id: payments, name: Payments, to: /payments, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22756ms] [LOG] route {id: setupMessages, name: Setup Messages, to: /setup-messages, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22756ms] [LOG] route {id: settings, name: Settings, to: /settings, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22756ms] [LOG] route {id: analyticsPage, name: Analytics, to: /analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22756ms] [LOG] route {id: developerHub, name: Developer Hub, to: /developer, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22756ms] [LOG] route {id: billings, name: Billing & Usage, to: /billings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22756ms] [LOG] route {id: manage, name: Manage, to: /manage, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22756ms] [LOG] route {id: integrations, name: Integrations, to: /integrations, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22756ms] [LOG] route {id: discover, name: Discover, to: /appstore/discover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22756ms] [LOG] route {id: waPaySettings, name: WhatsApp Pay, to: /wa-pay/settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22756ms] [LOG] route {id: storeSetup, name: Store Setup, to: /store-setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22756ms] [LOG] route {id: notificationPreferences, name: Notification Preferences, to: /notification-preferences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22757ms] [LOG] route {id: dialogueflowIntegration, name: Dialogflow Integration, to: /dialogflow, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22757ms] [LOG] route {id: appStore, name: App Store, to: /appstore/ecomdiscover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22763ms] [WARNING] [Featurebase SDK] Action destroy_portal_widget is not supported. @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22781ms] [LOG] route {id: dashboard, name: Dashboard, to: /dashboard, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22781ms] [LOG] route {id: liveChat, name: Live Chat, to: /live, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22781ms] [LOG] route {id: history, name: History, to: /history, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22781ms] [LOG] route {id: contacts, name: Contacts, to: /contacts, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22782ms] [LOG] route {id: templateMessage, name: Template Message, to: /template-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22782ms] [LOG] route {id: optinManagement, name: Optin Management, to: /optout, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22782ms] [LOG] route {id: liveChatSettings, name: Live Chat Settings, to: /chat-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22782ms] [LOG] route {id: campaignSettings, name: Campaign Settings, to: /campaign-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22782ms] [LOG] route {id: userAttributes, name: User Attributes, to: /user-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22782ms] [LOG] route {id: cannedMessage, name: Canned Message, to: /canned-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22782ms] [LOG] route {id: agents, name: Agents, to: /agents, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22782ms] [LOG] route {id: tags, name: Tags, to: /tags, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22782ms] [LOG] route {id: campaigns, name: Campaigns, to: /campaigns, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22782ms] [LOG] route {id: adsManagerLayout, name: Ads Manager, to: /advertisement, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22782ms] [LOG] route {id: adsManagerMainPage, name: Ads Manager, to: /ads-manager, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22782ms] [LOG] route {id: Event, name: Events, to: /events, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22782ms] [LOG] route {id: EventDetails, name: Event Details, to: /events/:eventId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22782ms] [LOG] route {id: leads, name: Leads, to: /leads, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22783ms] [LOG] route {id: audiences, name: Audiences, to: /audiences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22783ms] [LOG] route {id: setup, name: Setup, to: /setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22783ms] [LOG] route {id: createAds, name: Create Ads, to: /create, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22783ms] [LOG] route {id: editAds, name: Edit Ads, to: /edit/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22783ms] [LOG] route {id: duplicateAds, name: Duplicate Ads, to: /duplicate/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22783ms] [LOG] route {id: analytics, name: Analiytics, to: /:id/personal-analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22783ms] [LOG] route {id: flows, name: Flows, to: /flows, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22783ms] [LOG] route {id: flowBuilder, name: Flow Builder, to: /flow-builder, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22783ms] [LOG] route {id: globalAttributes, name: Global Attributes, to: /global-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22783ms] [LOG] route {id: manageCatalogues, name: Manage Catalogues, to: /mnage-catalogues, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22783ms] [LOG] route {id: products, name: Products, to: /products, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22784ms] [LOG] route {id: connectCatalogue, name: Connect Catalogue, to: /connect-catalgue, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22784ms] [LOG] route {id: flowBuilder, name: Flow-Builder, to: /flow-page/:flowId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22784ms] [LOG] route {id: waPay, name: WA Pay, to: /wa-pay, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22784ms] [LOG] route {id: payments, name: Payments, to: /payments, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22784ms] [LOG] route {id: setupMessages, name: Setup Messages, to: /setup-messages, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22784ms] [LOG] route {id: settings, name: Settings, to: /settings, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22784ms] [LOG] route {id: analyticsPage, name: Analytics, to: /analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22784ms] [LOG] route {id: developerHub, name: Developer Hub, to: /developer, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22784ms] [LOG] route {id: billings, name: Billing & Usage, to: /billings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22784ms] [LOG] route {id: manage, name: Manage, to: /manage, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22784ms] [LOG] route {id: integrations, name: Integrations, to: /integrations, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22784ms] [LOG] route {id: discover, name: Discover, to: /appstore/discover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22785ms] [LOG] route {id: waPaySettings, name: WhatsApp Pay, to: /wa-pay/settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22785ms] [LOG] route {id: storeSetup, name: Store Setup, to: /store-setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22785ms] [LOG] route {id: notificationPreferences, name: Notification Preferences, to: /notification-preferences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22785ms] [LOG] route {id: dialogueflowIntegration, name: Dialogflow Integration, to: /dialogflow, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22785ms] [LOG] route {id: appStore, name: App Store, to: /appstore/ecomdiscover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22803ms] [LOG] route {id: dashboard, name: Dashboard, to: /dashboard, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22803ms] [LOG] route {id: liveChat, name: Live Chat, to: /live, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22803ms] [LOG] route {id: history, name: History, to: /history, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22803ms] [LOG] route {id: contacts, name: Contacts, to: /contacts, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22803ms] [LOG] route {id: templateMessage, name: Template Message, to: /template-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22803ms] [LOG] route {id: optinManagement, name: Optin Management, to: /optout, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22803ms] [LOG] route {id: liveChatSettings, name: Live Chat Settings, to: /chat-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22803ms] [LOG] route {id: campaignSettings, name: Campaign Settings, to: /campaign-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22803ms] [LOG] route {id: userAttributes, name: User Attributes, to: /user-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22804ms] [LOG] route {id: cannedMessage, name: Canned Message, to: /canned-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22804ms] [LOG] route {id: agents, name: Agents, to: /agents, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22804ms] [LOG] route {id: tags, name: Tags, to: /tags, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22804ms] [LOG] route {id: campaigns, name: Campaigns, to: /campaigns, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22804ms] [LOG] route {id: adsManagerLayout, name: Ads Manager, to: /advertisement, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22804ms] [LOG] route {id: adsManagerMainPage, name: Ads Manager, to: /ads-manager, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22804ms] [LOG] route {id: Event, name: Events, to: /events, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22804ms] [LOG] route {id: EventDetails, name: Event Details, to: /events/:eventId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22804ms] [LOG] route {id: leads, name: Leads, to: /leads, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22804ms] [LOG] route {id: audiences, name: Audiences, to: /audiences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22804ms] [LOG] route {id: setup, name: Setup, to: /setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22804ms] [LOG] route {id: createAds, name: Create Ads, to: /create, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22804ms] [LOG] route {id: editAds, name: Edit Ads, to: /edit/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22804ms] [LOG] route {id: duplicateAds, name: Duplicate Ads, to: /duplicate/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22804ms] [LOG] route {id: analytics, name: Analiytics, to: /:id/personal-analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22804ms] [LOG] route {id: flows, name: Flows, to: /flows, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22804ms] [LOG] route {id: flowBuilder, name: Flow Builder, to: /flow-builder, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22804ms] [LOG] route {id: globalAttributes, name: Global Attributes, to: /global-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22805ms] [LOG] route {id: manageCatalogues, name: Manage Catalogues, to: /mnage-catalogues, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22805ms] [LOG] route {id: products, name: Products, to: /products, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22805ms] [LOG] route {id: connectCatalogue, name: Connect Catalogue, to: /connect-catalgue, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22805ms] [LOG] route {id: flowBuilder, name: Flow-Builder, to: /flow-page/:flowId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22805ms] [LOG] route {id: waPay, name: WA Pay, to: /wa-pay, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22805ms] [LOG] route {id: payments, name: Payments, to: /payments, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22805ms] [LOG] route {id: setupMessages, name: Setup Messages, to: /setup-messages, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22805ms] [LOG] route {id: settings, name: Settings, to: /settings, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22805ms] [LOG] route {id: analyticsPage, name: Analytics, to: /analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22806ms] [LOG] route {id: developerHub, name: Developer Hub, to: /developer, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22806ms] [LOG] route {id: billings, name: Billing & Usage, to: /billings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22806ms] [LOG] route {id: manage, name: Manage, to: /manage, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22806ms] [LOG] route {id: integrations, name: Integrations, to: /integrations, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22806ms] [LOG] route {id: discover, name: Discover, to: /appstore/discover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22806ms] [LOG] route {id: waPaySettings, name: WhatsApp Pay, to: /wa-pay/settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22806ms] [LOG] route {id: storeSetup, name: Store Setup, to: /store-setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22806ms] [LOG] route {id: notificationPreferences, name: Notification Preferences, to: /notification-preferences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22806ms] [LOG] route {id: dialogueflowIntegration, name: Dialogflow Integration, to: /dialogflow, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22806ms] [LOG] route {id: appStore, name: App Store, to: /appstore/ecomdiscover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22807ms] [LOG] route {id: dashboard, name: Dashboard, to: /dashboard, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22807ms] [LOG] route {id: liveChat, name: Live Chat, to: /live, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22807ms] [LOG] route {id: history, name: History, to: /history, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22807ms] [LOG] route {id: contacts, name: Contacts, to: /contacts, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22807ms] [LOG] route {id: templateMessage, name: Template Message, to: /template-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22807ms] [LOG] route {id: optinManagement, name: Optin Management, to: /optout, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22807ms] [LOG] route {id: liveChatSettings, name: Live Chat Settings, to: /chat-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22807ms] [LOG] route {id: campaignSettings, name: Campaign Settings, to: /campaign-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22808ms] [LOG] route {id: userAttributes, name: User Attributes, to: /user-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22808ms] [LOG] route {id: cannedMessage, name: Canned Message, to: /canned-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22808ms] [LOG] route {id: agents, name: Agents, to: /agents, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22808ms] [LOG] route {id: tags, name: Tags, to: /tags, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22808ms] [LOG] route {id: campaigns, name: Campaigns, to: /campaigns, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22808ms] [LOG] route {id: adsManagerLayout, name: Ads Manager, to: /advertisement, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22808ms] [LOG] route {id: adsManagerMainPage, name: Ads Manager, to: /ads-manager, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22808ms] [LOG] route {id: Event, name: Events, to: /events, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22808ms] [LOG] route {id: EventDetails, name: Event Details, to: /events/:eventId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22808ms] [LOG] route {id: leads, name: Leads, to: /leads, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22808ms] [LOG] route {id: audiences, name: Audiences, to: /audiences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22809ms] [LOG] route {id: setup, name: Setup, to: /setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22809ms] [LOG] route {id: createAds, name: Create Ads, to: /create, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22809ms] [LOG] route {id: editAds, name: Edit Ads, to: /edit/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22809ms] [LOG] route {id: duplicateAds, name: Duplicate Ads, to: /duplicate/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22809ms] [LOG] route {id: analytics, name: Analiytics, to: /:id/personal-analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22809ms] [LOG] route {id: flows, name: Flows, to: /flows, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22809ms] [LOG] route {id: flowBuilder, name: Flow Builder, to: /flow-builder, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22809ms] [LOG] route {id: globalAttributes, name: Global Attributes, to: /global-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22809ms] [LOG] route {id: manageCatalogues, name: Manage Catalogues, to: /mnage-catalogues, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22809ms] [LOG] route {id: products, name: Products, to: /products, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22809ms] [LOG] route {id: connectCatalogue, name: Connect Catalogue, to: /connect-catalgue, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22809ms] [LOG] route {id: flowBuilder, name: Flow-Builder, to: /flow-page/:flowId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22810ms] [LOG] route {id: waPay, name: WA Pay, to: /wa-pay, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22810ms] [LOG] route {id: payments, name: Payments, to: /payments, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22810ms] [LOG] route {id: setupMessages, name: Setup Messages, to: /setup-messages, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22810ms] [LOG] route {id: settings, name: Settings, to: /settings, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22810ms] [LOG] route {id: analyticsPage, name: Analytics, to: /analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22810ms] [LOG] route {id: developerHub, name: Developer Hub, to: /developer, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22810ms] [LOG] route {id: billings, name: Billing & Usage, to: /billings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22810ms] [LOG] route {id: manage, name: Manage, to: /manage, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22810ms] [LOG] route {id: integrations, name: Integrations, to: /integrations, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22810ms] [LOG] route {id: discover, name: Discover, to: /appstore/discover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22810ms] [LOG] route {id: waPaySettings, name: WhatsApp Pay, to: /wa-pay/settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22811ms] [LOG] route {id: storeSetup, name: Store Setup, to: /store-setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22811ms] [LOG] route {id: notificationPreferences, name: Notification Preferences, to: /notification-preferences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22811ms] [LOG] route {id: dialogueflowIntegration, name: Dialogflow Integration, to: /dialogflow, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22811ms] [LOG] route {id: appStore, name: App Store, to: /appstore/ecomdiscover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22908ms] [LOG] route {id: dashboard, name: Dashboard, to: /dashboard, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22908ms] [LOG] route {id: liveChat, name: Live Chat, to: /live, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22908ms] [LOG] route {id: history, name: History, to: /history, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22909ms] [LOG] route {id: contacts, name: Contacts, to: /contacts, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22909ms] [LOG] route {id: templateMessage, name: Template Message, to: /template-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22909ms] [LOG] route {id: optinManagement, name: Optin Management, to: /optout, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22909ms] [LOG] route {id: liveChatSettings, name: Live Chat Settings, to: /chat-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22909ms] [LOG] route {id: campaignSettings, name: Campaign Settings, to: /campaign-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22909ms] [LOG] route {id: userAttributes, name: User Attributes, to: /user-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22909ms] [LOG] route {id: cannedMessage, name: Canned Message, to: /canned-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22909ms] [LOG] route {id: agents, name: Agents, to: /agents, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22909ms] [LOG] route {id: tags, name: Tags, to: /tags, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22909ms] [LOG] route {id: campaigns, name: Campaigns, to: /campaigns, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22909ms] [LOG] route {id: adsManagerLayout, name: Ads Manager, to: /advertisement, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22910ms] [LOG] route {id: adsManagerMainPage, name: Ads Manager, to: /ads-manager, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22910ms] [LOG] route {id: Event, name: Events, to: /events, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22910ms] [LOG] route {id: EventDetails, name: Event Details, to: /events/:eventId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22910ms] [LOG] route {id: leads, name: Leads, to: /leads, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22910ms] [LOG] route {id: audiences, name: Audiences, to: /audiences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22910ms] [LOG] route {id: setup, name: Setup, to: /setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22910ms] [LOG] route {id: createAds, name: Create Ads, to: /create, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22910ms] [LOG] route {id: editAds, name: Edit Ads, to: /edit/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22910ms] [LOG] route {id: duplicateAds, name: Duplicate Ads, to: /duplicate/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22910ms] [LOG] route {id: analytics, name: Analiytics, to: /:id/personal-analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22910ms] [LOG] route {id: flows, name: Flows, to: /flows, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22910ms] [LOG] route {id: flowBuilder, name: Flow Builder, to: /flow-builder, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22910ms] [LOG] route {id: globalAttributes, name: Global Attributes, to: /global-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22910ms] [LOG] route {id: manageCatalogues, name: Manage Catalogues, to: /mnage-catalogues, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22911ms] [LOG] route {id: products, name: Products, to: /products, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22911ms] [LOG] route {id: connectCatalogue, name: Connect Catalogue, to: /connect-catalgue, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22911ms] [LOG] route {id: flowBuilder, name: Flow-Builder, to: /flow-page/:flowId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22911ms] [LOG] route {id: waPay, name: WA Pay, to: /wa-pay, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22911ms] [LOG] route {id: payments, name: Payments, to: /payments, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22911ms] [LOG] route {id: setupMessages, name: Setup Messages, to: /setup-messages, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22911ms] [LOG] route {id: settings, name: Settings, to: /settings, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22911ms] [LOG] route {id: analyticsPage, name: Analytics, to: /analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22911ms] [LOG] route {id: developerHub, name: Developer Hub, to: /developer, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22911ms] [LOG] route {id: billings, name: Billing & Usage, to: /billings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22911ms] [LOG] route {id: manage, name: Manage, to: /manage, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22911ms] [LOG] route {id: integrations, name: Integrations, to: /integrations, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22911ms] [LOG] route {id: discover, name: Discover, to: /appstore/discover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22911ms] [LOG] route {id: waPaySettings, name: WhatsApp Pay, to: /wa-pay/settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22911ms] [LOG] route {id: storeSetup, name: Store Setup, to: /store-setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22912ms] [LOG] route {id: notificationPreferences, name: Notification Preferences, to: /notification-preferences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22912ms] [LOG] route {id: dialogueflowIntegration, name: Dialogflow Integration, to: /dialogflow, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   22912ms] [LOG] route {id: appStore, name: App Store, to: /appstore/ecomdiscover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23471ms] [LOG] route {id: dashboard, name: Dashboard, to: /dashboard, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23471ms] [LOG] route {id: liveChat, name: Live Chat, to: /live, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23471ms] [LOG] route {id: history, name: History, to: /history, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23472ms] [LOG] route {id: contacts, name: Contacts, to: /contacts, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23472ms] [LOG] route {id: templateMessage, name: Template Message, to: /template-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23472ms] [LOG] route {id: optinManagement, name: Optin Management, to: /optout, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23472ms] [LOG] route {id: liveChatSettings, name: Live Chat Settings, to: /chat-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23472ms] [LOG] route {id: campaignSettings, name: Campaign Settings, to: /campaign-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23472ms] [LOG] route {id: userAttributes, name: User Attributes, to: /user-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23472ms] [LOG] route {id: cannedMessage, name: Canned Message, to: /canned-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23472ms] [LOG] route {id: agents, name: Agents, to: /agents, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23472ms] [LOG] route {id: tags, name: Tags, to: /tags, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23472ms] [LOG] route {id: campaigns, name: Campaigns, to: /campaigns, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23473ms] [LOG] route {id: adsManagerLayout, name: Ads Manager, to: /advertisement, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23473ms] [LOG] route {id: adsManagerMainPage, name: Ads Manager, to: /ads-manager, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23473ms] [LOG] route {id: Event, name: Events, to: /events, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23473ms] [LOG] route {id: EventDetails, name: Event Details, to: /events/:eventId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23473ms] [LOG] route {id: leads, name: Leads, to: /leads, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23473ms] [LOG] route {id: audiences, name: Audiences, to: /audiences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23473ms] [LOG] route {id: setup, name: Setup, to: /setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23473ms] [LOG] route {id: createAds, name: Create Ads, to: /create, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23473ms] [LOG] route {id: editAds, name: Edit Ads, to: /edit/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23473ms] [LOG] route {id: duplicateAds, name: Duplicate Ads, to: /duplicate/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23474ms] [LOG] route {id: analytics, name: Analiytics, to: /:id/personal-analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23474ms] [LOG] route {id: flows, name: Flows, to: /flows, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23474ms] [LOG] route {id: flowBuilder, name: Flow Builder, to: /flow-builder, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23474ms] [LOG] route {id: globalAttributes, name: Global Attributes, to: /global-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23474ms] [LOG] route {id: manageCatalogues, name: Manage Catalogues, to: /mnage-catalogues, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23474ms] [LOG] route {id: products, name: Products, to: /products, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23474ms] [LOG] route {id: connectCatalogue, name: Connect Catalogue, to: /connect-catalgue, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23474ms] [LOG] route {id: flowBuilder, name: Flow-Builder, to: /flow-page/:flowId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23474ms] [LOG] route {id: waPay, name: WA Pay, to: /wa-pay, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23474ms] [LOG] route {id: payments, name: Payments, to: /payments, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23475ms] [LOG] route {id: setupMessages, name: Setup Messages, to: /setup-messages, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23475ms] [LOG] route {id: settings, name: Settings, to: /settings, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23475ms] [LOG] route {id: analyticsPage, name: Analytics, to: /analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23475ms] [LOG] route {id: developerHub, name: Developer Hub, to: /developer, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23475ms] [LOG] route {id: billings, name: Billing & Usage, to: /billings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23475ms] [LOG] route {id: manage, name: Manage, to: /manage, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23475ms] [LOG] route {id: integrations, name: Integrations, to: /integrations, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23475ms] [LOG] route {id: discover, name: Discover, to: /appstore/discover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23475ms] [LOG] route {id: waPaySettings, name: WhatsApp Pay, to: /wa-pay/settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23475ms] [LOG] route {id: storeSetup, name: Store Setup, to: /store-setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23475ms] [LOG] route {id: notificationPreferences, name: Notification Preferences, to: /notification-preferences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23476ms] [LOG] route {id: dialogueflowIntegration, name: Dialogflow Integration, to: /dialogflow, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23476ms] [LOG] route {id: appStore, name: App Store, to: /appstore/ecomdiscover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23481ms] [LOG] route {id: dashboard, name: Dashboard, to: /dashboard, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23481ms] [LOG] route {id: liveChat, name: Live Chat, to: /live, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23481ms] [LOG] route {id: history, name: History, to: /history, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23481ms] [LOG] route {id: contacts, name: Contacts, to: /contacts, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23481ms] [LOG] route {id: templateMessage, name: Template Message, to: /template-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23481ms] [LOG] route {id: optinManagement, name: Optin Management, to: /optout, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23481ms] [LOG] route {id: liveChatSettings, name: Live Chat Settings, to: /chat-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23482ms] [LOG] route {id: campaignSettings, name: Campaign Settings, to: /campaign-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23482ms] [LOG] route {id: userAttributes, name: User Attributes, to: /user-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23482ms] [LOG] route {id: cannedMessage, name: Canned Message, to: /canned-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23482ms] [LOG] route {id: agents, name: Agents, to: /agents, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23482ms] [LOG] route {id: tags, name: Tags, to: /tags, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23482ms] [LOG] route {id: campaigns, name: Campaigns, to: /campaigns, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23482ms] [LOG] route {id: adsManagerLayout, name: Ads Manager, to: /advertisement, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23482ms] [LOG] route {id: adsManagerMainPage, name: Ads Manager, to: /ads-manager, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23482ms] [LOG] route {id: Event, name: Events, to: /events, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23482ms] [LOG] route {id: EventDetails, name: Event Details, to: /events/:eventId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23483ms] [LOG] route {id: leads, name: Leads, to: /leads, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23483ms] [LOG] route {id: audiences, name: Audiences, to: /audiences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23483ms] [LOG] route {id: setup, name: Setup, to: /setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23483ms] [LOG] route {id: createAds, name: Create Ads, to: /create, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23483ms] [LOG] route {id: editAds, name: Edit Ads, to: /edit/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23483ms] [LOG] route {id: duplicateAds, name: Duplicate Ads, to: /duplicate/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23483ms] [LOG] route {id: analytics, name: Analiytics, to: /:id/personal-analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23483ms] [LOG] route {id: flows, name: Flows, to: /flows, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23483ms] [LOG] route {id: flowBuilder, name: Flow Builder, to: /flow-builder, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23483ms] [LOG] route {id: globalAttributes, name: Global Attributes, to: /global-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23484ms] [LOG] route {id: manageCatalogues, name: Manage Catalogues, to: /mnage-catalogues, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23484ms] [LOG] route {id: products, name: Products, to: /products, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23484ms] [LOG] route {id: connectCatalogue, name: Connect Catalogue, to: /connect-catalgue, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23484ms] [LOG] route {id: flowBuilder, name: Flow-Builder, to: /flow-page/:flowId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23484ms] [LOG] route {id: waPay, name: WA Pay, to: /wa-pay, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23484ms] [LOG] route {id: payments, name: Payments, to: /payments, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23484ms] [LOG] route {id: setupMessages, name: Setup Messages, to: /setup-messages, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23484ms] [LOG] route {id: settings, name: Settings, to: /settings, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23484ms] [LOG] route {id: analyticsPage, name: Analytics, to: /analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23484ms] [LOG] route {id: developerHub, name: Developer Hub, to: /developer, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23485ms] [LOG] route {id: billings, name: Billing & Usage, to: /billings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23485ms] [LOG] route {id: manage, name: Manage, to: /manage, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23485ms] [LOG] route {id: integrations, name: Integrations, to: /integrations, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23485ms] [LOG] route {id: discover, name: Discover, to: /appstore/discover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23485ms] [LOG] route {id: waPaySettings, name: WhatsApp Pay, to: /wa-pay/settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23485ms] [LOG] route {id: storeSetup, name: Store Setup, to: /store-setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23485ms] [LOG] route {id: notificationPreferences, name: Notification Preferences, to: /notification-preferences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23485ms] [LOG] route {id: dialogueflowIntegration, name: Dialogflow Integration, to: /dialogflow, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   23485ms] [LOG] route {id: appStore, name: App Store, to: /appstore/ecomdiscover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   24503ms] [LOG] ✅ Successfully updated 78 Intercom attributes after login {user_type: OWNER, user_name: Janmejay Singh, user_email: raj@vpps.co.in, user_phone_number: 919680383124, user_country: India} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44660ms] [LOG] route {id: dashboard, name: Dashboard, to: /dashboard, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44660ms] [LOG] route {id: liveChat, name: Live Chat, to: /live, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44661ms] [LOG] route {id: history, name: History, to: /history, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44661ms] [LOG] route {id: contacts, name: Contacts, to: /contacts, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44661ms] [LOG] route {id: templateMessage, name: Template Message, to: /template-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44661ms] [LOG] route {id: optinManagement, name: Optin Management, to: /optout, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44661ms] [LOG] route {id: liveChatSettings, name: Live Chat Settings, to: /chat-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44661ms] [LOG] route {id: campaignSettings, name: Campaign Settings, to: /campaign-settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44661ms] [LOG] route {id: userAttributes, name: User Attributes, to: /user-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44661ms] [LOG] route {id: cannedMessage, name: Canned Message, to: /canned-message, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44661ms] [LOG] route {id: agents, name: Agents, to: /agents, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44661ms] [LOG] route {id: tags, name: Tags, to: /tags, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44661ms] [LOG] route {id: campaigns, name: Campaigns, to: /campaigns, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44661ms] [LOG] route {id: adsManagerLayout, name: Ads Manager, to: /advertisement, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44661ms] [LOG] route {id: adsManagerMainPage, name: Ads Manager, to: /ads-manager, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44661ms] [LOG] route {id: Event, name: Events, to: /events, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44662ms] [LOG] route {id: EventDetails, name: Event Details, to: /events/:eventId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44662ms] [LOG] route {id: leads, name: Leads, to: /leads, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44662ms] [LOG] route {id: audiences, name: Audiences, to: /audiences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44662ms] [LOG] route {id: setup, name: Setup, to: /setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44662ms] [LOG] route {id: createAds, name: Create Ads, to: /create, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44662ms] [LOG] route {id: editAds, name: Edit Ads, to: /edit/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44662ms] [LOG] route {id: duplicateAds, name: Duplicate Ads, to: /duplicate/:adId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44662ms] [LOG] route {id: analytics, name: Analiytics, to: /:id/personal-analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44662ms] [LOG] route {id: flows, name: Flows, to: /flows, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44662ms] [LOG] route {id: flowBuilder, name: Flow Builder, to: /flow-builder, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44662ms] [LOG] route {id: globalAttributes, name: Global Attributes, to: /global-attributes, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44662ms] [LOG] route {id: manageCatalogues, name: Manage Catalogues, to: /mnage-catalogues, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44662ms] [LOG] route {id: products, name: Products, to: /products, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44663ms] [LOG] route {id: connectCatalogue, name: Connect Catalogue, to: /connect-catalgue, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44663ms] [LOG] route {id: flowBuilder, name: Flow-Builder, to: /flow-page/:flowId, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44663ms] [LOG] route {id: waPay, name: WA Pay, to: /wa-pay, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44663ms] [LOG] route {id: payments, name: Payments, to: /payments, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44663ms] [LOG] route {id: setupMessages, name: Setup Messages, to: /setup-messages, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44663ms] [LOG] route {id: settings, name: Settings, to: /settings, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44663ms] [LOG] route {id: analyticsPage, name: Analytics, to: /analytics, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44663ms] [LOG] route {id: developerHub, name: Developer Hub, to: /developer, component: , icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44663ms] [LOG] route {id: billings, name: Billing & Usage, to: /billings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44663ms] [LOG] route {id: manage, name: Manage, to: /manage, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44663ms] [LOG] route {id: integrations, name: Integrations, to: /integrations, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44663ms] [LOG] route {id: discover, name: Discover, to: /appstore/discover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44664ms] [LOG] route {id: waPaySettings, name: WhatsApp Pay, to: /wa-pay/settings, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44664ms] [LOG] route {id: storeSetup, name: Store Setup, to: /store-setup, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44664ms] [LOG] route {id: notificationPreferences, name: Notification Preferences, to: /notification-preferences, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44664ms] [LOG] route {id: dialogueflowIntegration, name: Dialogflow Integration, to: /dialogflow, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44664ms] [LOG] route {id: appStore, name: App Store, to: /appstore/ecomdiscover, component: Object, icon: Object} @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   44694ms] [LOG] power 2 @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[   57778ms] [LOG] %cWebEngage%c %cERROR color: #FFFFFF; background-color: #533370; padding: 2px 4px 1px 4px; border-radius: 2px  color: #FFFFFF; background-color: #FF0048; padding: 2px 4px 1px 4px; border-radius: 2px  SDK config "webengage_fs_configurationMap" is undefined or improper Error: SDK config "webengage_fs_configurationMap" is undefined or improper
+    at B (https://widgets.in.webengage.com/js/webengage-min-v-6.0.js:1:443492)
+    at https://widgets.in.webengage.com/js/webengage-min-v-6.0.js:1:449033
+    at l (https://widgets.in.webengage.com/js/webengage-min-v-6.0.js:1:2328)
+    at https://widgets.in.webengage.com/js/webengage-min-v-6.0.js:1:2696
+    at https://widgets.in.webengage.com/js/webengage-min-v-6.0.js:1:443369
+    at o.ie.o.version.e.onload (https://widgets.in.webengage.com/js/webengage-min-v-6.0.js:1:122015) @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1
+[  182421ms] [WARNING] LogRocket: Exceeded maximum tracked animations limit. Some animation effects may not be captured. @ https://www.app.aisensy.com/static/js/main.f74f339c.js:1

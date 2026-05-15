@@ -1,0 +1,4125 @@
+{
+  "total": 457,
+  "resolved": 457,
+  "unresolvedClass": 0,
+  "byMatch": {
+    "created_new": 185,
+    "admission_no": 183,
+    "name_class_phone_fallback": 89
+  },
+  "details": [
+    {
+      "sheetRow": 2,
+      "sourceStudentUid": "STU-0494",
+      "fullName": "BHANUPRATAP SINGH CHUNDAWAT",
+      "classLabel": "Nursery",
+      "admissionNo": "VPPS-STU0494",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 3,
+      "sourceStudentUid": "STU-0495",
+      "fullName": "BHAVISHYA KUMAWAT",
+      "classLabel": "Nursery",
+      "admissionNo": "VPPS-STU0495",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 4,
+      "sourceStudentUid": "STU-0496",
+      "fullName": "BHAVYDEEP SINGH CHUNDAWAT",
+      "classLabel": "Nursery",
+      "admissionNo": "2408",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 5,
+      "sourceStudentUid": "STU-0497",
+      "fullName": "BHUMIKA CHUNDAWAT",
+      "classLabel": "Nursery",
+      "admissionNo": "2409",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 6,
+      "sourceStudentUid": "STU-0498",
+      "fullName": "CHITRANGNA CHUNDAWAT",
+      "classLabel": "Nursery",
+      "admissionNo": "VPPS-STU0498",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 7,
+      "sourceStudentUid": "STU-0499",
+      "fullName": "HIMANSH GURJAR",
+      "classLabel": "Nursery",
+      "admissionNo": "2608",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 8,
+      "sourceStudentUid": "STU-0500",
+      "fullName": "HIYANSHI SWAMI",
+      "classLabel": "Nursery",
+      "admissionNo": "VPPS-STU0500",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 9,
+      "sourceStudentUid": "STU-0501",
+      "fullName": "KANIKA",
+      "classLabel": "Nursery",
+      "admissionNo": "VPPS-STU0501",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 10,
+      "sourceStudentUid": "STU-0212",
+      "fullName": "KAVISHA PALIWAL",
+      "classLabel": "Nursery",
+      "admissionNo": "202200012",
+      "matchedExistingId": "6b6abf47-d1ee-48a7-b7ad-6efb84556aa0",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 11,
+      "sourceStudentUid": "STU-0502",
+      "fullName": "KRISHANPAL TELI",
+      "classLabel": "Nursery",
+      "admissionNo": "2590",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 12,
+      "sourceStudentUid": "STU-0503",
+      "fullName": "MANAN TAILOR",
+      "classLabel": "Nursery",
+      "admissionNo": "2592",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 13,
+      "sourceStudentUid": "STU-0504",
+      "fullName": "NEELAKSH PRATAP SINGH SOLANKI",
+      "classLabel": "Nursery",
+      "admissionNo": "2591",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 14,
+      "sourceStudentUid": "STU-0505",
+      "fullName": "NIHARIKA GOYAL",
+      "classLabel": "Nursery",
+      "admissionNo": "VPPS-STU0505",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 15,
+      "sourceStudentUid": "STU-0222",
+      "fullName": "NIKITA VERMA",
+      "classLabel": "Nursery",
+      "admissionNo": "202200013",
+      "matchedExistingId": "384b782d-ef95-4847-af92-e17db6a11b8b",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 16,
+      "sourceStudentUid": "STU-0506",
+      "fullName": "NITYA KANWAR CHUNDAWAT",
+      "classLabel": "Nursery",
+      "admissionNo": "2405",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 17,
+      "sourceStudentUid": "STU-0507",
+      "fullName": "PRADEEP SINGH SOLANKI",
+      "classLabel": "Nursery",
+      "admissionNo": "2551",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 18,
+      "sourceStudentUid": "STU-0508",
+      "fullName": "PRIYANKA TAILOR",
+      "classLabel": "Nursery",
+      "admissionNo": "2406",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 19,
+      "sourceStudentUid": "STU-0509",
+      "fullName": "PRIYANSHU CHUNDAWAT",
+      "classLabel": "Nursery",
+      "admissionNo": "2617",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 20,
+      "sourceStudentUid": "STU-0510",
+      "fullName": "RISHABH GURJAR",
+      "classLabel": "Nursery",
+      "admissionNo": "VPPS-STU0510",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 21,
+      "sourceStudentUid": "STU-0511",
+      "fullName": "SHANVI GURJAR",
+      "classLabel": "Nursery",
+      "admissionNo": "2616",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 22,
+      "sourceStudentUid": "STU-0466",
+      "fullName": "ANANYA KEER",
+      "classLabel": "JKG",
+      "admissionNo": "2322",
+      "matchedExistingId": "8571ebf0-caf2-4872-8add-86b26ab98370",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 23,
+      "sourceStudentUid": "STU-0467",
+      "fullName": "AVANTIKA GURJAR",
+      "classLabel": "JKG",
+      "admissionNo": "2325",
+      "matchedExistingId": "f138e1e9-2665-4cb5-9ce2-d5df0a3b636f",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 24,
+      "sourceStudentUid": "STU-0468",
+      "fullName": "AYUSHI SUTHAR",
+      "classLabel": "JKG",
+      "admissionNo": "2245",
+      "matchedExistingId": "40a06529-7801-4a8d-83d0-9b16cfd93537",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 25,
+      "sourceStudentUid": "STU-0469",
+      "fullName": "BAGISHREE CHUNDAWAT",
+      "classLabel": "JKG",
+      "admissionNo": "2320",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 26,
+      "sourceStudentUid": "STU-0471",
+      "fullName": "BHANU PRATAP SINGH",
+      "classLabel": "JKG",
+      "admissionNo": "584",
+      "matchedExistingId": "bba8889c-fe5e-4c0a-8d29-c0b2bd77cffb",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 27,
+      "sourceStudentUid": "STU-0472",
+      "fullName": "DHRUVISHA SOLANKI",
+      "classLabel": "JKG",
+      "admissionNo": "2319",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 28,
+      "sourceStudentUid": "STU-0473",
+      "fullName": "Dhuvan Singh Chouhan",
+      "classLabel": "JKG",
+      "admissionNo": "2565",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 29,
+      "sourceStudentUid": "STU-0474",
+      "fullName": "GITANSHI PALIWAL",
+      "classLabel": "JKG",
+      "admissionNo": "2242",
+      "matchedExistingId": "94bc411c-1b18-4925-82c1-927455b7a69b",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 30,
+      "sourceStudentUid": "STU-0358",
+      "fullName": "HARSHITA KANWAR SOLANKI",
+      "classLabel": "JKG",
+      "admissionNo": "2291",
+      "matchedExistingId": "224a986c-b3b6-43b3-8fe1-c0e473ccac2d",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 31,
+      "sourceStudentUid": "STU-0475",
+      "fullName": "Hitvika Tailor",
+      "classLabel": "JKG",
+      "admissionNo": "2331",
+      "matchedExistingId": "24693581-a8dc-40b4-a4e8-0dc0a361ba8d",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 32,
+      "sourceStudentUid": "STU-0476",
+      "fullName": "KASHVI",
+      "classLabel": "JKG",
+      "admissionNo": "2397",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 33,
+      "sourceStudentUid": "STU-0477",
+      "fullName": "Kirtisha Tailor",
+      "classLabel": "JKG",
+      "admissionNo": "2246",
+      "matchedExistingId": "f685e6ca-f833-4e86-be67-5f0682e647fb",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 34,
+      "sourceStudentUid": "STU-0236",
+      "fullName": "KUSAM REGAR",
+      "classLabel": "JKG",
+      "admissionNo": "202200016",
+      "matchedExistingId": "d4fa2a23-1c33-4c5f-b859-c6ed093318ae",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 35,
+      "sourceStudentUid": "STU-0479",
+      "fullName": "LAKSHITA REBARI",
+      "classLabel": "JKG",
+      "admissionNo": "2394",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 36,
+      "sourceStudentUid": "STU-0480",
+      "fullName": "LAVISH",
+      "classLabel": "JKG",
+      "admissionNo": "2362",
+      "matchedExistingId": "e18860f2-c3c6-4ef1-a9fe-8affd3e8e388",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 37,
+      "sourceStudentUid": "STU-0481",
+      "fullName": "LAVYARAJ SINGH RATHORE",
+      "classLabel": "JKG",
+      "admissionNo": "2243",
+      "matchedExistingId": "bf4626a6-e6ef-4039-bc4b-16177b1ad491",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 38,
+      "sourceStudentUid": "STU-0482",
+      "fullName": "MANTHAN",
+      "classLabel": "JKG",
+      "admissionNo": "2328",
+      "matchedExistingId": "ee18b66b-b82a-4976-960c-f30ae7dda0fc",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 39,
+      "sourceStudentUid": "STU-0483",
+      "fullName": "PARIKSHIT SINGH RAO",
+      "classLabel": "JKG",
+      "admissionNo": "2241",
+      "matchedExistingId": "94638eb4-b251-4266-ae11-052accc04f9b",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 40,
+      "sourceStudentUid": "STU-0484",
+      "fullName": "PREESHA SEN",
+      "classLabel": "JKG",
+      "admissionNo": "2244",
+      "matchedExistingId": "2b08145a-b3b5-4254-af06-ffee2c0433d2",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 41,
+      "sourceStudentUid": "STU-0485",
+      "fullName": "samradhi",
+      "classLabel": "JKG",
+      "admissionNo": "202200021",
+      "matchedExistingId": "676a2083-ae72-4f0a-b15c-20e9e39f960b",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 42,
+      "sourceStudentUid": "STU-0486",
+      "fullName": "SARIKA SALVI",
+      "classLabel": "JKG",
+      "admissionNo": "2318",
+      "matchedExistingId": "aaee9b76-8ec6-4b50-a032-ff1c1c24f60a",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 43,
+      "sourceStudentUid": "STU-0487",
+      "fullName": "SARITA GURJAR",
+      "classLabel": "JKG",
+      "admissionNo": "2326",
+      "matchedExistingId": "dff0ef64-bb70-4f8c-b7b1-c46ef5fbcd28",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 44,
+      "sourceStudentUid": "STU-0488",
+      "fullName": "TANISHA JAIN",
+      "classLabel": "JKG",
+      "admissionNo": "2323",
+      "matchedExistingId": "01acf43f-2035-47fb-8998-56cbd95b2346",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 45,
+      "sourceStudentUid": "STU-0489",
+      "fullName": "UJJWAL PRATAP SINGH",
+      "classLabel": "JKG",
+      "admissionNo": "593",
+      "matchedExistingId": "e7e9f30e-1dae-41ee-a4f2-55baa9aeea76",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 46,
+      "sourceStudentUid": "STU-0490",
+      "fullName": "VEDIKA KANWAR RATHORE",
+      "classLabel": "JKG",
+      "admissionNo": "2324",
+      "matchedExistingId": "42406fc8-9435-4af9-9b28-05b8674e452e",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 47,
+      "sourceStudentUid": "STU-0512",
+      "fullName": "ADITYA GURJAR",
+      "classLabel": "SKG",
+      "admissionNo": "579",
+      "matchedExistingId": "2a179c39-3f5e-4e8b-97d7-819bf1664fe2",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 48,
+      "sourceStudentUid": "STU-0513",
+      "fullName": "BHAVYA RAJ SINGH CHAMPAWAT",
+      "classLabel": "SKG",
+      "admissionNo": "2425",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 49,
+      "sourceStudentUid": "STU-0514",
+      "fullName": "CHIRAG GURJAR",
+      "classLabel": "SKG",
+      "admissionNo": "VPPS-STU0514",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 50,
+      "sourceStudentUid": "STU-0515",
+      "fullName": "DHRUVI KHATIK",
+      "classLabel": "SKG",
+      "admissionNo": "202200014",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 51,
+      "sourceStudentUid": "STU-0516",
+      "fullName": "HARSHITA",
+      "classLabel": "SKG",
+      "admissionNo": "2427",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 52,
+      "sourceStudentUid": "STU-0518",
+      "fullName": "jairajdeep singh solanki",
+      "classLabel": "SKG",
+      "admissionNo": "2426",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 53,
+      "sourceStudentUid": "STU-0519",
+      "fullName": "KANISHPRATAP SINGH PANWAR",
+      "classLabel": "SKG",
+      "admissionNo": "2429",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 54,
+      "sourceStudentUid": "STU-0520",
+      "fullName": "kavyaraj singh chundawat",
+      "classLabel": "SKG",
+      "admissionNo": "2424",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 55,
+      "sourceStudentUid": "STU-0521",
+      "fullName": "KIRTIKA SINGH CHAMPAWAT",
+      "classLabel": "SKG",
+      "admissionNo": "202200018",
+      "matchedExistingId": "26e85bce-b52d-4568-8508-6b2e89d3c7aa",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 56,
+      "sourceStudentUid": "STU-0522",
+      "fullName": "LAKSHIT VAISHNAV",
+      "classLabel": "SKG",
+      "admissionNo": "202200015",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 57,
+      "sourceStudentUid": "STU-0523",
+      "fullName": "MAHAVEER REGAR",
+      "classLabel": "SKG",
+      "admissionNo": "202200019",
+      "matchedExistingId": "7569912b-87c4-4449-be20-2a722024abdd",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 58,
+      "sourceStudentUid": "STU-0524",
+      "fullName": "MAHESH BHIL",
+      "classLabel": "SKG",
+      "admissionNo": "2610",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 59,
+      "sourceStudentUid": "STU-0525",
+      "fullName": "MAHIRAJ SINGH RATHORE",
+      "classLabel": "SKG",
+      "admissionNo": "547",
+      "matchedExistingId": "42f5be59-3086-416d-b106-6015707ea910",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 60,
+      "sourceStudentUid": "STU-0526",
+      "fullName": "MOHIT REBARI",
+      "classLabel": "SKG",
+      "admissionNo": "2593",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 61,
+      "sourceStudentUid": "STU-0527",
+      "fullName": "PAWAN REGAR",
+      "classLabel": "SKG",
+      "admissionNo": "534",
+      "matchedExistingId": "e9197e7d-e8bb-4ec6-a27a-d1fcb69c3aa0",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 62,
+      "sourceStudentUid": "STU-0528",
+      "fullName": "PRINCERAJ SINGH CHUNDAWAT",
+      "classLabel": "SKG",
+      "admissionNo": "2581",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 63,
+      "sourceStudentUid": "STU-0529",
+      "fullName": "RAJENDRA SINGH",
+      "classLabel": "SKG",
+      "admissionNo": "581",
+      "matchedExistingId": "f58bacde-606b-49c3-91bf-6f22dbbd7a5c",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 64,
+      "sourceStudentUid": "STU-0530",
+      "fullName": "RUDRA PRATAP SINGH SOLANKI",
+      "classLabel": "SKG",
+      "admissionNo": "583",
+      "matchedExistingId": "a21ab225-0520-4c1e-96ca-3ce4b410261a",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 65,
+      "sourceStudentUid": "STU-0531",
+      "fullName": "RUDRAKSH REBARI",
+      "classLabel": "SKG",
+      "admissionNo": "2583",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 66,
+      "sourceStudentUid": "STU-0532",
+      "fullName": "SHREEYA RANAWAT",
+      "classLabel": "SKG",
+      "admissionNo": "631",
+      "matchedExistingId": "ac2afc95-f67b-45ce-9da9-fb68dcf8ea0c",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 67,
+      "sourceStudentUid": "STU-0533",
+      "fullName": "TANMAY VAISHNAV",
+      "classLabel": "SKG",
+      "admissionNo": "573",
+      "matchedExistingId": "2ed97742-57b8-4764-a1b3-0cc558ad48b3",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 68,
+      "sourceStudentUid": "STU-0534",
+      "fullName": "TANUJ REBARI",
+      "classLabel": "SKG",
+      "admissionNo": "525253",
+      "matchedExistingId": "a4448d8e-6d87-447d-8f1a-1d6ae24c3ead",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 69,
+      "sourceStudentUid": "STU-0535",
+      "fullName": "VISHAL GURJAR",
+      "classLabel": "SKG",
+      "admissionNo": "2370",
+      "matchedExistingId": "dac90307-c13c-41e4-8a3b-3afc58b3982b",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 70,
+      "sourceStudentUid": "STU-0099",
+      "fullName": "AAYANSH",
+      "classLabel": "Class 1",
+      "admissionNo": "2598",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 71,
+      "sourceStudentUid": "STU-0100",
+      "fullName": "ANAND KHATIK",
+      "classLabel": "Class 1",
+      "admissionNo": "555",
+      "matchedExistingId": "a95b618c-9067-4cdc-a827-c00a32174f97",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 72,
+      "sourceStudentUid": "STU-0101",
+      "fullName": "ANKIT",
+      "classLabel": "Class 1",
+      "admissionNo": "2407",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 73,
+      "sourceStudentUid": "STU-0102",
+      "fullName": "AVINASH SINGH SOLANKI",
+      "classLabel": "Class 1",
+      "admissionNo": "2570",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 74,
+      "sourceStudentUid": "STU-0103",
+      "fullName": "BHAGWAT SINGH RATHORE",
+      "classLabel": "Class 1",
+      "admissionNo": "2411",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 75,
+      "sourceStudentUid": "STU-0104",
+      "fullName": "BHAVYA GURJAR",
+      "classLabel": "Class 1",
+      "admissionNo": "2420",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 76,
+      "sourceStudentUid": "STU-0105",
+      "fullName": "CHAITRAVADITYA SINGH PEMAWAT",
+      "classLabel": "Class 1",
+      "admissionNo": "2553",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 77,
+      "sourceStudentUid": "STU-0106",
+      "fullName": "CHANDRESH",
+      "classLabel": "Class 1",
+      "admissionNo": "2417",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 78,
+      "sourceStudentUid": "STU-0107",
+      "fullName": "CHETAN SUTHAR",
+      "classLabel": "Class 1",
+      "admissionNo": "2479",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 79,
+      "sourceStudentUid": "STU-0108",
+      "fullName": "CHIRAG",
+      "classLabel": "Class 1",
+      "admissionNo": "2412",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 80,
+      "sourceStudentUid": "STU-0110",
+      "fullName": "CHIRANJEET KUNWAR",
+      "classLabel": "Class 1",
+      "admissionNo": "202200011",
+      "matchedExistingId": "11217588-dbe2-410a-a705-5d39663876de",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 81,
+      "sourceStudentUid": "STU-0119",
+      "fullName": "DEEPIKA SINGH SOLANKI",
+      "classLabel": "Class 1",
+      "admissionNo": "202200007",
+      "matchedExistingId": "763ae375-6d34-40a3-92ac-4aa0558f1b78",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 82,
+      "sourceStudentUid": "STU-0111",
+      "fullName": "DEV SINDHI",
+      "classLabel": "Class 1",
+      "admissionNo": "2422",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 83,
+      "sourceStudentUid": "STU-0112",
+      "fullName": "DHVANI LAKHARA",
+      "classLabel": "Class 1",
+      "admissionNo": "2566",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 84,
+      "sourceStudentUid": "STU-0113",
+      "fullName": "DIMPLE KANWAR",
+      "classLabel": "Class 1",
+      "admissionNo": "580",
+      "matchedExistingId": "23d7040a-c02b-49a9-9182-a191063e31df",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 85,
+      "sourceStudentUid": "STU-0114",
+      "fullName": "DIVYANSH GURJAR",
+      "classLabel": "Class 1",
+      "admissionNo": "566727",
+      "matchedExistingId": "7da34ac7-e448-4695-b931-1f93cd57db61",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 86,
+      "sourceStudentUid": "STU-0115",
+      "fullName": "DIVYARAJ SINGH CHOUHAN",
+      "classLabel": "Class 1",
+      "admissionNo": "2419",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 87,
+      "sourceStudentUid": "STU-0116",
+      "fullName": "GAYAN SONI",
+      "classLabel": "Class 1",
+      "admissionNo": "2595",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 88,
+      "sourceStudentUid": "STU-0117",
+      "fullName": "HARSH SINGH",
+      "classLabel": "Class 1",
+      "admissionNo": "2418",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 89,
+      "sourceStudentUid": "STU-0118",
+      "fullName": "ISHIKA KUMAWAT",
+      "classLabel": "Class 1",
+      "admissionNo": "2410",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 90,
+      "sourceStudentUid": "STU-0120",
+      "fullName": "JAYESH SONI",
+      "classLabel": "Class 1",
+      "admissionNo": "2413",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 91,
+      "sourceStudentUid": "STU-0121",
+      "fullName": "JHARA SHERANI",
+      "classLabel": "Class 1",
+      "admissionNo": "569",
+      "matchedExistingId": "19f1b761-ff41-4295-a963-0545fb349c42",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 92,
+      "sourceStudentUid": "STU-0122",
+      "fullName": "jiviksha",
+      "classLabel": "Class 1",
+      "admissionNo": "2423",
+      "matchedExistingId": "eff841a2-4007-4464-be4a-110cff65f692",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 93,
+      "sourceStudentUid": "STU-0123",
+      "fullName": "JOYTI REGAR",
+      "classLabel": "Class 1",
+      "admissionNo": "2599",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 94,
+      "sourceStudentUid": "STU-0124",
+      "fullName": "KESHVI DADHICH",
+      "classLabel": "Class 1",
+      "admissionNo": "2550",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 95,
+      "sourceStudentUid": "STU-0125",
+      "fullName": "KRISHNA CHOUDHARY",
+      "classLabel": "Class 1",
+      "admissionNo": "111",
+      "matchedExistingId": "cb2944bc-dcaf-459a-8e72-4b6184703ce1",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 96,
+      "sourceStudentUid": "STU-0126",
+      "fullName": "lalita kanwar",
+      "classLabel": "Class 1",
+      "admissionNo": "202200008",
+      "matchedExistingId": "a03d7110-25fb-4c9c-80b5-74aaee97c892",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 97,
+      "sourceStudentUid": "STU-0127",
+      "fullName": "MANVI CHOUHAN",
+      "classLabel": "Class 1",
+      "admissionNo": "2601",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 98,
+      "sourceStudentUid": "STU-0128",
+      "fullName": "NAITIK SWARANKAR",
+      "classLabel": "Class 1",
+      "admissionNo": "2421",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 99,
+      "sourceStudentUid": "STU-0129",
+      "fullName": "NAMAN BUNKAR",
+      "classLabel": "Class 1",
+      "admissionNo": "25555504",
+      "matchedExistingId": "cd709e55-0874-43ec-80c9-6489db6cd115",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 100,
+      "sourceStudentUid": "STU-0131",
+      "fullName": "PARDEEP GAUTAM",
+      "classLabel": "Class 1",
+      "admissionNo": "598",
+      "matchedExistingId": "887fdc10-8b76-4f66-9a4b-32d752f1eccd",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 101,
+      "sourceStudentUid": "STU-0132",
+      "fullName": "PARIHAN ACHARYA",
+      "classLabel": "Class 1",
+      "admissionNo": "2596",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 102,
+      "sourceStudentUid": "STU-0133",
+      "fullName": "PARIKSHIT SHARMA",
+      "classLabel": "Class 1",
+      "admissionNo": "635",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 103,
+      "sourceStudentUid": "STU-0134",
+      "fullName": "PRITHVIRAJ SINGH",
+      "classLabel": "Class 1",
+      "admissionNo": "550",
+      "matchedExistingId": "284fa22d-cda9-4ae3-bce0-91d741c050bc",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 104,
+      "sourceStudentUid": "STU-0135",
+      "fullName": "PRIYANSHI SUTHAR",
+      "classLabel": "Class 1",
+      "admissionNo": "2613",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 105,
+      "sourceStudentUid": "STU-0136",
+      "fullName": "RIYANSH DAS VAIRAGI",
+      "classLabel": "Class 1",
+      "admissionNo": "555231",
+      "matchedExistingId": "19de4255-d363-4eb8-ac3d-ca09d11202a4",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 106,
+      "sourceStudentUid": "STU-0137",
+      "fullName": "SAKSHI GURJAR",
+      "classLabel": "Class 1",
+      "admissionNo": "577",
+      "matchedExistingId": "2395389f-15e0-4d47-beb8-3e46f24f1eee",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 107,
+      "sourceStudentUid": "STU-0138",
+      "fullName": "TANUSHA KUNWAR",
+      "classLabel": "Class 1",
+      "admissionNo": "548",
+      "matchedExistingId": "6e35ca0d-290a-460b-a360-85154e73c5f4",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 108,
+      "sourceStudentUid": "STU-0140",
+      "fullName": "TEJASWI CHAMPAWAT",
+      "classLabel": "Class 1",
+      "admissionNo": "578",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 109,
+      "sourceStudentUid": "STU-0141",
+      "fullName": "YEDHANT",
+      "classLabel": "Class 1",
+      "admissionNo": "2557",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 110,
+      "sourceStudentUid": "STU-0163",
+      "fullName": "AARADHYA GURJAR",
+      "classLabel": "Class 2",
+      "admissionNo": "2231",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 111,
+      "sourceStudentUid": "STU-0164",
+      "fullName": "AARADHYA KUNWAR SOLANKI",
+      "classLabel": "Class 2",
+      "admissionNo": "408",
+      "matchedExistingId": "0696443b-30af-417e-9ac6-707c717b0331",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 112,
+      "sourceStudentUid": "STU-0165",
+      "fullName": "AAYUSH SINGH SOLANKI",
+      "classLabel": "Class 2",
+      "admissionNo": "2457",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 113,
+      "sourceStudentUid": "STU-0166",
+      "fullName": "BHAVESH BUNKAR",
+      "classLabel": "Class 2",
+      "admissionNo": "20220003",
+      "matchedExistingId": "ecc7cc51-27a7-420f-a9d5-bfd1f1f24885",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 114,
+      "sourceStudentUid": "STU-0167",
+      "fullName": "BHERAV ARJIYA",
+      "classLabel": "Class 2",
+      "admissionNo": "424",
+      "matchedExistingId": "9789372f-5441-4d87-a7a2-466a636fb2dd",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 115,
+      "sourceStudentUid": "STU-0168",
+      "fullName": "BHERU LAL REBARI",
+      "classLabel": "Class 2",
+      "admissionNo": "2607",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 116,
+      "sourceStudentUid": "STU-0169",
+      "fullName": "DEEPIKA KANWAR",
+      "classLabel": "Class 2",
+      "admissionNo": "2233",
+      "matchedExistingId": "626a9c81-dcb2-4dd5-b5ae-465bdf0a2601",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 117,
+      "sourceStudentUid": "STU-0170",
+      "fullName": "DHANUSH",
+      "classLabel": "Class 2",
+      "admissionNo": "2308",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 118,
+      "sourceStudentUid": "STU-0171",
+      "fullName": "DUSHYANTRAJ SINGH CHUNDAWAT",
+      "classLabel": "Class 2",
+      "admissionNo": "617",
+      "matchedExistingId": "bc6fee89-015b-4c07-9594-e520e34fe594",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 119,
+      "sourceStudentUid": "STU-0172",
+      "fullName": "GAJENDRA SINGH",
+      "classLabel": "Class 2",
+      "admissionNo": "2463",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 120,
+      "sourceStudentUid": "STU-0174",
+      "fullName": "GORANSHI RAO",
+      "classLabel": "Class 2",
+      "admissionNo": "VPPS-STU0174",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 121,
+      "sourceStudentUid": "STU-0175",
+      "fullName": "GUNJAN SALVI",
+      "classLabel": "Class 2",
+      "admissionNo": "608",
+      "matchedExistingId": "7067ac63-7f5d-482c-85f8-8c3915068bbb",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 122,
+      "sourceStudentUid": "STU-0176",
+      "fullName": "HANUWANT SINGH RAO",
+      "classLabel": "Class 2",
+      "admissionNo": "VPPS-STU0176",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 124,
+      "sourceStudentUid": "STU-0178",
+      "fullName": "JANVI SONI",
+      "classLabel": "Class 2",
+      "admissionNo": "645638",
+      "matchedExistingId": "d757550c-0f8e-4615-aaa0-bcd8169c637e",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 125,
+      "sourceStudentUid": "STU-0179",
+      "fullName": "JITENDRA GURJAR",
+      "classLabel": "Class 2",
+      "admissionNo": "2466",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 126,
+      "sourceStudentUid": "STU-0180",
+      "fullName": "KAAVYANSH PALIWAL",
+      "classLabel": "Class 2",
+      "admissionNo": "2238",
+      "matchedExistingId": "ca5a97a8-2095-4663-b8c0-d961357a0d4c",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 127,
+      "sourceStudentUid": "STU-0182",
+      "fullName": "KUNJ SUTHAR",
+      "classLabel": "Class 2",
+      "admissionNo": "2240",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 128,
+      "sourceStudentUid": "STU-0183",
+      "fullName": "LAKSHITA KANWAR",
+      "classLabel": "Class 2",
+      "admissionNo": "555226",
+      "matchedExistingId": "c32be078-ade2-4ba8-a7b6-9054e504cbdf",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 129,
+      "sourceStudentUid": "STU-0184",
+      "fullName": "LAKSHITA LOHAR",
+      "classLabel": "Class 2",
+      "admissionNo": "2468",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 130,
+      "sourceStudentUid": "STU-0185",
+      "fullName": "MADAN SINGH",
+      "classLabel": "Class 2",
+      "admissionNo": "2235",
+      "matchedExistingId": "232698d4-777f-4e89-83c2-053c4ac8f952",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 131,
+      "sourceStudentUid": "STU-0186",
+      "fullName": "MAMTA",
+      "classLabel": "Class 2",
+      "admissionNo": "202200001",
+      "matchedExistingId": "7cc3738f-a3ff-4361-8ad9-707b68baced4",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 132,
+      "sourceStudentUid": "STU-0187",
+      "fullName": "MAYANK SINGH",
+      "classLabel": "Class 2",
+      "admissionNo": "2236",
+      "matchedExistingId": "2a2c5df1-5786-4432-a8f5-09e03b0ff774",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 133,
+      "sourceStudentUid": "STU-0188",
+      "fullName": "NANDINI SALVI",
+      "classLabel": "Class 2",
+      "admissionNo": "5525513",
+      "matchedExistingId": "15f28817-2d8c-4489-80c2-426175e8bc7a",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 134,
+      "sourceStudentUid": "STU-0189",
+      "fullName": "NIDHI KANWAR",
+      "classLabel": "Class 2",
+      "admissionNo": "404",
+      "matchedExistingId": "a689b042-3f8a-4990-b952-3fb11d2fc1e5",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 135,
+      "sourceStudentUid": "STU-0190",
+      "fullName": "PINAL KANWAR",
+      "classLabel": "Class 2",
+      "admissionNo": "2401",
+      "matchedExistingId": "7fdaff59-7976-465c-919e-f872084d42a5",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 136,
+      "sourceStudentUid": "STU-0191",
+      "fullName": "POOJA KANWAR SOLANKI",
+      "classLabel": "Class 2",
+      "admissionNo": "VPPS-STU0191",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 137,
+      "sourceStudentUid": "STU-0192",
+      "fullName": "PREKSHA GURJAR",
+      "classLabel": "Class 2",
+      "admissionNo": "2237",
+      "matchedExistingId": "d23f6f4a-cd54-4817-b3e1-9c57f72c6760",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 138,
+      "sourceStudentUid": "STU-0193",
+      "fullName": "RAGHUVEER SINGH",
+      "classLabel": "Class 2",
+      "admissionNo": "410",
+      "matchedExistingId": "dcfedb95-5d98-485a-b96d-87d86757fa48",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 139,
+      "sourceStudentUid": "STU-0194",
+      "fullName": "ROHIT TELI",
+      "classLabel": "Class 2",
+      "admissionNo": "460",
+      "matchedExistingId": "92fba58f-4156-446e-bafc-f33a4b0d44ca",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 140,
+      "sourceStudentUid": "STU-0195",
+      "fullName": "SAGAR GURJAR",
+      "classLabel": "Class 2",
+      "admissionNo": "623",
+      "matchedExistingId": "8cdca9a5-5d92-4fef-bcd2-962f5871d026",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 141,
+      "sourceStudentUid": "STU-0197",
+      "fullName": "TANISHA KANWAR",
+      "classLabel": "Class 2",
+      "admissionNo": "2302",
+      "matchedExistingId": "46f3c314-a81d-4168-8840-432395fc32e1",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 142,
+      "sourceStudentUid": "STU-0198",
+      "fullName": "TUSHAR JAIN",
+      "classLabel": "Class 2",
+      "admissionNo": "2239",
+      "matchedExistingId": "ef55af24-1993-4f12-a7dd-cb2a94dc9682",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 143,
+      "sourceStudentUid": "STU-0200",
+      "fullName": "YOGESHWAR SINGH CHUNDAWAT",
+      "classLabel": "Class 2",
+      "admissionNo": "2614",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 144,
+      "sourceStudentUid": "STU-0201",
+      "fullName": "ANANYA LAKHARA",
+      "classLabel": "Class 3",
+      "admissionNo": "604",
+      "matchedExistingId": "64e042ae-0351-4e45-9c8d-a0fb6d5e1a21",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 145,
+      "sourceStudentUid": "STU-0202",
+      "fullName": "ATHRVRAJ SINGH RATHOD",
+      "classLabel": "Class 3",
+      "admissionNo": "380",
+      "matchedExistingId": "4775d8ad-87cb-44ed-b322-f4d5489579d9",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 146,
+      "sourceStudentUid": "STU-0203",
+      "fullName": "BHUMIKA SINGH RAO",
+      "classLabel": "Class 3",
+      "admissionNo": "457",
+      "matchedExistingId": "cd8915d2-44b3-4427-af07-72604677c5be",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 147,
+      "sourceStudentUid": "STU-0204",
+      "fullName": "DAXRAJ SINGH SOLANKI",
+      "classLabel": "Class 3",
+      "admissionNo": "2571",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 148,
+      "sourceStudentUid": "STU-0205",
+      "fullName": "DEEPIKA TELI",
+      "classLabel": "Class 3",
+      "admissionNo": "461",
+      "matchedExistingId": "c3873fe0-ccfd-4862-a527-3af78a3f2f33",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 149,
+      "sourceStudentUid": "STU-0206",
+      "fullName": "DIVYANSH GADRI",
+      "classLabel": "Class 3",
+      "admissionNo": "383",
+      "matchedExistingId": "931648f6-b5a2-4085-b956-f83bcd02224f",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 150,
+      "sourceStudentUid": "STU-0207",
+      "fullName": "DIVYRAJ SINGH",
+      "classLabel": "Class 3",
+      "admissionNo": "20220002",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 151,
+      "sourceStudentUid": "STU-0208",
+      "fullName": "DIYA JAIN",
+      "classLabel": "Class 3",
+      "admissionNo": "587",
+      "matchedExistingId": "fe6afa73-dee0-4e33-9162-06a88a4f4ccf",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 152,
+      "sourceStudentUid": "STU-0209",
+      "fullName": "HARIOM SINGH",
+      "classLabel": "Class 3",
+      "admissionNo": "2204",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 153,
+      "sourceStudentUid": "STU-0210",
+      "fullName": "HIMANI SALVI",
+      "classLabel": "Class 3",
+      "admissionNo": "VPPS-STU0210",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 154,
+      "sourceStudentUid": "STU-0211",
+      "fullName": "JAYRAJ SINGH CHUNDAWAT",
+      "classLabel": "Class 3",
+      "admissionNo": "405",
+      "matchedExistingId": "5d974082-03cc-49b9-8e33-9831eaaf9f41",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 156,
+      "sourceStudentUid": "STU-0213",
+      "fullName": "KRISHNA BHEEL",
+      "classLabel": "Class 3",
+      "admissionNo": "2958",
+      "matchedExistingId": "4fa95fee-3369-4f44-b6f1-a4d4c8239f53",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 157,
+      "sourceStudentUid": "STU-0214",
+      "fullName": "LAKSHITA BUNKAR",
+      "classLabel": "Class 3",
+      "admissionNo": "2202",
+      "matchedExistingId": "73d04ac2-5ad8-4c20-8d43-9153a3628df4",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 158,
+      "sourceStudentUid": "STU-0215",
+      "fullName": "LAKSHITA CHUNDAWAT",
+      "classLabel": "Class 3",
+      "admissionNo": "407",
+      "matchedExistingId": "10d86a4e-9b95-4cee-967f-f3d06e4c8a69",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 159,
+      "sourceStudentUid": "STU-0216",
+      "fullName": "LAKSHITA KANWAR SOLANKI",
+      "classLabel": "Class 3",
+      "admissionNo": "2488",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 160,
+      "sourceStudentUid": "STU-0217",
+      "fullName": "MAHAK SIDDIQUI",
+      "classLabel": "Class 3",
+      "admissionNo": "2222",
+      "matchedExistingId": "5e7ad568-d677-4933-903d-60867dba154a",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 161,
+      "sourceStudentUid": "STU-0218",
+      "fullName": "MAHENDRA SINGH",
+      "classLabel": "Class 3",
+      "admissionNo": "2489",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 162,
+      "sourceStudentUid": "STU-0221",
+      "fullName": "NAITRAPAL SINGH CHUNDAWAT",
+      "classLabel": "Class 3",
+      "admissionNo": "703",
+      "matchedExistingId": "d5ea24d7-0e45-4732-9f56-1cd8cfb5a32e",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 163,
+      "sourceStudentUid": "STU-0223",
+      "fullName": "NIRALI KANWAR CHUNDAWAT",
+      "classLabel": "Class 3",
+      "admissionNo": "350",
+      "matchedExistingId": "b471728f-3595-4d72-9738-7391d08bce1c",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 164,
+      "sourceStudentUid": "STU-0225",
+      "fullName": "NISHA GURJAR",
+      "classLabel": "Class 3",
+      "admissionNo": "2491",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 165,
+      "sourceStudentUid": "STU-0226",
+      "fullName": "NIYATI RAO",
+      "classLabel": "Class 3",
+      "admissionNo": "447",
+      "matchedExistingId": "19af1ec0-c673-4a34-b858-bdaf602fe463",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 167,
+      "sourceStudentUid": "STU-0227",
+      "fullName": "PRACHI LOHAR",
+      "classLabel": "Class 3",
+      "admissionNo": "566",
+      "matchedExistingId": "ba490180-53db-4903-88a7-f688eab0325c",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 168,
+      "sourceStudentUid": "STU-0228",
+      "fullName": "PRADHUMAN SINGH RATHORE",
+      "classLabel": "Class 3",
+      "admissionNo": "399",
+      "matchedExistingId": "8c3383ae-35c9-45af-99f3-f0c6c95351f2",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 169,
+      "sourceStudentUid": "STU-0229",
+      "fullName": "Pranav Dhankhar",
+      "classLabel": "Class 3",
+      "admissionNo": "622",
+      "matchedExistingId": "3f0bee49-53ab-4405-a287-455693569746",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 170,
+      "sourceStudentUid": "STU-0230",
+      "fullName": "PRIYAL KANWAR RATHORE",
+      "classLabel": "Class 3",
+      "admissionNo": "438",
+      "matchedExistingId": "96909227-bb79-4a45-aa00-efd6934a22d5",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 171,
+      "sourceStudentUid": "STU-0231",
+      "fullName": "PRIYANSHI LAKHARA",
+      "classLabel": "Class 3",
+      "admissionNo": "67278",
+      "matchedExistingId": "e9585781-665d-4eb0-9989-50253c609e55",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 172,
+      "sourceStudentUid": "STU-0232",
+      "fullName": "Radhika Gurjar",
+      "classLabel": "Class 3",
+      "admissionNo": "605",
+      "matchedExistingId": "c44df1b4-adf6-48f9-b2a7-fb6dc99b1232",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 173,
+      "sourceStudentUid": "STU-0233",
+      "fullName": "Rajveer Singh Solanki",
+      "classLabel": "Class 3",
+      "admissionNo": "2555506",
+      "matchedExistingId": "25cb1df6-84e1-4e24-8719-51ff86dffafe",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 174,
+      "sourceStudentUid": "STU-0234",
+      "fullName": "rudrangini kunwar",
+      "classLabel": "Class 3",
+      "admissionNo": "202200002",
+      "matchedExistingId": "1ba1badf-8911-4392-a996-7dddfd487734",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 175,
+      "sourceStudentUid": "STU-0235",
+      "fullName": "TANVEER SINGH",
+      "classLabel": "Class 3",
+      "admissionNo": "202200020",
+      "matchedExistingId": "e525747b-cce5-4afb-9425-9f30cb7de3c5",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 177,
+      "sourceStudentUid": "STU-0237",
+      "fullName": "YASHAVI TAILOR",
+      "classLabel": "Class 3",
+      "admissionNo": "VPPS-STU0237",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 178,
+      "sourceStudentUid": "STU-0238",
+      "fullName": "ANANYA GAUTAM",
+      "classLabel": "Class 4",
+      "admissionNo": "441",
+      "matchedExistingId": "ab47c1bc-e36a-4439-b7d8-74a36bd6258f",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 179,
+      "sourceStudentUid": "STU-0240",
+      "fullName": "ARIDAMAN SINGH CHUNDAWAT",
+      "classLabel": "Class 4",
+      "admissionNo": "2433",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 180,
+      "sourceStudentUid": "STU-0241",
+      "fullName": "BHUMI KANWAR CHUNDAWAT",
+      "classLabel": "Class 4",
+      "admissionNo": "2434",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 181,
+      "sourceStudentUid": "STU-0242",
+      "fullName": "BHUPESH CHOUHAN",
+      "classLabel": "Class 4",
+      "admissionNo": "987",
+      "matchedExistingId": "80c9589c-d05b-4568-9946-ee196918315e",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 182,
+      "sourceStudentUid": "STU-0243",
+      "fullName": "DHANANJAY",
+      "classLabel": "Class 4",
+      "admissionNo": "2436",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 183,
+      "sourceStudentUid": "STU-0244",
+      "fullName": "DIVYANSH SALVI",
+      "classLabel": "Class 4",
+      "admissionNo": "2437",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 184,
+      "sourceStudentUid": "STU-0245",
+      "fullName": "DIVYARAJ SINGH RAO",
+      "classLabel": "Class 4",
+      "admissionNo": "552551",
+      "matchedExistingId": "60786586-0b67-4cf3-bdf4-d6f037a42d16",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 185,
+      "sourceStudentUid": "STU-0246",
+      "fullName": "GHANISHK SINGH CHOUHAN",
+      "classLabel": "Class 4",
+      "admissionNo": "557",
+      "matchedExistingId": "ee3da8d1-2a64-4871-b6eb-612e358592ba",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 186,
+      "sourceStudentUid": "STU-0247",
+      "fullName": "HARSHWARDHAN CHOUHAN",
+      "classLabel": "Class 4",
+      "admissionNo": "2455",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 187,
+      "sourceStudentUid": "STU-0249",
+      "fullName": "HIMANI CHUNDAWAT",
+      "classLabel": "Class 4",
+      "admissionNo": "5442",
+      "matchedExistingId": "e00d1ac9-2d1d-462f-b123-02426f18be6b",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 188,
+      "sourceStudentUid": "STU-0250",
+      "fullName": "Kavya Paliwal",
+      "classLabel": "Class 4",
+      "admissionNo": "597",
+      "matchedExistingId": "a350a355-6772-452e-8618-c4a5559a07eb",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 189,
+      "sourceStudentUid": "STU-0251",
+      "fullName": "MOHIT REBARI",
+      "classLabel": "Class 4",
+      "admissionNo": "467",
+      "matchedExistingId": "475d6dc0-3147-4659-9c1c-d28aa4c5801b",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 190,
+      "sourceStudentUid": "STU-0252",
+      "fullName": "MRITYUNJAY SINGH CHUNDAWAT",
+      "classLabel": "Class 4",
+      "admissionNo": "365",
+      "matchedExistingId": "41e135be-6698-465e-9b8e-131a36218f1f",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 191,
+      "sourceStudentUid": "STU-0254",
+      "fullName": "MUKUL",
+      "classLabel": "Class 4",
+      "admissionNo": "2445",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 192,
+      "sourceStudentUid": "STU-0256",
+      "fullName": "PARAMVEER SINGH",
+      "classLabel": "Class 4",
+      "admissionNo": "202200006",
+      "matchedExistingId": "10424061-f4ee-4b8c-b190-5477e1baeb1b",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 193,
+      "sourceStudentUid": "STU-0257",
+      "fullName": "PIYUSH PRATAP SINGH CHUNDAWAT",
+      "classLabel": "Class 4",
+      "admissionNo": "385",
+      "matchedExistingId": "c42def76-f1e4-40df-b0f0-b3fc18ab6b44",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 194,
+      "sourceStudentUid": "STU-0258",
+      "fullName": "PRINCE GURJAR",
+      "classLabel": "Class 4",
+      "admissionNo": "532862",
+      "matchedExistingId": "547631f0-b653-48e8-ba9c-1c5148f56fbb",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 195,
+      "sourceStudentUid": "STU-0259",
+      "fullName": "PRIYANSH SONI",
+      "classLabel": "Class 4",
+      "admissionNo": "21525",
+      "matchedExistingId": "5743b490-77ed-49e3-a355-f0efa9b9e08c",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 196,
+      "sourceStudentUid": "STU-0261",
+      "fullName": "RAKSHITA PALIWAL",
+      "classLabel": "Class 4",
+      "admissionNo": "202200003",
+      "matchedExistingId": "791ccb87-e23a-4f12-825f-199c186a7353",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 197,
+      "sourceStudentUid": "STU-0262",
+      "fullName": "REEVA DANGI",
+      "classLabel": "Class 4",
+      "admissionNo": "DIRECT-20260514-M0289",
+      "matchedExistingId": "21e18770-bb0c-456b-b9e4-5d4127b27615",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 198,
+      "sourceStudentUid": "STU-0263",
+      "fullName": "RIDDHI SINGH",
+      "classLabel": "Class 4",
+      "admissionNo": "2450",
+      "matchedExistingId": "cddc35f5-2104-4ded-a99e-c9c2b4b2f3ab",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 199,
+      "sourceStudentUid": "STU-0265",
+      "fullName": "RIYANSH THADA",
+      "classLabel": "Class 4",
+      "admissionNo": "885",
+      "matchedExistingId": "aac2c7c8-2fbe-4a55-b05f-7b6cf3c4dc56",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 200,
+      "sourceStudentUid": "STU-0266",
+      "fullName": "RUDRANSHI KANWAR PEMAWAT",
+      "classLabel": "Class 4",
+      "admissionNo": "2559",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 201,
+      "sourceStudentUid": "STU-0268",
+      "fullName": "VIKRAM BHIL",
+      "classLabel": "Class 4",
+      "admissionNo": "482",
+      "matchedExistingId": "efbdd02d-817d-4cf4-bec7-5db19ef14aaf",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 202,
+      "sourceStudentUid": "STU-0269",
+      "fullName": "VISHRUTI PALIWAL",
+      "classLabel": "Class 4",
+      "admissionNo": "202200005",
+      "matchedExistingId": "744aa54e-4c9c-4281-81aa-0619495dbb28",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 203,
+      "sourceStudentUid": "STU-0270",
+      "fullName": "VISHVAPAL SINGH",
+      "classLabel": "Class 4",
+      "admissionNo": "2456",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 204,
+      "sourceStudentUid": "STU-0272",
+      "fullName": "YUVRAJ SINGH RATHORE",
+      "classLabel": "Class 4",
+      "admissionNo": "373",
+      "matchedExistingId": "00f02fd1-5325-4f46-8a25-36c066779171",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 205,
+      "sourceStudentUid": "STU-0273",
+      "fullName": "AANYA VERMA",
+      "classLabel": "Class 5",
+      "admissionNo": "VPPS-STU0273",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 206,
+      "sourceStudentUid": "STU-0274",
+      "fullName": "ANSH BAGWAN",
+      "classLabel": "Class 5",
+      "admissionNo": "275/15RTE",
+      "matchedExistingId": "b4d98445-2786-4643-840a-d902967fde7e",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 207,
+      "sourceStudentUid": "STU-0276",
+      "fullName": "Anshu Koli",
+      "classLabel": "Class 5",
+      "admissionNo": "2474",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 208,
+      "sourceStudentUid": "STU-0277",
+      "fullName": "ARPIT VAIRAGI",
+      "classLabel": "Class 5",
+      "admissionNo": "343",
+      "matchedExistingId": "dbf85239-6b9b-41fc-81b2-f54045d2b651",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 209,
+      "sourceStudentUid": "STU-0278",
+      "fullName": "DIVYANSH SINGH RATHORE",
+      "classLabel": "Class 5",
+      "admissionNo": "274",
+      "matchedExistingId": "35e5e824-3f7c-4b07-b8fa-90974c2895f0",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 210,
+      "sourceStudentUid": "STU-0279",
+      "fullName": "Girija Gurjar",
+      "classLabel": "Class 5",
+      "admissionNo": "602",
+      "matchedExistingId": "5bd4115b-ed4f-4e00-ab65-65b57e4aeb88",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 211,
+      "sourceStudentUid": "STU-0280",
+      "fullName": "HANSHIKA SALVI",
+      "classLabel": "Class 5",
+      "admissionNo": "615",
+      "matchedExistingId": "61b351fe-8361-4879-a12e-b87563539805",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 212,
+      "sourceStudentUid": "STU-0281",
+      "fullName": "HEJAL KHATRI",
+      "classLabel": "Class 5",
+      "admissionNo": "2605",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 213,
+      "sourceStudentUid": "STU-0282",
+      "fullName": "HITISHA CHUNDAWAT",
+      "classLabel": "Class 5",
+      "admissionNo": "2502",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 214,
+      "sourceStudentUid": "STU-0284",
+      "fullName": "INAYA SHARMA",
+      "classLabel": "Class 5",
+      "admissionNo": "501",
+      "matchedExistingId": "2c48c871-a13b-43d3-95e4-7829faf56977",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 215,
+      "sourceStudentUid": "STU-0285",
+      "fullName": "Janavee",
+      "classLabel": "Class 5",
+      "admissionNo": "2504",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 216,
+      "sourceStudentUid": "STU-0287",
+      "fullName": "JITENDRA SINGH SOLANKI",
+      "classLabel": "Class 5",
+      "admissionNo": "2505",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 217,
+      "sourceStudentUid": "STU-0288",
+      "fullName": "KESHAV MAHESHWARI",
+      "classLabel": "Class 5",
+      "admissionNo": "570",
+      "matchedExistingId": "e7970847-2c65-46dd-ac30-5e92bc11f635",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 218,
+      "sourceStudentUid": "STU-0289",
+      "fullName": "KHUSHVEER SINGH PANWAR",
+      "classLabel": "Class 5",
+      "admissionNo": "279/16RTE",
+      "matchedExistingId": "cd3b0ad9-87c9-4f52-92ea-81ad7d01ba5a",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 219,
+      "sourceStudentUid": "STU-0290",
+      "fullName": "KRISHNA",
+      "classLabel": "Class 5",
+      "admissionNo": "414",
+      "matchedExistingId": "10b3f0fd-6b7a-477e-93b2-345f5fc608a6",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 220,
+      "sourceStudentUid": "STU-0291",
+      "fullName": "LABHARTH JAIN",
+      "classLabel": "Class 5",
+      "admissionNo": "610",
+      "matchedExistingId": "0c2e0d0b-9e98-48fc-92dc-8d9f9a62df29",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 221,
+      "sourceStudentUid": "STU-0292",
+      "fullName": "LAVISHA KANWAR CHUNDAWAT",
+      "classLabel": "Class 5",
+      "admissionNo": "280",
+      "matchedExistingId": "02deab74-d592-4557-a607-1625763f77e6",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 222,
+      "sourceStudentUid": "STU-0293",
+      "fullName": "LILA REBARI",
+      "classLabel": "Class 5",
+      "admissionNo": "432",
+      "matchedExistingId": "3f5e0ff3-286f-42c0-91d8-fd292acdb460",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 223,
+      "sourceStudentUid": "STU-0294",
+      "fullName": "OLINA LAXKAR",
+      "classLabel": "Class 5",
+      "admissionNo": "558",
+      "matchedExistingId": "0690bdd1-95e7-4b7b-8d36-6ddd096ee7d0",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 224,
+      "sourceStudentUid": "STU-0295",
+      "fullName": "PARIKSHEET SARVA",
+      "classLabel": "Class 5",
+      "admissionNo": "2510",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 225,
+      "sourceStudentUid": "STU-0296",
+      "fullName": "PRANAV SEN",
+      "classLabel": "Class 5",
+      "admissionNo": "502",
+      "matchedExistingId": "ad84ea26-5fba-424b-8687-b1a943cf6348",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 226,
+      "sourceStudentUid": "STU-0297",
+      "fullName": "PREKSHA GANGWAL",
+      "classLabel": "Class 5",
+      "admissionNo": "272",
+      "matchedExistingId": "8dfb6305-3d75-49e4-a48c-84e178e7d726",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 227,
+      "sourceStudentUid": "STU-0298",
+      "fullName": "SANYAM REBARI",
+      "classLabel": "Class 5",
+      "admissionNo": "416",
+      "matchedExistingId": "80c256d0-88f0-4068-8ffb-ee922d32a980",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 228,
+      "sourceStudentUid": "STU-0299",
+      "fullName": "Suresh Rebari",
+      "classLabel": "Class 5",
+      "admissionNo": "654653",
+      "matchedExistingId": "9d6c9d77-0b10-4249-9f94-2ce89874b6af",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 229,
+      "sourceStudentUid": "STU-0300",
+      "fullName": "SURYAPRATAP SINGH CHOUHAN",
+      "classLabel": "Class 5",
+      "admissionNo": "431",
+      "matchedExistingId": "b97ddaa9-30b7-464f-bf29-2d5d86452add",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 230,
+      "sourceStudentUid": "STU-0301",
+      "fullName": "TANISH PRAJAPAT",
+      "classLabel": "Class 5",
+      "admissionNo": "600",
+      "matchedExistingId": "5130c605-15fa-4cde-a0f7-3b31ea84794e",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 231,
+      "sourceStudentUid": "STU-0302",
+      "fullName": "VEDANSH PALIWAL",
+      "classLabel": "Class 5",
+      "admissionNo": "607",
+      "matchedExistingId": "9207da72-f143-4cd2-a982-cec629c502a4",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 232,
+      "sourceStudentUid": "STU-0303",
+      "fullName": "VEDANSH SWAMI",
+      "classLabel": "Class 5",
+      "admissionNo": "215462",
+      "matchedExistingId": "9f09718b-9317-43cc-b9b1-320e6f392a8d",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 233,
+      "sourceStudentUid": "STU-0304",
+      "fullName": "VEDIK SHARMA",
+      "classLabel": "Class 5",
+      "admissionNo": "VPPS-STU0304",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 234,
+      "sourceStudentUid": "STU-0305",
+      "fullName": "VIHAAN JEENGAR",
+      "classLabel": "Class 5",
+      "admissionNo": "320/21RTE",
+      "matchedExistingId": "3d3cfdc0-4c55-4231-9e77-73c60d96c976",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 235,
+      "sourceStudentUid": "STU-0306",
+      "fullName": "VINITA",
+      "classLabel": "Class 5",
+      "admissionNo": "286/17RTE",
+      "matchedExistingId": "63845c86-c3d7-47b1-8742-5ce11b84dbc5",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 236,
+      "sourceStudentUid": "STU-0307",
+      "fullName": "AARADHYA JOSHI",
+      "classLabel": "Class 6",
+      "admissionNo": "2582",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 237,
+      "sourceStudentUid": "STU-0308",
+      "fullName": "AARAV SEN",
+      "classLabel": "Class 6",
+      "admissionNo": "526",
+      "matchedExistingId": "0b46146c-5ede-42ce-a0a4-cf649d7365ee",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 238,
+      "sourceStudentUid": "STU-0309",
+      "fullName": "ABHISHEK SINGH RAO",
+      "classLabel": "Class 6",
+      "admissionNo": "2604",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 239,
+      "sourceStudentUid": "STU-0310",
+      "fullName": "Anita Kanwar",
+      "classLabel": "Class 6",
+      "admissionNo": "553",
+      "matchedExistingId": "2c7eb5aa-a9db-4635-8fb3-c848ca47f95f",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 240,
+      "sourceStudentUid": "STU-0311",
+      "fullName": "ASTHA KUMAWAT",
+      "classLabel": "Class 6",
+      "admissionNo": "276",
+      "matchedExistingId": "c5811a54-e1c2-453b-b51e-eca215bf8f4e",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 242,
+      "sourceStudentUid": "STU-0313",
+      "fullName": "DIGVIJAY SINGH",
+      "classLabel": "Class 6",
+      "admissionNo": "2522",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 243,
+      "sourceStudentUid": "STU-0315",
+      "fullName": "DIVYANSHU MANGAWA",
+      "classLabel": "Class 6",
+      "admissionNo": "2523",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 244,
+      "sourceStudentUid": "STU-0317",
+      "fullName": "Firdos Siddiqui",
+      "classLabel": "Class 6",
+      "admissionNo": "2524",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 245,
+      "sourceStudentUid": "STU-0318",
+      "fullName": "GAURANSH DANGI",
+      "classLabel": "Class 6",
+      "admissionNo": "2525",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 246,
+      "sourceStudentUid": "STU-0319",
+      "fullName": "Gaurika Jangid",
+      "classLabel": "Class 6",
+      "admissionNo": "2569",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 247,
+      "sourceStudentUid": "STU-0320",
+      "fullName": "hansika tailor",
+      "classLabel": "Class 6",
+      "admissionNo": "24RTE/359",
+      "matchedExistingId": "c022507d-87a9-4c60-a855-6dc4d1ad2cc0",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 248,
+      "sourceStudentUid": "STU-0321",
+      "fullName": "HIRANYA SUTHAR",
+      "classLabel": "Class 6",
+      "admissionNo": "632",
+      "matchedExistingId": "753b1d5b-9b9e-471e-a854-f4e77340b891",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 249,
+      "sourceStudentUid": "STU-0322",
+      "fullName": "HITARTH GANDHI",
+      "classLabel": "Class 6",
+      "admissionNo": "2527",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 250,
+      "sourceStudentUid": "STU-0323",
+      "fullName": "HITENDRA SINGH SOLANKI",
+      "classLabel": "Class 6",
+      "admissionNo": "586",
+      "matchedExistingId": "95d9b48c-8c6c-4495-8b2e-c000a952e6ec",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 251,
+      "sourceStudentUid": "STU-0324",
+      "fullName": "JAGRATI MEWARA",
+      "classLabel": "Class 6",
+      "admissionNo": "2529",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 252,
+      "sourceStudentUid": "STU-0325",
+      "fullName": "Janavi Sharma",
+      "classLabel": "Class 6",
+      "admissionNo": "2547",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 254,
+      "sourceStudentUid": "STU-0326",
+      "fullName": "Kalp Jain",
+      "classLabel": "Class 6",
+      "admissionNo": "458",
+      "matchedExistingId": "5879e50b-ccbd-438c-a3d9-c1ed455d62e5",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 255,
+      "sourceStudentUid": "STU-0327",
+      "fullName": "KASHISH",
+      "classLabel": "Class 6",
+      "admissionNo": "837",
+      "matchedExistingId": "85ff3bfb-be9d-4bba-b3b9-0efe6c43b061",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 256,
+      "sourceStudentUid": "STU-0328",
+      "fullName": "KHUSHBU BAGWAN",
+      "classLabel": "Class 6",
+      "admissionNo": "847",
+      "matchedExistingId": "b4836808-8d69-4162-a484-9668809af916",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 257,
+      "sourceStudentUid": "STU-0330",
+      "fullName": "Mahipal Singh Solanki",
+      "classLabel": "Class 6",
+      "admissionNo": "2533",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 258,
+      "sourceStudentUid": "STU-0331",
+      "fullName": "MITALI KANWAR",
+      "classLabel": "Class 6",
+      "admissionNo": "389",
+      "matchedExistingId": "f7383d9a-bd39-4c81-974a-026ac643973d",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 259,
+      "sourceStudentUid": "STU-0332",
+      "fullName": "MONIKA REBARI",
+      "classLabel": "Class 6",
+      "admissionNo": "2535",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 260,
+      "sourceStudentUid": "STU-0333",
+      "fullName": "NAVYA KANWAR",
+      "classLabel": "Class 6",
+      "admissionNo": "527",
+      "matchedExistingId": "8b884531-a8b6-4ceb-b079-d68f2579ee27",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 261,
+      "sourceStudentUid": "STU-0334",
+      "fullName": "NILEASH SINGH RAO",
+      "classLabel": "Class 6",
+      "admissionNo": "VPPS-STU0334",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 262,
+      "sourceStudentUid": "STU-0335",
+      "fullName": "NISHIKA SETH",
+      "classLabel": "Class 6",
+      "admissionNo": "325",
+      "matchedExistingId": "caae4beb-ca7c-47c9-94b3-ae718e3e89ae",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 263,
+      "sourceStudentUid": "STU-0336",
+      "fullName": "PRADHUMAN SINGH",
+      "classLabel": "Class 6",
+      "admissionNo": "2538",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 264,
+      "sourceStudentUid": "STU-0338",
+      "fullName": "PRANJAL KUNWAR RAO",
+      "classLabel": "Class 6",
+      "admissionNo": "2539",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 265,
+      "sourceStudentUid": "STU-0339",
+      "fullName": "PUJIT KOTHARI",
+      "classLabel": "Class 6",
+      "admissionNo": "456",
+      "matchedExistingId": "6658a264-4058-49cb-b3c4-202fe7ab938d",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 266,
+      "sourceStudentUid": "STU-0340",
+      "fullName": "ROSHNI",
+      "classLabel": "Class 6",
+      "admissionNo": "472",
+      "matchedExistingId": "46ab302c-2cf2-4157-8e7c-6c67298ee892",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 267,
+      "sourceStudentUid": "STU-0341",
+      "fullName": "SHAVI BHANDARI",
+      "classLabel": "Class 6",
+      "admissionNo": "2542",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 268,
+      "sourceStudentUid": "STU-0344",
+      "fullName": "SURYANSHI KANWAR",
+      "classLabel": "Class 6",
+      "admissionNo": "2544",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 269,
+      "sourceStudentUid": "STU-0346",
+      "fullName": "TANUSHA BHAND",
+      "classLabel": "Class 6",
+      "admissionNo": "228/12RTE",
+      "matchedExistingId": "bd16d0c1-c7f7-4354-aae1-692f7a49d834",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 270,
+      "sourceStudentUid": "STU-0347",
+      "fullName": "TANUSHKA PAREEK",
+      "classLabel": "Class 6",
+      "admissionNo": "2558",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 271,
+      "sourceStudentUid": "STU-0348",
+      "fullName": "Vishal Bunkar",
+      "classLabel": "Class 6",
+      "admissionNo": "2561",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 272,
+      "sourceStudentUid": "STU-0349",
+      "fullName": "YATHARTH DADHICH",
+      "classLabel": "Class 6",
+      "admissionNo": "420",
+      "matchedExistingId": "a0392b97-82dd-4ce3-828e-5565c2827d34",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 273,
+      "sourceStudentUid": "STU-0351",
+      "fullName": "Abhishek Koli",
+      "classLabel": "Class 7",
+      "admissionNo": "2399",
+      "matchedExistingId": "da602880-ef21-458e-b8a6-906112259854",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 274,
+      "sourceStudentUid": "STU-0352",
+      "fullName": "ANISHA KANWAR SOLANKI",
+      "classLabel": "Class 7",
+      "admissionNo": "2287",
+      "matchedExistingId": "011caf92-523a-4082-9f61-076b74ce84da",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 276,
+      "sourceStudentUid": "STU-0353",
+      "fullName": "BHAGIRATH GURJAR",
+      "classLabel": "Class 7",
+      "admissionNo": "2338",
+      "matchedExistingId": "80b03931-9ca1-4868-9f08-3c3c395d3db7",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 277,
+      "sourceStudentUid": "STU-0355",
+      "fullName": "DHIRAJ SALVI",
+      "classLabel": "Class 7",
+      "admissionNo": "2360",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 278,
+      "sourceStudentUid": "STU-0356",
+      "fullName": "DILKHUSH MANGAWA",
+      "classLabel": "Class 7",
+      "admissionNo": "2285",
+      "matchedExistingId": "fe166205-3f4c-4b7e-909f-231609695e84",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 279,
+      "sourceStudentUid": "STU-0357",
+      "fullName": "DRISHTI JHANWAR",
+      "classLabel": "Class 7",
+      "admissionNo": "2277",
+      "matchedExistingId": "37b84164-817c-4ba2-a8b4-66b879ee4532",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 281,
+      "sourceStudentUid": "STU-0359",
+      "fullName": "HIMMAT LAL GURJAR",
+      "classLabel": "Class 7",
+      "admissionNo": "2315",
+      "matchedExistingId": "684cfd1a-cbbb-4b8c-a798-c2182ca9e2e9",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 282,
+      "sourceStudentUid": "STU-0360",
+      "fullName": "HITRAJ SINGH RAO",
+      "classLabel": "Class 7",
+      "admissionNo": "2549",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 283,
+      "sourceStudentUid": "STU-0361",
+      "fullName": "ISHWAR SUTHAR",
+      "classLabel": "Class 7",
+      "admissionNo": "05RTE",
+      "matchedExistingId": "e5e4fb0f-57ae-4db2-b951-4cad61d0a1c4",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 284,
+      "sourceStudentUid": "STU-0363",
+      "fullName": "KHUSHVEER SINGH SOLANKI",
+      "classLabel": "Class 7",
+      "admissionNo": "2284",
+      "matchedExistingId": "6d0ff6ad-481a-4ff1-9c6a-58d3d6886fc1",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 285,
+      "sourceStudentUid": "STU-0364",
+      "fullName": "KRISHNA REBARI",
+      "classLabel": "Class 7",
+      "admissionNo": "2282",
+      "matchedExistingId": "159ac470-5f5e-4b6f-b521-a1abb8ebcf1a",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 286,
+      "sourceStudentUid": "STU-0365",
+      "fullName": "KULDEEP SALVI",
+      "classLabel": "Class 7",
+      "admissionNo": "VPPS-STU0365",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 287,
+      "sourceStudentUid": "STU-0366",
+      "fullName": "Lakshyraj Singh Solanki",
+      "classLabel": "Class 7",
+      "admissionNo": "2309",
+      "matchedExistingId": "d0b16334-ad36-4308-a9f4-f2f1a722c029",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 288,
+      "sourceStudentUid": "STU-0367",
+      "fullName": "mahesh paliwal",
+      "classLabel": "Class 7",
+      "admissionNo": "330/22RTE",
+      "matchedExistingId": "cfdacc3a-29fa-4053-a5ca-e7122770916a",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 290,
+      "sourceStudentUid": "STU-0368",
+      "fullName": "MANSHVI SHARMA",
+      "classLabel": "Class 7",
+      "admissionNo": "VPPS-STU0368",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 291,
+      "sourceStudentUid": "STU-0369",
+      "fullName": "MAYANK YADAV",
+      "classLabel": "Class 7",
+      "admissionNo": "2387",
+      "matchedExistingId": "4673c3eb-755a-45d8-8080-df6794f8ffcf",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 292,
+      "sourceStudentUid": "STU-0370",
+      "fullName": "MIHIRAN DADHICH",
+      "classLabel": "Class 7",
+      "admissionNo": "2281",
+      "matchedExistingId": "405088ed-d85c-4afb-9bfa-4df6933c76a2",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 293,
+      "sourceStudentUid": "STU-0371",
+      "fullName": "Milan Rebari",
+      "classLabel": "Class 7",
+      "admissionNo": "2316",
+      "matchedExistingId": "8a6f2a4c-39fb-4db0-adac-ff34a9b4bf34",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 294,
+      "sourceStudentUid": "STU-0372",
+      "fullName": "MUDITA RAO",
+      "classLabel": "Class 7",
+      "admissionNo": "2307",
+      "matchedExistingId": "9862c029-9cab-46e7-8f22-f6c5cebe8c4c",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 295,
+      "sourceStudentUid": "STU-0373",
+      "fullName": "MUKUND DADHICH",
+      "classLabel": "Class 7",
+      "admissionNo": "2552",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 296,
+      "sourceStudentUid": "STU-0374",
+      "fullName": "NARENDRA SINGH RANAWAT",
+      "classLabel": "Class 7",
+      "admissionNo": "2606",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 297,
+      "sourceStudentUid": "STU-0375",
+      "fullName": "PARANJAY SINGH RAO",
+      "classLabel": "Class 7",
+      "admissionNo": "VPPS-STU0375",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 298,
+      "sourceStudentUid": "STU-0376",
+      "fullName": "PRIYANSHI GAUR",
+      "classLabel": "Class 7",
+      "admissionNo": "65785",
+      "matchedExistingId": "048269c5-e532-4fe8-8bb0-164d87e9c648",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 299,
+      "sourceStudentUid": "STU-0377",
+      "fullName": "PRIYANSHI MEENA",
+      "classLabel": "Class 7",
+      "admissionNo": "785",
+      "matchedExistingId": "10238126-9990-4f98-8a4c-f0aa7bac12ce",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 300,
+      "sourceStudentUid": "STU-0378",
+      "fullName": "RANI KANWAR CHOUHAN",
+      "classLabel": "Class 7",
+      "admissionNo": "2286",
+      "matchedExistingId": "376aa9f8-e2a3-4ec7-8fbf-5e20fb32c104",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 301,
+      "sourceStudentUid": "STU-0379",
+      "fullName": "RIDDISH SUTHAR",
+      "classLabel": "Class 7",
+      "admissionNo": "334/23RTE",
+      "matchedExistingId": "c431b377-4fbd-4114-87fe-401d021d9864",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 302,
+      "sourceStudentUid": "STU-0380",
+      "fullName": "RIYA GURJAR",
+      "classLabel": "Class 7",
+      "admissionNo": "2295",
+      "matchedExistingId": "1998b750-b080-40e9-ada9-5d01787d8240",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 303,
+      "sourceStudentUid": "STU-0381",
+      "fullName": "Saanvi Sharma",
+      "classLabel": "Class 7",
+      "admissionNo": "2304",
+      "matchedExistingId": "e7808ae3-a4b8-4a7c-a84c-b764233e2d33",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 304,
+      "sourceStudentUid": "STU-0382",
+      "fullName": "SACHIN REBARI",
+      "classLabel": "Class 7",
+      "admissionNo": "2400",
+      "matchedExistingId": "e41d3dd2-bf39-4929-9288-ccdbf24badb0",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 305,
+      "sourceStudentUid": "STU-0383",
+      "fullName": "SAKSHI SUTHAR",
+      "classLabel": "Class 7",
+      "admissionNo": "10RTE",
+      "matchedExistingId": "a12ea9c6-3c1e-49e9-aae5-4c8e6568d0fc",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 306,
+      "sourceStudentUid": "STU-0384",
+      "fullName": "SEJAL KEER",
+      "classLabel": "Class 7",
+      "admissionNo": "07RTE",
+      "matchedExistingId": "1f82bb99-f315-4133-a2dd-759ce3eaf24d",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 307,
+      "sourceStudentUid": "STU-0385",
+      "fullName": "SUMITRA SALVI",
+      "classLabel": "Class 7",
+      "admissionNo": "2280",
+      "matchedExistingId": "20550f96-e1c0-47d0-a273-4b7e81fd7635",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 308,
+      "sourceStudentUid": "STU-0386",
+      "fullName": "VIDHIRAJ CHUNDAWAT",
+      "classLabel": "Class 7",
+      "admissionNo": "2288",
+      "matchedExistingId": "c9c33416-faa1-4c09-8293-cc66242bfdc9",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 309,
+      "sourceStudentUid": "STU-0387",
+      "fullName": "VISHWAJEET SINGH",
+      "classLabel": "Class 7",
+      "admissionNo": "2283",
+      "matchedExistingId": "fe071606-9d9c-4646-b25c-4dceaa2ab04f",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 310,
+      "sourceStudentUid": "STU-0388",
+      "fullName": "YASHPALSINGH RATHORE",
+      "classLabel": "Class 7",
+      "admissionNo": "2366",
+      "matchedExistingId": "26c60910-5a0a-4a68-938b-7959ffe499d3",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 311,
+      "sourceStudentUid": "STU-0389",
+      "fullName": "AKSHITA GOUTAM",
+      "classLabel": "Class 8",
+      "admissionNo": "2290",
+      "matchedExistingId": "446e1b6f-7952-4aaa-b913-f919968bb539",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 312,
+      "sourceStudentUid": "STU-0390",
+      "fullName": "AKSHRAJ SINGH CHUNDAWAT",
+      "classLabel": "Class 8",
+      "admissionNo": "2254",
+      "matchedExistingId": "52c3a210-cf77-4565-b45a-64b92bbd1858",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 313,
+      "sourceStudentUid": "STU-0391",
+      "fullName": "ARAV SONI",
+      "classLabel": "Class 8",
+      "admissionNo": "2255",
+      "matchedExistingId": "e2fd6ebf-342f-4966-b59e-4d13bc9e1622",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 314,
+      "sourceStudentUid": "STU-0392",
+      "fullName": "ASHISH BAGWAN",
+      "classLabel": "Class 8",
+      "admissionNo": "2257",
+      "matchedExistingId": "7d817ce1-8644-498e-9078-a4e2cc00798c",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 315,
+      "sourceStudentUid": "STU-0393",
+      "fullName": "ATHARVRAJ SINGH CHUNDAWAT",
+      "classLabel": "Class 8",
+      "admissionNo": "2346",
+      "matchedExistingId": "713cd41c-0d62-45d9-9bef-56d163766597",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 316,
+      "sourceStudentUid": "STU-0394",
+      "fullName": "Bhavya Raj Singh Chundawat",
+      "classLabel": "Class 8",
+      "admissionNo": "2336",
+      "matchedExistingId": "98cb3f9e-43da-4ce1-9d22-2534474c1ed2",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 317,
+      "sourceStudentUid": "STU-0395",
+      "fullName": "CHARVI PURBIA",
+      "classLabel": "Class 8",
+      "admissionNo": "2296",
+      "matchedExistingId": "8cfcbcc6-7491-4d7b-8c40-c8dd8e1893b1",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 318,
+      "sourceStudentUid": "STU-0396",
+      "fullName": "CHAWAND SINGH CHUNDAWAT",
+      "classLabel": "Class 8",
+      "admissionNo": "2272",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 319,
+      "sourceStudentUid": "STU-0397",
+      "fullName": "CHHAVI LAKHARA",
+      "classLabel": "Class 8",
+      "admissionNo": "2342",
+      "matchedExistingId": "6b1d8bf4-3974-4ab6-9e05-8cc130405a48",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 320,
+      "sourceStudentUid": "STU-0398",
+      "fullName": "CRYSTAL PAMECHA",
+      "classLabel": "Class 8",
+      "admissionNo": "2334",
+      "matchedExistingId": "ec6255ae-fa1d-4622-8444-d7a2293b4226",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 321,
+      "sourceStudentUid": "STU-0399",
+      "fullName": "DHANRAJ SINGH RATHORE",
+      "classLabel": "Class 8",
+      "admissionNo": "2373",
+      "matchedExistingId": "3dd995bb-01f8-4c54-8381-250be5d29fbe",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 322,
+      "sourceStudentUid": "STU-0354",
+      "fullName": "Dharmesh Rebari",
+      "classLabel": "Class 8",
+      "admissionNo": "2359",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 323,
+      "sourceStudentUid": "STU-0401",
+      "fullName": "Digvijay Singh Chundawat",
+      "classLabel": "Class 8",
+      "admissionNo": "2568",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 324,
+      "sourceStudentUid": "STU-0402",
+      "fullName": "DIVYANSH KHATIK",
+      "classLabel": "Class 8",
+      "admissionNo": "2258",
+      "matchedExistingId": "cb518af1-b32d-4d84-a067-2feeb15dd831",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 325,
+      "sourceStudentUid": "STU-0403",
+      "fullName": "EKTA PALIWAL",
+      "classLabel": "Class 8",
+      "admissionNo": "2261",
+      "matchedExistingId": "86ffe1f5-fc37-43e1-acf6-0a546eec358b",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 326,
+      "sourceStudentUid": "STU-0404",
+      "fullName": "HARSHWARDHAN SINGH",
+      "classLabel": "Class 8",
+      "admissionNo": "2396",
+      "matchedExistingId": "eb6326d2-fd84-44cd-9c96-de6fe3695ab1",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 327,
+      "sourceStudentUid": "STU-0405",
+      "fullName": "KESHAV SONI",
+      "classLabel": "Class 8",
+      "admissionNo": "2260",
+      "matchedExistingId": "612948b1-d398-4f3a-9a50-461629f0c9ec",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 328,
+      "sourceStudentUid": "STU-0406",
+      "fullName": "Krish Gurjar",
+      "classLabel": "Class 8",
+      "admissionNo": "2577",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 329,
+      "sourceStudentUid": "STU-0407",
+      "fullName": "MANAN THADA",
+      "classLabel": "Class 8",
+      "admissionNo": "2259",
+      "matchedExistingId": "94ae8bb2-5399-4c09-9b45-d0496437e844",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 330,
+      "sourceStudentUid": "STU-0408",
+      "fullName": "MUKESH TAILOR",
+      "classLabel": "Class 8",
+      "admissionNo": "2256",
+      "matchedExistingId": "fa9c2f26-3ccb-4f5c-ba5d-0699dc60b38c",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 331,
+      "sourceStudentUid": "STU-0409",
+      "fullName": "NAINA BISHNOI",
+      "classLabel": "Class 8",
+      "admissionNo": "2266",
+      "matchedExistingId": "92654f8f-2827-4305-b9c0-d2f3dfcfd110",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 332,
+      "sourceStudentUid": "STU-0410",
+      "fullName": "NAMAN PARMAR",
+      "classLabel": "Class 8",
+      "admissionNo": "2393",
+      "matchedExistingId": "df1efcb4-55f2-4ae6-9a32-214e5daa6849",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 333,
+      "sourceStudentUid": "STU-0411",
+      "fullName": "NAMRTA KUNWAR CHOUHAN",
+      "classLabel": "Class 8",
+      "admissionNo": "2273",
+      "matchedExistingId": "d58955c6-887b-49b9-a53b-3d0bc7089e08",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 334,
+      "sourceStudentUid": "STU-0413",
+      "fullName": "NIDHIRAJ KANWAR CHUNDAWAT",
+      "classLabel": "Class 8",
+      "admissionNo": "2274",
+      "matchedExistingId": "76f98a40-528e-41cc-a24f-2b162ba07e39",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 335,
+      "sourceStudentUid": "STU-0491",
+      "fullName": "NIKITA KANWAR",
+      "classLabel": "Class 8",
+      "admissionNo": "2275",
+      "matchedExistingId": "00d3017f-c788-44ee-b6eb-a156ddfaf251",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 336,
+      "sourceStudentUid": "STU-0415",
+      "fullName": "PARI RAO",
+      "classLabel": "Class 8",
+      "admissionNo": "2269",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 337,
+      "sourceStudentUid": "STU-0416",
+      "fullName": "PARTH GURJAR",
+      "classLabel": "Class 8",
+      "admissionNo": "2265",
+      "matchedExistingId": "fe042419-7794-4901-90f1-958891798a42",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 338,
+      "sourceStudentUid": "STU-0417",
+      "fullName": "Priyanshi Kunwar Rao",
+      "classLabel": "Class 8",
+      "admissionNo": "2383",
+      "matchedExistingId": "cadd85fc-4fe4-431f-8c23-08222e2b79c9",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 339,
+      "sourceStudentUid": "STU-0418",
+      "fullName": "RADHIKA CHUNDAWAT",
+      "classLabel": "Class 8",
+      "admissionNo": "2289",
+      "matchedExistingId": "27b6442e-4f08-4476-8d55-c8536d6b80ab",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 340,
+      "sourceStudentUid": "STU-0419",
+      "fullName": "RAVIRAJ SINGH PANWAR",
+      "classLabel": "Class 8",
+      "admissionNo": "2271",
+      "matchedExistingId": "58f917f5-cda2-4450-84fb-eba20e67391e",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 341,
+      "sourceStudentUid": "STU-0420",
+      "fullName": "RIDDHIKA SONI",
+      "classLabel": "Class 8",
+      "admissionNo": "2268",
+      "matchedExistingId": "c4f7c948-5c8c-440b-a713-15a3b880d09b",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 342,
+      "sourceStudentUid": "STU-0421",
+      "fullName": "RUDRAKSH SHARMA",
+      "classLabel": "Class 8",
+      "admissionNo": "2292",
+      "matchedExistingId": "fccece05-f648-43c9-bafc-ef5b2f5a8173",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 343,
+      "sourceStudentUid": "STU-0422",
+      "fullName": "RUDRAPRATAP SINGH TANK",
+      "classLabel": "Class 8",
+      "admissionNo": "2560",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 344,
+      "sourceStudentUid": "STU-0423",
+      "fullName": "SAKSHI PALIWAL",
+      "classLabel": "Class 8",
+      "admissionNo": "2267",
+      "matchedExistingId": "dc9a9b89-fd78-41fd-8849-1aa483984a53",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 345,
+      "sourceStudentUid": "STU-0424",
+      "fullName": "SANGEETA REGAR",
+      "classLabel": "Class 8",
+      "admissionNo": "RTE 03",
+      "matchedExistingId": "3d189964-8444-45ea-b042-03e62d1d54e5",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 346,
+      "sourceStudentUid": "STU-0425",
+      "fullName": "SHIVANI PANWAR",
+      "classLabel": "Class 8",
+      "admissionNo": "2264",
+      "matchedExistingId": "a61f9f57-add4-4ffc-b577-df3adfd045b0",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 347,
+      "sourceStudentUid": "STU-0426",
+      "fullName": "SONAKSHI KANWAR SOLANKI",
+      "classLabel": "Class 8",
+      "admissionNo": "2270",
+      "matchedExistingId": "00ce69bb-e696-4b71-a580-0df1f95e0ce7",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 348,
+      "sourceStudentUid": "STU-0427",
+      "fullName": "Udayshree Chundawat",
+      "classLabel": "Class 8",
+      "admissionNo": "2349",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 349,
+      "sourceStudentUid": "STU-0429",
+      "fullName": "VISHWA VIJYAY SINGH CHOUHAN",
+      "classLabel": "Class 8",
+      "admissionNo": "2276",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 350,
+      "sourceStudentUid": "STU-0430",
+      "fullName": "viyom raj singh ranawat",
+      "classLabel": "Class 8",
+      "admissionNo": "2392",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 351,
+      "sourceStudentUid": "STU-0432",
+      "fullName": "Yashraj Singh Rathore",
+      "classLabel": "Class 8",
+      "admissionNo": "2575",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 352,
+      "sourceStudentUid": "STU-0433",
+      "fullName": "YASHU SONI",
+      "classLabel": "Class 8",
+      "admissionNo": "2253",
+      "matchedExistingId": "6d00923a-9553-4aa5-a6b4-94d58ddb0856",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 353,
+      "sourceStudentUid": "STU-0434",
+      "fullName": "YASHWANTI HARIJAN",
+      "classLabel": "Class 8",
+      "admissionNo": "28RTE",
+      "matchedExistingId": "4fd0c4df-4edb-42ad-8e6f-8273bd6716fd",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 354,
+      "sourceStudentUid": "STU-0435",
+      "fullName": "YUVRAJ SINGH",
+      "classLabel": "Class 8",
+      "admissionNo": "2556",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 355,
+      "sourceStudentUid": "STU-0436",
+      "fullName": "ANIKET SALVI",
+      "classLabel": "Class 9",
+      "admissionNo": "2588",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 356,
+      "sourceStudentUid": "STU-0437",
+      "fullName": "BHAGYASHREE KANWAR CHUNDAWAT",
+      "classLabel": "Class 9",
+      "admissionNo": "2585",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 357,
+      "sourceStudentUid": "STU-0438",
+      "fullName": "BHAVIN PAREEK",
+      "classLabel": "Class 9",
+      "admissionNo": "2567",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 358,
+      "sourceStudentUid": "STU-0439",
+      "fullName": "CHESTHA GOTWAL",
+      "classLabel": "Class 9",
+      "admissionNo": "2252",
+      "matchedExistingId": "abba4eba-0494-458f-a898-1e75bfb2bcb7",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 359,
+      "sourceStudentUid": "STU-0440",
+      "fullName": "CHINU SUTHAR",
+      "classLabel": "Class 9",
+      "admissionNo": "2589",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 360,
+      "sourceStudentUid": "STU-0441",
+      "fullName": "DEEPIKA",
+      "classLabel": "Class 9",
+      "admissionNo": "2580",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 361,
+      "sourceStudentUid": "STU-0442",
+      "fullName": "DEEPIKA JOSHI",
+      "classLabel": "Class 9",
+      "admissionNo": "2587",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 362,
+      "sourceStudentUid": "STU-0443",
+      "fullName": "KANISHKA CHOUNDAVAT",
+      "classLabel": "Class 9",
+      "admissionNo": "2548",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 363,
+      "sourceStudentUid": "STU-0444",
+      "fullName": "KISHMAT KANWAR",
+      "classLabel": "Class 9",
+      "admissionNo": "2584",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 364,
+      "sourceStudentUid": "STU-0445",
+      "fullName": "KRISHNAPAL SINGH",
+      "classLabel": "Class 9",
+      "admissionNo": "2249",
+      "matchedExistingId": "a06df742-218d-40b3-9c7c-164b2b7ecbc2",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 365,
+      "sourceStudentUid": "STU-0446",
+      "fullName": "MINAL SETH",
+      "classLabel": "Class 9",
+      "admissionNo": "2247",
+      "matchedExistingId": "2f988ae6-e4b0-4124-a53b-d717e7af6c5b",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 366,
+      "sourceStudentUid": "STU-0447",
+      "fullName": "NITIN KUMHAR",
+      "classLabel": "Class 9",
+      "admissionNo": "2337",
+      "matchedExistingId": "020a3eb8-8ff0-49a7-87d4-700027c92222",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 367,
+      "sourceStudentUid": "STU-0448",
+      "fullName": "PRATHVIRAJ SINGH CHUNDAWAT",
+      "classLabel": "Class 9",
+      "admissionNo": "2250",
+      "matchedExistingId": "9979d343-e0da-406e-a3b4-7e0ba14b8842",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 368,
+      "sourceStudentUid": "STU-0449",
+      "fullName": "PRIYANSHI CHOUHAN",
+      "classLabel": "Class 9",
+      "admissionNo": "2355",
+      "matchedExistingId": "a2d40e4d-3737-4169-aba6-35410bdab838",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 369,
+      "sourceStudentUid": "STU-0450",
+      "fullName": "SAPNA KANWAR",
+      "classLabel": "Class 9",
+      "admissionNo": "2248",
+      "matchedExistingId": "4e5d250c-956d-463c-b3c3-e3f7b3853fe0",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 370,
+      "sourceStudentUid": "STU-0452",
+      "fullName": "SHIVANI KANWAR CHUNDAWAT",
+      "classLabel": "Class 9",
+      "admissionNo": "2586",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 371,
+      "sourceStudentUid": "STU-0453",
+      "fullName": "SURYADEV SINGH CHOUHAN",
+      "classLabel": "Class 9",
+      "admissionNo": "2251",
+      "matchedExistingId": "6ad545e8-eb18-4639-9dd8-bb932a7bac16",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 372,
+      "sourceStudentUid": "STU-0454",
+      "fullName": "Yashwini Chundawat",
+      "classLabel": "Class 9",
+      "admissionNo": "2344",
+      "matchedExistingId": "4ce68b9c-3358-4376-8be1-8bafbc9505d3",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 373,
+      "sourceStudentUid": "NEW-2026-27-0372",
+      "fullName": "BHAVESH KUMAR",
+      "classLabel": "Class 10",
+      "admissionNo": "2379",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 374,
+      "sourceStudentUid": "STU-0142",
+      "fullName": "BHUPENDRA SINGH CHUNDAWAT",
+      "classLabel": "Class 10",
+      "admissionNo": "2214",
+      "matchedExistingId": "2d65c593-0dc2-4e31-bc6c-b346f08dc8f0",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 375,
+      "sourceStudentUid": "STU-0143",
+      "fullName": "DEEP SINGH RATHORE",
+      "classLabel": "Class 10",
+      "admissionNo": "2365",
+      "matchedExistingId": "64dd9eeb-0a39-4a7a-8985-06628b20d3ba",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 376,
+      "sourceStudentUid": "NEW-2026-27-0375",
+      "fullName": "DIMPLE SALVI",
+      "classLabel": "Class 10",
+      "admissionNo": "2391",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 377,
+      "sourceStudentUid": "NEW-2026-27-0376",
+      "fullName": "DIVYA RATHORE",
+      "classLabel": "Class 10",
+      "admissionNo": "2356",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 378,
+      "sourceStudentUid": "STU-0144",
+      "fullName": "Garvita Pareek",
+      "classLabel": "Class 10",
+      "admissionNo": "2574",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 379,
+      "sourceStudentUid": "STU-0145",
+      "fullName": "Gopal Singh Rathore",
+      "classLabel": "Class 10",
+      "admissionNo": "2213",
+      "matchedExistingId": "2417cbc1-9e2b-4b70-818a-94ab087b8f86",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 380,
+      "sourceStudentUid": "STU-0146",
+      "fullName": "Gori Gurjar",
+      "classLabel": "Class 10",
+      "admissionNo": "2317",
+      "matchedExistingId": "3b47d8a4-5853-4171-acfb-8cc248cccbec",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 381,
+      "sourceStudentUid": "STU-0147",
+      "fullName": "Jainandani Kunwar Solanki",
+      "classLabel": "Class 10",
+      "admissionNo": "2314",
+      "matchedExistingId": "8311ad8f-a7dd-4ad1-9751-a68e700abe5f",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 382,
+      "sourceStudentUid": "STU-0148",
+      "fullName": "KRISHNAKANT LOHAR",
+      "classLabel": "Class 10",
+      "admissionNo": "2361",
+      "matchedExistingId": "719f4c7f-9b32-4d6e-9421-d5dc420537de",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 383,
+      "sourceStudentUid": "STU-0150",
+      "fullName": "LOVELY SETH",
+      "classLabel": "Class 10",
+      "admissionNo": "2218",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 384,
+      "sourceStudentUid": "STU-0151",
+      "fullName": "MANISH YADAV",
+      "classLabel": "Class 10",
+      "admissionNo": "2386",
+      "matchedExistingId": "7ff392a6-e36d-4ed3-86af-2a0f008569b4",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 385,
+      "sourceStudentUid": "NEW-2026-27-0384",
+      "fullName": "MOHAMMAD TANVIR",
+      "classLabel": "Class 10",
+      "admissionNo": "2377",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 386,
+      "sourceStudentUid": "STU-0152",
+      "fullName": "Poorva sen",
+      "classLabel": "Class 10",
+      "admissionNo": "2353",
+      "matchedExistingId": "203e05d0-266c-4a02-9772-7fb50c059bb7",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 387,
+      "sourceStudentUid": "STU-0153",
+      "fullName": "PRATIGYA CHUNDAWAT",
+      "classLabel": "Class 10",
+      "admissionNo": "2219",
+      "matchedExistingId": "2ae67988-0b14-4b32-bd48-949931022569",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 388,
+      "sourceStudentUid": "STU-0155",
+      "fullName": "Sakshi Siroya",
+      "classLabel": "Class 10",
+      "admissionNo": "2333",
+      "matchedExistingId": "f3106bdd-879f-4ec4-a4f6-1a1e174d808a",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 389,
+      "sourceStudentUid": "STU-0156",
+      "fullName": "SATISH REGAR",
+      "classLabel": "Class 10",
+      "admissionNo": "23",
+      "matchedExistingId": "41c476b6-74f4-4561-9a9e-cd6b4d6421c3",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 390,
+      "sourceStudentUid": "STU-0157",
+      "fullName": "Tejeshwini Kanwar Shaktawat",
+      "classLabel": "Class 10",
+      "admissionNo": "2602",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 391,
+      "sourceStudentUid": "STU-0159",
+      "fullName": "Vandana Suthar",
+      "classLabel": "Class 10",
+      "admissionNo": "2562",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 392,
+      "sourceStudentUid": "STU-0160",
+      "fullName": "Vikram Singh Charan",
+      "classLabel": "Class 10",
+      "admissionNo": "2579",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 393,
+      "sourceStudentUid": "STU-0161",
+      "fullName": "VISHWA KHATIK",
+      "classLabel": "Class 10",
+      "admissionNo": "2220",
+      "matchedExistingId": "a81c04e7-f2c8-406a-b3c7-3e8b46c36495",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 394,
+      "sourceStudentUid": "STU-0162",
+      "fullName": "YUNUS BOHRA",
+      "classLabel": "Class 10",
+      "admissionNo": "2212",
+      "matchedExistingId": "32493a7f-f843-4d0c-9eb7-36397cc33c61",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 395,
+      "sourceStudentUid": "STU-0001",
+      "fullName": "Abhijeet Singh Ranawat",
+      "classLabel": "11 Arts",
+      "admissionNo": "255555",
+      "matchedExistingId": "46b7a932-0e05-4186-b760-2ce42d6e7b18",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 396,
+      "sourceStudentUid": "STU-0003",
+      "fullName": "BHAWANI SINGH CHUNDAWAT",
+      "classLabel": "11 Arts",
+      "admissionNo": "VPPS-STU0003",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 397,
+      "sourceStudentUid": "STU-0004",
+      "fullName": "HARSHVARDHAN SINGH CHUNDAWAT",
+      "classLabel": "11 Arts",
+      "admissionNo": "2600",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 398,
+      "sourceStudentUid": "STU-0005",
+      "fullName": "Kunal Pratap Singh",
+      "classLabel": "11 Arts",
+      "admissionNo": "2576",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 399,
+      "sourceStudentUid": "STU-0006",
+      "fullName": "MAHIPAL SINGH CHUNDAWAT",
+      "classLabel": "11 Arts",
+      "admissionNo": "375",
+      "matchedExistingId": "5139371b-9824-4734-a5fa-ffb0582965b2",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 400,
+      "sourceStudentUid": "STU-0007",
+      "fullName": "MAMTA BAGWAN",
+      "classLabel": "11 Arts",
+      "admissionNo": "4668564",
+      "matchedExistingId": "e1c36426-d72d-4790-aa53-80c135ecb78d",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 401,
+      "sourceStudentUid": "STU-0008",
+      "fullName": "Payal Prajapat",
+      "classLabel": "11 Arts",
+      "admissionNo": "2554",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 402,
+      "sourceStudentUid": "STU-0010",
+      "fullName": "SARIKA MEWARA",
+      "classLabel": "11 Arts",
+      "admissionNo": "2555",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 403,
+      "sourceStudentUid": "STU-0011",
+      "fullName": "Tanisha Gehlot",
+      "classLabel": "11 Arts",
+      "admissionNo": "2603",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 404,
+      "sourceStudentUid": "STU-0012",
+      "fullName": "YUVRAJ SINGH CHUNDAWAT",
+      "classLabel": "11 Arts",
+      "admissionNo": "7",
+      "matchedExistingId": "ec3184d1-70ba-4f17-8430-f86138181a1b",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 405,
+      "sourceStudentUid": "STU-0013",
+      "fullName": "AMATULLAH BOHRA",
+      "classLabel": "11 Commerce",
+      "admissionNo": "2578",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 406,
+      "sourceStudentUid": "STU-0014",
+      "fullName": "ARUN KUMAWAT",
+      "classLabel": "11 Commerce",
+      "admissionNo": "2171",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 407,
+      "sourceStudentUid": "STU-0015",
+      "fullName": "BHAVYA SETH",
+      "classLabel": "11 Commerce",
+      "admissionNo": "2169",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 408,
+      "sourceStudentUid": "STU-0016",
+      "fullName": "BHUMI LAKHARA",
+      "classLabel": "11 Commerce",
+      "admissionNo": "2611",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 409,
+      "sourceStudentUid": "STU-0017",
+      "fullName": "DIMPLE SINDHI",
+      "classLabel": "11 Commerce",
+      "admissionNo": "2374",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 410,
+      "sourceStudentUid": "STU-0018",
+      "fullName": "DIVYANSH SETH",
+      "classLabel": "11 Commerce",
+      "admissionNo": "2173",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 411,
+      "sourceStudentUid": "STU-0019",
+      "fullName": "GUNGUN DHILIWAL",
+      "classLabel": "11 Commerce",
+      "admissionNo": "2175",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 412,
+      "sourceStudentUid": "STU-0020",
+      "fullName": "KHUSHAL SINGH RAO",
+      "classLabel": "11 Commerce",
+      "admissionNo": "2207",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 413,
+      "sourceStudentUid": "STU-0009",
+      "fullName": "PRIYA SALVI",
+      "classLabel": "11 Commerce",
+      "admissionNo": "VPPS-STU0009",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 414,
+      "sourceStudentUid": "STU-0022",
+      "fullName": "SIMRAN SONI",
+      "classLabel": "11 Commerce",
+      "admissionNo": "2174",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 415,
+      "sourceStudentUid": "STU-0023",
+      "fullName": "TEJENDRA SINGH CHUNDAWAT",
+      "classLabel": "11 Commerce",
+      "admissionNo": "2168",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 416,
+      "sourceStudentUid": "STU-0024",
+      "fullName": "VEER PRATAP SINGH",
+      "classLabel": "11 Commerce",
+      "admissionNo": "VPPS-STU0024",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 417,
+      "sourceStudentUid": "STU-0026",
+      "fullName": "YUG LAXKAR",
+      "classLabel": "11 Commerce",
+      "admissionNo": "2216",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 418,
+      "sourceStudentUid": "STU-0027",
+      "fullName": "AISHWARIYA TELI",
+      "classLabel": "11 Science",
+      "admissionNo": "2572",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 419,
+      "sourceStudentUid": "STU-0028",
+      "fullName": "KISHAN LAL TELI",
+      "classLabel": "11 Science",
+      "admissionNo": "2573",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 420,
+      "sourceStudentUid": "STU-0029",
+      "fullName": "KOMAL KANWAR RATHORE",
+      "classLabel": "11 Science",
+      "admissionNo": "2177",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 421,
+      "sourceStudentUid": "STU-0030",
+      "fullName": "KUSUM RATHOD",
+      "classLabel": "11 Science",
+      "admissionNo": "2164",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 422,
+      "sourceStudentUid": "STU-0031",
+      "fullName": "SADHANA KANWAR CHUNDAWAT",
+      "classLabel": "11 Science",
+      "admissionNo": "6",
+      "matchedExistingId": "fe949796-29ba-43cb-a4f9-6a7c50cfe8fc",
+      "matchedVia": "name_class_phone_fallback"
+    },
+    {
+      "sheetRow": 423,
+      "sourceStudentUid": "STU-0032",
+      "fullName": "SNEHA CHUNDAWAT",
+      "classLabel": "11 Science",
+      "admissionNo": "2184",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 424,
+      "sourceStudentUid": "STU-0457",
+      "fullName": "Gunjan Kanwar Rao",
+      "classLabel": "Class 1",
+      "admissionNo": "2609",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 425,
+      "sourceStudentUid": "STU-0458",
+      "fullName": "Hardik Verma",
+      "classLabel": "Class 1",
+      "admissionNo": "2369",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 426,
+      "sourceStudentUid": "STU-0461",
+      "fullName": "MANASVI RAO",
+      "classLabel": "Class 1",
+      "admissionNo": "2612",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 427,
+      "sourceStudentUid": "STU-0462",
+      "fullName": "Mohammad Rehan Rangrez",
+      "classLabel": "Class 1",
+      "admissionNo": "2563",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 428,
+      "sourceStudentUid": "STU-0463",
+      "fullName": "PAWAN JAT",
+      "classLabel": "Class 1",
+      "admissionNo": "2350",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 429,
+      "sourceStudentUid": "STU-0464",
+      "fullName": "PRACHI SHARMA",
+      "classLabel": "Class 1",
+      "admissionNo": "2200",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 430,
+      "sourceStudentUid": "NEW-2026-27-0429",
+      "fullName": "YASHPAL SINGH",
+      "classLabel": "Class 1",
+      "admissionNo": "2183",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 431,
+      "sourceStudentUid": "STU-0046",
+      "fullName": "Aditi Mali",
+      "classLabel": "12 Arts",
+      "admissionNo": "2363",
+      "matchedExistingId": "8d329d5e-b3bd-402c-bcd3-85d1c29d8984",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 432,
+      "sourceStudentUid": "STU-0047",
+      "fullName": "AKANSHA SHARMA",
+      "classLabel": "12 Arts",
+      "admissionNo": "2382",
+      "matchedExistingId": "631d948d-4264-4604-8938-329e688de636",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 433,
+      "sourceStudentUid": "STU-0048",
+      "fullName": "CHUNDAVAT VISHWAJEETSINGH JAVANSINGH",
+      "classLabel": "12 Arts",
+      "admissionNo": "2310",
+      "matchedExistingId": "f81c5af8-c9fe-434a-beb1-bbdc52a16a59",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 434,
+      "sourceStudentUid": "STU-0049",
+      "fullName": "Dushyant Singh Rathore",
+      "classLabel": "12 Arts",
+      "admissionNo": "2156",
+      "matchedExistingId": "4167e9b9-a219-4746-8bef-67c1cb824403",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 435,
+      "sourceStudentUid": "STU-0050",
+      "fullName": "Gori Bagora",
+      "classLabel": "12 Arts",
+      "admissionNo": "2332",
+      "matchedExistingId": "76391861-0a17-4eba-8fa1-02658a2e82af",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 436,
+      "sourceStudentUid": "STU-0052",
+      "fullName": "Harshita Kanwar",
+      "classLabel": "12 Arts",
+      "admissionNo": "2311",
+      "matchedExistingId": "2df5843e-5802-4794-88e1-95fcb3e23942",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 437,
+      "sourceStudentUid": "STU-0053",
+      "fullName": "HENJAL PURBIA",
+      "classLabel": "12 Arts",
+      "admissionNo": "2297",
+      "matchedExistingId": "c66bc214-524f-4361-82c5-71860d5b93fc",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 438,
+      "sourceStudentUid": "STU-0054",
+      "fullName": "Itasha Jangid",
+      "classLabel": "12 Arts",
+      "admissionNo": "2163",
+      "matchedExistingId": "c2544d4f-749b-45cb-9f42-811890467ce4",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 439,
+      "sourceStudentUid": "STU-0055",
+      "fullName": "KANISHKA VERMA",
+      "classLabel": "12 Arts",
+      "admissionNo": "2348",
+      "matchedExistingId": "0a6dc846-cea5-431f-ae76-97480a66a08e",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 440,
+      "sourceStudentUid": "STU-0056",
+      "fullName": "KHUSHI CHUNDAWAT",
+      "classLabel": "12 Arts",
+      "admissionNo": "VPPS-STU0056",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 441,
+      "sourceStudentUid": "STU-0058",
+      "fullName": "Krishna Kumawat",
+      "classLabel": "12 Arts",
+      "admissionNo": "2372",
+      "matchedExistingId": "54de01f5-b6d8-490b-a8b3-03cc3251ee05",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 442,
+      "sourceStudentUid": "STU-0059",
+      "fullName": "Mukesh Gurjar",
+      "classLabel": "12 Arts",
+      "admissionNo": "2354",
+      "matchedExistingId": "962a6b1c-10e9-42a7-8cdc-f44dddfccfc8",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 443,
+      "sourceStudentUid": "STU-0060",
+      "fullName": "Nikhil Salvi",
+      "classLabel": "12 Arts",
+      "admissionNo": "2390",
+      "matchedExistingId": "729a5bf0-a7e0-4c1d-a64f-694c5428e4e3",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 444,
+      "sourceStudentUid": "STU-0061",
+      "fullName": "PRAVEEN KUMAR LAXKAR",
+      "classLabel": "12 Arts",
+      "admissionNo": "2190",
+      "matchedExistingId": "4a44bb17-25ab-45ff-99c9-085f8a5b8089",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 445,
+      "sourceStudentUid": "STU-0062",
+      "fullName": "Purnima Kanwar",
+      "classLabel": "12 Arts",
+      "admissionNo": "2300",
+      "matchedExistingId": "a0baf20e-6ead-4344-9a2a-b690332238c2",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 446,
+      "sourceStudentUid": "STU-0063",
+      "fullName": "RANI VAISHNAV",
+      "classLabel": "12 Arts",
+      "admissionNo": "2301",
+      "matchedExistingId": "d6092958-c895-4b3d-bb42-12c242d28b75",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 447,
+      "sourceStudentUid": "STU-0064",
+      "fullName": "Shweta Jeengar",
+      "classLabel": "12 Arts",
+      "admissionNo": "2299",
+      "matchedExistingId": "3a664ceb-0035-4bb6-b263-32b4fbd578c7",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 448,
+      "sourceStudentUid": "STU-0065",
+      "fullName": "Siddharth Tailor",
+      "classLabel": "12 Arts",
+      "admissionNo": "2182",
+      "matchedExistingId": "e2dd540e-f9f1-4716-a6de-b7ea9eb8a8fe",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 449,
+      "sourceStudentUid": "STU-0066",
+      "fullName": "Siddhi Jangid",
+      "classLabel": "12 Arts",
+      "admissionNo": "2347",
+      "matchedExistingId": "d73fbdd9-cc03-4f67-a0cb-033ce0c67927",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 450,
+      "sourceStudentUid": "STU-0067",
+      "fullName": "SIMRAN SOLANKI",
+      "classLabel": "12 Arts",
+      "admissionNo": "2364",
+      "matchedExistingId": "e904eb80-0548-4a31-8646-9d0a68458ee7",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 451,
+      "sourceStudentUid": "STU-0068",
+      "fullName": "VAIBHAV SINGH RATHORE",
+      "classLabel": "12 Arts",
+      "admissionNo": "2139",
+      "matchedExistingId": "6e990c90-edc4-4224-b0c7-71237e3e6b02",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 452,
+      "sourceStudentUid": "STU-0069",
+      "fullName": "ASHWAD ANSARI",
+      "classLabel": "12 Commerce",
+      "admissionNo": "2345",
+      "matchedExistingId": "18991a38-1bf7-4295-9ee5-333bb3ad07a8",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 453,
+      "sourceStudentUid": "STU-0070",
+      "fullName": "BHAVESH PRAJAPAT",
+      "classLabel": "12 Commerce",
+      "admissionNo": "2384",
+      "matchedExistingId": "8b6296eb-9559-424a-a792-e3d76bd89ab0",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 454,
+      "sourceStudentUid": "STU-0071",
+      "fullName": "HARSHIT MEHTA",
+      "classLabel": "12 Commerce",
+      "admissionNo": "2564",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    },
+    {
+      "sheetRow": 455,
+      "sourceStudentUid": "STU-0072",
+      "fullName": "HIMANSHU BAGWAN",
+      "classLabel": "12 Commerce",
+      "admissionNo": "2371",
+      "matchedExistingId": "b69871f5-c6af-44a5-86d2-e7fd7ad3a185",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 456,
+      "sourceStudentUid": "STU-0074",
+      "fullName": "NITIN MEWARA",
+      "classLabel": "12 Commerce",
+      "admissionNo": "2176",
+      "matchedExistingId": "eb844e20-da17-40cf-9eea-f2e0da200b42",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 457,
+      "sourceStudentUid": "STU-0075",
+      "fullName": "RAJVEER SINGH PANWAR",
+      "classLabel": "12 Commerce",
+      "admissionNo": "2141",
+      "matchedExistingId": "4b7ddd03-e59d-4415-b407-50927429f522",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 458,
+      "sourceStudentUid": "STU-0076",
+      "fullName": "Anjali Jat",
+      "classLabel": "12 Science",
+      "admissionNo": "2341",
+      "matchedExistingId": "a7fbcb8e-3dfd-4ae7-83de-b4b89b9e0820",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 459,
+      "sourceStudentUid": "STU-0077",
+      "fullName": "ISHIKA RAO",
+      "classLabel": "12 Science",
+      "admissionNo": "2132",
+      "matchedExistingId": "1059dbb9-5647-4fbf-8100-54e65968222d",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 460,
+      "sourceStudentUid": "STU-0078",
+      "fullName": "LALIT REGAR",
+      "classLabel": "12 Science",
+      "admissionNo": "15",
+      "matchedExistingId": "9dcbeca6-e3ca-459f-ab1c-2c9b53b0856a",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 461,
+      "sourceStudentUid": "STU-0079",
+      "fullName": "Nityanjali Kanwar Chundawat",
+      "classLabel": "12 Science",
+      "admissionNo": "2343",
+      "matchedExistingId": "220833ae-5ef6-4b27-be35-99294ec34e6c",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 462,
+      "sourceStudentUid": "STU-0080",
+      "fullName": "PRATIKSHA KANWAR CHUNDAWAT",
+      "classLabel": "12 Science",
+      "admissionNo": "2135",
+      "matchedExistingId": "50c860b2-bb23-4df4-871f-e379d3492f4f",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 463,
+      "sourceStudentUid": "STU-0081",
+      "fullName": "PRIYANSHI PALIWAL",
+      "classLabel": "12 Science",
+      "admissionNo": "2137",
+      "matchedExistingId": "b00bf6bb-75d0-48c7-b03e-f6114038430e",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 464,
+      "sourceStudentUid": "STU-0082",
+      "fullName": "Vanshraj Singh",
+      "classLabel": "12 Science",
+      "admissionNo": "2381",
+      "matchedExistingId": "0a871451-6be2-40e1-a3aa-7856d72e3b83",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 465,
+      "sourceStudentUid": "STU-0083",
+      "fullName": "Yashashvi Dadheech",
+      "classLabel": "12 Science",
+      "admissionNo": "2162",
+      "matchedExistingId": "877f2b54-c85b-402f-ad88-d352e9cc90eb",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 466,
+      "sourceStudentUid": "STU-0087",
+      "fullName": "DIKSHITA VERMA",
+      "classLabel": "Class 1",
+      "admissionNo": "2389",
+      "matchedExistingId": "4e7cc24e-4c14-4017-9a8a-9c150801cfd6",
+      "matchedVia": "admission_no"
+    },
+    {
+      "sheetRow": 467,
+      "sourceStudentUid": "STU-0537",
+      "fullName": "Mehul Singh Rathore",
+      "classLabel": "Class 1",
+      "admissionNo": "2395",
+      "matchedExistingId": null,
+      "matchedVia": "created_new"
+    }
+  ]
+}

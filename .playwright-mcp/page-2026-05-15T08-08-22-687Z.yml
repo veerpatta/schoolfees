@@ -1,0 +1,7 @@
+- generic [ref=e3]:
+  - img "AiSensy" [ref=e5]
+  - img "404" [ref=e7]
+  - generic [ref=e8]:
+    - heading "YOU SEEM LOST!" [level=2] [ref=e9]
+    - link "Home" [ref=e11] [cursor=pointer]:
+      - /url: /

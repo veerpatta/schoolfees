@@ -1,0 +1,1350 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e11]:
+    - generic [ref=e12]:
+      - link "AI Timey" [ref=e14] [cursor=pointer]:
+        - /url: /projects
+        - img "AI Timey" [ref=e15]
+      - button [ref=e16] [cursor=pointer]:
+        - img [ref=e18]
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - img [ref=e24] [cursor=pointer]
+          - paragraph [ref=e26] [cursor=pointer]: Dashboard
+        - generic [ref=e27]:
+          - img [ref=e30] [cursor=pointer]
+          - paragraph [ref=e32] [cursor=pointer]: Live Chat
+        - generic [ref=e33]:
+          - img [ref=e36] [cursor=pointer]
+          - paragraph [ref=e38] [cursor=pointer]: History
+        - generic [ref=e39]:
+          - img [ref=e42] [cursor=pointer]
+          - paragraph [ref=e44] [cursor=pointer]: Contacts
+        - generic [ref=e45]:
+          - img [ref=e48] [cursor=pointer]
+          - paragraph [ref=e50] [cursor=pointer]: Campaigns
+        - generic [ref=e51]:
+          - img [ref=e54] [cursor=pointer]
+          - paragraph [ref=e56] [cursor=pointer]: Ads Manager
+        - generic [ref=e57]:
+          - img [ref=e61] [cursor=pointer]
+          - paragraph [ref=e64] [cursor=pointer]: Flows
+        - generic [ref=e65]:
+          - img [ref=e68] [cursor=pointer]
+          - paragraph [ref=e70] [cursor=pointer]: Manage
+        - generic [ref=e71]:
+          - img [ref=e74] [cursor=pointer]
+          - paragraph [ref=e76] [cursor=pointer]: Integrations
+      - button [ref=e77] [cursor=pointer]:
+        - img [ref=e79]
+      - generic [ref=e81]:
+        - generic [ref=e82] [cursor=pointer]:
+          - img [ref=e85]
+          - paragraph [ref=e88]: Developer
+        - generic [ref=e89]:
+          - img [ref=e92] [cursor=pointer]
+          - paragraph [ref=e94] [cursor=pointer]: All Projects
+        - img "J" [ref=e97] [cursor=pointer]
+    - generic [ref=e319]:
+      - generic [ref=e320]:
+        - heading "Contacts" [level=3] [ref=e323]
+        - generic [ref=e326]:
+          - paragraph [ref=e327]: Quality Rating
+          - img [ref=e329]
+          - heading "High" [level=3] [ref=e332]:
+            - generic [ref=e334]: High
+          - paragraph [ref=e335]: Template Messaging Tier
+          - img [ref=e337]
+          - heading "Tier 1 (2K/24 Hours)" [level=4] [ref=e340]:
+            - text: Tier 1
+            - generic [ref=e341]: (2K/24 Hours)
+          - paragraph [ref=e342]: Remaining Quota
+          - img [ref=e344]
+          - heading "1998" [level=4] [ref=e347]
+      - generic [ref=e349]:
+        - generic [ref=e353]:
+          - generic [ref=e355]:
+            - generic [ref=e356]: TRY AI
+            - generic [ref=e357]:
+              - img [ref=e359]
+              - generic [ref=e362]:
+                - paragraph [ref=e364]: Introducing AI Messages.
+                - paragraph [ref=e365]: Power your chatbot with AI-driven, context-aware responses.
+            - button "Try AI Messages" [ref=e366] [cursor=pointer]:
+              - generic [ref=e367]: Try AI Messages
+          - generic [ref=e369]:
+            - generic [ref=e370]: TRY AI
+            - generic [ref=e371]:
+              - img [ref=e373]
+              - generic [ref=e376]:
+                - paragraph [ref=e378]: Introducing AI-Flows.
+                - paragraph [ref=e379]: Instantly create smart, high-converting WhatsApp flows with AI.
+            - button "Generate flow with AI" [ref=e380] [cursor=pointer]:
+              - generic [ref=e381]: Generate flow with AI
+          - generic [ref=e383]:
+            - generic [ref=e384]:
+              - img [ref=e386]
+              - generic [ref=e389]:
+                - paragraph [ref=e390]: "Introducing AI-powered Magic: Generate Powerful WhatsApp Templates in seconds!"
+                - paragraph [ref=e391]: Smarter. Faster. Zero guesswork.
+            - button "Generate Now" [ref=e394] [cursor=pointer]:
+              - generic [ref=e395]:
+                - img [ref=e396]
+                - generic [ref=e398]: Generate Now
+          - generic [ref=e400]:
+            - generic [ref=e401]: TRY AI
+            - generic [ref=e402]:
+              - img [ref=e404]
+              - generic [ref=e407]:
+                - paragraph [ref=e409]: Introducing AI Messages.
+                - paragraph [ref=e410]: Power your chatbot with AI-driven, context-aware responses.
+            - button "Try AI Messages" [ref=e411] [cursor=pointer]:
+              - generic [ref=e412]: Try AI Messages
+        - generic [ref=e414]:
+          - heading "Quick Guide" [level=4] [ref=e415]
+          - paragraph [ref=e416]: Import contact, create audience & launch campaign, all from one place.
+          - generic [ref=e417]:
+            - link "Import upto 2 lakh contacts in one go" [ref=e419] [cursor=pointer]:
+              - /url: https://faq.aisensy.com/how-to-import-export-contacts-in-aisensy/
+              - generic [ref=e420]:
+                - img [ref=e421]
+                - paragraph [ref=e424]: Import upto 2 lakh contacts in one go
+            - button "Watch Tutorial" [ref=e428] [cursor=pointer]:
+              - generic [ref=e429]:
+                - img [ref=e431]
+                - text: Watch Tutorial
+      - generic [ref=e435]:
+        - generic [ref=e436]:
+          - generic [ref=e438]:
+            - textbox "Search name or mobile number" [ref=e439]
+            - button [ref=e441] [cursor=pointer]:
+              - img [ref=e443]
+          - button "Filter" [ref=e446] [cursor=pointer]:
+            - generic [ref=e447]:
+              - img [ref=e449]
+              - text: Filter
+        - generic [ref=e451]:
+          - generic "Select atleast one contact" [ref=e452]:
+            - generic [ref=e453]:
+              - button "BROADCAST" [disabled]:
+                - generic: BROADCAST
+          - generic [ref=e454]:
+            - button "Run Ad" [disabled]:
+              - generic: Run Ad
+          - button "Add Contact" [ref=e456] [cursor=pointer]:
+            - generic [ref=e457]:
+              - img [ref=e459]
+              - text: Add Contact
+          - button "Import" [ref=e462] [cursor=pointer]:
+            - generic [ref=e463]:
+              - text: Import
+              - img [ref=e465]
+          - button "Actions" [ref=e468] [cursor=pointer]:
+            - generic [ref=e469]:
+              - text: Actions
+              - img [ref=e471]
+      - table [ref=e476] [cursor=pointer]:
+        - rowgroup [ref=e477]:
+          - row "Name Mobile Number Tags Source Status State Intervened By Last Active Created At First Message Incoming Opted In MAU Status WA Conversation Status $feeperiod $duedate $dueamount $studentname $class" [ref=e478]:
+            - columnheader [ref=e479]:
+              - generic [ref=e481]:
+                - checkbox [ref=e482]
+                - img [ref=e483]
+            - columnheader "Name" [ref=e485]:
+              - heading "Name" [level=5] [ref=e486]
+            - columnheader "Mobile Number" [ref=e487]:
+              - heading "Mobile Number" [level=5] [ref=e488]
+            - columnheader "Tags" [ref=e489]:
+              - heading "Tags" [level=5] [ref=e490]
+            - columnheader "Source" [ref=e491]:
+              - heading "Source" [level=5] [ref=e492]
+            - columnheader "Status" [ref=e493]:
+              - heading "Status" [level=5] [ref=e494]
+            - columnheader "State" [ref=e495]:
+              - heading "State" [level=5] [ref=e496]
+            - columnheader "Intervened By" [ref=e497]:
+              - heading "Intervened By" [level=5] [ref=e498]
+            - columnheader "Last Active" [ref=e499]:
+              - heading "Last Active" [level=5] [ref=e500]
+            - columnheader "Created At" [ref=e501]:
+              - heading "Created At" [level=5] [ref=e502]
+            - columnheader "First Message" [ref=e503]:
+              - heading "First Message" [level=5] [ref=e504]
+            - columnheader "Incoming" [ref=e505]:
+              - heading "Incoming" [level=5] [ref=e506]
+            - columnheader "Opted In" [ref=e507]:
+              - heading "Opted In" [level=5] [ref=e508]
+            - columnheader "MAU Status" [ref=e509]:
+              - heading "MAU Status" [level=5] [ref=e510]
+            - columnheader "WA Conversation Status" [ref=e511]:
+              - heading "WA Conversation Status" [level=5] [ref=e512]
+            - columnheader "$feeperiod" [ref=e513]:
+              - heading "$feeperiod" [level=5] [ref=e514]
+            - columnheader "$duedate" [ref=e515]:
+              - heading "$duedate" [level=5] [ref=e516]
+            - columnheader "$dueamount" [ref=e517]:
+              - heading "$dueamount" [level=5] [ref=e518]
+            - columnheader "$studentname" [ref=e519]:
+              - heading "$studentname" [level=5] [ref=e520]
+            - columnheader "$class" [ref=e521]:
+              - heading "$class" [level=5] [ref=e522]
+          - row "UTKARSH NAMA - Class 4 917014535745 DUE I1_DUE +2 more IMPORTED Inactive Handled by Assistant 09:03, 13 May 2026 Allowed Yes Inactive Inactive \"AY 2026-27 1st Installment\" \"20-04-2026\" \"9,125\" \"UTKARSH NAMA\" \"Class 4\"" [ref=e523]:
+            - columnheader [ref=e524]:
+              - generic [ref=e526]:
+                - checkbox [ref=e527]
+                - img [ref=e528]
+            - columnheader "UTKARSH NAMA - Class 4" [ref=e530]:
+              - paragraph [ref=e531]: UTKARSH NAMA - Class 4
+            - columnheader "917014535745" [ref=e532]:
+              - paragraph [ref=e533]: "917014535745"
+            - columnheader "DUE I1_DUE +2 more" [ref=e534]:
+              - generic "DUE" [ref=e537]:
+                - paragraph [ref=e539]: DUE
+              - generic "I1_DUE" [ref=e542]:
+                - paragraph [ref=e544]: I1_DUE
+              - paragraph [ref=e547]: +2 more
+            - columnheader "IMPORTED" [ref=e548]:
+              - paragraph [ref=e549]: IMPORTED
+            - columnheader "Inactive" [ref=e550]:
+              - paragraph [ref=e551]: Inactive
+            - columnheader "Handled by Assistant" [ref=e552]:
+              - paragraph [ref=e553]: Handled by Assistant
+            - columnheader [ref=e554]:
+              - paragraph
+            - columnheader [ref=e555]:
+              - paragraph
+            - columnheader "09:03, 13 May 2026" [ref=e556]:
+              - paragraph [ref=e557]: 09:03, 13 May 2026
+            - columnheader [ref=e558]
+            - columnheader "Allowed" [ref=e559]:
+              - paragraph [ref=e560]: Allowed
+            - columnheader "Yes" [ref=e561]:
+              - paragraph [ref=e562]: "Yes"
+            - columnheader "Inactive" [ref=e563]:
+              - paragraph [ref=e564]: Inactive
+            - columnheader "Inactive" [ref=e565]:
+              - paragraph [ref=e566]: Inactive
+            - columnheader "\"AY 2026-27 1st Installment\"" [ref=e567]:
+              - paragraph [ref=e568]: "\"AY 2026-27 1st Installment\""
+            - columnheader "\"20-04-2026\"" [ref=e569]:
+              - paragraph [ref=e570]: "\"20-04-2026\""
+            - columnheader "\"9,125\"" [ref=e571]:
+              - paragraph [ref=e572]: "\"9,125\""
+            - columnheader "\"UTKARSH NAMA\"" [ref=e573]:
+              - paragraph [ref=e574]: "\"UTKARSH NAMA\""
+            - columnheader "\"Class 4\"" [ref=e575]:
+              - paragraph [ref=e576]: "\"Class 4\""
+          - row "BHAGYASHREE CHUNDAWAT - JKG 919867776904 DUE I1_DUE +2 more IMPORTED Inactive Handled by Assistant 09:03, 13 May 2026 Allowed Yes Inactive Inactive \"AY 2026-27 1st Installment\" \"20-04-2026\" \"9,000\" \"BHAGYASHREE CHUNDAWAT\" \"JKG\"" [ref=e577]:
+            - columnheader [ref=e578]:
+              - generic [ref=e580]:
+                - checkbox [ref=e581]
+                - img [ref=e582]
+            - columnheader "BHAGYASHREE CHUNDAWAT - JKG" [ref=e584]:
+              - paragraph [ref=e585]: BHAGYASHREE CHUNDAWAT - JKG
+            - columnheader "919867776904" [ref=e586]:
+              - paragraph [ref=e587]: "919867776904"
+            - columnheader "DUE I1_DUE +2 more" [ref=e588]:
+              - generic "DUE" [ref=e591]:
+                - paragraph [ref=e593]: DUE
+              - generic "I1_DUE" [ref=e596]:
+                - paragraph [ref=e598]: I1_DUE
+              - paragraph [ref=e601]: +2 more
+            - columnheader "IMPORTED" [ref=e602]:
+              - paragraph [ref=e603]: IMPORTED
+            - columnheader "Inactive" [ref=e604]:
+              - paragraph [ref=e605]: Inactive
+            - columnheader "Handled by Assistant" [ref=e606]:
+              - paragraph [ref=e607]: Handled by Assistant
+            - columnheader [ref=e608]:
+              - paragraph
+            - columnheader [ref=e609]:
+              - paragraph
+            - columnheader "09:03, 13 May 2026" [ref=e610]:
+              - paragraph [ref=e611]: 09:03, 13 May 2026
+            - columnheader [ref=e612]
+            - columnheader "Allowed" [ref=e613]:
+              - paragraph [ref=e614]: Allowed
+            - columnheader "Yes" [ref=e615]:
+              - paragraph [ref=e616]: "Yes"
+            - columnheader "Inactive" [ref=e617]:
+              - paragraph [ref=e618]: Inactive
+            - columnheader "Inactive" [ref=e619]:
+              - paragraph [ref=e620]: Inactive
+            - columnheader "\"AY 2026-27 1st Installment\"" [ref=e621]:
+              - paragraph [ref=e622]: "\"AY 2026-27 1st Installment\""
+            - columnheader "\"20-04-2026\"" [ref=e623]:
+              - paragraph [ref=e624]: "\"20-04-2026\""
+            - columnheader "\"9,000\"" [ref=e625]:
+              - paragraph [ref=e626]: "\"9,000\""
+            - columnheader "\"BHAGYASHREE CHUNDAWAT\"" [ref=e627]:
+              - paragraph [ref=e628]: "\"BHAGYASHREE CHUNDAWAT\""
+            - columnheader "\"JKG\"" [ref=e629]:
+              - paragraph [ref=e630]: "\"JKG\""
+          - row "NILANJANA . . - Class 1 918696875102 DUE I1_DUE +2 more IMPORTED Inactive Handled by Assistant 09:03, 13 May 2026 Allowed Yes Inactive Inactive \"AY 2026-27 1st Installment\" \"20-04-2026\" \"10,250\" \"NILANJANA . .\" \"Class 1\"" [ref=e631]:
+            - columnheader [ref=e632]:
+              - generic [ref=e634]:
+                - checkbox [ref=e635]
+                - img [ref=e636]
+            - columnheader "NILANJANA . . - Class 1" [ref=e638]:
+              - paragraph [ref=e639]: NILANJANA . . - Class 1
+            - columnheader "918696875102" [ref=e640]:
+              - paragraph [ref=e641]: "918696875102"
+            - columnheader "DUE I1_DUE +2 more" [ref=e642]:
+              - generic "DUE" [ref=e645]:
+                - paragraph [ref=e647]: DUE
+              - generic "I1_DUE" [ref=e650]:
+                - paragraph [ref=e652]: I1_DUE
+              - paragraph [ref=e655]: +2 more
+            - columnheader "IMPORTED" [ref=e656]:
+              - paragraph [ref=e657]: IMPORTED
+            - columnheader "Inactive" [ref=e658]:
+              - paragraph [ref=e659]: Inactive
+            - columnheader "Handled by Assistant" [ref=e660]:
+              - paragraph [ref=e661]: Handled by Assistant
+            - columnheader [ref=e662]:
+              - paragraph
+            - columnheader [ref=e663]:
+              - paragraph
+            - columnheader "09:03, 13 May 2026" [ref=e664]:
+              - paragraph [ref=e665]: 09:03, 13 May 2026
+            - columnheader [ref=e666]
+            - columnheader "Allowed" [ref=e667]:
+              - paragraph [ref=e668]: Allowed
+            - columnheader "Yes" [ref=e669]:
+              - paragraph [ref=e670]: "Yes"
+            - columnheader "Inactive" [ref=e671]:
+              - paragraph [ref=e672]: Inactive
+            - columnheader "Inactive" [ref=e673]:
+              - paragraph [ref=e674]: Inactive
+            - columnheader "\"AY 2026-27 1st Installment\"" [ref=e675]:
+              - paragraph [ref=e676]: "\"AY 2026-27 1st Installment\""
+            - columnheader "\"20-04-2026\"" [ref=e677]:
+              - paragraph [ref=e678]: "\"20-04-2026\""
+            - columnheader "\"10,250\"" [ref=e679]:
+              - paragraph [ref=e680]: "\"10,250\""
+            - columnheader "\"NILANJANA . .\"" [ref=e681]:
+              - paragraph [ref=e682]: "\"NILANJANA . .\""
+            - columnheader "\"Class 1\"" [ref=e683]:
+              - paragraph [ref=e684]: "\"Class 1\""
+          - row "KUNDAN . LAL - Class 2 918769227424 DUE I1_DUE +2 more IMPORTED Inactive Handled by Assistant 09:03, 13 May 2026 Allowed Yes Inactive Inactive \"AY 2026-27 1st Installment\" \"20-04-2026\" \"9,875\" \"KUNDAN . LAL\" \"Class 2\"" [ref=e685]:
+            - columnheader [ref=e686]:
+              - generic [ref=e688]:
+                - checkbox [ref=e689]
+                - img [ref=e690]
+            - columnheader "KUNDAN . LAL - Class 2" [ref=e692]:
+              - paragraph [ref=e693]: KUNDAN . LAL - Class 2
+            - columnheader "918769227424" [ref=e694]:
+              - paragraph [ref=e695]: "918769227424"
+            - columnheader "DUE I1_DUE +2 more" [ref=e696]:
+              - generic "DUE" [ref=e699]:
+                - paragraph [ref=e701]: DUE
+              - generic "I1_DUE" [ref=e704]:
+                - paragraph [ref=e706]: I1_DUE
+              - paragraph [ref=e709]: +2 more
+            - columnheader "IMPORTED" [ref=e710]:
+              - paragraph [ref=e711]: IMPORTED
+            - columnheader "Inactive" [ref=e712]:
+              - paragraph [ref=e713]: Inactive
+            - columnheader "Handled by Assistant" [ref=e714]:
+              - paragraph [ref=e715]: Handled by Assistant
+            - columnheader [ref=e716]:
+              - paragraph
+            - columnheader [ref=e717]:
+              - paragraph
+            - columnheader "09:03, 13 May 2026" [ref=e718]:
+              - paragraph [ref=e719]: 09:03, 13 May 2026
+            - columnheader [ref=e720]
+            - columnheader "Allowed" [ref=e721]:
+              - paragraph [ref=e722]: Allowed
+            - columnheader "Yes" [ref=e723]:
+              - paragraph [ref=e724]: "Yes"
+            - columnheader "Inactive" [ref=e725]:
+              - paragraph [ref=e726]: Inactive
+            - columnheader "Inactive" [ref=e727]:
+              - paragraph [ref=e728]: Inactive
+            - columnheader "\"AY 2026-27 1st Installment\"" [ref=e729]:
+              - paragraph [ref=e730]: "\"AY 2026-27 1st Installment\""
+            - columnheader "\"20-04-2026\"" [ref=e731]:
+              - paragraph [ref=e732]: "\"20-04-2026\""
+            - columnheader "\"9,875\"" [ref=e733]:
+              - paragraph [ref=e734]: "\"9,875\""
+            - columnheader "\"KUNDAN . LAL\"" [ref=e735]:
+              - paragraph [ref=e736]: "\"KUNDAN . LAL\""
+            - columnheader "\"Class 2\"" [ref=e737]:
+              - paragraph [ref=e738]: "\"Class 2\""
+          - row "KARAMVEER SINGH INDA - Class 7 918875011454 DUE I1_DUE +2 more IMPORTED Inactive Handled by Assistant 09:03, 13 May 2026 Allowed Yes Inactive Inactive \"AY 2026-27 1st Installment\" \"20-04-2026\" \"9,750\" \"KARAMVEER SINGH INDA\" \"Class 7\"" [ref=e739]:
+            - columnheader [ref=e740]:
+              - generic [ref=e742]:
+                - checkbox [ref=e743]
+                - img [ref=e744]
+            - columnheader "KARAMVEER SINGH INDA - Class 7" [ref=e746]:
+              - paragraph [ref=e747]: KARAMVEER SINGH INDA - Class 7
+            - columnheader "918875011454" [ref=e748]:
+              - paragraph [ref=e749]: "918875011454"
+            - columnheader "DUE I1_DUE +2 more" [ref=e750]:
+              - generic "DUE" [ref=e753]:
+                - paragraph [ref=e755]: DUE
+              - generic "I1_DUE" [ref=e758]:
+                - paragraph [ref=e760]: I1_DUE
+              - paragraph [ref=e763]: +2 more
+            - columnheader "IMPORTED" [ref=e764]:
+              - paragraph [ref=e765]: IMPORTED
+            - columnheader "Inactive" [ref=e766]:
+              - paragraph [ref=e767]: Inactive
+            - columnheader "Handled by Assistant" [ref=e768]:
+              - paragraph [ref=e769]: Handled by Assistant
+            - columnheader [ref=e770]:
+              - paragraph
+            - columnheader [ref=e771]:
+              - paragraph
+            - columnheader "09:03, 13 May 2026" [ref=e772]:
+              - paragraph [ref=e773]: 09:03, 13 May 2026
+            - columnheader [ref=e774]
+            - columnheader "Allowed" [ref=e775]:
+              - paragraph [ref=e776]: Allowed
+            - columnheader "Yes" [ref=e777]:
+              - paragraph [ref=e778]: "Yes"
+            - columnheader "Inactive" [ref=e779]:
+              - paragraph [ref=e780]: Inactive
+            - columnheader "Inactive" [ref=e781]:
+              - paragraph [ref=e782]: Inactive
+            - columnheader "\"AY 2026-27 1st Installment\"" [ref=e783]:
+              - paragraph [ref=e784]: "\"AY 2026-27 1st Installment\""
+            - columnheader "\"20-04-2026\"" [ref=e785]:
+              - paragraph [ref=e786]: "\"20-04-2026\""
+            - columnheader "\"9,750\"" [ref=e787]:
+              - paragraph [ref=e788]: "\"9,750\""
+            - columnheader "\"KARAMVEER SINGH INDA\"" [ref=e789]:
+              - paragraph [ref=e790]: "\"KARAMVEER SINGH INDA\""
+            - columnheader "\"Class 7\"" [ref=e791]:
+              - paragraph [ref=e792]: "\"Class 7\""
+          - row "TANUSHREE KANWAR RATHORE - Class 1 919657489246 DUE I1_DUE +2 more IMPORTED Inactive Handled by Assistant 09:03, 13 May 2026 Allowed Yes Inactive Inactive \"AY 2026-27 1st Installment\" \"20-04-2026\" \"10,250\" \"TANUSHREE KANWAR RATHORE\" \"Class 1\"" [ref=e793]:
+            - columnheader [ref=e794]:
+              - generic [ref=e796]:
+                - checkbox [ref=e797]
+                - img [ref=e798]
+            - columnheader "TANUSHREE KANWAR RATHORE - Class 1" [ref=e800]:
+              - paragraph [ref=e801]: TANUSHREE KANWAR RATHORE - Class 1
+            - columnheader "919657489246" [ref=e802]:
+              - paragraph [ref=e803]: "919657489246"
+            - columnheader "DUE I1_DUE +2 more" [ref=e804]:
+              - generic "DUE" [ref=e807]:
+                - paragraph [ref=e809]: DUE
+              - generic "I1_DUE" [ref=e812]:
+                - paragraph [ref=e814]: I1_DUE
+              - paragraph [ref=e817]: +2 more
+            - columnheader "IMPORTED" [ref=e818]:
+              - paragraph [ref=e819]: IMPORTED
+            - columnheader "Inactive" [ref=e820]:
+              - paragraph [ref=e821]: Inactive
+            - columnheader "Handled by Assistant" [ref=e822]:
+              - paragraph [ref=e823]: Handled by Assistant
+            - columnheader [ref=e824]:
+              - paragraph
+            - columnheader [ref=e825]:
+              - paragraph
+            - columnheader "09:03, 13 May 2026" [ref=e826]:
+              - paragraph [ref=e827]: 09:03, 13 May 2026
+            - columnheader [ref=e828]
+            - columnheader "Allowed" [ref=e829]:
+              - paragraph [ref=e830]: Allowed
+            - columnheader "Yes" [ref=e831]:
+              - paragraph [ref=e832]: "Yes"
+            - columnheader "Inactive" [ref=e833]:
+              - paragraph [ref=e834]: Inactive
+            - columnheader "Inactive" [ref=e835]:
+              - paragraph [ref=e836]: Inactive
+            - columnheader "\"AY 2026-27 1st Installment\"" [ref=e837]:
+              - paragraph [ref=e838]: "\"AY 2026-27 1st Installment\""
+            - columnheader "\"20-04-2026\"" [ref=e839]:
+              - paragraph [ref=e840]: "\"20-04-2026\""
+            - columnheader "\"10,250\"" [ref=e841]:
+              - paragraph [ref=e842]: "\"10,250\""
+            - columnheader "\"TANUSHREE KANWAR RATHORE\"" [ref=e843]:
+              - paragraph [ref=e844]: "\"TANUSHREE KANWAR RATHORE\""
+            - columnheader "\"Class 1\"" [ref=e845]:
+              - paragraph [ref=e846]: "\"Class 1\""
+          - row "SOURABH SINGH - Class 2 918003869116 DUE I1_DUE +2 more IMPORTED Inactive Handled by Assistant 09:03, 13 May 2026 Allowed Yes Inactive Inactive \"AY 2026-27 1st Installment\" \"20-04-2026\" \"10,375\" \"SOURABH SINGH\" \"Class 2\"" [ref=e847]:
+            - columnheader [ref=e848]:
+              - generic [ref=e850]:
+                - checkbox [ref=e851]
+                - img [ref=e852]
+            - columnheader "SOURABH SINGH - Class 2" [ref=e854]:
+              - paragraph [ref=e855]: SOURABH SINGH - Class 2
+            - columnheader "918003869116" [ref=e856]:
+              - paragraph [ref=e857]: "918003869116"
+            - columnheader "DUE I1_DUE +2 more" [ref=e858]:
+              - generic "DUE" [ref=e861]:
+                - paragraph [ref=e863]: DUE
+              - generic "I1_DUE" [ref=e866]:
+                - paragraph [ref=e868]: I1_DUE
+              - paragraph [ref=e871]: +2 more
+            - columnheader "IMPORTED" [ref=e872]:
+              - paragraph [ref=e873]: IMPORTED
+            - columnheader "Inactive" [ref=e874]:
+              - paragraph [ref=e875]: Inactive
+            - columnheader "Handled by Assistant" [ref=e876]:
+              - paragraph [ref=e877]: Handled by Assistant
+            - columnheader [ref=e878]:
+              - paragraph
+            - columnheader [ref=e879]:
+              - paragraph
+            - columnheader "09:03, 13 May 2026" [ref=e880]:
+              - paragraph [ref=e881]: 09:03, 13 May 2026
+            - columnheader [ref=e882]
+            - columnheader "Allowed" [ref=e883]:
+              - paragraph [ref=e884]: Allowed
+            - columnheader "Yes" [ref=e885]:
+              - paragraph [ref=e886]: "Yes"
+            - columnheader "Inactive" [ref=e887]:
+              - paragraph [ref=e888]: Inactive
+            - columnheader "Inactive" [ref=e889]:
+              - paragraph [ref=e890]: Inactive
+            - columnheader "\"AY 2026-27 1st Installment\"" [ref=e891]:
+              - paragraph [ref=e892]: "\"AY 2026-27 1st Installment\""
+            - columnheader "\"20-04-2026\"" [ref=e893]:
+              - paragraph [ref=e894]: "\"20-04-2026\""
+            - columnheader "\"10,375\"" [ref=e895]:
+              - paragraph [ref=e896]: "\"10,375\""
+            - columnheader "\"SOURABH SINGH\"" [ref=e897]:
+              - paragraph [ref=e898]: "\"SOURABH SINGH\""
+            - columnheader "\"Class 2\"" [ref=e899]:
+              - paragraph [ref=e900]: "\"Class 2\""
+          - row "PAWAN JAT + PAWAN JAT Class 12 Commerce 919785357039 DUE I1_DUE +3 more IMPORTED Inactive Handled by Assistant 09:03, 13 May 2026 Allowed Yes Inactive Inactive \"Previous Session 2025-26 Due + AY 2026-27 1st Installment\" \"Immediate / 20-04-2026\" \"26,500\" \"PAWAN JAT\" \"Class 12 Commerce\"" [ref=e901]:
+            - columnheader [ref=e902]:
+              - generic [ref=e904]:
+                - checkbox [ref=e905]
+                - img [ref=e906]
+            - columnheader "PAWAN JAT + PAWAN JAT Class 12 Commerce" [ref=e908]:
+              - paragraph [ref=e909]: PAWAN JAT + PAWAN JAT Class 12 Commerce
+            - columnheader "919785357039" [ref=e910]:
+              - paragraph [ref=e911]: "919785357039"
+            - columnheader "DUE I1_DUE +3 more" [ref=e912]:
+              - generic "DUE" [ref=e915]:
+                - paragraph [ref=e917]: DUE
+              - generic "I1_DUE" [ref=e920]:
+                - paragraph [ref=e922]: I1_DUE
+              - paragraph [ref=e925]: +3 more
+            - columnheader "IMPORTED" [ref=e926]:
+              - paragraph [ref=e927]: IMPORTED
+            - columnheader "Inactive" [ref=e928]:
+              - paragraph [ref=e929]: Inactive
+            - columnheader "Handled by Assistant" [ref=e930]:
+              - paragraph [ref=e931]: Handled by Assistant
+            - columnheader [ref=e932]:
+              - paragraph
+            - columnheader [ref=e933]:
+              - paragraph
+            - columnheader "09:03, 13 May 2026" [ref=e934]:
+              - paragraph [ref=e935]: 09:03, 13 May 2026
+            - columnheader [ref=e936]
+            - columnheader "Allowed" [ref=e937]:
+              - paragraph [ref=e938]: Allowed
+            - columnheader "Yes" [ref=e939]:
+              - paragraph [ref=e940]: "Yes"
+            - columnheader "Inactive" [ref=e941]:
+              - paragraph [ref=e942]: Inactive
+            - columnheader "Inactive" [ref=e943]:
+              - paragraph [ref=e944]: Inactive
+            - columnheader "\"Previous Session 2025-26 Due + AY 2026-27 1st Installment\"" [ref=e945]:
+              - paragraph [ref=e946]: "\"Previous Session 2025-26 Due + AY 2026-27 1st Installment\""
+            - columnheader "\"Immediate / 20-04-2026\"" [ref=e947]:
+              - paragraph [ref=e948]: "\"Immediate / 20-04-2026\""
+            - columnheader "\"26,500\"" [ref=e949]:
+              - paragraph [ref=e950]: "\"26,500\""
+            - columnheader "\"PAWAN JAT\"" [ref=e951]:
+              - paragraph [ref=e952]: "\"PAWAN JAT\""
+            - columnheader "\"Class 12 Commerce\"" [ref=e953]:
+              - paragraph [ref=e954]: "\"Class 12 Commerce\""
+          - row "YUG LAXKAR - Class 11 Commerce 917568612916 DUE I1_DUE +2 more IMPORTED Inactive Handled by Assistant 03:45, 12 May 2026 Allowed Yes Inactive Inactive \"AY 2026-27 1st Installment\" \"20-04-2026\" \"8,000\" \"YUG LAXKAR\" \"Class 11 Commerce\"" [ref=e955]:
+            - columnheader [ref=e956]:
+              - generic [ref=e958]:
+                - checkbox [ref=e959]
+                - img [ref=e960]
+            - columnheader "YUG LAXKAR - Class 11 Commerce" [ref=e962]:
+              - paragraph [ref=e963]: YUG LAXKAR - Class 11 Commerce
+            - columnheader "917568612916" [ref=e964]:
+              - paragraph [ref=e965]: "917568612916"
+            - columnheader "DUE I1_DUE +2 more" [ref=e966]:
+              - generic "DUE" [ref=e969]:
+                - paragraph [ref=e971]: DUE
+              - generic "I1_DUE" [ref=e974]:
+                - paragraph [ref=e976]: I1_DUE
+              - paragraph [ref=e979]: +2 more
+            - columnheader "IMPORTED" [ref=e980]:
+              - paragraph [ref=e981]: IMPORTED
+            - columnheader "Inactive" [ref=e982]:
+              - paragraph [ref=e983]: Inactive
+            - columnheader "Handled by Assistant" [ref=e984]:
+              - paragraph [ref=e985]: Handled by Assistant
+            - columnheader [ref=e986]:
+              - paragraph
+            - columnheader [ref=e987]:
+              - paragraph
+            - columnheader "03:45, 12 May 2026" [ref=e988]:
+              - paragraph [ref=e989]: 03:45, 12 May 2026
+            - columnheader [ref=e990]
+            - columnheader "Allowed" [ref=e991]:
+              - paragraph [ref=e992]: Allowed
+            - columnheader "Yes" [ref=e993]:
+              - paragraph [ref=e994]: "Yes"
+            - columnheader "Inactive" [ref=e995]:
+              - paragraph [ref=e996]: Inactive
+            - columnheader "Inactive" [ref=e997]:
+              - paragraph [ref=e998]: Inactive
+            - columnheader "\"AY 2026-27 1st Installment\"" [ref=e999]:
+              - paragraph [ref=e1000]: "\"AY 2026-27 1st Installment\""
+            - columnheader "\"20-04-2026\"" [ref=e1001]:
+              - paragraph [ref=e1002]: "\"20-04-2026\""
+            - columnheader "\"8,000\"" [ref=e1003]:
+              - paragraph [ref=e1004]: "\"8,000\""
+            - columnheader "\"YUG LAXKAR\"" [ref=e1005]:
+              - paragraph [ref=e1006]: "\"YUG LAXKAR\""
+            - columnheader "\"Class 11 Commerce\"" [ref=e1007]:
+              - paragraph [ref=e1008]: "\"Class 11 Commerce\""
+          - row "YUNUS BOHRA - Class 10 917742471131 DUE I1_DUE +2 more IMPORTED Inactive Handled by Assistant 03:45, 12 May 2026 Allowed Yes Inactive Inactive \"AY 2026-27 1st Installment\" \"20-04-2026\" \"10,125\" \"YUNUS BOHRA\" \"Class 10\"" [ref=e1009]:
+            - columnheader [ref=e1010]:
+              - generic [ref=e1012]:
+                - checkbox [ref=e1013]
+                - img [ref=e1014]
+            - columnheader "YUNUS BOHRA - Class 10" [ref=e1016]:
+              - paragraph [ref=e1017]: YUNUS BOHRA - Class 10
+            - columnheader "917742471131" [ref=e1018]:
+              - paragraph [ref=e1019]: "917742471131"
+            - columnheader "DUE I1_DUE +2 more" [ref=e1020]:
+              - generic "DUE" [ref=e1023]:
+                - paragraph [ref=e1025]: DUE
+              - generic "I1_DUE" [ref=e1028]:
+                - paragraph [ref=e1030]: I1_DUE
+              - paragraph [ref=e1033]: +2 more
+            - columnheader "IMPORTED" [ref=e1034]:
+              - paragraph [ref=e1035]: IMPORTED
+            - columnheader "Inactive" [ref=e1036]:
+              - paragraph [ref=e1037]: Inactive
+            - columnheader "Handled by Assistant" [ref=e1038]:
+              - paragraph [ref=e1039]: Handled by Assistant
+            - columnheader [ref=e1040]:
+              - paragraph
+            - columnheader [ref=e1041]:
+              - paragraph
+            - columnheader "03:45, 12 May 2026" [ref=e1042]:
+              - paragraph [ref=e1043]: 03:45, 12 May 2026
+            - columnheader [ref=e1044]
+            - columnheader "Allowed" [ref=e1045]:
+              - paragraph [ref=e1046]: Allowed
+            - columnheader "Yes" [ref=e1047]:
+              - paragraph [ref=e1048]: "Yes"
+            - columnheader "Inactive" [ref=e1049]:
+              - paragraph [ref=e1050]: Inactive
+            - columnheader "Inactive" [ref=e1051]:
+              - paragraph [ref=e1052]: Inactive
+            - columnheader "\"AY 2026-27 1st Installment\"" [ref=e1053]:
+              - paragraph [ref=e1054]: "\"AY 2026-27 1st Installment\""
+            - columnheader "\"20-04-2026\"" [ref=e1055]:
+              - paragraph [ref=e1056]: "\"20-04-2026\""
+            - columnheader "\"10,125\"" [ref=e1057]:
+              - paragraph [ref=e1058]: "\"10,125\""
+            - columnheader "\"YUNUS BOHRA\"" [ref=e1059]:
+              - paragraph [ref=e1060]: "\"YUNUS BOHRA\""
+            - columnheader "\"Class 10\"" [ref=e1061]:
+              - paragraph [ref=e1062]: "\"Class 10\""
+          - row "YATHARTH DADHICH - Class 6 919414250127 DUE I1_DUE +2 more IMPORTED Inactive Handled by Assistant 03:45, 12 May 2026 Allowed Yes Inactive Inactive \"AY 2026-27 1st Installment\" \"20-04-2026\" \"9,125\" \"YATHARTH DADHICH\" \"Class 6\"" [ref=e1063]:
+            - columnheader [ref=e1064]:
+              - generic [ref=e1066]:
+                - checkbox [ref=e1067]
+                - img [ref=e1068]
+            - columnheader "YATHARTH DADHICH - Class 6" [ref=e1070]:
+              - paragraph [ref=e1071]: YATHARTH DADHICH - Class 6
+            - columnheader "919414250127" [ref=e1072]:
+              - paragraph [ref=e1073]: "919414250127"
+            - columnheader "DUE I1_DUE +2 more" [ref=e1074]:
+              - generic "DUE" [ref=e1077]:
+                - paragraph [ref=e1079]: DUE
+              - generic "I1_DUE" [ref=e1082]:
+                - paragraph [ref=e1084]: I1_DUE
+              - paragraph [ref=e1087]: +2 more
+            - columnheader "IMPORTED" [ref=e1088]:
+              - paragraph [ref=e1089]: IMPORTED
+            - columnheader "Inactive" [ref=e1090]:
+              - paragraph [ref=e1091]: Inactive
+            - columnheader "Handled by Assistant" [ref=e1092]:
+              - paragraph [ref=e1093]: Handled by Assistant
+            - columnheader [ref=e1094]:
+              - paragraph
+            - columnheader [ref=e1095]:
+              - paragraph
+            - columnheader "03:45, 12 May 2026" [ref=e1096]:
+              - paragraph [ref=e1097]: 03:45, 12 May 2026
+            - columnheader [ref=e1098]
+            - columnheader "Allowed" [ref=e1099]:
+              - paragraph [ref=e1100]: Allowed
+            - columnheader "Yes" [ref=e1101]:
+              - paragraph [ref=e1102]: "Yes"
+            - columnheader "Inactive" [ref=e1103]:
+              - paragraph [ref=e1104]: Inactive
+            - columnheader "Inactive" [ref=e1105]:
+              - paragraph [ref=e1106]: Inactive
+            - columnheader "\"AY 2026-27 1st Installment\"" [ref=e1107]:
+              - paragraph [ref=e1108]: "\"AY 2026-27 1st Installment\""
+            - columnheader "\"20-04-2026\"" [ref=e1109]:
+              - paragraph [ref=e1110]: "\"20-04-2026\""
+            - columnheader "\"9,125\"" [ref=e1111]:
+              - paragraph [ref=e1112]: "\"9,125\""
+            - columnheader "\"YATHARTH DADHICH\"" [ref=e1113]:
+              - paragraph [ref=e1114]: "\"YATHARTH DADHICH\""
+            - columnheader "\"Class 6\"" [ref=e1115]:
+              - paragraph [ref=e1116]: "\"Class 6\""
+          - row "YUVIKA . CHOUHAN 919660378424 IMPORTED Inactive Handled by Assistant 03:45, 12 May 2026 Allowed Yes Inactive Inactive" [ref=e1117]:
+            - columnheader [ref=e1118]:
+              - generic [ref=e1120]:
+                - checkbox [ref=e1121]
+                - img [ref=e1122]
+            - columnheader "YUVIKA . CHOUHAN" [ref=e1124]:
+              - paragraph [ref=e1125]: YUVIKA . CHOUHAN
+            - columnheader "919660378424" [ref=e1126]:
+              - paragraph [ref=e1127]: "919660378424"
+            - columnheader [ref=e1128]
+            - columnheader "IMPORTED" [ref=e1129]:
+              - paragraph [ref=e1130]: IMPORTED
+            - columnheader "Inactive" [ref=e1131]:
+              - paragraph [ref=e1132]: Inactive
+            - columnheader "Handled by Assistant" [ref=e1133]:
+              - paragraph [ref=e1134]: Handled by Assistant
+            - columnheader [ref=e1135]:
+              - paragraph
+            - columnheader [ref=e1136]:
+              - paragraph
+            - columnheader "03:45, 12 May 2026" [ref=e1137]:
+              - paragraph [ref=e1138]: 03:45, 12 May 2026
+            - columnheader [ref=e1139]
+            - columnheader "Allowed" [ref=e1140]:
+              - paragraph [ref=e1141]: Allowed
+            - columnheader "Yes" [ref=e1142]:
+              - paragraph [ref=e1143]: "Yes"
+            - columnheader "Inactive" [ref=e1144]:
+              - paragraph [ref=e1145]: Inactive
+            - columnheader "Inactive" [ref=e1146]:
+              - paragraph [ref=e1147]: Inactive
+            - columnheader [ref=e1148]:
+              - paragraph
+            - columnheader [ref=e1149]:
+              - paragraph
+            - columnheader [ref=e1150]:
+              - paragraph
+            - columnheader [ref=e1151]:
+              - paragraph
+            - columnheader [ref=e1152]:
+              - paragraph
+          - row "YATHARTH DADHICH 2 919828049566 IMPORTED Inactive Handled by Assistant 03:45, 12 May 2026 Allowed Yes Inactive Inactive" [ref=e1153]:
+            - columnheader [ref=e1154]:
+              - generic [ref=e1156]:
+                - checkbox [ref=e1157]
+                - img [ref=e1158]
+            - columnheader "YATHARTH DADHICH 2" [ref=e1160]:
+              - paragraph [ref=e1161]: YATHARTH DADHICH 2
+            - columnheader "919828049566" [ref=e1162]:
+              - paragraph [ref=e1163]: "919828049566"
+            - columnheader [ref=e1164]
+            - columnheader "IMPORTED" [ref=e1165]:
+              - paragraph [ref=e1166]: IMPORTED
+            - columnheader "Inactive" [ref=e1167]:
+              - paragraph [ref=e1168]: Inactive
+            - columnheader "Handled by Assistant" [ref=e1169]:
+              - paragraph [ref=e1170]: Handled by Assistant
+            - columnheader [ref=e1171]:
+              - paragraph
+            - columnheader [ref=e1172]:
+              - paragraph
+            - columnheader "03:45, 12 May 2026" [ref=e1173]:
+              - paragraph [ref=e1174]: 03:45, 12 May 2026
+            - columnheader [ref=e1175]
+            - columnheader "Allowed" [ref=e1176]:
+              - paragraph [ref=e1177]: Allowed
+            - columnheader "Yes" [ref=e1178]:
+              - paragraph [ref=e1179]: "Yes"
+            - columnheader "Inactive" [ref=e1180]:
+              - paragraph [ref=e1181]: Inactive
+            - columnheader "Inactive" [ref=e1182]:
+              - paragraph [ref=e1183]: Inactive
+            - columnheader [ref=e1184]:
+              - paragraph
+            - columnheader [ref=e1185]:
+              - paragraph
+            - columnheader [ref=e1186]:
+              - paragraph
+            - columnheader [ref=e1187]:
+              - paragraph
+            - columnheader [ref=e1188]:
+              - paragraph
+          - row "Yashashvi Dadheech 2 916377405650 IMPORTED Inactive Handled by Assistant 03:45, 12 May 2026 Allowed Yes Inactive Inactive" [ref=e1189]:
+            - columnheader [ref=e1190]:
+              - generic [ref=e1192]:
+                - checkbox [ref=e1193]
+                - img [ref=e1194]
+            - columnheader "Yashashvi Dadheech 2" [ref=e1196]:
+              - paragraph [ref=e1197]: Yashashvi Dadheech 2
+            - columnheader "916377405650" [ref=e1198]:
+              - paragraph [ref=e1199]: "916377405650"
+            - columnheader [ref=e1200]
+            - columnheader "IMPORTED" [ref=e1201]:
+              - paragraph [ref=e1202]: IMPORTED
+            - columnheader "Inactive" [ref=e1203]:
+              - paragraph [ref=e1204]: Inactive
+            - columnheader "Handled by Assistant" [ref=e1205]:
+              - paragraph [ref=e1206]: Handled by Assistant
+            - columnheader [ref=e1207]:
+              - paragraph
+            - columnheader [ref=e1208]:
+              - paragraph
+            - columnheader "03:45, 12 May 2026" [ref=e1209]:
+              - paragraph [ref=e1210]: 03:45, 12 May 2026
+            - columnheader [ref=e1211]
+            - columnheader "Allowed" [ref=e1212]:
+              - paragraph [ref=e1213]: Allowed
+            - columnheader "Yes" [ref=e1214]:
+              - paragraph [ref=e1215]: "Yes"
+            - columnheader "Inactive" [ref=e1216]:
+              - paragraph [ref=e1217]: Inactive
+            - columnheader "Inactive" [ref=e1218]:
+              - paragraph [ref=e1219]: Inactive
+            - columnheader [ref=e1220]:
+              - paragraph
+            - columnheader [ref=e1221]:
+              - paragraph
+            - columnheader [ref=e1222]:
+              - paragraph
+            - columnheader [ref=e1223]:
+              - paragraph
+            - columnheader [ref=e1224]:
+              - paragraph
+          - row "YASHU SONI - Class 8 919414825759 DUE I1_DUE +2 more IMPORTED Inactive Handled by Assistant 03:45, 12 May 2026 Allowed Yes Inactive Inactive \"AY 2026-27 1st Installment\" \"20-04-2026\" \"10,000\" \"YASHU SONI\" \"Class 8\"" [ref=e1225]:
+            - columnheader [ref=e1226]:
+              - generic [ref=e1228]:
+                - checkbox [ref=e1229]
+                - img [ref=e1230]
+            - columnheader "YASHU SONI - Class 8" [ref=e1232]:
+              - paragraph [ref=e1233]: YASHU SONI - Class 8
+            - columnheader "919414825759" [ref=e1234]:
+              - paragraph [ref=e1235]: "919414825759"
+            - columnheader "DUE I1_DUE +2 more" [ref=e1236]:
+              - generic "DUE" [ref=e1239]:
+                - paragraph [ref=e1241]: DUE
+              - generic "I1_DUE" [ref=e1244]:
+                - paragraph [ref=e1246]: I1_DUE
+              - paragraph [ref=e1249]: +2 more
+            - columnheader "IMPORTED" [ref=e1250]:
+              - paragraph [ref=e1251]: IMPORTED
+            - columnheader "Inactive" [ref=e1252]:
+              - paragraph [ref=e1253]: Inactive
+            - columnheader "Handled by Assistant" [ref=e1254]:
+              - paragraph [ref=e1255]: Handled by Assistant
+            - columnheader [ref=e1256]:
+              - paragraph
+            - columnheader [ref=e1257]:
+              - paragraph
+            - columnheader "03:45, 12 May 2026" [ref=e1258]:
+              - paragraph [ref=e1259]: 03:45, 12 May 2026
+            - columnheader [ref=e1260]
+            - columnheader "Allowed" [ref=e1261]:
+              - paragraph [ref=e1262]: Allowed
+            - columnheader "Yes" [ref=e1263]:
+              - paragraph [ref=e1264]: "Yes"
+            - columnheader "Inactive" [ref=e1265]:
+              - paragraph [ref=e1266]: Inactive
+            - columnheader "Inactive" [ref=e1267]:
+              - paragraph [ref=e1268]: Inactive
+            - columnheader "\"AY 2026-27 1st Installment\"" [ref=e1269]:
+              - paragraph [ref=e1270]: "\"AY 2026-27 1st Installment\""
+            - columnheader "\"20-04-2026\"" [ref=e1271]:
+              - paragraph [ref=e1272]: "\"20-04-2026\""
+            - columnheader "\"10,000\"" [ref=e1273]:
+              - paragraph [ref=e1274]: "\"10,000\""
+            - columnheader "\"YASHU SONI\"" [ref=e1275]:
+              - paragraph [ref=e1276]: "\"YASHU SONI\""
+            - columnheader "\"Class 8\"" [ref=e1277]:
+              - paragraph [ref=e1278]: "\"Class 8\""
+          - row "YASHU SONI 2 919468948759 IMPORTED Inactive Handled by Assistant 03:45, 12 May 2026 Allowed Yes Inactive Inactive" [ref=e1279]:
+            - columnheader [ref=e1280]:
+              - generic [ref=e1282]:
+                - checkbox [ref=e1283]
+                - img [ref=e1284]
+            - columnheader "YASHU SONI 2" [ref=e1286]:
+              - paragraph [ref=e1287]: YASHU SONI 2
+            - columnheader "919468948759" [ref=e1288]:
+              - paragraph [ref=e1289]: "919468948759"
+            - columnheader [ref=e1290]
+            - columnheader "IMPORTED" [ref=e1291]:
+              - paragraph [ref=e1292]: IMPORTED
+            - columnheader "Inactive" [ref=e1293]:
+              - paragraph [ref=e1294]: Inactive
+            - columnheader "Handled by Assistant" [ref=e1295]:
+              - paragraph [ref=e1296]: Handled by Assistant
+            - columnheader [ref=e1297]:
+              - paragraph
+            - columnheader [ref=e1298]:
+              - paragraph
+            - columnheader "03:45, 12 May 2026" [ref=e1299]:
+              - paragraph [ref=e1300]: 03:45, 12 May 2026
+            - columnheader [ref=e1301]
+            - columnheader "Allowed" [ref=e1302]:
+              - paragraph [ref=e1303]: Allowed
+            - columnheader "Yes" [ref=e1304]:
+              - paragraph [ref=e1305]: "Yes"
+            - columnheader "Inactive" [ref=e1306]:
+              - paragraph [ref=e1307]: Inactive
+            - columnheader "Inactive" [ref=e1308]:
+              - paragraph [ref=e1309]: Inactive
+            - columnheader [ref=e1310]:
+              - paragraph
+            - columnheader [ref=e1311]:
+              - paragraph
+            - columnheader [ref=e1312]:
+              - paragraph
+            - columnheader [ref=e1313]:
+              - paragraph
+            - columnheader [ref=e1314]:
+              - paragraph
+          - row "VISHWAJEET SINGH CHUNDAWAT - Class 12 Arts 918291584249 DUE I1_DUE +2 more IMPORTED Inactive Handled by Assistant 03:45, 12 May 2026 Allowed Yes Inactive Inactive \"AY 2026-27 1st Installment\" \"20-04-2026\" \"10,500\" \"VISHWAJEET SINGH CHUNDAWAT\" \"Class 12 Arts\"" [ref=e1315]:
+            - columnheader [ref=e1316]:
+              - generic [ref=e1318]:
+                - checkbox [ref=e1319]
+                - img [ref=e1320]
+            - columnheader "VISHWAJEET SINGH CHUNDAWAT - Class 12 Arts" [ref=e1322]:
+              - paragraph [ref=e1323]: VISHWAJEET SINGH CHUNDAWAT - Class 12 Arts
+            - columnheader "918291584249" [ref=e1324]:
+              - paragraph [ref=e1325]: "918291584249"
+            - columnheader "DUE I1_DUE +2 more" [ref=e1326]:
+              - generic "DUE" [ref=e1329]:
+                - paragraph [ref=e1331]: DUE
+              - generic "I1_DUE" [ref=e1334]:
+                - paragraph [ref=e1336]: I1_DUE
+              - paragraph [ref=e1339]: +2 more
+            - columnheader "IMPORTED" [ref=e1340]:
+              - paragraph [ref=e1341]: IMPORTED
+            - columnheader "Inactive" [ref=e1342]:
+              - paragraph [ref=e1343]: Inactive
+            - columnheader "Handled by Assistant" [ref=e1344]:
+              - paragraph [ref=e1345]: Handled by Assistant
+            - columnheader [ref=e1346]:
+              - paragraph
+            - columnheader [ref=e1347]:
+              - paragraph
+            - columnheader "03:45, 12 May 2026" [ref=e1348]:
+              - paragraph [ref=e1349]: 03:45, 12 May 2026
+            - columnheader [ref=e1350]
+            - columnheader "Allowed" [ref=e1351]:
+              - paragraph [ref=e1352]: Allowed
+            - columnheader "Yes" [ref=e1353]:
+              - paragraph [ref=e1354]: "Yes"
+            - columnheader "Inactive" [ref=e1355]:
+              - paragraph [ref=e1356]: Inactive
+            - columnheader "Inactive" [ref=e1357]:
+              - paragraph [ref=e1358]: Inactive
+            - columnheader "\"AY 2026-27 1st Installment\"" [ref=e1359]:
+              - paragraph [ref=e1360]: "\"AY 2026-27 1st Installment\""
+            - columnheader "\"20-04-2026\"" [ref=e1361]:
+              - paragraph [ref=e1362]: "\"20-04-2026\""
+            - columnheader "\"10,500\"" [ref=e1363]:
+              - paragraph [ref=e1364]: "\"10,500\""
+            - columnheader "\"VISHWAJEET SINGH CHUNDAWAT\"" [ref=e1365]:
+              - paragraph [ref=e1366]: "\"VISHWAJEET SINGH CHUNDAWAT\""
+            - columnheader "\"Class 12 Arts\"" [ref=e1367]:
+              - paragraph [ref=e1368]: "\"Class 12 Arts\""
+          - row "VISHWA . KHATIK 919413459426 IMPORTED Inactive Handled by Assistant 03:45, 12 May 2026 Allowed Yes Inactive Inactive" [ref=e1369]:
+            - columnheader [ref=e1370]:
+              - generic [ref=e1372]:
+                - checkbox [ref=e1373]
+                - img [ref=e1374]
+            - columnheader "VISHWA . KHATIK" [ref=e1376]:
+              - paragraph [ref=e1377]: VISHWA . KHATIK
+            - columnheader "919413459426" [ref=e1378]:
+              - paragraph [ref=e1379]: "919413459426"
+            - columnheader [ref=e1380]
+            - columnheader "IMPORTED" [ref=e1381]:
+              - paragraph [ref=e1382]: IMPORTED
+            - columnheader "Inactive" [ref=e1383]:
+              - paragraph [ref=e1384]: Inactive
+            - columnheader "Handled by Assistant" [ref=e1385]:
+              - paragraph [ref=e1386]: Handled by Assistant
+            - columnheader [ref=e1387]:
+              - paragraph
+            - columnheader [ref=e1388]:
+              - paragraph
+            - columnheader "03:45, 12 May 2026" [ref=e1389]:
+              - paragraph [ref=e1390]: 03:45, 12 May 2026
+            - columnheader [ref=e1391]
+            - columnheader "Allowed" [ref=e1392]:
+              - paragraph [ref=e1393]: Allowed
+            - columnheader "Yes" [ref=e1394]:
+              - paragraph [ref=e1395]: "Yes"
+            - columnheader "Inactive" [ref=e1396]:
+              - paragraph [ref=e1397]: Inactive
+            - columnheader "Inactive" [ref=e1398]:
+              - paragraph [ref=e1399]: Inactive
+            - columnheader [ref=e1400]:
+              - paragraph
+            - columnheader [ref=e1401]:
+              - paragraph
+            - columnheader [ref=e1402]:
+              - paragraph
+            - columnheader [ref=e1403]:
+              - paragraph
+            - columnheader [ref=e1404]:
+              - paragraph
+          - row "VISHVIJAY SINGH CHOUHAN - Class 8 919549877947 DUE I1_DUE +3 more IMPORTED Inactive Handled by Assistant 03:45, 12 May 2026 Allowed Yes Inactive Inactive \"Previous Session 2025-26 Due + AY 2026-27 1st Installment\" \"Immediate / 20-04-2026\" \"53,125\" \"VISHVIJAY SINGH CHOUHAN\" \"Class 8\"" [ref=e1405]:
+            - columnheader [ref=e1406]:
+              - generic [ref=e1408]:
+                - checkbox [ref=e1409]
+                - img [ref=e1410]
+            - columnheader "VISHVIJAY SINGH CHOUHAN - Class 8" [ref=e1412]:
+              - paragraph [ref=e1413]: VISHVIJAY SINGH CHOUHAN - Class 8
+            - columnheader "919549877947" [ref=e1414]:
+              - paragraph [ref=e1415]: "919549877947"
+            - columnheader "DUE I1_DUE +3 more" [ref=e1416]:
+              - generic "DUE" [ref=e1419]:
+                - paragraph [ref=e1421]: DUE
+              - generic "I1_DUE" [ref=e1424]:
+                - paragraph [ref=e1426]: I1_DUE
+              - paragraph [ref=e1429]: +3 more
+            - columnheader "IMPORTED" [ref=e1430]:
+              - paragraph [ref=e1431]: IMPORTED
+            - columnheader "Inactive" [ref=e1432]:
+              - paragraph [ref=e1433]: Inactive
+            - columnheader "Handled by Assistant" [ref=e1434]:
+              - paragraph [ref=e1435]: Handled by Assistant
+            - columnheader [ref=e1436]:
+              - paragraph
+            - columnheader [ref=e1437]:
+              - paragraph
+            - columnheader "03:45, 12 May 2026" [ref=e1438]:
+              - paragraph [ref=e1439]: 03:45, 12 May 2026
+            - columnheader [ref=e1440]
+            - columnheader "Allowed" [ref=e1441]:
+              - paragraph [ref=e1442]: Allowed
+            - columnheader "Yes" [ref=e1443]:
+              - paragraph [ref=e1444]: "Yes"
+            - columnheader "Inactive" [ref=e1445]:
+              - paragraph [ref=e1446]: Inactive
+            - columnheader "Inactive" [ref=e1447]:
+              - paragraph [ref=e1448]: Inactive
+            - columnheader "\"Previous Session 2025-26 Due + AY 2026-27 1st Installment\"" [ref=e1449]:
+              - paragraph [ref=e1450]: "\"Previous Session 2025-26 Due + AY 2026-27 1st Installment\""
+            - columnheader "\"Immediate / 20-04-2026\"" [ref=e1451]:
+              - paragraph [ref=e1452]: "\"Immediate / 20-04-2026\""
+            - columnheader "\"53,125\"" [ref=e1453]:
+              - paragraph [ref=e1454]: "\"53,125\""
+            - columnheader "\"VISHVIJAY SINGH CHOUHAN\"" [ref=e1455]:
+              - paragraph [ref=e1456]: "\"VISHVIJAY SINGH CHOUHAN\""
+            - columnheader "\"Class 8\"" [ref=e1457]:
+              - paragraph [ref=e1458]: "\"Class 8\""
+          - row "VISHRUTI PALIWAL 2 919784336810 IMPORTED Inactive Handled by Assistant 03:45, 12 May 2026 Allowed Yes Inactive Inactive" [ref=e1459]:
+            - columnheader [ref=e1460]:
+              - generic [ref=e1462]:
+                - checkbox [ref=e1463]
+                - img [ref=e1464]
+            - columnheader "VISHRUTI PALIWAL 2" [ref=e1466]:
+              - paragraph [ref=e1467]: VISHRUTI PALIWAL 2
+            - columnheader "919784336810" [ref=e1468]:
+              - paragraph [ref=e1469]: "919784336810"
+            - columnheader [ref=e1470]
+            - columnheader "IMPORTED" [ref=e1471]:
+              - paragraph [ref=e1472]: IMPORTED
+            - columnheader "Inactive" [ref=e1473]:
+              - paragraph [ref=e1474]: Inactive
+            - columnheader "Handled by Assistant" [ref=e1475]:
+              - paragraph [ref=e1476]: Handled by Assistant
+            - columnheader [ref=e1477]:
+              - paragraph
+            - columnheader [ref=e1478]:
+              - paragraph
+            - columnheader "03:45, 12 May 2026" [ref=e1479]:
+              - paragraph [ref=e1480]: 03:45, 12 May 2026
+            - columnheader [ref=e1481]
+            - columnheader "Allowed" [ref=e1482]:
+              - paragraph [ref=e1483]: Allowed
+            - columnheader "Yes" [ref=e1484]:
+              - paragraph [ref=e1485]: "Yes"
+            - columnheader "Inactive" [ref=e1486]:
+              - paragraph [ref=e1487]: Inactive
+            - columnheader "Inactive" [ref=e1488]:
+              - paragraph [ref=e1489]: Inactive
+            - columnheader [ref=e1490]:
+              - paragraph
+            - columnheader [ref=e1491]:
+              - paragraph
+            - columnheader [ref=e1492]:
+              - paragraph
+            - columnheader [ref=e1493]:
+              - paragraph
+            - columnheader [ref=e1494]:
+              - paragraph
+          - row "VISHWAJEET SINGH 2 919799460090 IMPORTED Inactive Handled by Assistant 03:45, 12 May 2026 Allowed Yes Inactive Inactive" [ref=e1495]:
+            - columnheader [ref=e1496]:
+              - generic [ref=e1498]:
+                - checkbox [ref=e1499]
+                - img [ref=e1500]
+            - columnheader "VISHWAJEET SINGH 2" [ref=e1502]:
+              - paragraph [ref=e1503]: VISHWAJEET SINGH 2
+            - columnheader "919799460090" [ref=e1504]:
+              - paragraph [ref=e1505]: "919799460090"
+            - columnheader [ref=e1506]
+            - columnheader "IMPORTED" [ref=e1507]:
+              - paragraph [ref=e1508]: IMPORTED
+            - columnheader "Inactive" [ref=e1509]:
+              - paragraph [ref=e1510]: Inactive
+            - columnheader "Handled by Assistant" [ref=e1511]:
+              - paragraph [ref=e1512]: Handled by Assistant
+            - columnheader [ref=e1513]:
+              - paragraph
+            - columnheader [ref=e1514]:
+              - paragraph
+            - columnheader "03:45, 12 May 2026" [ref=e1515]:
+              - paragraph [ref=e1516]: 03:45, 12 May 2026
+            - columnheader [ref=e1517]
+            - columnheader "Allowed" [ref=e1518]:
+              - paragraph [ref=e1519]: Allowed
+            - columnheader "Yes" [ref=e1520]:
+              - paragraph [ref=e1521]: "Yes"
+            - columnheader "Inactive" [ref=e1522]:
+              - paragraph [ref=e1523]: Inactive
+            - columnheader "Inactive" [ref=e1524]:
+              - paragraph [ref=e1525]: Inactive
+            - columnheader [ref=e1526]:
+              - paragraph
+            - columnheader [ref=e1527]:
+              - paragraph
+            - columnheader [ref=e1528]:
+              - paragraph
+            - columnheader [ref=e1529]:
+              - paragraph
+            - columnheader [ref=e1530]:
+              - paragraph
+          - row "VISHWAJEET SINGH - Class 7 919828525149 DUE I1_DUE +2 more IMPORTED Inactive Handled by Assistant 03:45, 12 May 2026 Allowed Yes Inactive Inactive \"AY 2026-27 1st Installment\" \"20-04-2026\" \"9,375\" \"VISHWAJEET SINGH\" \"Class 7\"" [ref=e1531]:
+            - columnheader [ref=e1532]:
+              - generic [ref=e1534]:
+                - checkbox [ref=e1535]
+                - img [ref=e1536]
+            - columnheader "VISHWAJEET SINGH - Class 7" [ref=e1538]:
+              - paragraph [ref=e1539]: VISHWAJEET SINGH - Class 7
+            - columnheader "919828525149" [ref=e1540]:
+              - paragraph [ref=e1541]: "919828525149"
+            - columnheader "DUE I1_DUE +2 more" [ref=e1542]:
+              - generic "DUE" [ref=e1545]:
+                - paragraph [ref=e1547]: DUE
+              - generic "I1_DUE" [ref=e1550]:
+                - paragraph [ref=e1552]: I1_DUE
+              - paragraph [ref=e1555]: +2 more
+            - columnheader "IMPORTED" [ref=e1556]:
+              - paragraph [ref=e1557]: IMPORTED
+            - columnheader "Inactive" [ref=e1558]:
+              - paragraph [ref=e1559]: Inactive
+            - columnheader "Handled by Assistant" [ref=e1560]:
+              - paragraph [ref=e1561]: Handled by Assistant
+            - columnheader [ref=e1562]:
+              - paragraph
+            - columnheader [ref=e1563]:
+              - paragraph
+            - columnheader "03:45, 12 May 2026" [ref=e1564]:
+              - paragraph [ref=e1565]: 03:45, 12 May 2026
+            - columnheader [ref=e1566]
+            - columnheader "Allowed" [ref=e1567]:
+              - paragraph [ref=e1568]: Allowed
+            - columnheader "Yes" [ref=e1569]:
+              - paragraph [ref=e1570]: "Yes"
+            - columnheader "Inactive" [ref=e1571]:
+              - paragraph [ref=e1572]: Inactive
+            - columnheader "Inactive" [ref=e1573]:
+              - paragraph [ref=e1574]: Inactive
+            - columnheader "\"AY 2026-27 1st Installment\"" [ref=e1575]:
+              - paragraph [ref=e1576]: "\"AY 2026-27 1st Installment\""
+            - columnheader "\"20-04-2026\"" [ref=e1577]:
+              - paragraph [ref=e1578]: "\"20-04-2026\""
+            - columnheader "\"9,375\"" [ref=e1579]:
+              - paragraph [ref=e1580]: "\"9,375\""
+            - columnheader "\"VISHWAJEET SINGH\"" [ref=e1581]:
+              - paragraph [ref=e1582]: "\"VISHWAJEET SINGH\""
+            - columnheader "\"Class 7\"" [ref=e1583]:
+              - paragraph [ref=e1584]: "\"Class 7\""
+          - row "VIHAAN JEENGAR - Class 5 917568155005 DUE I1_DUE +2 more IMPORTED Inactive Handled by Assistant 03:45, 12 May 2026 Allowed Yes Inactive Inactive \"AY 2026-27 1st Installment\" \"20-04-2026\" \"3,875\" \"VIHAAN JEENGAR\" \"Class 5\"" [ref=e1585]:
+            - columnheader [ref=e1586]:
+              - generic [ref=e1588]:
+                - checkbox [ref=e1589]
+                - img [ref=e1590]
+            - columnheader "VIHAAN JEENGAR - Class 5" [ref=e1592]:
+              - paragraph [ref=e1593]: VIHAAN JEENGAR - Class 5
+            - columnheader "917568155005" [ref=e1594]:
+              - paragraph [ref=e1595]: "917568155005"
+            - columnheader "DUE I1_DUE +2 more" [ref=e1596]:
+              - generic "DUE" [ref=e1599]:
+                - paragraph [ref=e1601]: DUE
+              - generic "I1_DUE" [ref=e1604]:
+                - paragraph [ref=e1606]: I1_DUE
+              - paragraph [ref=e1609]: +2 more
+            - columnheader "IMPORTED" [ref=e1610]:
+              - paragraph [ref=e1611]: IMPORTED
+            - columnheader "Inactive" [ref=e1612]:
+              - paragraph [ref=e1613]: Inactive
+            - columnheader "Handled by Assistant" [ref=e1614]:
+              - paragraph [ref=e1615]: Handled by Assistant
+            - columnheader [ref=e1616]:
+              - paragraph
+            - columnheader [ref=e1617]:
+              - paragraph
+            - columnheader "03:45, 12 May 2026" [ref=e1618]:
+              - paragraph [ref=e1619]: 03:45, 12 May 2026
+            - columnheader [ref=e1620]
+            - columnheader "Allowed" [ref=e1621]:
+              - paragraph [ref=e1622]: Allowed
+            - columnheader "Yes" [ref=e1623]:
+              - paragraph [ref=e1624]: "Yes"
+            - columnheader "Inactive" [ref=e1625]:
+              - paragraph [ref=e1626]: Inactive
+            - columnheader "Inactive" [ref=e1627]:
+              - paragraph [ref=e1628]: Inactive
+            - columnheader "\"AY 2026-27 1st Installment\"" [ref=e1629]:
+              - paragraph [ref=e1630]: "\"AY 2026-27 1st Installment\""
+            - columnheader "\"20-04-2026\"" [ref=e1631]:
+              - paragraph [ref=e1632]: "\"20-04-2026\""
+            - columnheader "\"3,875\"" [ref=e1633]:
+              - paragraph [ref=e1634]: "\"3,875\""
+            - columnheader "\"VIHAAN JEENGAR\"" [ref=e1635]:
+              - paragraph [ref=e1636]: "\"VIHAAN JEENGAR\""
+            - columnheader "\"Class 5\"" [ref=e1637]:
+              - paragraph [ref=e1638]: "\"Class 5\""
+          - row "VIHAAN JEENGAR 2 917891906578 IMPORTED Inactive Handled by Assistant 03:45, 12 May 2026 Allowed Yes Inactive Inactive" [ref=e1639]:
+            - columnheader [ref=e1640]:
+              - generic [ref=e1642]:
+                - checkbox [ref=e1643]
+                - img [ref=e1644]
+            - columnheader "VIHAAN JEENGAR 2" [ref=e1646]:
+              - paragraph [ref=e1647]: VIHAAN JEENGAR 2
+            - columnheader "917891906578" [ref=e1648]:
+              - paragraph [ref=e1649]: "917891906578"
+            - columnheader [ref=e1650]
+            - columnheader "IMPORTED" [ref=e1651]:
+              - paragraph [ref=e1652]: IMPORTED
+            - columnheader "Inactive" [ref=e1653]:
+              - paragraph [ref=e1654]: Inactive
+            - columnheader "Handled by Assistant" [ref=e1655]:
+              - paragraph [ref=e1656]: Handled by Assistant
+            - columnheader [ref=e1657]:
+              - paragraph
+            - columnheader [ref=e1658]:
+              - paragraph
+            - columnheader "03:45, 12 May 2026" [ref=e1659]:
+              - paragraph [ref=e1660]: 03:45, 12 May 2026
+            - columnheader [ref=e1661]
+            - columnheader "Allowed" [ref=e1662]:
+              - paragraph [ref=e1663]: Allowed
+            - columnheader "Yes" [ref=e1664]:
+              - paragraph [ref=e1665]: "Yes"
+            - columnheader "Inactive" [ref=e1666]:
+              - paragraph [ref=e1667]: Inactive
+            - columnheader "Inactive" [ref=e1668]:
+              - paragraph [ref=e1669]: Inactive
+            - columnheader [ref=e1670]:
+              - paragraph
+            - columnheader [ref=e1671]:
+              - paragraph
+            - columnheader [ref=e1672]:
+              - paragraph
+            - columnheader [ref=e1673]:
+              - paragraph
+            - columnheader [ref=e1674]:
+              - paragraph
+          - row "VISHAL GURJAR 918875234888 IMPORTED Inactive Handled by Assistant 03:45, 12 May 2026 Allowed Yes Inactive Inactive" [ref=e1675]:
+            - columnheader [ref=e1676]:
+              - generic [ref=e1678]:
+                - checkbox [ref=e1679]
+                - img [ref=e1680]
+            - columnheader "VISHAL GURJAR" [ref=e1682]:
+              - paragraph [ref=e1683]: VISHAL GURJAR
+            - columnheader "918875234888" [ref=e1684]:
+              - paragraph [ref=e1685]: "918875234888"
+            - columnheader [ref=e1686]
+            - columnheader "IMPORTED" [ref=e1687]:
+              - paragraph [ref=e1688]: IMPORTED
+            - columnheader "Inactive" [ref=e1689]:
+              - paragraph [ref=e1690]: Inactive
+            - columnheader "Handled by Assistant" [ref=e1691]:
+              - paragraph [ref=e1692]: Handled by Assistant
+            - columnheader [ref=e1693]:
+              - paragraph
+            - columnheader [ref=e1694]:
+              - paragraph
+            - columnheader "03:45, 12 May 2026" [ref=e1695]:
+              - paragraph [ref=e1696]: 03:45, 12 May 2026
+            - columnheader [ref=e1697]
+            - columnheader "Allowed" [ref=e1698]:
+              - paragraph [ref=e1699]: Allowed
+            - columnheader "Yes" [ref=e1700]:
+              - paragraph [ref=e1701]: "Yes"
+            - columnheader "Inactive" [ref=e1702]:
+              - paragraph [ref=e1703]: Inactive
+            - columnheader "Inactive" [ref=e1704]:
+              - paragraph [ref=e1705]: Inactive
+            - columnheader [ref=e1706]:
+              - paragraph
+            - columnheader [ref=e1707]:
+              - paragraph
+            - columnheader [ref=e1708]:
+              - paragraph
+            - columnheader [ref=e1709]:
+              - paragraph
+            - columnheader [ref=e1710]:
+              - paragraph
+      - generic [ref=e1712]:
+        - button [disabled]:
+          - generic:
+            - img
+        - paragraph [ref=e1714]: 1-25 of 492
+        - button [ref=e1715] [cursor=pointer]:
+          - img [ref=e1717]
+        - generic [ref=e1719]:
+          - button "25 per page" [ref=e1720] [cursor=pointer]
+          - textbox: "25"
+          - img
+  - iframe [ref=e6]:
+    
+  - dialog "AiSensy Demo (English) JAN24.mp4":
+    - generic [ref=e279]:
+      - generic "AiSensy Demo (English) JAN24.mp4" [ref=e281]
+      - generic [ref=e283]:
+        - generic [ref=e284]:
+          - generic:
+            - 'button "Play Video: AiSensy Demo (English) JAN24.mp4"'
+          - img "Video Thumbnail" [ref=e286]
+        - 'button "Play Video: AiSensy Demo (English) JAN24.mp4" [ref=e288] [cursor=pointer]':
+          - img [ref=e291]
+    - button "Close" [ref=e293] [cursor=pointer]:
+      - img "Click to close video" [ref=e294]
+  - dialog "AiSensyWhatsAppDemo_Hindi_14082023_01.mp4":
+    - generic [ref=e299]:
+      - generic "AiSensyWhatsAppDemo_Hindi_14082023_01.mp4" [ref=e301]
+      - generic [ref=e303]:
+        - generic [ref=e304]:
+          - generic:
+            - 'button "Play Video: AiSensyWhatsAppDemo_Hindi_14082023_01.mp4"'
+          - img "Video Thumbnail" [ref=e306]
+        - 'button "Play Video: AiSensyWhatsAppDemo_Hindi_14082023_01.mp4" [ref=e308] [cursor=pointer]':
+          - img [ref=e311]
+    - button "Close" [ref=e313] [cursor=pointer]:
+      - img "Click to close video" [ref=e314]
+  - iframe [ref=e316]:
+    - generic [active] [ref=f117e1]:
+      - generic "Intercom":
+        - region "Intercom messenger":
+          - button "Open Intercom Messenger" [ref=f117e2] [cursor=pointer]:
+            - img [ref=f117e4]
+            - img [ref=f117e7]
+  - dialog "Import Contacts & Broadcast Messages on AiSensy Platform _ Broadcast to 1000+ Users on WhatsApp.mp4":
+    - generic [ref=e1726]:
+      - generic "Import Contacts & Broadcast Messages on AiSensy Platform _ Broadcast to 1000+ Users on WhatsApp.mp4" [ref=e1728]
+      - generic [ref=e1730]:
+        - generic [ref=e1731]:
+          - generic:
+            - 'button "Play Video: Import Contacts & Broadcast Messages on AiSensy Platform _ Broadcast to 1000+ Users on WhatsApp.mp4"'
+          - img "Video Thumbnail" [ref=e1733]
+        - 'button "Play Video: Import Contacts & Broadcast Messages on AiSensy Platform _ Broadcast to 1000+ Users on WhatsApp.mp4" [ref=e1735] [cursor=pointer]':
+          - img [ref=e1738]
+    - button "Close" [ref=e1740] [cursor=pointer]:
+      - img "Click to close video" [ref=e1741]

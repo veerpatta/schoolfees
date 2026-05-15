@@ -1,0 +1,201 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e11]:
+    - generic [ref=e12]:
+      - link "AI Timey" [ref=e14] [cursor=pointer]:
+        - /url: /projects
+        - img "AI Timey" [ref=e15]
+      - button [ref=e16] [cursor=pointer]:
+        - img [ref=e18]
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - img [ref=e24] [cursor=pointer]
+          - paragraph [ref=e26] [cursor=pointer]: Dashboard
+        - generic [ref=e27]:
+          - img [ref=e30] [cursor=pointer]
+          - paragraph [ref=e32] [cursor=pointer]: Live Chat
+        - generic [ref=e33]:
+          - img [ref=e36] [cursor=pointer]
+          - paragraph [ref=e38] [cursor=pointer]: History
+        - generic [ref=e39]:
+          - img [ref=e42] [cursor=pointer]
+          - paragraph [ref=e44] [cursor=pointer]: Contacts
+        - generic [ref=e45]:
+          - img [ref=e48] [cursor=pointer]
+          - paragraph [ref=e50] [cursor=pointer]: Campaigns
+        - generic [ref=e51]:
+          - img [ref=e54] [cursor=pointer]
+          - paragraph [ref=e56] [cursor=pointer]: Ads Manager
+        - generic [ref=e57]:
+          - img [ref=e61] [cursor=pointer]
+          - paragraph [ref=e64] [cursor=pointer]: Flows
+        - generic [ref=e65]:
+          - img [ref=e68] [cursor=pointer]
+          - paragraph [ref=e70] [cursor=pointer]: Manage
+        - generic [ref=e71]:
+          - img [ref=e74] [cursor=pointer]
+          - paragraph [ref=e76] [cursor=pointer]: Integrations
+      - button [ref=e77] [cursor=pointer]:
+        - img [ref=e79]
+      - generic [ref=e81]:
+        - generic [ref=e82] [cursor=pointer]:
+          - img [ref=e85]
+          - paragraph [ref=e88]: Developer
+        - generic [ref=e89]:
+          - img [ref=e92] [cursor=pointer]
+          - paragraph [ref=e94] [cursor=pointer]: All Projects
+        - img "J" [ref=e97] [cursor=pointer]
+    - generic [ref=e99]:
+      - generic [ref=e102]:
+        - heading "Integrations" [level=3] [ref=e104]
+        - button "Discover" [ref=e105] [cursor=pointer]:
+          - generic [ref=e106]:
+            - img [ref=e109]
+            - paragraph [ref=e112]: Discover
+        - button "WhatsApp Pay" [ref=e113] [cursor=pointer]:
+          - generic [ref=e114]:
+            - img [ref=e117]
+            - paragraph [ref=e120]: WhatsApp Pay
+        - button "Store Setup" [ref=e121] [cursor=pointer]:
+          - generic [ref=e122]:
+            - img [ref=e125]
+            - paragraph [ref=e128]: Store Setup
+        - paragraph [ref=e130]: Installed Apps
+        - button "app-icon Dialogflow Integration" [ref=e131] [cursor=pointer]:
+          - generic [ref=e132]:
+            - img "app-icon" [ref=e135]
+            - paragraph [ref=e137]: Dialogflow Integration
+      - generic [ref=e140]:
+        - heading "App Store" [level=3] [ref=e144]
+        - generic [ref=e148]:
+          - generic [ref=e150] [cursor=pointer]:
+            - img "app-icon" [ref=e151]
+            - generic [ref=e152]: WhatsApp Link Generator
+            - paragraph [ref=e153]: Create shareable links & QR for your WA business number
+          - generic [ref=e155] [cursor=pointer]:
+            - img "app-icon" [ref=e156]
+            - generic [ref=e157]: WhatsApp Website Widget
+            - paragraph [ref=e158]: Drive WhatsApp sales with personalised CTAs
+          - generic [ref=e160] [cursor=pointer]:
+            - img "app-icon" [ref=e161]
+            - generic [ref=e162]:
+              - text: Dialogflow Integration
+              - generic "Installed" [ref=e164]:
+                - paragraph [ref=e166]: Installed
+            - paragraph [ref=e167]: Involves incorporating Dialogflow, a natural language understanding platform, into your application to enable human-like conversations between users and your application.
+          - generic [ref=e169] [cursor=pointer]:
+            - img "app-icon" [ref=e170]
+            - generic [ref=e171]:
+              - text: Google Sheets
+              - generic "New" [ref=e173]:
+                - paragraph [ref=e175]: New
+            - paragraph [ref=e176]: Sync contacts from Google Sheets to AiSensy automatically, without uploading CSVs.
+          - generic [ref=e178] [cursor=pointer]:
+            - img "app-icon" [ref=e179]
+            - generic [ref=e180]:
+              - text: Zoho
+              - generic "New" [ref=e182]:
+                - paragraph [ref=e184]: New
+            - paragraph [ref=e185]: Drive WhatsApp communication to your Leads and Customers on Zoho seamlessly.
+          - generic [ref=e187] [cursor=pointer]:
+            - img "app-icon" [ref=e188]
+            - generic [ref=e189]:
+              - text: PayU
+              - generic "New" [ref=e191]:
+                - paragraph [ref=e193]: New
+            - paragraph [ref=e194]: Send payment links & subscription updates to drive quick payments
+          - generic [ref=e196] [cursor=pointer]:
+            - img "app-icon" [ref=e197]
+            - generic [ref=e198]:
+              - text: Razorpay
+              - generic "New" [ref=e200]:
+                - paragraph [ref=e202]: New
+            - paragraph [ref=e203]: Send payment links & subscription updates to drive quick payments
+          - generic [ref=e205] [cursor=pointer]:
+            - img "app-icon" [ref=e206]
+            - generic [ref=e207]: Shopify
+            - paragraph [ref=e208]: Provide live chat support to your customers & boost cart recovery
+          - generic [ref=e210] [cursor=pointer]:
+            - img "app-icon" [ref=e211]
+            - generic [ref=e212]: WooCommerce
+            - paragraph [ref=e213]: Boost your cart recovery & reengage with your customers to upsell
+          - generic [ref=e215] [cursor=pointer]:
+            - img "app-icon" [ref=e216]
+            - generic [ref=e217]: Pabbly
+            - paragraph [ref=e218]: Integrate with 800+ apps through direct integration
+          - generic [ref=e220] [cursor=pointer]:
+            - img "app-icon" [ref=e221]
+            - generic [ref=e222]: LeadSquared
+            - paragraph [ref=e223]: Drive WhatsApp communication to your Leads and Customers on Leadsquared CRM seamlessly.
+          - generic [ref=e225] [cursor=pointer]:
+            - img "app-icon" [ref=e226]
+            - generic [ref=e227]: WebEngage
+            - paragraph [ref=e228]: Drive WhatsApp communication to your Leads and Customers on WebEngage CRM seamlessly.
+          - generic [ref=e230] [cursor=pointer]:
+            - img "app-icon" [ref=e231]
+            - generic [ref=e232]:
+              - text: CleverTap
+              - generic "New" [ref=e234]:
+                - paragraph [ref=e236]: New
+            - paragraph [ref=e237]: Drive WhatsApp communication to your Leads and Customers on CleverTap CRM seamlessly.
+          - generic [ref=e239] [cursor=pointer]:
+            - img "app-icon" [ref=e240]
+            - generic [ref=e241]:
+              - text: Wherehouse
+              - generic "New" [ref=e243]:
+                - paragraph [ref=e245]: New
+            - paragraph [ref=e246]: Drive WhatsApp communication to your leads and customers on Wherehouse seamlessly.
+          - generic [ref=e248] [cursor=pointer]:
+            - img "app-icon" [ref=e249]
+            - generic [ref=e250]:
+              - text: Easyinsights
+              - generic "New" [ref=e252]:
+                - paragraph [ref=e254]: New
+            - paragraph [ref=e255]: Combine all your Marketing and CRM data for full-funnel visibility with a single source of truth with the Marketing data intelligence tool by EasyInsights
+          - generic [ref=e257] [cursor=pointer]:
+            - img "app-icon" [ref=e258]
+            - generic [ref=e259]:
+              - text: Moengage
+              - generic "New" [ref=e261]:
+                - paragraph [ref=e263]: New
+            - paragraph [ref=e264]: Drive WhatsApp communication to your Leads and Customers on Moengage CRM seamlessly.
+          - generic [ref=e266] [cursor=pointer]:
+            - img "app-icon" [ref=e267]
+            - generic [ref=e268]: Integrately
+            - paragraph [ref=e269]: 8M+ ready automation for 800+ Apps with AiSensy direct integration.
+          - generic [ref=e271] [cursor=pointer]:
+            - img "app-icon" [ref=e272]
+            - generic [ref=e273]: OpenCart
+            - paragraph [ref=e274]: Send updates to users on their WhatsApp & boost cart recovery upto 60%
+  - iframe [ref=e6]:
+    
+  - dialog "AiSensy Demo (English) JAN24.mp4":
+    - generic [ref=e279]:
+      - generic "AiSensy Demo (English) JAN24.mp4" [ref=e281]
+      - generic [ref=e283]:
+        - generic [ref=e284]:
+          - generic:
+            - 'button "Play Video: AiSensy Demo (English) JAN24.mp4"'
+          - img "Video Thumbnail" [ref=e286]
+        - 'button "Play Video: AiSensy Demo (English) JAN24.mp4" [ref=e288] [cursor=pointer]':
+          - img [ref=e291]
+    - button "Close" [ref=e293] [cursor=pointer]:
+      - img "Click to close video" [ref=e294]
+  - dialog "AiSensyWhatsAppDemo_Hindi_14082023_01.mp4":
+    - generic [ref=e299]:
+      - generic "AiSensyWhatsAppDemo_Hindi_14082023_01.mp4" [ref=e301]
+      - generic [ref=e303]:
+        - generic [ref=e304]:
+          - generic:
+            - 'button "Play Video: AiSensyWhatsAppDemo_Hindi_14082023_01.mp4"'
+          - img "Video Thumbnail" [ref=e306]
+        - 'button "Play Video: AiSensyWhatsAppDemo_Hindi_14082023_01.mp4" [ref=e308] [cursor=pointer]':
+          - img [ref=e311]
+    - button "Close" [ref=e313] [cursor=pointer]:
+      - img "Click to close video" [ref=e314]
+  - iframe [ref=e316]:
+    - generic [active] [ref=f117e1]:
+      - generic "Intercom":
+        - region "Intercom messenger":
+          - button "Open Intercom Messenger" [ref=f117e2] [cursor=pointer]:
+            - img [ref=f117e4]
+            - img [ref=f117e7]

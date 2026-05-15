@@ -1,0 +1,37 @@
+kind,sheet,sheetRow,reason,sourceKey,studentName
+student_skipped,Supabase_Students_Active,123,duplicate_source_key_within_sheet,STU-0119,JAIDEEP SINGH SOLANKI
+student_skipped,Supabase_Students_Active,155,duplicate_source_key_within_sheet,STU-0212,Khushi Parmar
+student_skipped,Supabase_Students_Active,166,duplicate_source_key_within_sheet,STU-0222,Parth suthar
+student_skipped,Supabase_Students_Active,176,duplicate_source_key_within_sheet,STU-0236,VIVAN
+student_skipped,Supabase_Students_Active,241,duplicate_source_key_within_sheet,STU-0257,DEVID PRATAP SINGH CHUNDAWAT
+student_skipped,Supabase_Students_Active,253,duplicate_source_key_within_sheet,STU-0231,JIYANSH LAKHARA
+student_skipped,Supabase_Students_Active,275,duplicate_source_key_within_sheet,STU-0197,Anita Kunwar Solanki
+student_skipped,Supabase_Students_Active,280,duplicate_source_key_within_sheet,STU-0358,HARSHITA KUNWAR
+student_skipped,Supabase_Students_Active,289,duplicate_source_key_within_sheet,STU-0310,MAN KANWAR
+feeline_skipped,FeeLines_Current,47,duplicate_source_key_within_sheet,FL|STU-0364|spo_LsgxdT3ElF8539|CLASS 7 AY 2026-27|2026-04-10|6000,
+feeline_skipped,FeeLines_Current,52,duplicate_source_key_within_sheet,FL|STU-0188|spo_0XaYAx7Pl95551|CLASS 2 AY 2026-27|2026-04-05|6500,
+feeline_skipped,FeeLines_Current,53,duplicate_source_key_within_sheet,FL|STU-0188|spo_0XaYAx7Pl95551|CLASS 2 AY 2026-27|2026-04-05|6500,
+feeline_skipped,FeeLines_Current,123,duplicate_source_key_within_sheet,FL|STU-0486|spo_AB6GXduUHP4170|JKG AY 2026-27|2026-04-05|6125,
+feeline_skipped,FeeLines_Current,124,duplicate_source_key_within_sheet,FL|STU-0486|spo_AB6GXduUHP4170|JKG AY 2026-27|2026-04-05|6125,
+feeline_skipped,FeeLines_Current,206,duplicate_source_key_within_sheet,FL|STU-0202|spo_NC5adY6riz6048|CLASS 3 AY 2026-27|2026-04-05|8500,
+feeline_skipped,FeeLines_Current,207,duplicate_source_key_within_sheet,FL|STU-0202|spo_NC5adY6riz6048|CLASS 3 AY 2026-27|2026-04-05|8500,
+feeline_skipped,FeeLines_Current,232,duplicate_source_key_within_sheet,FL|STU-0115|spo_tqmPUiP6xc7592|CLASS 1 AY 2026-27|2026-04-10|6750,
+feeline_skipped,FeeLines_Current,233,duplicate_source_key_within_sheet,FL|STU-0115|spo_tqmPUiP6xc7592|CLASS 1 AY 2026-27|2026-04-10|6750,
+feeline_skipped,FeeLines_Current,234,duplicate_source_key_within_sheet,FL|STU-0115|spo_tqmPUiP6xc7592|CLASS 1 AY 2026-27|2026-04-10|6750,
+feeline_skipped,FeeLines_Current,304,duplicate_source_key_within_sheet,FL|STU-0323|spo_gYhxcrRFYc6758|CLASS 6 AY 2026-27|2026-04-10|5750,
+feeline_skipped,FeeLines_Current,311,duplicate_source_key_within_sheet,FL|STU-0386|spo_STuZrpdMVS9499|CLASS 7 AY 2026-27|2026-04-05|3250,
+feeline_skipped,FeeLines_Current,313,duplicate_source_key_within_sheet,FL|STU-0421|spo_twK4CQX8uh1535|CLASS 8 AY 2026-27|2026-04-05|8000,
+feeline_skipped,FeeLines_Current,314,duplicate_source_key_within_sheet,FL|STU-0421|spo_twK4CQX8uh1535|CLASS 8 AY 2026-27|2026-04-05|8000,
+feeline_skipped,FeeLines_Current,360,duplicate_source_key_within_sheet,FL|STU-0175|spo_zWWhVI8av46213|CLASS 2 AY 2026-27|2026-04-05|6500,
+feeline_skipped,FeeLines_Current,361,duplicate_source_key_within_sheet,FL|STU-0175|spo_zWWhVI8av46213|CLASS 2 AY 2026-27|2026-04-05|6500,
+feeline_skipped,FeeLines_Current,374,duplicate_source_key_within_sheet,FL|STU-0303|spo_BpGSvnrVCZ0429|CLASS 5 AY 2026-27|2026-04-05|7250,
+feeline_skipped,FeeLines_Current,375,duplicate_source_key_within_sheet,FL|STU-0303|spo_BpGSvnrVCZ0429|CLASS 5 AY 2026-27|2026-04-05|7250,
+feeline_skipped,FeeLines_Current,435,duplicate_source_key_within_sheet,FL|STU-0251|spo_hwS4XLJZzI8911|CLASS 6 AY 2026-27|2026-04-10|5750,
+feeline_skipped,FeeLines_Current,506,duplicate_source_key_within_sheet,FL|STU-0269|ord_WaIMWVRJZP2518|CLASS 4 AY 2026-27|2026-04-05|1875,
+feeline_skipped,FeeLines_Current,550,duplicate_source_key_within_sheet,FL|STU-0252|spo_V1kjRWuoEm4603|CLASS 4 AY 2026-27|2026-04-05|2937,
+feeline_skipped,FeeLines_Current,588,duplicate_source_key_within_sheet,FL|STU-0535|spo_ybRuC63XAY0504|SKG AY 2026-27|2026-04-10|4750,
+feeline_skipped,FeeLines_Current,597,duplicate_source_key_within_sheet,FL|STU-0391|ord_7VvNN8Cc186856|AY 2025-26 and Old|2026-02-20|13000,
+feeline_skipped,FeeLines_Current,607,duplicate_source_key_within_sheet,FL|STU-0358|spo_GzQm8oVvXz5812|CLASS 7 AY 2026-27|2026-04-10|6000,
+feeline_skipped,FeeLines_Current,609,duplicate_source_key_within_sheet,FL|STU-0246|spo_xIJTuSUe1n4309|CLASS 4 AY 2026-27|2026-04-05|7125,
+feeline_skipped,FeeLines_Current,610,duplicate_source_key_within_sheet,FL|STU-0246|spo_xIJTuSUe1n4309|CLASS 4 AY 2026-27|2026-04-05|7125,
+feeline_skipped,FeeLines_Current,611,duplicate_source_key_within_sheet,FL|STU-0246|spo_xIJTuSUe1n4309|CLASS 4 AY 2026-27|2026-04-05|7125,

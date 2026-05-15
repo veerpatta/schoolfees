@@ -1,0 +1,93 @@
+- generic [ref=e6]:
+  - generic [ref=e7]:
+    - link "AI Timey" [ref=e9] [cursor=pointer]:
+      - /url: /projects
+      - img "AI Timey" [ref=e10]
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - img [ref=e15] [cursor=pointer]
+        - paragraph [ref=e17] [cursor=pointer]: Dashboard
+      - generic [ref=e18]:
+        - img [ref=e21] [cursor=pointer]
+        - paragraph [ref=e23] [cursor=pointer]: Live Chat
+      - generic [ref=e24]:
+        - img [ref=e27] [cursor=pointer]
+        - paragraph [ref=e29] [cursor=pointer]: History
+      - generic [ref=e30]:
+        - img [ref=e33] [cursor=pointer]
+        - paragraph [ref=e35] [cursor=pointer]: Contacts
+      - generic [ref=e36]:
+        - img [ref=e39] [cursor=pointer]
+        - paragraph [ref=e41] [cursor=pointer]: Campaigns
+      - generic [ref=e42]:
+        - img [ref=e45] [cursor=pointer]
+        - paragraph [ref=e47] [cursor=pointer]: Ads Manager
+      - generic [ref=e48]:
+        - img [ref=e52] [cursor=pointer]
+        - paragraph [ref=e55] [cursor=pointer]: Flows
+      - generic [ref=e56]:
+        - img [ref=e59] [cursor=pointer]
+        - paragraph [ref=e61] [cursor=pointer]: Manage
+      - generic [ref=e62]:
+        - img [ref=e65] [cursor=pointer]
+        - paragraph [ref=e67] [cursor=pointer]: Integrations
+    - button [ref=e68] [cursor=pointer]:
+      - img [ref=e70]
+    - generic [ref=e72]:
+      - generic [ref=e73] [cursor=pointer]:
+        - img [ref=e76]
+        - paragraph [ref=e79]: Developer
+      - generic [ref=e80]:
+        - img [ref=e83] [cursor=pointer]
+        - paragraph [ref=e85] [cursor=pointer]: All Projects
+      - img "J" [ref=e88] [cursor=pointer]
+  - generic [ref=e99]:
+    - generic [ref=e102]:
+      - heading "Your Account" [level=3] [ref=e104]
+      - button "Your Profile" [ref=e105] [cursor=pointer]:
+        - generic [ref=e106]:
+          - img [ref=e109]
+          - paragraph [ref=e112]: Your Profile
+      - button "Two Factor Authentication" [ref=e113] [cursor=pointer]:
+        - generic [ref=e114]:
+          - img [ref=e117]
+          - paragraph [ref=e120]: Two Factor Authentication
+    - generic [ref=e123]:
+      - heading "Your Profile" [level=3] [ref=e127]
+      - generic [ref=e129]:
+        - generic [ref=e130]:
+          - img "J" [ref=e133]
+          - button "Edit" [ref=e135] [cursor=pointer]:
+            - generic [ref=e136]: Edit
+          - button "Logout" [ref=e138] [cursor=pointer]:
+            - generic [ref=e139]: Logout
+        - generic [ref=e140]:
+          - generic [ref=e141]:
+            - heading "Display Name" [level=4] [ref=e142]
+            - generic [ref=e145]:
+              - textbox "Janmejay Singh" [disabled] [ref=e146]
+              - group
+          - generic [ref=e147]:
+            - heading "Email" [level=4] [ref=e148]
+            - generic [ref=e151]:
+              - textbox "raj@vpps.co.in" [disabled] [ref=e152]
+              - group
+          - generic [ref=e153]:
+            - heading "WhatsApp Number" [level=4] [ref=e154]
+            - generic [ref=e157]:
+              - textbox "919680383124" [disabled] [ref=e158]
+              - group
+          - generic [ref=e159]:
+            - heading "User Name" [level=4] [ref=e160]
+            - generic [ref=e163]:
+              - textbox "raj@vpps.co.in" [disabled] [ref=e164]
+              - group
+          - generic [ref=e165]:
+            - heading "Password" [level=4] [ref=e166]
+            - generic [ref=e169]:
+              - textbox "***********" [disabled] [ref=e170]
+              - generic [ref=e171]:
+                - button "toggle password visibility" [disabled]:
+                  - generic:
+                    - img
+              - group

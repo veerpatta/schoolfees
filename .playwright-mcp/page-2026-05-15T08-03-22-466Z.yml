@@ -1,0 +1,133 @@
+- generic [ref=e95]:
+  - generic [ref=e96]:
+    - link "AI Timey" [ref=e98] [cursor=pointer]:
+      - /url: /projects
+      - img "AI Timey" [ref=e99]
+    - generic [ref=e100]:
+      - generic [ref=e101]:
+        - img [ref=e104] [cursor=pointer]
+        - paragraph [ref=e106] [cursor=pointer]: Dashboard
+      - generic [ref=e107]:
+        - img [ref=e110] [cursor=pointer]
+        - paragraph [ref=e112] [cursor=pointer]: Live Chat
+      - generic [ref=e113]:
+        - img [ref=e116] [cursor=pointer]
+        - paragraph [ref=e118] [cursor=pointer]: History
+      - generic [ref=e119]:
+        - img [ref=e122] [cursor=pointer]
+        - paragraph [ref=e124] [cursor=pointer]: Contacts
+      - generic [ref=e125]:
+        - img [ref=e128] [cursor=pointer]
+        - paragraph [ref=e130] [cursor=pointer]: Campaigns
+      - generic [ref=e131]:
+        - img [ref=e134] [cursor=pointer]
+        - paragraph [ref=e136] [cursor=pointer]: Ads Manager
+      - generic [ref=e137]:
+        - img [ref=e141] [cursor=pointer]
+        - paragraph [ref=e144] [cursor=pointer]: Flows
+      - generic [ref=e145]:
+        - img [ref=e148] [cursor=pointer]
+        - paragraph [ref=e150] [cursor=pointer]: Manage
+      - generic [ref=e151]:
+        - img [ref=e154] [cursor=pointer]
+        - paragraph [ref=e156] [cursor=pointer]: Integrations
+    - button [ref=e157] [cursor=pointer]:
+      - img [ref=e159]
+    - generic [ref=e161]:
+      - generic [ref=e162] [cursor=pointer]:
+        - img [ref=e165]
+        - paragraph [ref=e168]: Developer
+      - generic [ref=e169]:
+        - img [ref=e172] [cursor=pointer]
+        - paragraph [ref=e174] [cursor=pointer]: All Projects
+      - img "J" [ref=e177] [cursor=pointer]
+  - generic [ref=e179]:
+    - generic [ref=e182]:
+      - heading "Manage" [level=3] [ref=e184]
+      - button "Template Message" [ref=e185] [cursor=pointer]:
+        - generic [ref=e186]:
+          - img [ref=e189]
+          - paragraph [ref=e192]: Template Message
+      - button "Optin Management" [ref=e193] [cursor=pointer]:
+        - generic [ref=e194]:
+          - img [ref=e197]
+          - paragraph [ref=e200]: Optin Management
+      - button "Live Chat Settings" [ref=e201] [cursor=pointer]:
+        - generic [ref=e202]:
+          - img [ref=e205]
+          - paragraph [ref=e208]: Live Chat Settings
+      - button "Campaign Settings" [ref=e209] [cursor=pointer]:
+        - generic [ref=e210]:
+          - img [ref=e213]
+          - paragraph [ref=e217]: Campaign Settings
+      - button "User Attributes" [ref=e218] [cursor=pointer]:
+        - generic [ref=e219]:
+          - img [ref=e222]
+          - paragraph [ref=e225]: User Attributes
+      - button "Canned Message" [ref=e226] [cursor=pointer]:
+        - generic [ref=e227]:
+          - img [ref=e230]
+          - paragraph [ref=e233]: Canned Message
+      - button "Agents" [ref=e234] [cursor=pointer]:
+        - generic [ref=e235]:
+          - img [ref=e238]
+          - paragraph [ref=e241]: Agents
+      - button "Tags" [ref=e242] [cursor=pointer]:
+        - generic [ref=e243]:
+          - img [ref=e246]
+          - paragraph [ref=e251]: Tags
+      - button "Analytics" [ref=e252] [cursor=pointer]:
+        - generic [ref=e253]:
+          - img [ref=e256]
+          - paragraph [ref=e259]: Analytics
+      - button "Billing & Usage" [ref=e260] [cursor=pointer]:
+        - generic [ref=e261]:
+          - img [ref=e264]
+          - paragraph [ref=e267]: Billing & Usage
+      - button "Notification Preferences" [ref=e268] [cursor=pointer]:
+        - generic [ref=e269]:
+          - img [ref=e272]
+          - paragraph [ref=e275]: Notification Preferences
+    - generic [ref=e314]:
+      - generic [ref=e315]:
+        - button [ref=e318] [cursor=pointer]:
+          - img [ref=e320]
+        - heading "New Canned Message" [level=3] [ref=e323]
+      - generic [ref=e327]:
+        - generic [ref=e328]:
+          - heading "Name" [level=5] [ref=e329]
+          - paragraph [ref=e330]: Pick a name which describes your message.
+          - generic [ref=e332]:
+            - textbox "Enter canned message name" [ref=e333]
+            - group
+        - generic [ref=e334]:
+          - heading "Message Type" [level=5] [ref=e335]
+          - paragraph [ref=e336]: Select one fo the message types to proceed
+          - combobox [ref=e337]:
+            - generic [ref=e339]:
+              - textbox "Select one or create new" [ref=e340]: TEXT
+              - button "Open" [ref=e342] [cursor=pointer]:
+                - img [ref=e344]
+              - group
+        - generic [ref=e346]:
+          - heading "Text" [level=5] [ref=e347]
+          - paragraph [ref=e348]: Use text formatting - *bold* & _italic_
+          - paragraph [ref=e349]: Text can be upto 4096 characters long
+          - paragraph [ref=e350]: Personalize messages with - $FirstName, $Name, $MobileNumber, $LastName & custom attributes.
+          - paragraph [ref=e351]: "Customize messages with dynamic parameters e.g. - Your verification code is {{1}}."
+          - generic [ref=e353]:
+            - textbox "Enter your text message" [ref=e354]
+            - group
+        - generic [ref=e355]:
+          - paragraph [ref=e356]: Message Preview
+          - generic [ref=e357]:
+            - heading [level=5]
+        - generic:
+          - paragraph
+        - button "Submit" [ref=e360] [cursor=pointer]:
+          - generic [ref=e361]: Submit
+      - alert [ref=e364]:
+        - img [ref=e366]
+        - generic [ref=e368]: Successfully created Canned Message.
+        - button "Close" [ref=e370] [cursor=pointer]:
+          - img [ref=e372]
