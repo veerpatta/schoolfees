@@ -6,6 +6,7 @@ import {
   getRawActiveSessionStudentCount as getLegacyRawActiveSessionStudentCount,
   getRawClassStudentSummary as getLegacyRawClassStudentSummary,
   generateMissingSessionDues,
+  autoReconcileSessionIfSafe,
   hasPreparedDues,
   revalidateFinanceSurfaces,
   summarizeDuesPreparationIssues,
@@ -31,6 +32,7 @@ export {
   revalidateFinanceSurfaces,
   summarizeDuesPreparationIssues,
   syncSessionFinancials,
+  autoReconcileSessionIfSafe,
   syncStudentFinancials,
 };
 export type { FinancialSyncResult, SystemSyncHealth };

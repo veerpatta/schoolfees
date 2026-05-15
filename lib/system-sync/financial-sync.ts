@@ -604,6 +604,42 @@ export async function generateMissingSessionDues(payload: {
   return buildSyncResult(result, payload.reason, buildLedgerWarnings(result));
 }
 
+export async function autoReconcileSessionIfSafe(sessionLabel: string) {
+  const before = await getSystemSyncHealth(sessionLabel);
+  const canPrepareMissingDues =
+    before.studentsMissingInstallmentRows > 0 &&
+    before.classesWithoutFeeSettings === 0 &&
+    before.errors.length === 0;
+
+  if (!canPrepareMissingDues) {
+    return {
+      health: before,
+      result: null,
+      ran: false,
+      reason:
+        before.studentsMissingInstallmentRows === 0
+          ? "No missing dues found."
+          : before.classesWithoutFeeSettings > 0
+            ? "Fee Setup is incomplete for one or more classes."
+            : "Session health has errors that need review.",
+    };
+  }
+
+  const result = await generateMissingSessionDues({
+    sessionLabel,
+    reason: "Automatic session health reconciliation",
+    useSystemClient: true,
+  });
+  const health = await getSystemSyncHealth(sessionLabel);
+
+  return {
+    health,
+    result,
+    ran: true,
+    reason: "Missing dues were prepared automatically.",
+  };
+}
+
 export async function syncAfterStudentChange(payload: { studentId: string }) {
   return syncStudentFinancials({
     studentIds: [payload.studentId],

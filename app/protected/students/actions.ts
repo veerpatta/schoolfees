@@ -27,7 +27,7 @@ import {
 } from "@/lib/system-sync/finance-sync";
 
 const STUDENT_SAVED_DUES_FAILED_MESSAGE =
-  "Student record was saved, but dues could not be prepared automatically. Go to Admin Tools \u2192 Prepare missing dues to complete setup.";
+  "Student record was saved, but dues could not be prepared automatically. Open Admin Tools \u2192 Session Health if this student does not appear in Payment Desk.";
 
 type RecentImportRealignRpcRow = {
   moved_count: number;

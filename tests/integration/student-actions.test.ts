@@ -118,7 +118,7 @@ describe("student server actions", () => {
       status: "error",
       studentId: "student-1",
       message:
-        "Student record was saved, but dues could not be prepared automatically. Go to Admin Tools \u2192 Prepare missing dues to complete setup.",
+        "Student record was saved, but dues could not be prepared automatically. Open Admin Tools \u2192 Session Health if this student does not appear in Payment Desk.",
     });
   });
 });

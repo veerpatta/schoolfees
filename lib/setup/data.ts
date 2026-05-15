@@ -252,7 +252,7 @@ function buildReadinessSummary(payload: {
   const collectionDeskReady = readyForCompletion && Boolean(payload.completionState.setupCompletedAt);
   const collectionDeskRecoveryDetail =
     payload.studentsMissingDues > 0
-      ? `${payload.studentsMissingDues} student(s) have no dues records. Run 'Prepare missing dues' in Admin Tools to fix this.`
+      ? `${payload.studentsMissingDues} student(s) have no dues records. Open Session Health if automatic sync does not clear this.`
       : "Setup was marked complete earlier, but live blocking checks now need attention again.";
   const checklist: SetupChecklistItem[] = [
     ...baseChecklist,

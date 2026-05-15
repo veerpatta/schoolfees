@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { PageHeader } from "@/components/admin/page-header";
-import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { OfficeNotice } from "@/components/office/office-ui";
@@ -10,22 +9,40 @@ import { advancedHubSections } from "@/lib/config/navigation";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
-import { getSystemSyncHealth } from "@/lib/system-sync/finance-sync";
-import { hasStaffPermission, requireAnyStaffPermission } from "@/lib/supabase/session";
-
 import {
-  alignWorkingSessionWithFeeSetupAction,
-  repairCurrentSessionDuesAction,
-  repairPaymentDeskDataAction,
-  syncCurrentSessionAction,
-  syncDashboardNowAction,
-} from "../dashboard/actions";
+  autoReconcileSessionIfSafe,
+  getSystemSyncHealth,
+  type SystemSyncHealth,
+} from "@/lib/system-sync/finance-sync";
+import { hasStaffPermission, requireAnyStaffPermission } from "@/lib/supabase/session";
 
 export const revalidate = 60;
 
 type AdvancedPageProps = {
   searchParams?: Promise<{ session?: string }>;
 };
+
+function isHealthy(health: SystemSyncHealth) {
+  return (
+    health.dashboardReady &&
+    health.paymentDeskReady &&
+    health.studentsMissingInstallmentRows === 0 &&
+    health.classesWithoutFeeSettings === 0 &&
+    health.errors.length === 0
+  );
+}
+
+function healthStatus(health: SystemSyncHealth) {
+  if (isHealthy(health)) {
+    return { label: "Ready", tone: "good" as const };
+  }
+
+  if (health.classesWithoutFeeSettings > 0 || health.errors.length > 0) {
+    return { label: "Needs setup review", tone: "warning" as const };
+  }
+
+  return { label: "Syncing", tone: "info" as const };
+}
 
 export default async function AdvancedPage({ searchParams }: AdvancedPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
@@ -37,8 +54,15 @@ export default async function AdvancedPage({ searchParams }: AdvancedPageProps) 
     onDenied: "redirect",
   });
   const canRepairFeeData = hasStaffPermission(staff, "fees:write");
-  const feeDataHealth = await getSystemSyncHealth(viewSession.sessionLabel);
-  const databaseObjectStatuses = Object.values(feeDataHealth.requiredDatabaseObjectsStatus);
+  const autoSync = canRepairFeeData
+    ? await autoReconcileSessionIfSafe(viewSession.sessionLabel)
+    : {
+        health: await getSystemSyncHealth(viewSession.sessionLabel),
+        ran: false,
+        reason: "Automatic sync is available to fee setup admins.",
+      };
+  const feeDataHealth = autoSync.health;
+  const status = healthStatus(feeDataHealth);
   const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
 
   const visibleSections = advancedHubSections
@@ -53,168 +77,75 @@ export default async function AdvancedPage({ searchParams }: AdvancedPageProps) 
       <PageHeader
         eyebrow="Admin Tools"
         title="Admin Tools"
-        description="Rare setup, staff, correction, and troubleshooting tools."
-        actions={<StatusBadge label="Rare admin area" tone="accent" />}
+        description="Setup and staff tools. Routine dues sync runs automatically from Students and Fee Setup."
+        actions={<StatusBadge label={status.label} tone={status.tone} />}
       />
 
-      <OfficeNotice title="Not for daily work">
-        These tools are rarely needed. Daily work should stay in Dashboard, Students, Fee Setup,
-        Payment Desk, and Transactions.
+      <OfficeNotice
+        title={autoSync.ran ? "Automatic sync just updated this session" : "Automatic sync is on"}
+        tone={autoSync.ran || isHealthy(feeDataHealth) ? "success" : "info"}
+      >
+        {autoSync.ran
+          ? `${viewSession.sessionLabel} was reconciled automatically. Continue normal work in Students, Fee Setup, Payment Desk, and Transactions.`
+          : "The app prepares dues after student changes, imports, Fee Setup changes, and selected-student Payment Desk loading. Admin Tools is now only for review and rare setup tasks."}
       </OfficeNotice>
 
-      {canRepairFeeData ? (
-        <SectionCard
-          id="fee-data-troubleshooting"
-          title="Fee Data Troubleshooting"
-          description="Use these actions only when students or dues are missing from Dashboard, Payment Desk, Transactions, or reports."
-          actions={
-            <StatusBadge
-              label={feeDataHealth.dashboardReady && feeDataHealth.paymentDeskReady ? "Healthy" : "Needs attention"}
-              tone={feeDataHealth.dashboardReady && feeDataHealth.paymentDeskReady ? "good" : "warning"}
-            />
-          }
-        >
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface-2 px-4 py-3">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground">Session Health</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Use one row per academic session for routine dues reconciliation.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge
-                label={feeDataHealth.dashboardReady && feeDataHealth.paymentDeskReady ? "Healthy" : "Needs attention"}
-                tone={feeDataHealth.dashboardReady && feeDataHealth.paymentDeskReady ? "good" : "warning"}
-              />
-              <Button asChild>
-                <Link href={withSession("/protected/admin-tools/session-health")}>Open Session Health</Link>
-              </Button>
-            </div>
-          </div>
-
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <SectionCard
+        title={`${viewSession.sessionLabel} session status`}
+        description="This shows whether the selected year is ready for Dashboard, Payment Desk, Transactions, and Defaulters."
+        actions={
+          <Button asChild variant={isHealthy(feeDataHealth) ? "outline" : "default"}>
+            <Link href={withSession("/protected/admin-tools/session-health")}>
+              Open Session Health
+            </Link>
+          </Button>
+        }
+      >
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              Fee Setup year
+              Students
             </p>
-            <p className="mt-2 font-semibold text-foreground">{feeDataHealth.activeFeePolicySession}</p>
+            <p className="mt-2 text-xl font-semibold text-foreground">
+              {feeDataHealth.rawStudentsInActiveSession}
+            </p>
           </div>
           <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              Students this year
+              Dues prepared
             </p>
-            <p className="mt-2 font-semibold text-foreground">{feeDataHealth.rawStudentsInActiveSession}</p>
+            <p className="mt-2 text-xl font-semibold text-foreground">
+              {feeDataHealth.workbookFinancialRowCount}
+            </p>
           </div>
           <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              Dues not prepared
+              Dues missing
             </p>
-            <p className="mt-2 font-semibold text-foreground">{feeDataHealth.studentsMissingDues}</p>
+            <p className="mt-2 text-xl font-semibold text-foreground">
+              {feeDataHealth.studentsMissingInstallmentRows}
+            </p>
           </div>
           <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              Payment Desk
+              Class fee gaps
             </p>
-            <p className="mt-2 font-semibold text-foreground">
-              {feeDataHealth.paymentDeskReady ? "Ready" : "Needs attention"}
+            <p className="mt-2 text-xl font-semibold text-foreground">
+              {feeDataHealth.classesWithoutFeeSettings}
             </p>
           </div>
         </div>
 
-          <details className="mt-4 rounded-lg border border-border bg-card">
-            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-foreground">
-              Legacy repair actions (admins only)
-            </summary>
-            <div className="border-t border-border p-4">
-              <p className="mb-3 text-sm text-muted-foreground">
-                Prefer Session Health for routine reconciliation. These tools remain for emergencies.
-              </p>
-              <div className="flex flex-wrap gap-2">
-              <form action={repairCurrentSessionDuesAction}>
-                <input type="hidden" name="sessionLabel" value={viewSession.sessionLabel} />
-                <PendingSubmitButton idleLabel="Prepare missing dues" pendingLabel="Preparing..." />
-              </form>
-              <form action={syncCurrentSessionAction}>
-                <input type="hidden" name="sessionLabel" value={viewSession.sessionLabel} />
-                <PendingSubmitButton
-                  idleLabel="Update fee records for this year"
-                  pendingLabel="Updating..."
-                  variant="outline"
-                />
-              </form>
-              <form action={alignWorkingSessionWithFeeSetupAction}>
-                <input type="hidden" name="sessionLabel" value={viewSession.sessionLabel} />
-                <PendingSubmitButton
-                  idleLabel="Align year with Fee Setup"
-                  pendingLabel="Aligning..."
-                  variant="outline"
-                />
-              </form>
-              <form action={repairPaymentDeskDataAction}>
-                <input type="hidden" name="sessionLabel" value={viewSession.sessionLabel} />
-                <PendingSubmitButton
-                  idleLabel="Fix Payment Desk dues"
-                  pendingLabel="Fixing..."
-                  variant="outline"
-                />
-              </form>
-              <form action={syncDashboardNowAction}>
-                <input type="hidden" name="sessionLabel" value={viewSession.sessionLabel} />
-                <PendingSubmitButton
-                  idleLabel="Refresh Dashboard totals"
-                  pendingLabel="Refreshing..."
-                  variant="outline"
-                />
-              </form>
-              </div>
-            </div>
-          </details>
-
-        <details className="mt-4 overflow-hidden rounded-lg border border-border bg-card">
-          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-foreground">
-            Technical details
-          </summary>
-          <div className="grid gap-4 border-t border-border p-4 lg:grid-cols-2">
+        <div className="mt-4 rounded-lg border border-border bg-card px-4 py-3 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="font-semibold text-foreground">Setup status</p>
-              <div className="mt-3 space-y-2 text-sm text-foreground">
-                <p>Current school setup year: {feeDataHealth.academicCurrentSession ?? "Not set"}</p>
-                <p>Fee Setup year: {feeDataHealth.activeFeePolicySession}</p>
-                {feeDataHealth.classesWithoutFeeSettings > 0 ? (
-                  <div className="rounded-lg bg-warning-soft text-warning-soft-foreground px-3 py-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span>Classes without fee settings: {feeDataHealth.classesWithoutFeeSettings}</span>
-                      <StatusBadge label="Needs review" tone="warning" />
-                    </div>
-                    <p className="mt-1 text-xs">Students in these classes will have Rs 0 dues.</p>
-                  </div>
-                ) : (
-                  <p>Classes without fee settings: {feeDataHealth.classesWithoutFeeSettings}</p>
-                )}
-                <p>Prepared dues records: {feeDataHealth.workbookFinancialRowCount}</p>
-              </div>
+              <p className="font-semibold text-foreground">{status.label}</p>
+              <p className="mt-1 text-muted-foreground">{autoSync.reason}</p>
             </div>
-            <div>
-            <p className="font-semibold text-foreground">Payment preview setup</p>
-              <div className="mt-3 space-y-2 text-sm text-foreground">
-                {databaseObjectStatuses.map((status) => (
-                  <div key={status.key} className="rounded-lg border border-border bg-surface-2 px-3 py-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span>{status.objectName}</span>
-                      <StatusBadge
-                        label={status.usable ? "Ready" : "Database update pending"}
-                        tone={status.usable ? "good" : "warning"}
-                      />
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">{status.message}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <StatusBadge label={status.label} tone={status.tone} />
           </div>
-        </details>
-        </SectionCard>
-      ) : null}
+        </div>
+      </SectionCard>
 
       <div className="grid gap-5 xl:grid-cols-2">
         {visibleSections.map((section) => (

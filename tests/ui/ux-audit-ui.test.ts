@@ -109,7 +109,7 @@ describe("read-only UX audit implementation", () => {
     expect(paymentsPage).not.toContain("canViewDiagnostics={true}");
   });
 
-  it("dashboard hides repair console and Admin Tools owns fee data troubleshooting", () => {
+  it("dashboard hides repair console and Admin Tools shows automatic sync status", () => {
     const dashboard = readRepoFile("app/protected/dashboard/page.tsx");
     const advanced = readRepoFile("app/protected/admin-tools/page.tsx");
     const navigation = readRepoFile("lib/config/navigation.ts");
@@ -117,14 +117,15 @@ describe("read-only UX audit implementation", () => {
     expect(dashboard).not.toContain("System Sync Health");
     expect(dashboard).not.toContain("Generate Missing Dues");
     expect(dashboard).toContain("Open Fee Data Troubleshooting");
-    expect(advanced).toContain("Fee Data Troubleshooting");
+    expect(advanced).toContain("Automatic sync is on");
+    expect(advanced).toContain("autoReconcileSessionIfSafe");
     expect(advanced).toContain("Open Session Health");
-    expect(advanced).toContain("Legacy repair actions");
-    expect(advanced).toContain("Prepare missing dues");
-    expect(advanced).toContain("Update fee records for this year");
-    expect(advanced).toContain("Align year with Fee Setup");
-    expect(advanced).toContain("Fix Payment Desk dues");
-    expect(advanced).toContain("Refresh Dashboard totals");
+    expect(advanced).not.toContain("Legacy repair actions");
+    expect(advanced).not.toContain("Prepare missing dues");
+    expect(advanced).not.toContain("Update fee records for this year");
+    expect(advanced).not.toContain("Align year with Fee Setup");
+    expect(advanced).not.toContain("Fix Payment Desk dues");
+    expect(advanced).not.toContain("Refresh Dashboard totals");
     expect(navigation).toContain('requiredPermission: "fees:write"');
   });
 

@@ -4,7 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const createClient = vi.fn();
 const getSystemSyncHealth = vi.fn();
+const autoReconcileSessionIfSafe = vi.fn();
 const requireStaffPermission = vi.fn();
+const hasStaffPermission = vi.fn();
 
 vi.mock("server-only", () => ({}));
 
@@ -14,10 +16,12 @@ vi.mock("@/lib/supabase/server", () => ({
 
 vi.mock("@/lib/supabase/session", () => ({
   requireStaffPermission,
+  hasStaffPermission,
 }));
 
 vi.mock("@/lib/system-sync/finance-sync", () => ({
   getSystemSyncHealth,
+  autoReconcileSessionIfSafe,
 }));
 
 vi.mock("@/components/admin/pending-submit-button", () => ({
@@ -48,6 +52,7 @@ describe("Session Health page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireStaffPermission.mockResolvedValue({ appRole: "admin" });
+    hasStaffPermission.mockReturnValue(true);
 
     const sessionsQuery = {
       select: vi.fn().mockReturnThis(),
@@ -91,6 +96,17 @@ describe("Session Health page", () => {
 
       return health({ students: 3, prepared: 0, missing: 3, missingClasses: 1 });
     });
+    autoReconcileSessionIfSafe.mockImplementation(async (sessionLabel: string) => ({
+      health:
+        sessionLabel === "2026-27"
+          ? health({ students: 315, prepared: 315, missing: 0, missingClasses: 0 })
+          : await getSystemSyncHealth(sessionLabel),
+      ran: sessionLabel === "2026-27",
+      reason:
+        sessionLabel === "2026-27"
+          ? "Missing dues were prepared automatically."
+          : "No missing dues found.",
+    }));
   });
 
   it("renders one card per academic session with different health states", async () => {
@@ -103,7 +119,7 @@ describe("Session Health page", () => {
     expect(requireStaffPermission).toHaveBeenCalledWith("fees:view", {
       onDenied: "redirect",
     });
-    expect(html).toContain("2 sessions need attention.");
+    expect(html).toContain("1 session auto-synced");
     expect(html).toContain("2025-26");
     expect(html).toContain("Archived");
     expect(html).toContain("2026-27");
@@ -115,6 +131,8 @@ describe("Session Health page", () => {
     expect(html).toContain("Dues missing");
     expect(html).toContain("15");
     expect(html).toContain("Classes missing fees");
-    expect(html.match(/<button type="submit">Reconcile this session/g)).toHaveLength(3);
+    expect(html).toContain("Manual fallback");
+    expect(html).toContain("Open Fee Setup");
+    expect(html.match(/<button type="submit">Reconcile this session/g) ?? []).toHaveLength(0);
   });
 });

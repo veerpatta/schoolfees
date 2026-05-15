@@ -116,6 +116,7 @@ describe("source of truth audit fixes", () => {
 
     expect(financialSync).toContain("activeStudentsBySession");
     expect(financialSync).toContain("generateMissingSessionDues");
+    expect(financialSync).toContain("autoReconcileSessionIfSafe");
     expect(financialSync).toContain("workbookFinancialRowsBySession");
     expect(financialSync).toContain("importBatchesByTargetSessionStatus");
     expect(financialSync).toContain("classSessionMismatchStudents");
@@ -158,10 +159,10 @@ describe("source of truth audit fixes", () => {
     const feePolicy = readRepoFile("lib/fees/policy.ts");
 
     expect(workbookSetupChange).toContain("activateSession: false");
-    expect(workbookSetupChange).toContain("getFeeSetupPageData({\n    sessionLabel: payload.academicSessionLabel");
-    expect(workbookSetupChange).toContain("getFeeSetupPageData({\n    sessionLabel: currentFormPayload.academicSessionLabel");
+    expect(workbookSetupChange).toMatch(/getFeeSetupPageData\(\{\s+sessionLabel: payload\.academicSessionLabel/);
+    expect(workbookSetupChange).toMatch(/getFeeSetupPageData\(\{\s+sessionLabel: currentFormPayload\.academicSessionLabel/);
     expect(feePolicy).toContain("activateSession?: boolean");
     expect(feePolicy).toContain("const shouldActivateSession = payload.activateSession ?? true");
-    expect(feePolicy).toContain("if (shouldActivateSession) {\n      await setActiveSessionLabel");
+    expect(feePolicy).toMatch(/if \(shouldActivateSession\) \{\s+await setActiveSessionLabel/);
   });
 });

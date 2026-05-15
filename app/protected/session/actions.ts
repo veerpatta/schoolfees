@@ -3,17 +3,16 @@
 import { revalidatePath } from "next/cache";
 
 import { parseAcademicSessionLabel } from "@/lib/config/fee-rules";
+import {
+  mergeRequiredOfficeSessions,
+  type AvailableSessionRow,
+} from "@/lib/session/available-sessions";
 import { getActiveSessionLabel } from "@/lib/session/active";
 import { setViewSessionCookie } from "@/lib/session/cookie";
 import { createClient } from "@/lib/supabase/server";
 import { requireAuthenticatedStaff } from "@/lib/supabase/session";
 
-export type AvailableSessionRow = {
-  id: string;
-  session_label: string;
-  status: string;
-  is_current: boolean;
-};
+export type { AvailableSessionRow };
 
 export async function listAvailableSessionsAction(): Promise<AvailableSessionRow[]> {
   await requireAuthenticatedStaff();
@@ -29,21 +28,10 @@ export async function listAvailableSessionsAction(): Promise<AvailableSessionRow
     throw new Error(`Unable to load academic sessions: ${error.message}`);
   }
 
-  return ((data ?? []) as Omit<AvailableSessionRow, "is_current">[])
-    .map((row) => ({
-      ...row,
-      is_current:
-        row.session_label.trim().toLowerCase() === activeSessionLabel.trim().toLowerCase(),
-    }))
-    .filter((row) => {
-      try {
-        parseAcademicSessionLabel(row.session_label);
-        return true;
-      } catch {
-        return false;
-      }
-    })
-    .sort((left, right) => Number(right.is_current) - Number(left.is_current));
+  return mergeRequiredOfficeSessions(
+    (data ?? []) as Omit<AvailableSessionRow, "is_current">[],
+    activeSessionLabel,
+  );
 }
 
 export async function setViewSessionAction(label: string) {

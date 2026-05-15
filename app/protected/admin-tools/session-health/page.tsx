@@ -7,8 +7,12 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { OfficeNotice } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
-import { requireStaffPermission } from "@/lib/supabase/session";
-import { getSystemSyncHealth, type SystemSyncHealth } from "@/lib/system-sync/finance-sync";
+import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
+import {
+  autoReconcileSessionIfSafe,
+  getSystemSyncHealth,
+  type SystemSyncHealth,
+} from "@/lib/system-sync/finance-sync";
 
 import { reconcileSessionAction } from "./actions";
 
@@ -37,6 +41,8 @@ type SessionHealthCard = {
   health: SystemSyncHealth;
   lastReconciledAt: string | null;
   needsAttention: boolean;
+  autoSyncRan: boolean;
+  autoSyncReason: string;
 };
 
 function getSessionBadge(session: AcademicSessionRow) {
@@ -71,7 +77,7 @@ function formatLastReconciled(value: string | null) {
   }).format(new Date(value));
 }
 
-async function getSessionHealthCards(): Promise<SessionHealthCard[]> {
+async function getSessionHealthCards(canAutoReconcile: boolean): Promise<SessionHealthCard[]> {
   const supabase = await createClient();
   const { data: sessions, error: sessionsError } = await supabase
     .from("academic_sessions")
@@ -111,30 +117,40 @@ async function getSessionHealthCards(): Promise<SessionHealthCard[]> {
 
   return Promise.all(
     sessionRows.map(async (session) => {
-      const health = await getSystemSyncHealth(session.session_label);
+      const autoSync = canAutoReconcile
+        ? await autoReconcileSessionIfSafe(session.session_label)
+        : {
+            health: await getSystemSyncHealth(session.session_label),
+            ran: false,
+            reason: "Automatic sync is available to fee setup admins.",
+          };
 
       return {
         session,
-        health,
+        health: autoSync.health,
         lastReconciledAt: latestBySession.get(session.session_label) ?? null,
-        needsAttention: needsSessionAttention(health),
+        needsAttention: needsSessionAttention(autoSync.health),
+        autoSyncRan: autoSync.ran,
+        autoSyncReason: autoSync.reason,
       };
     }),
   );
 }
 
 export default async function SessionHealthPage({ searchParams }: SessionHealthPageProps) {
-  await requireStaffPermission("fees:view", { onDenied: "redirect" });
+  const staff = await requireStaffPermission("fees:view", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const cards = await getSessionHealthCards();
+  const canAutoReconcile = hasStaffPermission(staff, "fees:write");
+  const cards = await getSessionHealthCards(canAutoReconcile);
   const attentionCount = cards.filter((card) => card.needsAttention).length;
+  const autoSyncCount = cards.filter((card) => card.autoSyncRan).length;
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Admin Tools"
         title="Session Health"
-        description="Review each academic year and reconcile missing dues from one place."
+        description="Review each academic year. Missing dues are prepared automatically when Fee Setup is complete."
         actions={
           <Button asChild variant="outline">
             <Link href="/protected/admin-tools">Back to Admin Tools</Link>
@@ -143,12 +159,20 @@ export default async function SessionHealthPage({ searchParams }: SessionHealthP
       />
 
       <OfficeNotice
-        title={attentionCount === 0 ? "All sessions healthy" : `${attentionCount} sessions need attention.`}
-        tone={attentionCount === 0 ? "success" : "warning"}
+        title={
+          autoSyncCount > 0
+            ? `${autoSyncCount} session${autoSyncCount === 1 ? "" : "s"} auto-synced`
+            : attentionCount === 0
+              ? "All sessions healthy"
+              : `${attentionCount} sessions need setup review.`
+        }
+        tone={attentionCount === 0 || autoSyncCount > 0 ? "success" : "warning"}
       >
-        {attentionCount === 0
-          ? "Every session has prepared dues and class fee settings."
-          : "Open the session card that needs work, then use Reconcile this session."}
+        {autoSyncCount > 0
+          ? "Safe missing dues were prepared automatically. Remaining warnings need Fee Setup or database review."
+          : attentionCount === 0
+            ? "Every session has prepared dues and class fee settings."
+            : "Use Fee Setup for class fee gaps. Manual reconcile remains available only as a fallback."}
       </OfficeNotice>
 
       {resolvedSearchParams?.reconciled ? (
@@ -181,7 +205,9 @@ export default async function SessionHealthPage({ searchParams }: SessionHealthP
               description={
                 card.needsAttention
                   ? "This session needs a dues or fee setup review."
-                  : "This session is ready."
+                  : card.autoSyncRan
+                    ? "This session was updated automatically."
+                    : "This session is ready."
               }
               actions={
                 <StatusBadge
@@ -230,14 +256,35 @@ export default async function SessionHealthPage({ searchParams }: SessionHealthP
                 </span>
               </div>
 
-              <form action={reconcileSessionAction} className="mt-4">
-                <input type="hidden" name="sessionLabel" value={card.session.session_label} />
-                <PendingSubmitButton
-                  idleLabel="Reconcile this session"
-                  pendingLabel="Reconciling..."
-                  className="w-full"
-                />
-              </form>
+              <div className="mt-4 rounded-md border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
+                {card.autoSyncReason}
+              </div>
+
+              {card.needsAttention ? (
+                <details className="mt-4 rounded-md border border-border bg-card">
+                  <summary className="cursor-pointer list-none px-3 py-2 text-sm font-semibold text-foreground">
+                    Manual fallback
+                  </summary>
+                  <div className="border-t border-border p-3">
+                    {card.health.classesWithoutFeeSettings > 0 ? (
+                      <Button asChild className="w-full" variant="outline">
+                        <Link href={`/protected/fee-setup?session=${encodeURIComponent(card.session.session_label)}`}>
+                          Open Fee Setup
+                        </Link>
+                      </Button>
+                    ) : (
+                      <form action={reconcileSessionAction}>
+                        <input type="hidden" name="sessionLabel" value={card.session.session_label} />
+                        <PendingSubmitButton
+                          idleLabel="Reconcile this session"
+                          pendingLabel="Reconciling..."
+                          className="w-full"
+                        />
+                      </form>
+                    )}
+                  </div>
+                </details>
+              ) : null}
             </SectionCard>
           );
         })}
