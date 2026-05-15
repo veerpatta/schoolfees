@@ -1,4 +1,5 @@
-kind,sheet,sheetRow,reason,sourceKey,studentName
+kind,sheet,sheetRow,reason,sourceKey,studentName,note
+payment_review_required,Custom_Report_2026-05-14,n/a,unknown_payment_mode,PMT:STU-0398:2243-2244-14,CRYSTAL PAMECHA,Amount ₹29500 receipt 2243-2244-14 fee-group "Fee Excel Ledger". payment_mode blank in workbook — likely cash; needs staff confirmation before posting via Payment Desk.
 student_skipped,Supabase_Students_Active,123,duplicate_source_key_within_sheet,STU-0119,JAIDEEP SINGH SOLANKI
 student_skipped,Supabase_Students_Active,155,duplicate_source_key_within_sheet,STU-0212,Khushi Parmar
 student_skipped,Supabase_Students_Active,166,duplicate_source_key_within_sheet,STU-0222,Parth suthar
