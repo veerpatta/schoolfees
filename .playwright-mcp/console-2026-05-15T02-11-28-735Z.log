@@ -1,0 +1,16 @@
+[    1352ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[    1367ms] [LOG] [HMR] connected @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[   13000ms] [ERROR] Invalid prop `%s` supplied to `React.Fragment`. React.Fragment can only have `key`, `ref`, and `children` props. className @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3272
+[   13001ms] [ERROR] %o
+
+%s Error: Unable to load student conventional discounts: TypeError: fetch failed
+    at getStudentConventionalDiscountAssignments (about://React/Server/D:%5COneDrive%20-%20Veer%20Patta%20Public%20School%5CDocuments%5CNew%20project%5Cveerpatta-fees-app%5C.next%5Cdev%5Cserver%5Cchunks%5Cssr%5C_0ffuzaq._.js?110:2577:15)
+    at  getFeeSetupPageData (about://React/Server/D:%5COneDrive%20-%20Veer%20Patta%20Public%20School%5CDocuments%5CNew%20project%5Cveerpatta-fees-app%5C.next%5Cdev%5Cserver%5Cchunks%5Cssr%5C_0ffuzaq._.js?111:3174:77)
+    at  getStudentFinancialSnapshot (about://React/Server/D:%5COneDrive%20-%20Veer%20Patta%20Public%20School%5CDocuments%5CNew%20project%5Cveerpatta-fees-app%5C.next%5Cdev%5Cserver%5Cchunks%5Cssr%5C_0ffuzaq._.js?112:3689:22)
+    at  getStudentWorkspaceData (about://React/Server/D:%5COneDrive%20-%20Veer%20Patta%20Public%20School%5CDocuments%5CNew%20project%5Cveerpatta-fees-app%5C.next%5Cdev%5Cserver%5Cchunks%5Cssr%5C%5Broot-of-the-server%5D__0rlfhzx._.js?113:1261:91)
+    at  StudentDetailPage (about://React/Server/D:%5COneDrive%20-%20Veer%20Patta%20Public%20School%5CDocuments%5CNew%20project%5Cveerpatta-fees-app%5C.next%5Cdev%5Cserver%5Cchunks%5Cssr%5C%5Broot-of-the-server%5D__0rlfhzx._.js?114:1383:83)
+    at resolveErrorDev (http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:1919:150)
+    at processFullStringRow (http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:2434:29)
+    at processFullBinaryRow (http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:2393:9)
+    at processBinaryChunk (http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:2502:221)
+    at progress (http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:2689:13) The above error occurred in the <StudentDetailPage> component. It was handled by the <ErrorBoundaryHandler> error boundary. @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_client_0fhqo1d._.js:1998

@@ -45,6 +45,8 @@ type DiscountAssignmentRow = {
   family_group_ref: { family_label: string } | { family_label: string }[] | null;
 };
 
+const DISCOUNT_ASSIGNMENT_STUDENT_ID_CHUNK_SIZE = 100;
+
 export const DEFAULT_CONVENTIONAL_DISCOUNT_POLICIES = [
   {
     code: "rte",
@@ -79,6 +81,31 @@ function toSingleRecord<T>(value: T | T[] | null) {
 function isMissingTableError(error: { message?: string; code?: string } | null | undefined) {
   const message = error?.message?.toLowerCase() ?? "";
   return error?.code === "42P01" || message.includes("does not exist");
+}
+
+function isRecoverableOptionalReadError(error: { message?: string; details?: string; code?: string } | null | undefined) {
+  if (isMissingTableError(error)) {
+    return true;
+  }
+
+  const message = `${error?.message ?? ""} ${error?.details ?? ""}`.toLowerCase();
+  return (
+    message.includes("fetch failed") ||
+    message.includes("headers overflow") ||
+    message.includes("und_err_headers_overflow")
+  );
+}
+
+function uniqueNonEmptyStrings(values: string[]) {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+function chunkValues<T>(values: T[], chunkSize: number) {
+  const chunks: T[][] = [];
+  for (let index = 0; index < values.length; index += chunkSize) {
+    chunks.push(values.slice(index, index + chunkSize));
+  }
+  return chunks;
 }
 
 function toWholeNumber(value: unknown) {
@@ -117,6 +144,33 @@ function buildFallbackPolicies(sessionLabel: string): ConventionalDiscountPolicy
   }));
 }
 
+function toAssignment(row: DiscountAssignmentRow) {
+  const policy = toSingleRecord(row.policy_ref);
+  if (!policy) {
+    return null;
+  }
+  const familyGroup = toSingleRecord(row.family_group_ref);
+
+  return {
+    id: row.id,
+    studentId: row.student_id,
+    policyId: row.policy_id,
+    academicSessionLabel: row.academic_session_label,
+    isActive: row.is_active,
+    reason: row.reason,
+    notes: row.notes,
+    beforeTuitionAmount: row.before_tuition_amount,
+    resultingTuitionAmount: row.resulting_tuition_amount,
+    familyGroupId: row.family_group_id,
+    familyGroupLabel: familyGroup?.family_label ?? null,
+    isManualOverride: Boolean(row.is_manual_override),
+    manualOverrideReason: row.manual_override_reason,
+    appliedBy: row.applied_by,
+    appliedAt: row.applied_at,
+    policy: toPolicy(policy),
+  } satisfies StudentConventionalDiscountAssignment;
+}
+
 export async function getConventionalDiscountPolicies(sessionLabel: string) {
   const normalizedSession = sessionLabel.trim();
   if (!normalizedSession) {
@@ -152,55 +206,56 @@ export async function getStudentConventionalDiscountAssignments(payload: {
     return [];
   }
 
+  const studentIds = payload.studentIds ? uniqueNonEmptyStrings(payload.studentIds) : null;
+  if (payload.studentIds && studentIds?.length === 0) {
+    return [];
+  }
+
   const supabase = await createClient();
-  let query = supabase
-    .from("student_conventional_discount_assignments")
-    .select(
-      "id, student_id, policy_id, academic_session_label, is_active, reason, notes, before_tuition_amount, resulting_tuition_amount, family_group_id, is_manual_override, manual_override_reason, applied_by, applied_at, policy_ref:conventional_discount_policies(id, academic_session_label, code, display_name, calculation_type, fixed_tuition_amount, percentage, is_active, sort_order, updated_at), family_group_ref:student_family_groups(family_label)",
-    )
-    .eq("academic_session_label", normalizedSession)
-    .eq("is_active", true)
-    .order("applied_at", { ascending: true });
+  const fetchRows = async (studentIdChunk?: string[]) => {
+    let query = supabase
+      .from("student_conventional_discount_assignments")
+      .select(
+        "id, student_id, policy_id, academic_session_label, is_active, reason, notes, before_tuition_amount, resulting_tuition_amount, family_group_id, is_manual_override, manual_override_reason, applied_by, applied_at, policy_ref:conventional_discount_policies(id, academic_session_label, code, display_name, calculation_type, fixed_tuition_amount, percentage, is_active, sort_order, updated_at), family_group_ref:student_family_groups(family_label)",
+      )
+      .eq("academic_session_label", normalizedSession)
+      .eq("is_active", true)
+      .order("applied_at", { ascending: true });
 
-  if (payload.studentIds && payload.studentIds.length > 0) {
-    query = query.in("student_id", payload.studentIds);
-  }
-
-  const { data, error } = await query;
-  if (error) {
-    if (isMissingTableError(error)) {
-      return [];
+    if (studentIdChunk) {
+      query = query.in("student_id", studentIdChunk);
     }
-    throw new Error(`Unable to load student conventional discounts: ${error.message}`);
+
+    return query;
+  };
+
+  const rows: DiscountAssignmentRow[] = [];
+  const chunks = studentIds
+    ? chunkValues(studentIds, DISCOUNT_ASSIGNMENT_STUDENT_ID_CHUNK_SIZE)
+    : [undefined];
+
+  for (const chunk of chunks) {
+    const { data, error } = await fetchRows(chunk);
+    if (error) {
+      if (isRecoverableOptionalReadError(error)) {
+        console.warn("Optional conventional discount assignments could not be loaded.", {
+          academicSessionLabel: normalizedSession,
+          studentIdCount: studentIds?.length ?? null,
+          chunkSize: chunk?.length ?? null,
+          code: error.code,
+          message: error.message,
+        });
+        return [];
+      }
+
+      throw new Error(`Unable to load student conventional discounts: ${error.message}`);
+    }
+
+    rows.push(...(((data ?? []) as DiscountAssignmentRow[])));
   }
 
-  return ((data ?? []) as DiscountAssignmentRow[])
-    .map((row) => {
-      const policy = toSingleRecord(row.policy_ref);
-      if (!policy) {
-        return null;
-      }
-      const familyGroup = toSingleRecord(row.family_group_ref);
-
-      return {
-        id: row.id,
-        studentId: row.student_id,
-        policyId: row.policy_id,
-        academicSessionLabel: row.academic_session_label,
-        isActive: row.is_active,
-        reason: row.reason,
-        notes: row.notes,
-        beforeTuitionAmount: row.before_tuition_amount,
-        resultingTuitionAmount: row.resulting_tuition_amount,
-        familyGroupId: row.family_group_id,
-        familyGroupLabel: familyGroup?.family_label ?? null,
-        isManualOverride: Boolean(row.is_manual_override),
-        manualOverrideReason: row.manual_override_reason,
-        appliedBy: row.applied_by,
-        appliedAt: row.applied_at,
-        policy: toPolicy(policy),
-      } satisfies StudentConventionalDiscountAssignment;
-    })
+  return rows
+    .map(toAssignment)
     .filter((row): row is StudentConventionalDiscountAssignment => Boolean(row));
 }
 

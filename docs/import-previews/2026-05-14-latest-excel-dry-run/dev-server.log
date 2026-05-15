@@ -1,0 +1,42 @@
+
+> dev
+> next dev --hostname 127.0.0.1 --port 3000
+
+▲ Next.js 16.2.4 (Turbopack)
+- Local:         http://127.0.0.1:3000
+- Network:       http://127.0.0.1:3000
+- Environments: .env.local
+✓ Ready in 437ms
+- Experiments (use with caution):
+  ✓ optimizeCss
+  · optimizePackageImports
+  ✓ scrollRestoration
+
+ GET / 200 in 454ms (next.js: 127ms, proxy.ts: 152ms, application-code: 174ms)
+ GET / 200 in 2.5s (next.js: 5ms, proxy.ts: 2.4s, application-code: 84ms)
+ GET /protected/dashboard 200 in 15.3s (next.js: 120ms, proxy.ts: 354ms, application-code: 14.8s)
+ POST / 303 in 19.7s (next.js: 3ms, proxy.ts: 3.1s, application-code: 16.5s)
+  └─ ƒ loginAction({"message":null,"status":"idle"}, {}) in 1228ms app/auth/login/actions.ts
+ GET /protected/students?sessionLabel=2026-27 200 in 4.4s (next.js: 33ms, proxy.ts: 635ms, application-code: 3.7s)
+ GET /protected/students/index?sessionLabel=2026-27&status=active 200 in 2.6s (next.js: 72ms, proxy.ts: 343ms, application-code: 2.2s)
+ GET /protected/transactions?view=dues&sessionLabel=2026-27 200 in 12.2s (next.js: 33ms, proxy.ts: 423ms, application-code: 11.8s)
+ GET /protected/students/50c860b2-bb23-4df4-871f-e379d3492f4f?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive 200 in 13.0s (next.js: 452ms, proxy.ts: 794ms, application-code: 11.7s)
+ GET /protected/payments?studentId=50c860b2-bb23-4df4-871f-e379d3492f4f 200 in 11.8s (next.js: 28ms, proxy.ts: 596ms, application-code: 11.1s)
+ GET /protected 200 in 2.6s (next.js: 457ms, proxy.ts: 1217ms, application-code: 916ms)
+ GET /protected 200 in 1176ms (next.js: 3ms, proxy.ts: 417ms, application-code: 756ms)
+ GET /protected/dashboard 200 in 13.8s (next.js: 4ms, proxy.ts: 452ms, application-code: 13.4s)
+Time 3.7977
+ GET /protected/dashboard 500 in 2.9s (next.js: 640ms, proxy.ts: 2.1s, application-code: 194ms)
+Time 0.7749
+ GET /protected/dashboard 500 in 343ms (next.js: 7ms, proxy.ts: 328ms, application-code: 8ms)
+Time 0.4211
+ GET /protected/dashboard 500 in 337ms (next.js: 6ms, proxy.ts: 323ms, application-code: 7ms)
+Time 0.4324
+ GET /protected/dashboard 500 in 992ms (next.js: 6ms, proxy.ts: 979ms, application-code: 7ms)
+✓ Compiled in 82ms
+ GET /protected/dashboard 200 in 18.1s (next.js: 123ms, proxy.ts: 1119ms, application-code: 16.8s)
+ GET /auth/login?sessionLabel=2026-27&next=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27 200 in 190ms (next.js: 50ms, proxy.ts: 4ms, application-code: 135ms)
+ GET /auth/login?sessionLabel=2026-27&next=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27 200 in 73ms (next.js: 3ms, proxy.ts: 5ms, application-code: 66ms)
+ GET /protected/dashboard 200 in 15.4s (next.js: 4ms, proxy.ts: 868ms, application-code: 14.5s)
+ GET /auth/login?sessionLabel=2026-27&next=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27 200 in 73ms (next.js: 3ms, proxy.ts: 4ms, application-code: 66ms)
+ GET /auth/login?sessionLabel=2026-27&next=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27 200 in 68ms (next.js: 3ms, proxy.ts: 4ms, application-code: 62ms)

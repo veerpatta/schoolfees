@@ -1,0 +1,33 @@
+type,rowNumber,admissionNo,studentName,classLabel,phone,groupName,reason
+unmatched_due_row,7,563,KUNDAN . LAL,,8769227424,Session 25-26 Part 3,Admission number not found in Member_List
+unmatched_due_row,8,563,KUNDAN . LAL,,8769227424,Session 25-26 Part 3,Admission number not found in Member_List
+unmatched_due_row,27,2368,UDAYRAJ SHAH PICHHOLIYA,,9001006009,AY 2025-26 and Old,Admission number not found in Member_List
+unmatched_due_row,65,475,NILANJANA . .,Class 1,8696875102,CLASS 1 AY 2026-27,Admission number not found in Member_List
+unmatched_due_row,94,563,KUNDAN . LAL,Class 2,8769227424,CLASS 2 AY 2026-27,Admission number not found in Member_List
+unmatched_due_row,105,,SOURABH SINGH,,8003869116,AY 2025-26 and Old,Missing admission number and no safe fallback match
+unmatched_due_row,126,,Mukesh Gurjar,,8209609600,AY 2025-26 and Old,Missing admission number and no safe fallback match
+unmatched_due_row,188,2335,KARAMVEER SINGH INDA,Class 7,8875011454,CLASS 7 AY 2026-27,Admission number not found in Member_List
+unmatched_due_row,232,,PAWAN JAT,,9785357039,AY 2025-26 and Old,Missing admission number and no safe fallback match
+unmatched_due_row,358,629,RAJSHREE RATHORE,,9799506422,AY 2025-26 and Old,Admission number not found in Member_List
+unmatched_due_row,363,525252,MAHIRAJ SINGH CHUNDAWAT,Class 3,9004063446,CLASS 3 AY 2026-27,Admission number not found in Member_List
+unmatched_due_row,379,78533,TANUSHREE KANWAR RATHORE,Class 1,9657489246,CLASS 1 AY 2026-27,Admission number not found in Member_List
+unmatched_due_row,413,525252,MAHIRAJ SINGH CHUNDAWAT,,9004063446,AY 2025-26 and Old,Admission number not found in Member_List
+unmatched_due_row,424,2584621,JYOTIRADITYA SINGH RATHORE,,9950084216,AY 2025-26 and Old,Admission number not found in Member_List
+unmatched_due_row,440,78533,TANUSHREE KANWAR RATHORE,,9657489246,AY 2025-26 and Old,Admission number not found in Member_List
+unmatched_due_row,441,78533,TANUSHREE KANWAR RATHORE,,9657489246,AY 2025-26 and Old,Admission number not found in Member_List
+unmatched_due_row,456,2335,KARAMVEER SINGH INDA,,8875011454,AY 2025-26 and Old,Admission number not found in Member_List
+unmatched_due_row,474,,SOURABH SINGH,Class 2,8003869116,CLASS 2 AY 2026-27,Missing admission number and no safe fallback match
+unmatched_due_row,516,2340,TANISHK VASHISHT,,6367430830,AY 2025-26 and Old,Admission number not found in Member_List
+unmatched_due_row,530,10002,UTKARSH NAMA,Class 4,7014535745,CLASS 4 AY 2026-27,Admission number not found in Member_List
+unmatched_due_row,547,5646876,BHAGYASHREE CHUNDAWAT,,9867776904,AY 2025-26 and Old,Admission number not found in Member_List
+unmatched_due_row,631,5646876,BHAGYASHREE CHUNDAWAT,JKG,9867776904,JKG AY 2026-27,Admission number not found in Member_List
+unmatched_due_row,635,2352,KANHAIYALAL BUNKAR,,9654525555,AY 2025-26 and Old,Admission number not found in Member_List
+unmatched_due_row,675,475,NILANJANA . .,,8696875102,AY 2025-26 and Old,Admission number not found in Member_List
+unmatched_due_row,699,,PAWAN JAT,Class 1,9785357039,CLASS 12 COMM AY 2026-27,Missing admission number and no safe fallback match
+unmatched_due_row,719,,Total Amount Collected: Rs.3583331,,,,Missing admission number and no safe fallback match
+unmatched_due_row,720,,Total Amount Being Processed: Rs.0,,,,Missing admission number and no safe fallback match
+unmatched_due_row,721,,Total Amount Due: Rs.2836350,,,,Missing admission number and no safe fallback match
+unmatched_due_row,722,,Total Amount Settled: Rs.3583331,,,,Missing admission number and no safe fallback match
+duplicate_open_due_row_skipped_from_totals,59,2213,GOPAL SINGH RATHORE,,9660784527,AY 2025-26 and Old,Same open due key repeated in the report
+duplicate_open_due_row_skipped_from_totals,295,2241,PARIKSHIT SINGH RAO,,8875161313,AY 2025-26 and Old,Same open due key repeated in the report
+duplicate_open_due_row_skipped_from_totals,689,2274,NIDHIRAJ KANWAR CHUNDAWAT,,9672062656,AY 2025-26 and Old,Same open due key repeated in the report

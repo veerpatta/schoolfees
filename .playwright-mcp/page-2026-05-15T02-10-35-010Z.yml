@@ -1,0 +1,896 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary "Workspace sidebar" [ref=e3]:
+      - link "Shri Veer Patta Senior Secondary School logo VPPS · Fee Office Fee Management Shri Veer Patta SSS" [ref=e4] [cursor=pointer]:
+        - /url: /protected/dashboard
+        - generic [ref=e5]:
+          - img "Shri Veer Patta Senior Secondary School logo" [ref=e7]
+          - generic [ref=e8]:
+            - paragraph [ref=e9]: VPPS · Fee Office
+            - heading "Fee Management" [level=2] [ref=e10]
+            - paragraph [ref=e11]: Shri Veer Patta SSS
+      - navigation "Workspace navigation" [ref=e13]:
+        - link "Dashboard" [ref=e14] [cursor=pointer]:
+          - /url: /protected/dashboard
+          - img [ref=e15]
+          - generic [ref=e17]: Dashboard
+        - link "Students" [ref=e18] [cursor=pointer]:
+          - /url: /protected/students
+          - img [ref=e20]
+          - generic [ref=e24]: Students
+        - link "Fee Setup" [ref=e25] [cursor=pointer]:
+          - /url: /protected/fee-setup
+          - img [ref=e26]
+          - generic [ref=e29]: Fee Setup
+        - link "Payment Desk" [ref=e30] [cursor=pointer]:
+          - /url: /protected/payments
+          - img [ref=e31]
+          - generic [ref=e34]: Payment Desk
+        - link "Transactions" [ref=e35] [cursor=pointer]:
+          - /url: /protected/transactions
+          - img [ref=e36]
+          - generic [ref=e39]: Transactions
+        - link "Defaulters" [ref=e40] [cursor=pointer]:
+          - /url: /protected/defaulters
+          - img [ref=e41]
+          - generic [ref=e44]: Defaulters
+        - link "Exports" [ref=e45] [cursor=pointer]:
+          - /url: /protected/exports
+          - img [ref=e46]
+          - generic [ref=e49]: Exports
+        - link "Admin Tools" [ref=e50] [cursor=pointer]:
+          - /url: /protected/admin-tools
+          - img [ref=e51]
+          - generic [ref=e62]: Admin Tools
+      - generic [ref=e63]:
+        - paragraph [ref=e64]:
+          - img [ref=e65]
+          - generic [ref=e67]: Session TEST-2026-27
+        - paragraph [ref=e68]:
+          - img [ref=e69]
+          - text: Late fee ₹1,000 · Receipt
+          - generic [ref=e74]: SVP
+    - generic [ref=e75]:
+      - banner [ref=e76]:
+        - generic [ref=e77]:
+          - heading "Students" [level=1] [ref=e79]
+          - generic [ref=e80]:
+            - generic [ref=e81]: Admin
+            - button "Account menu" [ref=e82] [cursor=pointer]:
+              - generic [ref=e83]: RA
+              - img [ref=e84]
+      - main [ref=e86]:
+        - generic [ref=e88]:
+          - generic [ref=e89]:
+            - generic [ref=e90]:
+              - paragraph [ref=e91]: Students
+              - heading "Students" [level=1] [ref=e92]
+              - paragraph [ref=e93]: Add, search, bulk update, and review student-specific fee exceptions.
+            - generic [ref=e95]:
+              - link "Add Student" [ref=e96] [cursor=pointer]:
+                - /url: /protected/students/new?sessionLabel=2026-27
+              - button "Bulk Add Students" [ref=e97] [cursor=pointer]
+              - button "Bulk Update Existing Students" [ref=e98] [cursor=pointer]
+              - group [ref=e99]:
+                - generic "More templates" [ref=e100] [cursor=pointer]
+          - generic [ref=e101]:
+            - generic [ref=e103]:
+              - heading "Find students" [level=2] [ref=e104]
+              - paragraph [ref=e105]: Search by student name, SR no, or phone, then narrow by class, route, or status.
+            - generic [ref=e107]:
+              - generic [ref=e108]:
+                - generic [ref=e110]: Search
+                - textbox "Student name, SR no, or phone" [ref=e111]
+              - generic [ref=e112]:
+                - generic [ref=e114]: Academic year
+                - combobox "Academic year" [ref=e115]:
+                  - option "TEST-2026-27"
+                  - option "2026-27" [selected]
+              - generic [ref=e116]:
+                - generic [ref=e118]: Class
+                - combobox "Class" [ref=e119]:
+                  - option "All classes" [selected]
+                  - option "Nursery"
+                  - option "JKG"
+                  - option "SKG"
+                  - option "Class 1"
+                  - option "Class 2"
+                  - option "Class 3"
+                  - option "Class 4"
+                  - option "Class 5"
+                  - option "Class 6"
+                  - option "Class 7"
+                  - option "Class 8"
+                  - option "Class 9"
+                  - option "Class 10"
+                  - option "11 Arts"
+                  - option "11 Commerce"
+                  - option "11 Science"
+                  - option "12 Arts"
+                  - option "12 Commerce"
+                  - option "12 Science"
+              - generic [ref=e120]:
+                - generic [ref=e122]: Transport route
+                - combobox "Transport route" [ref=e123]:
+                  - option "All routes" [selected]
+                  - option "Aambaghati"
+                  - option "Agariya"
+                  - option "Agariya Kotari"
+                  - option "Aidana"
+                  - option "Amet Bus"
+                  - option "Amet City"
+                  - option "Amet College Road (Colony Inside)"
+                  - option "Amet College Side (On Road)"
+                  - option "Amet Railway Station (Inside)"
+                  - option "Amet Railway Station (On Road)"
+                  - option "Ballo Ka Khera"
+                  - option "Banda"
+                  - option "Bhakroda"
+                  - option "Bhopji Ka Kheda"
+                  - option "Dabla"
+                  - option "Dhelana"
+                  - option "Ghosundi"
+                  - option "Gugli"
+                  - option "Jilola"
+                  - option "Kanji Ka Kedha"
+                  - option "Karera"
+                  - option "Makarda"
+                  - option "Masingpura"
+                  - option "Mund Koshiya"
+                  - option "No Transport"
+                  - option "Saprav"
+                  - option "Sardargarh"
+                  - option "Selaguda"
+                  - option "Tanvan"
+              - generic [ref=e124]:
+                - generic [ref=e126]: Status
+                - combobox "Status" [ref=e127]:
+                  - option "All statuses"
+                  - option "Active" [selected]
+                  - option "Inactive"
+                  - option "Withdrawn"
+              - button "Clear" [ref=e129] [cursor=pointer]
+          - generic [ref=e130]:
+            - generic [ref=e132]:
+              - heading "Student list" [level=2] [ref=e133]
+              - paragraph [ref=e134]: 360 students found.
+            - generic [ref=e136]:
+              - table [ref=e138]:
+                - rowgroup [ref=e139]:
+                  - row "SR no Student name Class Transport Dues status Outstanding Actions" [ref=e140]:
+                    - columnheader "SR no" [ref=e141]
+                    - columnheader "Student name" [ref=e142]
+                    - columnheader "Class" [ref=e143]
+                    - columnheader "Transport" [ref=e144]
+                    - columnheader "Dues status" [ref=e145]
+                    - columnheader "Outstanding" [ref=e146]
+                    - columnheader "Actions" [ref=e147]
+                - rowgroup [ref=e148]:
+                  - row "419 AARADHYA GUJAR Class 2 No Transport Dues not prepared ₹0 View Edit More" [ref=e149]:
+                    - cell "419" [ref=e150]:
+                      - paragraph [ref=e151]: "419"
+                    - cell "AARADHYA GUJAR" [ref=e152]:
+                      - paragraph [ref=e154]: AARADHYA GUJAR
+                    - cell "Class 2" [ref=e155]
+                    - cell "No Transport" [ref=e156]
+                    - cell "Dues not prepared" [ref=e157]:
+                      - generic [ref=e158]: Dues not prepared
+                    - cell "₹0" [ref=e160]
+                    - cell "View Edit More" [ref=e161]:
+                      - generic [ref=e162]:
+                        - link "View" [ref=e163] [cursor=pointer]:
+                          - /url: /protected/students/0881c112-eea9-41da-8445-913442872fd6?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e164] [cursor=pointer]:
+                          - /url: /protected/students/0881c112-eea9-41da-8445-913442872fd6/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e165] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=0881c112-eea9-41da-8445-913442872fd6
+                  - row "408 AARADHYA KUNWAR SOLANKI Class 2 No Transport Dues not prepared ₹0 View Edit More" [ref=e166]:
+                    - cell "408" [ref=e167]:
+                      - paragraph [ref=e168]: "408"
+                    - cell "AARADHYA KUNWAR SOLANKI" [ref=e169]:
+                      - paragraph [ref=e171]: AARADHYA KUNWAR SOLANKI
+                    - cell "Class 2" [ref=e172]
+                    - cell "No Transport" [ref=e173]
+                    - cell "Dues not prepared" [ref=e174]:
+                      - generic [ref=e175]: Dues not prepared
+                    - cell "₹0" [ref=e177]
+                    - cell "View Edit More" [ref=e178]:
+                      - generic [ref=e179]:
+                        - link "View" [ref=e180] [cursor=pointer]:
+                          - /url: /protected/students/0696443b-30af-417e-9ac6-707c717b0331?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e181] [cursor=pointer]:
+                          - /url: /protected/students/0696443b-30af-417e-9ac6-707c717b0331/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e182] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=0696443b-30af-417e-9ac6-707c717b0331
+                  - row "526 AARAV . SEN Class 6 No Transport Dues not prepared ₹0 View Edit More" [ref=e183]:
+                    - cell "526" [ref=e184]:
+                      - paragraph [ref=e185]: "526"
+                    - cell "AARAV . SEN" [ref=e186]:
+                      - paragraph [ref=e188]: AARAV . SEN
+                    - cell "Class 6" [ref=e189]
+                    - cell "No Transport" [ref=e190]
+                    - cell "Dues not prepared" [ref=e191]:
+                      - generic [ref=e192]: Dues not prepared
+                    - cell "₹0" [ref=e194]
+                    - cell "View Edit More" [ref=e195]:
+                      - generic [ref=e196]:
+                        - link "View" [ref=e197] [cursor=pointer]:
+                          - /url: /protected/students/0b46146c-5ede-42ce-a0a4-cf649d7365ee?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e198] [cursor=pointer]:
+                          - /url: /protected/students/0b46146c-5ede-42ce-a0a4-cf649d7365ee/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e199] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=0b46146c-5ede-42ce-a0a4-cf649d7365ee
+                  - row "255555 ABHIJEET SINGH RANAWAT 11 Arts No Transport Dues not prepared ₹0 View Edit More" [ref=e200]:
+                    - cell "255555" [ref=e201]:
+                      - paragraph [ref=e202]: "255555"
+                    - cell "ABHIJEET SINGH RANAWAT" [ref=e203]:
+                      - paragraph [ref=e205]: ABHIJEET SINGH RANAWAT
+                    - cell "11 Arts" [ref=e206]
+                    - cell "No Transport" [ref=e207]
+                    - cell "Dues not prepared" [ref=e208]:
+                      - generic [ref=e209]: Dues not prepared
+                    - cell "₹0" [ref=e211]
+                    - cell "View Edit More" [ref=e212]:
+                      - generic [ref=e213]:
+                        - link "View" [ref=e214] [cursor=pointer]:
+                          - /url: /protected/students/46b7a932-0e05-4186-b760-2ce42d6e7b18?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e215] [cursor=pointer]:
+                          - /url: /protected/students/46b7a932-0e05-4186-b760-2ce42d6e7b18/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e216] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=46b7a932-0e05-4186-b760-2ce42d6e7b18
+                  - row "2399 ABHISHEK KOLI Class 7 No Transport Dues not prepared ₹0 View Edit More" [ref=e217]:
+                    - cell "2399" [ref=e218]:
+                      - paragraph [ref=e219]: "2399"
+                    - cell "ABHISHEK KOLI" [ref=e220]:
+                      - paragraph [ref=e222]: ABHISHEK KOLI
+                    - cell "Class 7" [ref=e223]
+                    - cell "No Transport" [ref=e224]
+                    - cell "Dues not prepared" [ref=e225]:
+                      - generic [ref=e226]: Dues not prepared
+                    - cell "₹0" [ref=e228]
+                    - cell "View Edit More" [ref=e229]:
+                      - generic [ref=e230]:
+                        - link "View" [ref=e231] [cursor=pointer]:
+                          - /url: /protected/students/da602880-ef21-458e-b8a6-906112259854?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e232] [cursor=pointer]:
+                          - /url: /protected/students/da602880-ef21-458e-b8a6-906112259854/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e233] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=da602880-ef21-458e-b8a6-906112259854
+                  - row "2363 Aditi Mali 12 Arts No Transport Dues not prepared ₹0 View Edit More" [ref=e234]:
+                    - cell "2363" [ref=e235]:
+                      - paragraph [ref=e236]: "2363"
+                    - cell "Aditi Mali" [ref=e237]:
+                      - paragraph [ref=e239]: Aditi Mali
+                    - cell "12 Arts" [ref=e240]
+                    - cell "No Transport" [ref=e241]
+                    - cell "Dues not prepared" [ref=e242]:
+                      - generic [ref=e243]: Dues not prepared
+                    - cell "₹0" [ref=e245]
+                    - cell "View Edit More" [ref=e246]:
+                      - generic [ref=e247]:
+                        - link "View" [ref=e248] [cursor=pointer]:
+                          - /url: /protected/students/8d329d5e-b3bd-402c-bcd3-85d1c29d8984?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e249] [cursor=pointer]:
+                          - /url: /protected/students/8d329d5e-b3bd-402c-bcd3-85d1c29d8984/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e250] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=8d329d5e-b3bd-402c-bcd3-85d1c29d8984
+                  - row "579 ADITYA GURJAR SKG No Transport Dues not prepared ₹0 View Edit More" [ref=e251]:
+                    - cell "579" [ref=e252]:
+                      - paragraph [ref=e253]: "579"
+                    - cell "ADITYA GURJAR" [ref=e254]:
+                      - paragraph [ref=e256]: ADITYA GURJAR
+                    - cell "SKG" [ref=e257]
+                    - cell "No Transport" [ref=e258]
+                    - cell "Dues not prepared" [ref=e259]:
+                      - generic [ref=e260]: Dues not prepared
+                    - cell "₹0" [ref=e262]
+                    - cell "View Edit More" [ref=e263]:
+                      - generic [ref=e264]:
+                        - link "View" [ref=e265] [cursor=pointer]:
+                          - /url: /protected/students/2a179c39-3f5e-4e8b-97d7-819bf1664fe2?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e266] [cursor=pointer]:
+                          - /url: /protected/students/2a179c39-3f5e-4e8b-97d7-819bf1664fe2/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e267] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=2a179c39-3f5e-4e8b-97d7-819bf1664fe2
+                  - row "2382 AKANSHA SHARMA 12 Arts No Transport Dues not prepared ₹0 View Edit More" [ref=e268]:
+                    - cell "2382" [ref=e269]:
+                      - paragraph [ref=e270]: "2382"
+                    - cell "AKANSHA SHARMA" [ref=e271]:
+                      - paragraph [ref=e273]: AKANSHA SHARMA
+                    - cell "12 Arts" [ref=e274]
+                    - cell "No Transport" [ref=e275]
+                    - cell "Dues not prepared" [ref=e276]:
+                      - generic [ref=e277]: Dues not prepared
+                    - cell "₹0" [ref=e279]
+                    - cell "View Edit More" [ref=e280]:
+                      - generic [ref=e281]:
+                        - link "View" [ref=e282] [cursor=pointer]:
+                          - /url: /protected/students/631d948d-4264-4604-8938-329e688de636?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e283] [cursor=pointer]:
+                          - /url: /protected/students/631d948d-4264-4604-8938-329e688de636/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e284] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=631d948d-4264-4604-8938-329e688de636
+                  - row "2290 AKSHITA GAUTAM Class 8 No Transport Dues not prepared ₹0 View Edit More" [ref=e285]:
+                    - cell "2290" [ref=e286]:
+                      - paragraph [ref=e287]: "2290"
+                    - cell "AKSHITA GAUTAM" [ref=e288]:
+                      - paragraph [ref=e290]: AKSHITA GAUTAM
+                    - cell "Class 8" [ref=e291]
+                    - cell "No Transport" [ref=e292]
+                    - cell "Dues not prepared" [ref=e293]:
+                      - generic [ref=e294]: Dues not prepared
+                    - cell "₹0" [ref=e296]
+                    - cell "View Edit More" [ref=e297]:
+                      - generic [ref=e298]:
+                        - link "View" [ref=e299] [cursor=pointer]:
+                          - /url: /protected/students/446e1b6f-7952-4aaa-b913-f919968bb539?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e300] [cursor=pointer]:
+                          - /url: /protected/students/446e1b6f-7952-4aaa-b913-f919968bb539/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e301] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=446e1b6f-7952-4aaa-b913-f919968bb539
+                  - row "2254 AKSHRAJ SINGH CHUNDAWAT Class 8 No Transport Dues not prepared ₹0 View Edit More" [ref=e302]:
+                    - cell "2254" [ref=e303]:
+                      - paragraph [ref=e304]: "2254"
+                    - cell "AKSHRAJ SINGH CHUNDAWAT" [ref=e305]:
+                      - paragraph [ref=e307]: AKSHRAJ SINGH CHUNDAWAT
+                    - cell "Class 8" [ref=e308]
+                    - cell "No Transport" [ref=e309]
+                    - cell "Dues not prepared" [ref=e310]:
+                      - generic [ref=e311]: Dues not prepared
+                    - cell "₹0" [ref=e313]
+                    - cell "View Edit More" [ref=e314]:
+                      - generic [ref=e315]:
+                        - link "View" [ref=e316] [cursor=pointer]:
+                          - /url: /protected/students/52c3a210-cf77-4565-b45a-64b92bbd1858?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e317] [cursor=pointer]:
+                          - /url: /protected/students/52c3a210-cf77-4565-b45a-64b92bbd1858/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e318] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=52c3a210-cf77-4565-b45a-64b92bbd1858
+                  - row "555 ANAND KHATIK Class 1 No Transport Dues not prepared ₹0 View Edit More" [ref=e319]:
+                    - cell "555" [ref=e320]:
+                      - paragraph [ref=e321]: "555"
+                    - cell "ANAND KHATIK" [ref=e322]:
+                      - paragraph [ref=e324]: ANAND KHATIK
+                    - cell "Class 1" [ref=e325]
+                    - cell "No Transport" [ref=e326]
+                    - cell "Dues not prepared" [ref=e327]:
+                      - generic [ref=e328]: Dues not prepared
+                    - cell "₹0" [ref=e330]
+                    - cell "View Edit More" [ref=e331]:
+                      - generic [ref=e332]:
+                        - link "View" [ref=e333] [cursor=pointer]:
+                          - /url: /protected/students/a95b618c-9067-4cdc-a827-c00a32174f97?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e334] [cursor=pointer]:
+                          - /url: /protected/students/a95b618c-9067-4cdc-a827-c00a32174f97/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e335] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=a95b618c-9067-4cdc-a827-c00a32174f97
+                  - row "441 ANANYA GAUTAM Class 4 No Transport Dues not prepared ₹0 View Edit More" [ref=e336]:
+                    - cell "441" [ref=e337]:
+                      - paragraph [ref=e338]: "441"
+                    - cell "ANANYA GAUTAM" [ref=e339]:
+                      - paragraph [ref=e341]: ANANYA GAUTAM
+                    - cell "Class 4" [ref=e342]
+                    - cell "No Transport" [ref=e343]
+                    - cell "Dues not prepared" [ref=e344]:
+                      - generic [ref=e345]: Dues not prepared
+                    - cell "₹0" [ref=e347]
+                    - cell "View Edit More" [ref=e348]:
+                      - generic [ref=e349]:
+                        - link "View" [ref=e350] [cursor=pointer]:
+                          - /url: /protected/students/ab47c1bc-e36a-4439-b7d8-74a36bd6258f?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e351] [cursor=pointer]:
+                          - /url: /protected/students/ab47c1bc-e36a-4439-b7d8-74a36bd6258f/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e352] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=ab47c1bc-e36a-4439-b7d8-74a36bd6258f
+                  - row "2322 ANANYA KEER JKG No Transport Dues not prepared ₹0 View Edit More" [ref=e353]:
+                    - cell "2322" [ref=e354]:
+                      - paragraph [ref=e355]: "2322"
+                    - cell "ANANYA KEER" [ref=e356]:
+                      - paragraph [ref=e358]: ANANYA KEER
+                    - cell "JKG" [ref=e359]
+                    - cell "No Transport" [ref=e360]
+                    - cell "Dues not prepared" [ref=e361]:
+                      - generic [ref=e362]: Dues not prepared
+                    - cell "₹0" [ref=e364]
+                    - cell "View Edit More" [ref=e365]:
+                      - generic [ref=e366]:
+                        - link "View" [ref=e367] [cursor=pointer]:
+                          - /url: /protected/students/8571ebf0-caf2-4872-8add-86b26ab98370?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e368] [cursor=pointer]:
+                          - /url: /protected/students/8571ebf0-caf2-4872-8add-86b26ab98370/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e369] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=8571ebf0-caf2-4872-8add-86b26ab98370
+                  - row "604 ANANYA LAKHARA Class 3 No Transport Dues not prepared ₹0 View Edit More" [ref=e370]:
+                    - cell "604" [ref=e371]:
+                      - paragraph [ref=e372]: "604"
+                    - cell "ANANYA LAKHARA" [ref=e373]:
+                      - paragraph [ref=e375]: ANANYA LAKHARA
+                    - cell "Class 3" [ref=e376]
+                    - cell "No Transport" [ref=e377]
+                    - cell "Dues not prepared" [ref=e378]:
+                      - generic [ref=e379]: Dues not prepared
+                    - cell "₹0" [ref=e381]
+                    - cell "View Edit More" [ref=e382]:
+                      - generic [ref=e383]:
+                        - link "View" [ref=e384] [cursor=pointer]:
+                          - /url: /protected/students/64e042ae-0351-4e45-9c8d-a0fb6d5e1a21?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e385] [cursor=pointer]:
+                          - /url: /protected/students/64e042ae-0351-4e45-9c8d-a0fb6d5e1a21/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e386] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=64e042ae-0351-4e45-9c8d-a0fb6d5e1a21
+                  - row "2287 ANISHA KANWAR SOLANKI Class 7 No Transport Dues not prepared ₹0 View Edit More" [ref=e387]:
+                    - cell "2287" [ref=e388]:
+                      - paragraph [ref=e389]: "2287"
+                    - cell "ANISHA KANWAR SOLANKI" [ref=e390]:
+                      - paragraph [ref=e392]: ANISHA KANWAR SOLANKI
+                    - cell "Class 7" [ref=e393]
+                    - cell "No Transport" [ref=e394]
+                    - cell "Dues not prepared" [ref=e395]:
+                      - generic [ref=e396]: Dues not prepared
+                    - cell "₹0" [ref=e398]
+                    - cell "View Edit More" [ref=e399]:
+                      - generic [ref=e400]:
+                        - link "View" [ref=e401] [cursor=pointer]:
+                          - /url: /protected/students/011caf92-523a-4082-9f61-076b74ce84da?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e402] [cursor=pointer]:
+                          - /url: /protected/students/011caf92-523a-4082-9f61-076b74ce84da/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e403] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=011caf92-523a-4082-9f61-076b74ce84da
+                  - row "553 ANITA . KANWAR Class 6 No Transport Dues not prepared ₹0 View Edit More" [ref=e404]:
+                    - cell "553" [ref=e405]:
+                      - paragraph [ref=e406]: "553"
+                    - cell "ANITA . KANWAR" [ref=e407]:
+                      - paragraph [ref=e409]: ANITA . KANWAR
+                    - cell "Class 6" [ref=e410]
+                    - cell "No Transport" [ref=e411]
+                    - cell "Dues not prepared" [ref=e412]:
+                      - generic [ref=e413]: Dues not prepared
+                    - cell "₹0" [ref=e415]
+                    - cell "View Edit More" [ref=e416]:
+                      - generic [ref=e417]:
+                        - link "View" [ref=e418] [cursor=pointer]:
+                          - /url: /protected/students/2c7eb5aa-a9db-4635-8fb3-c848ca47f95f?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e419] [cursor=pointer]:
+                          - /url: /protected/students/2c7eb5aa-a9db-4635-8fb3-c848ca47f95f/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e420] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=2c7eb5aa-a9db-4635-8fb3-c848ca47f95f
+                  - row "2313 ANITA KUNWAR SOLANKI Class 7 No Transport Dues not prepared ₹0 View Edit More" [ref=e421]:
+                    - cell "2313" [ref=e422]:
+                      - paragraph [ref=e423]: "2313"
+                    - cell "ANITA KUNWAR SOLANKI" [ref=e424]:
+                      - paragraph [ref=e426]: ANITA KUNWAR SOLANKI
+                    - cell "Class 7" [ref=e427]
+                    - cell "No Transport" [ref=e428]
+                    - cell "Dues not prepared" [ref=e429]:
+                      - generic [ref=e430]: Dues not prepared
+                    - cell "₹0" [ref=e432]
+                    - cell "View Edit More" [ref=e433]:
+                      - generic [ref=e434]:
+                        - link "View" [ref=e435] [cursor=pointer]:
+                          - /url: /protected/students/2ceab826-203a-4fbf-b493-1c37043426f5?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e436] [cursor=pointer]:
+                          - /url: /protected/students/2ceab826-203a-4fbf-b493-1c37043426f5/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e437] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=2ceab826-203a-4fbf-b493-1c37043426f5
+                  - row "2341 Anjali Jat Class 1 No Transport Dues not prepared ₹0 View Edit More" [ref=e438]:
+                    - cell "2341" [ref=e439]:
+                      - paragraph [ref=e440]: "2341"
+                    - cell "Anjali Jat" [ref=e441]:
+                      - paragraph [ref=e443]: Anjali Jat
+                    - cell "Class 1" [ref=e444]
+                    - cell "No Transport" [ref=e445]
+                    - cell "Dues not prepared" [ref=e446]:
+                      - generic [ref=e447]: Dues not prepared
+                    - cell "₹0" [ref=e449]
+                    - cell "View Edit More" [ref=e450]:
+                      - generic [ref=e451]:
+                        - link "View" [ref=e452] [cursor=pointer]:
+                          - /url: /protected/students/a7fbcb8e-3dfd-4ae7-83de-b4b89b9e0820?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e453] [cursor=pointer]:
+                          - /url: /protected/students/a7fbcb8e-3dfd-4ae7-83de-b4b89b9e0820/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e454] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=a7fbcb8e-3dfd-4ae7-83de-b4b89b9e0820
+                  - row "618 ANKIT REBARI Class 1 No Transport Dues not prepared ₹0 View Edit More" [ref=e455]:
+                    - cell "618" [ref=e456]:
+                      - paragraph [ref=e457]: "618"
+                    - cell "ANKIT REBARI" [ref=e458]:
+                      - paragraph [ref=e460]: ANKIT REBARI
+                    - cell "Class 1" [ref=e461]
+                    - cell "No Transport" [ref=e462]
+                    - cell "Dues not prepared" [ref=e463]:
+                      - generic [ref=e464]: Dues not prepared
+                    - cell "₹0" [ref=e466]
+                    - cell "View Edit More" [ref=e467]:
+                      - generic [ref=e468]:
+                        - link "View" [ref=e469] [cursor=pointer]:
+                          - /url: /protected/students/4b773c91-5bb7-4fcb-8841-4fa763c04833?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e470] [cursor=pointer]:
+                          - /url: /protected/students/4b773c91-5bb7-4fcb-8841-4fa763c04833/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e471] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=4b773c91-5bb7-4fcb-8841-4fa763c04833
+                  - row "275/15RTE ANSH BAGWAN Class 5 No Transport Dues not prepared ₹0 View Edit More" [ref=e472]:
+                    - cell "275/15RTE" [ref=e473]:
+                      - paragraph [ref=e474]: 275/15RTE
+                    - cell "ANSH BAGWAN" [ref=e475]:
+                      - paragraph [ref=e477]: ANSH BAGWAN
+                    - cell "Class 5" [ref=e478]
+                    - cell "No Transport" [ref=e479]
+                    - cell "Dues not prepared" [ref=e480]:
+                      - generic [ref=e481]: Dues not prepared
+                    - cell "₹0" [ref=e483]
+                    - cell "View Edit More" [ref=e484]:
+                      - generic [ref=e485]:
+                        - link "View" [ref=e486] [cursor=pointer]:
+                          - /url: /protected/students/b4d98445-2786-4643-840a-d902967fde7e?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e487] [cursor=pointer]:
+                          - /url: /protected/students/b4d98445-2786-4643-840a-d902967fde7e/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e488] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=b4d98445-2786-4643-840a-d902967fde7e
+                  - row "626 ANSHU CHAND KOLI Class 5 No Transport Dues not prepared ₹0 View Edit More" [ref=e489]:
+                    - cell "626" [ref=e490]:
+                      - paragraph [ref=e491]: "626"
+                    - cell "ANSHU CHAND KOLI" [ref=e492]:
+                      - paragraph [ref=e494]: ANSHU CHAND KOLI
+                    - cell "Class 5" [ref=e495]
+                    - cell "No Transport" [ref=e496]
+                    - cell "Dues not prepared" [ref=e497]:
+                      - generic [ref=e498]: Dues not prepared
+                    - cell "₹0" [ref=e500]
+                    - cell "View Edit More" [ref=e501]:
+                      - generic [ref=e502]:
+                        - link "View" [ref=e503] [cursor=pointer]:
+                          - /url: /protected/students/6ac74370-245d-429f-932f-52e371794e76?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e504] [cursor=pointer]:
+                          - /url: /protected/students/6ac74370-245d-429f-932f-52e371794e76/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e505] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=6ac74370-245d-429f-932f-52e371794e76
+                  - row "2255 ARAV . SONI Class 8 No Transport Dues not prepared ₹0 View Edit More" [ref=e506]:
+                    - cell "2255" [ref=e507]:
+                      - paragraph [ref=e508]: "2255"
+                    - cell "ARAV . SONI" [ref=e509]:
+                      - paragraph [ref=e511]: ARAV . SONI
+                    - cell "Class 8" [ref=e512]
+                    - cell "No Transport" [ref=e513]
+                    - cell "Dues not prepared" [ref=e514]:
+                      - generic [ref=e515]: Dues not prepared
+                    - cell "₹0" [ref=e517]
+                    - cell "View Edit More" [ref=e518]:
+                      - generic [ref=e519]:
+                        - link "View" [ref=e520] [cursor=pointer]:
+                          - /url: /protected/students/e2fd6ebf-342f-4966-b59e-4d13bc9e1622?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e521] [cursor=pointer]:
+                          - /url: /protected/students/e2fd6ebf-342f-4966-b59e-4d13bc9e1622/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e522] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=e2fd6ebf-342f-4966-b59e-4d13bc9e1622
+                  - row "439 ARIDAMAN SINGH Class 4 No Transport Dues not prepared ₹0 View Edit More" [ref=e523]:
+                    - cell "439" [ref=e524]:
+                      - paragraph [ref=e525]: "439"
+                    - cell "ARIDAMAN SINGH" [ref=e526]:
+                      - paragraph [ref=e528]: ARIDAMAN SINGH
+                    - cell "Class 4" [ref=e529]
+                    - cell "No Transport" [ref=e530]
+                    - cell "Dues not prepared" [ref=e531]:
+                      - generic [ref=e532]: Dues not prepared
+                    - cell "₹0" [ref=e534]
+                    - cell "View Edit More" [ref=e535]:
+                      - generic [ref=e536]:
+                        - link "View" [ref=e537] [cursor=pointer]:
+                          - /url: /protected/students/ff9a2cf8-3e09-4947-a501-e6aba1e7faab?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e538] [cursor=pointer]:
+                          - /url: /protected/students/ff9a2cf8-3e09-4947-a501-e6aba1e7faab/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e539] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=ff9a2cf8-3e09-4947-a501-e6aba1e7faab
+                  - row "343 ARPIT VAIRAGI Class 5 No Transport Dues not prepared ₹0 View Edit More" [ref=e540]:
+                    - cell "343" [ref=e541]:
+                      - paragraph [ref=e542]: "343"
+                    - cell "ARPIT VAIRAGI" [ref=e543]:
+                      - paragraph [ref=e545]: ARPIT VAIRAGI
+                    - cell "Class 5" [ref=e546]
+                    - cell "No Transport" [ref=e547]
+                    - cell "Dues not prepared" [ref=e548]:
+                      - generic [ref=e549]: Dues not prepared
+                    - cell "₹0" [ref=e551]
+                    - cell "View Edit More" [ref=e552]:
+                      - generic [ref=e553]:
+                        - link "View" [ref=e554] [cursor=pointer]:
+                          - /url: /protected/students/dbf85239-6b9b-41fc-81b2-f54045d2b651?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e555] [cursor=pointer]:
+                          - /url: /protected/students/dbf85239-6b9b-41fc-81b2-f54045d2b651/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e556] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=dbf85239-6b9b-41fc-81b2-f54045d2b651
+                  - row "67 ARUN KUMAWAT Class 1 No Transport Dues not prepared ₹0 View Edit More" [ref=e557]:
+                    - cell "67" [ref=e558]:
+                      - paragraph [ref=e559]: "67"
+                    - cell "ARUN KUMAWAT" [ref=e560]:
+                      - paragraph [ref=e562]: ARUN KUMAWAT
+                    - cell "Class 1" [ref=e563]
+                    - cell "No Transport" [ref=e564]
+                    - cell "Dues not prepared" [ref=e565]:
+                      - generic [ref=e566]: Dues not prepared
+                    - cell "₹0" [ref=e568]
+                    - cell "View Edit More" [ref=e569]:
+                      - generic [ref=e570]:
+                        - link "View" [ref=e571] [cursor=pointer]:
+                          - /url: /protected/students/789b5191-0f22-4a78-8f06-91e0ec4e0299?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e572] [cursor=pointer]:
+                          - /url: /protected/students/789b5191-0f22-4a78-8f06-91e0ec4e0299/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e573] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=789b5191-0f22-4a78-8f06-91e0ec4e0299
+                  - row "2257 ASHISH BAGWAN Class 8 No Transport Dues not prepared ₹0 View Edit More" [ref=e574]:
+                    - cell "2257" [ref=e575]:
+                      - paragraph [ref=e576]: "2257"
+                    - cell "ASHISH BAGWAN" [ref=e577]:
+                      - paragraph [ref=e579]: ASHISH BAGWAN
+                    - cell "Class 8" [ref=e580]
+                    - cell "No Transport" [ref=e581]
+                    - cell "Dues not prepared" [ref=e582]:
+                      - generic [ref=e583]: Dues not prepared
+                    - cell "₹0" [ref=e585]
+                    - cell "View Edit More" [ref=e586]:
+                      - generic [ref=e587]:
+                        - link "View" [ref=e588] [cursor=pointer]:
+                          - /url: /protected/students/7d817ce1-8644-498e-9078-a4e2cc00798c?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e589] [cursor=pointer]:
+                          - /url: /protected/students/7d817ce1-8644-498e-9078-a4e2cc00798c/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e590] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=7d817ce1-8644-498e-9078-a4e2cc00798c
+                  - row "2345 ASHWAD ANSARI Class 1 No Transport Dues not prepared ₹0 View Edit More" [ref=e591]:
+                    - cell "2345" [ref=e592]:
+                      - paragraph [ref=e593]: "2345"
+                    - cell "ASHWAD ANSARI" [ref=e594]:
+                      - paragraph [ref=e596]: ASHWAD ANSARI
+                    - cell "Class 1" [ref=e597]
+                    - cell "No Transport" [ref=e598]
+                    - cell "Dues not prepared" [ref=e599]:
+                      - generic [ref=e600]: Dues not prepared
+                    - cell "₹0" [ref=e602]
+                    - cell "View Edit More" [ref=e603]:
+                      - generic [ref=e604]:
+                        - link "View" [ref=e605] [cursor=pointer]:
+                          - /url: /protected/students/18991a38-1bf7-4295-9ee5-333bb3ad07a8?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e606] [cursor=pointer]:
+                          - /url: /protected/students/18991a38-1bf7-4295-9ee5-333bb3ad07a8/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e607] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=18991a38-1bf7-4295-9ee5-333bb3ad07a8
+                  - row "276 ASTHA KUMAWAT Class 6 No Transport Dues not prepared ₹0 View Edit More" [ref=e608]:
+                    - cell "276" [ref=e609]:
+                      - paragraph [ref=e610]: "276"
+                    - cell "ASTHA KUMAWAT" [ref=e611]:
+                      - paragraph [ref=e613]: ASTHA KUMAWAT
+                    - cell "Class 6" [ref=e614]
+                    - cell "No Transport" [ref=e615]
+                    - cell "Dues not prepared" [ref=e616]:
+                      - generic [ref=e617]: Dues not prepared
+                    - cell "₹0" [ref=e619]
+                    - cell "View Edit More" [ref=e620]:
+                      - generic [ref=e621]:
+                        - link "View" [ref=e622] [cursor=pointer]:
+                          - /url: /protected/students/c5811a54-e1c2-453b-b51e-eca215bf8f4e?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e623] [cursor=pointer]:
+                          - /url: /protected/students/c5811a54-e1c2-453b-b51e-eca215bf8f4e/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e624] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=c5811a54-e1c2-453b-b51e-eca215bf8f4e
+                  - row "2346 ATHARVRAJ SINGH Class 8 No Transport Dues not prepared ₹0 View Edit More" [ref=e625]:
+                    - cell "2346" [ref=e626]:
+                      - paragraph [ref=e627]: "2346"
+                    - cell "ATHARVRAJ SINGH" [ref=e628]:
+                      - paragraph [ref=e630]: ATHARVRAJ SINGH
+                    - cell "Class 8" [ref=e631]
+                    - cell "No Transport" [ref=e632]
+                    - cell "Dues not prepared" [ref=e633]:
+                      - generic [ref=e634]: Dues not prepared
+                    - cell "₹0" [ref=e636]
+                    - cell "View Edit More" [ref=e637]:
+                      - generic [ref=e638]:
+                        - link "View" [ref=e639] [cursor=pointer]:
+                          - /url: /protected/students/713cd41c-0d62-45d9-9bef-56d163766597?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e640] [cursor=pointer]:
+                          - /url: /protected/students/713cd41c-0d62-45d9-9bef-56d163766597/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e641] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=713cd41c-0d62-45d9-9bef-56d163766597
+                  - row "380 ATHRVRAJ SINGH RATHOD Class 3 No Transport Dues not prepared ₹0 View Edit More" [ref=e642]:
+                    - cell "380" [ref=e643]:
+                      - paragraph [ref=e644]: "380"
+                    - cell "ATHRVRAJ SINGH RATHOD" [ref=e645]:
+                      - paragraph [ref=e647]: ATHRVRAJ SINGH RATHOD
+                    - cell "Class 3" [ref=e648]
+                    - cell "No Transport" [ref=e649]
+                    - cell "Dues not prepared" [ref=e650]:
+                      - generic [ref=e651]: Dues not prepared
+                    - cell "₹0" [ref=e653]
+                    - cell "View Edit More" [ref=e654]:
+                      - generic [ref=e655]:
+                        - link "View" [ref=e656] [cursor=pointer]:
+                          - /url: /protected/students/4775d8ad-87cb-44ed-b322-f4d5489579d9?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e657] [cursor=pointer]:
+                          - /url: /protected/students/4775d8ad-87cb-44ed-b322-f4d5489579d9/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e658] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=4775d8ad-87cb-44ed-b322-f4d5489579d9
+                  - row "2325 AVANTIKA GURJAR JKG No Transport Dues not prepared ₹0 View Edit More" [ref=e659]:
+                    - cell "2325" [ref=e660]:
+                      - paragraph [ref=e661]: "2325"
+                    - cell "AVANTIKA GURJAR" [ref=e662]:
+                      - paragraph [ref=e664]: AVANTIKA GURJAR
+                    - cell "JKG" [ref=e665]
+                    - cell "No Transport" [ref=e666]
+                    - cell "Dues not prepared" [ref=e667]:
+                      - generic [ref=e668]: Dues not prepared
+                    - cell "₹0" [ref=e670]
+                    - cell "View Edit More" [ref=e671]:
+                      - generic [ref=e672]:
+                        - link "View" [ref=e673] [cursor=pointer]:
+                          - /url: /protected/students/f138e1e9-2665-4cb5-9ce2-d5df0a3b636f?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e674] [cursor=pointer]:
+                          - /url: /protected/students/f138e1e9-2665-4cb5-9ce2-d5df0a3b636f/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e675] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=f138e1e9-2665-4cb5-9ce2-d5df0a3b636f
+                  - row "596 AYUSH SINGH SOLANKI Class 2 No Transport Dues not prepared ₹0 View Edit More" [ref=e676]:
+                    - cell "596" [ref=e677]:
+                      - paragraph [ref=e678]: "596"
+                    - cell "AYUSH SINGH SOLANKI" [ref=e679]:
+                      - paragraph [ref=e681]: AYUSH SINGH SOLANKI
+                    - cell "Class 2" [ref=e682]
+                    - cell "No Transport" [ref=e683]
+                    - cell "Dues not prepared" [ref=e684]:
+                      - generic [ref=e685]: Dues not prepared
+                    - cell "₹0" [ref=e687]
+                    - cell "View Edit More" [ref=e688]:
+                      - generic [ref=e689]:
+                        - link "View" [ref=e690] [cursor=pointer]:
+                          - /url: /protected/students/1d5d8d30-1ed7-4493-b35a-de65804a9994?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e691] [cursor=pointer]:
+                          - /url: /protected/students/1d5d8d30-1ed7-4493-b35a-de65804a9994/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e692] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=1d5d8d30-1ed7-4493-b35a-de65804a9994
+                  - row "2245 AYUSHI SUTHAR JKG No Transport Dues not prepared ₹0 View Edit More" [ref=e693]:
+                    - cell "2245" [ref=e694]:
+                      - paragraph [ref=e695]: "2245"
+                    - cell "AYUSHI SUTHAR" [ref=e696]:
+                      - paragraph [ref=e698]: AYUSHI SUTHAR
+                    - cell "JKG" [ref=e699]
+                    - cell "No Transport" [ref=e700]
+                    - cell "Dues not prepared" [ref=e701]:
+                      - generic [ref=e702]: Dues not prepared
+                    - cell "₹0" [ref=e704]
+                    - cell "View Edit More" [ref=e705]:
+                      - generic [ref=e706]:
+                        - link "View" [ref=e707] [cursor=pointer]:
+                          - /url: /protected/students/40a06529-7801-4a8d-83d0-9b16cfd93537?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e708] [cursor=pointer]:
+                          - /url: /protected/students/40a06529-7801-4a8d-83d0-9b16cfd93537/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e709] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=40a06529-7801-4a8d-83d0-9b16cfd93537
+                  - row "2338 BHAGIRATH GURJAR Class 7 No Transport Dues not prepared ₹0 View Edit More" [ref=e710]:
+                    - cell "2338" [ref=e711]:
+                      - paragraph [ref=e712]: "2338"
+                    - cell "BHAGIRATH GURJAR" [ref=e713]:
+                      - paragraph [ref=e715]: BHAGIRATH GURJAR
+                    - cell "Class 7" [ref=e716]
+                    - cell "No Transport" [ref=e717]
+                    - cell "Dues not prepared" [ref=e718]:
+                      - generic [ref=e719]: Dues not prepared
+                    - cell "₹0" [ref=e721]
+                    - cell "View Edit More" [ref=e722]:
+                      - generic [ref=e723]:
+                        - link "View" [ref=e724] [cursor=pointer]:
+                          - /url: /protected/students/80b03931-9ca1-4868-9f08-3c3c395d3db7?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e725] [cursor=pointer]:
+                          - /url: /protected/students/80b03931-9ca1-4868-9f08-3c3c395d3db7/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e726] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=80b03931-9ca1-4868-9f08-3c3c395d3db7
+                  - row "465 BHAGWAT SINGH RATHORE Class 1 No Transport Dues not prepared ₹0 View Edit More" [ref=e727]:
+                    - cell "465" [ref=e728]:
+                      - paragraph [ref=e729]: "465"
+                    - cell "BHAGWAT SINGH RATHORE" [ref=e730]:
+                      - paragraph [ref=e732]: BHAGWAT SINGH RATHORE
+                    - cell "Class 1" [ref=e733]
+                    - cell "No Transport" [ref=e734]
+                    - cell "Dues not prepared" [ref=e735]:
+                      - generic [ref=e736]: Dues not prepared
+                    - cell "₹0" [ref=e738]
+                    - cell "View Edit More" [ref=e739]:
+                      - generic [ref=e740]:
+                        - link "View" [ref=e741] [cursor=pointer]:
+                          - /url: /protected/students/8ea65cfe-3f63-4bf4-a293-40fb8a078fd8?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e742] [cursor=pointer]:
+                          - /url: /protected/students/8ea65cfe-3f63-4bf4-a293-40fb8a078fd8/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e743] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=8ea65cfe-3f63-4bf4-a293-40fb8a078fd8
+                  - row "584 BHANUPRATAP SINGH RAJPUT JKG No Transport Dues not prepared ₹0 View Edit More" [ref=e744]:
+                    - cell "584" [ref=e745]:
+                      - paragraph [ref=e746]: "584"
+                    - cell "BHANUPRATAP SINGH RAJPUT" [ref=e747]:
+                      - paragraph [ref=e749]: BHANUPRATAP SINGH RAJPUT
+                    - cell "JKG" [ref=e750]
+                    - cell "No Transport" [ref=e751]
+                    - cell "Dues not prepared" [ref=e752]:
+                      - generic [ref=e753]: Dues not prepared
+                    - cell "₹0" [ref=e755]
+                    - cell "View Edit More" [ref=e756]:
+                      - generic [ref=e757]:
+                        - link "View" [ref=e758] [cursor=pointer]:
+                          - /url: /protected/students/bba8889c-fe5e-4c0a-8d29-c0b2bd77cffb?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e759] [cursor=pointer]:
+                          - /url: /protected/students/bba8889c-fe5e-4c0a-8d29-c0b2bd77cffb/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e760] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=bba8889c-fe5e-4c0a-8d29-c0b2bd77cffb
+                  - row "20220003 BHAVESH BUNKAR Class 2 No Transport Dues not prepared ₹0 View Edit More" [ref=e761]:
+                    - cell "20220003" [ref=e762]:
+                      - paragraph [ref=e763]: "20220003"
+                    - cell "BHAVESH BUNKAR" [ref=e764]:
+                      - paragraph [ref=e766]: BHAVESH BUNKAR
+                    - cell "Class 2" [ref=e767]
+                    - cell "No Transport" [ref=e768]
+                    - cell "Dues not prepared" [ref=e769]:
+                      - generic [ref=e770]: Dues not prepared
+                    - cell "₹0" [ref=e772]
+                    - cell "View Edit More" [ref=e773]:
+                      - generic [ref=e774]:
+                        - link "View" [ref=e775] [cursor=pointer]:
+                          - /url: /protected/students/ecc7cc51-27a7-420f-a9d5-bfd1f1f24885?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e776] [cursor=pointer]:
+                          - /url: /protected/students/ecc7cc51-27a7-420f-a9d5-bfd1f1f24885/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e777] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=ecc7cc51-27a7-420f-a9d5-bfd1f1f24885
+                  - row "2384 BHAVESH PRAJAPAT Class 1 No Transport Dues not prepared ₹0 View Edit More" [ref=e778]:
+                    - cell "2384" [ref=e779]:
+                      - paragraph [ref=e780]: "2384"
+                    - cell "BHAVESH PRAJAPAT" [ref=e781]:
+                      - paragraph [ref=e783]: BHAVESH PRAJAPAT
+                    - cell "Class 1" [ref=e784]
+                    - cell "No Transport" [ref=e785]
+                    - cell "Dues not prepared" [ref=e786]:
+                      - generic [ref=e787]: Dues not prepared
+                    - cell "₹0" [ref=e789]
+                    - cell "View Edit More" [ref=e790]:
+                      - generic [ref=e791]:
+                        - link "View" [ref=e792] [cursor=pointer]:
+                          - /url: /protected/students/8b6296eb-9559-424a-a792-e3d76bd89ab0?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e793] [cursor=pointer]:
+                          - /url: /protected/students/8b6296eb-9559-424a-a792-e3d76bd89ab0/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e794] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=8b6296eb-9559-424a-a792-e3d76bd89ab0
+                  - row "585 BHAVYA . GURJAR Class 1 No Transport Dues not prepared ₹0 View Edit More" [ref=e795]:
+                    - cell "585" [ref=e796]:
+                      - paragraph [ref=e797]: "585"
+                    - cell "BHAVYA . GURJAR" [ref=e798]:
+                      - paragraph [ref=e800]: BHAVYA . GURJAR
+                    - cell "Class 1" [ref=e801]
+                    - cell "No Transport" [ref=e802]
+                    - cell "Dues not prepared" [ref=e803]:
+                      - generic [ref=e804]: Dues not prepared
+                    - cell "₹0" [ref=e806]
+                    - cell "View Edit More" [ref=e807]:
+                      - generic [ref=e808]:
+                        - link "View" [ref=e809] [cursor=pointer]:
+                          - /url: /protected/students/f70985aa-34a5-40be-8858-4048ba98b94e?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e810] [cursor=pointer]:
+                          - /url: /protected/students/f70985aa-34a5-40be-8858-4048ba98b94e/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e811] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=f70985aa-34a5-40be-8858-4048ba98b94e
+                  - row "24 BHAVYA . SETH Class 1 No Transport Dues not prepared ₹0 View Edit More" [ref=e812]:
+                    - cell "24" [ref=e813]:
+                      - paragraph [ref=e814]: "24"
+                    - cell "BHAVYA . SETH" [ref=e815]:
+                      - paragraph [ref=e817]: BHAVYA . SETH
+                    - cell "Class 1" [ref=e818]
+                    - cell "No Transport" [ref=e819]
+                    - cell "Dues not prepared" [ref=e820]:
+                      - generic [ref=e821]: Dues not prepared
+                    - cell "₹0" [ref=e823]
+                    - cell "View Edit More" [ref=e824]:
+                      - generic [ref=e825]:
+                        - link "View" [ref=e826] [cursor=pointer]:
+                          - /url: /protected/students/71d7da94-f48f-409e-8608-8592fbc38cb7?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "Edit" [ref=e827] [cursor=pointer]:
+                          - /url: /protected/students/71d7da94-f48f-409e-8608-8592fbc38cb7/edit?returnTo=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27%26status%3Dactive
+                        - link "More" [ref=e828] [cursor=pointer]:
+                          - /url: /protected/payments?studentId=71d7da94-f48f-409e-8608-8592fbc38cb7
+              - generic [ref=e829]:
+                - paragraph [ref=e830]: Page 1 of 9
+                - generic [ref=e831]:
+                  - button "Previous" [disabled]
+                  - button "Next" [ref=e832] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e838] [cursor=pointer]:
+    - img [ref=e839]
+  - alert [ref=e842]
