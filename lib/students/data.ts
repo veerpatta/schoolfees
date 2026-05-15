@@ -350,21 +350,7 @@ export async function getStudentFormOptions(payload?: {
   const policy = await getFeePolicySummary();
   const policySessionLabel = policy.academicSessionLabel || "";
   const currentSessionLabel = options.currentSessionLabel || "";
-  const academicSessionsCurrentLabel = await (async () => {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("academic_sessions")
-      .select("session_label")
-      .eq("is_current", true)
-      .eq("status", "active")
-      .maybeSingle();
-
-    if (error) {
-      return null;
-    }
-
-    return data?.session_label?.trim() || null;
-  })();
+  const academicSessionsCurrentLabel = currentSessionLabel || policySessionLabel || null;
 
   const allClassOptions: StudentClassOption[] = options.classOptions.map((row) => ({
     id: row.id,
@@ -383,7 +369,7 @@ export async function getStudentFormOptions(payload?: {
   );
   const sessionMismatch =
     Boolean(policySessionLabel && academicSessionsCurrentLabel) &&
-    normalizeSessionKey(policySessionLabel) !== normalizeSessionKey(academicSessionsCurrentLabel);
+    normalizeSessionKey(policySessionLabel) !== normalizeSessionKey(academicSessionsCurrentLabel ?? "");
 
   const routeOptions: StudentRouteOption[] = options.routeOptions
     .filter((row) => row.isActive)

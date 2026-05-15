@@ -7,6 +7,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getMasterDataOptions } from "@/lib/master-data/data";
 import { createClient } from "@/lib/supabase/server";
 import { getOptionalEnvVar, hasRequiredEnvVars } from "@/lib/env";
+import { getActiveSessionLabel } from "@/lib/session/active";
+import { setActiveSessionLabel } from "@/lib/session/set-active";
 import type { PaymentMode } from "@/lib/db/types";
 import {
   buildDefaultFeePolicySummary,
@@ -246,6 +248,7 @@ function normalizeCatalog(
 function toFeePolicySummary(
   row: GlobalPolicyRow,
   defaults = buildDefaultFeePolicySummary(),
+  activeSessionLabel?: string | null,
 ): FeePolicySnapshot {
   const academicSessionLabel = row.academic_session_label?.trim() || defaults.academicSessionLabel;
   const installmentSchedule = parseInstallmentSchedule(
@@ -276,7 +279,10 @@ function toFeePolicySummary(
     receiptPrefix: row.receipt_prefix?.trim() || defaults.receiptPrefix,
     customFeeHeads: parseFeeHeadCatalog(row.custom_fee_heads),
     notes: row.notes ?? defaults.notes,
-    isActive: row.is_active,
+    isActive:
+      typeof activeSessionLabel === "string" &&
+      activeSessionLabel.trim().length > 0 &&
+      academicSessionLabel.trim().toLowerCase() === activeSessionLabel.trim().toLowerCase(),
     updatedAt: row.updated_at,
   };
 }
@@ -296,12 +302,13 @@ async function loadFeePolicySnapshots(useAdmin = false): Promise<FeePolicySnapsh
     ];
   }
 
+  const activeSessionLabel = await getActiveSessionLabel();
   const { data, error } = await supabase
     .from("fee_policy_configs")
     .select(
       "id, academic_session_label, calculation_model, installment_schedule, late_fee_flat_amount, new_student_academic_fee_amount, old_student_academic_fee_amount, custom_fee_heads, accepted_payment_modes, receipt_prefix, notes, is_active, updated_at",
     )
-    .order("is_active", { ascending: false })
+    .order("academic_session_label", { ascending: false })
     .order("updated_at", { ascending: false });
 
   if (error || !data || data.length === 0) {
@@ -318,7 +325,7 @@ async function loadFeePolicySnapshots(useAdmin = false): Promise<FeePolicySnapsh
   const seen = new Set<string>();
 
   return (data as GlobalPolicyRow[])
-    .map((row) => toFeePolicySummary(row, defaults))
+    .map((row) => toFeePolicySummary(row, defaults, activeSessionLabel))
     .filter((row) => {
       const key = row.academicSessionLabel.trim().toLowerCase();
 
@@ -416,32 +423,58 @@ async function getReadClient(useAdmin = false): Promise<ReadClient | null> {
   return createClient();
 }
 
-async function loadGlobalPolicy(useAdmin = false): Promise<FeePolicySummary> {
-  const snapshots = await loadFeePolicySnapshots(useAdmin);
-  const active = snapshots.find((item) => item.isActive) ?? snapshots[0];
+function snapshotToSummary(snapshot: FeePolicySnapshot): FeePolicySummary {
+  return {
+    id: snapshot.id,
+    academicSessionLabel: snapshot.academicSessionLabel,
+    calculationModel: snapshot.calculationModel,
+    installmentCount: snapshot.installmentCount,
+    installmentSchedule: snapshot.installmentSchedule,
+    lateFeeFlatAmount: snapshot.lateFeeFlatAmount,
+    lateFeeLabel: snapshot.lateFeeLabel,
+    newStudentAcademicFeeAmount: snapshot.newStudentAcademicFeeAmount,
+    oldStudentAcademicFeeAmount: snapshot.oldStudentAcademicFeeAmount,
+    acceptedPaymentModes: snapshot.acceptedPaymentModes,
+    receiptPrefix: snapshot.receiptPrefix,
+    customFeeHeads: snapshot.customFeeHeads,
+    notes: snapshot.notes,
+  };
+}
 
-  if (!active) {
+async function loadPolicyForSession(
+  sessionLabel: string,
+  useAdmin = false,
+): Promise<FeePolicySummary> {
+  const snapshots = await loadFeePolicySnapshots(useAdmin);
+  const normalizedSessionLabel = sessionLabel.trim().toLowerCase();
+  const selected =
+    snapshots.find(
+      (item) => item.academicSessionLabel.trim().toLowerCase() === normalizedSessionLabel,
+    ) ??
+    snapshots.find((item) => item.isActive) ??
+    snapshots[0];
+
+  if (!selected) {
+    const defaults = buildDefaultFeePolicySummary();
+    return {
+      id: null,
+      ...defaults,
+      academicSessionLabel: sessionLabel.trim() || defaults.academicSessionLabel,
+    };
+  }
+
+  return snapshotToSummary(selected);
+}
+
+async function loadGlobalPolicy(useAdmin = false): Promise<FeePolicySummary> {
+  if (!hasRequiredEnvVars) {
     return {
       id: null,
       ...buildDefaultFeePolicySummary(),
     };
   }
 
-  return {
-    id: active.id,
-    academicSessionLabel: active.academicSessionLabel,
-    calculationModel: active.calculationModel,
-    installmentCount: active.installmentCount,
-    installmentSchedule: active.installmentSchedule,
-    lateFeeFlatAmount: active.lateFeeFlatAmount,
-    lateFeeLabel: active.lateFeeLabel,
-    newStudentAcademicFeeAmount: active.newStudentAcademicFeeAmount,
-    oldStudentAcademicFeeAmount: active.oldStudentAcademicFeeAmount,
-    acceptedPaymentModes: active.acceptedPaymentModes,
-    receiptPrefix: active.receiptPrefix,
-    customFeeHeads: active.customFeeHeads,
-    notes: active.notes,
-  };
+  return loadPolicyForSession(await getActiveSessionLabel(), useAdmin);
 }
 
 async function loadFeeCollectionsUncached() {
@@ -668,6 +701,17 @@ export async function getFeePolicySummary(options: { useAdmin?: boolean } = {}) 
   return getFeePolicySummaryForRequest(Boolean(options.useAdmin));
 }
 
+const getFeePolicyForSessionForRequest = cache(async (sessionLabel: string, useAdmin: boolean) => {
+  return loadPolicyForSession(sessionLabel, useAdmin);
+});
+
+export async function getFeePolicyForSession(
+  label: string,
+  options: { useAdmin?: boolean } = {},
+) {
+  return getFeePolicyForSessionForRequest(label, Boolean(options.useAdmin));
+}
+
 async function loadFeeCollections(sessionLabel: string) {
   return unstable_cache(
     loadFeeCollectionsUncached,
@@ -676,10 +720,16 @@ async function loadFeeCollections(sessionLabel: string) {
   )();
 }
 
-export async function getFeeSetupPageData(): Promise<FeeSetupPageData> {
-  const globalPolicy = await loadGlobalPolicy(false);
+export async function getFeeSetupPageData(
+  options: { sessionLabel?: string; useAdmin?: boolean } = {},
+): Promise<FeeSetupPageData> {
+  const useAdmin = Boolean(options.useAdmin);
+  const requestedSessionLabel = options.sessionLabel?.trim();
+  const globalPolicy = requestedSessionLabel
+    ? await loadPolicyForSession(requestedSessionLabel, useAdmin)
+    : await loadGlobalPolicy(useAdmin);
   const [policySnapshotsRaw, collections, masterOptions] = await Promise.all([
-    loadFeePolicySnapshots(false),
+    loadFeePolicySnapshots(useAdmin),
     loadFeeCollections(globalPolicy.academicSessionLabel),
     getMasterDataOptions(),
   ]);
@@ -846,7 +896,7 @@ async function syncAcademicSessionFromPolicy(sessionLabel: string) {
   if (existing?.id) {
     const { error } = await supabase
       .from("academic_sessions")
-      .update({ status: "active", is_current: true })
+      .update({ status: "active" })
       .eq("id", existing.id);
 
     if (error) {
@@ -859,7 +909,7 @@ async function syncAcademicSessionFromPolicy(sessionLabel: string) {
   const { error } = await supabase.from("academic_sessions").insert({
     session_label: normalized,
     status: "active",
-    is_current: true,
+    is_current: false,
     notes: "Auto-synced from fee policy",
   });
 
@@ -946,7 +996,7 @@ export async function upsertGlobalFeePolicy(payload: {
   const { data: existing, error: existingError } = await supabase
     .from("fee_policy_configs")
     .select("id, academic_session_label")
-    .eq("is_active", true)
+    .eq("academic_session_label", values.academic_session_label)
     .maybeSingle();
 
   if (existingError && !existingError.message.includes("does not exist")) {
@@ -954,34 +1004,6 @@ export async function upsertGlobalFeePolicy(payload: {
   }
 
   if (existing?.id) {
-    if (existing.academic_session_label.trim() !== values.academic_session_label) {
-      const { error: deactivateError } = await supabase
-        .from("fee_policy_configs")
-        .update({ is_active: false })
-        .eq("id", existing.id);
-
-      if (deactivateError) {
-        throw new Error(deactivateError.message);
-      }
-
-      const { data: inserted, error: insertError } = await supabase
-        .from("fee_policy_configs")
-        .insert(values)
-        .select("id")
-        .single();
-
-      if (insertError) {
-        await supabase
-          .from("fee_policy_configs")
-          .update({ is_active: true })
-          .eq("id", existing.id);
-        throw new Error(insertError.message);
-      }
-
-      await syncAcademicSessionFromPolicy(values.academic_session_label);
-      return inserted.id as string;
-    }
-
     const { error } = await supabase
       .from("fee_policy_configs")
       .update(values)
@@ -991,7 +1013,7 @@ export async function upsertGlobalFeePolicy(payload: {
       throw new Error(error.message);
     }
 
-    await syncAcademicSessionFromPolicy(values.academic_session_label);
+    await setActiveSessionLabel(values.academic_session_label);
 
     return existing.id as string;
   }
@@ -1011,6 +1033,7 @@ export async function upsertGlobalFeePolicy(payload: {
   }
 
   await syncAcademicSessionFromPolicy(values.academic_session_label);
+  await setActiveSessionLabel(values.academic_session_label);
 
   return data.id as string;
 }

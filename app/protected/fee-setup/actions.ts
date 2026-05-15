@@ -7,6 +7,7 @@ import {
   createWorkbookFeeSetupPreview,
 } from "@/lib/fees/workbook-setup-change";
 import { upsertConventionalDiscountPolicies } from "@/lib/fees/conventional-discounts";
+import { setActiveSessionLabel } from "@/lib/session/set-active";
 import type { WorkbookFeeSetupFormPayload } from "@/lib/fees/workbook-setup";
 import {
   DEFAULT_FEE_HEAD_METADATA,
@@ -343,6 +344,7 @@ export async function saveWorkbookFeeSetupAction(
         academicSessionLabel: payload.academicSessionLabel,
         policies: conventionalDiscountPolicies,
       });
+      await setActiveSessionLabel(payload.academicSessionLabel);
       revalidateFeeSetupSurface();
       return toSuccessState(result.message);
     }

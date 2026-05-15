@@ -19,6 +19,29 @@ describe("system sync health", () => {
     getFeePolicySummary.mockResolvedValue({ academicSessionLabel: "2026-27" });
   });
 
+  it("uses app_settings as the active session source", async () => {
+    const appSettingsQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: { value: "TEST-2026-27" },
+        error: null,
+      }),
+    };
+
+    createClient.mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table === "app_settings") return appSettingsQuery;
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    const { getActiveSessionLabel } = await import("@/lib/session/active");
+
+    await expect(getActiveSessionLabel()).resolves.toBe("TEST-2026-27");
+    expect(appSettingsQuery.eq).toHaveBeenCalledWith("key", "active_session_label");
+  });
+
   it("queries active classes by status, not is_active", async () => {
     const classSelect = vi.fn().mockReturnThis();
     const classEq = vi.fn().mockReturnThis();
@@ -255,8 +278,8 @@ describe("system sync health", () => {
     const health = await getLiveDataHealth();
 
     expect(health.activeFeePolicySession).toBe("2026-27");
-    expect(health.academicCurrentSession).toBe("2025-26");
-    expect(health.sessionMismatch).toBe(true);
+    expect(health.academicCurrentSession).toBe("2026-27");
+    expect(health.sessionMismatch).toBe(false);
     expect(health.studentsMissingInstallments).toHaveLength(1);
     expect(health.classesMissingFeeSettings).toHaveLength(1);
     expect(health.studentsOutsideActiveFeeSession).toHaveLength(1);

@@ -11,6 +11,9 @@ const placeholderPatterns = [
 ] as const;
 
 const truthyEnvValues = new Set(["1", "true", "yes", "on"]);
+const appModes = ["production", "test"] as const;
+
+export type AppMode = (typeof appModes)[number];
 
 function normalizeUrl(value: string) {
   return value.trim().replace(/\/$/, "");
@@ -60,6 +63,22 @@ export function getRequiredEnvVar(
 export function getOptionalEnvVar(name: string): string | undefined {
   const value = process.env[name]?.trim();
   return value ? value : undefined;
+}
+
+export function getAppMode(): AppMode {
+  const value = getOptionalEnvVar("APP_MODE") ?? "production";
+
+  if ((appModes as readonly string[]).includes(value)) {
+    return value as AppMode;
+  }
+
+  throw new Error(
+    `Invalid APP_MODE: ${value}. Expected "production" or "test".`,
+  );
+}
+
+export function getSupabaseSchemaForAppMode() {
+  return getAppMode() === "test" ? "test" : "public";
 }
 
 export function hasExplicitSiteUrl() {

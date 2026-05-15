@@ -6,11 +6,779 @@
 - Local:         http://localhost:3000
 - Network:       http://10.18.68.109:3000
 - Environments: .env.local
-✓ Ready in 502ms
+✓ Ready in 863ms
 - Experiments (use with caution):
   ✓ optimizeCss
   · optimizePackageImports
   ✓ scrollRestoration
 
- GET / 200 in 430ms (next.js: 121ms, proxy.ts: 142ms, application-code: 167ms)
- GET / 200 in 58ms (next.js: 5ms, proxy.ts: 7ms, application-code: 46ms)
+ GET /auth/login?next=%2Fprotected%2Fadmin-tools%2Fsession-health 200 in 466ms (next.js: 139ms, proxy.ts: 7ms, application-code: 321ms)
+ GET /protected/admin-tools/session-health 200 in 2.7s (next.js: 406ms, proxy.ts: 383ms, application-code: 1924ms)
+ POST /auth/login?next=%2Fprotected%2Fadmin-tools%2Fsession-health 303 in 6.2s (next.js: 3ms, proxy.ts: 5ms, application-code: 6.1s)
+  └─ ƒ loginAction({"message":null,"status":"idle"}, {}) in 3420ms app/auth/login/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.1s (next.js: 3ms, proxy.ts: 339ms, application-code: 1795ms)
+  └─ ƒ listAvailableSessionsAction() in 1790ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.1s (next.js: 3ms, proxy.ts: 356ms, application-code: 1755ms)
+  └─ ƒ listAvailableSessionsAction() in 1750ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.4s (next.js: 3ms, proxy.ts: 475ms, application-code: 1920ms)
+  └─ ƒ listAvailableSessionsAction() in 1915ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.2s (next.js: 3ms, proxy.ts: 474ms, application-code: 1704ms)
+  └─ ƒ listAvailableSessionsAction() in 1698ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.3s (next.js: 3ms, proxy.ts: 340ms, application-code: 1949ms)
+  └─ ƒ listAvailableSessionsAction() in 1943ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.6s (next.js: 3ms, proxy.ts: 362ms, application-code: 2.2s)
+  └─ ƒ listAvailableSessionsAction() in 2190ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.2s (next.js: 3ms, proxy.ts: 472ms, application-code: 1714ms)
+  └─ ƒ listAvailableSessionsAction() in 1707ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.4s (next.js: 3ms, proxy.ts: 358ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2074ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.2s (next.js: 3ms, proxy.ts: 477ms, application-code: 1728ms)
+  └─ ƒ listAvailableSessionsAction() in 1723ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.1s (next.js: 3ms, proxy.ts: 333ms, application-code: 1738ms)
+  └─ ƒ listAvailableSessionsAction() in 1733ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.3s (next.js: 4ms, proxy.ts: 354ms, application-code: 1968ms)
+  └─ ƒ listAvailableSessionsAction() in 1962ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.0s (next.js: 3ms, proxy.ts: 355ms, application-code: 1673ms)
+  └─ ƒ listAvailableSessionsAction() in 1668ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.0s (next.js: 3ms, proxy.ts: 331ms, application-code: 1697ms)
+  └─ ƒ listAvailableSessionsAction() in 1693ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.2s (next.js: 3ms, proxy.ts: 337ms, application-code: 1878ms)
+  └─ ƒ listAvailableSessionsAction() in 1874ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.4s (next.js: 3ms, proxy.ts: 337ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2096ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.2s (next.js: 3ms, proxy.ts: 472ms, application-code: 1769ms)
+  └─ ƒ listAvailableSessionsAction() in 1765ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.1s (next.js: 3ms, proxy.ts: 338ms, application-code: 1783ms)
+  └─ ƒ listAvailableSessionsAction() in 1779ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.4s (next.js: 3ms, proxy.ts: 417ms, application-code: 1935ms)
+  └─ ƒ listAvailableSessionsAction() in 1930ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.2s (next.js: 3ms, proxy.ts: 341ms, application-code: 1874ms)
+  └─ ƒ listAvailableSessionsAction() in 1870ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.6s (next.js: 3ms, proxy.ts: 474ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2092ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.0s (next.js: 3ms, proxy.ts: 332ms, application-code: 1709ms)
+  └─ ƒ listAvailableSessionsAction() in 1704ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.6s (next.js: 3ms, proxy.ts: 618ms, application-code: 1948ms)
+  └─ ƒ listAvailableSessionsAction() in 1943ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.7s (next.js: 3ms, proxy.ts: 334ms, application-code: 2.4s)
+  └─ ƒ listAvailableSessionsAction() in 2373ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.1s (next.js: 3ms, proxy.ts: 341ms, application-code: 1777ms)
+  └─ ƒ listAvailableSessionsAction() in 1773ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.4s (next.js: 3ms, proxy.ts: 431ms, application-code: 1935ms)
+  └─ ƒ listAvailableSessionsAction() in 1931ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.5s (next.js: 3ms, proxy.ts: 459ms, application-code: 1994ms)
+  └─ ƒ listAvailableSessionsAction() in 1989ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.3s (next.js: 3ms, proxy.ts: 397ms, application-code: 1940ms)
+  └─ ƒ listAvailableSessionsAction() in 1936ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.2s (next.js: 3ms, proxy.ts: 337ms, application-code: 1875ms)
+  └─ ƒ listAvailableSessionsAction() in 1871ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.6s (next.js: 3ms, proxy.ts: 476ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2126ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.2s (next.js: 3ms, proxy.ts: 343ms, application-code: 1887ms)
+  └─ ƒ listAvailableSessionsAction() in 1883ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.2s (next.js: 3ms, proxy.ts: 357ms, application-code: 1875ms)
+  └─ ƒ listAvailableSessionsAction() in 1871ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.1s (next.js: 3ms, proxy.ts: 338ms, application-code: 1718ms)
+  └─ ƒ listAvailableSessionsAction() in 1714ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.2s (next.js: 3ms, proxy.ts: 440ms, application-code: 1800ms)
+  └─ ƒ listAvailableSessionsAction() in 1796ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.4s (next.js: 3ms, proxy.ts: 332ms, application-code: 2.0s)
+  └─ ƒ listAvailableSessionsAction() in 2023ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.3s (next.js: 3ms, proxy.ts: 467ms, application-code: 1827ms)
+  └─ ƒ listAvailableSessionsAction() in 1823ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.7s (next.js: 3ms, proxy.ts: 405ms, application-code: 2.3s)
+  └─ ƒ listAvailableSessionsAction() in 2326ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.3s (next.js: 3ms, proxy.ts: 353ms, application-code: 1954ms)
+  └─ ƒ listAvailableSessionsAction() in 1949ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.2s (next.js: 3ms, proxy.ts: 343ms, application-code: 1860ms)
+  └─ ƒ listAvailableSessionsAction() in 1856ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.3s (next.js: 3ms, proxy.ts: 340ms, application-code: 1966ms)
+  └─ ƒ listAvailableSessionsAction() in 1960ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.0s (next.js: 3ms, proxy.ts: 334ms, application-code: 1711ms)
+  └─ ƒ listAvailableSessionsAction() in 1707ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.2s (next.js: 3ms, proxy.ts: 333ms, application-code: 1853ms)
+  └─ ƒ listAvailableSessionsAction() in 1848ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.4s (next.js: 3ms, proxy.ts: 370ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2048ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.1s (next.js: 3ms, proxy.ts: 378ms, application-code: 1702ms)
+  └─ ƒ listAvailableSessionsAction() in 1698ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.1s (next.js: 3ms, proxy.ts: 335ms, application-code: 1730ms)
+  └─ ƒ listAvailableSessionsAction() in 1726ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.6s (next.js: 3ms, proxy.ts: 477ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2072ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.6s (next.js: 3ms, proxy.ts: 474ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2102ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 1995ms (next.js: 3ms, proxy.ts: 336ms, application-code: 1656ms)
+  └─ ƒ listAvailableSessionsAction() in 1652ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.1s (next.js: 3ms, proxy.ts: 338ms, application-code: 1788ms)
+  └─ ƒ listAvailableSessionsAction() in 1784ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.3s (next.js: 3ms, proxy.ts: 341ms, application-code: 1971ms)
+  └─ ƒ listAvailableSessionsAction() in 1966ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.4s (next.js: 3ms, proxy.ts: 397ms, application-code: 1955ms)
+  └─ ƒ listAvailableSessionsAction() in 1951ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.0s (next.js: 3ms, proxy.ts: 335ms, application-code: 1699ms)
+  └─ ƒ listAvailableSessionsAction() in 1694ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.0s (next.js: 3ms, proxy.ts: 342ms, application-code: 1693ms)
+  └─ ƒ listAvailableSessionsAction() in 1688ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.1s (next.js: 2ms, proxy.ts: 335ms, application-code: 1788ms)
+  └─ ƒ listAvailableSessionsAction() in 1783ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health 200 in 2.6s (next.js: 4ms, proxy.ts: 462ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2105ms app/protected/session/actions.ts
+ POST /protected/dashboard 200 in 3.9s (next.js: 3ms, proxy.ts: 338ms, application-code: 3.6s)
+  └─ ƒ listAvailableSessionsAction() in 3578ms app/protected/session/actions.ts
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 3ms, proxy.ts: 328ms, application-code: 2.1s)
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 3.0s (next.js: 3ms, proxy.ts: 352ms, application-code: 2.7s)
+  └─ ƒ listAvailableSessionsAction() in 2669ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 377ms, application-code: 1892ms)
+  └─ ƒ listAvailableSessionsAction() in 1887ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 343ms, application-code: 2.0s)
+  └─ ƒ listAvailableSessionsAction() in 2032ms app/protected/session/actions.ts
+ GET /protected/dashboard 200 in 12.7s (next.js: 3ms, proxy.ts: 439ms, application-code: 12.3s)
+ GET /protected/dashboard 200 in 13.9s (next.js: 37ms, proxy.ts: 368ms, application-code: 13.5s)
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 15ms, proxy.ts: 346ms, application-code: 1706ms)
+  └─ ƒ listAvailableSessionsAction() in 1700ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 364ms, application-code: 1827ms)
+  └─ ƒ listAvailableSessionsAction() in 1823ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.7s (next.js: 43ms, proxy.ts: 560ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2111ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 351ms, application-code: 1937ms)
+  └─ ƒ listAvailableSessionsAction() in 1931ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 376ms, application-code: 1822ms)
+  └─ ƒ listAvailableSessionsAction() in 1818ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 348ms, application-code: 1714ms)
+  └─ ƒ listAvailableSessionsAction() in 1710ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 4ms, proxy.ts: 341ms, application-code: 1876ms)
+  └─ ƒ listAvailableSessionsAction() in 1867ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 355ms, application-code: 1878ms)
+  └─ ƒ listAvailableSessionsAction() in 1874ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.8s (next.js: 3ms, proxy.ts: 339ms, application-code: 2.5s)
+  └─ ƒ listAvailableSessionsAction() in 2460ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 342ms, application-code: 1879ms)
+  └─ ƒ listAvailableSessionsAction() in 1874ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 354ms, application-code: 1758ms)
+  └─ ƒ listAvailableSessionsAction() in 1754ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 339ms, application-code: 1870ms)
+  └─ ƒ listAvailableSessionsAction() in 1866ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 339ms, application-code: 1879ms)
+  └─ ƒ listAvailableSessionsAction() in 1874ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 331ms, application-code: 1916ms)
+  └─ ƒ listAvailableSessionsAction() in 1912ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 4ms, proxy.ts: 350ms, application-code: 1785ms)
+  └─ ƒ listAvailableSessionsAction() in 1780ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 342ms, application-code: 1722ms)
+  └─ ƒ listAvailableSessionsAction() in 1716ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 340ms, application-code: 1972ms)
+  └─ ƒ listAvailableSessionsAction() in 1967ms app/protected/session/actions.ts
+ GET /protected/dashboard 200 in 49s (next.js: 3ms, proxy.ts: 429ms, application-code: 49s)
+ POST /protected/dashboard 200 in 52s (next.js: 3ms, proxy.ts: 926ms, application-code: 51s)
+  └─ ƒ setViewSessionAction("2026-27") in 680ms app/protected/session/actions.ts
+ GET /protected/dashboard 200 in 48s (next.js: 3ms, proxy.ts: 404ms, application-code: 48s)
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.7s (next.js: 3ms, proxy.ts: 352ms, application-code: 2.3s)
+  └─ ƒ listAvailableSessionsAction() in 2291ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 4ms, proxy.ts: 351ms, application-code: 2.0s)
+  └─ ƒ listAvailableSessionsAction() in 2001ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 351ms, application-code: 1849ms)
+  └─ ƒ listAvailableSessionsAction() in 1844ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 332ms, application-code: 1906ms)
+  └─ ƒ listAvailableSessionsAction() in 1902ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 351ms, application-code: 1911ms)
+  └─ ƒ listAvailableSessionsAction() in 1904ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 441ms, application-code: 1964ms)
+  └─ ƒ listAvailableSessionsAction() in 1960ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 334ms, application-code: 1801ms)
+  └─ ƒ listAvailableSessionsAction() in 1796ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 6ms, proxy.ts: 361ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2076ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 3ms, proxy.ts: 346ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2119ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 347ms, application-code: 1832ms)
+  └─ ƒ listAvailableSessionsAction() in 1827ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 337ms, application-code: 1808ms)
+  └─ ƒ listAvailableSessionsAction() in 1803ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 370ms, application-code: 1986ms)
+  └─ ƒ listAvailableSessionsAction() in 1982ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 406ms, application-code: 1929ms)
+  └─ ƒ listAvailableSessionsAction() in 1925ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 474ms, application-code: 1922ms)
+  └─ ƒ listAvailableSessionsAction() in 1917ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 345ms, application-code: 1819ms)
+  └─ ƒ listAvailableSessionsAction() in 1814ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 342ms, application-code: 1845ms)
+  └─ ƒ listAvailableSessionsAction() in 1840ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 396ms, application-code: 1719ms)
+  └─ ƒ listAvailableSessionsAction() in 1715ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 3ms, proxy.ts: 419ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2051ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.7s (next.js: 3ms, proxy.ts: 463ms, application-code: 2.2s)
+  └─ ƒ listAvailableSessionsAction() in 2232ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 336ms, application-code: 1781ms)
+  └─ ƒ listAvailableSessionsAction() in 1776ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 348ms, application-code: 1707ms)
+  └─ ƒ listAvailableSessionsAction() in 1702ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 450ms, application-code: 1762ms)
+  └─ ƒ listAvailableSessionsAction() in 1755ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 339ms, application-code: 1803ms)
+  └─ ƒ listAvailableSessionsAction() in 1798ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 350ms, application-code: 1761ms)
+  └─ ƒ listAvailableSessionsAction() in 1757ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 344ms, application-code: 1723ms)
+  └─ ƒ listAvailableSessionsAction() in 1718ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 340ms, application-code: 1951ms)
+  └─ ƒ listAvailableSessionsAction() in 1945ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 339ms, application-code: 1940ms)
+  └─ ƒ listAvailableSessionsAction() in 1935ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 3ms, proxy.ts: 429ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2083ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 4ms, proxy.ts: 351ms, application-code: 1721ms)
+  └─ ƒ listAvailableSessionsAction() in 1715ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 464ms, application-code: 1846ms)
+  └─ ƒ listAvailableSessionsAction() in 1841ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 3ms, proxy.ts: 392ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2110ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 341ms, application-code: 2.0s)
+  └─ ƒ listAvailableSessionsAction() in 2041ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 349ms, application-code: 1909ms)
+  └─ ƒ listAvailableSessionsAction() in 1904ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 360ms, application-code: 2.0s)
+  └─ ƒ listAvailableSessionsAction() in 2011ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 3.1s (next.js: 3ms, proxy.ts: 355ms, application-code: 2.8s)
+  └─ ƒ listAvailableSessionsAction() in 2756ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 390ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2047ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 6ms, proxy.ts: 427ms, application-code: 1899ms)
+  └─ ƒ listAvailableSessionsAction() in 1894ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 3.0s (next.js: 3ms, proxy.ts: 349ms, application-code: 2.7s)
+  └─ ƒ listAvailableSessionsAction() in 2682ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.6s (next.js: 3ms, proxy.ts: 452ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2116ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 3ms, proxy.ts: 408ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2119ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 433ms, application-code: 1829ms)
+  └─ ƒ listAvailableSessionsAction() in 1825ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.8s (next.js: 3ms, proxy.ts: 340ms, application-code: 2.5s)
+  └─ ƒ listAvailableSessionsAction() in 2462ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 363ms, application-code: 1818ms)
+  └─ ƒ listAvailableSessionsAction() in 1813ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.6s (next.js: 3ms, proxy.ts: 336ms, application-code: 2.3s)
+  └─ ƒ listAvailableSessionsAction() in 2278ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 465ms, application-code: 1886ms)
+  └─ ƒ listAvailableSessionsAction() in 1882ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 431ms, application-code: 1777ms)
+  └─ ƒ listAvailableSessionsAction() in 1772ms app/protected/session/actions.ts
+✓ Compiled in 37ms
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.7s (next.js: 3ms, proxy.ts: 336ms, application-code: 2.4s)
+  └─ ƒ listAvailableSessionsAction() in 2355ms app/protected/session/actions.ts
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 1170ms (next.js: 115ms, proxy.ts: 413ms, application-code: 642ms)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 827ms (next.js: 3ms, proxy.ts: 367ms, application-code: 457ms)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 918ms (next.js: 3ms, proxy.ts: 476ms, application-code: 439ms)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 852ms (next.js: 4ms, proxy.ts: 378ms, application-code: 471ms)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 1042ms (next.js: 41ms, proxy.ts: 523ms, application-code: 479ms)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 1212ms (next.js: 11ms, proxy.ts: 618ms, application-code: 583ms)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 937ms (next.js: 3ms, proxy.ts: 367ms, application-code: 567ms)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 784ms (next.js: 3ms, proxy.ts: 339ms, application-code: 442ms)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 788ms (next.js: 4ms, proxy.ts: 345ms, application-code: 438ms)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 792ms (next.js: 4ms, proxy.ts: 366ms, application-code: 423ms)
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.9s (next.js: 5ms, proxy.ts: 603ms, application-code: 2.3s)
+  └─ ƒ listAvailableSessionsAction() in 2274ms app/protected/session/actions.ts
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 798ms (next.js: 3ms, proxy.ts: 351ms, application-code: 444ms)
+✓ Compiled in 36ms
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 7ms, proxy.ts: 345ms, application-code: 2.2s)
+  └─ ƒ listAvailableSessionsAction() in 2177ms app/protected/session/actions.ts
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 1354ms (next.js: 114ms, proxy.ts: 399ms, application-code: 841ms)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 923ms (next.js: 4ms, proxy.ts: 507ms, application-code: 413ms)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 766ms (next.js: 13ms, proxy.ts: 355ms, application-code: 398ms)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 863ms (next.js: 7ms, proxy.ts: 417ms, application-code: 439ms)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 1027ms (next.js: 41ms, proxy.ts: 419ms, application-code: 566ms)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 890ms (next.js: 11ms, proxy.ts: 363ms, application-code: 517ms)
+✓ Compiled in 28ms
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 3.4s (next.js: 9ms, proxy.ts: 533ms, application-code: 2.9s)
+  └─ ƒ listAvailableSessionsAction() in 2898ms app/protected/session/actions.ts
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 353ms, application-code: 1879ms)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 2.7s (next.js: 8ms, proxy.ts: 378ms, application-code: 2.3s)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 1061ms (next.js: 5ms, proxy.ts: 565ms, application-code: 491ms)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 960ms (next.js: 3ms, proxy.ts: 358ms, application-code: 600ms)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 854ms (next.js: 6ms, proxy.ts: 403ms, application-code: 445ms)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 950ms (next.js: 77ms, proxy.ts: 406ms, application-code: 468ms)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 943ms (next.js: 51ms, proxy.ts: 397ms, application-code: 494ms)
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 111ms, proxy.ts: 404ms, application-code: 1838ms)
+  └─ ƒ listAvailableSessionsAction() in 1829ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 360ms, application-code: 1773ms)
+  └─ ƒ listAvailableSessionsAction() in 1768ms app/protected/session/actions.ts
+✓ Compiled in 109ms
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 140ms, proxy.ts: 430ms, application-code: 1836ms)
+  └─ ƒ listAvailableSessionsAction() in 1823ms app/protected/session/actions.ts
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 923ms (next.js: 3ms, proxy.ts: 394ms, application-code: 526ms)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 1327ms (next.js: 3ms, proxy.ts: 639ms, application-code: 685ms)
+ GET /protected/admin-tools/session-health?session=2026-27 200 in 1078ms (next.js: 14ms, proxy.ts: 550ms, application-code: 515ms)
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.9s (next.js: 56ms, proxy.ts: 391ms, application-code: 2.4s)
+  └─ ƒ listAvailableSessionsAction() in 2434ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 417ms, application-code: 1791ms)
+  └─ ƒ listAvailableSessionsAction() in 1787ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 367ms, application-code: 1903ms)
+  └─ ƒ listAvailableSessionsAction() in 1898ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 3ms, proxy.ts: 733ms, application-code: 1760ms)
+  └─ ƒ listAvailableSessionsAction() in 1755ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 464ms, application-code: 1982ms)
+  └─ ƒ listAvailableSessionsAction() in 1977ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 364ms, application-code: 1994ms)
+  └─ ƒ listAvailableSessionsAction() in 1989ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 3ms, proxy.ts: 345ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2109ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 402ms, application-code: 1913ms)
+  └─ ƒ listAvailableSessionsAction() in 1909ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 488ms, application-code: 1911ms)
+  └─ ƒ listAvailableSessionsAction() in 1906ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 472ms, application-code: 1867ms)
+  └─ ƒ listAvailableSessionsAction() in 1862ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.6s (next.js: 3ms, proxy.ts: 403ms, application-code: 2.2s)
+  └─ ƒ listAvailableSessionsAction() in 2199ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 3ms, proxy.ts: 508ms, application-code: 2.0s)
+  └─ ƒ listAvailableSessionsAction() in 1996ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 356ms, application-code: 1869ms)
+  └─ ƒ listAvailableSessionsAction() in 1865ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 364ms, application-code: 1879ms)
+  └─ ƒ listAvailableSessionsAction() in 1874ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 391ms, application-code: 1900ms)
+  └─ ƒ listAvailableSessionsAction() in 1896ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 342ms, application-code: 1920ms)
+  └─ ƒ listAvailableSessionsAction() in 1916ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 426ms, application-code: 1854ms)
+  └─ ƒ listAvailableSessionsAction() in 1850ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 3ms, proxy.ts: 377ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2079ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 347ms, application-code: 1785ms)
+  └─ ƒ listAvailableSessionsAction() in 1781ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.6s (next.js: 3ms, proxy.ts: 347ms, application-code: 2.3s)
+  └─ ƒ listAvailableSessionsAction() in 2265ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 343ms, application-code: 1791ms)
+  └─ ƒ listAvailableSessionsAction() in 1786ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 3ms, proxy.ts: 454ms, application-code: 2.0s)
+  └─ ƒ listAvailableSessionsAction() in 2026ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 4ms, proxy.ts: 340ms, application-code: 1867ms)
+  └─ ƒ listAvailableSessionsAction() in 1860ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.0s (next.js: 3ms, proxy.ts: 345ms, application-code: 1699ms)
+  └─ ƒ listAvailableSessionsAction() in 1694ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 361ms, application-code: 1726ms)
+  └─ ƒ listAvailableSessionsAction() in 1721ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 342ms, application-code: 1705ms)
+  └─ ƒ listAvailableSessionsAction() in 1700ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.0s (next.js: 3ms, proxy.ts: 334ms, application-code: 1698ms)
+  └─ ƒ listAvailableSessionsAction() in 1693ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 362ms, application-code: 1761ms)
+  └─ ƒ listAvailableSessionsAction() in 1756ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 327ms, application-code: 1729ms)
+  └─ ƒ listAvailableSessionsAction() in 1724ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 364ms, application-code: 1745ms)
+  └─ ƒ listAvailableSessionsAction() in 1740ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 344ms, application-code: 1760ms)
+  └─ ƒ listAvailableSessionsAction() in 1755ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 397ms, application-code: 1875ms)
+  └─ ƒ listAvailableSessionsAction() in 1871ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 7ms, proxy.ts: 341ms, application-code: 1738ms)
+  └─ ƒ listAvailableSessionsAction() in 1734ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 340ms, application-code: 1754ms)
+  └─ ƒ listAvailableSessionsAction() in 1749ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 4ms, proxy.ts: 420ms, application-code: 1731ms)
+  └─ ƒ listAvailableSessionsAction() in 1727ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 341ms, application-code: 1724ms)
+  └─ ƒ listAvailableSessionsAction() in 1719ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 339ms, application-code: 1774ms)
+  └─ ƒ listAvailableSessionsAction() in 1770ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 343ms, application-code: 1751ms)
+  └─ ƒ listAvailableSessionsAction() in 1747ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 3ms, proxy.ts: 345ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2120ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 364ms, application-code: 1782ms)
+  └─ ƒ listAvailableSessionsAction() in 1778ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 333ms, application-code: 1885ms)
+  └─ ƒ listAvailableSessionsAction() in 1881ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 355ms, application-code: 1785ms)
+  └─ ƒ listAvailableSessionsAction() in 1780ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 329ms, application-code: 1768ms)
+  └─ ƒ listAvailableSessionsAction() in 1763ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 338ms, application-code: 1778ms)
+  └─ ƒ listAvailableSessionsAction() in 1773ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.0s (next.js: 3ms, proxy.ts: 349ms, application-code: 1684ms)
+  └─ ƒ listAvailableSessionsAction() in 1679ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 352ms, application-code: 1861ms)
+  └─ ƒ listAvailableSessionsAction() in 1857ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 357ms, application-code: 1717ms)
+  └─ ƒ listAvailableSessionsAction() in 1711ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 331ms, application-code: 1751ms)
+  └─ ƒ listAvailableSessionsAction() in 1746ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 329ms, application-code: 1820ms)
+  └─ ƒ listAvailableSessionsAction() in 1816ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 375ms, application-code: 1749ms)
+  └─ ƒ listAvailableSessionsAction() in 1743ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 345ms, application-code: 2.0s)
+  └─ ƒ listAvailableSessionsAction() in 2029ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 357ms, application-code: 1718ms)
+  └─ ƒ listAvailableSessionsAction() in 1714ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.0s (next.js: 3ms, proxy.ts: 328ms, application-code: 1695ms)
+  └─ ƒ listAvailableSessionsAction() in 1689ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 357ms, application-code: 1850ms)
+  └─ ƒ listAvailableSessionsAction() in 1846ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 340ms, application-code: 1713ms)
+  └─ ƒ listAvailableSessionsAction() in 1708ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.0s (next.js: 3ms, proxy.ts: 335ms, application-code: 1699ms)
+  └─ ƒ listAvailableSessionsAction() in 1694ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 350ms, application-code: 1760ms)
+  └─ ƒ listAvailableSessionsAction() in 1755ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.0s (next.js: 3ms, proxy.ts: 347ms, application-code: 1661ms)
+  └─ ƒ listAvailableSessionsAction() in 1657ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 338ms, application-code: 1796ms)
+  └─ ƒ listAvailableSessionsAction() in 1791ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 341ms, application-code: 1756ms)
+  └─ ƒ listAvailableSessionsAction() in 1752ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 333ms, application-code: 1828ms)
+  └─ ƒ listAvailableSessionsAction() in 1824ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 351ms, application-code: 1915ms)
+  └─ ƒ listAvailableSessionsAction() in 1911ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 349ms, application-code: 1891ms)
+  └─ ƒ listAvailableSessionsAction() in 1887ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 342ms, application-code: 1738ms)
+  └─ ƒ listAvailableSessionsAction() in 1734ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 4ms, proxy.ts: 345ms, application-code: 2.2s)
+  └─ ƒ listAvailableSessionsAction() in 2185ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 341ms, application-code: 1814ms)
+  └─ ƒ listAvailableSessionsAction() in 1809ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.6s (next.js: 3ms, proxy.ts: 347ms, application-code: 2.2s)
+  └─ ƒ listAvailableSessionsAction() in 2238ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.7s (next.js: 3ms, proxy.ts: 336ms, application-code: 2.4s)
+  └─ ƒ listAvailableSessionsAction() in 2377ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 7ms, proxy.ts: 346ms, application-code: 1925ms)
+  └─ ƒ listAvailableSessionsAction() in 1921ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 432ms, application-code: 1799ms)
+  └─ ƒ listAvailableSessionsAction() in 1795ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 346ms, application-code: 1775ms)
+  └─ ƒ listAvailableSessionsAction() in 1770ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 340ms, application-code: 1807ms)
+  └─ ƒ listAvailableSessionsAction() in 1802ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 6ms, proxy.ts: 362ms, application-code: 1875ms)
+  └─ ƒ listAvailableSessionsAction() in 1870ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 5ms, proxy.ts: 350ms, application-code: 1711ms)
+  └─ ƒ listAvailableSessionsAction() in 1704ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 4ms, proxy.ts: 340ms, application-code: 1887ms)
+  └─ ƒ listAvailableSessionsAction() in 1881ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 360ms, application-code: 1714ms)
+  └─ ƒ listAvailableSessionsAction() in 1708ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 474ms, application-code: 1774ms)
+  └─ ƒ listAvailableSessionsAction() in 1769ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 388ms, application-code: 1882ms)
+  └─ ƒ listAvailableSessionsAction() in 1877ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 2ms, proxy.ts: 363ms, application-code: 1782ms)
+  └─ ƒ listAvailableSessionsAction() in 1778ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 363ms, application-code: 1748ms)
+  └─ ƒ listAvailableSessionsAction() in 1744ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 345ms, application-code: 1818ms)
+  └─ ƒ listAvailableSessionsAction() in 1813ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.6s (next.js: 3ms, proxy.ts: 366ms, application-code: 2.3s)
+  └─ ƒ listAvailableSessionsAction() in 2260ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 370ms, application-code: 1737ms)
+  └─ ƒ listAvailableSessionsAction() in 1732ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 428ms, application-code: 1756ms)
+  └─ ƒ listAvailableSessionsAction() in 1752ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.0s (next.js: 4ms, proxy.ts: 327ms, application-code: 1692ms)
+  └─ ƒ listAvailableSessionsAction() in 1687ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 341ms, application-code: 1758ms)
+  └─ ƒ listAvailableSessionsAction() in 1754ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.0s (next.js: 3ms, proxy.ts: 331ms, application-code: 1688ms)
+  └─ ƒ listAvailableSessionsAction() in 1683ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 3.2s (next.js: 3ms, proxy.ts: 362ms, application-code: 2.8s)
+  └─ ƒ listAvailableSessionsAction() in 2815ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 416ms, application-code: 1915ms)
+  └─ ƒ listAvailableSessionsAction() in 1910ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.6s (next.js: 3ms, proxy.ts: 473ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2078ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.7s (next.js: 3ms, proxy.ts: 334ms, application-code: 2.4s)
+  └─ ƒ listAvailableSessionsAction() in 2380ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 361ms, application-code: 1756ms)
+  └─ ƒ listAvailableSessionsAction() in 1751ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 422ms, application-code: 1802ms)
+  └─ ƒ listAvailableSessionsAction() in 1797ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 346ms, application-code: 1774ms)
+  └─ ƒ listAvailableSessionsAction() in 1769ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 4ms, proxy.ts: 353ms, application-code: 1791ms)
+  └─ ƒ listAvailableSessionsAction() in 1785ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 475ms, application-code: 1746ms)
+  └─ ƒ listAvailableSessionsAction() in 1741ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 372ms, application-code: 1874ms)
+  └─ ƒ listAvailableSessionsAction() in 1870ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 475ms, application-code: 1869ms)
+  └─ ƒ listAvailableSessionsAction() in 1865ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 350ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2088ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 471ms, application-code: 1771ms)
+  └─ ƒ listAvailableSessionsAction() in 1766ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 327ms, application-code: 1899ms)
+  └─ ƒ listAvailableSessionsAction() in 1893ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 343ms, application-code: 1789ms)
+  └─ ƒ listAvailableSessionsAction() in 1785ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 338ms, application-code: 1896ms)
+  └─ ƒ listAvailableSessionsAction() in 1891ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 3ms, proxy.ts: 413ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2073ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 2ms, proxy.ts: 366ms, application-code: 1987ms)
+  └─ ƒ listAvailableSessionsAction() in 1983ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 345ms, application-code: 1973ms)
+  └─ ƒ listAvailableSessionsAction() in 1969ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 344ms, application-code: 1726ms)
+  └─ ƒ listAvailableSessionsAction() in 1722ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 345ms, application-code: 1710ms)
+  └─ ƒ listAvailableSessionsAction() in 1706ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 361ms, application-code: 1903ms)
+  └─ ƒ listAvailableSessionsAction() in 1899ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 422ms, application-code: 1738ms)
+  └─ ƒ listAvailableSessionsAction() in 1734ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 340ms, application-code: 1750ms)
+  └─ ƒ listAvailableSessionsAction() in 1746ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 411ms, application-code: 1697ms)
+  └─ ƒ listAvailableSessionsAction() in 1692ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 335ms, application-code: 1869ms)
+  └─ ƒ listAvailableSessionsAction() in 1865ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 347ms, application-code: 1736ms)
+  └─ ƒ listAvailableSessionsAction() in 1732ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 342ms, application-code: 1742ms)
+  └─ ƒ listAvailableSessionsAction() in 1736ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 6ms, proxy.ts: 343ms, application-code: 1873ms)
+  └─ ƒ listAvailableSessionsAction() in 1869ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 470ms, application-code: 1747ms)
+  └─ ƒ listAvailableSessionsAction() in 1743ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 350ms, application-code: 1812ms)
+  └─ ƒ listAvailableSessionsAction() in 1808ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 351ms, application-code: 1984ms)
+  └─ ƒ listAvailableSessionsAction() in 1980ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 337ms, application-code: 1927ms)
+  └─ ƒ listAvailableSessionsAction() in 1923ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 334ms, application-code: 1915ms)
+  └─ ƒ listAvailableSessionsAction() in 1902ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 350ms, application-code: 1801ms)
+  └─ ƒ listAvailableSessionsAction() in 1796ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 2ms, proxy.ts: 335ms, application-code: 1833ms)
+  └─ ƒ listAvailableSessionsAction() in 1828ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 355ms, application-code: 1809ms)
+  └─ ƒ listAvailableSessionsAction() in 1804ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 348ms, application-code: 1872ms)
+  └─ ƒ listAvailableSessionsAction() in 1868ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 344ms, application-code: 1751ms)
+  └─ ƒ listAvailableSessionsAction() in 1747ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 4ms, proxy.ts: 331ms, application-code: 1833ms)
+  └─ ƒ listAvailableSessionsAction() in 1829ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.0s (next.js: 3ms, proxy.ts: 335ms, application-code: 1682ms)
+  └─ ƒ listAvailableSessionsAction() in 1677ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 337ms, application-code: 1751ms)
+  └─ ƒ listAvailableSessionsAction() in 1747ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 347ms, application-code: 1837ms)
+  └─ ƒ listAvailableSessionsAction() in 1833ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 442ms, application-code: 1927ms)
+  └─ ƒ listAvailableSessionsAction() in 1923ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 468ms, application-code: 1710ms)
+  └─ ƒ listAvailableSessionsAction() in 1706ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 406ms, application-code: 1897ms)
+  └─ ƒ listAvailableSessionsAction() in 1893ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 342ms, application-code: 1886ms)
+  └─ ƒ listAvailableSessionsAction() in 1882ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 4ms, proxy.ts: 344ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2056ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 394ms, application-code: 1874ms)
+  └─ ƒ listAvailableSessionsAction() in 1869ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 544ms, application-code: 1719ms)
+  └─ ƒ listAvailableSessionsAction() in 1715ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 378ms, application-code: 1899ms)
+  └─ ƒ listAvailableSessionsAction() in 1895ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 500ms, application-code: 1739ms)
+  └─ ƒ listAvailableSessionsAction() in 1734ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 489ms, application-code: 1811ms)
+  └─ ƒ listAvailableSessionsAction() in 1805ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 331ms, application-code: 1880ms)
+  └─ ƒ listAvailableSessionsAction() in 1873ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 433ms, application-code: 1915ms)
+  └─ ƒ listAvailableSessionsAction() in 1910ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 3ms, proxy.ts: 413ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2057ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 363ms, application-code: 1788ms)
+  └─ ƒ listAvailableSessionsAction() in 1783ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 475ms, application-code: 1845ms)
+  └─ ƒ listAvailableSessionsAction() in 1840ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.8s (next.js: 3ms, proxy.ts: 595ms, application-code: 2.2s)
+  └─ ƒ listAvailableSessionsAction() in 2186ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.6s (next.js: 3ms, proxy.ts: 479ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2069ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.7s (next.js: 3ms, proxy.ts: 467ms, application-code: 2.2s)
+  └─ ƒ listAvailableSessionsAction() in 2240ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.6s (next.js: 3ms, proxy.ts: 483ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2109ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 445ms, application-code: 1844ms)
+  └─ ƒ listAvailableSessionsAction() in 1840ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 368ms, application-code: 1770ms)
+  └─ ƒ listAvailableSessionsAction() in 1766ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 344ms, application-code: 1711ms)
+  └─ ƒ listAvailableSessionsAction() in 1707ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 344ms, application-code: 1832ms)
+  └─ ƒ listAvailableSessionsAction() in 1828ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 346ms, application-code: 1897ms)
+  └─ ƒ listAvailableSessionsAction() in 1892ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.7s (next.js: 2ms, proxy.ts: 340ms, application-code: 2.4s)
+  └─ ƒ listAvailableSessionsAction() in 2370ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 3ms, proxy.ts: 375ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2076ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 347ms, application-code: 1704ms)
+  └─ ƒ listAvailableSessionsAction() in 1699ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 364ms, application-code: 1785ms)
+  └─ ƒ listAvailableSessionsAction() in 1781ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 381ms, application-code: 1960ms)
+  └─ ƒ listAvailableSessionsAction() in 1954ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 471ms, application-code: 1903ms)
+  └─ ƒ listAvailableSessionsAction() in 1898ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 359ms, application-code: 1901ms)
+  └─ ƒ listAvailableSessionsAction() in 1889ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.9s (next.js: 4ms, proxy.ts: 462ms, application-code: 2.4s)
+  └─ ƒ listAvailableSessionsAction() in 2381ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.7s (next.js: 4ms, proxy.ts: 487ms, application-code: 2.2s)
+  └─ ƒ listAvailableSessionsAction() in 2179ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.8s (next.js: 3ms, proxy.ts: 353ms, application-code: 2.4s)
+  └─ ƒ listAvailableSessionsAction() in 2391ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.6s (next.js: 3ms, proxy.ts: 809ms, application-code: 1748ms)
+  └─ ƒ listAvailableSessionsAction() in 1743ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 340ms, application-code: 1715ms)
+  └─ ƒ listAvailableSessionsAction() in 1710ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 364ms, application-code: 1703ms)
+  └─ ƒ listAvailableSessionsAction() in 1698ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 357ms, application-code: 1911ms)
+  └─ ƒ listAvailableSessionsAction() in 1907ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 378ms, application-code: 1953ms)
+  └─ ƒ listAvailableSessionsAction() in 1949ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 365ms, application-code: 1827ms)
+  └─ ƒ listAvailableSessionsAction() in 1822ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.6s (next.js: 3ms, proxy.ts: 423ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2139ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 4ms, proxy.ts: 351ms, application-code: 1813ms)
+  └─ ƒ listAvailableSessionsAction() in 1807ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 331ms, application-code: 1791ms)
+  └─ ƒ listAvailableSessionsAction() in 1785ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 6ms, proxy.ts: 343ms, application-code: 2.2s)
+  └─ ƒ listAvailableSessionsAction() in 2156ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 4ms, proxy.ts: 522ms, application-code: 1932ms)
+  └─ ƒ listAvailableSessionsAction() in 1927ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 353ms, application-code: 1916ms)
+  └─ ƒ listAvailableSessionsAction() in 1910ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 3ms, proxy.ts: 329ms, application-code: 2.2s)
+  └─ ƒ listAvailableSessionsAction() in 2170ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 390ms, application-code: 1753ms)
+  └─ ƒ listAvailableSessionsAction() in 1749ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 339ms, application-code: 1982ms)
+  └─ ƒ listAvailableSessionsAction() in 1977ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 476ms, application-code: 1970ms)
+  └─ ƒ listAvailableSessionsAction() in 1966ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 4ms, proxy.ts: 330ms, application-code: 1788ms)
+  └─ ƒ listAvailableSessionsAction() in 1783ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 371ms, application-code: 1969ms)
+  └─ ƒ listAvailableSessionsAction() in 1963ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 3ms, proxy.ts: 361ms, application-code: 2.2s)
+  └─ ƒ listAvailableSessionsAction() in 2144ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.6s (next.js: 3ms, proxy.ts: 382ms, application-code: 2.2s)
+  └─ ƒ listAvailableSessionsAction() in 2208ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 4ms, proxy.ts: 388ms, application-code: 1972ms)
+  └─ ƒ listAvailableSessionsAction() in 1966ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.6s (next.js: 3ms, proxy.ts: 429ms, application-code: 2.2s)
+  └─ ƒ listAvailableSessionsAction() in 2157ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 342ms, application-code: 1831ms)
+  └─ ƒ listAvailableSessionsAction() in 1827ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.5s (next.js: 3ms, proxy.ts: 446ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2072ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 9ms, proxy.ts: 340ms, application-code: 1736ms)
+  └─ ƒ listAvailableSessionsAction() in 1729ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 353ms, application-code: 1707ms)
+  └─ ƒ listAvailableSessionsAction() in 1703ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 342ms, application-code: 1872ms)
+  └─ ƒ listAvailableSessionsAction() in 1868ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 334ms, application-code: 1857ms)
+  └─ ƒ listAvailableSessionsAction() in 1853ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 342ms, application-code: 1897ms)
+  └─ ƒ listAvailableSessionsAction() in 1892ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.8s (next.js: 3ms, proxy.ts: 361ms, application-code: 2.4s)
+  └─ ƒ listAvailableSessionsAction() in 2403ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.6s (next.js: 3ms, proxy.ts: 422ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2125ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 356ms, application-code: 2.0s)
+  └─ ƒ listAvailableSessionsAction() in 2038ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 328ms, application-code: 1888ms)
+  └─ ƒ listAvailableSessionsAction() in 1884ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 347ms, application-code: 1885ms)
+  └─ ƒ listAvailableSessionsAction() in 1880ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 337ms, application-code: 1767ms)
+  └─ ƒ listAvailableSessionsAction() in 1762ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.0s (next.js: 3ms, proxy.ts: 344ms, application-code: 1693ms)
+  └─ ƒ listAvailableSessionsAction() in 1689ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 333ms, application-code: 1718ms)
+  └─ ƒ listAvailableSessionsAction() in 1713ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 359ms, application-code: 1937ms)
+  └─ ƒ listAvailableSessionsAction() in 1933ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 340ms, application-code: 1871ms)
+  └─ ƒ listAvailableSessionsAction() in 1866ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 343ms, application-code: 1938ms)
+  └─ ƒ listAvailableSessionsAction() in 1934ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 339ms, application-code: 2.0s)
+  └─ ƒ listAvailableSessionsAction() in 2017ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 343ms, application-code: 1787ms)
+  └─ ƒ listAvailableSessionsAction() in 1783ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 388ms, application-code: 1916ms)
+  └─ ƒ listAvailableSessionsAction() in 1912ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 339ms, application-code: 1978ms)
+  └─ ƒ listAvailableSessionsAction() in 1973ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 552ms, application-code: 1889ms)
+  └─ ƒ listAvailableSessionsAction() in 1884ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 344ms, application-code: 1712ms)
+  └─ ƒ listAvailableSessionsAction() in 1708ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 4ms, proxy.ts: 333ms, application-code: 1808ms)
+  └─ ƒ listAvailableSessionsAction() in 1803ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 346ms, application-code: 1871ms)
+  └─ ƒ listAvailableSessionsAction() in 1867ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 476ms, application-code: 1953ms)
+  └─ ƒ listAvailableSessionsAction() in 1949ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 343ms, application-code: 2.0s)
+  └─ ƒ listAvailableSessionsAction() in 2006ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 475ms, application-code: 1695ms)
+  └─ ƒ listAvailableSessionsAction() in 1691ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 417ms, application-code: 1767ms)
+  └─ ƒ listAvailableSessionsAction() in 1763ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 345ms, application-code: 1775ms)
+  └─ ƒ listAvailableSessionsAction() in 1770ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 367ms, application-code: 1995ms)
+  └─ ƒ listAvailableSessionsAction() in 1991ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 333ms, application-code: 1782ms)
+  └─ ƒ listAvailableSessionsAction() in 1778ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 355ms, application-code: 1877ms)
+  └─ ƒ listAvailableSessionsAction() in 1873ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 343ms, application-code: 1945ms)
+  └─ ƒ listAvailableSessionsAction() in 1941ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 2ms, proxy.ts: 347ms, application-code: 1928ms)
+  └─ ƒ listAvailableSessionsAction() in 1924ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 343ms, application-code: 1903ms)
+  └─ ƒ listAvailableSessionsAction() in 1899ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.3s (next.js: 3ms, proxy.ts: 335ms, application-code: 2.0s)
+  └─ ƒ listAvailableSessionsAction() in 2002ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 344ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2047ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 350ms, application-code: 1716ms)
+  └─ ƒ listAvailableSessionsAction() in 1712ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 336ms, application-code: 2.1s)
+  └─ ƒ listAvailableSessionsAction() in 2071ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 4ms, proxy.ts: 348ms, application-code: 2.0s)
+  └─ ƒ listAvailableSessionsAction() in 2035ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 11ms, proxy.ts: 464ms, application-code: 1697ms)
+  └─ ƒ listAvailableSessionsAction() in 1693ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.4s (next.js: 3ms, proxy.ts: 378ms, application-code: 1981ms)
+  └─ ƒ listAvailableSessionsAction() in 1977ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.7s (next.js: 3ms, proxy.ts: 338ms, application-code: 2.3s)
+  └─ ƒ listAvailableSessionsAction() in 2317ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 7ms, proxy.ts: 343ms, application-code: 1874ms)
+  └─ ƒ listAvailableSessionsAction() in 1870ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.2s (next.js: 3ms, proxy.ts: 345ms, application-code: 1812ms)
+  └─ ƒ listAvailableSessionsAction() in 1808ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 359ms, application-code: 1730ms)
+  └─ ƒ listAvailableSessionsAction() in 1726ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 356ms, application-code: 1732ms)
+  └─ ƒ listAvailableSessionsAction() in 1728ms app/protected/session/actions.ts
+ POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 349ms, application-code: 1735ms)
+  └─ ƒ listAvailableSessionsAction() in 1732ms app/protected/session/actions.ts

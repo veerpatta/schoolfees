@@ -61,6 +61,16 @@ Role landing defaults:
 - `accountant` -> `Payment Desk`
 - `read_only_staff` -> `Dashboard`
 
+### Production vs Staging deployment
+
+Production runs with `APP_MODE=production` and reads/writes the `public` schema.
+Staging can run with `APP_MODE=test` and reads/writes isolated operational tables
+in the `test` schema while shared setup catalogues remain read-only references.
+
+See [Test Environment Isolation](docs/test-environment-isolation.md) for setup,
+the one-time TEST-data migration script, and the longer-term separate Supabase
+project option.
+
 ## 5) Current feature summary
 
 ### Dashboard

@@ -19,6 +19,7 @@ export type ReceiptBreakdownItem = {
   paymentId: string;
   installmentNo: number;
   installmentLabel: string;
+  sessionLabel: string | null;
   dueDate: string;
   amount: number;
   notes: string | null;

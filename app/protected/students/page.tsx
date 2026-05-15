@@ -1,9 +1,8 @@
-import Link from "next/link";
-
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { OfficeActionBar, OfficeNotice } from "@/components/office/office-ui";
+import { StudentSessionMismatchActions } from "@/components/students/student-session-mismatch-actions";
 import { StudentBulkImportDialogTrigger } from "@/components/students/student-bulk-import-dialog";
 import { StudentQuickLoad } from "@/components/students/student-quick-load";
 import { Button } from "@/components/ui/button";
@@ -21,9 +20,11 @@ import {
   type StudentRouteOption,
   type StudentSessionOption,
 } from "@/lib/students/types";
+import { countRecentImportStudentsOutsideSession } from "@/lib/students/session-reanchor";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
+import Link from "next/link";
 
 type StudentsPageProps = {
   searchParams?: Promise<{
@@ -126,6 +127,12 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
         : "Students could not be loaded safely.";
   }
   const canWriteStudents = hasStaffPermission(staff, "students:write");
+  const canRealignRecentImports = hasStaffPermission(staff, "fees:write");
+  const activePolicySessionLabel = formOptions?.policySessionLabel || resolvedSessionLabel;
+  const recentImportStudentCount =
+    formOptions?.sessionMismatch && canRealignRecentImports
+      ? await countRecentImportStudentsOutsideSession(activePolicySessionLabel).catch(() => 0)
+      : 0;
   const loadWarnings = [formLoadWarning, studentLoadWarning].filter(
     (value): value is string => Boolean(value),
   );
@@ -182,9 +189,11 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
           <OfficeNotice
             tone="warning"
             action={
-              <Button asChild variant="outline">
-                <Link href="/protected/fee-setup">Open Fee Setup</Link>
-              </Button>
+              <StudentSessionMismatchActions
+                activePolicySessionLabel={activePolicySessionLabel}
+                canRealignRecentImports={canRealignRecentImports}
+                recentImportStudentCount={recentImportStudentCount}
+              />
             }
           >
             <p>

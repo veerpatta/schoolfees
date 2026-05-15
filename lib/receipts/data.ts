@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { buildReceiptAdjustmentTotals } from "@/lib/receipts/amounts";
+import { resolveReceiptSessionLabel } from "@/lib/receipts/session-label";
 import type {
   ReceiptBreakdownItem,
   ReceiptDetail,
@@ -47,6 +48,7 @@ type ReceiptListRow = {
 type PaymentInstallmentRow = {
   installment_no: number;
   installment_label: string;
+  class_ref: Pick<StudentClassRow, "session_label"> | Array<Pick<StudentClassRow, "session_label">> | null;
   due_date: string;
 };
 
@@ -270,7 +272,9 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
   ] = await Promise.all([
     supabase
       .from("payments")
-      .select("id, amount, notes, installment_ref:installments(installment_no, installment_label, due_date)")
+      .select(
+        "id, amount, notes, installment_ref:installments(installment_no, installment_label, due_date, class_ref:classes(session_label))",
+      )
       .eq("receipt_id", receipt.id)
       .order("created_at", { ascending: true }),
     receipt.created_by
@@ -327,6 +331,7 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
         paymentId: row.id,
         installmentNo: installment.installment_no,
         installmentLabel: installment.installment_label,
+        sessionLabel: toSingleRecord(installment.class_ref)?.session_label ?? null,
         dueDate: installment.due_date,
         amount: row.amount,
         notes: row.notes,
@@ -336,6 +341,7 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     .sort((left, right) => left.installmentNo - right.installmentNo);
 
   const student = toSingleRecord(receipt.student_ref);
+  const studentClass = toSingleRecord(student?.class_ref ?? null);
   const createdByName = (userRaw as UserRow | null)?.full_name ?? null;
   const financial = (financialRaw ?? null) as WorkbookFinancialRow | null;
   const studentReceipts = (studentReceiptsRaw ?? []) as HistoricalReceiptRow[];
@@ -377,7 +383,10 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     fatherName: student?.father_name ?? null,
     fatherPhone: student?.primary_phone ?? null,
     classLabel: buildClassLabel(student?.class_ref ?? null),
-    sessionLabel: toSingleRecord(student?.class_ref ?? null)?.session_label ?? "2026-27",
+    sessionLabel: resolveReceiptSessionLabel({
+      paymentSessionLabels: breakdown.map((item) => item.sessionLabel),
+      studentSessionLabel: studentClass?.session_label,
+    }),
     transportRouteLabel: buildRouteLabel(student?.route_ref ?? null),
     studentStatusLabel: financial?.student_status_label ?? "Old",
     feeSummary: buildFeeSummary(financial, {

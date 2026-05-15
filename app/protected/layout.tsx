@@ -14,6 +14,7 @@ export default async function ProtectedLayout({
       resolveViewSession({ cookieSession }),
     ),
   ]);
+  const isTestDatabase = process.env.NEXT_PUBLIC_APP_MODE === "test";
 
   return (
     <DashboardShell
@@ -22,6 +23,11 @@ export default async function ProtectedLayout({
       viewSessionLabel={resolvedSession.sessionLabel}
       viewSessionIsTest={resolvedSession.isTest}
     >
+      {isTestDatabase ? (
+        <div className="mb-4 rounded-md border border-destructive/40 bg-destructive px-4 py-2 text-center text-xs font-bold uppercase tracking-[0.14em] text-destructive-foreground shadow-sm">
+          TEST DATABASE - Staging deployment
+        </div>
+      ) : null}
       {children}
     </DashboardShell>
   );

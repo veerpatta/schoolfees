@@ -1,0 +1,442 @@
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+[browser] Invalid prop `className` supplied to `React.Fragment`. React.Fragment can only have `key`, `ref`, and `children` props. 
+    at <unknown> (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:3903:29)
+    at runWithFiberInDEV (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:965:74)
+    at validateFragmentProps (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:3902:17)
+    at reconcileChildFibersImpl (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:4170:166)
+    at <unknown> (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:4261:39)
+    at reconcileChildren (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:5898:51)
+    at updateForwardRef (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:5913:9)
+    at beginWork (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:6766:24)
+    at runWithFiberInDEV (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:965:74)
+    at performUnitOfWork (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9555:97)
+    at workLoopConcurrentByScheduler (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9551:58)
+    at renderRootConcurrent (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9534:71)
+    at performWorkOnRoot (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9061:150)
+    at performWorkOnRootViaSchedulerTask (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:10255:9)
+    at MessagePort.performWorkUntilDeadline (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_0rpq4pf._.js:2647:64) (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:3903:29)
+[browser] Invalid prop `className` supplied to `React.Fragment`. React.Fragment can only have `key`, `ref`, and `children` props. 
+    at <unknown> (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:3903:29)
+    at runWithFiberInDEV (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:965:74)
+    at validateFragmentProps (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:3902:17)
+    at reconcileChildFibersImpl (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:4170:166)
+    at <unknown> (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:4261:39)
+    at reconcileChildren (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:5898:51)
+    at updateForwardRef (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:5913:9)
+    at beginWork (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:6766:24)
+    at runWithFiberInDEV (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:965:74)
+    at performUnitOfWork (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9555:97)
+    at workLoopSync (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9449:40)
+    at renderRootSync (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9433:13)
+    at performWorkOnRoot (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9098:47)
+    at performWorkOnRootViaSchedulerTask (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:10255:9)
+    at MessagePort.performWorkUntilDeadline (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_0rpq4pf._.js:2647:64) (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:3903:29)
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+An error occurred in a function passed to `after()`: Error: Missing environment variable: SUPABASE_SERVICE_ROLE_KEY
+    at createAdminClient (lib\supabase\admin.ts:11:11)
+    at generateSessionLedgersAction (lib\fees\generator.ts:845:76)
+    at syncStudentFinancials (lib\system-sync\financial-sync.ts:558:52)
+    at prepareDuesForStudentsAutomatically (lib\system-sync\finance-sync.ts:61:45)
+    at <unknown> (app\protected\dashboard\page.tsx:733:46)
+   9 |
+  10 |   if (!serviceRoleKey) {
+> 11 |     throw new Error(
+     |           ^
+  12 |       "Missing environment variable: SUPABASE_SERVICE_ROLE_KEY",
+  13 |     );
+  14 |   }
+An error occurred in a function passed to `after()`: Error: Missing environment variable: SUPABASE_SERVICE_ROLE_KEY
+    at createAdminClient (lib\supabase\admin.ts:11:11)
+    at generateSessionLedgersAction (lib\fees\generator.ts:845:76)
+    at syncStudentFinancials (lib\system-sync\financial-sync.ts:558:52)
+    at prepareDuesForStudentsAutomatically (lib\system-sync\finance-sync.ts:61:45)
+    at <unknown> (app\protected\dashboard\page.tsx:733:46)
+   9 |
+  10 |   if (!serviceRoleKey) {
+> 11 |     throw new Error(
+     |           ^
+  12 |       "Missing environment variable: SUPABASE_SERVICE_ROLE_KEY",
+  13 |     );
+  14 |   }
+An error occurred in a function passed to `after()`: Error: Missing environment variable: SUPABASE_SERVICE_ROLE_KEY
+    at createAdminClient (lib\supabase\admin.ts:11:11)
+    at generateSessionLedgersAction (lib\fees\generator.ts:845:76)
+    at syncStudentFinancials (lib\system-sync\financial-sync.ts:558:52)
+    at prepareDuesForStudentsAutomatically (lib\system-sync\finance-sync.ts:61:45)
+    at <unknown> (app\protected\dashboard\page.tsx:733:46)
+   9 |
+  10 |   if (!serviceRoleKey) {
+> 11 |     throw new Error(
+     |           ^
+  12 |       "Missing environment variable: SUPABASE_SERVICE_ROLE_KEY",
+  13 |     );
+  14 |   }
+[browser] Invalid prop `className` supplied to `React.Fragment`. React.Fragment can only have `key`, `ref`, and `children` props. 
+    at <unknown> (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:3903:29)
+    at runWithFiberInDEV (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:965:74)
+    at validateFragmentProps (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:3902:17)
+    at reconcileChildFibersImpl (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:4170:166)
+    at <unknown> (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:4261:39)
+    at reconcileChildren (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:5898:119)
+    at updateForwardRef (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:5913:9)
+    at beginWork (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:6766:24)
+    at runWithFiberInDEV (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:965:74)
+    at performUnitOfWork (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9555:97)
+    at workLoopSync (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9449:40)
+    at renderRootSync (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9433:13)
+    at performWorkOnRoot (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9061:186)
+    at performSyncWorkOnRoot (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:10263:9)
+    at flushSyncWorkAcrossRoots_impl (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:10179:316)
+    at flushSyncWork$1 (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9230:86)
+    at Object.scheduleRefresh (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:299:13)
+    at <unknown> (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_0rpq4pf._.js:391:33)
+    at Set.forEach (<anonymous>)
+    at Object.performReactRefresh (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_0rpq4pf._.js:384:38)
+    at applyUpdate (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_0rpq4pf._.js:878:31)
+    at <unknown> (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_0rpq4pf._.js:886:13) (file://D:/OneDrive - Veer Patta Public School/Documents/New project/veerpatta-fees-app/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:3903:29)
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}
+⨯ Error: Could not find the table 'public.session_reconcile_log' in the schema cache
+    at getSessionHealthCards (app\protected\admin-tools\session-health\page.tsx:100:13)
+    at async SessionHealthPage (app\protected\admin-tools\session-health\page.tsx:129:17)
+   98 |
+   99 |     if (logsError) {
+> 100 |       throw new Error(logsError.message);
+      |             ^
+  101 |     }
+  102 |
+  103 |     latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => { {
+  digest: '2470089251'
+}

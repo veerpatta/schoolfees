@@ -5,6 +5,7 @@ import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { OfficeNotice } from "@/components/office/office-ui";
+import { Button } from "@/components/ui/button";
 import { advancedHubSections } from "@/lib/config/navigation";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { getSystemSyncHealth } from "@/lib/system-sync/finance-sync";
@@ -91,11 +92,24 @@ export default async function AdvancedPage() {
           </div>
         </div>
 
+          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface-2 px-4 py-3">
+            <Button asChild>
+              <Link href="/protected/admin-tools/session-health">Open Session Health</Link>
+            </Button>
+            <p className="text-sm text-muted-foreground">
+              Use one row per academic session for routine dues reconciliation.
+            </p>
+          </div>
+
           <details className="mt-4 rounded-lg border border-border bg-card">
             <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-foreground">
-              Legacy repair tools (admin only)
+              Legacy repair actions
             </summary>
-            <div className="flex flex-wrap gap-2 border-t border-border p-4">
+            <div className="border-t border-border p-4">
+              <p className="mb-3 text-sm text-muted-foreground">
+                Prefer Session Health for routine reconciliation.
+              </p>
+              <div className="flex flex-wrap gap-2">
               <form action={repairCurrentSessionDuesAction}>
                 <PendingSubmitButton idleLabel="Prepare missing dues" pendingLabel="Preparing..." />
               </form>
@@ -127,6 +141,7 @@ export default async function AdvancedPage() {
                   variant="outline"
                 />
               </form>
+              </div>
             </div>
           </details>
 

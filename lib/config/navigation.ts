@@ -1,4 +1,5 @@
 import {
+  Activity,
   BadgeIndianRupee,
   BarChart3,
   BookOpenCheck,
@@ -161,6 +162,12 @@ const routeMetaItems: Array<
     href: "/protected/exports",
     label: "Exports",
     description: "Download Excel files for student, dues, payment, and follow-up work.",
+  },
+  {
+    match: "/protected/admin-tools/session-health",
+    href: "/protected/admin-tools",
+    label: "Session Health",
+    description: "Review every academic session and reconcile missing dues.",
   },
   {
     match: "/protected/admin-tools",
@@ -427,13 +434,13 @@ export const advancedHubSections: readonly AdvancedHubSection[] = [
   },
   {
     title: "Fee Data Troubleshooting",
-    description: "Prepare missing dues and fix fee records when daily pages need attention.",
+    description: "Review session dues health and reconcile routine gaps.",
     items: [
       {
-        href: "/protected/admin-tools#fee-data-troubleshooting",
-        label: "Fee Data Troubleshooting",
-        description: "Prepare missing dues, update fee records, and fix Payment Desk dues.",
-        icon: FolderCog,
+        href: "/protected/admin-tools/session-health",
+        label: "Session Health",
+        description: "Review every academic session and reconcile missing dues.",
+        icon: Activity,
         requiredPermission: "fees:write",
       },
     ],

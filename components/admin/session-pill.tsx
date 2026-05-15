@@ -94,6 +94,18 @@ export function SessionPill({
     };
   }, [initialSessions]);
 
+  useEffect(() => {
+    if (displayIsTest) {
+      document.body.setAttribute("data-vpps-test-mode", "true");
+    } else {
+      document.body.removeAttribute("data-vpps-test-mode");
+    }
+
+    return () => {
+      document.body.removeAttribute("data-vpps-test-mode");
+    };
+  }, [displayIsTest]);
+
   function selectSession(label: string) {
     startTransition(async () => {
       const result = await setViewSessionAction(label);

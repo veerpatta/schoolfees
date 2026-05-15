@@ -18,6 +18,7 @@ import {
   shouldSyncStudentDuesForChange,
 } from "@/lib/students/dues-sync";
 import { getStudentFormInput, validateStudentInput } from "@/lib/students/validation";
+import { createClient } from "@/lib/supabase/server";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import {
   prepareDuesForStudentsAutomatically,
@@ -26,6 +27,12 @@ import {
 
 const STUDENT_SAVED_DUES_FAILED_MESSAGE =
   "Student record was saved, but dues could not be prepared automatically. Go to Admin Tools \u2192 Prepare missing dues to complete setup.";
+
+type RecentImportRealignRpcRow = {
+  moved_count: number;
+  attention_count: number;
+  moved_student_ids: string[] | null;
+};
 
 function mapWriteErrorToState(
   message: string,
@@ -285,5 +292,52 @@ export async function hardDeleteStudentAction(formData: FormData) {
   const forceTestRecord = formData.get("forceTestRecord") === "yes";
   await hardDeleteStudent(studentId, { forceTestRecord });
   revalidateFinanceSurfaces({ studentIds: [studentId] });
+}
+
+export async function realignRecentImportsToActiveSessionAction(): Promise<{
+  movedCount: number;
+  preparedCount: number;
+  attentionCount: number;
+}> {
+  const staff = await requireStaffPermission("fees:write");
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc(
+    "realign_recent_import_students_to_active_session",
+    {
+      p_run_by: staff.id ?? null,
+    },
+  );
+
+  if (error) {
+    throw new Error(`Unable to move recent import students: ${error.message}`);
+  }
+
+  const rpcRow = Array.isArray(data)
+    ? ((data[0] ?? null) as RecentImportRealignRpcRow | null)
+    : ((data ?? null) as RecentImportRealignRpcRow | null);
+  const movedStudentIds = rpcRow?.moved_student_ids ?? [];
+  const movedCount = rpcRow?.moved_count ?? movedStudentIds.length;
+  const attentionCount = rpcRow?.attention_count ?? 0;
+
+  if (movedStudentIds.length === 0) {
+    return {
+      movedCount,
+      preparedCount: 0,
+      attentionCount,
+    };
+  }
+
+  const duesResult = await prepareDuesForStudentsAutomatically({
+    studentIds: movedStudentIds,
+    reason: "Recent import session realign",
+  });
+
+  revalidateFinanceSurfaces({ studentIds: movedStudentIds });
+
+  return {
+    movedCount,
+    preparedCount: duesResult.readyForPaymentCount,
+    attentionCount: attentionCount + duesResult.duesNeedAttentionCount,
+  };
 }
 

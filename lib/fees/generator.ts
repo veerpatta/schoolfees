@@ -168,6 +168,7 @@ export type LedgerGenerationResult = LedgerGenerationPreview & {
 
 type LedgerPlanOptions = {
   setupData?: FeeSetupPageData;
+  scopedSessionLabel?: string;
   scopedStudentIds?: string[];
   useAdminClient?: boolean;
 };
@@ -342,7 +343,12 @@ function summarizePlan(plan: LedgerSyncPlan): LedgerGenerationPreview {
 
 async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<LedgerSyncPlan> {
   const supabase: LedgerClient = options.useAdminClient ? createAdminClient() : await createClient();
-  const setupData = options.setupData ?? (await getFeeSetupPageData());
+  const setupData =
+    options.setupData ??
+    (await getFeeSetupPageData({
+      sessionLabel: options.scopedSessionLabel,
+      useAdmin: options.useAdminClient,
+    }));
   const scopedStudentIdSet = options.scopedStudentIds
     ? new Set(options.scopedStudentIds)
     : null;

@@ -1,17 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const getFeePolicySummary = vi.fn();
+const getActiveSessionLabel = vi.fn();
 
 vi.mock("server-only", () => ({}));
 
-vi.mock("@/lib/fees/data", () => ({
-  getFeePolicySummary,
+vi.mock("@/lib/session/active", () => ({
+  getActiveSessionLabel,
 }));
 
 describe("resolveViewSession", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getFeePolicySummary.mockResolvedValue({ academicSessionLabel: "2026-27" });
+    getActiveSessionLabel.mockResolvedValue("2026-27");
   });
 
   it("uses a valid URL session before cookie or active policy", async () => {
@@ -28,7 +28,7 @@ describe("resolveViewSession", () => {
       isTest: false,
     });
 
-    expect(getFeePolicySummary).not.toHaveBeenCalled();
+    expect(getActiveSessionLabel).not.toHaveBeenCalled();
   });
 
   it("falls back from an invalid URL session to a valid cookie session", async () => {
@@ -46,7 +46,7 @@ describe("resolveViewSession", () => {
     });
   });
 
-  it("falls back from invalid URL and cookie sessions to the active policy", async () => {
+  it("falls back from invalid URL and cookie sessions to the active session setting", async () => {
     const { resolveViewSession } = await import("@/lib/session/resolver");
 
     await expect(
@@ -60,7 +60,7 @@ describe("resolveViewSession", () => {
       isTest: false,
     });
 
-    expect(getFeePolicySummary).toHaveBeenCalledTimes(1);
+    expect(getActiveSessionLabel).toHaveBeenCalledTimes(1);
   });
 
   it("marks resolved TEST/UAT/DEMO sessions as test sessions", async () => {

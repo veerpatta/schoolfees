@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getFeePolicySummary } from "@/lib/fees/data";
+import { setActiveSessionLabel } from "@/lib/session/set-active";
 import {
   generateSessionLedgersAction,
   type LedgerGenerationResult,
@@ -747,28 +748,8 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
         .filter((value): value is string => Boolean(value)),
     ),
   ];
-  let academicSessionsCurrentSession: string | null = null;
-  try {
-    const { data, error } = await supabase
-      .from("academic_sessions")
-      .select("session_label")
-      .eq("is_current", true)
-      .eq("status", "active")
-      .maybeSingle();
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    academicSessionsCurrentSession = data?.session_label?.trim() || null;
-  } catch (error) {
-    warnings.push(
-      `Unable to load academic current session: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-  const sessionsMatch =
-    academicSessionsCurrentSession !== null &&
-    academicSessionsCurrentSession.trim().toLowerCase() === activeSession.trim().toLowerCase();
+  const academicSessionsCurrentSession: string | null = activeSession;
+  const sessionsMatch = true;
 
   const activeSessionClassRows = await supabase
     .from("classes")
@@ -1029,8 +1010,11 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
   };
 }
 
+/**
+ * @deprecated Active session is now stored in app_settings.active_session_label.
+ * This wrapper mirrors the Fee Setup session for one transition release.
+ */
 export async function alignAcademicCurrentSessionWithFeeSetup() {
-  const supabase = await createClient();
   const policy = await getFeePolicySummary();
   const activeSession = policy.academicSessionLabel.trim();
 
@@ -1038,48 +1022,7 @@ export async function alignAcademicCurrentSessionWithFeeSetup() {
     throw new Error("Fee Setup does not have an active academic session label.");
   }
 
-  const { data: existingSession, error: lookupError } = await supabase
-    .from("academic_sessions")
-    .select("id")
-    .eq("session_label", activeSession)
-    .maybeSingle();
-
-  if (lookupError) {
-    throw new Error(`Unable to check academic session: ${lookupError.message}`);
-  }
-
-  const clearResult = await supabase
-    .from("academic_sessions")
-    .update({ is_current: false })
-    .neq("session_label", activeSession);
-
-  if (clearResult.error) {
-    throw new Error(`Unable to clear previous current session: ${clearResult.error.message}`);
-  }
-
-  if (existingSession?.id) {
-    const { error } = await supabase
-      .from("academic_sessions")
-      .update({ is_current: true, status: "active" })
-      .eq("id", existingSession.id);
-
-    if (error) {
-      throw new Error(`Unable to align academic current session: ${error.message}`);
-    }
-  } else {
-    const { error } = await supabase
-      .from("academic_sessions")
-      .insert({
-        session_label: activeSession,
-        status: "active",
-        is_current: true,
-          notes: "Created by Fee Data Status to align the working session with Fee Setup.",
-      });
-
-    if (error) {
-      throw new Error(`Unable to create academic current session: ${error.message}`);
-    }
-  }
+  await setActiveSessionLabel(activeSession);
 
   revalidateCoreFinancePaths();
 

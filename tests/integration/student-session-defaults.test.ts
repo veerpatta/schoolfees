@@ -23,7 +23,7 @@ describe("student session defaults", () => {
     vi.clearAllMocks();
   });
 
-  it("defaults to the active fee setup session and detects session mismatches", async () => {
+  it("defaults to the app active session without reading academic_sessions.is_current", async () => {
     const getMasterDataOptions = (await import("@/lib/master-data/data")).getMasterDataOptions as unknown as {
       mockResolvedValue: (value: unknown) => void;
     };
@@ -34,23 +34,16 @@ describe("student session defaults", () => {
       feeHeads: [],
       paymentModes: [],
     });
-    createClient.mockResolvedValue({
-      from: vi.fn(() => ({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn().mockResolvedValue({
-          data: { session_label: "2025-26" },
-          error: null,
-        }),
-      })),
-    });
+    const from = vi.fn();
+    createClient.mockResolvedValue({ from });
 
     const { getStudentFormOptions } = await import("@/lib/students/data");
     const options = await getStudentFormOptions();
 
     expect(options.resolvedSessionLabel).toBe("2026-27");
     expect(options.policySessionLabel).toBe("2026-27");
-    expect(options.sessionMismatch).toBe(true);
-    expect(options.academicSessionsCurrentLabel).toBe("2025-26");
+    expect(options.sessionMismatch).toBe(false);
+    expect(options.academicSessionsCurrentLabel).toBe("2026-27");
+    expect(from).not.toHaveBeenCalledWith("academic_sessions");
   });
 });

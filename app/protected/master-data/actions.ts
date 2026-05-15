@@ -19,6 +19,7 @@ import {
   updateFeeHead,
   updateRoute,
 } from "@/lib/master-data/data";
+import { setActiveSessionLabel } from "@/lib/session/set-active";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 export type MasterDataActionState = {
@@ -138,13 +139,19 @@ export async function createSessionAction(
 ): Promise<MasterDataActionState> {
   try {
     await requireStaffPermission("settings:write");
+    const sessionLabel = parseRequiredString(formData.get("sessionLabel"), "Session label");
+    const isCurrent = parseBoolean(formData.get("isCurrentSession"));
 
     await createAcademicSession({
-      sessionLabel: parseRequiredString(formData.get("sessionLabel"), "Session label"),
+      sessionLabel,
       status: parseClassStatus(formData.get("sessionStatus")),
-      isCurrent: parseBoolean(formData.get("isCurrentSession")),
+      isCurrent,
       notes: parseOptionalString(formData.get("sessionNotes")),
     });
+
+    if (isCurrent) {
+      await setActiveSessionLabel(sessionLabel);
+    }
 
     revalidateMasterDataSurface();
     return toSuccess("Academic session created.");
@@ -159,14 +166,20 @@ export async function updateSessionAction(
 ): Promise<MasterDataActionState> {
   try {
     await requireStaffPermission("settings:write");
+    const sessionLabel = parseRequiredString(formData.get("sessionLabel"), "Session label");
+    const isCurrent = parseBoolean(formData.get("isCurrentSession"));
 
     await updateAcademicSession({
       id: parseRequiredUuid(formData.get("sessionId"), "Session"),
-      sessionLabel: parseRequiredString(formData.get("sessionLabel"), "Session label"),
+      sessionLabel,
       status: parseClassStatus(formData.get("sessionStatus")),
-      isCurrent: parseBoolean(formData.get("isCurrentSession")),
+      isCurrent,
       notes: parseOptionalString(formData.get("sessionNotes")),
     });
+
+    if (isCurrent) {
+      await setActiveSessionLabel(sessionLabel);
+    }
 
     revalidateMasterDataSurface();
     return toSuccess("Academic session updated.");

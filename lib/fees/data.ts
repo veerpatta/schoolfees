@@ -1,4 +1,5 @@
 export {
+  getFeePolicyForSession,
   getFeePolicySummary,
   getFeeSetupPageData,
   getStudentFinancialSnapshot,

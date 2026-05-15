@@ -2,7 +2,7 @@ import "server-only";
 
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
-import { getOptionalEnvVar, getRequiredEnvVar } from "@/lib/env";
+import { getOptionalEnvVar, getRequiredEnvVar, getSupabaseSchemaForAppMode } from "@/lib/env";
 
 export function createAdminClient() {
   const serviceRoleKey = getOptionalEnvVar("SUPABASE_SERVICE_ROLE_KEY");
@@ -17,6 +17,9 @@ export function createAdminClient() {
     getRequiredEnvVar("NEXT_PUBLIC_SUPABASE_URL"),
     serviceRoleKey,
     {
+      db: {
+        schema: getSupabaseSchemaForAppMode(),
+      },
       auth: {
         autoRefreshToken: false,
         persistSession: false,

@@ -14,6 +14,7 @@ import {
   serializeFeeHeadDefinition,
 } from "@/lib/fees/fee-heads";
 import type { FeeHeadDefinition } from "@/lib/fees/types";
+import { getActiveSessionLabel } from "@/lib/session/active";
 import { createClient } from "@/lib/supabase/server";
 
 type SessionRow = {
@@ -123,39 +124,24 @@ function dedupeModes(value: PaymentMode[]) {
 }
 
 async function getCurrentSessionLabel() {
-  const supabase = await createClient();
-  const { data: policy, error: policyError } = await supabase
-    .from("fee_policy_configs")
-    .select("academic_session_label")
-    .eq("is_active", true)
-    .maybeSingle();
+  const activeSessionLabel = await getActiveSessionLabel();
 
-  if (!policyError && policy?.academic_session_label) {
-    return policy.academic_session_label as string;
+  if (activeSessionLabel) {
+    return activeSessionLabel;
   }
 
-  const { data, error } = await supabase
-    .from("academic_sessions")
-    .select("session_label")
-    .eq("is_current", true)
-    .eq("status", "active")
-    .maybeSingle();
-
-  if (error) {
-    return null;
-  }
-
-  return normalizeText(data?.session_label) || null;
+  return null;
 }
 
 async function getActivePolicy() {
   const supabase = await createClient();
+  const activeSessionLabel = await getCurrentSessionLabel();
   const { data, error } = await supabase
     .from("fee_policy_configs")
     .select(
       "id, academic_session_label, installment_schedule, late_fee_flat_amount, custom_fee_heads, accepted_payment_modes, receipt_prefix, notes",
     )
-    .eq("is_active", true)
+    .eq("academic_session_label", activeSessionLabel)
     .maybeSingle();
 
   if (error || !data) {
@@ -428,7 +414,7 @@ async function loadMasterDataOptions(): Promise<MasterDataOptions> {
         .select(
           "id, academic_session_label, installment_schedule, late_fee_flat_amount, custom_fee_heads, accepted_payment_modes, receipt_prefix, notes",
         )
-        .eq("is_active", true)
+        .eq("academic_session_label", currentSessionLabel)
         .maybeSingle(),
     ]);
 
@@ -484,8 +470,7 @@ export async function getMasterDataPageData() {
     await Promise.all([
       supabase
         .from("academic_sessions")
-        .select("id, session_label, status, is_current, notes, created_at, updated_at")
-        .order("is_current", { ascending: false })
+        .select("id, session_label, status, notes, created_at, updated_at")
         .order("session_label", { ascending: false }),
       supabase
         .from("classes")
@@ -518,7 +503,13 @@ export async function getMasterDataPageData() {
   }
 
   return {
-    sessions: (sessionsRaw ?? []) as SessionRow[],
+    sessions: ((sessionsRaw ?? []) as Omit<SessionRow, "is_current">[])
+      .map((row) => ({
+        ...row,
+        is_current:
+          normalizeKey(row.session_label) === normalizeKey(options.currentSessionLabel),
+      }))
+      .sort((left, right) => Number(right.is_current) - Number(left.is_current)),
     classes: (classesRaw ?? []) as ClassRow[],
     routes: (routesRaw ?? []) as RouteRow[],
     currentSessionLabel: options.currentSessionLabel,
@@ -620,11 +611,14 @@ export async function updateAcademicSession(payload: {
       throw new Error(classUpdateError.message);
     }
 
-    const { data: policy, error: policyError } = await supabase
-      .from("fee_policy_configs")
-      .select("id, academic_session_label")
-      .eq("is_active", true)
-      .maybeSingle();
+    const activeSessionLabel = await getActiveSessionLabel();
+    const { data: policy, error: policyError } = activeSessionLabel
+      ? await supabase
+          .from("fee_policy_configs")
+          .select("id, academic_session_label")
+          .eq("academic_session_label", activeSessionLabel)
+          .maybeSingle()
+      : { data: null, error: null };
 
     if (!policyError && policy && normalizeKey(policy.academic_session_label) === normalizeKey(existing.session_label)) {
       const { error: policyUpdateError } = await supabase
@@ -657,7 +651,7 @@ export async function deleteAcademicSession(sessionId: string) {
   const supabase = await createClient();
   const { data: session, error: sessionError } = await supabase
     .from("academic_sessions")
-    .select("id, session_label, is_current")
+    .select("id, session_label")
     .eq("id", sessionId)
     .maybeSingle();
 
@@ -669,7 +663,7 @@ export async function deleteAcademicSession(sessionId: string) {
     throw new Error("Academic session not found.");
   }
 
-  if (session.is_current) {
+  if (normalizeKey(session.session_label) === normalizeKey(await getActiveSessionLabel())) {
     throw new Error("Current session cannot be deleted. Mark another session current first.");
   }
 

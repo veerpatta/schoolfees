@@ -60,12 +60,17 @@ describe("office navigation", () => {
     });
   });
 
-  it("keeps technical fee troubleshooting admin-only inside Admin Tools", () => {
+  it("keeps Session Health admin-only inside Admin Tools", () => {
     const item = advancedHubSections
       .flatMap((section) => section.items)
-      .find((entry) => entry.label === "Fee Data Troubleshooting");
+      .find((entry) => entry.label === "Session Health");
 
     expect(item?.requiredPermission).toBe("fees:write");
+    expect(item?.href).toBe("/protected/admin-tools/session-health");
+    expect(getProtectedRouteMeta("/protected/admin-tools/session-health")).toMatchObject({
+      href: "/protected/admin-tools",
+      label: "Session Health",
+    });
   });
 
   it("keeps Fee Setup visible in the simplified primary navigation", () => {

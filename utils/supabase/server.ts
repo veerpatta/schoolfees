@@ -2,7 +2,7 @@ import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-import { getRequiredEnvVar } from "@/lib/env";
+import { getRequiredEnvVar, getSupabaseSchemaForAppMode } from "@/lib/env";
 
 type CookieStore = Awaited<ReturnType<typeof cookies>>;
 
@@ -29,6 +29,9 @@ export async function createClient(cookieStore?: CookieStore) {
             // Server Components can't persist cookie updates directly.
           }
         },
+      },
+      db: {
+        schema: getSupabaseSchemaForAppMode(),
       },
     },
   );

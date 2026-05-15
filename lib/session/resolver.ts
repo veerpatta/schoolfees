@@ -4,7 +4,7 @@ import {
   isTestAcademicSessionLabel,
   parseAcademicSessionLabel,
 } from "@/lib/config/fee-rules";
-import { getFeePolicySummary } from "@/lib/fees/data";
+import { getActiveSessionLabel } from "@/lib/session/active";
 
 export type ResolvedViewSession = {
   sessionLabel: string;
@@ -56,9 +56,9 @@ export async function resolveViewSession({
     return buildResolvedSession(storedSession, "cookie");
   }
 
-  const policy = await getFeePolicySummary();
+  const activeSessionLabel = await getActiveSessionLabel();
   const policySession =
-    normalizeValidSessionLabel(policy.academicSessionLabel) ?? policy.academicSessionLabel;
+    normalizeValidSessionLabel(activeSessionLabel) ?? activeSessionLabel;
 
   return buildResolvedSession(policySession, "policy");
 }

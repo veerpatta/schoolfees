@@ -10,6 +10,40 @@ function readRepoFile(path: string) {
 }
 
 describe("source of truth audit fixes", () => {
+  it("active_session_label_is_the_only_active_session_read_source", () => {
+    const filesToAudit = [
+      "lib/session/resolver.ts",
+      "lib/fees/policy.ts",
+      "lib/master-data/data.ts",
+      "lib/students/data.ts",
+      "lib/system-sync/financial-sync.ts",
+      "lib/setup/data.ts",
+      "lib/import/data.ts",
+      "lib/payments/data.ts",
+      "lib/dashboard/data.ts",
+      "lib/defaulters/data.ts",
+      "app/protected/session/actions.ts",
+    ];
+
+    for (const file of filesToAudit) {
+      const source = readRepoFile(file);
+
+      expect(source, file).not.toMatch(
+        /\.from\(["']fee_policy_configs["'][\s\S]{0,260}\.eq\(["']is_active["'],\s*true\)/,
+      );
+      expect(source, file).not.toMatch(
+        /\.from\(["']academic_sessions["'][\s\S]{0,260}\.eq\(["']is_current["'],\s*true\)/,
+      );
+    }
+
+    const setActive = readRepoFile("lib/session/set-active.ts");
+
+    expect(setActive).toContain(".from(\"fee_policy_configs\")");
+    expect(setActive).toContain("is_active: true");
+    expect(setActive).toContain(".from(\"academic_sessions\")");
+    expect(setActive).toContain("is_current: true");
+  });
+
   it("reports_outstanding_uses_workbook_balances", () => {
     const reportsData = readRepoFile("lib/reports/data.ts");
 
@@ -104,7 +138,7 @@ describe("source of truth audit fixes", () => {
       financialSync.indexOf("export async function alignAcademicCurrentSessionWithFeeSetup"),
     );
 
-    expect(alignFunction).toContain('.from("academic_sessions")');
+    expect(alignFunction).toContain("setActiveSessionLabel(activeSession)");
     expect(alignFunction).not.toContain('.from("students").update');
     expect(alignFunction).not.toContain('.from("classes").update');
     expect(alignFunction).not.toContain('.from("payments")');
