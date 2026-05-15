@@ -452,8 +452,8 @@ async function loadTransactionStudentIds(filters: {
   return [...new Set(((data ?? []) as Array<{ id: string }>).map((row) => row.id))];
 }
 
-export async function getWorkbookClassOptions() {
-  const { classOptions } = await getStudentFormOptions();
+export async function getWorkbookClassOptions(sessionLabel?: string) {
+  const { classOptions } = await getStudentFormOptions({ sessionLabel });
 
   return sortWorkbookClassOptions(
     classOptions.map((option) => ({

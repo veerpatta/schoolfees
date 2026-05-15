@@ -1,5 +1,7 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
+
 import { getFeePolicySummary, getFeeSetupPageData, upsertStudentFeeOverride } from "@/lib/fees/data";
 import {
   getConventionalDiscountPolicies,
@@ -409,7 +411,7 @@ export async function getStudentFormOptions(payload?: {
   };
 }
 
-export async function getStudentsPage(
+async function getStudentsPageUncached(
   filters: StudentListFilters,
   pagination: {
     page: number;
@@ -620,6 +622,31 @@ export async function getStudentsPage(
     page,
     pageSize,
   };
+}
+
+export async function getStudentsPage(
+  filters: StudentListFilters,
+  pagination: {
+    page: number;
+    pageSize: number;
+  },
+) {
+  const sessionLabel = filters.sessionLabel || "all";
+
+  return unstable_cache(
+    async () => getStudentsPageUncached(filters, pagination),
+    [
+      "students-page",
+      sessionLabel,
+      filters.query,
+      filters.classId,
+      filters.transportRouteId,
+      filters.status,
+      String(pagination.page),
+      String(pagination.pageSize),
+    ],
+    { tags: [`session:${sessionLabel}`] },
+  )();
 }
 
 export async function getStudents(filters: StudentListFilters) {

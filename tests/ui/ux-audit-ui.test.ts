@@ -170,7 +170,7 @@ describe("read-only UX audit implementation", () => {
 
   it("write actions still revalidate finance surfaces", () => {
     expect(readRepoFile("app/protected/payments/actions.ts")).toContain(
-      "revalidateAfterPaymentPosting([studentId])",
+      "revalidateSessionFinance(",
     );
     expect(readRepoFile("app/protected/fee-setup/actions.ts")).toContain(
       "revalidateCoreFinancePaths()",

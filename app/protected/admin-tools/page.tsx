@@ -91,39 +91,44 @@ export default async function AdvancedPage() {
           </div>
         </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            <form action={repairCurrentSessionDuesAction}>
-              <PendingSubmitButton idleLabel="Prepare missing dues" pendingLabel="Preparing..." />
-            </form>
-            <form action={syncCurrentSessionAction}>
-              <PendingSubmitButton
-                idleLabel="Update fee records for this year"
-                pendingLabel="Updating..."
-                variant="outline"
-              />
-            </form>
-            <form action={alignWorkingSessionWithFeeSetupAction}>
-              <PendingSubmitButton
-                idleLabel="Align year with Fee Setup"
-                pendingLabel="Aligning..."
-                variant="outline"
-              />
-            </form>
-            <form action={repairPaymentDeskDataAction}>
-              <PendingSubmitButton
-                idleLabel="Fix Payment Desk dues"
-                pendingLabel="Fixing..."
-                variant="outline"
-              />
-            </form>
-            <form action={syncDashboardNowAction}>
-              <PendingSubmitButton
-                idleLabel="Refresh Dashboard totals"
-                pendingLabel="Refreshing..."
-                variant="outline"
-              />
-            </form>
-          </div>
+          <details className="mt-4 rounded-lg border border-border bg-card">
+            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-foreground">
+              Legacy repair tools (admin only)
+            </summary>
+            <div className="flex flex-wrap gap-2 border-t border-border p-4">
+              <form action={repairCurrentSessionDuesAction}>
+                <PendingSubmitButton idleLabel="Prepare missing dues" pendingLabel="Preparing..." />
+              </form>
+              <form action={syncCurrentSessionAction}>
+                <PendingSubmitButton
+                  idleLabel="Update fee records for this year"
+                  pendingLabel="Updating..."
+                  variant="outline"
+                />
+              </form>
+              <form action={alignWorkingSessionWithFeeSetupAction}>
+                <PendingSubmitButton
+                  idleLabel="Align year with Fee Setup"
+                  pendingLabel="Aligning..."
+                  variant="outline"
+                />
+              </form>
+              <form action={repairPaymentDeskDataAction}>
+                <PendingSubmitButton
+                  idleLabel="Fix Payment Desk dues"
+                  pendingLabel="Fixing..."
+                  variant="outline"
+                />
+              </form>
+              <form action={syncDashboardNowAction}>
+                <PendingSubmitButton
+                  idleLabel="Refresh Dashboard totals"
+                  pendingLabel="Refreshing..."
+                  variant="outline"
+                />
+              </form>
+            </div>
+          </details>
 
         <details className="mt-4 overflow-hidden rounded-lg border border-border bg-card">
           <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-foreground">

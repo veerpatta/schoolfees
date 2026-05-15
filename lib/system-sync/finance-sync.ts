@@ -22,9 +22,10 @@ import {
 import {
   revalidateAfterPaymentPosting,
   revalidateCoreFinancePaths,
+  revalidateSessionFinance,
 } from "@/lib/system-sync/finance-revalidation";
 
-export { revalidateAfterPaymentPosting, revalidateCoreFinancePaths };
+export { revalidateAfterPaymentPosting, revalidateCoreFinancePaths, revalidateSessionFinance };
 export {
   hasPreparedDues,
   revalidateFinanceSurfaces,

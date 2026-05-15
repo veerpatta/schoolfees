@@ -4,6 +4,7 @@ vi.mock("server-only", () => ({}));
 
 const generateSessionLedgersAction = vi.fn();
 const revalidatePath = vi.fn();
+const revalidateTag = vi.fn();
 
 vi.mock("@/lib/fees/data", () => ({
   getFeePolicySummary: vi.fn(async () => ({
@@ -22,6 +23,10 @@ vi.mock("@/lib/supabase/server", () => ({
 
 vi.mock("next/cache", () => ({
   revalidatePath,
+  revalidateTag,
+  unstable_cache:
+    <T extends (...args: unknown[]) => unknown>(callback: T) =>
+    callback,
 }));
 
 describe("automatic dues preparation", () => {

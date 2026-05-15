@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown, KeyRound, LogOut, MoreVertical, UserRound } from "lucide-react";
@@ -23,6 +24,7 @@ import { StatusBadge } from "./status-badge";
 type AppTopBarProps = {
   staffEmail: string;
   staffRole: StaffRole;
+  sessionPill?: ReactNode;
 };
 
 function initialsOf(email: string) {
@@ -33,7 +35,7 @@ function initialsOf(email: string) {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-export function AppTopBar({ staffEmail, staffRole }: AppTopBarProps) {
+export function AppTopBar({ staffEmail, staffRole, sessionPill }: AppTopBarProps) {
   const pathname = usePathname();
   const routeMeta = getProtectedRouteMeta(pathname);
 
@@ -47,6 +49,7 @@ export function AppTopBar({ staffEmail, staffRole }: AppTopBarProps) {
         </div>
 
         <div className="flex items-center gap-2">
+          {sessionPill}
           <StatusBadge label={roleLabels[staffRole]} tone="neutral" iconless />
 
           <DropdownMenu>
@@ -107,9 +110,11 @@ export function MobileHeader({
   staffEmail,
   staffRole,
   sessionLabel,
+  sessionIsTest,
   homeHref,
 }: AppTopBarProps & {
   sessionLabel: string;
+  sessionIsTest: boolean;
   homeHref: string;
 }) {
   return (
@@ -118,8 +123,14 @@ export function MobileHeader({
         <SchoolBrand variant="icon" priority />
       </Link>
       <div className="flex min-w-0 items-center gap-2">
-        <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-xs font-semibold text-foreground">
+        <span
+          className={[
+            "rounded-full border bg-surface px-2 py-0.5 text-xs font-semibold text-foreground",
+            sessionIsTest ? "border-fuchsia-500 text-fuchsia-700" : "border-border",
+          ].join(" ")}
+        >
           {sessionLabel}
+          {sessionIsTest ? " TEST" : ""}
         </span>
         <DropdownMenu>
           <DropdownMenuTrigger

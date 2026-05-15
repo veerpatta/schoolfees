@@ -21,11 +21,14 @@ import {
   type StudentRouteOption,
   type StudentSessionOption,
 } from "@/lib/students/types";
+import { getViewSessionCookie } from "@/lib/session/cookie";
+import { resolveViewSession } from "@/lib/session/resolver";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 type StudentsPageProps = {
   searchParams?: Promise<{
     query?: string;
+    session?: string;
     sessionLabel?: string;
     classId?: string;
     transportRouteId?: string;
@@ -46,7 +49,7 @@ function normalizeFilters(
   const rawClassId = params?.classId?.trim() ?? "";
   const rawRouteId = params?.transportRouteId?.trim() ?? "";
   const rawStatus = params?.status?.trim() ?? "";
-  const rawSessionLabel = params?.sessionLabel?.trim() ?? "";
+  const rawSessionLabel = (params?.session ?? params?.sessionLabel)?.trim() ?? "";
 
   return {
     query: params?.query?.trim() ?? EMPTY_STUDENT_FILTERS.query,
@@ -65,16 +68,20 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
   const staff = await requireStaffPermission("students:view", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const parsedFilters = normalizeFilters(resolvedSearchParams);
+  const viewSession = await resolveViewSession({
+    searchParamSession: resolvedSearchParams?.session ?? resolvedSearchParams?.sessionLabel,
+    cookieSession: await getViewSessionCookie(),
+  });
   let formOptions: Awaited<ReturnType<typeof getStudentFormOptions>> | null = null;
   let allClassOptions: StudentClassOption[] = [];
   let routeOptions: StudentRouteOption[] = [];
   let sessionOptions: StudentSessionOption[] = [];
-  let resolvedSessionLabel = parsedFilters.sessionLabel || "";
+  let resolvedSessionLabel = viewSession.sessionLabel;
   let formLoadWarning: string | null = null;
 
   try {
     formOptions = await getStudentFormOptions({
-      sessionLabel: parsedFilters.sessionLabel || null,
+      sessionLabel: parsedFilters.sessionLabel || viewSession.sessionLabel,
     });
 
     allClassOptions = formOptions.allClassOptions;
@@ -88,6 +95,8 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
         : "Student filters could not be loaded safely.";
     sessionOptions = parsedFilters.sessionLabel
       ? [{ value: parsedFilters.sessionLabel, label: parsedFilters.sessionLabel }]
+      : viewSession.sessionLabel
+      ? [{ value: viewSession.sessionLabel, label: viewSession.sessionLabel }]
       : [];
   }
 

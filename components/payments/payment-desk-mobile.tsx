@@ -426,7 +426,7 @@ export function PaymentDeskMobile({
       // Ignore unavailable or malformed cache.
     }
 
-    fetch("/protected/students/index?purpose=paymentDesk", {
+    fetch(`/protected/students/index?purpose=paymentDesk&session=${encodeURIComponent(data.sessionLabel)}`, {
       headers: { accept: "application/json" },
     })
       .then((response) => response.json())
@@ -448,7 +448,7 @@ export function PaymentDeskMobile({
       .catch(() => {
         // The search box remains usable once the next navigation retries.
       });
-  }, []);
+  }, [data.sessionLabel]);
 
   useEffect(() => {
     if (!selectedStudentId) {
@@ -628,7 +628,7 @@ export function PaymentDeskMobile({
     data.modeOptions.find((modeOption) => modeOption.value === visibleActionState.paymentMode)?.label ??
     visibleActionState.paymentMode ??
     selectedPaymentModeLabel;
-  const paymentSessionLabel = data.policyNote.split(" policy uses")[0] || "Active session";
+  const paymentSessionLabel = data.sessionLabel || "Active session";
   const draftValidation = validatePaymentDraft({
     selectedStudent,
     amountInput: paymentAmountInput,

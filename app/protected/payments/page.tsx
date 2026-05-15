@@ -12,6 +12,8 @@ import {
   getPaymentEntryPageData,
 } from "@/lib/payments/data";
 import { INITIAL_PAYMENT_ENTRY_ACTION_STATE } from "@/lib/payments/types";
+import { getViewSessionCookie } from "@/lib/session/cookie";
+import { resolveViewSession } from "@/lib/session/resolver";
 import { getSetupWizardData } from "@/lib/setup/data";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
@@ -24,6 +26,7 @@ type PaymentsPageProps = {
   searchParams?: Promise<{
     studentId?: string;
     classId?: string;
+    session?: string;
     repairNotice?: string;
   }>;
 };
@@ -41,10 +44,14 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
   const studentId = normalizeStudentId(resolvedSearchParams?.studentId);
   const classId = normalizeStudentId(resolvedSearchParams?.classId);
   const repairNotice = (resolvedSearchParams?.repairNotice ?? "").trim();
+  const viewSession = await resolveViewSession({
+    searchParamSession: resolvedSearchParams?.session,
+    cookieSession: await getViewSessionCookie(),
+  });
 
   const [staff, classOptions] = await Promise.all([
     requireStaffPermission("payments:view", { onDenied: "redirect" }),
-    getPaymentDeskClassOptions(),
+    getPaymentDeskClassOptions(viewSession.sessionLabel),
   ]);
 
   return (
@@ -65,6 +72,7 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
           classOptions={classOptions}
           studentId={studentId}
           classId={classId}
+          sessionLabel={viewSession.sessionLabel}
         />
       </Suspense>
     </div>
@@ -76,11 +84,13 @@ async function PaymentDeskDataLoader({
   classOptions,
   studentId,
   classId,
+  sessionLabel,
 }: {
   staff: Awaited<ReturnType<typeof requireStaffPermission>>;
   classOptions: Array<{ id: string; label: string }>;
   studentId: string | null;
   classId: string | null;
+  sessionLabel: string;
 }) {
   const setup = await getSetupWizardData();
   const readiness = getOfficeWorkflowReadiness(setup, staff.appRole);
@@ -95,6 +105,7 @@ async function PaymentDeskDataLoader({
     ? await getPaymentDeskStudentSummary({
         studentId,
         paymentDate: today,
+        sessionLabel,
         autoPrepareMissingDues: canRepairOrPrepareDues,
       })
     : null;
@@ -102,6 +113,7 @@ async function PaymentDeskDataLoader({
     searchQuery: "",
     studentId,
     classId: classId ?? undefined,
+    sessionLabel,
     autoPrepareMissingDues: canRepairOrPrepareDues,
     initialSelectedSummary,
   });

@@ -12,7 +12,7 @@ export default defineConfig({
     environment: "node",
     globals: true,
     setupFiles: [path.resolve(rootDir, "tests/setup.ts")],
-    include: ["tests/**/*.test.ts"],
+    include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],

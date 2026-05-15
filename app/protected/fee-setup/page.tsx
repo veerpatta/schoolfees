@@ -4,6 +4,8 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { getFeeSetupPageData } from "@/lib/fees/data";
 import { INITIAL_FEE_SETUP_ACTION_STATE } from "@/lib/fees/types";
 import { getMasterDataPageData } from "@/lib/master-data/data";
+import { getViewSessionCookie } from "@/lib/session/cookie";
+import { resolveViewSession } from "@/lib/session/resolver";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 import { saveWorkbookFeeSetupAction } from "./actions";
@@ -28,14 +30,25 @@ const INITIAL_MASTER_DATA_ACTION_STATE: MasterDataActionState = {
 
 export const revalidate = 60;
 
-export default async function FeeSetupPage() {
+type FeeSetupPageProps = {
+  searchParams?: Promise<{ session?: string }>;
+};
+
+export default async function FeeSetupPage({ searchParams }: FeeSetupPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const viewSession = await resolveViewSession({
+    searchParamSession: resolvedSearchParams?.session,
+    cookieSession: await getViewSessionCookie(),
+  });
   const [staff, data, masterData] = await Promise.all([
     requireStaffPermission("fees:view", { onDenied: "redirect" }),
     getFeeSetupPageData(),
     getMasterDataPageData(),
   ]);
 
-  const canEdit = hasStaffPermission(staff, "fees:write");
+  const canEdit =
+    hasStaffPermission(staff, "fees:write") &&
+    viewSession.sessionLabel === data.globalPolicy.academicSessionLabel;
 
   return (
     <div className="space-y-6">
@@ -63,6 +76,7 @@ export default async function FeeSetupPage() {
         saveWorkbookFeeSetupAction={saveWorkbookFeeSetupAction}
         initialState={INITIAL_FEE_SETUP_ACTION_STATE}
         initialMasterDataState={INITIAL_MASTER_DATA_ACTION_STATE}
+        initialSelectedSessionLabel={viewSession.sessionLabel}
         actions={{
           createSessionAction,
           updateSessionAction,

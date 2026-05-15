@@ -149,6 +149,7 @@ export type PaymentEntryPageData = {
     createdAt: string | null;
   } | null;
   modeOptions: PaymentModeOption[];
+  sessionLabel: string;
   policyNote: string;
   recentReceipts: Array<{
     id: string;

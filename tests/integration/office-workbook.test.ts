@@ -34,7 +34,7 @@ describe("office workbook helpers", () => {
         classId: "class-123",
         sessionLabel: "2026-27",
       }),
-    ).toBe("/protected/transactions?view=collection_today&classId=class-123&sessionLabel=2026-27");
+    ).toBe("/protected/transactions?view=collection_today&classId=class-123&session=2026-27");
   });
 
   it("normalizes legacy dues and receipt view names", () => {

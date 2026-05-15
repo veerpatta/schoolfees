@@ -1,5 +1,7 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
+
 import { hasAnyRolePermission, type StaffRole } from "@/lib/auth/roles";
 import { getRecentConfigChangeLog } from "@/lib/fees/change-log";
 import { getFeePolicySummary } from "@/lib/fees/data";
@@ -9,6 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   getRawActiveSessionStudentCount,
   getRawClassStudentSummary,
+  getSystemSyncHealth,
   type SystemSyncHealth,
 } from "@/lib/system-sync/finance-sync";
 import {
@@ -114,6 +117,48 @@ function getSchoolDateStamp(referenceDate = new Date()) {
 
 function toErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function sessionTag(sessionLabel: string) {
+  return `session:${sessionLabel}`;
+}
+
+function loadDashboardFinancialRows(sessionLabel: string) {
+  return unstable_cache(
+    async () => getWorkbookStudentFinancials({ sessionLabel }),
+    ["dashboard-financials", sessionLabel],
+    { tags: [sessionTag(sessionLabel)] },
+  )();
+}
+
+function loadDashboardTransactions(payload: {
+  sessionLabel: string;
+  limit?: number;
+  todayOnly?: boolean;
+}) {
+  return unstable_cache(
+    async () =>
+      getWorkbookTransactions({
+        limit: payload.limit,
+        todayOnly: payload.todayOnly,
+        sessionLabel: payload.sessionLabel,
+      }),
+    [
+      "dashboard-transactions",
+      payload.sessionLabel,
+      String(payload.limit ?? ""),
+      payload.todayOnly ? "today" : "all",
+    ],
+    { tags: [sessionTag(payload.sessionLabel)] },
+  )();
+}
+
+function loadDashboardInstallmentRows(sessionLabel: string) {
+  return unstable_cache(
+    async () => getWorkbookInstallmentRows({ sessionLabel }),
+    ["dashboard-installments", sessionLabel],
+    { tags: [sessionTag(sessionLabel)] },
+  )();
 }
 
 async function optionalLoad<T>(
@@ -284,27 +329,31 @@ async function getSetupAlerts(
   return alerts;
 }
 
-export async function getDashboardAboveFoldData(options: { staffRole?: StaffRole } = {}) {
+export async function getDashboardAboveFoldData(options: {
+  staffRole?: StaffRole;
+  sessionLabel?: string;
+} = {}) {
   const staffRole = options.staffRole ?? "admin";
   const warnings: string[] = [];
   const today = getSchoolDateStamp();
   const policy = await getFeePolicySummary();
+  const sessionLabel = options.sessionLabel ?? policy.academicSessionLabel;
   const [financialRows, transactions, todayTransactions, refundStateRows] = await Promise.all([
     optionalLoad(
       "workbook student financials",
-      () => getWorkbookStudentFinancials({ sessionLabel: policy.academicSessionLabel }),
+      () => loadDashboardFinancialRows(sessionLabel),
       [],
       warnings,
     ),
     optionalLoad(
       "receipt activity",
-      () => getWorkbookTransactions({ limit: 20, sessionLabel: policy.academicSessionLabel }),
+      () => loadDashboardTransactions({ limit: 20, sessionLabel }),
       [],
       warnings,
     ),
     optionalLoad(
       "today receipt activity",
-      () => getWorkbookTransactions({ todayOnly: true, sessionLabel: policy.academicSessionLabel }),
+      () => loadDashboardTransactions({ todayOnly: true, sessionLabel }),
       [],
       warnings,
     ),
@@ -345,7 +394,7 @@ export async function getDashboardAboveFoldData(options: { staffRole?: StaffRole
   );
 
   return {
-    currentSession: policy.academicSessionLabel,
+    currentSession: sessionLabel,
     currentInstallment: buildCurrentInstallment(policy, today),
     kpis: summary.kpis,
     todayPaymentModeBreakdown: summary.todayPaymentModeBreakdown,
@@ -359,12 +408,16 @@ export async function getDashboardAboveFoldData(options: { staffRole?: StaffRole
   };
 }
 
-export async function getDashboardPageData(options: { staffRole?: StaffRole } = {}): Promise<DashboardPageData> {
+export async function getDashboardPageData(options: {
+  staffRole?: StaffRole;
+  sessionLabel?: string;
+} = {}): Promise<DashboardPageData> {
   const staffRole = options.staffRole ?? "admin";
   const warnings: string[] = [];
   const today = getSchoolDateStamp();
 
   const policy = await getFeePolicySummary();
+  const sessionLabel = options.sessionLabel ?? policy.academicSessionLabel;
   const [
     rawStudentCount,
     rawClassSummary,
@@ -377,40 +430,41 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
     importAlerts,
     ledgerAlerts,
     setupAlerts,
+    systemSyncHealth,
   ] = await Promise.all([
     optionalLoad(
       "raw active student count",
-      () => getRawActiveSessionStudentCount(policy.academicSessionLabel),
+      () => getRawActiveSessionStudentCount(sessionLabel),
       0,
       warnings,
     ),
     optionalLoad(
       "raw class student summary",
-      () => getRawClassStudentSummary(policy.academicSessionLabel),
+      () => getRawClassStudentSummary(sessionLabel),
       [],
       warnings,
     ),
     optionalLoad(
       "workbook student financials",
-      () => getWorkbookStudentFinancials({ sessionLabel: policy.academicSessionLabel }),
+      () => loadDashboardFinancialRows(sessionLabel),
       [],
       warnings,
     ),
     optionalLoad(
       "workbook installment balances",
-      () => getWorkbookInstallmentRows({ sessionLabel: policy.academicSessionLabel }),
+      () => loadDashboardInstallmentRows(sessionLabel),
       [],
       warnings,
     ),
     optionalLoad(
       "receipt activity",
-      () => getWorkbookTransactions({ limit: 20, sessionLabel: policy.academicSessionLabel }),
+      () => loadDashboardTransactions({ limit: 20, sessionLabel }),
       [],
       warnings,
     ),
     optionalLoad(
       "today receipt activity",
-      () => getWorkbookTransactions({ todayOnly: true, sessionLabel: policy.academicSessionLabel }),
+      () => loadDashboardTransactions({ todayOnly: true, sessionLabel }),
       [],
       warnings,
     ),
@@ -436,6 +490,12 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
     optionalLoad("student import alerts", getImportIssueAlerts, [], warnings),
     optionalLoad("dues update alerts", getLedgerReviewAlerts, [], warnings),
     getSetupAlerts(staffRole, warnings),
+    optionalLoad(
+      "system sync health",
+      () => getSystemSyncHealth(sessionLabel),
+      null,
+      warnings,
+    ),
   ]);
   const overdueInstallments = installmentRows.filter(
     (row) => row.balanceStatus === "overdue" && row.pendingAmount > 0,
@@ -526,7 +586,7 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
   }
 
   return {
-    currentSession: policy.academicSessionLabel,
+    currentSession: sessionLabel,
     currentInstallment: buildCurrentInstallment(policy, today),
     generatedAt: new Date().toISOString(),
     kpis: summary.kpis,
@@ -550,6 +610,6 @@ export async function getDashboardPageData(options: { staffRole?: StaffRole } = 
     partlyPaidStudents,
     overdueStudents,
     notStartedStudents,
-    systemSyncHealth: null,
+    systemSyncHealth,
   };
 }

@@ -16,7 +16,8 @@ function normalizeFilters(params: URLSearchParams): StudentListFilters {
   const rawClassId = params.get("classId")?.trim() ?? "";
   const rawRouteId = params.get("transportRouteId")?.trim() ?? "";
   const rawStatus = params.get("status")?.trim() ?? "";
-  const rawSessionLabel = params.get("sessionLabel")?.trim() ?? "";
+  const rawSessionLabel =
+    (params.get("session") ?? params.get("sessionLabel"))?.trim() ?? "";
 
   return {
     query: params.get("query")?.trim() ?? EMPTY_STUDENT_FILTERS.query,
@@ -48,7 +49,9 @@ export async function GET(request: Request) {
 
   if (purpose === "paymentDesk") {
     await requireStaffPermission("payments:view");
-    const students = await getPaymentDeskStudentIndex();
+    const students = await getPaymentDeskStudentIndex({
+      sessionLabel: searchParams.get("session")?.trim() || undefined,
+    });
 
     return Response.json(
       { students },

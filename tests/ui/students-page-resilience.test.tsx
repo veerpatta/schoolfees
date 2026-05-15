@@ -26,6 +26,18 @@ vi.mock("@/lib/supabase/session", () => ({
   hasStaffPermission,
 }));
 
+vi.mock("@/lib/session/cookie", () => ({
+  getViewSessionCookie: vi.fn(async () => null),
+}));
+
+vi.mock("@/lib/session/resolver", () => ({
+  resolveViewSession: vi.fn(async () => ({
+    sessionLabel: "2026-27",
+    source: "policy",
+    isTest: false,
+  })),
+}));
+
 vi.mock("@/components/students/student-bulk-import-dialog", () => ({
   StudentBulkImportDialogTrigger: () => React.createElement("button", null, "Bulk Add Students"),
 }));

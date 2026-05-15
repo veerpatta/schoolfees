@@ -32,7 +32,7 @@ async function workbookResponse(filename: string, rows: Array<Record<string, str
   });
 }
 
-export async function GET(_request: NextRequest, context: RouteContext) {
+export async function GET(request: NextRequest, context: RouteContext) {
   const staff = await getAuthenticatedStaff();
   if (!staff) {
     return new Response("Unauthorized", { status: 401 });
@@ -42,7 +42,10 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   }
 
   const { exportType } = await context.params;
-  const { resolvedSessionLabel } = await getStudentFormOptions();
+  const requestedSessionLabel = (request.nextUrl.searchParams.get("session") ?? "").trim();
+  const { resolvedSessionLabel } = await getStudentFormOptions({
+    sessionLabel: requestedSessionLabel || null,
+  });
   const filename = `VPPS-${exportType}-${resolvedSessionLabel || "current"}-${todayStamp()}.xlsx`;
 
   if (exportType === "all-students") {

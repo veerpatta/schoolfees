@@ -69,7 +69,11 @@ export async function GET(request: NextRequest) {
     paymentMode: normalizePaymentMode(request.nextUrl.searchParams.get("paymentMode")),
     routeId: normalizeUuid(request.nextUrl.searchParams.get("routeId")),
     searchQuery: (request.nextUrl.searchParams.get("query") ?? "").trim(),
-    sessionLabel: (request.nextUrl.searchParams.get("sessionLabel") ?? "").trim(),
+    sessionLabel: (
+      request.nextUrl.searchParams.get("session") ??
+      request.nextUrl.searchParams.get("sessionLabel") ??
+      ""
+    ).trim(),
     toDate: normalizeDate(request.nextUrl.searchParams.get("toDate")),
     exportAll: true,
   });

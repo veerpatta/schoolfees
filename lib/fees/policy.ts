@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMasterDataOptions } from "@/lib/master-data/data";
@@ -443,7 +444,7 @@ async function loadGlobalPolicy(useAdmin = false): Promise<FeePolicySummary> {
   };
 }
 
-async function loadFeeCollections() {
+async function loadFeeCollectionsUncached() {
   const supabase = await createClient();
   const studentOverridesSelectWithNotes =
     "id, student_id, fee_setting_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, late_fee_waiver_amount, discount_amount, student_type_override, transport_applies_override, reason, notes, updated_at";
@@ -667,11 +668,19 @@ export async function getFeePolicySummary(options: { useAdmin?: boolean } = {}) 
   return getFeePolicySummaryForRequest(Boolean(options.useAdmin));
 }
 
+async function loadFeeCollections(sessionLabel: string) {
+  return unstable_cache(
+    loadFeeCollectionsUncached,
+    ["fee-setup-collections", sessionLabel],
+    { tags: [`session:${sessionLabel}`] },
+  )();
+}
+
 export async function getFeeSetupPageData(): Promise<FeeSetupPageData> {
-  const [globalPolicy, policySnapshotsRaw, collections, masterOptions] = await Promise.all([
-    loadGlobalPolicy(false),
+  const globalPolicy = await loadGlobalPolicy(false);
+  const [policySnapshotsRaw, collections, masterOptions] = await Promise.all([
     loadFeePolicySnapshots(false),
-    loadFeeCollections(),
+    loadFeeCollections(globalPolicy.academicSessionLabel),
     getMasterDataOptions(),
   ]);
   const [conventionalDiscountPolicies, conventionalDiscountAssignments] = await Promise.all([

@@ -1704,21 +1704,24 @@ export async function commitStudentImportBatch(batchId: string) {
 
   const targetSessionLabel = batchRow.target_session_label?.trim() || null;
   const activePolicySessionLabel = activePolicy.academicSessionLabel.trim();
+  let sessionMismatchForDues = false;
 
   if (targetSessionLabel && activePolicySessionLabel) {
     const normalizedTargetSessionLabel = targetSessionLabel.toLowerCase();
     const normalizedActiveSessionLabel = activePolicySessionLabel.toLowerCase();
 
     if (normalizedTargetSessionLabel !== normalizedActiveSessionLabel) {
-      ledgerSyncError = `Selected academic session ${targetSessionLabel} is not the active fee policy session ${activePolicySessionLabel}. Open Fee Setup and make the same session active before dues and payments will reflect.`;
+      sessionMismatchForDues = true;
     }
   }
 
-  if (!ledgerSyncError && studentsToRegenerate.size > 0) {
+  if (studentsToRegenerate.size > 0) {
     try {
       const duesResult = await prepareDuesForStudentsAutomatically({
         studentIds: [...studentsToRegenerate],
-        reason: "Student import",
+        reason: sessionMismatchForDues
+          ? `Student import for ${targetSessionLabel}`
+          : "Student import",
       });
 
       duesReadyCount = duesResult.readyForPaymentCount;
@@ -1732,7 +1735,7 @@ export async function commitStudentImportBatch(batchId: string) {
         ledgerSyncError =
           duesReasonSummary ??
           (targetSessionLabel && targetSessionLabel !== activePolicySessionLabel
-            ? `Selected academic session ${targetSessionLabel} is not the active fee policy session ${activePolicySessionLabel}. Open Fee Setup and make the same session active before dues and payments will reflect.`
+            ? `Tried dues preparation for ${targetSessionLabel}, but Fee Setup is currently active for ${activePolicySessionLabel}. Dues ready count: ${duesReadyCount}.`
             : "Dues were not prepared for the imported students. Check that the selected academic year is active and class fees are saved in Fee Setup.");
       }
     } catch (error) {

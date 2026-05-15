@@ -126,7 +126,7 @@ export function buildOfficeWorkbookHref(payload: {
   }
 
   if (payload.sessionLabel) {
-    params.set("sessionLabel", payload.sessionLabel);
+    params.set("session", payload.sessionLabel);
   }
 
   return `/protected/transactions?${params.toString()}`;
@@ -151,7 +151,7 @@ export function buildOfficeWorkbookExportHref(payload: {
   }
 
   if (payload.sessionLabel) {
-    params.set("sessionLabel", payload.sessionLabel);
+    params.set("session", payload.sessionLabel);
   }
 
   if (payload.query) {

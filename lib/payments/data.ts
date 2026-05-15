@@ -1,5 +1,7 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
+
 import type { PaymentMode } from "@/lib/db/types";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { createClient } from "@/lib/supabase/server";
@@ -366,11 +368,13 @@ function toStudentIndexItem(row: PaymentStudentBaseRow): PaymentStudentIndexItem
   };
 }
 
-export async function getPaymentDeskStudentIndex(payload: {
+async function getPaymentDeskStudentIndexUncached(payload: {
   classId?: string | null;
   limit?: number;
+  sessionLabel?: string;
 } = {}) {
   const policy = await getFeePolicySummary();
+  const sessionLabel = payload.sessionLabel ?? policy.academicSessionLabel;
   const supabase = await createClient();
   let query = supabase
     .from("students")
@@ -378,7 +382,7 @@ export async function getPaymentDeskStudentIndex(payload: {
       "id, full_name, admission_no, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name)",
     )
     .eq("status", "active")
-    .eq("class_ref.session_label", policy.academicSessionLabel)
+    .eq("class_ref.session_label", sessionLabel)
     .eq("class_ref.status", "active")
     .order("full_name", { ascending: true });
 
@@ -397,13 +401,33 @@ export async function getPaymentDeskStudentIndex(payload: {
     .filter((row): row is PaymentStudentIndexItem => Boolean(row));
 }
 
-export async function getPaymentDeskClassOptions() {
+export async function getPaymentDeskStudentIndex(payload: {
+  classId?: string | null;
+  limit?: number;
+  sessionLabel?: string;
+} = {}) {
+  const sessionLabel = payload.sessionLabel ?? (await getFeePolicySummary()).academicSessionLabel;
+
+  return unstable_cache(
+    async () => getPaymentDeskStudentIndexUncached({ ...payload, sessionLabel }),
+    [
+      "payment-desk-student-index",
+      sessionLabel,
+      payload.classId ?? "",
+      String(payload.limit ?? 2000),
+    ],
+    { tags: [`session:${sessionLabel}`] },
+  )();
+}
+
+async function getPaymentDeskClassOptionsUncached(sessionLabel?: string) {
   const policy = await getFeePolicySummary();
+  const resolvedSessionLabel = sessionLabel ?? policy.academicSessionLabel;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("classes")
     .select("id, class_name, section, stream_name")
-    .eq("session_label", policy.academicSessionLabel)
+    .eq("session_label", resolvedSessionLabel)
     .eq("status", "active")
     .order("sort_order", { ascending: true })
     .order("class_name", { ascending: true });
@@ -416,6 +440,16 @@ export async function getPaymentDeskClassOptions() {
     id: row.id,
     label: buildClassLabel(row),
   }));
+}
+
+export async function getPaymentDeskClassOptions(sessionLabel?: string) {
+  const resolvedSessionLabel = sessionLabel ?? (await getFeePolicySummary()).academicSessionLabel;
+
+  return unstable_cache(
+    async () => getPaymentDeskClassOptionsUncached(resolvedSessionLabel),
+    ["payment-desk-class-options", resolvedSessionLabel],
+    { tags: [`session:${resolvedSessionLabel}`] },
+  )();
 }
 
 function summarizeStudent(
@@ -492,13 +526,24 @@ function mapPaymentDeskReceipt(row: PaymentDeskReceiptRow) {
   };
 }
 
-async function getRecentPaymentDeskReceipts(limit = 6) {
+async function getRecentPaymentDeskReceipts(limit = 6, sessionLabel?: string) {
+  const resolvedSessionLabel = sessionLabel ?? (await getFeePolicySummary()).academicSessionLabel;
+
+  return unstable_cache(
+    async () => getRecentPaymentDeskReceiptsUncached(limit, resolvedSessionLabel),
+    ["payment-desk-recent-receipts", resolvedSessionLabel, String(limit)],
+    { tags: [`session:${resolvedSessionLabel}`] },
+  )();
+}
+
+async function getRecentPaymentDeskReceiptsUncached(limit = 6, sessionLabel: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("receipts")
     .select(
-      "id, receipt_number, student_id, total_amount, payment_mode, payment_date, reference_number, created_at, student_ref:students!inner(full_name, admission_no, father_name, primary_phone, class_ref:classes(class_name, section, stream_name))",
+      "id, receipt_number, student_id, total_amount, payment_mode, payment_date, reference_number, created_at, student_ref:students!inner(full_name, admission_no, father_name, primary_phone, class_ref:classes!inner(session_label, class_name, section, stream_name))",
     )
+    .eq("student_ref.class_ref.session_label", sessionLabel)
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -509,12 +554,23 @@ async function getRecentPaymentDeskReceipts(limit = 6) {
   return ((data ?? []) as PaymentDeskReceiptRow[]).map(mapPaymentDeskReceipt);
 }
 
-async function getTodayPaymentDeskCollection() {
+async function getTodayPaymentDeskCollection(sessionLabel?: string) {
+  const resolvedSessionLabel = sessionLabel ?? (await getFeePolicySummary()).academicSessionLabel;
+
+  return unstable_cache(
+    async () => getTodayPaymentDeskCollectionUncached(resolvedSessionLabel),
+    ["payment-desk-today-collection", resolvedSessionLabel, new Date().toISOString().slice(0, 10)],
+    { tags: [`session:${resolvedSessionLabel}`] },
+  )();
+}
+
+async function getTodayPaymentDeskCollectionUncached(sessionLabel: string) {
   const supabase = await createClient();
   const today = new Date().toISOString().slice(0, 10);
   const { data, error } = await supabase
     .from("receipts")
-    .select("id, total_amount")
+    .select("id, total_amount, student_ref:students!inner(class_ref:classes!inner(session_label))")
+    .eq("student_ref.class_ref.session_label", sessionLabel)
     .eq("payment_date", today);
 
   if (error) {
@@ -530,6 +586,14 @@ async function getTodayPaymentDeskCollection() {
 }
 
 async function getLatestReceiptForStudent(studentId: string) {
+  return unstable_cache(
+    async () => getLatestReceiptForStudentUncached(studentId),
+    ["payment-desk-latest-receipt", studentId],
+    { tags: [`student:${studentId}`] },
+  )();
+}
+
+async function getLatestReceiptForStudentUncached(studentId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("receipts")
@@ -866,24 +930,27 @@ export async function getPaymentEntryPageData(payload: {
   studentId: string | null;
   searchQuery: string;
   classId?: string;
+  sessionLabel?: string;
   autoPrepareMissingDues?: boolean;
   initialSelectedSummary?: PaymentDeskStudentSummary | null;
 }): Promise<PaymentEntryPageData> {
   const policy = await getFeePolicySummary();
+  const sessionLabel = payload.sessionLabel ?? policy.academicSessionLabel;
   const today = new Date().toISOString().slice(0, 10);
   const shouldEagerLoadStudentIndex = Boolean(payload.studentId || payload.classId);
   const [studentIndex, recentReceipts, todayCollection, summary] = await Promise.all([
     shouldEagerLoadStudentIndex
-      ? getPaymentDeskStudentIndex({})
+      ? getPaymentDeskStudentIndex({ sessionLabel })
       : Promise.resolve([]),
-    getRecentPaymentDeskReceipts(6),
-    getTodayPaymentDeskCollection(),
+    getRecentPaymentDeskReceipts(6, sessionLabel),
+    getTodayPaymentDeskCollection(sessionLabel),
     payload.initialSelectedSummary !== undefined
       ? Promise.resolve(payload.initialSelectedSummary)
       : payload.studentId
       ? getPaymentDeskStudentSummary({
           studentId: payload.studentId,
           paymentDate: today,
+          sessionLabel,
           autoPrepareMissingDues: payload.autoPrepareMissingDues,
         })
       : Promise.resolve(null),
@@ -897,7 +964,8 @@ export async function getPaymentEntryPageData(payload: {
     initialStudentIssue: summary?.issue ?? null,
     initialLatestReceipt: summary?.latestReceipt ?? null,
     modeOptions: policy.acceptedPaymentModes,
-    policyNote: `${policy.academicSessionLabel} policy uses receipt prefix ${policy.receiptPrefix}, ${policy.lateFeeLabel.toLowerCase()}, and ${policy.acceptedPaymentModes.map((item) => item.label).join(", ")}.`,
+    sessionLabel,
+    policyNote: `${sessionLabel} policy uses receipt prefix ${policy.receiptPrefix}, ${policy.lateFeeLabel.toLowerCase()}, and ${policy.acceptedPaymentModes.map((item) => item.label).join(", ")}.`,
     recentReceipts,
     todayCollection,
   };
@@ -906,14 +974,16 @@ export async function getPaymentEntryPageData(payload: {
 export async function getPaymentDeskStudentSummary(payload: {
   studentId: string;
   paymentDate: string;
+  sessionLabel?: string;
   autoPrepareMissingDues?: boolean;
   includeLatestReceipt?: boolean;
 }): Promise<PaymentDeskStudentSummary> {
   const policy = await getFeePolicySummary();
+  const sessionLabel = payload.sessionLabel ?? policy.academicSessionLabel;
   const [selectedWorkbookRows, selectedStudentDetail] = await Promise.all([
     getWorkbookStudentFinancials({
       studentId: payload.studentId,
-      sessionLabel: policy.academicSessionLabel,
+      sessionLabel,
     }),
     getStudentDetail(payload.studentId),
   ]);
@@ -986,11 +1056,11 @@ export async function getPaymentDeskStudentSummary(payload: {
     return {
       student: null,
       issue:
-        selectedStudentDetail.classSessionLabel !== policy.academicSessionLabel
+        selectedStudentDetail.classSessionLabel !== sessionLabel
           ? {
               title: "Selected student belongs to another academic session.",
               detail:
-                `This student is in ${selectedStudentDetail.classSessionLabel || "a different session"}, but the active fee policy is ${policy.academicSessionLabel}. Open Fee Setup and make the same session active before dues or payments will appear.`,
+                `This student is in ${selectedStudentDetail.classSessionLabel || "a different session"}, but this view is showing ${sessionLabel}. Change the session to review matching dues.`,
               actionLabel: "Open Fee Setup",
               actionHref: "/protected/fee-setup",
             }
@@ -1198,6 +1268,17 @@ async function findLikelyDuplicateReceipt(payload: {
 }
 
 export async function getPaymentDateAwareInstallmentBalances(payload: {
+  studentId: string;
+  paymentDate: string;
+}) {
+  return unstable_cache(
+    async () => getPaymentDateAwareInstallmentBalancesUncached(payload),
+    ["payment-date-aware-installments", payload.studentId, payload.paymentDate],
+    { tags: [`student:${payload.studentId}`] },
+  )();
+}
+
+async function getPaymentDateAwareInstallmentBalancesUncached(payload: {
   studentId: string;
   paymentDate: string;
 }) {

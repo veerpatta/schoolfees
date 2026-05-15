@@ -25,6 +25,8 @@ import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { getSetupWizardData } from "@/lib/setup/data";
 import { getStudentFormOptions } from "@/lib/students/data";
+import { getViewSessionCookie } from "@/lib/session/cookie";
+import { resolveViewSession } from "@/lib/session/resolver";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/lib/supabase/session";
 
 type TransactionsPageProps = {
@@ -35,6 +37,7 @@ type TransactionsPageProps = {
     paymentMode?: string;
     query?: string;
     routeId?: string;
+    session?: string;
     sessionLabel?: string;
     toDate?: string;
   }>;
@@ -758,7 +761,11 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
   const activeView = resolvedView.view;
   const classId = normalizeClassId(resolvedSearchParams?.classId);
   const routeId = normalizeClassId(resolvedSearchParams?.routeId);
-  const sessionLabel = (resolvedSearchParams?.sessionLabel ?? "").trim();
+  const viewSession = await resolveViewSession({
+    searchParamSession: resolvedSearchParams?.session ?? resolvedSearchParams?.sessionLabel,
+    cookieSession: await getViewSessionCookie(),
+  });
+  const sessionLabel = viewSession.sessionLabel;
   const searchQuery = (resolvedSearchParams?.query ?? "").trim();
   const fromDate = normalizeDate(resolvedSearchParams?.fromDate);
   const toDate = normalizeDate(resolvedSearchParams?.toDate);
@@ -775,7 +782,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
       toDate,
     }),
     getSetupWizardData(),
-    getStudentFormOptions(),
+    getStudentFormOptions({ sessionLabel }),
     getFeePolicySummary(),
   ]);
   const readiness = getOfficeWorkflowReadiness(setup, staff.appRole);
@@ -787,7 +794,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     toDate,
     paymentMode,
     routeId,
-    sessionLabel,
+    session: sessionLabel,
   };
   const currentExportHref = buildOfficeWorkbookExportHref({
     view: activeView,
@@ -807,7 +814,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
   if (toDate) returnParams.set("toDate", toDate);
   if (paymentMode) returnParams.set("paymentMode", paymentMode);
   if (routeId) returnParams.set("routeId", routeId);
-  if (sessionLabel) returnParams.set("sessionLabel", sessionLabel);
+  if (sessionLabel) returnParams.set("session", sessionLabel);
   const returnTo = `/protected/transactions?${returnParams.toString()}`;
 
   return (
@@ -827,7 +834,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
               <Link href="/protected/payments">Open Payment Desk</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link href={buildOfficeWorkbookHref({ view: "collection_today", classId, sessionLabel })}>
+                <Link href={buildOfficeWorkbookHref({ view: "collection_today", classId, sessionLabel })}>
                 Today&apos;s Collection
               </Link>
             </Button>
@@ -906,7 +913,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
               </label>
               <select
                 id="transactions-session"
-                name="sessionLabel"
+                name="session"
                 defaultValue={sessionLabel}
                 className="mt-2 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
               >

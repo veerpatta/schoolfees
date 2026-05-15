@@ -1,6 +1,6 @@
 import "server-only";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 const CORE_FINANCE_PATHS = [
   "/protected",
@@ -20,6 +20,8 @@ const CORE_FINANCE_PATHS = [
 ] as const;
 
 export function revalidateCoreFinancePaths(studentIds: readonly string[] = []) {
+  revalidateSessionFinance("legacy", studentIds);
+
   for (const path of CORE_FINANCE_PATHS) {
     revalidatePath(path);
   }
@@ -32,6 +34,8 @@ export function revalidateCoreFinancePaths(studentIds: readonly string[] = []) {
 }
 
 export function revalidateAfterPaymentPosting(studentIds: readonly string[] = []) {
+  revalidateSessionFinance("legacy", studentIds);
+
   const paymentPaths = [
     "/protected/dashboard",
     "/protected/payments",
@@ -48,5 +52,20 @@ export function revalidateAfterPaymentPosting(studentIds: readonly string[] = []
     revalidatePath(`/protected/students/${studentId}`);
     revalidatePath(`/protected/students/${studentId}/statement`);
     revalidatePath(`/protected/payments?studentId=${studentId}`);
+  }
+}
+
+export function revalidateSessionFinance(
+  sessionLabel: string,
+  studentIds: readonly string[] = [],
+) {
+  const normalizedSessionLabel = sessionLabel.trim();
+
+  if (normalizedSessionLabel) {
+    revalidateTag(`session:${sessionLabel}`, "max");
+  }
+
+  for (const studentId of new Set(studentIds.filter(Boolean))) {
+    revalidateTag(`student:${studentId}`, "max");
   }
 }

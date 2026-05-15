@@ -14,6 +14,7 @@ type DefaulterFiltersProps = {
   filters: DefaulterFilters;
   classOptions: StudentClassOption[];
   routeOptions: StudentRouteOption[];
+  sessionLabel: string;
 };
 
 const selectClassName =
@@ -23,10 +24,12 @@ export function DefaulterFilters({
   filters,
   classOptions,
   routeOptions,
+  sessionLabel,
 }: DefaulterFiltersProps) {
   return (
     <div className="space-y-3">
     <AutoSubmitForm method="get" className="space-y-3 md:hidden">
+      <input type="hidden" name="session" value={sessionLabel} />
       <details className="md:hidden">
         <summary className="cursor-pointer rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-foreground">
           Open filters
@@ -93,13 +96,14 @@ export function DefaulterFilters({
           </div>
           <div className="flex items-end gap-2">
             <Button type="button" variant="outline" asChild>
-              <Link href="/protected/defaulters">Clear</Link>
+              <Link href={`/protected/defaulters?session=${encodeURIComponent(sessionLabel)}`}>Clear</Link>
             </Button>
           </div>
         </div>
       </details>
     </AutoSubmitForm>
     <AutoSubmitForm method="get" className="hidden grid-cols-1 gap-4 md:grid md:grid-cols-2 xl:grid-cols-5">
+      <input type="hidden" name="session" value={sessionLabel} />
       <div>
         <Label htmlFor="query">Search</Label>
         <Input
@@ -173,7 +177,7 @@ export function DefaulterFilters({
 
       <div className="flex items-end gap-2 md:col-span-2 xl:col-span-5">
         <Button type="button" variant="outline" asChild>
-          <Link href="/protected/defaulters">Clear</Link>
+          <Link href={`/protected/defaulters?session=${encodeURIComponent(sessionLabel)}`}>Clear</Link>
         </Button>
       </div>
     </AutoSubmitForm>

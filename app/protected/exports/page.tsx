@@ -4,6 +4,8 @@ import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { OfficeNotice } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
+import { getViewSessionCookie } from "@/lib/session/cookie";
+import { resolveViewSession } from "@/lib/session/resolver";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 export const revalidate = 60;
@@ -29,8 +31,17 @@ const exportGroups = [
   },
 ] as const;
 
-export default async function ExportsPage() {
+type ExportsPageProps = {
+  searchParams?: Promise<{ session?: string }>;
+};
+
+export default async function ExportsPage({ searchParams }: ExportsPageProps) {
   await requireStaffPermission("reports:view", { onDenied: "redirect" });
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const viewSession = await resolveViewSession({
+    searchParamSession: resolvedSearchParams?.session,
+    cookieSession: await getViewSessionCookie(),
+  });
 
   return (
     <div className="space-y-6">
@@ -57,7 +68,9 @@ export default async function ExportsPage() {
                     <span className="mt-1 block text-xs leading-5 text-muted-foreground">{detail}</span>
                   </span>
                   <Button asChild size="sm" variant="outline">
-                    <Link href={`/protected/exports/${key}`}>Download XLSX</Link>
+                    <Link href={`/protected/exports/${key}?session=${encodeURIComponent(viewSession.sessionLabel)}`}>
+                      Download XLSX
+                    </Link>
                   </Button>
                 </div>
               ))}

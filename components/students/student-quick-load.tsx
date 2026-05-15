@@ -50,7 +50,7 @@ export function StudentQuickLoad({
   const params = useMemo(() => {
     const searchParams = new URLSearchParams();
     if (filters.query) searchParams.set("query", filters.query);
-    if (filters.sessionLabel) searchParams.set("sessionLabel", filters.sessionLabel);
+    if (filters.sessionLabel) searchParams.set("session", filters.sessionLabel);
     if (filters.classId) searchParams.set("classId", filters.classId);
     if (filters.transportRouteId) searchParams.set("transportRouteId", filters.transportRouteId);
     if (filters.status) searchParams.set("status", filters.status);

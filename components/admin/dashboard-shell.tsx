@@ -4,6 +4,7 @@ import { CalendarDays, Coins } from "lucide-react";
 
 import { type StaffRole } from "@/lib/auth/roles";
 import { SchoolBrand } from "@/components/branding/school-brand";
+import { SessionPill } from "@/components/admin/session-pill";
 import { getDefaultProtectedHref } from "@/lib/config/navigation";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { formatInr } from "@/lib/helpers/currency";
@@ -18,12 +19,16 @@ type DashboardShellProps = {
   children: ReactNode;
   staffEmail: string;
   staffRole: StaffRole;
+  viewSessionLabel: string;
+  viewSessionIsTest: boolean;
 };
 
 export async function DashboardShell({
   children,
   staffEmail,
   staffRole,
+  viewSessionLabel,
+  viewSessionIsTest,
 }: DashboardShellProps) {
   const policy = await getFeePolicySummary();
   const homeHref = getDefaultProtectedHref(staffRole);
@@ -67,10 +72,20 @@ export async function DashboardShell({
         <MobileHeader
           staffEmail={staffEmail}
           staffRole={staffRole}
-          sessionLabel={policy.academicSessionLabel}
+          sessionLabel={viewSessionLabel}
+          sessionIsTest={viewSessionIsTest}
           homeHref={homeHref}
         />
-        <AppTopBar staffEmail={staffEmail} staffRole={staffRole} />
+        <AppTopBar
+          staffEmail={staffEmail}
+          staffRole={staffRole}
+          sessionPill={
+            <SessionPill
+              currentLabel={viewSessionLabel}
+              isTest={viewSessionIsTest}
+            />
+          }
+        />
         <ScrollRestoringMain
           className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8 lg:py-7 mobile-bottom-nav-clearance md:pb-6 lg:pb-8 print:max-w-none print:px-0 print:py-0"
         >

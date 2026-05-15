@@ -1,5 +1,7 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
+
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkbookClassOptions, getWorkbookStudentFinancials } from "@/lib/workbook/data";
@@ -102,16 +104,15 @@ function calculateDaysOverdue(dueDate: string | null, today: string) {
   return Math.max(0, Math.floor((now - due) / 86_400_000));
 }
 
-async function getActiveSessionStudents(filters: DefaulterFilters) {
+async function getActiveSessionStudentsUncached(filters: DefaulterFilters, sessionLabel: string) {
   const supabase = await createClient();
-  const policy = await getFeePolicySummary();
   let query = supabase
     .from("students")
     .select(
       "id, class_id, admission_no, full_name, father_name, primary_phone, transport_route_id, class_ref:classes!inner(session_label, status, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code)",
     )
     .eq("status", "active")
-    .eq("class_ref.session_label", policy.academicSessionLabel)
+    .eq("class_ref.session_label", sessionLabel)
     .eq("class_ref.status", "active")
     .order("full_name", { ascending: true });
 
@@ -153,16 +154,33 @@ async function getActiveSessionStudents(filters: DefaulterFilters) {
   });
 }
 
+async function getActiveSessionStudents(filters: DefaulterFilters, sessionLabel: string) {
+  return unstable_cache(
+    async () => getActiveSessionStudentsUncached(filters, sessionLabel),
+    [
+      "defaulters-active-students",
+      sessionLabel,
+      filters.classId,
+      filters.transportRouteId,
+    ],
+    { tags: [`session:${sessionLabel}`] },
+  )();
+}
+
 export async function getDefaultersPageData(
   filters: DefaulterFilters,
+  sessionLabel?: string,
 ): Promise<DefaultersPageData> {
+  const policy = await getFeePolicySummary();
+  const resolvedSessionLabel = sessionLabel ?? policy.academicSessionLabel;
   const [{ routeOptions }, classOptions, financialRows, activeStudents] = await Promise.all([
-    getStudentFormOptions(),
-    getWorkbookClassOptions(),
+    getStudentFormOptions({ sessionLabel: resolvedSessionLabel }),
+    getWorkbookClassOptions(resolvedSessionLabel),
     getWorkbookStudentFinancials({
       classId: filters.classId || undefined,
+      sessionLabel: resolvedSessionLabel,
     }),
-    getActiveSessionStudents(filters),
+    getActiveSessionStudents(filters, resolvedSessionLabel),
   ]);
 
   const minimumPendingAmount = parseMinimumPendingAmount(filters.minPendingAmount);

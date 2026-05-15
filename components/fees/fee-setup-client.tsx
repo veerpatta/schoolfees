@@ -82,6 +82,7 @@ type FeeSetupClientProps = {
   ) => Promise<FeeSetupActionState>;
   initialState: FeeSetupActionState;
   initialMasterDataState: MasterDataActionState;
+  initialSelectedSessionLabel?: string;
   actions: {
     createSessionAction: MasterDataActionFn;
     updateSessionAction: MasterDataActionFn;
@@ -375,14 +376,16 @@ export function FeeSetupClient({
   saveWorkbookFeeSetupAction,
   initialState,
   initialMasterDataState,
+  initialSelectedSessionLabel,
   actions,
 }: FeeSetupClientProps) {
   const router = useRouter();
+  const startingSessionLabel = initialSelectedSessionLabel || data.globalPolicy.academicSessionLabel;
   const [selectedSessionLabel, setSelectedSessionLabel] = useState(
-    data.globalPolicy.academicSessionLabel,
+    startingSessionLabel,
   );
   const [form, setForm] = useState<SessionFormState>(() =>
-    buildSessionFormState(data, data.globalPolicy.academicSessionLabel),
+    buildSessionFormState(data, startingSessionLabel),
   );
   const [saveState, setSaveState] = useState(initialState);
   const [previewDirty, setPreviewDirty] = useState(false);

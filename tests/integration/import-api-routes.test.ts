@@ -9,6 +9,7 @@ const getAuthenticatedStaff = vi.fn();
 const hasStaffPermission = vi.fn();
 const hasAnyStaffPermission = vi.fn();
 const revalidatePath = vi.fn();
+const revalidateTag = vi.fn();
 
 vi.mock("@/lib/import/data", () => ({
   createStudentImportBatch,
@@ -24,6 +25,10 @@ vi.mock("@/lib/supabase/session", () => ({
 
 vi.mock("next/cache", () => ({
   revalidatePath,
+  revalidateTag,
+  unstable_cache:
+    <T extends (...args: unknown[]) => unknown>(callback: T) =>
+    callback,
 }));
 
 describe("student import api routes", () => {

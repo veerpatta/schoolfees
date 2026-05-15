@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { after } from "next/server";
 import {
   AlertTriangle,
   ArrowRight,
@@ -33,10 +34,14 @@ import {
 } from "@/lib/dashboard/data";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
+import { getViewSessionCookie } from "@/lib/session/cookie";
+import { resolveViewSession } from "@/lib/session/resolver";
 import {
   hasStaffPermission,
   requireStaffPermission,
 } from "@/lib/supabase/session";
+import { revalidateSessionFinance } from "@/lib/system-sync/finance-revalidation";
+import { prepareDuesForStudentsAutomatically } from "@/lib/system-sync/finance-sync";
 
 function formatPercent(value: number) {
   return `${value}%`;
@@ -657,8 +662,10 @@ function AlertsPanel({ alerts }: { alerts: DashboardAlert[] }) {
 
 function FeeDataAttentionBanner({
   health,
+  canAutoPrepareDues,
 }: {
   health: NonNullable<Awaited<ReturnType<typeof getDashboardPageData>>["systemSyncHealth"]>;
+  canAutoPrepareDues: boolean;
 }) {
   const databaseObjectStatuses = Object.values(health.requiredDatabaseObjectsStatus);
   const needsAttention =
@@ -671,7 +678,12 @@ function FeeDataAttentionBanner({
     !health.paymentDeskReady ||
     !health.dashboardReady;
 
-  if (!needsAttention) {
+  if (
+    !needsAttention ||
+    (canAutoPrepareDues &&
+      health.studentsMissingInstallmentRows > 0 &&
+      health.studentsWithNoFeeSetting === 0)
+  ) {
     return null;
   }
 
@@ -694,6 +706,38 @@ function FeeDataAttentionBanner({
   );
 }
 
+type DashboardAutoPrepareHealth = Pick<
+  NonNullable<Awaited<ReturnType<typeof getDashboardPageData>>["systemSyncHealth"]>,
+  "studentsMissingInstallmentRows" | "studentsMissingInstallments"
+>;
+
+export function scheduleDashboardAutoPrepare({
+  canAutoPrepareDues,
+  sessionLabel,
+  health,
+}: {
+  canAutoPrepareDues: boolean;
+  sessionLabel: string;
+  health: DashboardAutoPrepareHealth | null;
+}) {
+  const studentIds =
+    health?.studentsMissingInstallments
+      .map((student) => student.studentId)
+      .filter(Boolean) ?? [];
+
+  if (!canAutoPrepareDues || !health || health.studentsMissingInstallmentRows <= 0 || studentIds.length === 0) {
+    return;
+  }
+
+  after(async () => {
+    await prepareDuesForStudentsAutomatically({
+      studentIds,
+      reason: "Dashboard auto-prepare",
+    });
+    revalidateSessionFinance(sessionLabel, studentIds);
+  });
+}
+
 function DashboardBelowFoldSkeleton() {
   return (
     <div className="space-y-5" aria-label="Loading dashboard details">
@@ -714,17 +758,29 @@ function DashboardBelowFoldSkeleton() {
 async function DashboardBelowFold({
   staffRole,
   canPostPayments,
+  sessionLabel,
+  canAutoPrepareDues,
 }: {
   staffRole: Awaited<ReturnType<typeof requireStaffPermission>>["appRole"];
   canPostPayments: boolean;
+  sessionLabel: string;
+  canAutoPrepareDues: boolean;
 }) {
-  const data = await getDashboardPageData({ staffRole });
+  const data = await getDashboardPageData({ staffRole, sessionLabel });
   const maxChartCards = data.classSummary.slice(0, 8);
+  scheduleDashboardAutoPrepare({
+    canAutoPrepareDues,
+    sessionLabel,
+    health: data.systemSyncHealth,
+  });
 
   return (
     <>
       {staffRole === "admin" && data.systemSyncHealth ? (
-        <FeeDataAttentionBanner health={data.systemSyncHealth} />
+        <FeeDataAttentionBanner
+          health={data.systemSyncHealth}
+          canAutoPrepareDues={canAutoPrepareDues}
+        />
       ) : null}
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
@@ -809,15 +865,24 @@ async function DashboardBelowFold({
    --------------------------------------------------------------------------- */
 
 type DashboardPageProps = {
-  searchParams?: Promise<{ notice?: string }>;
+  searchParams?: Promise<{ notice?: string; prepared?: string; session?: string }>;
 };
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const staff = await requireStaffPermission("dashboard:view", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const aboveFold = await getDashboardAboveFoldData({ staffRole: staff.appRole });
+  const viewSession = await resolveViewSession({
+    searchParamSession: resolvedSearchParams?.session,
+    cookieSession: await getViewSessionCookie(),
+  });
+  const aboveFold = await getDashboardAboveFoldData({
+    staffRole: staff.appRole,
+    sessionLabel: viewSession.sessionLabel,
+  });
   const canWriteStudents = hasStaffPermission(staff, "students:write");
   const canPostPayments = hasStaffPermission(staff, "payments:write");
+  const canAutoPrepareDues = hasStaffPermission(staff, "fees:write");
+  const preparedCount = Number.parseInt(resolvedSearchParams?.prepared ?? "", 10);
 
   return (
     <div className="space-y-7">
@@ -841,6 +906,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       {resolvedSearchParams?.notice ? (
         <Notice tone="success" iconless={false}>
           {resolvedSearchParams.notice}
+        </Notice>
+      ) : null}
+
+      {Number.isFinite(preparedCount) && preparedCount > 0 ? (
+        <Notice tone="success" iconless={false}>
+          Refreshed dues for {preparedCount} student{preparedCount === 1 ? "" : "s"}.
         </Notice>
       ) : null}
 
@@ -942,6 +1013,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         <DashboardBelowFold
           staffRole={staff.appRole}
           canPostPayments={canPostPayments}
+          sessionLabel={viewSession.sessionLabel}
+          canAutoPrepareDues={canAutoPrepareDues}
         />
       </Suspense>
 

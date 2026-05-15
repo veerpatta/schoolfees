@@ -14,8 +14,9 @@ import type { PaymentEntryActionState } from "@/lib/payments/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import {
   prepareDuesForStudentsAutomatically,
-  revalidateAfterPaymentPosting,
+  revalidateSessionFinance,
 } from "@/lib/system-sync/finance-sync";
+import { getStudentDetail } from "@/lib/students/data";
 
 function parseRequiredString(value: FormDataEntryValue | null, fieldLabel: string) {
   const normalized = (value ?? "").toString().trim();
@@ -161,8 +162,10 @@ export async function submitPaymentEntryAction(
       receivedBy,
       clientRequestId,
     });
+    const student = await getStudentDetail(studentId);
+    const resolvedSessionLabel = student?.classSessionLabel || (await getFeePolicySummary()).academicSessionLabel;
 
-    revalidateAfterPaymentPosting([studentId]);
+    revalidateSessionFinance(resolvedSessionLabel, [studentId]);
 
     return {
       status: "success",

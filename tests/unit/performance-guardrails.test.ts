@@ -35,10 +35,10 @@ describe("office performance guardrails", () => {
     const workbookData = readRepoFile("lib/workbook/data.ts");
 
     expect(dashboardData).toContain(
-      "getWorkbookStudentFinancials({ sessionLabel: policy.academicSessionLabel })",
+      "getWorkbookStudentFinancials({ sessionLabel })",
     );
     expect(dashboardData).toContain(
-      "getWorkbookInstallmentRows({ sessionLabel: policy.academicSessionLabel })",
+      "getWorkbookInstallmentRows({ sessionLabel })",
     );
     expect(officeData).toContain("const sessionLabel = policy.academicSessionLabel");
     expect(officeData).toContain("getWorkbookInstallmentRows({ pendingOnly: true, sessionLabel })");
@@ -95,7 +95,7 @@ describe("office performance guardrails", () => {
     expect(paymentsData).toContain("studentId: payload.studentId");
     expect(paymentsData).not.toContain("getWorkbookStudentFinancials({\n      classId");
     expect(paymentsData).not.toContain(".sort((left, right) => left.fullName.localeCompare(right.fullName))");
-    expect(paymentsPage).toContain("getPaymentDeskClassOptions()");
+    expect(paymentsPage).toContain("getPaymentDeskClassOptions(viewSession.sessionLabel)");
     expect(paymentsPage).toContain("getSetupWizardData()");
     expect(paymentsPage).not.toContain("getStudentFormOptions()");
     expect(paymentClient).toContain("paymentDeskStudentIndexCacheKey");
@@ -115,10 +115,14 @@ describe("office performance guardrails", () => {
     const paymentActions = readRepoFile("app/protected/payments/actions.ts");
     const revalidation = readRepoFile("lib/system-sync/finance-revalidation.ts");
     const syncFacade = readRepoFile("lib/system-sync/finance-sync.ts");
+    const dashboardData = readRepoFile("lib/dashboard/data.ts");
 
-    expect(paymentActions).toContain("revalidateAfterPaymentPosting([studentId])");
+    expect(paymentActions).toContain("revalidateSessionFinance(");
     expect(paymentActions).not.toContain("revalidateCoreFinancePaths([studentId])");
+    expect(revalidation).toContain("export function revalidateSessionFinance");
+    expect(revalidation).toContain("revalidateTag(`session:${sessionLabel}`");
     expect(revalidation).toContain("export function revalidateAfterPaymentPosting");
+    expect(dashboardData).toContain("unstable_cache");
     expect(syncFacade).toContain("revalidateAfterPaymentPosting");
   });
 });

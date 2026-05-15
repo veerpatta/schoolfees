@@ -11,9 +11,10 @@ import {
   EMPTY_DEFAULTER_FILTERS,
   type DefaulterFilters as DefaulterFiltersType,
 } from "@/lib/defaulters/types";
-import { getFeePolicySummary } from "@/lib/fees/data";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
+import { getViewSessionCookie } from "@/lib/session/cookie";
+import { resolveViewSession } from "@/lib/session/resolver";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 type DefaultersPageProps = {
@@ -23,6 +24,7 @@ type DefaultersPageProps = {
     overdue?: string | string[];
     minPendingAmount?: string | string[];
     query?: string | string[];
+    session?: string | string[];
   }>;
 };
 
@@ -62,17 +64,18 @@ export default async function DefaultersPage({
   await requireStaffPermission("defaulters:view", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const filters = normalizeFilters(resolvedSearchParams);
-  const [data, policy] = await Promise.all([
-    getDefaultersPageData(filters),
-    getFeePolicySummary(),
-  ]);
+  const viewSession = await resolveViewSession({
+    searchParamSession: asString(resolvedSearchParams?.session),
+    cookieSession: await getViewSessionCookie(),
+  });
+  const data = await getDefaultersPageData(filters, viewSession.sessionLabel);
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Defaulters"
         title="Outstanding follow-up register"
-        description={`Phone-ready overdue list for ${policy.academicSessionLabel}. Highest risk appears first.`}
+        description={`Phone-ready overdue list for ${viewSession.sessionLabel}. Highest risk appears first.`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge
@@ -98,6 +101,7 @@ export default async function DefaultersPage({
           filters={filters}
           classOptions={data.classOptions}
           routeOptions={data.routeOptions}
+          sessionLabel={viewSession.sessionLabel}
         />
       </SectionCard>
 
