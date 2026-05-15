@@ -40,3 +40,4 @@ Time 0.4324
  GET /protected/dashboard 200 in 15.4s (next.js: 4ms, proxy.ts: 868ms, application-code: 14.5s)
  GET /auth/login?sessionLabel=2026-27&next=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27 200 in 73ms (next.js: 3ms, proxy.ts: 4ms, application-code: 66ms)
  GET /auth/login?sessionLabel=2026-27&next=%2Fprotected%2Fstudents%3FsessionLabel%3D2026-27 200 in 68ms (next.js: 3ms, proxy.ts: 4ms, application-code: 62ms)
+ GET /protected/fee-setup 200 in 6.0s (next.js: 452ms, proxy.ts: 1950ms, application-code: 3.6s)
