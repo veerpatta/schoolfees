@@ -19,6 +19,7 @@ import {
   updateFeeHead,
   updateRoute,
 } from "@/lib/master-data/data";
+import { getActiveSessionLabel } from "@/lib/session/active";
 import { setActiveSessionLabel } from "@/lib/session/set-active";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
@@ -117,6 +118,21 @@ function parsePaymentMode(value: FormDataEntryValue | null) {
   throw new Error("Payment mode is invalid.");
 }
 
+function sameSessionLabel(left: string, right: string) {
+  return left.trim().toLowerCase() === right.trim().toLowerCase();
+}
+
+async function switchActiveSessionIfNeeded(sessionLabel: string, isCurrent: boolean) {
+  if (!isCurrent) {
+    return;
+  }
+
+  const activeSessionLabel = await getActiveSessionLabel();
+  if (!sameSessionLabel(sessionLabel, activeSessionLabel)) {
+    await setActiveSessionLabel(sessionLabel);
+  }
+}
+
 function revalidateMasterDataSurface() {
   revalidatePath("/protected/master-data");
   revalidatePath("/protected/setup");
@@ -149,9 +165,7 @@ export async function createSessionAction(
       notes: parseOptionalString(formData.get("sessionNotes")),
     });
 
-    if (isCurrent) {
-      await setActiveSessionLabel(sessionLabel);
-    }
+    await switchActiveSessionIfNeeded(sessionLabel, isCurrent);
 
     revalidateMasterDataSurface();
     return toSuccess("Academic session created.");
@@ -177,9 +191,7 @@ export async function updateSessionAction(
       notes: parseOptionalString(formData.get("sessionNotes")),
     });
 
-    if (isCurrent) {
-      await setActiveSessionLabel(sessionLabel);
-    }
+    await switchActiveSessionIfNeeded(sessionLabel, isCurrent);
 
     revalidateMasterDataSurface();
     return toSuccess("Academic session updated.");
@@ -216,6 +228,28 @@ export async function copySessionAction(
 
     revalidateMasterDataSurface();
     return toSuccess("Session setup copied.");
+  } catch (error) {
+    return toError(error);
+  }
+}
+
+export async function setLiveActiveSessionAction(
+  _previous: MasterDataActionState,
+  formData: FormData,
+): Promise<MasterDataActionState> {
+  await requireStaffPermission("settings:write");
+
+  try {
+    const sessionLabel = parseRequiredString(formData.get("sessionLabel"), "Session label");
+    const confirmation = parseRequiredString(formData.get("confirmSessionLabel"), "Confirmation");
+
+    if (confirmation.trim().toLowerCase() !== sessionLabel.trim().toLowerCase()) {
+      throw new Error("Please confirm the session label before making it live.");
+    }
+
+    await setActiveSessionLabel(sessionLabel);
+    revalidateMasterDataSurface();
+    return toSuccess(`${sessionLabel} is now the live session.`);
   } catch (error) {
     return toError(error);
   }

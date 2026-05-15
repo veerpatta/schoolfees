@@ -58,12 +58,30 @@ export default async function AdvancedPage() {
           description="Use these actions only when students or dues are missing from Dashboard, Payment Desk, Transactions, or reports."
           actions={
             <StatusBadge
-              label={feeDataHealth.dashboardReady && feeDataHealth.paymentDeskReady ? "Ready" : "Needs attention"}
+              label={feeDataHealth.dashboardReady && feeDataHealth.paymentDeskReady ? "Healthy" : "Needs attention"}
               tone={feeDataHealth.dashboardReady && feeDataHealth.paymentDeskReady ? "good" : "warning"}
             />
           }
         >
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface-2 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">Session Health</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Use one row per academic session for routine dues reconciliation.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge
+                label={feeDataHealth.dashboardReady && feeDataHealth.paymentDeskReady ? "Healthy" : "Needs attention"}
+                tone={feeDataHealth.dashboardReady && feeDataHealth.paymentDeskReady ? "good" : "warning"}
+              />
+              <Button asChild>
+                <Link href="/protected/admin-tools/session-health">Open Session Health</Link>
+              </Button>
+            </div>
+          </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Fee Setup year
@@ -92,22 +110,13 @@ export default async function AdvancedPage() {
           </div>
         </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface-2 px-4 py-3">
-            <Button asChild>
-              <Link href="/protected/admin-tools/session-health">Open Session Health</Link>
-            </Button>
-            <p className="text-sm text-muted-foreground">
-              Use one row per academic session for routine dues reconciliation.
-            </p>
-          </div>
-
           <details className="mt-4 rounded-lg border border-border bg-card">
             <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-foreground">
-              Legacy repair actions
+              Legacy repair actions (admins only)
             </summary>
             <div className="border-t border-border p-4">
               <p className="mb-3 text-sm text-muted-foreground">
-                Prefer Session Health for routine reconciliation.
+                Prefer Session Health for routine reconciliation. These tools remain for emergencies.
               </p>
               <div className="flex flex-wrap gap-2">
               <form action={repairCurrentSessionDuesAction}>

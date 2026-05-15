@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import {
   getProtectedNavigationItem,
   getVisibleProtectedNavigation,
 } from "@/lib/config/navigation";
 import { type StaffRole } from "@/lib/auth/roles";
+import { appendCurrentSessionParam } from "@/lib/navigation/session-href";
 import { cn } from "@/lib/utils";
 
 type SidebarNavProps = {
@@ -23,6 +24,7 @@ export function SidebarNav({
   className,
 }: SidebarNavProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const activeItem = getProtectedNavigationItem(pathname);
   const navigationItems = getVisibleProtectedNavigation(staffRole);
   const isTopbar = mode === "topbar";
@@ -40,12 +42,13 @@ export function SidebarNav({
       {navigationItems.map((item) => {
         const active = activeItem?.href === item.href;
         const Icon = item.icon;
+        const href = appendCurrentSessionParam(item.href, searchParams);
 
         if (isTopbar) {
           return (
             <Link
               key={item.href}
-              href={item.href}
+              href={href}
               aria-current={active ? "page" : undefined}
               className={cn(
                 "flex w-full items-center justify-center gap-1.5 rounded-md border px-2 py-2 text-[11px] font-medium leading-4 transition-colors duration-150",
@@ -63,7 +66,7 @@ export function SidebarNav({
         return (
           <Link
             key={item.href}
-            href={item.href}
+            href={href}
             aria-current={active ? "page" : undefined}
             className={cn(
               "group relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors duration-150",

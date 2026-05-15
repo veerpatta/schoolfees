@@ -371,7 +371,7 @@ function filterStudentRows(rows: WorkbookStudentFinancial[], filters: OfficeWork
 export async function getOfficeWorkbookData(
   filters: OfficeWorkbookFilters,
 ): Promise<OfficeWorkbookData> {
-  const classOptions = await getWorkbookClassOptions();
+  const classOptions = await getWorkbookClassOptions(filters.sessionLabel || undefined);
   const sharedFilters = {
     classId: filters.classId || undefined,
     fromDate: filters.fromDate || undefined,

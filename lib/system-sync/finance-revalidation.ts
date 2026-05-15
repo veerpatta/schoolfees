@@ -20,8 +20,6 @@ const CORE_FINANCE_PATHS = [
 ] as const;
 
 export function revalidateCoreFinancePaths(studentIds: readonly string[] = []) {
-  revalidateSessionFinance("legacy", studentIds);
-
   for (const path of CORE_FINANCE_PATHS) {
     revalidatePath(path);
   }
@@ -34,8 +32,6 @@ export function revalidateCoreFinancePaths(studentIds: readonly string[] = []) {
 }
 
 export function revalidateAfterPaymentPosting(studentIds: readonly string[] = []) {
-  revalidateSessionFinance("legacy", studentIds);
-
   const paymentPaths = [
     "/protected/dashboard",
     "/protected/payments",

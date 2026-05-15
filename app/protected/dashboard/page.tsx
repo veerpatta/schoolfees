@@ -34,6 +34,7 @@ import {
 } from "@/lib/dashboard/data";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
 import {
@@ -143,31 +144,35 @@ function HeroKpis({
 function QuickActions({
   canWriteStudents,
   canPostPayments,
+  sessionLabel,
 }: {
   canWriteStudents: boolean;
   canPostPayments: boolean;
+  sessionLabel?: string;
 }) {
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+
   return (
     <div className="flex flex-wrap gap-2">
       {canPostPayments ? (
         <Button asChild variant="accent" leadingIcon={<BadgeIndianRupee className="size-4" />}>
-          <Link href="/protected/payments">Open Payment Desk</Link>
+          <Link href={withSession("/protected/payments")}>Open Payment Desk</Link>
         </Button>
       ) : null}
       {canWriteStudents ? (
         <Button asChild variant="outline" leadingIcon={<UsersRound className="size-4" />}>
-          <Link href="/protected/students/new">Add student</Link>
+          <Link href={withSession("/protected/students/new")}>Add student</Link>
         </Button>
       ) : (
         <Button asChild variant="outline" leadingIcon={<UsersRound className="size-4" />}>
-          <Link href="/protected/students">Students</Link>
+          <Link href={withSession("/protected/students")}>Students</Link>
         </Button>
       )}
       <Button asChild variant="outline" leadingIcon={<ReceiptText className="size-4" />}>
-        <Link href="/protected/transactions">Transactions</Link>
+        <Link href={withSession("/protected/transactions")}>Transactions</Link>
       </Button>
       <Button asChild variant="ghost" leadingIcon={<ClipboardList className="size-4" />}>
-        <Link href="/protected/defaulters">Defaulters</Link>
+        <Link href={withSession("/protected/defaulters")}>Defaulters</Link>
       </Button>
     </div>
   );
@@ -883,6 +888,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const canPostPayments = hasStaffPermission(staff, "payments:write");
   const canAutoPrepareDues = hasStaffPermission(staff, "fees:write");
   const preparedCount = Number.parseInt(resolvedSearchParams?.prepared ?? "", 10);
+  const withSession = (href: string) => appendSessionParam(href, resolvedSearchParams?.session);
 
   return (
     <div className="space-y-7">
@@ -931,7 +937,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             ].map((action) => (
               <Link
                 key={action.href}
-                href={action.href}
+                href={withSession(action.href)}
                 className="group flex items-center justify-between gap-3 rounded-md border border-border bg-card px-4 py-3 transition-colors hover:border-border-strong hover:bg-surface-2"
               >
                 <span>
@@ -952,7 +958,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           title="Students found, dues missing"
           action={
             <Button asChild size="sm" variant="outline">
-              <Link href="/protected/admin-tools#fee-data-troubleshooting">Prepare dues</Link>
+              <Link href={withSession("/protected/admin-tools#fee-data-troubleshooting")}>Prepare dues</Link>
             </Button>
           }
         >
@@ -969,7 +975,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           receiptsToday={aboveFold.kpis.receiptsToday}
           followUpCount={aboveFold.studentsWithPending}
         />
-        <QuickActions canWriteStudents={canWriteStudents} canPostPayments={canPostPayments} />
+        <QuickActions
+          canWriteStudents={canWriteStudents}
+          canPostPayments={canPostPayments}
+          sessionLabel={resolvedSearchParams?.session}
+        />
       </div>
 
       {/* Today + secondary KPIs */}

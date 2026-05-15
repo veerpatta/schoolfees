@@ -118,9 +118,13 @@ describe("read-only UX audit implementation", () => {
     expect(dashboard).not.toContain("Generate Missing Dues");
     expect(dashboard).toContain("Open Fee Data Troubleshooting");
     expect(advanced).toContain("Fee Data Troubleshooting");
+    expect(advanced).toContain("Open Session Health");
+    expect(advanced).toContain("Legacy repair actions");
     expect(advanced).toContain("Prepare missing dues");
     expect(advanced).toContain("Update fee records for this year");
+    expect(advanced).toContain("Align year with Fee Setup");
     expect(advanced).toContain("Fix Payment Desk dues");
+    expect(advanced).toContain("Refresh Dashboard totals");
     expect(navigation).toContain('requiredPermission: "fees:write"');
   });
 

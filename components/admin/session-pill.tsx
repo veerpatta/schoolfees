@@ -21,7 +21,7 @@ type SessionPillProps = {
   initialSessions?: AvailableSessionRow[];
 };
 
-function normalizeSessionLabel(label: string | null | undefined) {
+export function normalizeSessionLabel(label: string | null | undefined) {
   const value = (label ?? "").trim();
 
   if (!value) {
@@ -35,7 +35,7 @@ function normalizeSessionLabel(label: string | null | undefined) {
   }
 }
 
-function isTestSession(label: string) {
+export function isTestSession(label: string) {
   try {
     return isTestAcademicSessionLabel(label);
   } catch {
@@ -43,7 +43,7 @@ function isTestSession(label: string) {
   }
 }
 
-function groupSessions(sessions: AvailableSessionRow[]) {
+export function groupSessions(sessions: AvailableSessionRow[]) {
   const active = sessions.filter((session) => session.is_current);
   const test = sessions.filter((session) => isTestSession(session.session_label));
   const activeIds = new Set(active.map((session) => session.id));
@@ -57,6 +57,27 @@ function groupSessions(sessions: AvailableSessionRow[]) {
     { title: "Other production", rows: otherProduction },
     { title: "Test / UAT / DEMO", rows: test },
   ].filter((group) => group.rows.length > 0);
+}
+
+export function syncTestSessionBodyAttribute(
+  body: { dataset: Record<string, string | undefined> },
+  {
+    isTest,
+    displayLabel,
+  }: {
+    isTest: boolean;
+    displayLabel: string;
+  },
+) {
+  if (isTest || isTestSession(displayLabel)) {
+    body.dataset.vppsTestSession = "true";
+  } else {
+    delete body.dataset.vppsTestSession;
+  }
+
+  return () => {
+    delete body.dataset.vppsTestSession;
+  };
 }
 
 export function SessionPill({
@@ -94,24 +115,23 @@ export function SessionPill({
     };
   }, [initialSessions]);
 
-  useEffect(() => {
-    if (displayIsTest) {
-      document.body.setAttribute("data-vpps-test-mode", "true");
-    } else {
-      document.body.removeAttribute("data-vpps-test-mode");
-    }
-
-    return () => {
-      document.body.removeAttribute("data-vpps-test-mode");
-    };
-  }, [displayIsTest]);
+  useEffect(
+    () =>
+      syncTestSessionBodyAttribute(document.body, {
+        isTest: displayIsTest,
+        displayLabel,
+      }),
+    [displayIsTest, displayLabel],
+  );
 
   function selectSession(label: string) {
     startTransition(async () => {
       const result = await setViewSessionAction(label);
 
       if (result.success) {
-        router.replace(`${pathname}?session=${encodeURIComponent(result.sessionLabel)}`);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("session", result.sessionLabel);
+        router.replace(`${pathname}?${params.toString()}`);
         router.refresh();
       }
     });

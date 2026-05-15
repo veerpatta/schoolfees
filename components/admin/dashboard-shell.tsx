@@ -4,6 +4,7 @@ import { CalendarDays, Coins } from "lucide-react";
 
 import { type StaffRole } from "@/lib/auth/roles";
 import { SchoolBrand } from "@/components/branding/school-brand";
+import { MobileSessionPill } from "@/components/admin/mobile-session-pill";
 import { SessionPill } from "@/components/admin/session-pill";
 import { getDefaultProtectedHref } from "@/lib/config/navigation";
 import { getFeePolicySummary } from "@/lib/fees/data";
@@ -72,8 +73,12 @@ export async function DashboardShell({
         <MobileHeader
           staffEmail={staffEmail}
           staffRole={staffRole}
-          sessionLabel={viewSessionLabel}
-          sessionIsTest={viewSessionIsTest}
+          sessionPill={
+            <MobileSessionPill
+              currentLabel={viewSessionLabel}
+              isTest={viewSessionIsTest}
+            />
+          }
           homeHref={homeHref}
         />
         <AppTopBar

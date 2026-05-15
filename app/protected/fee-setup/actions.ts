@@ -7,6 +7,7 @@ import {
   createWorkbookFeeSetupPreview,
 } from "@/lib/fees/workbook-setup-change";
 import { upsertConventionalDiscountPolicies } from "@/lib/fees/conventional-discounts";
+import { getActiveSessionLabel } from "@/lib/session/active";
 import { setActiveSessionLabel } from "@/lib/session/set-active";
 import type { WorkbookFeeSetupFormPayload } from "@/lib/fees/workbook-setup";
 import {
@@ -339,12 +340,27 @@ export async function saveWorkbookFeeSetupAction(
 
     if (parseIntent(formData) === "apply") {
       const batchId = parseUuid(formData.get("changeBatchId"), "Review batch");
+      const currentActive = await getActiveSessionLabel();
+      if (
+        currentActive &&
+        currentActive.trim().toLowerCase() === payload.academicSessionLabel.trim().toLowerCase()
+      ) {
+        // Already active; publishing this setup should not switch anything.
+      } else if (!currentActive) {
+        // First-time publish is allowed to establish the live session after the batch is saved.
+      } else {
+        throw new Error(
+          `Refusing to switch the active session. Current active is ${currentActive}; Fee Setup is being published for ${payload.academicSessionLabel}. Open Master Data > Academic Sessions to set the active session deliberately.`,
+        );
+      }
       const result = await applyWorkbookFeeSetupBatch(batchId, payload);
       await upsertConventionalDiscountPolicies({
         academicSessionLabel: payload.academicSessionLabel,
         policies: conventionalDiscountPolicies,
       });
-      await setActiveSessionLabel(payload.academicSessionLabel);
+      if (!currentActive) {
+        await setActiveSessionLabel(payload.academicSessionLabel);
+      }
       revalidateFeeSetupSurface();
       return toSuccessState(result.message);
     }

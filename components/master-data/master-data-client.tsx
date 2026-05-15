@@ -66,6 +66,7 @@ type MasterDataClientProps = {
     createSessionAction: ActionFn;
     updateSessionAction: ActionFn;
     deleteSessionAction: ActionFn;
+    setLiveActiveSessionAction: ActionFn;
     createClassAction: ActionFn;
     updateClassAction: ActionFn;
     deleteClassAction: ActionFn;
@@ -127,6 +128,10 @@ export function MasterDataClient({
   );
   const [sessionDeleteState, deleteSessionFormAction] = useActionState(
     actions.deleteSessionAction,
+    initialActionState,
+  );
+  const [setLiveSessionState, setLiveSessionFormAction] = useActionState(
+    actions.setLiveActiveSessionAction,
     initialActionState,
   );
 
@@ -264,6 +269,7 @@ export function MasterDataClient({
         <ActionMessage state={sessionCreateState} />
         <ActionMessage state={sessionUpdateState} />
         <ActionMessage state={sessionDeleteState} />
+        <ActionMessage state={setLiveSessionState} />
 
         <form action={createSessionFormAction} className="grid gap-3 rounded-xl border border-border p-3 md:grid-cols-5">
           <div className="md:col-span-2">
@@ -273,13 +279,6 @@ export function MasterDataClient({
           <div>
             <Label>Status</Label>
             <SessionStatusSelect name="sessionStatus" value="active" />
-          </div>
-          <div>
-            <Label>Current session</Label>
-            <select name="isCurrentSession" defaultValue="yes" className={selectClassName}>
-              <option value="yes">Yes</option>
-              <option value="no">No</option>
-            </select>
           </div>
           <div className="md:col-span-5">
             <Label htmlFor="newSessionNotes">Notes</Label>
@@ -307,16 +306,18 @@ export function MasterDataClient({
                     <Label>Status</Label>
                     <SessionStatusSelect name="sessionStatus" value={session.status} />
                   </div>
-                  <div>
-                    <Label>Current session</Label>
-                    <select
-                      name="isCurrentSession"
-                      defaultValue={session.is_current ? "yes" : "no"}
-                      className={selectClassName}
+                  <div className="space-y-2">
+                    <Label>Live app session</Label>
+                    <input type="hidden" name="isCurrentSession" value={session.is_current ? "yes" : "no"} />
+                    <span
+                      className={
+                        session.is_current
+                          ? "inline-flex h-8 items-center rounded-md border border-success/30 bg-success-soft px-2.5 text-xs font-semibold text-success-soft-foreground"
+                          : "inline-flex h-8 items-center rounded-md border border-border bg-surface-2 px-2.5 text-xs font-semibold text-muted-foreground"
+                      }
                     >
-                      <option value="yes">Yes</option>
-                      <option value="no">No</option>
-                    </select>
+                      {session.is_current ? "Live now" : "Not live"}
+                    </span>
                   </div>
                   <div className="md:col-span-5">
                     <Label>Notes</Label>
@@ -330,6 +331,25 @@ export function MasterDataClient({
                   <input type="hidden" name="sessionId" value={session.id} />
                   <Button type="submit" variant="outline">Delete session</Button>
                 </form>
+                {!session.is_current ? (
+                  <form
+                    action={setLiveSessionFormAction}
+                    className="mt-2"
+                    onSubmit={(event) => {
+                      if (
+                        !window.confirm(
+                          `Switch the entire app to view ${session.session_label}? Staff currently posting payments will see ${session.session_label} on their next page load.`,
+                        )
+                      ) {
+                        event.preventDefault();
+                      }
+                    }}
+                  >
+                    <input type="hidden" name="sessionLabel" value={session.session_label} />
+                    <input type="hidden" name="confirmSessionLabel" value={session.session_label} />
+                    <Button type="submit" variant="outline">Make this the live session</Button>
+                  </form>
+                ) : null}
               </div>
             ))
           )}

@@ -782,3 +782,4 @@
   └─ ƒ listAvailableSessionsAction() in 1728ms app/protected/session/actions.ts
  POST /protected/admin-tools/session-health?session=2026-27 200 in 2.1s (next.js: 3ms, proxy.ts: 349ms, application-code: 1735ms)
   └─ ƒ listAvailableSessionsAction() in 1732ms app/protected/session/actions.ts
+✓ Compiled in 93ms

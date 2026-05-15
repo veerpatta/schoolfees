@@ -3,10 +3,11 @@
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import type { ImportBatchDialogSummary, ImportMode } from "@/lib/import/types";
+import { appendCurrentSessionParam } from "@/lib/navigation/session-href";
 import type { StudentSessionOption } from "@/lib/students/types";
 
 type UploadResponse = {
@@ -80,6 +81,7 @@ export function StudentBulkImportDialogTrigger({
   defaultSessionLabel: string;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<ImportMode>("add");
@@ -104,8 +106,10 @@ export function StudentBulkImportDialogTrigger({
     if (mode === "add" || sessionLabel !== "__all__") {
       params.set("sessionLabel", sessionLabel);
     }
-    return `/protected/imports/template?${params.toString()}`;
-  }, [mode, sessionLabel]);
+    return appendCurrentSessionParam(`/protected/imports/template?${params.toString()}`, searchParams);
+  }, [mode, searchParams, sessionLabel]);
+
+  const withSession = (href: string) => appendCurrentSessionParam(href, searchParams);
 
   function openDialog(nextMode: ImportMode) {
     setMode(nextMode);
@@ -418,7 +422,7 @@ export function StudentBulkImportDialogTrigger({
                         Replace file
                       </Button>
                       <Button asChild variant="outline">
-                        <Link href={`/protected/imports?mode=${summary.mode}&batchId=${summary.batchId}`}>
+                        <Link href={withSession(`/protected/imports?mode=${summary.mode}&batchId=${summary.batchId}`)}>
                           Import history
                         </Link>
                       </Button>
@@ -452,18 +456,18 @@ export function StudentBulkImportDialogTrigger({
                     ) : null}
                     <div className="mt-2 flex flex-wrap gap-2">
                       <Button asChild size="sm" variant="outline">
-                        <Link href="/protected/students">Open Students list</Link>
+                        <Link href={withSession("/protected/students")}>Open Students list</Link>
                       </Button>
                       <Button asChild size="sm" variant="outline">
-                        <Link href="/protected/payments">Open Payment Desk</Link>
+                        <Link href={withSession("/protected/payments")}>Open Payment Desk</Link>
                       </Button>
                       {commitResult.ledgerSyncError ? (
                         <Button asChild size="sm" variant="outline">
-                          <Link href="/protected/fee-setup">Open Fee Setup</Link>
+                          <Link href={withSession("/protected/fee-setup")}>Open Fee Setup</Link>
                         </Button>
                       ) : null}
                           <Button asChild size="sm" variant="outline">
-                            <Link href={`/protected/imports?mode=${summary.mode}&batchId=${summary.batchId}`}>
+                            <Link href={withSession(`/protected/imports?mode=${summary.mode}&batchId=${summary.batchId}`)}>
                               Import history
                             </Link>
                           </Button>

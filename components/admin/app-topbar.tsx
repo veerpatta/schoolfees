@@ -2,11 +2,12 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronDown, KeyRound, LogOut, MoreVertical, UserRound } from "lucide-react";
 
 import { roleLabels, type StaffRole } from "@/lib/auth/roles";
 import { getProtectedRouteMeta } from "@/lib/config/navigation";
+import { appendCurrentSessionParam } from "@/lib/navigation/session-href";
 import { logoutAction } from "@/app/auth/login/actions";
 import {
   DropdownMenu,
@@ -37,7 +38,9 @@ function initialsOf(email: string) {
 
 export function AppTopBar({ staffEmail, staffRole, sessionPill }: AppTopBarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const routeMeta = getProtectedRouteMeta(pathname);
+  const passwordHref = appendCurrentSessionParam("/protected/password", searchParams);
 
   return (
     <header className="z-20 hidden border-b border-border bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70 print:hidden md:sticky md:top-0 md:flex md:flex-col">
@@ -76,7 +79,7 @@ export function AppTopBar({ staffEmail, staffRole, sessionPill }: AppTopBarProps
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link href="/protected/password" className="flex items-center gap-2">
+                <Link href={passwordHref} className="flex items-center gap-2">
                   <KeyRound className="size-4 text-muted-foreground" aria-hidden="true" />
                   Change password
                 </Link>
@@ -109,29 +112,22 @@ export function AppTopBar({ staffEmail, staffRole, sessionPill }: AppTopBarProps
 export function MobileHeader({
   staffEmail,
   staffRole,
-  sessionLabel,
-  sessionIsTest,
+  sessionPill,
   homeHref,
 }: AppTopBarProps & {
-  sessionLabel: string;
-  sessionIsTest: boolean;
   homeHref: string;
 }) {
+  const searchParams = useSearchParams();
+  const sessionAwareHomeHref = appendCurrentSessionParam(homeHref, searchParams);
+  const passwordHref = appendCurrentSessionParam("/protected/password", searchParams);
+
   return (
     <header className="sticky top-0 z-30 flex h-11 items-center justify-between border-b border-border bg-background/90 px-3 backdrop-blur print:hidden md:hidden">
-      <Link href={homeHref} aria-label="Open home" className="min-w-0">
+      <Link href={sessionAwareHomeHref} aria-label="Open home" className="min-w-0">
         <SchoolBrand variant="icon" priority />
       </Link>
       <div className="flex min-w-0 items-center gap-2">
-        <span
-          className={[
-            "rounded-full border bg-surface px-2 py-0.5 text-xs font-semibold text-foreground",
-            sessionIsTest ? "border-fuchsia-500 text-fuchsia-700" : "border-border",
-          ].join(" ")}
-        >
-          {sessionLabel}
-          {sessionIsTest ? " TEST" : ""}
-        </span>
+        {sessionPill}
         <DropdownMenu>
           <DropdownMenuTrigger
             className="grid size-9 place-items-center rounded-md border border-border bg-surface text-foreground transition-colors hover:bg-surface-2 focus-ring"
@@ -153,7 +149,7 @@ export function MobileHeader({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href="/protected/password" className="flex items-center gap-2">
+              <Link href={passwordHref} className="flex items-center gap-2">
                 <KeyRound className="size-4 text-muted-foreground" aria-hidden="true" />
                 Change password
               </Link>

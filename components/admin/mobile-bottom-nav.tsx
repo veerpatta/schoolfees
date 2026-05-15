@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import { type StaffRole } from "@/lib/auth/roles";
 import { getMobileBottomNavigation } from "@/lib/config/navigation";
+import { appendCurrentSessionParam } from "@/lib/navigation/session-href";
 import { cn } from "@/lib/utils";
 
 type MobileBottomNavProps = {
@@ -13,6 +14,7 @@ type MobileBottomNavProps = {
 
 export function MobileBottomNav({ staffRole }: MobileBottomNavProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const items = getMobileBottomNavigation(staffRole).slice(0, 5);
 
   return (
@@ -32,11 +34,12 @@ export function MobileBottomNav({ staffRole }: MobileBottomNavProps) {
           const Icon = item.icon;
           const active =
             pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const href = appendCurrentSessionParam(item.href, searchParams);
 
           return (
             <Link
               key={item.href}
-              href={item.href}
+              href={href}
               aria-current={active ? "page" : undefined}
               className={cn(
                 "relative flex min-h-11 min-w-0 flex-col items-center justify-center rounded-md px-1 py-1.5 text-xs font-medium leading-tight transition-colors",

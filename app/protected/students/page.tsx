@@ -7,6 +7,7 @@ import { StudentBulkImportDialogTrigger } from "@/components/students/student-bu
 import { StudentQuickLoad } from "@/components/students/student-quick-load";
 import { Button } from "@/components/ui/button";
 import { STUDENT_STATUSES } from "@/lib/students/constants";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 import {
   getClassOptionsForSession,
   getStudentFormOptions,
@@ -128,6 +129,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
   }
   const canWriteStudents = hasStaffPermission(staff, "students:write");
   const canRealignRecentImports = hasStaffPermission(staff, "fees:write");
+  const withSession = (href: string) => appendSessionParam(href, resolvedSearchParams?.session);
   const activePolicySessionLabel = formOptions?.policySessionLabel || resolvedSessionLabel;
   const recentImportStudentCount =
     formOptions?.sessionMismatch && canRealignRecentImports
@@ -147,7 +149,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
           canWriteStudents ? (
             <OfficeActionBar className="border-0 bg-transparent p-0 shadow-none">
               <Button asChild>
-                <Link href={`/protected/students/new?sessionLabel=${encodeURIComponent(filters.sessionLabel)}`}>
+                <Link href={withSession(`/protected/students/new?sessionLabel=${encodeURIComponent(filters.sessionLabel)}`)}>
                   Add Student
                 </Link>
               </Button>
@@ -162,12 +164,12 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
                 <div className="absolute right-0 z-20 mt-2 w-72 rounded-xl border border-border bg-card p-3 shadow-lg">
                   <div className="grid gap-2">
                     <Button asChild variant="outline">
-                      <Link href={`/protected/imports/template?mode=add&sessionLabel=${encodeURIComponent(filters.sessionLabel)}`}>
+                      <Link href={withSession(`/protected/imports/template?mode=add&sessionLabel=${encodeURIComponent(filters.sessionLabel)}`)}>
                         Download Add Template
                       </Link>
                     </Button>
                     <Button asChild variant="outline">
-                      <Link href="/protected/imports/template?mode=update">
+                      <Link href={withSession("/protected/imports/template?mode=update")}>
                         Download Update Template
                       </Link>
                     </Button>
