@@ -39,6 +39,10 @@ describe("phase 1 migration verification scripts", () => {
     expect(schema).toContain("select public.active_session_label()");
     expect(schema).toContain("create table if not exists public.session_reconcile_log");
     expect(schema).toContain("drop policy if exists \"fees:view can read reconcile log\"");
+    expect(schema).toContain("grant usage on schema private to service_role");
+    expect(schema).toContain(
+      "grant execute on function private.workbook_installment_snapshot(uuid, date, boolean) to service_role",
+    );
   });
 
   it("keeps the session reconcile migration idempotent", () => {
@@ -55,7 +59,10 @@ describe("phase 1 migration verification scripts", () => {
     const script = readRepoFile("scripts/verify-live-sync-health.mjs");
 
     expect(script).toContain("post_student_payment_with_adjustments");
-    expect(script).toContain("const { count: financialCount");
+    expect(script).toContain("IN_FILTER_BATCH_SIZE");
+    expect(script).toContain("countRowsByInBatches");
+    expect(script).toContain("fetchRowsByInBatches");
+    expect(script).toContain('column: "student_id"');
     expect(script).not.toContain("const { data: financials");
     expect(script).not.toContain("[\"none\"]");
   });

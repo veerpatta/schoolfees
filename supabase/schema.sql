@@ -3410,6 +3410,10 @@ grant execute on function public.preview_workbook_payment_allocation(uuid, date)
 grant usage on schema private to authenticated;
 grant execute on function private.normalize_workbook_class_label(text, text) to authenticated;
 grant execute on function private.workbook_installment_snapshot(uuid, date, boolean) to authenticated;
+grant usage on schema private to service_role;
+grant execute on function private.normalize_workbook_class_label(text, text) to service_role;
+grant execute on function private.workbook_installment_snapshot(uuid, date, boolean) to service_role;
+grant execute on function public.preview_workbook_payment_allocation(uuid, date) to service_role;
 
 drop view if exists public.v_workbook_student_financials;
 
@@ -4379,6 +4383,10 @@ grant execute on function public.preview_workbook_payment_allocation(uuid, date)
 grant usage on schema private to authenticated;
 grant execute on function private.normalize_workbook_class_label(text, text) to authenticated;
 grant execute on function private.workbook_installment_snapshot(uuid, date, boolean) to authenticated;
+grant usage on schema private to service_role;
+grant execute on function private.normalize_workbook_class_label(text, text) to service_role;
+grant execute on function private.workbook_installment_snapshot(uuid, date, boolean) to service_role;
+grant execute on function public.preview_workbook_payment_allocation(uuid, date) to service_role;
 
 drop view if exists public.v_workbook_student_financials;
 

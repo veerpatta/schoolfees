@@ -48,6 +48,7 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
 });
 
 const CHECK_SESSIONS = ["2026-27", "TEST-2026-27"];
+const IN_FILTER_BATCH_SIZE = 100;
 const REQUIRED_DB_OBJECTS = [
   { type: "view", name: "v_workbook_student_financials" },
   { type: "view", name: "v_workbook_installment_balances" },
@@ -73,14 +74,60 @@ function section(title) {
   console.log(`\n## ${title}`);
 }
 
+function chunkValues(values, size = IN_FILTER_BATCH_SIZE) {
+  const chunks = [];
+
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+
+  return chunks;
+}
+
+async function countRowsByInBatches({ table, column, values, select }) {
+  let total = 0;
+
+  for (const batch of chunkValues(values)) {
+    const { count, error } = await supabase
+      .from(table)
+      .select(select, { count: "exact", head: true })
+      .in(column, batch);
+
+    if (error) {
+      return { count: total, error };
+    }
+
+    total += count ?? 0;
+  }
+
+  return { count: total, error: null };
+}
+
+async function fetchRowsByInBatches({ table, column, values, select, configure = (query) => query }) {
+  const rows = [];
+
+  for (const batch of chunkValues(values)) {
+    const query = configure(supabase.from(table).select(select).in(column, batch));
+    const { data, error } = await query;
+
+    if (error) {
+      return { data: rows, error };
+    }
+
+    rows.push(...(data ?? []));
+  }
+
+  return { data: rows, error: null };
+}
+
 async function checkDbObjects() {
   section("Required DB objects");
 
   for (const obj of REQUIRED_DB_OBJECTS) {
     const { error } = await supabase
       .from(obj.name)
-      .select("*", { count: "exact", head: true })
-      .limit(0);
+      .select("*")
+      .limit(1);
 
     if (error) {
       warn(`${obj.name}: ${error.message}`);
@@ -197,11 +244,13 @@ async function checkSession(sessionLabel) {
     return;
   }
 
-  const { data: installments, error: installmentsError } = await supabase
-    .from("installments")
-    .select("student_id")
-    .in("student_id", studentIds)
-    .neq("status", "cancelled");
+  const { data: installments, error: installmentsError } = await fetchRowsByInBatches({
+    table: "installments",
+    column: "student_id",
+    values: studentIds,
+    select: "student_id",
+    configure: (query) => query.neq("status", "cancelled"),
+  });
 
   if (installmentsError) {
     warn(`Installments query failed: ${installmentsError.message}`);
@@ -237,10 +286,12 @@ async function checkSession(sessionLabel) {
     ok(`All ${classIds.length} classes have fee settings`);
   }
 
-  const { count: financialCount, error: financialsError } = await supabase
-    .from("v_workbook_student_financials")
-    .select("student_id", { count: "exact", head: true })
-    .in("student_id", studentIds);
+  const { count: financialCount, error: financialsError } = await countRowsByInBatches({
+    table: "v_workbook_student_financials",
+    column: "student_id",
+    values: studentIds,
+    select: "student_id",
+  });
 
   if (financialsError) {
     warn(`Workbook financials query failed: ${financialsError.message}`);
