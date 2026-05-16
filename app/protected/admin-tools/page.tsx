@@ -14,12 +14,25 @@ import {
   getSystemSyncHealth,
   type SystemSyncHealth,
 } from "@/lib/system-sync/finance-sync";
+import {
+  buildUnavailableSystemSyncHealth,
+  getErrorMessage,
+  isUnavailableSystemSyncHealth,
+} from "@/lib/system-sync/health-fallback";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/lib/supabase/session";
 
 export const revalidate = 60;
 
 type AdvancedPageProps = {
   searchParams?: Promise<{ session?: string }>;
+};
+
+type AdminToolsSyncState = {
+  health: SystemSyncHealth;
+  result?: unknown;
+  ran: boolean;
+  reason: string;
+  errorMessage?: string;
 };
 
 function isHealthy(health: SystemSyncHealth) {
@@ -33,6 +46,10 @@ function isHealthy(health: SystemSyncHealth) {
 }
 
 function healthStatus(health: SystemSyncHealth) {
+  if (isUnavailableSystemSyncHealth(health)) {
+    return { label: "Health check unavailable", tone: "warning" as const };
+  }
+
   if (isHealthy(health)) {
     return { label: "Ready", tone: "good" as const };
   }
@@ -42,6 +59,34 @@ function healthStatus(health: SystemSyncHealth) {
   }
 
   return { label: "Syncing", tone: "info" as const };
+}
+
+async function loadAdminToolsSyncState(
+  sessionLabel: string,
+  canAutoSync: boolean,
+): Promise<AdminToolsSyncState> {
+  try {
+    if (canAutoSync) {
+      return await autoReconcileSessionIfSafe(sessionLabel);
+    }
+
+    return {
+      health: await getSystemSyncHealth(sessionLabel),
+      ran: false,
+      reason: "Automatic sync is available to fee setup admins.",
+    };
+  } catch (error) {
+    const errorMessage = getErrorMessage(error);
+
+    return {
+      health: buildUnavailableSystemSyncHealth(sessionLabel, errorMessage),
+      result: null,
+      ran: false,
+      reason:
+        "Admin Tools opened, but the automatic health check could not finish. Normal pages remain available while setup is reviewed.",
+      errorMessage,
+    };
+  }
 }
 
 export default async function AdvancedPage({ searchParams }: AdvancedPageProps) {
@@ -54,13 +99,7 @@ export default async function AdvancedPage({ searchParams }: AdvancedPageProps) 
     onDenied: "redirect",
   });
   const canRepairFeeData = hasStaffPermission(staff, "fees:write");
-  const autoSync = canRepairFeeData
-    ? await autoReconcileSessionIfSafe(viewSession.sessionLabel)
-    : {
-        health: await getSystemSyncHealth(viewSession.sessionLabel),
-        ran: false,
-        reason: "Automatic sync is available to fee setup admins.",
-      };
+  const autoSync = await loadAdminToolsSyncState(viewSession.sessionLabel, canRepairFeeData);
   const feeDataHealth = autoSync.health;
   const status = healthStatus(feeDataHealth);
   const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
@@ -82,10 +121,24 @@ export default async function AdvancedPage({ searchParams }: AdvancedPageProps) 
       />
 
       <OfficeNotice
-        title={autoSync.ran ? "Automatic sync just updated this session" : "Automatic sync is on"}
-        tone={autoSync.ran || isHealthy(feeDataHealth) ? "success" : "info"}
+        title={
+          autoSync.errorMessage
+            ? "Health check unavailable"
+            : autoSync.ran
+              ? "Automatic sync just updated this session"
+              : "Automatic sync is on"
+        }
+        tone={
+          autoSync.errorMessage
+            ? "warning"
+            : autoSync.ran || isHealthy(feeDataHealth)
+              ? "success"
+              : "info"
+        }
       >
-        {autoSync.ran
+        {autoSync.errorMessage
+          ? `Admin Tools opened, but the automatic health check could not finish. ${autoSync.errorMessage}`
+          : autoSync.ran
           ? `${viewSession.sessionLabel} was reconciled automatically. Continue normal work in Students, Fee Setup, Payment Desk, and Transactions.`
           : "The app prepares dues after student changes, imports, Fee Setup changes, and selected-student Payment Desk loading. Admin Tools is now only for review and rare setup tasks."}
       </OfficeNotice>

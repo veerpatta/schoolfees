@@ -12,8 +12,8 @@ import { cn } from "@/lib/utils";
 import {
   listAvailableSessionsAction,
   setViewSessionAction,
-  type AvailableSessionRow,
 } from "@/app/protected/session/actions";
+import type { AvailableSessionRow } from "@/lib/session/available-sessions";
 
 type SessionPillProps = {
   currentLabel: string;

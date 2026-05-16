@@ -12,8 +12,6 @@ import { setViewSessionCookie } from "@/lib/session/cookie";
 import { createClient } from "@/lib/supabase/server";
 import { requireAuthenticatedStaff } from "@/lib/supabase/session";
 
-export type { AvailableSessionRow };
-
 export async function listAvailableSessionsAction(): Promise<AvailableSessionRow[]> {
   await requireAuthenticatedStaff();
 

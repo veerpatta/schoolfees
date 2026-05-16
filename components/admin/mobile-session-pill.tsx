@@ -7,9 +7,9 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   listAvailableSessionsAction,
   setViewSessionAction,
-  type AvailableSessionRow,
 } from "@/app/protected/session/actions";
 import { Sheet } from "@/components/ui/sheet";
+import type { AvailableSessionRow } from "@/lib/session/available-sessions";
 import { cn } from "@/lib/utils";
 
 import {

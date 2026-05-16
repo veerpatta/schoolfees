@@ -6,6 +6,7 @@ import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { OfficeNotice } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
+import { REQUIRED_OFFICE_SESSION_LABELS } from "@/lib/session/available-sessions";
 import { createClient } from "@/lib/supabase/server";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 import {
@@ -13,6 +14,10 @@ import {
   getSystemSyncHealth,
   type SystemSyncHealth,
 } from "@/lib/system-sync/finance-sync";
+import {
+  buildUnavailableSystemSyncHealth,
+  getErrorMessage,
+} from "@/lib/system-sync/health-fallback";
 
 import { reconcileSessionAction } from "./actions";
 
@@ -43,6 +48,12 @@ type SessionHealthCard = {
   needsAttention: boolean;
   autoSyncRan: boolean;
   autoSyncReason: string;
+};
+
+type SessionSyncState = {
+  health: SystemSyncHealth;
+  ran: boolean;
+  reason: string;
 };
 
 function getSessionBadge(session: AcademicSessionRow) {
@@ -77,6 +88,40 @@ function formatLastReconciled(value: string | null) {
   }).format(new Date(value));
 }
 
+function fallbackSessionRows(): AcademicSessionRow[] {
+  return REQUIRED_OFFICE_SESSION_LABELS.map((sessionLabel) => ({
+    session_label: sessionLabel,
+    status: "active",
+    is_current: sessionLabel === "2026-27",
+  }));
+}
+
+async function loadSessionSyncState(
+  sessionLabel: string,
+  canAutoReconcile: boolean,
+): Promise<SessionSyncState> {
+  try {
+    if (canAutoReconcile) {
+      return await autoReconcileSessionIfSafe(sessionLabel);
+    }
+
+    return {
+      health: await getSystemSyncHealth(sessionLabel),
+      ran: false,
+      reason: "Automatic sync is available to fee setup admins.",
+    };
+  } catch (error) {
+    const errorMessage = getErrorMessage(error);
+
+    return {
+      health: buildUnavailableSystemSyncHealth(sessionLabel, errorMessage),
+      ran: false,
+      reason:
+        "Health check could not finish for this session. Normal pages remain available while setup is reviewed.",
+    };
+  }
+}
+
 async function getSessionHealthCards(canAutoReconcile: boolean): Promise<SessionHealthCard[]> {
   const supabase = await createClient();
   const { data: sessions, error: sessionsError } = await supabase
@@ -84,13 +129,9 @@ async function getSessionHealthCards(canAutoReconcile: boolean): Promise<Session
     .select("session_label,status,is_current")
     .order("session_label", { ascending: true });
 
-  if (sessionsError) {
-    throw new Error(sessionsError.message);
-  }
-
-  const sessionRows = ((sessions ?? []) as AcademicSessionRow[]).filter((session) =>
-    session.session_label.trim(),
-  );
+  const sessionRows = sessionsError
+    ? fallbackSessionRows()
+    : ((sessions ?? []) as AcademicSessionRow[]).filter((session) => session.session_label.trim());
   const sessionLabels = sessionRows.map((session) => session.session_label);
   let latestBySession = new Map<string, string | null>();
 
@@ -102,28 +143,20 @@ async function getSessionHealthCards(canAutoReconcile: boolean): Promise<Session
       .not("finished_at", "is", null)
       .order("finished_at", { ascending: false });
 
-    if (logsError) {
-      throw new Error(logsError.message);
+    if (!logsError) {
+      latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => {
+        if (!map.has(row.session_label)) {
+          map.set(row.session_label, row.finished_at);
+        }
+
+        return map;
+      }, new Map<string, string | null>());
     }
-
-    latestBySession = ((logs ?? []) as ReconcileLogRow[]).reduce((map, row) => {
-      if (!map.has(row.session_label)) {
-        map.set(row.session_label, row.finished_at);
-      }
-
-      return map;
-    }, new Map<string, string | null>());
   }
 
   return Promise.all(
     sessionRows.map(async (session) => {
-      const autoSync = canAutoReconcile
-        ? await autoReconcileSessionIfSafe(session.session_label)
-        : {
-            health: await getSystemSyncHealth(session.session_label),
-            ran: false,
-            reason: "Automatic sync is available to fee setup admins.",
-          };
+      const autoSync = await loadSessionSyncState(session.session_label, canAutoReconcile);
 
       return {
         session,

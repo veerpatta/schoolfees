@@ -165,4 +165,18 @@ describe("source of truth audit fixes", () => {
     expect(feePolicy).toContain("const shouldActivateSession = payload.activateSession ?? true");
     expect(feePolicy).toMatch(/if \(shouldActivateSession\) \{\s+await setActiveSessionLabel/);
   });
+
+  it("server_actions_do_not_export_runtime_type_only_session_values", () => {
+    const sessionActions = readRepoFile("app/protected/session/actions.ts");
+    const sessionPill = readRepoFile("components/admin/session-pill.tsx");
+    const mobileSessionPill = readRepoFile("components/admin/mobile-session-pill.tsx");
+
+    expect(sessionActions).not.toContain("export type { AvailableSessionRow }");
+    expect(sessionPill).toContain(
+      'import type { AvailableSessionRow } from "@/lib/session/available-sessions";',
+    );
+    expect(mobileSessionPill).toContain(
+      'import type { AvailableSessionRow } from "@/lib/session/available-sessions";',
+    );
+  });
 });
