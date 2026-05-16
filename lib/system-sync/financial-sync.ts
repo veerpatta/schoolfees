@@ -596,6 +596,32 @@ function mergeLedgerResults(results: LedgerGenerationResult[]): LedgerGeneration
   };
 }
 
+function isMissingServiceRoleKeyError(error: unknown) {
+  return (
+    error instanceof Error &&
+    error.message.includes("SUPABASE_SERVICE_ROLE_KEY")
+  );
+}
+
+async function generateLedgersWithStaffFallback(options: {
+  scopedStudentIds?: string[];
+  scopedSessionLabel?: string;
+  useAdminClient?: boolean;
+}) {
+  try {
+    return await generateSessionLedgersAction(options);
+  } catch (error) {
+    if (options.useAdminClient && isMissingServiceRoleKeyError(error)) {
+      return generateSessionLedgersAction({
+        ...options,
+        useAdminClient: false,
+      });
+    }
+
+    throw error;
+  }
+}
+
 async function resolveStudentSessions(studentIds: string[]): Promise<Map<string, string[]>> {
   try {
     const supabase = await createClient();
@@ -644,7 +670,7 @@ export async function syncStudentFinancials(payload: {
 
   // If session is known at the call site, use it directly — no DB round-trip needed.
   if (payload.sessionLabel) {
-    const result = await generateSessionLedgersAction({
+    const result = await generateLedgersWithStaffFallback({
       scopedStudentIds: studentIds,
       scopedSessionLabel: payload.sessionLabel,
       useAdminClient: payload.useSystemClient,
@@ -660,7 +686,7 @@ export async function syncStudentFinancials(payload: {
 
   if (sessionGroups.size === 0) {
     // Could not resolve sessions — fall back to single call with default fee policy.
-    const result = await generateSessionLedgersAction({
+    const result = await generateLedgersWithStaffFallback({
       scopedStudentIds: studentIds,
       useAdminClient: payload.useSystemClient,
     });
@@ -669,11 +695,23 @@ export async function syncStudentFinancials(payload: {
   }
 
   const results: LedgerGenerationResult[] = [];
+  const resolvedStudentIds = new Set<string>();
 
   for (const [sessionLabel, sessionStudentIds] of sessionGroups) {
-    const result = await generateSessionLedgersAction({
+    sessionStudentIds.forEach((studentId) => resolvedStudentIds.add(studentId));
+    const result = await generateLedgersWithStaffFallback({
       scopedStudentIds: sessionStudentIds,
       scopedSessionLabel: sessionLabel,
+      useAdminClient: payload.useSystemClient,
+    });
+    results.push(result);
+  }
+
+  const unresolvedStudentIds = studentIds.filter((studentId) => !resolvedStudentIds.has(studentId));
+
+  if (unresolvedStudentIds.length > 0) {
+    const result = await generateLedgersWithStaffFallback({
+      scopedStudentIds: unresolvedStudentIds,
       useAdminClient: payload.useSystemClient,
     });
     results.push(result);
@@ -692,7 +730,7 @@ export async function syncSessionFinancials(payload: {
   const requestedSession = payload.sessionLabel.trim();
   const warnings: string[] = [];
 
-  const result = await generateSessionLedgersAction({
+  const result = await generateLedgersWithStaffFallback({
     scopedSessionLabel: requestedSession,
     useAdminClient: payload.useSystemClient,
   });
@@ -714,7 +752,7 @@ export async function generateMissingSessionDues(payload: {
     return buildEmptySyncResult(payload.reason, ["No active students are missing dues."]);
   }
 
-  const result = await generateSessionLedgersAction({
+  const result = await generateLedgersWithStaffFallback({
     scopedSessionLabel: payload.sessionLabel,
     scopedStudentIds: studentIds,
     useAdminClient: payload.useSystemClient,

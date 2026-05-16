@@ -29,6 +29,37 @@ describe("phase 1 migration verification scripts", () => {
     expect(readme).toContain("node scripts/verify-phase1-migrations.mjs");
   });
 
+  it("keeps phase 1 session-sync database objects in the canonical schema", () => {
+    const schema = readRepoFile("supabase/schema.sql");
+
+    expect(schema).toContain("create table if not exists public.app_settings");
+    expect(schema).toContain("create or replace function public.active_session_label()");
+    expect(schema).toContain("create table if not exists public.student_session_reanchor_log");
+    expect(schema).toContain("create or replace function public.realign_recent_import_students_to_active_session");
+    expect(schema).toContain("select public.active_session_label()");
+    expect(schema).toContain("create table if not exists public.session_reconcile_log");
+    expect(schema).toContain("drop policy if exists \"fees:view can read reconcile log\"");
+  });
+
+  it("keeps the session reconcile migration idempotent", () => {
+    const migration = readRepoFile("supabase/migrations/20260515151450_session_reconcile_log.sql");
+
+    expect(migration).toContain("create table if not exists public.session_reconcile_log");
+    expect(migration).toContain("create index if not exists idx_session_reconcile_log_session_started");
+    expect(migration).toContain("drop policy if exists \"fees:view can read reconcile log\"");
+    expect(migration).toContain("drop policy if exists \"fees:write can write reconcile log\"");
+    expect(migration).toContain("drop policy if exists \"fees:write can update reconcile log\"");
+  });
+
+  it("checks the live sync verifier against the app's actual payment RPC and count API", () => {
+    const script = readRepoFile("scripts/verify-live-sync-health.mjs");
+
+    expect(script).toContain("post_student_payment_with_adjustments");
+    expect(script).toContain("const { count: financialCount");
+    expect(script).not.toContain("const { data: financials");
+    expect(script).not.toContain("[\"none\"]");
+  });
+
   it("documents and implements the required academic sessions verifier", () => {
     const scriptPath = "scripts/verify-required-sessions.mjs";
     expect(existsSync(join(repoRoot, scriptPath))).toBe(true);

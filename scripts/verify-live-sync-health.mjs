@@ -108,7 +108,7 @@ async function checkDbObjects() {
     ok("preview_workbook_payment_allocation is callable");
   }
 
-  const { error: postError } = await supabase.rpc("post_student_payment", {
+  const { error: postError } = await supabase.rpc("post_student_payment_with_adjustments", {
     p_student_id: zeroUuid,
     p_payment_date: today,
     p_payment_mode: "cash",
@@ -117,6 +117,9 @@ async function checkDbObjects() {
     p_remarks: "readiness check only",
     p_received_by: "system-readiness",
     p_receipt_prefix: "SVP",
+    p_client_request_id: zeroUuid,
+    p_quick_discount_amount: 0,
+    p_quick_late_fee_waiver_amount: 0,
   });
 
   const postMissing =
@@ -125,9 +128,9 @@ async function checkDbObjects() {
     postError?.message?.includes("could not find the function");
 
   if (postMissing) {
-    warn(`post_student_payment: function missing — ${postError.message}`);
+    warn(`post_student_payment_with_adjustments: function missing — ${postError.message}`);
   } else {
-    ok("post_student_payment is callable");
+    ok("post_student_payment_with_adjustments is callable");
   }
 
   const { error: reconcileError } = await supabase
@@ -170,11 +173,16 @@ async function checkSession(sessionLabel) {
   const classIds = (classes ?? []).map((c) => c.id);
   info(`Active classes: ${classIds.length}`);
 
+  if (classIds.length === 0) {
+    info("No visible active classes - skipping student and dues checks for this session");
+    return;
+  }
+
   const { data: students, error: studentsError } = await supabase
     .from("students")
     .select("id")
     .eq("status", "active")
-    .in("class_id", classIds.length > 0 ? classIds : ["none"]);
+    .in("class_id", classIds);
 
   if (studentsError) {
     warn(`Students query failed: ${studentsError.message}`);
@@ -213,7 +221,7 @@ async function checkSession(sessionLabel) {
     .from("fee_settings")
     .select("class_id")
     .eq("is_active", true)
-    .in("class_id", classIds.length > 0 ? classIds : ["none"]);
+    .in("class_id", classIds);
 
   if (feeSettingsError) {
     warn(`Fee settings query failed: ${feeSettingsError.message}`);
@@ -229,7 +237,7 @@ async function checkSession(sessionLabel) {
     ok(`All ${classIds.length} classes have fee settings`);
   }
 
-  const { data: financials, error: financialsError } = await supabase
+  const { count: financialCount, error: financialsError } = await supabase
     .from("v_workbook_student_financials")
     .select("student_id", { count: "exact", head: true })
     .in("student_id", studentIds);
@@ -237,9 +245,7 @@ async function checkSession(sessionLabel) {
   if (financialsError) {
     warn(`Workbook financials query failed: ${financialsError.message}`);
   } else {
-    const prepared = financials ?? 0;
-    const count = typeof prepared === "number" ? prepared : (financials?.length ?? 0);
-    info(`Workbook financial rows for session students: ${count}`);
+    info(`Workbook financial rows for session students: ${financialCount ?? 0}`);
   }
 }
 
