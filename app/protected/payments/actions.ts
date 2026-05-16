@@ -251,6 +251,7 @@ export async function repairPaymentDeskStudentDuesAction(formData: FormData) {
 
   const result = await prepareDuesForStudentsAutomatically({
     studentIds: [studentId],
+    sessionLabel,
     reason: "Payment Desk manual repair",
   });
   await publishOfficeSyncEvent({

@@ -168,6 +168,7 @@ export async function createStudentAction(
     if (isDuesSyncRelevantStatus(validated.data.status)) {
       const duesResult = await prepareDuesForStudentsAutomatically({
         studentIds: [studentId],
+        sessionLabel: resolvedSessionLabel,
         reason: "Student added",
       });
       syncOutcome = buildStudentDuesSyncOutcome({
@@ -286,6 +287,7 @@ export async function updateStudentAction(
     if (shouldSyncDues) {
       const duesResult = await prepareDuesForStudentsAutomatically({
         studentIds: [updatedStudentId],
+        sessionLabel: resolvedSessionLabel,
         reason: "Student updated",
       });
       syncOutcome = buildStudentDuesSyncOutcome({
@@ -362,6 +364,7 @@ export async function archiveStudentAction(formData: FormData) {
   await archiveStudent(studentId);
   await prepareDuesForStudentsAutomatically({
     studentIds: [studentId],
+    sessionLabel: student?.classSessionLabel || undefined,
     reason: "Student withdrawn",
   });
   revalidateFinanceSurfaces({ studentIds: [studentId] });

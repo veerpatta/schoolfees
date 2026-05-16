@@ -57,11 +57,13 @@ export async function syncStudentDuesAsSystem(studentIds: readonly string[]) {
 
 export async function prepareDuesForStudentsAutomatically(payload: {
   studentIds: readonly string[];
+  sessionLabel?: string;
   reason?: string;
   useSystemClient?: boolean;
 }) {
   const result = await syncStudentFinancials({
     studentIds: payload.studentIds,
+    sessionLabel: payload.sessionLabel,
     reason: payload.reason ?? "Automatic dues preparation",
     useSystemClient: payload.useSystemClient ?? true,
   });

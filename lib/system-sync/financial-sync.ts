@@ -10,6 +10,11 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { revalidateCoreFinancePaths } from "@/lib/system-sync/finance-revalidation";
 
+type StudentClassSessionRow = {
+  id: string;
+  class_ref: { session_label: string } | Array<{ session_label: string }> | null;
+};
+
 type StudentClassJoin = {
   id: string;
   session_label: string;
@@ -543,8 +548,90 @@ export async function getRawClassStudentSummary(
   }));
 }
 
+function mergeLedgerResults(results: LedgerGenerationResult[]): LedgerGenerationResult {
+  if (results.length === 0) {
+    return {
+      academicSessionLabel: "",
+      totalActiveStudents: 0,
+      studentsInAcademicSession: 0,
+      scopedStudents: 0,
+      studentsWithResolvedSettings: 0,
+      studentsMissingSettings: 0,
+      existingInstallments: 0,
+      installmentsToInsert: 0,
+      installmentsToUpdate: 0,
+      installmentsToCancel: 0,
+      lockedInstallments: 0,
+      expectedScheduledInstallments: 0,
+      affectedStudents: 0,
+      blockedInstallmentsForReview: [],
+      skippedStudents: [],
+      warnings: [],
+      errors: [],
+    };
+  }
+
+  if (results.length === 1) {
+    return results[0];
+  }
+
+  return {
+    academicSessionLabel: results.map((r) => r.academicSessionLabel).filter(Boolean).join(", "),
+    totalActiveStudents: results.reduce((sum, r) => sum + r.totalActiveStudents, 0),
+    studentsInAcademicSession: results.reduce((sum, r) => sum + r.studentsInAcademicSession, 0),
+    scopedStudents: results.reduce((sum, r) => sum + r.scopedStudents, 0),
+    studentsWithResolvedSettings: results.reduce((sum, r) => sum + r.studentsWithResolvedSettings, 0),
+    studentsMissingSettings: results.reduce((sum, r) => sum + r.studentsMissingSettings, 0),
+    existingInstallments: results.reduce((sum, r) => sum + r.existingInstallments, 0),
+    installmentsToInsert: results.reduce((sum, r) => sum + r.installmentsToInsert, 0),
+    installmentsToUpdate: results.reduce((sum, r) => sum + r.installmentsToUpdate, 0),
+    installmentsToCancel: results.reduce((sum, r) => sum + r.installmentsToCancel, 0),
+    lockedInstallments: results.reduce((sum, r) => sum + r.lockedInstallments, 0),
+    expectedScheduledInstallments: results.reduce((sum, r) => sum + r.expectedScheduledInstallments, 0),
+    affectedStudents: results.reduce((sum, r) => sum + r.affectedStudents, 0),
+    blockedInstallmentsForReview: results.flatMap((r) => r.blockedInstallmentsForReview),
+    skippedStudents: results.flatMap((r) => r.skippedStudents),
+    warnings: [...new Set(results.flatMap((r) => r.warnings))],
+    errors: [...new Set(results.flatMap((r) => r.errors))],
+  };
+}
+
+async function resolveStudentSessions(studentIds: string[]): Promise<Map<string, string[]>> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("students")
+      .select("id, class_ref:classes(session_label)")
+      .in("id", studentIds);
+
+    if (error || !data) {
+      return new Map();
+    }
+
+    const groups = new Map<string, string[]>();
+
+    for (const row of data as StudentClassSessionRow[]) {
+      const classRef = toSingleRecord(row.class_ref);
+      const sessionLabel = (classRef as { session_label?: string } | null)?.session_label?.trim() || "";
+
+      if (!sessionLabel) {
+        continue;
+      }
+
+      const group = groups.get(sessionLabel) ?? [];
+      group.push(row.id);
+      groups.set(sessionLabel, group);
+    }
+
+    return groups;
+  } catch {
+    return new Map();
+  }
+}
+
 export async function syncStudentFinancials(payload: {
   studentIds: readonly string[];
+  sessionLabel?: string;
   reason: string;
   useSystemClient?: boolean;
 }) {
@@ -555,13 +642,46 @@ export async function syncStudentFinancials(payload: {
     return buildEmptySyncResult(payload.reason, ["No students selected."]);
   }
 
-  const result = await generateSessionLedgersAction({
-    scopedStudentIds: studentIds,
-    useAdminClient: payload.useSystemClient,
-  });
-  revalidateCoreFinancePaths(studentIds);
+  // If session is known at the call site, use it directly — no DB round-trip needed.
+  if (payload.sessionLabel) {
+    const result = await generateSessionLedgersAction({
+      scopedStudentIds: studentIds,
+      scopedSessionLabel: payload.sessionLabel,
+      useAdminClient: payload.useSystemClient,
+    });
+    revalidateCoreFinancePaths(studentIds);
+    return buildSyncResult(result, payload.reason, buildLedgerWarnings(result));
+  }
 
-  return buildSyncResult(result, payload.reason, buildLedgerWarnings(result));
+  // No session label: group students by their class session so each group is synced
+  // against the correct fee policy, avoiding SESSION_MISMATCH skips when the active
+  // fee setup session (e.g. TEST-2026-27) differs from the student's class session.
+  const sessionGroups = await resolveStudentSessions(studentIds);
+
+  if (sessionGroups.size === 0) {
+    // Could not resolve sessions — fall back to single call with default fee policy.
+    const result = await generateSessionLedgersAction({
+      scopedStudentIds: studentIds,
+      useAdminClient: payload.useSystemClient,
+    });
+    revalidateCoreFinancePaths(studentIds);
+    return buildSyncResult(result, payload.reason, buildLedgerWarnings(result));
+  }
+
+  const results: LedgerGenerationResult[] = [];
+
+  for (const [sessionLabel, sessionStudentIds] of sessionGroups) {
+    const result = await generateSessionLedgersAction({
+      scopedStudentIds: sessionStudentIds,
+      scopedSessionLabel: sessionLabel,
+      useAdminClient: payload.useSystemClient,
+    });
+    results.push(result);
+  }
+
+  const merged = mergeLedgerResults(results);
+  revalidateCoreFinancePaths(studentIds);
+  return buildSyncResult(merged, payload.reason, buildLedgerWarnings(merged));
 }
 
 export async function syncSessionFinancials(payload: {

@@ -45,20 +45,22 @@ function isHealthy(health: SystemSyncHealth) {
   );
 }
 
-function healthStatus(health: SystemSyncHealth) {
+function healthStatus(health: SystemSyncHealth, autoSyncRan: boolean) {
   if (isUnavailableSystemSyncHealth(health)) {
-    return { label: "Health check unavailable", tone: "warning" as const };
+    return { label: "Sync unavailable", tone: "warning" as const };
   }
 
   if (isHealthy(health)) {
-    return { label: "Ready", tone: "good" as const };
+    return autoSyncRan
+      ? { label: "Sync repaired", tone: "info" as const }
+      : { label: "Synced", tone: "good" as const };
   }
 
   if (health.classesWithoutFeeSettings > 0 || health.errors.length > 0) {
-    return { label: "Needs setup review", tone: "warning" as const };
+    return { label: "Setup needed", tone: "warning" as const };
   }
 
-  return { label: "Syncing", tone: "info" as const };
+  return { label: "Dues pending", tone: "info" as const };
 }
 
 async function loadAdminToolsSyncState(
@@ -101,7 +103,7 @@ export default async function AdvancedPage({ searchParams }: AdvancedPageProps) 
   const canRepairFeeData = hasStaffPermission(staff, "fees:write");
   const autoSync = await loadAdminToolsSyncState(viewSession.sessionLabel, canRepairFeeData);
   const feeDataHealth = autoSync.health;
-  const status = healthStatus(feeDataHealth);
+  const status = healthStatus(feeDataHealth, autoSync.ran);
   const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
 
   const visibleSections = advancedHubSections
