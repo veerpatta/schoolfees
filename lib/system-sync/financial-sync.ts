@@ -34,11 +34,6 @@ type StudentSessionRow = {
   class_ref: StudentClassJoin | StudentClassJoin[] | null;
 };
 
-type CountResult = {
-  count: number | null;
-  error: { message: string } | null;
-};
-
 export type FinancialSyncResult = LedgerGenerationResult & {
   reason: string;
   warnings: string[];
@@ -161,16 +156,6 @@ function toSingleRecord<T>(value: T | T[] | null) {
   }
 
   return value;
-}
-
-async function getCount(loader: PromiseLike<CountResult>, label: string) {
-  const { count, error } = await loader;
-
-  if (error) {
-    throw new Error(`Unable to load ${label}: ${error.message}`);
-  }
-
-  return count ?? 0;
 }
 
 function buildSyncResult(
@@ -964,19 +949,16 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
       throw new Error(error.message);
     }
 
-    ((data ?? []) as Array<{ student_id: string; session_label: string | null }>).forEach((row) => {
+    const viewRows = (data ?? []) as Array<{ student_id: string; session_label: string | null }>;
+
+    viewRows.forEach((row) => {
       addSessionCount(workbookFinancialRowsBySessionMap, row.session_label);
     });
 
-    studentsWithFinancialRows = activeSessionStudentIds.length > 0
-      ? await getCount(
-          supabase
-            .from("v_workbook_student_financials")
-            .select("student_id", { count: "exact", head: true })
-            .in("student_id", activeSessionStudentIds),
-          "students with prepared fee records",
-        )
-      : 0;
+    if (activeSessionStudentIds.length > 0) {
+      const viewStudentIds = new Set(viewRows.map((row) => row.student_id));
+      studentsWithFinancialRows = activeSessionStudentIds.filter((id) => viewStudentIds.has(id)).length;
+    }
   } catch (error) {
     warnings.push(
       `Unable to count workbook student rows: ${error instanceof Error ? error.message : String(error)}`,
@@ -1010,17 +992,21 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
 
   try {
     if (activeSessionStudentIds.length > 0) {
-      const { data, error } = await supabase
-        .from("installments")
-        .select("student_id")
-        .in("student_id", activeSessionStudentIds)
-        .neq("status", "cancelled");
+      const BATCH_SIZE = 100;
+      for (let offset = 0; offset < activeSessionStudentIds.length; offset += BATCH_SIZE) {
+        const batch = activeSessionStudentIds.slice(offset, offset + BATCH_SIZE);
+        const { data, error } = await supabase
+          .from("installments")
+          .select("student_id")
+          .in("student_id", batch)
+          .neq("status", "cancelled");
 
-      if (error) {
-        throw new Error(error.message);
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        installmentRowsData.push(...((data ?? []) as Array<{ student_id: string }>));
       }
-
-      installmentRowsData = (data ?? []) as Array<{ student_id: string }>;
     }
   } catch (error) {
     warnings.push(
