@@ -1,7 +1,6 @@
 import "server-only";
 
 import { cache } from "react";
-import { unstable_cache } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMasterDataOptions } from "@/lib/master-data/data";
@@ -712,12 +711,8 @@ export async function getFeePolicyForSession(
   return getFeePolicyForSessionForRequest(label, Boolean(options.useAdmin));
 }
 
-async function loadFeeCollections(sessionLabel: string) {
-  return unstable_cache(
-    loadFeeCollectionsUncached,
-    ["fee-setup-collections", sessionLabel],
-    { tags: [`session:${sessionLabel}`] },
-  )();
+async function loadFeeCollections() {
+  return loadFeeCollectionsUncached();
 }
 
 export async function getFeeSetupPageData(
@@ -730,7 +725,7 @@ export async function getFeeSetupPageData(
     : await loadGlobalPolicy(useAdmin);
   const [policySnapshotsRaw, collections, masterOptions] = await Promise.all([
     loadFeePolicySnapshots(useAdmin),
-    loadFeeCollections(globalPolicy.academicSessionLabel),
+    loadFeeCollections(),
     getMasterDataOptions(),
   ]);
   const [conventionalDiscountPolicies, conventionalDiscountAssignments] = await Promise.all([

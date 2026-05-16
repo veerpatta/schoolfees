@@ -59,11 +59,18 @@ function workbookApplyForm(sessionLabel: string) {
   return formData;
 }
 
+function workbookSaveForm(sessionLabel: string) {
+  const formData = workbookApplyForm(sessionLabel);
+  formData.set("_intent", "save");
+  formData.delete("changeBatchId");
+  return formData;
+}
+
 describe("Fee Setup publish working-session behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireStaffPermission.mockResolvedValue({ appRole: "admin" });
-    applyWorkbookFeeSetupBatch.mockResolvedValue({ message: "Published." });
+    applyWorkbookFeeSetupBatch.mockResolvedValue({ message: "Fee Setup saved." });
     createWorkbookFeeSetupPreview.mockResolvedValue({
       batchId: "00000000-0000-4000-8000-000000000001",
       preview: {
@@ -87,6 +94,20 @@ describe("Fee Setup publish working-session behavior", () => {
     expect(result.status).toBe("success");
     expect(setActiveSessionLabel).not.toHaveBeenCalled();
     expect(applyWorkbookFeeSetupBatch).toHaveBeenCalled();
+  });
+
+  it("saves and syncs Fee Setup in one action without a separate approval step", async () => {
+    const { saveWorkbookFeeSetupAction } = await import("@/app/protected/fee-setup/actions");
+
+    const result = await saveWorkbookFeeSetupAction(previousState, workbookSaveForm("2026-27"));
+
+    expect(result.status).toBe("success");
+    expect(createWorkbookFeeSetupPreview).toHaveBeenCalled();
+    expect(applyWorkbookFeeSetupBatch).toHaveBeenCalledWith(
+      "00000000-0000-4000-8000-000000000001",
+      expect.objectContaining({ academicSessionLabel: "2026-27" }),
+    );
+    expect(result.message).toContain("Fee Setup saved");
   });
 
   it("publishes a different working session without switching the default active session", async () => {

@@ -251,7 +251,7 @@ function ActionNotice({
 
 function createWorkbookFormData(
   form: SessionFormState,
-  intent: "preview" | "apply",
+  intent: "preview" | "apply" | "save",
   changeBatchId: string | null,
 ) {
   const formData = new FormData();
@@ -440,7 +440,7 @@ export function FeeSetupClient({
     });
   }
 
-  function submitFeeSetup(intent: "preview" | "apply") {
+  function submitFeeSetup(intent: "preview" | "apply" | "save") {
     startSaving(async () => {
       const result = await saveWorkbookFeeSetupAction(
         saveState,
@@ -496,7 +496,6 @@ export function FeeSetupClient({
       preview.installmentsToUpdate +
       preview.installmentsToCancel
     : 0;
-  const canApply = canEdit && Boolean(preview) && !previewDirty;
   const feeRulesEntered =
     form.installmentDates.length > 0 &&
     form.installmentDates.every(Boolean) &&
@@ -637,7 +636,7 @@ export function FeeSetupClient({
 
       {previewDirty ? (
         <div className="rounded-2xl border bg-warning-soft px-4 py-3 text-sm leading-6 text-warning-soft-foreground">
-          Changes were made after preview. Preview again before publishing.
+          Changes were made after the last review. Save Fee Setup again to sync the latest values.
         </div>
       ) : null}
 
@@ -647,8 +646,7 @@ export function FeeSetupClient({
           <ChecklistItem done={feeRulesEntered} label="Fee rules entered" />
           <ChecklistItem done={classFeesEntered} label="Class fees entered" />
           <ChecklistItem done={transportFeesEntered} label="Transport fees entered" />
-          <ChecklistItem done={saveState.status === "preview" && !previewDirty} label="Preview checked" />
-          <ChecklistItem done={saveState.status === "success"} label="Published" />
+          <ChecklistItem done={saveState.status === "success"} label="Saved and synced" />
         </div>
       </div>
 
@@ -1574,7 +1572,7 @@ export function FeeSetupClient({
                                 </>
                               ) : (
                                 <span className="text-xs text-muted-foreground">
-                                  Tuition will save when you publish.
+                                  Tuition will save and sync automatically.
                                 </span>
                               )}
                             </div>
@@ -1830,7 +1828,7 @@ export function FeeSetupClient({
                                 </>
                               ) : (
                                 <span className="text-xs text-muted-foreground">
-                                  Route fee will save when you publish.
+                                  Route fee will save and sync automatically.
                                 </span>
                               )}
                             </div>
@@ -1847,8 +1845,8 @@ export function FeeSetupClient({
       </SectionCard>
 
       <SectionCard
-        title="5. Review & Publish"
-        description="Preview the impact first, then publish only when the review looks correct."
+        title="5. Save & Sync"
+        description="Save once. The app reviews the impact, updates unpaid dues, and keeps paid rows protected."
       >
         <div className="space-y-5">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -1859,12 +1857,12 @@ export function FeeSetupClient({
             <ReviewMetric label="Existing student fee" value={formatInr(form.oldStudentAcademicFeeAmount)} />
             <ReviewMetric label="Class fee rows" value={classRows.length} />
             <ReviewMetric label="Transport routes" value={routeRows.length} />
-            <ReviewMetric label="Preview status" value={preview ? "Preview ready" : "Preview changes before publishing."} />
+            <ReviewMetric label="Save status" value={saveState.status === "success" ? "Saved and synced" : "Ready to save"} />
           </div>
 
           {isSaving ? (
             <div className="rounded-xl border bg-info-soft px-4 py-6 text-sm text-info-soft-foreground">
-              Loading preview...
+              Saving Fee Setup and syncing dues...
             </div>
           ) : preview ? (
             <div className="rounded-2xl border bg-info-soft p-4">
@@ -1903,39 +1901,27 @@ export function FeeSetupClient({
             </div>
           ) : (
             <div className="rounded-xl border border-dashed border-border-strong bg-surface-2 px-4 py-6 text-sm text-muted-foreground">
-              Preview changes before publishing.
+              Save Fee Setup to update unpaid dues automatically.
             </div>
           )}
 
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 pb-20 md:pb-4">
             <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-              Publishing updates future or unpaid dues only. Receipts stay saved in
+              Saving updates future or unpaid dues automatically. Receipts stay saved in
               history, and paid or adjusted rows are kept for review.
             </p>
             <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-border bg-card/95 p-3 backdrop-blur md:static md:border-0 md:bg-transparent md:p-0">
               {canEdit ? (
-                <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => submitFeeSetup("preview")}
-                    disabled={!canEdit || isSaving}
-                  >
-                    {isSaving ? "Loading preview..." : "Preview Changes"}
-                  </Button>
-                  {preview ? (
-                    <Button
-                      type="button"
-                      onClick={() => submitFeeSetup("apply")}
-                      disabled={!canApply || isSaving}
-                    >
-                      {isSaving ? "Publishing..." : "Publish Fee Setup"}
-                    </Button>
-                  ) : null}
-                </>
+                <Button
+                  type="button"
+                  onClick={() => submitFeeSetup("save")}
+                  disabled={!canEdit || isSaving}
+                >
+                  {isSaving ? "Saving & Syncing..." : "Save Fee Setup"}
+                </Button>
               ) : (
                 <p className="text-sm leading-6 text-muted-foreground">
-                  View-only users can review the setup. Only admins can publish changes.
+                  View-only users can review the setup. Only admins can save changes.
                 </p>
               )}
             </div>

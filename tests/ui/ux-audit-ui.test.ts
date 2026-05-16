@@ -145,7 +145,9 @@ describe("read-only UX audit implementation", () => {
     const combined = dailyFiles.map(readRepoFile).join("\n");
 
     expect(combined).toContain("Dues not prepared");
-    expect(combined).toContain("Publish Fee Setup");
+    expect(combined).toContain("Save Fee Setup");
+    expect(combined).toContain("Saving updates future or unpaid dues automatically.");
+    expect(combined).not.toContain("Publish Fee Setup");
     expect(combined).not.toContain("Publish & Sync All");
     expect(combined).not.toContain("Computed Fee Snapshot");
     expect(combined).not.toContain("Policy-driven");

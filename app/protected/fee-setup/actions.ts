@@ -256,8 +256,13 @@ function parseWorkbookFeeSetupForm(formData: FormData): WorkbookFeeSetupFormPayl
 }
 
 function parseIntent(formData: FormData) {
-  const intent = (formData.get("_intent") ?? "preview").toString().trim();
-  return intent === "apply" ? "apply" : "preview";
+  const intent = (formData.get("_intent") ?? "save").toString().trim();
+
+  if (intent === "apply" || intent === "preview" || intent === "save") {
+    return intent;
+  }
+
+  return "save";
 }
 
 function parseUuid(value: FormDataEntryValue | null, label: string) {
@@ -335,8 +340,9 @@ export async function saveWorkbookFeeSetupAction(
 
     const payload = parseWorkbookFeeSetupForm(formData);
     const conventionalDiscountPolicies = parseConventionalDiscountRows(formData);
+    const intent = parseIntent(formData);
 
-    if (parseIntent(formData) === "apply") {
+    if (intent === "apply") {
       const batchId = parseUuid(formData.get("changeBatchId"), "Review batch");
       const result = await applyWorkbookFeeSetupBatch(batchId, payload);
       await upsertConventionalDiscountPolicies({
@@ -350,10 +356,20 @@ export async function saveWorkbookFeeSetupAction(
     const previewResult = await createWorkbookFeeSetupPreview(payload);
     const preview = previewResult.preview;
 
+    if (intent === "save") {
+      const result = await applyWorkbookFeeSetupBatch(previewResult.batchId, payload);
+      await upsertConventionalDiscountPolicies({
+        academicSessionLabel: payload.academicSessionLabel,
+        policies: conventionalDiscountPolicies,
+      });
+      revalidateFeeSetupSurface();
+      return toSuccessState(`${result.message} Dues synced automatically.`);
+    }
+
     return toPreviewState({
       batchId: previewResult.batchId,
       preview,
-      message: `Draft review saved: ${preview.studentsAffected} students affected, ${preview.installmentsToUpdate + preview.installmentsToInsert + preview.installmentsToCancel} installment rows changing, and ${preview.blockedInstallments} rows held for review. Publish Live Setup only after checking the summary below.`,
+      message: `Review ready: ${preview.studentsAffected} students affected, ${preview.installmentsToUpdate + preview.installmentsToInsert + preview.installmentsToCancel} installment rows changing, and ${preview.blockedInstallments} rows held for review.`,
     });
   } catch (error) {
     return toErrorState(error);

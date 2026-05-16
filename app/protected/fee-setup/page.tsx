@@ -46,16 +46,14 @@ export default async function FeeSetupPage({ searchParams }: FeeSetupPageProps) 
     getMasterDataPageData(),
   ]);
 
-  const canEdit =
-    hasStaffPermission(staff, "fees:write") &&
-    viewSession.sessionLabel === data.globalPolicy.academicSessionLabel;
+  const canEdit = hasStaffPermission(staff, "fees:write");
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Fee Setup"
         title="Academic Year Fee Setup"
-        description="Set yearly fees, due dates, class fees, transport fees, then review and publish."
+        description="Set yearly fees, due dates, class fees, and transport fees. Saving syncs dues automatically."
         actions={
           canEdit ? (
             <StatusBadge label="Admin editable" tone="good" />

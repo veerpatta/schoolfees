@@ -179,4 +179,13 @@ describe("source of truth audit fixes", () => {
       'import type { AvailableSessionRow } from "@/lib/session/available-sessions";',
     );
   });
+
+  it("fee_setup_keeps_each_selected_session_admin_editable", () => {
+    const feeSetupPage = readRepoFile("app/protected/fee-setup/page.tsx");
+
+    expect(feeSetupPage).toContain('hasStaffPermission(staff, "fees:write")');
+    expect(feeSetupPage).not.toContain(
+      'viewSession.sessionLabel === data.globalPolicy.academicSessionLabel',
+    );
+  });
 });

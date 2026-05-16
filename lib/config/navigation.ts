@@ -134,7 +134,7 @@ const routeMetaItems: Array<
     match: "/protected/fee-setup",
     href: "/protected/fee-setup",
     label: "Fee Setup",
-    description: "Set academic-year fees, installment dates, transport defaults, then review and publish.",
+    description: "Set academic-year fees, installment dates, and transport defaults. Saving syncs dues automatically.",
     aliases: ["/protected/fee-structure", "/protected/fee-setup/generate"],
   },
   {

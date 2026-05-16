@@ -52,4 +52,11 @@ describe("unstable_cache cross-user safety audit", () => {
       }
     }
   });
+
+  it("keeps Fee Setup collection loading outside unstable_cache because it uses request cookies", () => {
+    const feePolicy = readRepoFile("lib/fees/policy.ts");
+
+    expect(feePolicy).not.toMatch(/unstable_cache\(\s*loadFeeCollectionsUncached/);
+    expect(feePolicy).toContain("loadFeeCollectionsUncached");
+  });
 });
