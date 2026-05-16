@@ -25,6 +25,13 @@ import {
   prepareDuesForStudentsAutomatically,
   revalidateFinanceSurfaces,
 } from "@/lib/system-sync/finance-sync";
+import {
+  buildFailedOfficeSyncOutcome,
+  buildOfficeSyncOutcomeFromDuesResult,
+  buildSyncedOfficeSyncOutcome,
+  type OfficeSyncOutcome,
+} from "@/lib/system-sync/office-sync";
+import { publishOfficeSyncEvent } from "@/lib/system-sync/office-sync-events";
 
 const STUDENT_SAVED_DUES_FAILED_MESSAGE =
   "Student record was saved, but dues could not be prepared automatically. Open Admin Tools \u2192 Session Health if this student does not appear in Payment Desk.";
@@ -34,6 +41,20 @@ type RecentImportRealignRpcRow = {
   attention_count: number;
   moved_student_ids: string[] | null;
 };
+
+function buildStudentDuesSyncOutcome(payload: {
+  sessionLabel: string;
+  studentIds: readonly string[];
+  duesResult: Awaited<ReturnType<typeof prepareDuesForStudentsAutomatically>>;
+}): OfficeSyncOutcome {
+  return buildOfficeSyncOutcomeFromDuesResult({
+    sessionLabel: payload.duesResult.raw.academicSessionLabel || payload.sessionLabel,
+    affectedStudentIds: payload.studentIds,
+    readyForPaymentCount: payload.duesResult.readyForPaymentCount,
+    duesNeedAttentionCount: payload.duesResult.duesNeedAttentionCount,
+    reasonSummary: payload.duesResult.reasonSummary,
+  });
+}
 
 function getSubmittedSessionLabel(formData: FormData) {
   const raw = (formData.get("sessionLabel") ?? "").toString().trim();
@@ -141,12 +162,18 @@ export async function createStudentAction(
   }
 
   let syncMessage = "";
+  let syncOutcome: OfficeSyncOutcome;
 
   try {
     if (isDuesSyncRelevantStatus(validated.data.status)) {
       const duesResult = await prepareDuesForStudentsAutomatically({
         studentIds: [studentId],
         reason: "Student added",
+      });
+      syncOutcome = buildStudentDuesSyncOutcome({
+        sessionLabel: resolvedSessionLabel,
+        studentIds: [studentId],
+        duesResult,
       });
 
       syncMessage = buildStudentDuesMessage({
@@ -157,21 +184,49 @@ export async function createStudentAction(
       });
     } else {
       revalidateFinanceSurfaces({ studentIds: [studentId] });
+      syncOutcome = buildSyncedOfficeSyncOutcome({
+        sessionLabel: resolvedSessionLabel,
+        affectedStudentIds: [studentId],
+      });
     }
+    await publishOfficeSyncEvent({
+      sessionLabel: syncOutcome.sessionLabel,
+      entityType: "student",
+      entityId: studentId,
+      action: "created",
+      affectedStudentIds: [studentId],
+      metadata: { status: syncOutcome.status },
+    });
 
     return {
       status: "success",
       message: syncMessage || "Student record created successfully.",
       fieldErrors: {},
       studentId,
+      syncOutcome,
     };
-  } catch {
+  } catch (error) {
+    const syncOutcome = buildFailedOfficeSyncOutcome({
+      sessionLabel: resolvedSessionLabel,
+      affectedStudentIds: [studentId],
+      error,
+    });
+    await publishOfficeSyncEvent({
+      sessionLabel: syncOutcome.sessionLabel,
+      entityType: "student",
+      entityId: studentId,
+      action: "created_sync_failed",
+      affectedStudentIds: [studentId],
+      metadata: { status: syncOutcome.status },
+    });
+
     return {
       status: "error",
       message: STUDENT_SAVED_DUES_FAILED_MESSAGE,
       fieldErrors: {},
       studentId,
       submittedValues: input,
+      syncOutcome,
     };
   }
 }
@@ -226,11 +281,17 @@ export async function updateStudentAction(
       );
 
     let syncMessage = "";
+    let syncOutcome: OfficeSyncOutcome;
 
     if (shouldSyncDues) {
       const duesResult = await prepareDuesForStudentsAutomatically({
         studentIds: [updatedStudentId],
         reason: "Student updated",
+      });
+      syncOutcome = buildStudentDuesSyncOutcome({
+        sessionLabel: resolvedSessionLabel,
+        studentIds: [updatedStudentId],
+        duesResult,
       });
 
       syncMessage = ` ${buildStudentDuesMessage({
@@ -241,13 +302,26 @@ export async function updateStudentAction(
       })}`;
     } else {
       revalidateFinanceSurfaces({ studentIds: [updatedStudentId] });
+      syncOutcome = buildSyncedOfficeSyncOutcome({
+        sessionLabel: resolvedSessionLabel,
+        affectedStudentIds: [updatedStudentId],
+      });
     }
+    await publishOfficeSyncEvent({
+      sessionLabel: syncOutcome.sessionLabel,
+      entityType: "student",
+      entityId: updatedStudentId,
+      action: "updated",
+      affectedStudentIds: [updatedStudentId],
+      metadata: { status: syncOutcome.status },
+    });
 
     return {
       status: "success",
       message: syncMessage ? `Student record updated successfully.${syncMessage}` : "Student record updated successfully.",
       fieldErrors: {},
       studentId: updatedStudentId,
+      syncOutcome,
     };
   } catch (error) {
     return mapWriteErrorToState(
@@ -283,12 +357,21 @@ export async function archiveStudentAction(formData: FormData) {
     throw new Error("Student is required.");
   }
 
+  const student = await getStudentDetail(studentId);
+
   await archiveStudent(studentId);
   await prepareDuesForStudentsAutomatically({
     studentIds: [studentId],
     reason: "Student withdrawn",
   });
   revalidateFinanceSurfaces({ studentIds: [studentId] });
+  await publishOfficeSyncEvent({
+    sessionLabel: student?.classSessionLabel || "unknown",
+    entityType: "student",
+    entityId: studentId,
+    action: "archived",
+    affectedStudentIds: [studentId],
+  });
 }
 
 export async function hardDeleteStudentAction(formData: FormData) {
@@ -313,6 +396,13 @@ export async function hardDeleteStudentAction(formData: FormData) {
   const forceTestRecord = formData.get("forceTestRecord") === "yes";
   await hardDeleteStudent(studentId, { forceTestRecord });
   revalidateFinanceSurfaces({ studentIds: [studentId] });
+  await publishOfficeSyncEvent({
+    sessionLabel: safety.sessionLabel || "unknown",
+    entityType: "student",
+    entityId: studentId,
+    action: "deleted",
+    affectedStudentIds: [studentId],
+  });
 }
 
 export async function realignRecentImportsToActiveSessionAction(): Promise<{
@@ -354,6 +444,18 @@ export async function realignRecentImportsToActiveSessionAction(): Promise<{
   });
 
   revalidateFinanceSurfaces({ studentIds: movedStudentIds });
+  await publishOfficeSyncEvent({
+    sessionLabel: duesResult.raw?.academicSessionLabel || "unknown",
+    entityType: "import",
+    entityId: null,
+    action: "recent_imports_realigned",
+    affectedStudentIds: movedStudentIds,
+    metadata: {
+      movedCount,
+      preparedCount: duesResult.readyForPaymentCount,
+      attentionCount: attentionCount + duesResult.duesNeedAttentionCount,
+    },
+  });
 
   return {
     movedCount,

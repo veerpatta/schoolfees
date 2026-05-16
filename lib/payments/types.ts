@@ -1,4 +1,5 @@
 import type { PaymentMode } from "@/lib/db/types";
+import type { OfficeSyncOutcome } from "@/lib/system-sync/office-sync";
 
 export type PaymentEntryActionState = {
   status: "idle" | "error" | "success" | "duplicate";
@@ -16,6 +17,7 @@ export type PaymentEntryActionState = {
   clientRequestId?: string | null;
   remainingBalance?: number | null;
   diagnostic?: PaymentPostingDiagnostic | null;
+  syncOutcome?: OfficeSyncOutcome | null;
 };
 
 export const INITIAL_PAYMENT_ENTRY_ACTION_STATE: PaymentEntryActionState = {
@@ -34,6 +36,7 @@ export const INITIAL_PAYMENT_ENTRY_ACTION_STATE: PaymentEntryActionState = {
   clientRequestId: null,
   remainingBalance: null,
   diagnostic: null,
+  syncOutcome: null,
 };
 
 export type PaymentPostingDiagnostic = {

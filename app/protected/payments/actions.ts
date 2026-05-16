@@ -17,6 +17,8 @@ import {
   prepareDuesForStudentsAutomatically,
   revalidateSessionFinance,
 } from "@/lib/system-sync/finance-sync";
+import { buildSyncedOfficeSyncOutcome } from "@/lib/system-sync/office-sync";
+import { publishOfficeSyncEvent } from "@/lib/system-sync/office-sync-events";
 import { getStudentDetail } from "@/lib/students/data";
 
 function parseRequiredString(value: FormDataEntryValue | null, fieldLabel: string) {
@@ -192,6 +194,21 @@ export async function submitPaymentEntryAction(
     const resolvedSessionLabel = student.classSessionLabel || sessionLabel;
 
     revalidateSessionFinance(resolvedSessionLabel, [studentId]);
+    const syncOutcome = buildSyncedOfficeSyncOutcome({
+      sessionLabel: resolvedSessionLabel,
+      affectedStudentIds: [studentId],
+    });
+    await publishOfficeSyncEvent({
+      sessionLabel: resolvedSessionLabel,
+      entityType: "payment",
+      entityId: receipt.receiptId,
+      action: "posted",
+      affectedStudentIds: [studentId],
+      metadata: {
+        receiptNumber: receipt.receiptNumber,
+        status: syncOutcome.status,
+      },
+    });
 
     return {
       status: "success",
@@ -209,6 +226,7 @@ export async function submitPaymentEntryAction(
       clientRequestId,
       remainingBalance: Math.max((receipt.remainingBalance ?? 0), 0),
       diagnostic: null,
+      syncOutcome,
     };
   } catch (error) {
     return toActionStateError(error);
@@ -234,6 +252,17 @@ export async function repairPaymentDeskStudentDuesAction(formData: FormData) {
   const result = await prepareDuesForStudentsAutomatically({
     studentIds: [studentId],
     reason: "Payment Desk manual repair",
+  });
+  await publishOfficeSyncEvent({
+    sessionLabel,
+    entityType: "student",
+    entityId: studentId,
+    action: "payment_desk_repair",
+    affectedStudentIds: [studentId],
+    metadata: {
+      readyForPaymentCount: result.readyForPaymentCount,
+      duesNeedAttentionCount: result.duesNeedAttentionCount,
+    },
   });
   const noticeParts = result.readyForPaymentCount > 0 && result.duesNeedAttentionCount === 0
     ? [

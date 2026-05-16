@@ -5,10 +5,12 @@ import { CalendarDays, Coins } from "lucide-react";
 import { type StaffRole } from "@/lib/auth/roles";
 import { SchoolBrand } from "@/components/branding/school-brand";
 import { MobileSessionPill } from "@/components/admin/mobile-session-pill";
+import { OfficeSyncListener } from "@/components/admin/office-sync-listener";
 import { SessionPill } from "@/components/admin/session-pill";
 import { getDefaultProtectedHref } from "@/lib/config/navigation";
-import { getFeePolicySummary } from "@/lib/fees/data";
+import { getFeePolicyForSession } from "@/lib/fees/data";
 import { formatInr } from "@/lib/helpers/currency";
+import { getSessionSwitcherData } from "@/lib/session/switcher";
 
 import { AppTopBar, MobileHeader } from "./app-topbar";
 import { MobileBottomNav } from "./mobile-bottom-nav";
@@ -31,13 +33,17 @@ export async function DashboardShell({
   viewSessionLabel,
   viewSessionIsTest,
 }: DashboardShellProps) {
-  const policy = await getFeePolicySummary();
+  const [policy, sessionSwitcher] = await Promise.all([
+    getFeePolicyForSession(viewSessionLabel),
+    getSessionSwitcherData(),
+  ]);
   const homeHref = getDefaultProtectedHref(staffRole);
 
   return (
     <div className="min-h-svh bg-background text-foreground lg:h-screen lg:overflow-hidden">
       <Suspense fallback={null}>
         <RouteProgress />
+        <OfficeSyncListener sessionLabel={viewSessionLabel} />
       </Suspense>
 
       {/* Sidebar (desktop) */}
@@ -59,7 +65,7 @@ export async function DashboardShell({
         <footer className="border-t border-border px-3 py-3 text-xs leading-5 text-muted-foreground">
           <p className="flex items-center gap-2 text-foreground">
             <CalendarDays className="size-3.5 text-accent" aria-hidden="true" />
-            <span className="font-medium">Session {policy.academicSessionLabel}</span>
+            <span className="font-medium">Viewing {viewSessionLabel}</span>
           </p>
           <p className="mt-1.5 flex items-center gap-2">
             <Coins className="size-3.5 text-muted-foreground" aria-hidden="true" />
@@ -77,6 +83,7 @@ export async function DashboardShell({
             <MobileSessionPill
               currentLabel={viewSessionLabel}
               isTest={viewSessionIsTest}
+              initialSessions={sessionSwitcher.availableSessions}
             />
           }
           homeHref={homeHref}
@@ -88,6 +95,7 @@ export async function DashboardShell({
             <SessionPill
               currentLabel={viewSessionLabel}
               isTest={viewSessionIsTest}
+              initialSessions={sessionSwitcher.availableSessions}
             />
           }
         />

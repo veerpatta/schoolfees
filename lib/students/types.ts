@@ -1,4 +1,5 @@
 import type { StudentStatus } from "@/lib/db/types";
+import type { OfficeSyncOutcome } from "@/lib/system-sync/office-sync";
 
 export type StudentClassOption = {
   id: string;
@@ -197,6 +198,7 @@ export type StudentFormActionState = {
   fieldErrors: StudentFormFieldErrors;
   studentId: string | null;
   submittedValues?: StudentFormInput;
+  syncOutcome?: OfficeSyncOutcome | null;
 };
 
 export const INITIAL_STUDENT_FORM_ACTION_STATE: StudentFormActionState = {
@@ -204,6 +206,7 @@ export const INITIAL_STUDENT_FORM_ACTION_STATE: StudentFormActionState = {
   message: null,
   fieldErrors: {},
   studentId: null,
+  syncOutcome: null,
 };
 
 export const EMPTY_STUDENT_FILTERS: StudentListFilters = {

@@ -1,4 +1,5 @@
 import type { FeeCalculationModel, PaymentMode } from "@/lib/db/types";
+import type { OfficeSyncOutcome } from "@/lib/system-sync/office-sync";
 
 export type ConfigChangeScope =
   | "global_policy"
@@ -100,6 +101,7 @@ export type FeeSetupActionState = {
   message: string | null;
   changeBatchId: string | null;
   preview: ConfigChangeImpactPreview | null;
+  syncOutcome?: OfficeSyncOutcome | null;
 };
 
 export const INITIAL_FEE_SETUP_ACTION_STATE: FeeSetupActionState = {
@@ -107,6 +109,7 @@ export const INITIAL_FEE_SETUP_ACTION_STATE: FeeSetupActionState = {
   message: null,
   changeBatchId: null,
   preview: null,
+  syncOutcome: null,
 };
 
 export type InstallmentScheduleItem = {

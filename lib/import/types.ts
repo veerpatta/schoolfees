@@ -1,4 +1,5 @@
 import type { StudentStatus } from "@/lib/db/types";
+import type { OfficeSyncOutcome } from "@/lib/system-sync/office-sync";
 
 export const supportedImportFormats = ["csv", "xlsx"] as const;
 export type SupportedImportFormat = (typeof supportedImportFormats)[number];
@@ -260,10 +261,12 @@ export type StudentImportActionState = {
   status: "idle" | "success" | "error";
   message: string | null;
   batchId: string | null;
+  syncOutcome?: OfficeSyncOutcome | null;
 };
 
 export const INITIAL_STUDENT_IMPORT_ACTION_STATE: StudentImportActionState = {
   status: "idle",
   message: null,
   batchId: null,
+  syncOutcome: null,
 };

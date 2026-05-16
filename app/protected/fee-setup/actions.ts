@@ -20,6 +20,11 @@ import type {
 } from "@/lib/fees/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import { revalidateCoreFinancePaths } from "@/lib/system-sync/finance-sync";
+import {
+  buildSyncedOfficeSyncOutcome,
+  type OfficeSyncOutcome,
+} from "@/lib/system-sync/office-sync";
+import { publishOfficeSyncEvent } from "@/lib/system-sync/office-sync-events";
 
 function parseRequiredString(value: FormDataEntryValue | null, label: string) {
   const normalized = (value ?? "").toString().trim();
@@ -302,12 +307,13 @@ function toPreviewState(payload: {
   };
 }
 
-function toSuccessState(message: string): FeeSetupActionState {
+function toSuccessState(message: string, syncOutcome?: OfficeSyncOutcome): FeeSetupActionState {
   return {
     status: "success",
     message,
     changeBatchId: null,
     preview: null,
+    syncOutcome: syncOutcome ?? null,
   };
 }
 
@@ -350,7 +356,18 @@ export async function saveWorkbookFeeSetupAction(
         policies: conventionalDiscountPolicies,
       });
       revalidateFeeSetupSurface();
-      return toSuccessState(result.message);
+      const syncOutcome = buildSyncedOfficeSyncOutcome({
+        sessionLabel: payload.academicSessionLabel,
+        affectedStudentIds: [],
+      });
+      await publishOfficeSyncEvent({
+        sessionLabel: payload.academicSessionLabel,
+        entityType: "fee_setup",
+        entityId: batchId,
+        action: "applied",
+        metadata: { status: syncOutcome.status },
+      });
+      return toSuccessState(result.message, syncOutcome);
     }
 
     const previewResult = await createWorkbookFeeSetupPreview(payload);
@@ -363,7 +380,18 @@ export async function saveWorkbookFeeSetupAction(
         policies: conventionalDiscountPolicies,
       });
       revalidateFeeSetupSurface();
-      return toSuccessState(`${result.message} Dues synced automatically.`);
+      const syncOutcome = buildSyncedOfficeSyncOutcome({
+        sessionLabel: payload.academicSessionLabel,
+        affectedStudentIds: [],
+      });
+      await publishOfficeSyncEvent({
+        sessionLabel: payload.academicSessionLabel,
+        entityType: "fee_setup",
+        entityId: previewResult.batchId,
+        action: "saved",
+        metadata: { status: syncOutcome.status },
+      });
+      return toSuccessState(`${result.message} Dues synced automatically.`, syncOutcome);
     }
 
     return toPreviewState({

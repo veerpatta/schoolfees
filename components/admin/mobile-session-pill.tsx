@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -34,13 +34,20 @@ export function MobileSessionPill({
   const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [sessions, setSessions] = useState<AvailableSessionRow[]>(initialSessions);
-  const [isPending, startTransition] = useTransition();
+  const [isSwitching, setIsSwitching] = useState(false);
   const urlSession = normalizeSessionLabel(searchParams.get("session"));
-  const displayLabel = urlSession ?? currentLabel;
-  const displayIsTest = urlSession ? isTestSession(urlSession) : isTest;
+  const [optimisticLabel, setOptimisticLabel] = useState<string | null>(null);
+  const displayLabel = optimisticLabel ?? urlSession ?? currentLabel;
+  const displayIsTest =
+    optimisticLabel || urlSession ? isTestSession(optimisticLabel ?? urlSession ?? "") : isTest;
   const groups = useMemo(() => groupSessions(sessions), [sessions]);
 
   useEffect(() => {
+    if (initialSessions.length > 0) {
+      setSessions(initialSessions);
+      return;
+    }
+
     let isMounted = true;
 
     listAvailableSessionsAction()
@@ -60,18 +67,44 @@ export function MobileSessionPill({
     };
   }, [initialSessions]);
 
-  function selectSession(label: string) {
-    startTransition(async () => {
-      const result = await setViewSessionAction(label);
+  useEffect(() => {
+    setOptimisticLabel(null);
+  }, [currentLabel, urlSession]);
 
-      if (result.success) {
-        const params = new URLSearchParams(searchParams.toString());
-        params.set("session", result.sessionLabel);
-        router.replace(`${pathname}?${params.toString()}`);
-        router.refresh();
-        setOpen(false);
+  function selectSession(label: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("session", label);
+    const targetHref = `${pathname}?${params.toString()}`;
+
+    setOptimisticLabel(label);
+    setIsSwitching(true);
+    router.prefetch(targetHref);
+
+    void (async () => {
+      try {
+        const result = await setViewSessionAction(label);
+
+        if (result.success) {
+          if (result.availableSessions) {
+            setSessions(result.availableSessions);
+          }
+
+          params.set("session", result.sessionLabel);
+          const targetHref = `${pathname}?${params.toString()}`;
+          router.prefetch(targetHref);
+          setIsSwitching(false);
+          router.replace(targetHref, { scroll: false });
+          router.refresh();
+          setOpen(false);
+        } else {
+          setIsSwitching(false);
+          setOptimisticLabel(null);
+        }
+      } catch {
+        setIsSwitching(false);
+        setOptimisticLabel(null);
       }
-    });
+    })();
   }
 
   return (
@@ -97,6 +130,11 @@ export function MobileSessionPill({
         className="h-[100dvh] max-h-[100dvh] rounded-none"
       >
         <div className="space-y-4 pb-4">
+          {isSwitching ? (
+            <p className="rounded-md border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-muted-foreground">
+              Changing to {displayLabel}...
+            </p>
+          ) : null}
           {groups.length === 0 ? (
             <p className="rounded-md border border-dashed border-border bg-surface-2 px-3 py-3 text-sm text-muted-foreground">
               Academic sessions are loading.
@@ -116,7 +154,7 @@ export function MobileSessionPill({
                       <button
                         key={session.id}
                         type="button"
-                        disabled={isPending}
+                        disabled={isSwitching || selected}
                         onClick={() => selectSession(session.session_label)}
                         className={cn(
                           "flex min-h-12 w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-surface-2 disabled:opacity-60",

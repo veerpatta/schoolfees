@@ -1774,6 +1774,7 @@ export async function commitStudentImportBatch(batchId: string) {
     duesAttentionCount,
     duesReasonSummary,
     affectedStudentIds: [...affectedStudentIds],
+    targetSessionLabel,
     status: failedRows > 0 || ledgerSyncError ? "failed" : "completed",
   };
 }

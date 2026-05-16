@@ -16,6 +16,7 @@ import type { ImportAnomalyCategory } from "@/lib/import/types";
 import type { ImportMode } from "@/lib/import/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import { revalidateCoreFinancePaths } from "@/lib/system-sync/finance-sync";
+import { publishOfficeSyncEvent } from "@/lib/system-sync/office-sync-events";
 
 function normalizeImportMode(value: FormDataEntryValue | string | null): ImportMode {
   return value === "update" ? "update" : "add";
@@ -241,6 +242,20 @@ export async function commitStudentImportBatchAction(formData: FormData) {
     }
 
     result = await commitStudentImportBatch(batchId);
+    await publishOfficeSyncEvent({
+      sessionLabel: result.targetSessionLabel || "unknown",
+      entityType: "import",
+      entityId: batchId,
+      action: "committed",
+      affectedStudentIds: result.affectedStudentIds,
+      metadata: {
+        status: result.status,
+        createdCount: result.createdCount,
+        updatedCount: result.updatedCount,
+        duesReadyCount: result.duesReadyCount,
+        duesAttentionCount: result.duesAttentionCount,
+      },
+    });
 
     if (result.ledgerSyncError) {
       revalidateImportPostCommit(result.affectedStudentIds);

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, ChevronDown, Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import {
@@ -45,8 +45,10 @@ export function isTestSession(label: string) {
 
 export function groupSessions(sessions: AvailableSessionRow[]) {
   const active = sessions.filter((session) => session.is_current);
-  const test = sessions.filter((session) => isTestSession(session.session_label));
   const activeIds = new Set(active.map((session) => session.id));
+  const test = sessions.filter(
+    (session) => !activeIds.has(session.id) && isTestSession(session.session_label),
+  );
   const testIds = new Set(test.map((session) => session.id));
   const otherProduction = sessions.filter(
     (session) => !activeIds.has(session.id) && !testIds.has(session.id),
@@ -88,14 +90,22 @@ export function SessionPill({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const detailsRef = useRef<HTMLDetailsElement>(null);
   const [sessions, setSessions] = useState<AvailableSessionRow[]>(initialSessions);
-  const [isPending, startTransition] = useTransition();
+  const [isSwitching, setIsSwitching] = useState(false);
   const urlSession = normalizeSessionLabel(searchParams.get("session"));
-  const displayLabel = urlSession ?? currentLabel;
-  const displayIsTest = urlSession ? isTestSession(urlSession) : isTest;
+  const [optimisticLabel, setOptimisticLabel] = useState<string | null>(null);
+  const displayLabel = optimisticLabel ?? urlSession ?? currentLabel;
+  const displayIsTest =
+    optimisticLabel || urlSession ? isTestSession(optimisticLabel ?? urlSession ?? "") : isTest;
   const groups = useMemo(() => groupSessions(sessions), [sessions]);
 
   useEffect(() => {
+    if (initialSessions.length > 0) {
+      setSessions(initialSessions);
+      return;
+    }
+
     let isMounted = true;
 
     listAvailableSessionsAction()
@@ -115,6 +125,10 @@ export function SessionPill({
     };
   }, [initialSessions]);
 
+  useEffect(() => {
+    setOptimisticLabel(null);
+  }, [currentLabel, urlSession]);
+
   useEffect(
     () =>
       syncTestSessionBodyAttribute(document.body, {
@@ -125,26 +139,55 @@ export function SessionPill({
   );
 
   function selectSession(label: string) {
-    startTransition(async () => {
-      const result = await setViewSessionAction(label);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("session", label);
+    const targetHref = `${pathname}?${params.toString()}`;
 
-      if (result.success) {
-        const params = new URLSearchParams(searchParams.toString());
-        params.set("session", result.sessionLabel);
-        router.replace(`${pathname}?${params.toString()}`);
-        router.refresh();
+    setOptimisticLabel(label);
+    setIsSwitching(true);
+
+    if (detailsRef.current) {
+      detailsRef.current.open = false;
+    }
+
+    router.prefetch(targetHref);
+
+    void (async () => {
+      try {
+        const result = await setViewSessionAction(label);
+
+        if (result.success) {
+          if (result.availableSessions) {
+            setSessions(result.availableSessions);
+          }
+
+          params.set("session", result.sessionLabel);
+          const targetHref = `${pathname}?${params.toString()}`;
+          router.prefetch(targetHref);
+          setIsSwitching(false);
+          router.replace(targetHref, { scroll: false });
+          router.refresh();
+        } else {
+          setIsSwitching(false);
+          setOptimisticLabel(null);
+        }
+      } catch {
+        setIsSwitching(false);
+        setOptimisticLabel(null);
       }
-    });
+    })();
   }
 
   return (
-    <details className="group relative">
+    <details ref={detailsRef} className="group relative">
       <summary
         className={cn(
           "inline-flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-surface-2 focus-ring",
           displayIsTest && "border-fuchsia-500 text-fuchsia-700",
+          isSwitching && "opacity-75",
         )}
         aria-label="Change academic session"
+        aria-busy={isSwitching}
       >
         <span className="text-muted-foreground">Session</span>
         <span>{displayLabel}</span>
@@ -153,9 +196,18 @@ export function SessionPill({
             TEST
           </span>
         ) : null}
-        <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden="true" />
+        {isSwitching ? (
+          <Loader2 className="size-3.5 motion-safe:animate-spin" aria-hidden="true" />
+        ) : (
+          <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden="true" />
+        )}
       </summary>
       <div className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-lg">
+        {isSwitching ? (
+          <p className="px-2 py-1 text-xs font-medium text-muted-foreground">
+            Changing to {displayLabel}...
+          </p>
+        ) : null}
         {groups.length === 0 ? (
           <p className="px-2 py-2 text-xs text-muted-foreground">
             Academic sessions are loading.
@@ -174,7 +226,7 @@ export function SessionPill({
                   <button
                     key={session.id}
                     type="button"
-                    disabled={isPending}
+                    disabled={isSwitching || selected}
                     onClick={() => selectSession(session.session_label)}
                     className={cn(
                       "flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent disabled:opacity-60",
