@@ -11,8 +11,6 @@ import { createClient } from "@/lib/supabase/server";
 import {
   getRawActiveSessionStudentCount,
   getRawClassStudentSummary,
-  getSystemSyncHealth,
-  type SystemSyncHealth,
 } from "@/lib/system-sync/finance-sync";
 import {
   buildDashboardSummary,
@@ -96,7 +94,7 @@ export type DashboardPageData = {
   partlyPaidStudents: number;
   overdueStudents: number;
   notStartedStudents: number;
-  systemSyncHealth: SystemSyncHealth | null;
+  systemSyncHealth: DashboardSyncHealth | null;
 };
 
 type ActiveStudentRow = {
@@ -104,6 +102,32 @@ type ActiveStudentRow = {
   classId: string;
   sessionLabel: string;
   classLabel: string;
+};
+
+type DashboardStudentSessionRow = {
+  id: string;
+  admission_no: string;
+  full_name: string;
+  class_id: string;
+  class_ref: { session_label: string; status: string } | Array<{ session_label: string; status: string }> | null;
+};
+
+export type DashboardSyncHealth = {
+  sessionMismatch: boolean;
+  studentsMissingInstallmentRows: number;
+  studentsMissingInstallments: Array<{
+    studentId: string;
+    admissionNo: string;
+    fullName: string;
+    sessionLabel: string;
+  }>;
+  studentsMissingFinancialRows: number;
+  studentsWithNoFeeSetting: number;
+  paymentPreviewReady: boolean;
+  paymentDeskReady: boolean;
+  dashboardReady: boolean;
+  warnings: string[];
+  errors: string[];
 };
 
 function getSchoolDateStamp(referenceDate = new Date()) {
@@ -123,12 +147,124 @@ function sessionTag(sessionLabel: string) {
   return `session:${sessionLabel}`;
 }
 
+function toSingleRecord<T>(value: T | T[] | null) {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return value;
+}
+
 function loadDashboardFinancialRows(sessionLabel: string) {
   return unstable_cache(
-    async () => getWorkbookStudentFinancials({ sessionLabel }),
-    ["dashboard-financials", sessionLabel],
+    async () => getWorkbookStudentFinancials({ sessionLabel, activeOnly: true }),
+    ["dashboard-financials-active", sessionLabel],
     { tags: [sessionTag(sessionLabel)] },
   )();
+}
+
+async function getDashboardSyncHealth(sessionLabel: string): Promise<DashboardSyncHealth> {
+  const supabase = await createClient();
+  const normalizedSession = sessionLabel.trim();
+
+  if (!normalizedSession) {
+    return {
+      sessionMismatch: false,
+      studentsMissingInstallmentRows: 0,
+      studentsMissingInstallments: [],
+      studentsMissingFinancialRows: 0,
+      studentsWithNoFeeSetting: 0,
+      paymentPreviewReady: true,
+      paymentDeskReady: false,
+      dashboardReady: true,
+      warnings: [],
+      errors: [],
+    };
+  }
+
+  const { data: studentsRaw, error: studentsError } = await supabase
+    .from("students")
+    .select(
+      "id, admission_no, full_name, class_id, class_ref:classes!inner(session_label, status)",
+    )
+    .eq("status", "active")
+    .eq("class_ref.session_label", normalizedSession)
+    .eq("class_ref.status", "active");
+
+  if (studentsError) {
+    throw new Error(`Unable to load dashboard student health: ${studentsError.message}`);
+  }
+
+  const activeStudents = ((studentsRaw ?? []) as DashboardStudentSessionRow[]).filter((row) => {
+    const classRef = toSingleRecord(row.class_ref);
+    return classRef?.session_label === normalizedSession && classRef.status === "active";
+  });
+  const studentIds = activeStudents.map((row) => row.id);
+  const classIds = [...new Set(activeStudents.map((row) => row.class_id))];
+
+  let feeSettingClassIds = new Set<string>();
+  if (classIds.length > 0) {
+    const { data, error } = await supabase
+      .from("fee_settings")
+      .select("class_id")
+      .eq("is_active", true)
+      .in("class_id", classIds);
+
+    if (error) {
+      throw new Error(`Unable to load dashboard fee-setting health: ${error.message}`);
+    }
+
+    feeSettingClassIds = new Set(((data ?? []) as Array<{ class_id: string }>).map((row) => row.class_id));
+  }
+
+  const installmentStudentIds = new Set<string>();
+  const batchSize = 100;
+  for (let offset = 0; offset < studentIds.length; offset += batchSize) {
+    const batch = studentIds.slice(offset, offset + batchSize);
+    const { data, error } = await supabase
+      .from("installments")
+      .select("student_id")
+      .in("student_id", batch)
+      .neq("status", "cancelled");
+
+    if (error) {
+      throw new Error(`Unable to load dashboard installment health: ${error.message}`);
+    }
+
+    ((data ?? []) as Array<{ student_id: string }>).forEach((row) => {
+      installmentStudentIds.add(row.student_id);
+    });
+  }
+
+  const studentsMissingInstallments = activeStudents
+    .filter((row) => !installmentStudentIds.has(row.id))
+    .map((row) => ({
+      studentId: row.id,
+      admissionNo: row.admission_no,
+      fullName: row.full_name,
+      sessionLabel: normalizedSession,
+    }));
+  const studentsWithNoFeeSetting = activeStudents.filter(
+    (row) => !feeSettingClassIds.has(row.class_id),
+  ).length;
+  const studentsMissingInstallmentRows = studentsMissingInstallments.length;
+  const ready =
+    activeStudents.length > 0 &&
+    studentsMissingInstallmentRows === 0 &&
+    studentsWithNoFeeSetting === 0;
+
+  return {
+    sessionMismatch: false,
+    studentsMissingInstallmentRows,
+    studentsMissingInstallments,
+    studentsMissingFinancialRows: studentsMissingInstallmentRows,
+    studentsWithNoFeeSetting,
+    paymentPreviewReady: true,
+    paymentDeskReady: ready,
+    dashboardReady: activeStudents.length === 0 || ready,
+    warnings: studentsMissingInstallmentRows > 0 ? ["Students exist but dues are missing."] : [],
+    errors: [],
+  };
 }
 
 function loadDashboardTransactions(payload: {
@@ -329,6 +465,137 @@ async function getSetupAlerts(
   return alerts;
 }
 
+function buildDashboardStateAlerts(payload: {
+  emptyState: DashboardEmptyState;
+  hasTodayReceipts: boolean;
+  warnings: readonly string[];
+}) {
+  const alerts: DashboardAlert[] = [];
+
+  if (payload.warnings.length > 0) {
+    alerts.push({
+      key: "dashboard-limited-data",
+      title: "Dashboard data is limited",
+      detail: "Some dashboard sections could not be loaded. Existing posting and setup rules were not changed.",
+      tone: "warning",
+      actionHref: "/protected/reports",
+      actionLabel: "Open reports",
+    });
+  }
+
+  if (!payload.emptyState.hasStudents) {
+    alerts.push({
+      key: "no-students",
+      title: "No students yet",
+      detail: "Add or upload test students before relying on collection totals.",
+      tone: "info",
+      actionHref: "/protected/students/new",
+      actionLabel: "Add student",
+    });
+  } else if (!payload.emptyState.hasFinancialData) {
+    alerts.push({
+      key: "dues-missing",
+      title: "Students found, dues missing",
+      detail: "Students exist in the active fee setup session, but dues are not prepared yet.",
+      tone: "warning",
+      actionHref: "/protected/admin-tools#fee-data-troubleshooting",
+      actionLabel: "Prepare missing dues",
+    });
+  }
+
+  if (!payload.emptyState.hasReceipts) {
+    alerts.push({
+      key: "no-receipts",
+      title: "No receipts posted yet",
+      detail: "Today and trend sections will fill in after payments are posted at the Payment Desk.",
+      tone: "info",
+      actionHref: "/protected/payments",
+      actionLabel: "Open Payment Desk",
+    });
+  } else if (!payload.hasTodayReceipts) {
+    alerts.push({
+      key: "no-receipts-today",
+      title: "No receipts today",
+      detail: "No collection has been posted for the current school day yet.",
+      tone: "info",
+      actionHref: "/protected/payments",
+      actionLabel: "Open Payment Desk",
+    });
+  }
+
+  return alerts;
+}
+
+function canShowAlert(alert: DashboardAlert, staffRole: StaffRole) {
+  const href = alert.actionHref ?? "";
+
+  if (
+    alert.key === "dues-missing" ||
+    href.startsWith("/protected/admin-tools") ||
+    href.startsWith("/protected/fee-setup")
+  ) {
+    return hasAnyRolePermission(staffRole, ["fees:write"]);
+  }
+
+  if (href.startsWith("/protected/imports") || href.startsWith("/protected/students/new")) {
+    return hasAnyRolePermission(staffRole, ["students:write"]);
+  }
+
+  return true;
+}
+
+function removeUnavailableAction(alert: DashboardAlert, staffRole: StaffRole) {
+  const href = alert.actionHref ?? "";
+
+  if (href.startsWith("/protected/payments") && !hasAnyRolePermission(staffRole, ["payments:write"])) {
+    return {
+      key: alert.key,
+      title: alert.title,
+      detail: alert.detail,
+      tone: alert.tone,
+    };
+  }
+
+  return alert;
+}
+
+export function filterDashboardAlertsForRole(alerts: DashboardAlert[], staffRole: StaffRole) {
+  return alerts
+    .filter((alert) => canShowAlert(alert, staffRole))
+    .map((alert) => removeUnavailableAction(alert, staffRole));
+}
+
+async function getDashboardReviewAlerts(staffRole: StaffRole, warnings: string[]) {
+  const [configAlerts, importAlerts, ledgerAlerts, setupAlerts] = await Promise.all([
+    optionalLoad("fee setup review alerts", getConfigChangeAlerts, [], warnings),
+    optionalLoad("student import alerts", getImportIssueAlerts, [], warnings),
+    optionalLoad("dues update alerts", getLedgerReviewAlerts, [], warnings),
+    getSetupAlerts(staffRole, warnings),
+  ]);
+
+  return [...setupAlerts, ...configAlerts, ...ledgerAlerts, ...importAlerts];
+}
+
+export async function getDashboardAlerts(options: {
+  staffRole: StaffRole;
+  sessionLabel: string;
+  emptyState: DashboardEmptyState;
+  hasTodayReceipts: boolean;
+  loadWarnings?: readonly string[];
+}) {
+  const warnings = [...(options.loadWarnings ?? [])];
+  const alerts = [
+    ...(await getDashboardReviewAlerts(options.staffRole, warnings)),
+    ...buildDashboardStateAlerts({
+      emptyState: options.emptyState,
+      hasTodayReceipts: options.hasTodayReceipts,
+      warnings,
+    }),
+  ];
+
+  return filterDashboardAlertsForRole(alerts, options.staffRole);
+}
+
 export async function getDashboardAboveFoldData(options: {
   staffRole?: StaffRole;
   sessionLabel?: string;
@@ -338,7 +605,14 @@ export async function getDashboardAboveFoldData(options: {
   const today = getSchoolDateStamp();
   const policy = await getFeePolicySummary();
   const sessionLabel = options.sessionLabel ?? policy.academicSessionLabel;
-  const [financialRows, transactions, todayTransactions, refundStateRows] = await Promise.all([
+  const _t0 = Date.now();
+  const [rawStudentCount, financialRowsRaw, transactions, todayTransactions, refundStateRows] = await Promise.all([
+    optionalLoad(
+      "raw active student count",
+      () => getRawActiveSessionStudentCount(sessionLabel),
+      0,
+      warnings,
+    ),
     optionalLoad(
       "workbook student financials",
       () => loadDashboardFinancialRows(sessionLabel),
@@ -372,6 +646,8 @@ export async function getDashboardAboveFoldData(options: {
       warnings,
     ),
   ]);
+  console.log(`[dashboard-above-fold] loaded in ${Date.now() - _t0}ms`);
+  const financialRows = financialRowsRaw.filter((row) => row.recordStatus === "active");
   const activeStudents: ActiveStudentRow[] = financialRows.map((row) => ({
     studentId: row.studentId,
     classId: row.classId,
@@ -386,7 +662,7 @@ export async function getDashboardAboveFoldData(options: {
     overdueInstallments: [],
     transactions,
     todayTransactions,
-    rawStudentCount: activeStudents.length,
+    rawStudentCount: rawStudentCount || activeStudents.length,
   });
   const totalRefundDue = refundStateRows.reduce(
     (sum, row) => sum + Math.max(Number(row.refundable_amount ?? 0), 0),
@@ -396,6 +672,7 @@ export async function getDashboardAboveFoldData(options: {
   return {
     currentSession: sessionLabel,
     currentInstallment: buildCurrentInstallment(policy, today),
+    generatedAt: new Date().toISOString(),
     kpis: summary.kpis,
     todayPaymentModeBreakdown: summary.todayPaymentModeBreakdown,
     recentPayments: summary.recentPayments,
@@ -418,18 +695,15 @@ export async function getDashboardPageData(options: {
 
   const policy = await getFeePolicySummary();
   const sessionLabel = options.sessionLabel ?? policy.academicSessionLabel;
+  const _tp0 = Date.now();
   const [
     rawStudentCount,
     rawClassSummary,
-    financialRows,
+    financialRowsRaw,
     installmentRows,
     transactions,
     todayTransactions,
     refundStateRows,
-    configAlerts,
-    importAlerts,
-    ledgerAlerts,
-    setupAlerts,
     systemSyncHealth,
   ] = await Promise.all([
     optionalLoad(
@@ -486,17 +760,15 @@ export async function getDashboardPageData(options: {
       [],
       warnings,
     ),
-    optionalLoad("fee setup review alerts", getConfigChangeAlerts, [], warnings),
-    optionalLoad("student import alerts", getImportIssueAlerts, [], warnings),
-    optionalLoad("dues update alerts", getLedgerReviewAlerts, [], warnings),
-    getSetupAlerts(staffRole, warnings),
     optionalLoad(
-      "system sync health",
-      () => getSystemSyncHealth(sessionLabel),
+      "dashboard sync health",
+      () => getDashboardSyncHealth(sessionLabel),
       null,
       warnings,
     ),
   ]);
+  console.log(`[dashboard-page-data] loaded in ${Date.now() - _tp0}ms`);
+  const financialRows = financialRowsRaw.filter((row) => row.recordStatus === "active");
   const overdueInstallments = installmentRows.filter(
     (row) => row.balanceStatus === "overdue" && row.pendingAmount > 0,
   );
@@ -527,63 +799,13 @@ export async function getDashboardPageData(options: {
     (sum, row) => sum + Math.max(Number(row.refundable_amount ?? 0), 0),
     0,
   );
-  const alerts: DashboardAlert[] = [
-    ...setupAlerts,
-    ...configAlerts,
-    ...ledgerAlerts,
-    ...importAlerts,
-  ];
-
-  if (warnings.length > 0) {
-    alerts.push({
-      key: "dashboard-limited-data",
-      title: "Dashboard data is limited",
-      detail: "Some dashboard sections could not be loaded. Existing posting and setup rules were not changed.",
-      tone: "warning",
-      actionHref: "/protected/reports",
-      actionLabel: "Open reports",
-    });
-  }
-
-  if (!summary.emptyState.hasStudents) {
-    alerts.push({
-      key: "no-students",
-      title: "No students yet",
-      detail: "Add or upload test students before relying on collection totals.",
-      tone: "info",
-      actionHref: "/protected/students/new",
-      actionLabel: "Add student",
-    });
-  } else if (!summary.emptyState.hasFinancialData) {
-    alerts.push({
-      key: "dues-missing",
-      title: "Students found, dues missing",
-      detail: "Students exist in the active fee setup session, but dues are not prepared yet.",
-      tone: "warning",
-      actionHref: "/protected/admin-tools#fee-data-troubleshooting",
-      actionLabel: "Prepare missing dues",
-    });
-  }
-
-  if (!summary.emptyState.hasReceipts) {
-    alerts.push({
-      key: "no-receipts",
-      title: "No receipts posted yet",
-      detail: "Today and trend sections will fill in after payments are posted at the Payment Desk.",
-      tone: "info",
-      actionHref: "/protected/payments",
-      actionLabel: "Open Payment Desk",
-    });
-  } else if (todayTransactions.length === 0) {
-    alerts.push({
-      key: "no-receipts-today",
-      title: "No receipts today",
-      detail: "No collection has been posted for the current school day yet.",
-      tone: "info",
-      actionHref: "/protected/payments",
-      actionLabel: "Open Payment Desk",
-    });
-  }
+  const alerts = await getDashboardAlerts({
+    staffRole,
+    sessionLabel,
+    emptyState: summary.emptyState,
+    hasTodayReceipts: todayTransactions.length > 0,
+    loadWarnings: warnings,
+  });
 
   return {
     currentSession: sessionLabel,

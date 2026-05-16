@@ -4659,6 +4659,11 @@ select
   case when nullif(trim(profile.student_status_code), '') is null then true else false end as missing_status_flag,
   profile.override_reason
 from student_profile_enriched as profile
+
+-- Supports session-scoped dashboard financial view queries
+create index if not exists idx_students_active_session_dashboard
+  on students (status, class_id)
+  where status = 'active';
 left join installment_summary as summary
   on summary.student_id = profile.student_id
 left join next_due

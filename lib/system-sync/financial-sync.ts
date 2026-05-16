@@ -934,7 +934,7 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
   }
 
   let studentsWithFinancialRows = 0;
-  let installmentRowsData: Array<{ student_id: string }> = [];
+  const installmentRowsData: Array<{ student_id: string }> = [];
   let feeSettingRowsData: Array<{ class_id: string }> = [];
   let routesWithoutAnnualFees = 0;
   const workbookFinancialRowsBySessionMap = new Map<string, number>();

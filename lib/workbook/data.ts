@@ -470,6 +470,7 @@ export async function getWorkbookStudentFinancials(filters?: {
   studentIds?: readonly string[];
   onlyOverdue?: boolean;
   sessionLabel?: string;
+  activeOnly?: boolean;
 }) {
   const supabase = await createClient();
   const studentIds = [...new Set(filters?.studentIds?.filter(Boolean) ?? [])];
@@ -502,6 +503,10 @@ export async function getWorkbookStudentFinancials(filters?: {
 
   if (filters?.sessionLabel) {
     query = query.eq("session_label", filters.sessionLabel);
+  }
+
+  if (filters?.activeOnly) {
+    query = query.eq("record_status", "active");
   }
 
   const { data, error } = await query;

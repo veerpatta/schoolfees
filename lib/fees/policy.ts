@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMasterDataOptions } from "@/lib/master-data/data";
@@ -692,7 +693,14 @@ function buildResolvedBreakdown(payload: {
   };
 }
 
+const getFeePolicySummaryCached = unstable_cache(
+  async () => loadGlobalPolicy(false),
+  ["fee-policy-summary"],
+  { tags: ["fee-policy"], revalidate: 300 },
+);
+
 const getFeePolicySummaryForRequest = cache(async (useAdmin: boolean) => {
+  if (!useAdmin) return getFeePolicySummaryCached();
   return loadGlobalPolicy(useAdmin);
 });
 

@@ -20,6 +20,21 @@ describe("office performance guardrails", () => {
     expect(dashboardData).toContain('.gt("refundable_amount", 0)');
   });
 
+  it("keeps dashboard health checks scoped to the dashboard path", () => {
+    const dashboardData = readRepoFile("lib/dashboard/data.ts");
+    const dashboardPage = readRepoFile("app/protected/dashboard/page.tsx");
+
+    expect(dashboardData).toContain("getDashboardSyncHealth(sessionLabel)");
+    expect(dashboardData).toContain('"dashboard sync health"');
+    expect(dashboardData).not.toContain("getSystemSyncHealth(sessionLabel)");
+    expect(dashboardData).toContain('row.recordStatus === "active"');
+    expect(dashboardPage).toContain("CriticalAlerts");
+    expect(dashboardPage).toContain("getCollectionRateHealth");
+    expect(dashboardPage).toContain("classId=${row.classId}");
+    expect(dashboardPage).toContain("Show all classes");
+    expect(dashboardPage).toContain("md:hidden");
+  });
+
   it("keeps interactive Transactions limited while allowing full exports", () => {
     const officeDues = readRepoFile("lib/office/dues.ts");
     const exportRoute = readRepoFile("app/protected/transactions/export/route.ts");
@@ -35,7 +50,7 @@ describe("office performance guardrails", () => {
     const workbookData = readRepoFile("lib/workbook/data.ts");
 
     expect(dashboardData).toContain(
-      "getWorkbookStudentFinancials({ sessionLabel })",
+      "getWorkbookStudentFinancials({ sessionLabel, activeOnly: true })",
     );
     expect(dashboardData).toContain(
       "getWorkbookInstallmentRows({ sessionLabel })",

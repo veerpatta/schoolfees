@@ -72,6 +72,7 @@ export type DashboardFollowUpStudent = {
   studentId: string;
   studentName: string;
   admissionNo: string;
+  classId: string;
   classLabel: string;
   fatherPhone: string | null;
   outstandingAmount: number;
@@ -384,6 +385,7 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
       studentId: row.studentId,
       studentName: row.studentName,
       admissionNo: row.admissionNo,
+      classId: row.classId,
       classLabel: row.classLabel,
       fatherPhone: row.fatherPhone,
       outstandingAmount: row.outstandingAmount,

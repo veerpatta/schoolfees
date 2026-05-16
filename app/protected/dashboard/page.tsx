@@ -24,15 +24,17 @@ import { Button } from "@/components/ui/button";
 import { CountUp } from "@/components/ui/count-up";
 import { EmptyState } from "@/components/ui/empty-state";
 import { KpiCard } from "@/components/ui/kpi-card";
+import { LoadingBlock } from "@/components/ui/loading-skeleton";
 import { Money } from "@/components/ui/money";
 import { Notice } from "@/components/ui/notice";
+import { RateGauge } from "@/components/ui/rate-gauge";
 import { Section } from "@/components/ui/section";
 import {
   getDashboardAboveFoldData,
+  getDashboardAlerts,
   getDashboardPageData,
   type DashboardAlert,
 } from "@/lib/dashboard/data";
-import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { getViewSessionCookie } from "@/lib/session/cookie";
@@ -43,6 +45,7 @@ import {
 } from "@/lib/supabase/session";
 import { revalidateSessionFinance } from "@/lib/system-sync/finance-revalidation";
 import { prepareDuesForStudentsAutomatically } from "@/lib/system-sync/finance-sync";
+import { cn } from "@/lib/utils";
 
 function formatPercent(value: number) {
   return `${value}%`;
@@ -81,8 +84,85 @@ function alertIcon(tone: DashboardAlert["tone"]) {
 }
 
 /* ---------------------------------------------------------------------------
-   Hero strip — three KPIs that summarise "what should I look at today?"
+   Hero strip - three KPIs that summarise "what should I look at today?"
    --------------------------------------------------------------------------- */
+
+function formatUpdatedAt(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat("en-IN", {
+      timeZone: "Asia/Kolkata",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }).format(new Date(iso));
+  } catch {
+    return "";
+  }
+}
+
+function InstallmentPulse({
+  installment,
+  pending,
+  followUpCount,
+}: {
+  installment: Awaited<ReturnType<typeof getDashboardAboveFoldData>>["currentInstallment"];
+  pending: number;
+  followUpCount: number;
+}) {
+  if (!installment) {
+    return null;
+  }
+
+  const tone = installment.status === "overdue" ? "warning" : "info";
+
+  return (
+    <Notice tone={tone} iconless title={`${installment.label} due ${formatShortDate(installment.dueDate)}`}>
+      <Money value={pending} size="sm" /> pending across {followUpCount} student{followUpCount === 1 ? "" : "s"} in this session.
+    </Notice>
+  );
+}
+
+async function CriticalAlerts({
+  staffRole,
+  sessionLabel,
+  emptyState,
+  hasTodayReceipts,
+  loadWarnings,
+}: {
+  staffRole: Awaited<ReturnType<typeof requireStaffPermission>>["appRole"];
+  sessionLabel: string;
+  emptyState: Awaited<ReturnType<typeof getDashboardAboveFoldData>>["emptyState"];
+  hasTodayReceipts: boolean;
+  loadWarnings: readonly string[];
+}) {
+  const alerts = await getDashboardAlerts({
+    staffRole,
+    sessionLabel,
+    emptyState,
+    hasTodayReceipts,
+    loadWarnings,
+  });
+  const criticalAlerts = alerts.filter((alert) => alert.tone === "danger" || alert.tone === "warning");
+
+  if (criticalAlerts.length === 0) {
+    return null;
+  }
+
+  return <AlertsPanel alerts={criticalAlerts} />;
+}
+
+function getCollectionRateSignal(rate: number): {
+  label: string;
+  tone: "success" | "warning" | "danger";
+} {
+  if (rate >= 75) return { label: "On track", tone: "success" };
+  if (rate >= 50) return { label: "Behind pace", tone: "warning" };
+  return { label: "Needs attention", tone: "danger" };
+}
+
+function getCollectionRateHealth(rate: number) {
+  return getCollectionRateSignal(rate);
+}
 
 function HeroKpis({
   collected,
@@ -90,26 +170,33 @@ function HeroKpis({
   collectionRate,
   receiptsToday,
   followUpCount,
+  overdueAmount,
 }: {
   collected: number;
   pending: number;
   collectionRate: number;
   receiptsToday: number;
   followUpCount: number;
+  overdueAmount: number;
 }) {
+  const rateSignal = getCollectionRateHealth(collectionRate);
+
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Today - saffron accent border */}
       <KpiCard
         accent="accent"
         label="Today collection"
         value={
           <CountUp
             value={collected}
-            className="text-2xl font-semibold tracking-tight md:text-[28px] md:leading-[34px]"
+            className="text-2xl font-semibold tracking-tight text-accent md:text-[28px] md:leading-[34px]"
           />
         }
         hint={`${receiptsToday} receipt${receiptsToday === 1 ? "" : "s"} posted today`}
       />
+
+      {/* Pending dues */}
       <KpiCard
         accent="warning"
         label="Pending dues"
@@ -121,24 +208,47 @@ function HeroKpis({
         }
         hint={`${followUpCount} student${followUpCount === 1 ? "" : "s"} need follow-up`}
       />
+
+      {/* Collection rate - arc gauge */}
       <KpiCard
         accent="info"
         label="Collection rate"
-        value={
-          <CountUp
-            value={collectionRate}
-            format="percent"
-            className="tabular text-foreground"
-          />
+        value={<RateGauge value={collectionRate} size="md" />}
+        hint={
+          <span
+            className={cn(
+              "text-xs font-medium",
+              rateSignal.tone === "success" && "text-success",
+              rateSignal.tone === "warning" && "text-warning",
+              rateSignal.tone === "danger" && "text-destructive",
+            )}
+          >
+            {rateSignal.label}
+          </span>
         }
-        hint="Current session, dues prepared"
       />
+
+      {/* Overdue amount - destructive-soft tinted card */}
+      <div className="rounded-lg border border-destructive/30 bg-destructive-soft px-4 py-3">
+        <p className="text-[10px] font-medium uppercase tracking-widest text-destructive/70">
+          Overdue amount
+        </p>
+        <div className="mt-1">
+          <CountUp
+            value={overdueAmount}
+            className="text-2xl font-semibold tracking-tight text-destructive md:text-[28px] md:leading-[34px]"
+          />
+        </div>
+        <p className="mt-1 text-xs text-destructive/60">
+          Past installment due date
+        </p>
+      </div>
     </div>
   );
 }
 
 /* ---------------------------------------------------------------------------
-   Quick actions — single row of clear, labeled buttons (no icon-only confusion)
+   Quick actions - single row of clear, labeled buttons (no icon-only confusion)
    --------------------------------------------------------------------------- */
 
 function QuickActions({
@@ -153,25 +263,25 @@ function QuickActions({
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
       {canPostPayments ? (
-        <Button asChild variant="accent" leadingIcon={<BadgeIndianRupee className="size-4" />}>
+        <Button asChild variant="accent" className="min-h-11 justify-center" leadingIcon={<BadgeIndianRupee className="size-4" />}>
           <Link href={withSession("/protected/payments")}>Open Payment Desk</Link>
         </Button>
       ) : null}
       {canWriteStudents ? (
-        <Button asChild variant="outline" leadingIcon={<UsersRound className="size-4" />}>
+        <Button asChild variant="outline" className="min-h-11 justify-center" leadingIcon={<UsersRound className="size-4" />}>
           <Link href={withSession("/protected/students/new")}>Add student</Link>
         </Button>
       ) : (
-        <Button asChild variant="outline" leadingIcon={<UsersRound className="size-4" />}>
+        <Button asChild variant="outline" className="min-h-11 justify-center" leadingIcon={<UsersRound className="size-4" />}>
           <Link href={withSession("/protected/students")}>Students</Link>
         </Button>
       )}
-      <Button asChild variant="outline" leadingIcon={<ReceiptText className="size-4" />}>
+      <Button asChild variant="outline" className="min-h-11 justify-center" leadingIcon={<ReceiptText className="size-4" />}>
         <Link href={withSession("/protected/transactions")}>Transactions</Link>
       </Button>
-      <Button asChild variant="ghost" leadingIcon={<ClipboardList className="size-4" />}>
+      <Button asChild variant="ghost" className="min-h-11 justify-center" leadingIcon={<ClipboardList className="size-4" />}>
         <Link href={withSession("/protected/defaulters")}>Defaulters</Link>
       </Button>
     </div>
@@ -179,16 +289,20 @@ function QuickActions({
 }
 
 /* ---------------------------------------------------------------------------
-   Today panel — collection + payment-mode breakdown
+   Today panel - collection + payment-mode breakdown
    --------------------------------------------------------------------------- */
 
 function TodayPanel({
   amount,
   receiptCount,
+  monthAmount,
+  refundDue,
   modes,
 }: {
   amount: number;
   receiptCount: number;
+  monthAmount: number;
+  refundDue: number;
   modes: Array<{ paymentMode: string; amount: number; receiptCount: number }>;
 }) {
   return (
@@ -207,6 +321,16 @@ function TodayPanel({
             Collected today
           </p>
           <Money value={amount} size="display" className="mt-2" />
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              This month: <Money value={monthAmount} size="xs" />
+            </span>
+            {refundDue > 0 ? (
+              <span className="inline-flex items-center gap-1">
+                Credit/refund: <Money value={refundDue} size="xs" />
+              </span>
+            ) : null}
+          </div>
         </div>
 
         {modes.length === 0 ? (
@@ -249,6 +373,7 @@ function FollowUpQueue({
     studentId: string;
     studentName: string;
     admissionNo: string;
+    classId: string;
     classLabel: string;
     fatherPhone: string | null;
     outstandingAmount: number;
@@ -281,16 +406,17 @@ function FollowUpQueue({
         >
           <div className="min-w-0 flex-1">
             <p className="font-medium text-foreground">{row.studentName}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {row.classLabel} · SR {row.admissionNo}
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <span>{row.classLabel} - SR {row.admissionNo}</span>
               {row.fatherPhone ? (
-                <>
-                  {" · "}
-                  <span className="inline-flex items-center gap-1">
-                    <Phone className="size-3" aria-hidden="true" />
-                    {row.fatherPhone}
-                  </span>
-                </>
+                <a
+                  href={`tel:${row.fatherPhone}`}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  aria-label={`Call ${row.studentName}'s parent`}
+                >
+                  <Phone className="size-3" aria-hidden="true" />
+                  {row.fatherPhone}
+                </a>
               ) : null}
             </p>
           </div>
@@ -309,7 +435,7 @@ function FollowUpQueue({
               <Link href={withSession(`/protected/students/${row.studentId}`)}>Open</Link>
             </Button>
             <Button asChild size="sm" variant={canPostPayments ? "primary" : "outline"}>
-              <Link href={withSession(`/protected/payments?studentId=${row.studentId}`)}>
+              <Link href={withSession(`/protected/payments?studentId=${row.studentId}&classId=${row.classId}`)}>
                 {canPostPayments ? "Collect" : "Desk"}
               </Link>
             </Button>
@@ -364,10 +490,10 @@ function RecentReceipts({
             <div className="min-w-0">
               <p className="font-medium text-foreground">{row.receiptNumber}</p>
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {row.studentName} · {row.classLabel}
+                {row.studentName} - {row.classLabel}
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {formatShortDate(row.paymentDate)} · {row.paymentMode}
+                {formatShortDate(row.paymentDate)} - {row.paymentMode}
               </p>
             </div>
             <Money value={row.amount} size="lg" />
@@ -379,7 +505,7 @@ function RecentReceipts({
 }
 
 /* ---------------------------------------------------------------------------
-   Class-wise pending — minimal hairline bar list
+   Class-wise pending - minimal hairline bar list
    --------------------------------------------------------------------------- */
 
 function ClassPendingChart({
@@ -427,7 +553,7 @@ function ClassPendingChart({
             {row.studentsWithGeneratedDues === 0 && row.totalStudents > 0 ? (
               <span className="text-muted-foreground">Not prepared</span>
             ) : (
-              formatInr(row.pendingAmount)
+              <Money value={row.pendingAmount} size="sm" />
             )}
           </div>
         </div>
@@ -475,7 +601,7 @@ function TrendChart({
             />
           </div>
           <div className="text-sm font-medium tabular text-foreground sm:text-right">
-            {formatInr(row.amount)}
+            <Money value={row.amount} size="sm" />
           </div>
         </div>
       ))}
@@ -519,7 +645,7 @@ function InstallmentStatus({
             <div className="min-w-0">
               <p className="font-medium text-foreground">{row.installmentLabel}</p>
               <p className="text-xs text-muted-foreground">
-                Due {row.dueDate ? formatShortDate(row.dueDate) : "—"}
+                Due {row.dueDate ? formatShortDate(row.dueDate) : "-"}
               </p>
             </div>
             <p className="text-sm font-semibold tabular text-foreground">
@@ -533,9 +659,15 @@ function InstallmentStatus({
             />
           </div>
           <div className="grid gap-1 text-[11px] text-muted-foreground sm:grid-cols-3">
-            <span>Expected · {formatInr(row.expectedAmount)}</span>
-            <span>Collected · {formatInr(row.collectedAmount)}</span>
-            <span>Pending · {formatInr(row.pendingAmount)}</span>
+            <span className="inline-flex items-center gap-1">
+              Expected <Money value={row.expectedAmount} size="xs" />
+            </span>
+            <span className="inline-flex items-center gap-1">
+              Collected <Money value={row.collectedAmount} size="xs" />
+            </span>
+            <span className="inline-flex items-center gap-1">
+              Pending <Money value={row.pendingAmount} size="xs" />
+            </span>
           </div>
         </li>
       ))}
@@ -549,6 +681,7 @@ function InstallmentStatus({
 
 function ClassSummaryTable({
   rows,
+  sessionLabel,
 }: {
   rows: Array<{
     classLabel: string;
@@ -561,8 +694,9 @@ function ClassSummaryTable({
     studentsWithGeneratedDues: number;
     missingDuesStudents: number;
   }>;
+  sessionLabel: string;
 }) {
-  return (
+  const renderTable = (tableRows: typeof rows, emptyLabel: string) => (
     <div className="overflow-x-auto rounded-md border border-border">
       <table className="w-full text-left text-sm">
         <thead className="bg-surface-2/70">
@@ -577,28 +711,30 @@ function ClassSummaryTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-border bg-card">
-          {rows.length === 0 ? (
+          {tableRows.length === 0 ? (
             <tr>
               <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
-                No class-wise fee position is available yet.
+                {emptyLabel}
               </td>
             </tr>
           ) : (
-            rows.map((row) => (
+            tableRows.map((row) => (
               <tr key={row.classLabel} className="transition-colors hover:bg-surface-2/40">
                 <td className="px-4 py-2.5 font-medium text-foreground">{row.classLabel}</td>
                 <td className="px-4 py-2.5 tabular">{row.totalStudents}</td>
                 <td className="px-4 py-2.5 tabular">
                   {row.studentsWithGeneratedDues === 0 && row.totalStudents > 0
                     ? <span className="text-muted-foreground">Not prepared</span>
-                    : formatInr(row.expectedAmount)}
+                    : <Money value={row.expectedAmount} size="sm" />}
                 </td>
-                <td className="px-4 py-2.5 tabular">{formatInr(row.collectedAmount)}</td>
+                <td className="px-4 py-2.5 tabular">
+                  <Money value={row.collectedAmount} size="sm" />
+                </td>
                 <td className="px-4 py-2.5 font-semibold tabular text-foreground">
-                  {formatInr(row.pendingAmount)}
+                  <Money value={row.pendingAmount} size="sm" />
                 </td>
                 <td className="px-4 py-2.5 tabular text-warning">
-                  {formatInr(row.overdueAmount)}
+                  <Money value={row.overdueAmount} size="sm" tone="warning" />
                 </td>
                 <td className="px-4 py-2.5">
                   <div className="flex flex-wrap items-center gap-2">
@@ -616,6 +752,40 @@ function ClassSummaryTable({
         </tbody>
       </table>
     </div>
+  );
+  const visibleRows = rows.slice(0, 6);
+  const hiddenRows = rows.slice(6);
+
+  return (
+    <>
+      <div className="md:hidden">
+        <Notice
+          tone="info"
+          iconless
+          title="Class summary is available in Exports"
+          action={
+            <Button asChild size="sm" variant="outline">
+              <Link href={appendSessionParam("/protected/exports", sessionLabel)}>Open Exports</Link>
+            </Button>
+          }
+        >
+          The full class-wise table is hidden on phone screens to keep the dashboard readable.
+        </Notice>
+      </div>
+      <div className="hidden space-y-3 md:block">
+        {renderTable(visibleRows, "No class-wise fee position is available yet.")}
+        {hiddenRows.length > 0 ? (
+          <details className="rounded-md border border-border bg-card px-4 py-3">
+            <summary className="cursor-pointer text-sm font-medium text-foreground">
+              Show all classes
+            </summary>
+            <div className="mt-3">
+              {renderTable(hiddenRows, "No additional classes.")}
+            </div>
+          </details>
+        ) : null}
+      </div>
+    </>
   );
 }
 
@@ -680,14 +850,12 @@ function FeeDataAttentionBanner({
   health: NonNullable<Awaited<ReturnType<typeof getDashboardPageData>>["systemSyncHealth"]>;
   canAutoPrepareDues: boolean;
 }) {
-  const databaseObjectStatuses = Object.values(health.requiredDatabaseObjectsStatus);
   const needsAttention =
     health.sessionMismatch ||
     health.studentsMissingInstallmentRows > 0 ||
     health.studentsMissingFinancialRows > 0 ||
     health.studentsWithNoFeeSetting > 0 ||
     !health.paymentPreviewReady ||
-    databaseObjectStatuses.some((status) => !status.usable) ||
     !health.paymentDeskReady ||
     !health.dashboardReady;
 
@@ -753,17 +921,22 @@ export function scheduleDashboardAutoPrepare({
 
 function DashboardBelowFoldSkeleton() {
   return (
-    <div className="space-y-5" aria-label="Loading dashboard details">
+    <div className="space-y-7">
+      {/* Follow-up + Recent receipts row */}
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <div className="h-64 rounded-md border border-border bg-surface-2/60" />
-        <div className="h-64 rounded-md border border-border bg-surface-2/60" />
+        <LoadingBlock />
+        <LoadingBlock />
       </div>
+      {/* Charts row */}
       <div className="grid gap-5 xl:grid-cols-2">
-        <div className="h-72 rounded-md border border-border bg-surface-2/60" />
-        <div className="h-72 rounded-md border border-border bg-surface-2/60" />
-        <div className="h-80 rounded-md border border-border bg-surface-2/60 xl:col-span-2" />
+        <LoadingBlock />
+        <LoadingBlock />
+        <div className="xl:col-span-2">
+          <LoadingBlock />
+        </div>
       </div>
-      <div className="h-80 rounded-md border border-border bg-surface-2/60" />
+      {/* Class summary full width */}
+      <LoadingBlock />
     </div>
   );
 }
@@ -786,9 +959,48 @@ async function DashboardBelowFold({
     sessionLabel,
     health: data.systemSyncHealth,
   });
+  const autoPrepareCount =
+    canAutoPrepareDues && data.systemSyncHealth
+      ? data.systemSyncHealth.studentsMissingInstallments.length
+      : 0;
+  const visibleAlerts = data.alerts.filter((alert) => {
+    if (staffRole !== "admin") {
+      if (alert.actionHref?.includes("/admin-tools")) return false;
+      if (alert.key === "dues-missing") return false;
+    }
+    return true;
+  });
 
   return (
     <>
+      {autoPrepareCount > 0 ? (
+        <Notice tone="info" title="Dues update started">
+          Preparing dues for {autoPrepareCount} student{autoPrepareCount === 1 ? "" : "s"} in the background. Refresh in a moment to see the updated totals.
+        </Notice>
+      ) : null}
+
+      {visibleAlerts
+        .filter((a) => a.tone === "danger" || a.tone === "warning")
+        .filter((a) =>
+          staffRole === "admin" || !a.actionHref?.includes("/admin-tools"),
+        )
+        .map((a) => (
+          <Notice
+            key={a.key}
+            tone={a.tone === "danger" ? "danger" : "warning"}
+            title={a.title}
+            action={
+              a.actionHref && a.actionLabel ? (
+                <Button asChild size="sm" variant="outline">
+                  <Link href={a.actionHref}>{a.actionLabel}</Link>
+                </Button>
+              ) : undefined
+            }
+          >
+            {a.detail}
+          </Notice>
+        ))}
+
       {staffRole === "admin" && data.systemSyncHealth ? (
         <FeeDataAttentionBanner
           health={data.systemSyncHealth}
@@ -864,14 +1076,18 @@ async function DashboardBelowFold({
         title="Class-wise fee position"
         description="Sorted by highest pending amount."
       >
-        <ClassSummaryTable rows={data.classSummary} />
+        <ClassSummaryTable rows={data.classSummary} sessionLabel={sessionLabel} />
       </Section>
 
       <Section
         title="Attention"
-        description="Setup, import, and dues-update items that may need review."
+        description="Informational setup and activity items."
       >
-        <AlertsPanel alerts={data.alerts} />
+        <AlertsPanel
+          alerts={visibleAlerts.filter(
+            (a) => a.tone !== "danger" && a.tone !== "warning",
+          )}
+        />
       </Section>
     </>
   );
@@ -907,13 +1123,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       <PageHeader
         eyebrow="Workspace"
         title="Dashboard"
-        description="Today's collection, pending dues, and follow-up — at a glance."
+        description="Today's collection, pending dues, and follow-up - at a glance."
         actions={
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             <StatusBadge label={`Session ${aboveFold.currentSession}`} tone="accent" />
             {aboveFold.currentInstallment ? (
               <StatusBadge
-                label={`${aboveFold.currentInstallment.label} · ${formatShortDate(aboveFold.currentInstallment.dueDate)}`}
+                label={`${aboveFold.currentInstallment.label} - ${formatShortDate(aboveFold.currentInstallment.dueDate)}`}
                 tone={aboveFold.currentInstallment.status === "overdue" ? "warning" : "neutral"}
               />
             ) : null}
@@ -921,12 +1137,18 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         }
       />
 
+      <p className="text-xs text-muted-foreground -mt-5">
+        Updated at {formatUpdatedAt(aboveFold.generatedAt)}
+      </p>
+
       {resolvedSearchParams?.notice ? (
         <Notice tone="success" iconless={false}>
           {resolvedSearchParams.notice}
         </Notice>
       ) : null}
 
+      {/* Auto-prepare result: set by prepareDuesForStudentsAutomatically via ?prepared=N
+          in the redirect URL. No direct code change needed - the after() flow handles this. */}
       {Number.isFinite(preparedCount) && preparedCount > 0 ? (
         <Notice tone="success" iconless={false}>
           Refreshed dues for {preparedCount} student{preparedCount === 1 ? "" : "s"}.
@@ -979,29 +1201,48 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       ) : null}
 
       {/* Hero strip */}
-      <div className="space-y-4">
+      <div className="space-y-4 anim-fade-in">
         <HeroKpis
           collected={aboveFold.kpis.todaysCollection}
           pending={aboveFold.kpis.totalPending}
           collectionRate={aboveFold.kpis.collectionRate}
           receiptsToday={aboveFold.kpis.receiptsToday}
           followUpCount={aboveFold.studentsWithPending}
+          overdueAmount={aboveFold.kpis.overdueAmount}
         />
-        <QuickActions
-          canWriteStudents={canWriteStudents}
-          canPostPayments={canPostPayments}
-          sessionLabel={viewSession.sessionLabel}
+        <InstallmentPulse
+          installment={aboveFold.currentInstallment}
+          pending={aboveFold.kpis.totalPending}
+          followUpCount={aboveFold.studentsWithPending}
         />
+        <Suspense fallback={null}>
+          <CriticalAlerts
+            staffRole={staff.appRole}
+            sessionLabel={viewSession.sessionLabel}
+            emptyState={aboveFold.emptyState}
+            hasTodayReceipts={aboveFold.kpis.receiptsToday > 0}
+            loadWarnings={aboveFold.loadWarnings}
+          />
+        </Suspense>
+        <div className="anim-fade-in [animation-delay:60ms]">
+          <QuickActions
+            canWriteStudents={canWriteStudents}
+            canPostPayments={canPostPayments}
+            sessionLabel={viewSession.sessionLabel}
+          />
+        </div>
       </div>
 
       {/* Today + secondary KPIs */}
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] anim-fade-in [animation-delay:120ms]">
         <TodayPanel
           amount={aboveFold.kpis.todaysCollection}
           receiptCount={aboveFold.kpis.receiptsToday}
+          monthAmount={aboveFold.kpis.thisMonthCollection}
+          refundDue={aboveFold.totalRefundDue}
           modes={aboveFold.todayPaymentModeBreakdown}
         />
-        <div className="grid grid-cols-2 content-start gap-3">
+        <div className="hidden lg:grid grid-cols-2 content-start gap-3">
           <KpiCard
             label="Total expected"
             value={<Money value={aboveFold.kpis.totalExpectedFees} size="xl" />}
@@ -1016,18 +1257,21 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             value={
               <span className="tabular">{aboveFold.kpis.totalStudents}</span>
             }
+            hint={
+              aboveFold.totalRefundDue > 0
+                ? (
+                  <span className="inline-flex items-center gap-1">
+                    <Money value={aboveFold.totalRefundDue} size="xs" /> refund/credit due
+                  </span>
+                )
+                : undefined
+            }
           />
           <KpiCard
-            label="Refund / credit"
-            value={<Money value={aboveFold.totalRefundDue} size="xl" tone="muted" />}
+            label="This month"
+            value={<Money value={aboveFold.kpis.thisMonthCollection} size="xl" />}
+            hint="Receipts posted in the current month."
           />
-          <div className="col-span-2">
-            <KpiCard
-              label="This month"
-              value={<Money value={aboveFold.kpis.thisMonthCollection} size="xl" />}
-              hint="Receipts posted in the current month."
-            />
-          </div>
         </div>
       </div>
 
