@@ -69,6 +69,7 @@ export type DashboardPageData = {
   overdueStudents: number;
   notStartedStudents: number;
   systemSyncHealth: DashboardSyncHealth | null;
+  syncError: boolean;
 };
 
 type ActiveStudentRow = {
@@ -268,6 +269,17 @@ function loadDashboardInstallmentRows(sessionLabel: string) {
     async () => getWorkbookInstallmentRows({ sessionLabel }),
     ["dashboard-installments", sessionLabel],
     { tags: [sessionTag(sessionLabel)] },
+  )();
+}
+
+function loadDashboardSyncHealth(sessionLabel: string) {
+  return unstable_cache(
+    async () => getDashboardSyncHealth(sessionLabel),
+    ["dashboard-sync-health", sessionLabel],
+    {
+      tags: [sessionTag(sessionLabel)],
+      revalidate: 120,
+    },
   )();
 }
 
@@ -509,7 +521,6 @@ export async function getDashboardPageData(options: {
     transactions,
     todayTransactions,
     refundStateRows,
-    systemSyncHealth,
   ] = await Promise.all([
     optionalLoad(
       "raw active student count",
@@ -565,13 +576,15 @@ export async function getDashboardPageData(options: {
       [],
       warnings,
     ),
-    optionalLoad(
-      "dashboard sync health",
-      () => getDashboardSyncHealth(sessionLabel),
-      null,
-      warnings,
-    ),
   ]);
+  // "dashboard sync health" is advisory; a timeout here must not mark the
+  // financial numbers as incomplete.
+  let systemSyncHealth: DashboardSyncHealth | null = null;
+  try {
+    systemSyncHealth = await loadDashboardSyncHealth(sessionLabel);
+  } catch {
+    systemSyncHealth = null;
+  }
   console.log(`[dashboard-page-data] loaded in ${Date.now() - _tp0}ms`);
   const financialRows = financialRowsRaw.filter((row) => row.recordStatus === "active");
   const overdueInstallments = installmentRows.filter(
@@ -637,6 +650,7 @@ export async function getDashboardPageData(options: {
     partlyPaidStudents,
     overdueStudents,
     notStartedStudents,
+    syncError: warnings.length > 0,
     systemSyncHealth,
   };
 }

@@ -21,7 +21,9 @@ export async function setViewSessionAction(label: string) {
 
   await setViewSessionCookie(sessionLabel);
 
-  if (previousLabel) {
+  // Keep session switches scoped to the sessions involved. A full protected
+  // path bust makes every office page cold at once after router.refresh().
+  if (previousLabel && previousLabel !== sessionLabel) {
     revalidateTag(`session:${previousLabel}`, "max");
   }
   revalidateTag(`session:${sessionLabel}`, "max");
