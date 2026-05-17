@@ -109,7 +109,7 @@ export function GenerateLedgerClient({ initialState, action }: GenerateLedgerCli
 
             {!state.message ? (
               <div className="rounded-2xl border border-dashed border-border-strong bg-surface-2 p-5 text-sm text-muted-foreground">
-                Enter a reason and click "Run dues update" to apply the current Fee Setup to all unpaid and future dues.
+                Enter a reason and update dues to apply the current Fee Setup to all unpaid and future dues.
               </div>
             ) : null}
           </CardContent>
@@ -130,7 +130,7 @@ export function GenerateLedgerClient({ initialState, action }: GenerateLedgerCli
                   Updating...
                 </>
               ) : (
-                "Run dues update"
+                "Update dues now"
               )}
             </Button>
           </CardFooter>

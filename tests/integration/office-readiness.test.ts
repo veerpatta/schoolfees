@@ -40,23 +40,23 @@ describe("office workflow readiness", () => {
     expect(readiness.importStudents.detail).toContain("waiting on admin setup");
   });
 
-  it("keeps read-only staff on a wait state for payment posting blockers", () => {
+  it("allows payment posting when dues recalculation is still catching up", () => {
     const readiness = buildOfficeWorkflowReadiness(
       {
         classCount: 4,
         hasFeeDefaults: true,
         hasStudents: true,
         ledgerReady: false,
-        collectionDeskReady: false,
-        setupReadyForCompletion: false,
+        collectionDeskReady: true,
+        setupReadyForCompletion: true,
         missingBlockingItemKeys: ["ledgers_generated"],
       },
       "read_only_staff",
     );
 
-    expect(readiness.postPayments.isReady).toBe(false);
+    expect(readiness.postPayments.isReady).toBe(true);
     expect(readiness.postPayments.actionLabel).toBeNull();
-    expect(readiness.postPayments.detail).toContain("waiting on admin setup");
+    expect(readiness.postPayments.actionHref).toBeNull();
   });
 
   it("points recalculation blockers to Fee Setup once students exist but defaults are missing", () => {
@@ -77,42 +77,41 @@ describe("office workflow readiness", () => {
     expect(readiness.recalculateLedgers.actionHref).toBe("/protected/fee-setup");
   });
 
-  it("points missing ledgers blocker to dues recalculation", () => {
+  it("does not block payment posting only because ledger generation is pending", () => {
     const readiness = buildOfficeWorkflowReadiness(
       {
         classCount: 12,
         hasFeeDefaults: true,
         hasStudents: true,
         ledgerReady: false,
-        collectionDeskReady: false,
+        collectionDeskReady: true,
         setupReadyForCompletion: true,
-        missingBlockingItemKeys: ["ledgers_generated", "collection_desk_ready"],
+        missingBlockingItemKeys: ["ledgers_generated"],
       },
       "admin",
     );
 
-    expect(readiness.postPayments.isReady).toBe(false);
-    expect(readiness.postPayments.title).toBe("Dues need recalculation before payments");
-    expect(readiness.postPayments.actionHref).toBe("/protected/fee-setup/generate");
+    expect(readiness.postPayments.isReady).toBe(true);
+    expect(readiness.postPayments.actionHref).toBeNull();
   });
 
-  it("points completion-ready setups to setup completion", () => {
+  it("marks payment posting ready when setup completion note has not been saved yet", () => {
     const readiness = buildOfficeWorkflowReadiness(
       {
         classCount: 12,
         hasFeeDefaults: true,
         hasStudents: true,
         ledgerReady: true,
-        collectionDeskReady: false,
+        collectionDeskReady: true,
         setupReadyForCompletion: true,
-        missingBlockingItemKeys: ["collection_desk_ready"],
+        missingBlockingItemKeys: [],
       },
       "admin",
     );
 
-    expect(readiness.postPayments.isReady).toBe(false);
-    expect(readiness.postPayments.actionHref).toBe("/protected/setup#complete");
-    expect(readiness.postPayments.actionLabel).toBe("Mark setup complete");
+    expect(readiness.postPayments.isReady).toBe(true);
+    expect(readiness.postPayments.actionHref).toBeNull();
+    expect(readiness.postPayments.actionLabel).toBeNull();
   });
 
   it("points missing class defaults to fee setup", () => {

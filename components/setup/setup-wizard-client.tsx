@@ -1094,7 +1094,7 @@ export function SetupWizardClient({
 
       <SectionCard
         title="6. Mark setup stage complete"
-        description="Use this after reviewing the readiness checklist. The mark is stored separately so the office can see that go-live prep was formally reviewed."
+        description="Optional completion note for the office audit trail. Setup is considered ready as soon as all checklist items above are complete."
         className="scroll-mt-24"
       >
         <form id="complete" action={completeFormAction} className="space-y-5">
@@ -1106,10 +1106,12 @@ export function SetupWizardClient({
                 Current status
               </p>
               <p className="mt-3 text-lg font-semibold text-foreground">
-                {data.readiness.collectionDeskReady ? "Collection desk ready" : "Setup in progress"}
+                {data.completionState.setupCompletedAt
+                  ? formatSavedAt(data.completionState.setupCompletedAt)
+                  : "No note saved yet"}
               </p>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Last completion mark: {formatSavedAt(data.completionState.setupCompletedAt)}
+                Last saved completion note for the office audit trail.
               </p>
             </div>
 
@@ -1128,13 +1130,11 @@ export function SetupWizardClient({
 
           {data.readiness.readyForCompletion ? (
             <div className="rounded-xl border bg-success-soft px-4 py-4 text-sm text-success-soft-foreground">
-              Blocking setup checks are complete. Mark the setup stage complete, then move to
-              student import, anomaly review, and the collection desk.
+              Blocking setup checks are complete. The Payment Desk is ready for collection work.
             </div>
           ) : (
             <div className="rounded-xl border bg-warning-soft px-4 py-4 text-sm text-warning-soft-foreground">
-              Finish the remaining blocking checklist items before marking the setup stage
-              complete.
+              You can save an office note now. Finish the remaining blocking checklist items before daily collection.
             </div>
           )}
 
@@ -1145,7 +1145,7 @@ export function SetupWizardClient({
             </SectionHint>
             <Button
               type="submit"
-              disabled={completePending || !data.readiness.readyForCompletion}
+              disabled={completePending}
             >
               {completePending
                 ? "Saving..."

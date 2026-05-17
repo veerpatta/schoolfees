@@ -1019,7 +1019,7 @@ export async function applyLedgerRegenerationBatch(batchId: string) {
       status: "applied",
       apply_summary: applySummary,
       applied_at: new Date().toISOString(),
-      apply_notes: "Applied. Rows with prior payments were preserved automatically.",
+      apply_notes: `Applied. Rows with prior payments were preserved automatically. Locked installments held for review: ${ledgerResult.lockedInstallments}.`,
     })
     .eq("id", batch.id)
     .eq("status", "preview_ready");

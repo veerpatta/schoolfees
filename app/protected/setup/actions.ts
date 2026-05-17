@@ -1,9 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 
 import type { ClassStatus, FeeCalculationModel, PaymentMode } from "@/lib/db/types";
+import { getFeePolicySummary } from "@/lib/fees/data";
 import { requireStaffPermission } from "@/lib/supabase/session";
+import { syncAfterFeeSetupChangeForSession } from "@/lib/system-sync/finance-sync";
 import {
   markSetupStageComplete,
   saveSetupClassDefaults,
@@ -265,6 +268,17 @@ function revalidateSetupSurface() {
   revalidatePath("/protected/settings");
 }
 
+function scheduleSetupDuesSync() {
+  after(async () => {
+    try {
+      const policy = await getFeePolicySummary();
+      await syncAfterFeeSetupChangeForSession(policy.academicSessionLabel);
+    } catch {
+      // Background sync failure is non-fatal and should not block the save.
+    }
+  });
+}
+
 export async function saveSetupPolicyAction(
   _previous: SetupActionState,
   formData: FormData,
@@ -358,6 +372,7 @@ export async function saveSetupClassDefaultsAction(
     await requireStaffPermission("settings:write");
     await saveSetupClassDefaults(parseSetupClassDefaultRows(formData));
     revalidateSetupSurface();
+    scheduleSetupDuesSync();
     return toSuccessState("Class-wise defaults saved.");
   } catch (error) {
     return toErrorState(error);
@@ -374,7 +389,8 @@ export async function completeSetupStageAction(
       (formData.get("completionNotes") ?? "").toString().trim() || null,
     );
     revalidateSetupSurface();
-    return toSuccessState("Setup stage marked complete. The collection desk is ready.");
+    scheduleSetupDuesSync();
+    return toSuccessState("Setup completion note saved for the office audit trail.");
   } catch (error) {
     return toErrorState(error);
   }

@@ -4,8 +4,6 @@ import { unstable_cache } from "next/cache";
 
 import { hasAnyRolePermission, type StaffRole } from "@/lib/auth/roles";
 import { getFeePolicySummary } from "@/lib/fees/data";
-import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
-import { getSetupWizardData } from "@/lib/setup/data";
 import { createClient } from "@/lib/supabase/server";
 import {
   getRawActiveSessionStudentCount,
@@ -29,16 +27,6 @@ import {
 } from "@/lib/workbook/data";
 
 type DashboardAlertTone = "info" | "warning" | "danger" | "success";
-
-type ImportBatchRow = {
-  id: string;
-  filename: string;
-  status: string;
-  invalid_rows: number;
-  duplicate_rows: number;
-  failed_rows: number;
-  created_at: string;
-};
 
 export type DashboardAlert = {
   key: string;
@@ -324,99 +312,11 @@ function buildCurrentInstallment(
   };
 }
 
-async function getImportIssueAlerts(): Promise<DashboardAlert[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("import_batches")
-    .select("id, filename, status, invalid_rows, duplicate_rows, failed_rows, created_at")
-    .order("created_at", { ascending: false })
-    .limit(8);
-
-  if (error) {
-    throw new Error(`Unable to load import alerts: ${error.message}`);
-  }
-
-  return ((data ?? []) as ImportBatchRow[])
-    .map((row) => ({
-      row,
-      issueCount: row.invalid_rows + row.duplicate_rows + row.failed_rows,
-    }))
-    .filter((item) => item.issueCount > 0)
-    .slice(0, 2)
-    .map(({ row, issueCount }) => ({
-      key: `import-${row.id}`,
-      title: "Student import needs review",
-      detail: `${row.filename} has ${issueCount} row issue${issueCount === 1 ? "" : "s"} waiting for office review.`,
-      tone: "warning" as const,
-      actionHref: "/protected/imports",
-      actionLabel: "Open imports",
-    }));
-}
-
-async function getSetupAlerts(
-  staffRole: StaffRole,
-  warnings: string[],
-): Promise<DashboardAlert[]> {
-  if (staffRole !== "admin") {
-    return [];
-  }
-
-  const setup = await optionalLoad(
-    "setup readiness",
-    () => getSetupWizardData(),
-    null,
-    warnings,
-  );
-
-  if (!setup) {
-    return [];
-  }
-
-  const readiness = getOfficeWorkflowReadiness(setup, staffRole);
-  const alerts: DashboardAlert[] = [];
-
-  if (!readiness.reports.isReady) {
-    alerts.push({
-      key: "reports-readiness",
-      title: readiness.reports.title,
-      detail: readiness.reports.detail,
-      tone: "warning",
-      actionHref: readiness.reports.actionHref ?? undefined,
-      actionLabel: readiness.reports.actionLabel ?? undefined,
-    });
-  }
-
-  if (!readiness.postPayments.isReady) {
-    alerts.push({
-      key: "payment-readiness",
-      title: readiness.postPayments.title,
-      detail: readiness.postPayments.detail,
-      tone: "warning",
-      actionHref: readiness.postPayments.actionHref ?? undefined,
-      actionLabel: readiness.postPayments.actionLabel ?? undefined,
-    });
-  }
-
-  return alerts;
-}
-
 function buildDashboardStateAlerts(payload: {
   emptyState: DashboardEmptyState;
   hasTodayReceipts: boolean;
-  warnings: readonly string[];
 }) {
   const alerts: DashboardAlert[] = [];
-
-  if (payload.warnings.length > 0) {
-    alerts.push({
-      key: "dashboard-limited-data",
-      title: "Dashboard data is limited",
-      detail: "Some dashboard sections could not be loaded. Existing posting and setup rules were not changed.",
-      tone: "warning",
-      actionHref: "/protected/reports",
-      actionLabel: "Open reports",
-    });
-  }
 
   if (!payload.emptyState.hasStudents) {
     alerts.push({
@@ -485,15 +385,6 @@ export function filterDashboardAlertsForRole(alerts: DashboardAlert[], staffRole
     .map((alert) => removeUnavailableAction(alert, staffRole));
 }
 
-async function getDashboardReviewAlerts(staffRole: StaffRole, warnings: string[]) {
-  const [importAlerts, setupAlerts] = await Promise.all([
-    optionalLoad("student import alerts", getImportIssueAlerts, [], warnings),
-    getSetupAlerts(staffRole, warnings),
-  ]);
-
-  return [...setupAlerts, ...importAlerts];
-}
-
 export async function getDashboardAlerts(options: {
   staffRole: StaffRole;
   sessionLabel: string;
@@ -501,15 +392,10 @@ export async function getDashboardAlerts(options: {
   hasTodayReceipts: boolean;
   loadWarnings?: readonly string[];
 }) {
-  const warnings = [...(options.loadWarnings ?? [])];
-  const alerts = [
-    ...(await getDashboardReviewAlerts(options.staffRole, warnings)),
-    ...buildDashboardStateAlerts({
-      emptyState: options.emptyState,
-      hasTodayReceipts: options.hasTodayReceipts,
-      warnings,
-    }),
-  ];
+  const alerts = buildDashboardStateAlerts({
+    emptyState: options.emptyState,
+    hasTodayReceipts: options.hasTodayReceipts,
+  });
 
   return filterDashboardAlertsForRole(alerts, options.staffRole);
 }

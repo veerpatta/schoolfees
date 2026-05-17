@@ -241,15 +241,16 @@ function buildReadinessSummary(payload: {
       label: "Dues recalculated",
       detail: payload.ledgerReady
         ? `${payload.installmentCount} installment windows are already in sync for the active session.`
-        : "Run ledger recalculation after student import so collections post against the correct dues.",
+        : "Dues sync runs automatically after fee setup or student changes. This status updates after background preparation finishes.",
       status: payload.ledgerReady ? "complete" : "incomplete",
-      blocking: true,
+      blocking: false,
       href: "/protected/fee-setup/generate",
     },
   ];
-  const readyForCompletion =
-    baseChecklist.every((item) => item.status === "complete");
-  const collectionDeskReady = readyForCompletion && Boolean(payload.completionState.setupCompletedAt);
+  const readyForCompletion = baseChecklist.every(
+    (item) => !item.blocking || item.status === "complete",
+  );
+  const collectionDeskReady = readyForCompletion;
   const collectionDeskRecoveryDetail =
     payload.studentsMissingDues > 0
       ? `${payload.studentsMissingDues} student(s) have no dues records. Open Session Health if automatic sync does not clear this.`
@@ -260,15 +261,12 @@ function buildReadinessSummary(payload: {
       key: "collection_desk_ready",
       label: "Collection desk ready",
       detail: collectionDeskReady
-        ? `Setup was marked complete on ${new Date(payload.completionState.setupCompletedAt!).toLocaleString("en-IN", {
-            dateStyle: "medium",
-            timeStyle: "short",
-          })}.`
+        ? "All blocking setup checks are complete. The Payment Desk can be used."
         : payload.completionState.setupCompletedAt
           ? collectionDeskRecoveryDetail
-          : `Confirm setup completion after reviewing payment modes (${payload.acceptedPaymentModes
+          : `Complete the blocking checklist above. Payment modes (${payload.acceptedPaymentModes
               .map((item) => item.label)
-              .join(", ")}), late fee Rs ${payload.lateFeeFlatAmount}, and receipt prefix ${payload.receiptPrefix}.`
+              .join(", ")}), late fee Rs ${payload.lateFeeFlatAmount}, and receipt prefix ${payload.receiptPrefix} remain visible for review.`
           ,
       status: collectionDeskReady ? "complete" : "incomplete",
       blocking: true,
@@ -304,7 +302,7 @@ function buildFlowItems(payload: {
       key: "setup",
       label: "Finish setup wizard",
       detail: payload.readiness.readyForCompletion
-        ? "Core setup data is ready. Mark the setup stage complete after one last review."
+        ? "Core setup data is ready. Saving a completion note is optional for the office audit trail."
         : "Complete session, classes, routes, and fee defaults before importing students.",
       href: "/protected/setup",
       status: payload.readiness.readyForCompletion ? "done" : "current",
@@ -350,7 +348,7 @@ function buildFlowItems(payload: {
       label: "Recalculate dues",
       detail: payload.ledgerReady
         ? "Ledger recalculation is already up to date for current students."
-        : "Run ledger recalculation so the collection desk sees correct installment dues.",
+        : "Automatic dues sync is still catching up. Use manual update only if an admin wants to refresh immediately.",
       href: "/protected/fee-setup/generate",
       status:
         payload.ledgerReady
@@ -364,7 +362,7 @@ function buildFlowItems(payload: {
       label: "Start collections",
       detail: payload.readiness.collectionDeskReady
         ? "The collection desk can begin posting receipts for the active session."
-        : "Collections should start only after student import, anomaly review, ledger recalculation, and setup completion.",
+        : "Collections should start only after the blocking setup, fee defaults, and student records are ready.",
       href: "/protected/collections",
       status: payload.readiness.collectionDeskReady ? "current" : "upcoming",
     },
@@ -525,7 +523,7 @@ async function loadSetupWizardData(): Promise<SetupWizardData> {
   return {
     policy: setupData.globalPolicy,
     schoolDefault: setupData.schoolDefault,
-    setupLocked: Boolean(completionState.setupCompletedAt),
+    setupLocked: Boolean(completionState.setupCompletedAt) && readiness.readyForCompletion,
     sessionSuggestions: dedupeSessionSuggestions([
       activeSessionLabel,
       ...classRows.map((row) => row.session_label),
@@ -800,10 +798,6 @@ export async function saveSetupClassDefaults(rows: SaveSetupClassDefaultInput[])
 
 export async function markSetupStageComplete(completionNotes: string | null) {
   const readiness = await getSetupWizardData();
-
-  if (!readiness.readiness.readyForCompletion) {
-    throw new Error("Finish the blocking setup steps before marking setup complete.");
-  }
 
   const supabase = await createClient();
   const values = {

@@ -161,30 +161,6 @@ export function buildOfficeWorkflowReadiness(
       };
     }
 
-    if (missingItems.has("ledgers_generated")) {
-      return {
-        title: "Dues need recalculation before payments",
-        adminDetail:
-          "Students and fee setup exist, but installment dues are not in sync. Recalculate dues before live collection.",
-        nonAdminDetail:
-          "Payment posting is waiting on admin setup. Dues recalculation must be completed first.",
-        actionLabel: "Recalculate dues",
-        actionHref: "/protected/fee-setup/generate",
-      };
-    }
-
-    if (missingItems.size === 1 && missingItems.has("collection_desk_ready") && input.setupReadyForCompletion) {
-      return {
-        title: "Mark setup complete before live posting",
-        adminDetail:
-          "Core setup checks are complete. Mark setup complete to open the collection desk for live posting.",
-        nonAdminDetail:
-          "Payment posting is waiting on admin setup. The setup completion step is still pending.",
-        actionLabel: "Mark setup complete",
-        actionHref: "/protected/setup#complete",
-      };
-    }
-
     return {
       title: "Finish setup before posting payments.",
       adminDetail:

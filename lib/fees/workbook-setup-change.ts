@@ -938,7 +938,11 @@ export async function applyWorkbookFeeSetupBatch(
     }
 
     after(async () => {
-      await syncAfterFeeSetupChangeForSession(storedPayload.academicSessionLabel);
+      try {
+        await syncAfterFeeSetupChangeForSession(storedPayload.academicSessionLabel);
+      } catch {
+        // Non-fatal: dues sync is background work.
+      }
     });
 
     return {

@@ -60,7 +60,7 @@ export default async function SetupPage() {
 
         <SectionCard
           title="Operational path"
-          description="The office should move through setup, import, review, ledger recalculation, and collections in this order."
+          description="The office should move through setup, import, review, automatic dues sync, and collections in this order."
         >
           <SetupFlowList items={data.flow} />
         </SectionCard>

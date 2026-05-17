@@ -84,7 +84,7 @@ export type LedgerRegenerationActionState = {
   status: LedgerRegenerationActionStatus;
   message: string | null;
   batchId: string | null;
-  preview: LedgerRegenerationPreview | null;
+  preview?: LedgerRegenerationPreview | null;
 };
 
 export const INITIAL_LEDGER_REGENERATION_ACTION_STATE: LedgerRegenerationActionState = {
