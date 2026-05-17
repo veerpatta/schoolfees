@@ -1,1 +1,1 @@
-export { updateSession } from "@/utils/supabase/middleware";
+export { updateSession } from "./middleware";
