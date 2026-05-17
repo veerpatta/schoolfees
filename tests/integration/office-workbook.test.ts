@@ -5,7 +5,7 @@ import {
   buildOfficeWorkbookHref,
   normalizeOfficeWorkbookView,
   officeWorkbookMeta,
-} from "@/lib/office/workbook";
+} from "@/lib/transactions/workbook";
 
 describe("office workbook helpers", () => {
   it("falls back to receipt register for unknown workbook views", () => {
@@ -13,7 +13,7 @@ describe("office workbook helpers", () => {
   });
 
   it("reports whether workbook view params were recognized", async () => {
-    const { resolveOfficeWorkbookView } = await import("@/lib/office/workbook");
+    const { resolveOfficeWorkbookView } = await import("@/lib/transactions/workbook");
 
     expect(resolveOfficeWorkbookView("imports")).toEqual({
       view: "transactions",

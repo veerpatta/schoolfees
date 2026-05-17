@@ -29,7 +29,7 @@ Internal office/accounts fee-management app for **Shri Veer Patta Senior Seconda
 - `tests/*`: unit/integration/ui/db test suites
 - `docs/product/*`: product scope, school rules, and roadmap
 - `docs/modules/*`: module guides for office workflows
-- `docs/maps/*`: folder, database, and module maps
+- `docs/maps/*`: folder, database, module, legacy route, and danger-zone maps
 - `docs/design/*`: design system notes
 - `docs/workflows/*`: current operational workflows
 - `docs/history/*`: historical UAT/import plans and previews
@@ -56,9 +56,16 @@ Internal office/accounts fee-management app for **Shri Veer Patta Senior Seconda
 - Students: `app/protected/students`, `lib/students`, `components/students`
 - Fee Setup: `app/protected/fee-setup`, `lib/setup`, `lib/fees`, `components/fees`
 - Imports: `app/protected/imports`, `lib/import`, `components/imports`
-- Transactions: `app/protected/transactions`, `lib/ledger`, `lib/reports`
+- Transactions: `app/protected/transactions`, `lib/transactions`, `lib/ledger`, `lib/reports`
 - Defaulters: `app/protected/defaulters`, `lib/defaulters`
 - Exports: `app/protected/exports`, `lib/reports`
 - Admin tools: `app/protected/admin-tools` (+ legacy redirect from `/protected/advanced`)
 - Database: `supabase/schema.sql`, `supabase/migrations/*`
 - Tests: `tests/unit`, `tests/integration`, `tests/ui`, `tests/db`
+
+## New module-aligned folders
+- `lib/transactions/`: workbook-style Transactions views and downloads; currently holds `workbook.ts` and `dues.ts` moved from `lib/office/`.
+
+## Compatibility maps
+- Legacy routes: `docs/maps/legacy-routes.md`
+- Danger zones: `docs/maps/danger-zones.md`

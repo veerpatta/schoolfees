@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 
-import { getOfficeWorkbookData } from "@/lib/office/dues";
-import type { OfficeWorkbookView } from "@/lib/office/workbook";
+import { getOfficeWorkbookData } from "@/lib/transactions/dues";
+import type { OfficeWorkbookView } from "@/lib/transactions/workbook";
 import { getStudents, getStudentFormOptions } from "@/lib/students/data";
 import { getStudentConventionalDiscountAssignments } from "@/lib/fees/data";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/lib/supabase/session";

@@ -36,7 +36,7 @@ describe("office performance guardrails", () => {
   });
 
   it("keeps interactive Transactions limited while allowing full exports", () => {
-    const officeDues = readRepoFile("lib/office/dues.ts");
+    const officeDues = readRepoFile("lib/transactions/dues.ts");
     const exportRoute = readRepoFile("app/protected/transactions/export/route.ts");
 
     expect(officeDues).toContain("exportAll?: boolean");

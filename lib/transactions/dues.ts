@@ -3,7 +3,7 @@ import "server-only";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { getReportsPageData, normalizeReportFilters } from "@/lib/reports/data";
 import type { ImportVerificationDetailRow } from "@/lib/reports/types";
-import type { OfficeWorkbookView } from "@/lib/office/workbook";
+import type { OfficeWorkbookView } from "@/lib/transactions/workbook";
 import { createClient } from "@/lib/supabase/server";
 import {
   getWorkbookClassOptions,

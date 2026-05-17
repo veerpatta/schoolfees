@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 
-import { getOfficeWorkbookData } from "@/lib/office/dues";
-import { normalizeOfficeWorkbookView } from "@/lib/office/workbook";
+import { getOfficeWorkbookData } from "@/lib/transactions/dues";
+import { normalizeOfficeWorkbookView } from "@/lib/transactions/workbook";
 import { serializeCsv } from "@/lib/reports/data";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/lib/supabase/session";
 

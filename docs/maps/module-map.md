@@ -34,7 +34,7 @@ Keep this file focused on module ownership, routes, data dependencies, and tests
 ## Transactions
 - Route: `/protected/transactions`
 - Components: `components/office` and transaction tables
-- Lib: `lib/ledger`, `lib/reports`
+- Lib: `lib/ledger`, `lib/reports`, `lib/transactions`
 - DB deps: payments/receipts/adjustments ledger surfaces
 - Tests: `tests/integration/payment-workflow.test.ts`
 

@@ -14,9 +14,9 @@ const hasStaffPermission = vi.fn();
 
 vi.mock("server-only", () => ({}));
 
-vi.mock("@/lib/office/dues", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/office/dues")>(
-    "@/lib/office/dues",
+vi.mock("@/lib/transactions/dues", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/transactions/dues")>(
+    "@/lib/transactions/dues",
   );
 
   return {

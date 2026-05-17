@@ -102,7 +102,7 @@ describe("source of truth audit fixes", () => {
   });
 
   it("transactions_class_register_exports_missing_dues", () => {
-    const officeDues = readRepoFile("lib/office/dues.ts");
+    const officeDues = readRepoFile("lib/transactions/dues.ts");
     const transactionsExport = readRepoFile("app/protected/transactions/export/route.ts");
 
     expect(officeDues).toContain('"missing_dues" as const');

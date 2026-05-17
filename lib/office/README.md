@@ -1,12 +1,21 @@
 # Office Lib
 
-Domain for shared office projections, dues views, readiness, and workbook-backed
-operational data.
+Shared office helpers that do not belong to one module.
 
-Paired components: `components/office`.
+Remaining files:
 
-Supports read-only office surfaces such as Transactions, Defaulters, Exports,
-and operational checks.
+- `data.ts` - cross-module office readiness and overview data.
+- `readiness.ts` - workflow guard helper used by 8+ modules.
 
-Keep projections derived from Students + Fee Setup. Do not add payment-posting
-paths here.
+These helpers support module pages without owning module-specific behavior.
+
+Module-specific logic belongs in focused folders:
+
+- Transactions: `lib/transactions`
+- Payment Desk: `lib/payments`
+- Students: `lib/students`
+- Fee Setup: `lib/fees`, `lib/setup`
+- Imports: `lib/import`
+- Defaulters: `lib/defaulters`
+
+Do not add payment-posting paths here.

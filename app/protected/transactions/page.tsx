@@ -13,7 +13,7 @@ import {
   getOfficeWorkbookData,
   type OfficeWorkbookStudentRow,
   type OfficeWorkbookSummary,
-} from "@/lib/office/dues";
+} from "@/lib/transactions/dues";
 import {
   buildOfficeWorkbookExportHref,
   buildOfficeWorkbookHref,
@@ -21,7 +21,7 @@ import {
   officeWorkbookViews,
   resolveOfficeWorkbookView,
   type OfficeWorkbookView,
-} from "@/lib/office/workbook";
+} from "@/lib/transactions/workbook";
 import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { getSetupWizardData } from "@/lib/setup/data";
