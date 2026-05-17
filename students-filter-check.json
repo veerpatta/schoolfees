@@ -1,0 +1,8 @@
+{
+  "clicked": true,
+  "selected": "Nursery",
+  "resultLine": "Loading...",
+  "rowCount": 0,
+  "rows": [],
+  "url": "http://127.0.0.1:3000/protected/students?session=TEST-2026-27&classId=464b8973-9dbc-4911-8b06-4a2adc073ef7&status=active"
+}

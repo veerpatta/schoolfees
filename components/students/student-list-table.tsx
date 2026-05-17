@@ -1,10 +1,9 @@
 import Link from "next/link";
 
-import { StatusBadge } from "@/components/admin/status-badge";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
-import { isPendingAdmissionNo } from "@/lib/students/constants";
 import type { StudentListItem } from "@/lib/students/types";
+import { cn } from "@/lib/utils";
 
 type StudentListTableProps = {
   students: StudentListItem[];
@@ -12,6 +11,38 @@ type StudentListTableProps = {
   canWrite: boolean;
   returnTo: string;
 };
+
+function DuesChip({ student }: { student: StudentListItem }) {
+  if (student.duesStatus !== "generated") {
+    return (
+      <span className="inline-flex items-center rounded-full border bg-surface-2 px-2 py-0.5 text-xs text-muted-foreground">
+        Dues not prepared
+      </span>
+    );
+  }
+
+  if (student.outstandingAmount <= 0) {
+    return (
+      <span className="inline-flex items-center rounded-full border bg-success-soft px-2 py-0.5 text-xs font-medium text-success-soft-foreground">
+        {formatInr(0)} paid
+      </span>
+    );
+  }
+
+  if (student.statusLabel === "OVERDUE") {
+    return (
+      <span className="inline-flex items-center rounded-full border bg-destructive-soft px-2 py-0.5 text-xs font-medium text-destructive-soft-foreground">
+        {formatInr(student.outstandingAmount)} overdue
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center rounded-full border bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning-soft-foreground">
+      {formatInr(student.outstandingAmount)} due
+    </span>
+  );
+}
 
 export function StudentListTable({
   students,
@@ -29,9 +60,9 @@ export function StudentListTable({
             : "Start by adding the first student record for this session."}
         </p>
         {!hasFilters && canWrite ? (
-          <Button className="mt-4" asChild>
-            <Link href="/protected/students/new">Add first student</Link>
-          </Button>
+          <Link href="/protected/students/new" className={cn(buttonVariants(), "mt-4")}>
+            Add first student
+          </Link>
         ) : null}
       </div>
     );
@@ -45,46 +76,33 @@ export function StudentListTable({
 
           return (
           <div key={student.id} className="rounded-xl border border-border bg-card p-3">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-semibold text-foreground">{student.fullName}</p>
-                  {srNoMissing ? (
-                    <span className="rounded-full border bg-warning-soft px-2 py-0.5 text-xs text-warning-soft-foreground">
-                      SR no missing
-                    </span>
-                  ) : null}
+            <Link href={`/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`} className="block">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold text-foreground">{student.fullName}</p>
+                    {srNoMissing ? (
+                      <span className="rounded-full border bg-warning-soft px-2 py-0.5 text-xs text-warning-soft-foreground">
+                        SR no missing
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="text-xs text-muted-foreground">SR no {student.admissionNo}</p>
                 </div>
-                <p className="text-xs text-muted-foreground">SR no {student.admissionNo}</p>
+                <DuesChip student={student} />
               </div>
-              <StatusBadge
-                label={student.duesStatus === "generated" ? student.statusLabel || "Prepared" : "Dues not prepared"}
-                tone={student.duesStatus === "generated" ? "good" : "warning"}
-              />
-            </div>
-            <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-              <p>Class: {student.classLabel}</p>
-              <p>Route: {student.transportRouteLabel}</p>
-              <p className="col-span-2 text-sm font-semibold text-foreground">
-                Outstanding: {formatInr(student.outstandingAmount)}
-              </p>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`}>
-                  View
-                </Link>
-              </Button>
-              {canWrite ? (
-                <Button size="sm" asChild>
-                  <Link href={`/protected/students/${student.id}/edit?returnTo=${encodeURIComponent(returnTo)}`}>
-                    Edit
-                  </Link>
-                </Button>
-              ) : null}
-              <Button variant="ghost" size="sm" asChild>
-                <Link href={`/protected/payments?studentId=${student.id}`}>Payment</Link>
-              </Button>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                <p>Class: {student.classLabel}</p>
+                <p>Route: {student.transportRouteLabel}</p>
+              </div>
+            </Link>
+            <div className="mt-3">
+              <Link
+                href={`/protected/payments?studentId=${student.id}`}
+                className={buttonVariants({ variant: "ghost", size: "sm" })}
+              >
+                Collect
+              </Link>
             </div>
           </div>
           );
@@ -106,9 +124,6 @@ export function StudentListTable({
               Transport
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Dues status
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Outstanding
             </th>
             <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -121,14 +136,15 @@ export function StudentListTable({
             const srNoMissing = student.status === "active" && !student.admissionNo.trim();
 
             return (
-            <tr key={student.id} className="align-top">
+            <tr
+              key={student.id}
+              className="group cursor-pointer align-top"
+              onClick={() => {
+                window.location.href = `/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`;
+              }}
+            >
               <td className="px-4 py-3 text-sm text-foreground">
                 <p>{student.admissionNo}</p>
-                {isPendingAdmissionNo(student.admissionNo) ? (
-                  <span className="mt-1 inline-flex rounded-full border bg-warning-soft px-2 py-0.5 text-xs text-warning-soft-foreground">
-                    SR pending
-                  </span>
-                ) : null}
               </td>
               <td className="px-4 py-3">
                 <div className="flex flex-wrap items-center gap-2">
@@ -155,31 +171,30 @@ export function StudentListTable({
               <td className="px-4 py-3 text-sm text-foreground">{student.classLabel}</td>
               <td className="px-4 py-3 text-sm text-foreground">{student.transportRouteLabel}</td>
               <td className="px-4 py-3">
-                <StatusBadge
-                  label={student.duesStatus === "generated" ? student.statusLabel || "Prepared" : "Dues not prepared"}
-                  tone={student.duesStatus === "generated" ? "good" : "warning"}
-                />
-              </td>
-              <td className="px-4 py-3 text-sm font-medium text-foreground">
-                {formatInr(student.outstandingAmount)}
+                <DuesChip student={student} />
               </td>
               <td className="px-4 py-3 text-right">
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`}>
-                      View
-                    </Link>
-                  </Button>
+                <div className="flex justify-end gap-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                   {canWrite ? (
-                    <Button size="sm" asChild>
-                      <Link href={`/protected/students/${student.id}/edit?returnTo=${encodeURIComponent(returnTo)}`}>
-                        Edit
-                      </Link>
-                    </Button>
+                    <Link
+                      href={`/protected/students/${student.id}/edit?returnTo=${encodeURIComponent(returnTo)}`}
+                      className={buttonVariants({ size: "sm" })}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                      }}
+                    >
+                      Edit
+                    </Link>
                   ) : null}
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link href={`/protected/payments?studentId=${student.id}`}>More</Link>
-                  </Button>
+                  <Link
+                    href={`/protected/payments?studentId=${student.id}`}
+                    className={buttonVariants({ variant: "ghost", size: "sm" })}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                    }}
+                  >
+                    Collect
+                  </Link>
                 </div>
               </td>
             </tr>

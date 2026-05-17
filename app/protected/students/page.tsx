@@ -6,6 +6,12 @@ import { StudentSessionMismatchActions } from "@/components/students/student-ses
 import { StudentBulkImportDialogTrigger } from "@/components/students/student-bulk-import-dialog";
 import { StudentQuickLoad } from "@/components/students/student-quick-load";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { STUDENT_STATUSES } from "@/lib/students/constants";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import {
@@ -157,25 +163,25 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
                 sessionOptions={sessionOptions}
                 defaultSessionLabel={filters.sessionLabel}
               />
-              <details className="relative">
-                <summary className="inline-flex h-9 cursor-pointer list-none items-center justify-center rounded-lg border border-input bg-card px-4 py-2 text-sm font-semibold shadow-sm hover:bg-accent">
-                  More templates
-                </summary>
-                <div className="absolute right-0 z-20 mt-2 w-72 rounded-xl border border-border bg-card p-3 shadow-lg">
-                  <div className="grid gap-2">
-                    <Button asChild variant="outline">
-                      <Link href={withSession(`/protected/imports/template?mode=add&sessionLabel=${encodeURIComponent(filters.sessionLabel)}`)}>
-                        Download Add Template
-                      </Link>
-                    </Button>
-                    <Button asChild variant="outline">
-                      <Link href={withSession("/protected/imports/template?mode=update")}>
-                        Download Update Template
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              </details>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" aria-label="More templates">
+                    Templates
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  <DropdownMenuItem asChild>
+                    <Link href={withSession(`/protected/imports/template?mode=add&sessionLabel=${encodeURIComponent(filters.sessionLabel)}`)}>
+                      Download Add Template
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href={withSession("/protected/imports/template?mode=update")}>
+                      Download Update Template
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </OfficeActionBar>
           ) : (
             <StatusBadge label="Read-only access" tone="warning" />
@@ -226,7 +232,6 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
         initialStudents={students}
         initialPage={page}
         initialTotalCount={totalCount}
-        sessionOptions={sessionOptions}
         classOptions={classOptions}
         routeOptions={routeOptions}
         canWrite={canWriteStudents}
