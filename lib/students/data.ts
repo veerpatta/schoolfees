@@ -403,7 +403,7 @@ async function getStudentsPageUncached(
   },
 ) {
   const supabase = await createClient();
-  const policy = await getFeePolicySummary();
+  const listSessionLabel = filters.sessionLabel;
   const page = Math.max(1, Math.floor(pagination.page));
   const pageSize = Math.min(100, Math.max(1, Math.floor(pagination.pageSize)));
   const from = (page - 1) * pageSize;
@@ -471,7 +471,7 @@ async function getStudentsPageUncached(
         .eq("is_active", true)
         .in("student_id", studentIds),
       getStudentConventionalDiscountAssignments({
-        academicSessionLabel: policy.academicSessionLabel,
+        academicSessionLabel: listSessionLabel,
         studentIds,
       }).catch(() => []),
     ]);
@@ -523,11 +523,13 @@ async function getStudentsPageUncached(
     const financial = financialMap.get(row.id) ?? null;
     const override = overrideMap.get(row.id) ?? null;
     const classSessionLabel = classRef?.session_label ?? "";
+    const expectedSessionLabel = listSessionLabel || classSessionLabel;
     const duesStatus =
       financial
         ? "generated"
         : classSessionLabel &&
-            normalizeSessionKey(classSessionLabel) !== normalizeSessionKey(policy.academicSessionLabel)
+            expectedSessionLabel &&
+            normalizeSessionKey(classSessionLabel) !== normalizeSessionKey(expectedSessionLabel)
           ? "session_mismatch"
           : "missing_dues";
     const duesStatusLabel =
