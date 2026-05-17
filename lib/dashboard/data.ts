@@ -283,6 +283,39 @@ function loadDashboardSyncHealth(sessionLabel: string) {
   )();
 }
 
+function loadDashboardRefundState() {
+  return unstable_cache(
+    async () => {
+      const supabase = await createClient();
+      const { data, error } = await supabase
+        .from("v_student_financial_state")
+        .select("refundable_amount")
+        .gt("refundable_amount", 0);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      return (data ?? []) as Array<{ refundable_amount: number | null }>;
+    },
+    ["dashboard-refund-state"],
+    {
+      revalidate: 60,
+    },
+  )();
+}
+
+function loadRawActiveSessionStudentCount(sessionLabel: string) {
+  return unstable_cache(
+    async () => getRawActiveSessionStudentCount(sessionLabel),
+    ["dashboard-raw-student-count", sessionLabel],
+    {
+      tags: [sessionTag(sessionLabel)],
+      revalidate: 120,
+    },
+  )();
+}
+
 async function optionalLoad<T>(
   label: string,
   loader: () => Promise<T>,
@@ -422,13 +455,7 @@ export async function getDashboardAboveFoldData(options: {
   const policy = await getFeePolicySummary();
   const sessionLabel = options.sessionLabel ?? policy.academicSessionLabel;
   const _t0 = Date.now();
-  const [rawStudentCount, financialRowsRaw, transactions, todayTransactions, refundStateRows] = await Promise.all([
-    optionalLoad(
-      "raw active student count",
-      () => getRawActiveSessionStudentCount(sessionLabel),
-      0,
-      warnings,
-    ),
+  const [financialRowsRaw, transactions, todayTransactions] = await Promise.all([
     optionalLoad(
       "workbook student financials",
       () => loadDashboardFinancialRows(sessionLabel),
@@ -447,20 +474,25 @@ export async function getDashboardAboveFoldData(options: {
       [],
       warnings,
     ),
-    optionalLoad(
-      "refund due state",
-      async () => {
-        const supabase = await createClient();
-        const { data, error } = await supabase
-          .from("v_student_financial_state")
-          .select("refundable_amount")
-          .gt("refundable_amount", 0);
-        if (error) throw new Error(error.message);
-        return (data ?? []) as Array<{ refundable_amount: number | null }>;
-      },
-      [],
-      warnings,
-    ),
+  ]);
+  let rawStudentCount = 0;
+  let refundStateRows: Array<{ refundable_amount: number | null }> = [];
+
+  await Promise.all([
+    (async () => {
+      try {
+        rawStudentCount = await loadRawActiveSessionStudentCount(sessionLabel);
+      } catch {
+        // Safe fallback: buildDashboardSummary uses activeStudents.length.
+      }
+    })(),
+    (async () => {
+      try {
+        refundStateRows = await loadDashboardRefundState();
+      } catch {
+        // Safe fallback: totalRefundDue remains 0.
+      }
+    })(),
   ]);
   console.log(`[dashboard-above-fold] loaded in ${Date.now() - _t0}ms`);
   const financialRows = financialRowsRaw.filter((row) => row.recordStatus === "active");
@@ -520,11 +552,10 @@ export async function getDashboardPageData(options: {
     installmentRows,
     transactions,
     todayTransactions,
-    refundStateRows,
   ] = await Promise.all([
     optionalLoad(
       "raw active student count",
-      () => getRawActiveSessionStudentCount(sessionLabel),
+      () => loadRawActiveSessionStudentCount(sessionLabel),
       0,
       warnings,
     ),
@@ -558,33 +589,27 @@ export async function getDashboardPageData(options: {
       [],
       warnings,
     ),
-    optionalLoad(
-      "refund due state",
-      async () => {
-        const supabase = await createClient();
-        const { data, error } = await supabase
-          .from("v_student_financial_state")
-          .select("refundable_amount")
-          .gt("refundable_amount", 0);
-
-        if (error) {
-          throw new Error(error.message);
-        }
-
-        return (data ?? []) as Array<{ refundable_amount: number | null }>;
-      },
-      [],
-      warnings,
-    ),
   ]);
   // "dashboard sync health" is advisory; a timeout here must not mark the
   // financial numbers as incomplete.
+  let refundStateRows: Array<{ refundable_amount: number | null }> = [];
   let systemSyncHealth: DashboardSyncHealth | null = null;
-  try {
-    systemSyncHealth = await loadDashboardSyncHealth(sessionLabel);
-  } catch {
-    systemSyncHealth = null;
-  }
+  await Promise.all([
+    (async () => {
+      try {
+        refundStateRows = await loadDashboardRefundState();
+      } catch {
+        refundStateRows = [];
+      }
+    })(),
+    (async () => {
+      try {
+        systemSyncHealth = await loadDashboardSyncHealth(sessionLabel);
+      } catch {
+        systemSyncHealth = null;
+      }
+    })(),
+  ]);
   console.log(`[dashboard-page-data] loaded in ${Date.now() - _tp0}ms`);
   const financialRows = financialRowsRaw.filter((row) => row.recordStatus === "active");
   const overdueInstallments = installmentRows.filter(
