@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 
 import {
   approveAllSafeImportRows,
@@ -15,7 +16,10 @@ import { getStudentImportColumnMapping } from "@/lib/import/mapping";
 import type { ImportAnomalyCategory } from "@/lib/import/types";
 import type { ImportMode } from "@/lib/import/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
-import { revalidateCoreFinancePaths } from "@/lib/system-sync/finance-sync";
+import {
+  prepareDuesForStudentsAutomatically,
+  revalidateCoreFinancePaths,
+} from "@/lib/system-sync/finance-sync";
 import { publishOfficeSyncEvent } from "@/lib/system-sync/office-sync-events";
 
 function normalizeImportMode(value: FormDataEntryValue | string | null): ImportMode {
@@ -256,6 +260,18 @@ export async function commitStudentImportBatchAction(formData: FormData) {
         duesAttentionCount: result.duesAttentionCount,
       },
     });
+
+    const importedStudentIds = result.affectedStudentIds ?? [];
+
+    if (importedStudentIds.length > 0) {
+      after(async () => {
+        await prepareDuesForStudentsAutomatically({
+          studentIds: importedStudentIds,
+          reason: "Bulk import auto-prepare",
+          useSystemClient: true,
+        });
+      });
+    }
 
     if (result.ledgerSyncError) {
       revalidateImportPostCommit(result.affectedStudentIds);

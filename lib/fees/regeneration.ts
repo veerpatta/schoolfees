@@ -1019,8 +1019,7 @@ export async function applyLedgerRegenerationBatch(batchId: string) {
       status: "applied",
       apply_summary: applySummary,
       applied_at: new Date().toISOString(),
-      apply_notes:
-        "Applied safely: only no-payment rows were recalculated. Rows with payments or adjustments were left untouched for manual review.",
+      apply_notes: "Applied. Rows with prior payments were preserved automatically.",
     })
     .eq("id", batch.id)
     .eq("status", "preview_ready");
@@ -1032,6 +1031,6 @@ export async function applyLedgerRegenerationBatch(batchId: string) {
   return {
     preview: previewSummary,
     applied: applySummary,
-    message: `Applied ${batch.policy_revision_label}: ${ledgerResult.installmentsToInsert} inserts, ${ledgerResult.installmentsToUpdate} updates, ${ledgerResult.installmentsToCancel} cancellations, and ${ledgerResult.lockedInstallments} rows left for manual review.`,
+    message: `Applied ${batch.policy_revision_label}: ${ledgerResult.installmentsToInsert} inserts, ${ledgerResult.installmentsToUpdate} updates, ${ledgerResult.installmentsToCancel} cancellations. Rows with prior payments were preserved.`,
   };
 }

@@ -31,7 +31,6 @@ import { RateGauge } from "@/components/ui/rate-gauge";
 import { Section } from "@/components/ui/section";
 import {
   getDashboardAboveFoldData,
-  getDashboardAlerts,
   getDashboardPageData,
   type DashboardAlert,
 } from "@/lib/dashboard/data";
@@ -122,33 +121,25 @@ function InstallmentPulse({
   );
 }
 
-async function CriticalAlerts({
-  staffRole,
-  sessionLabel,
-  emptyState,
-  hasTodayReceipts,
-  loadWarnings,
+function CriticalAlerts({
+  syncError,
+  appRole,
 }: {
-  staffRole: Awaited<ReturnType<typeof requireStaffPermission>>["appRole"];
-  sessionLabel: string;
-  emptyState: Awaited<ReturnType<typeof getDashboardAboveFoldData>>["emptyState"];
-  hasTodayReceipts: boolean;
-  loadWarnings: readonly string[];
+  syncError: boolean;
+  appRole: string;
 }) {
-  const alerts = await getDashboardAlerts({
-    staffRole,
-    sessionLabel,
-    emptyState,
-    hasTodayReceipts,
-    loadWarnings,
-  });
-  const criticalAlerts = alerts.filter((alert) => alert.tone === "danger" || alert.tone === "warning");
-
-  if (criticalAlerts.length === 0) {
+  if (!syncError) {
     return null;
   }
 
-  return <AlertsPanel alerts={criticalAlerts} />;
+  return (
+    <Notice tone="warning" title="Data sync issue">
+      Some fee data could not be loaded. Numbers may be incomplete.
+      {appRole === "admin" ? (
+        <> <Link href="/protected/admin-tools#fee-data-troubleshooting" className="underline">Check Admin Tools</Link> for details.</>
+      ) : null}
+    </Notice>
+  );
 }
 
 function getCollectionRateSignal(rate: number): {
@@ -845,26 +836,15 @@ function AlertsPanel({ alerts }: { alerts: DashboardAlert[] }) {
 
 function FeeDataAttentionBanner({
   health,
-  canAutoPrepareDues,
 }: {
   health: NonNullable<Awaited<ReturnType<typeof getDashboardPageData>>["systemSyncHealth"]>;
-  canAutoPrepareDues: boolean;
 }) {
   const needsAttention =
     health.sessionMismatch ||
-    health.studentsMissingInstallmentRows > 0 ||
-    health.studentsMissingFinancialRows > 0 ||
-    health.studentsWithNoFeeSetting > 0 ||
-    !health.paymentPreviewReady ||
     !health.paymentDeskReady ||
     !health.dashboardReady;
 
-  if (
-    !needsAttention ||
-    (canAutoPrepareDues &&
-      health.studentsMissingInstallmentRows > 0 &&
-      health.studentsWithNoFeeSetting === 0)
-  ) {
+  if (!needsAttention) {
     return null;
   }
 
@@ -880,9 +860,8 @@ function FeeDataAttentionBanner({
         </Button>
       }
     >
-      {health.studentsMissingInstallmentRows > 0
-        ? `${health.studentsMissingInstallmentRows} student${health.studentsMissingInstallmentRows === 1 ? "" : "s"} have dues not prepared.`
-        : "Open Admin Tools for the detailed fee data status and follow-up actions."}
+      The payment desk or dashboard data layer is not responding correctly.
+      Open Admin Tools → Fee Data Troubleshooting for details.
     </Notice>
   );
 }
@@ -1002,10 +981,7 @@ async function DashboardBelowFold({
         ))}
 
       {staffRole === "admin" && data.systemSyncHealth ? (
-        <FeeDataAttentionBanner
-          health={data.systemSyncHealth}
-          canAutoPrepareDues={canAutoPrepareDues}
-        />
+        <FeeDataAttentionBanner health={data.systemSyncHealth} />
       ) : null}
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
@@ -1186,18 +1162,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             ))}
           </div>
         </Section>
-      ) : !aboveFold.emptyState.hasFinancialData ? (
-        <Notice
-          tone="warning"
-          title="Students found, dues missing"
-          action={
-            <Button asChild size="sm" variant="outline">
-              <Link href={withSession("/protected/admin-tools#fee-data-troubleshooting")}>Prepare dues</Link>
-            </Button>
-          }
-        >
-          Students exist for this year, but their payable dues are not ready yet.
-        </Notice>
       ) : null}
 
       {/* Hero strip */}
@@ -1215,15 +1179,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           pending={aboveFold.kpis.totalPending}
           followUpCount={aboveFold.studentsWithPending}
         />
-        <Suspense fallback={null}>
-          <CriticalAlerts
-            staffRole={staff.appRole}
-            sessionLabel={viewSession.sessionLabel}
-            emptyState={aboveFold.emptyState}
-            hasTodayReceipts={aboveFold.kpis.receiptsToday > 0}
-            loadWarnings={aboveFold.loadWarnings}
-          />
-        </Suspense>
+        <CriticalAlerts syncError={aboveFold.syncError} appRole={staff.appRole} />
         <div className="anim-fade-in [animation-delay:60ms]">
           <QuickActions
             canWriteStudents={canWriteStudents}

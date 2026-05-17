@@ -3,7 +3,6 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 
 import { hasAnyRolePermission, type StaffRole } from "@/lib/auth/roles";
-import { getRecentConfigChangeLog } from "@/lib/fees/change-log";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
 import { getSetupWizardData } from "@/lib/setup/data";
@@ -39,19 +38,6 @@ type ImportBatchRow = {
   duplicate_rows: number;
   failed_rows: number;
   created_at: string;
-};
-
-type LedgerRegenerationBatchRow = {
-  id: string;
-  policy_revision_label: string;
-  reason: string;
-  status: "preview_ready" | "applied" | "stale" | "failed" | "cancelled";
-  created_at: string;
-  preview_summary: {
-    rowsRequiringReview?: number;
-    rowsRecalculated?: number;
-    affectedStudents?: number;
-  } | null;
 };
 
 export type DashboardAlert = {
@@ -367,65 +353,14 @@ async function getImportIssueAlerts(): Promise<DashboardAlert[]> {
     }));
 }
 
-async function getLedgerReviewAlerts(): Promise<DashboardAlert[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("ledger_regeneration_batches")
-    .select("id, policy_revision_label, reason, status, created_at, preview_summary")
-    .order("created_at", { ascending: false })
-    .limit(6);
-
-  if (error) {
-    throw new Error(`Unable to load dues update alerts: ${error.message}`);
-  }
-
-  return ((data ?? []) as LedgerRegenerationBatchRow[])
-    .filter((row) => {
-      const requiringReview = Number(row.preview_summary?.rowsRequiringReview ?? 0);
-      return requiringReview > 0 || row.status === "failed" || row.status === "preview_ready";
-    })
-    .slice(0, 2)
-    .map((row) => {
-      const requiringReview = Number(row.preview_summary?.rowsRequiringReview ?? 0);
-      return {
-        key: `ledger-${row.id}`,
-        title:
-          row.status === "failed"
-            ? "Dues update failed"
-            : requiringReview > 0
-              ? "Dues update needs review"
-              : "Dues update waiting",
-        detail:
-          requiringReview > 0
-            ? `${requiringReview} row${requiringReview === 1 ? "" : "s"} are protected from automatic update and need manual review.`
-            : row.reason || "A dues update review is waiting for the next step.",
-        tone: row.status === "failed" ? "danger" as const : "warning" as const,
-        actionHref: "/protected/fee-setup/generate",
-        actionLabel: "Review dues update",
-      };
-    });
-}
-
-async function getConfigChangeAlerts(): Promise<DashboardAlert[]> {
-  const recentConfigChanges = await getRecentConfigChangeLog(6);
-
-  return recentConfigChanges
-    .filter((item) => item.status === "preview_ready")
-    .slice(0, 2)
-    .map((item) => ({
-      key: `config-${item.id}`,
-      title: "Fee setup review is pending",
-      detail: `${item.scopeLabel} for ${item.targetLabel} is saved for review but not live yet.`,
-      tone: "warning" as const,
-      actionHref: "/protected/fee-setup",
-      actionLabel: "Open Fee Setup",
-    }));
-}
-
 async function getSetupAlerts(
   staffRole: StaffRole,
   warnings: string[],
 ): Promise<DashboardAlert[]> {
+  if (staffRole !== "admin") {
+    return [];
+  }
+
   const setup = await optionalLoad(
     "setup readiness",
     () => getSetupWizardData(),
@@ -492,31 +427,17 @@ function buildDashboardStateAlerts(payload: {
       actionHref: "/protected/students/new",
       actionLabel: "Add student",
     });
-  } else if (!payload.emptyState.hasFinancialData) {
-    alerts.push({
-      key: "dues-missing",
-      title: "Students found, dues missing",
-      detail: "Students exist in the active fee setup session, but dues are not prepared yet.",
-      tone: "warning",
-      actionHref: "/protected/admin-tools#fee-data-troubleshooting",
-      actionLabel: "Prepare missing dues",
-    });
   }
 
-  if (!payload.emptyState.hasReceipts) {
+  if (
+    payload.emptyState.hasStudents &&
+    payload.emptyState.hasFinancialData &&
+    !payload.emptyState.hasReceipts
+  ) {
     alerts.push({
       key: "no-receipts",
       title: "No receipts posted yet",
       detail: "Today and trend sections will fill in after payments are posted at the Payment Desk.",
-      tone: "info",
-      actionHref: "/protected/payments",
-      actionLabel: "Open Payment Desk",
-    });
-  } else if (!payload.hasTodayReceipts) {
-    alerts.push({
-      key: "no-receipts-today",
-      title: "No receipts today",
-      detail: "No collection has been posted for the current school day yet.",
       tone: "info",
       actionHref: "/protected/payments",
       actionLabel: "Open Payment Desk",
@@ -530,7 +451,6 @@ function canShowAlert(alert: DashboardAlert, staffRole: StaffRole) {
   const href = alert.actionHref ?? "";
 
   if (
-    alert.key === "dues-missing" ||
     href.startsWith("/protected/admin-tools") ||
     href.startsWith("/protected/fee-setup")
   ) {
@@ -566,14 +486,12 @@ export function filterDashboardAlertsForRole(alerts: DashboardAlert[], staffRole
 }
 
 async function getDashboardReviewAlerts(staffRole: StaffRole, warnings: string[]) {
-  const [configAlerts, importAlerts, ledgerAlerts, setupAlerts] = await Promise.all([
-    optionalLoad("fee setup review alerts", getConfigChangeAlerts, [], warnings),
+  const [importAlerts, setupAlerts] = await Promise.all([
     optionalLoad("student import alerts", getImportIssueAlerts, [], warnings),
-    optionalLoad("dues update alerts", getLedgerReviewAlerts, [], warnings),
     getSetupAlerts(staffRole, warnings),
   ]);
 
-  return [...setupAlerts, ...configAlerts, ...ledgerAlerts, ...importAlerts];
+  return [...setupAlerts, ...importAlerts];
 }
 
 export async function getDashboardAlerts(options: {
@@ -682,6 +600,7 @@ export async function getDashboardAboveFoldData(options: {
     totalRefundDue,
     canPostPayments: hasAnyRolePermission(staffRole, ["payments:write"]),
     loadWarnings: warnings,
+    syncError: warnings.length > 0,
   };
 }
 

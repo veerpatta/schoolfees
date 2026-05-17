@@ -1,5 +1,7 @@
 import "server-only";
 
+import { after } from "next/server";
+
 import { createClient } from "@/lib/supabase/server";
 import {
   generateSessionLedgersAction,
@@ -12,6 +14,7 @@ import {
   upsertGlobalFeePolicy,
   upsertTransportDefault,
 } from "@/lib/fees/policy";
+import { syncAfterFeeSetupChangeForSession } from "@/lib/system-sync/finance-sync";
 import {
   buildWorkbookClassSetupRows,
   buildWorkbookRouteSetupRows,
@@ -923,7 +926,7 @@ export async function applyWorkbookFeeSetupBatch(
         apply_summary: applySummary,
         applied_at: new Date().toISOString(),
         apply_notes:
-          "Applied from workbook-style Fee Setup. Only future or unpaid rows were updated; locked rows were marked for review.",
+          "Applied from workbook-style Fee Setup. Only future or unpaid rows were updated; rows with prior payments were preserved automatically.",
       })
       .eq("id", batch.id)
       .eq("status", "preview_ready");
@@ -934,10 +937,14 @@ export async function applyWorkbookFeeSetupBatch(
       );
     }
 
+    after(async () => {
+      await syncAfterFeeSetupChangeForSession(storedPayload.academicSessionLabel);
+    });
+
     return {
       preview: previewSummary,
       applied: applySummary,
-      message: `Fee Setup saved: ${applySummary.classRowsCreated} class rows created, ${applySummary.classRowsUpdated} class rows updated, ${applySummary.routeRowsCreated} route rows created, ${applySummary.routeRowsUpdated} route rows updated, and ${ledgerResult.lockedInstallments} rows kept for review.`,
+      message: `Fee Setup saved: ${applySummary.classRowsCreated} class rows created, ${applySummary.classRowsUpdated} class rows updated, ${applySummary.routeRowsCreated} route rows created, ${applySummary.routeRowsUpdated} route rows updated.`,
     };
   } catch (errorValue) {
     const message =

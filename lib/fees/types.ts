@@ -78,7 +78,7 @@ export type LedgerRegenerationPreview = {
   reviewRows: LedgerRegenerationReviewRow[];
 };
 
-export type LedgerRegenerationActionStatus = "idle" | "preview" | "success" | "error";
+export type LedgerRegenerationActionStatus = "idle" | "success" | "error";
 
 export type LedgerRegenerationActionState = {
   status: LedgerRegenerationActionStatus;

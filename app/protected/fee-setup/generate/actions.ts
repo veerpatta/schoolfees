@@ -10,28 +10,11 @@ import type { LedgerRegenerationActionState } from "@/lib/fees/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import { revalidateCoreFinancePaths } from "@/lib/system-sync/finance-sync";
 
-function parseIntent(formData: FormData) {
-  const intent = (formData.get("_intent") ?? "preview").toString().trim();
-  return intent === "apply" ? "apply" : "preview";
-}
-
 function parseRequiredString(value: FormDataEntryValue | null, label: string) {
   const normalized = (value ?? "").toString().trim();
 
   if (!normalized) {
     throw new Error(`${label} is required.`);
-  }
-
-  return normalized;
-}
-
-function parseUuid(value: FormDataEntryValue | null, label: string) {
-  const normalized = (value ?? "").toString().trim();
-  const uuidPattern =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-  if (!uuidPattern.test(normalized)) {
-    throw new Error(`${label} is invalid.`);
   }
 
   return normalized;
@@ -43,22 +26,9 @@ function toErrorState(error: unknown): LedgerRegenerationActionState {
     message:
       error instanceof Error
         ? error.message
-        : "Unable to review dues update right now. Please try again.",
+        : "Unable to run dues update right now. Please try again.",
     batchId: null,
     preview: null,
-  };
-}
-
-function toPreviewState(payload: {
-  batchId: string;
-  preview: NonNullable<LedgerRegenerationActionState["preview"]>;
-  message: string;
-}): LedgerRegenerationActionState {
-  return {
-    status: "preview",
-    message: payload.message,
-    batchId: payload.batchId,
-    preview: payload.preview,
   };
 }
 
@@ -69,28 +39,6 @@ function toSuccessState(message: string): LedgerRegenerationActionState {
     batchId: null,
     preview: null,
   };
-}
-
-function buildPreviewMessage(payload: {
-  policyRevisionLabel: string;
-  rowsRecalculated: number;
-  rowsSkipped: number;
-  rowsRequiringReview: number;
-  studentsAffected: number;
-}) {
-  return `Review ready for ${payload.policyRevisionLabel}: ${payload.rowsRecalculated} rows will be updated, ${payload.rowsSkipped} rows will be skipped, and ${payload.rowsRequiringReview} rows need manual review across ${payload.studentsAffected} students.`;
-}
-
-function buildApplyMessage(payload: {
-  policyRevisionLabel: string;
-  rowsInserted: number;
-  rowsUpdated: number;
-  rowsCancelled: number;
-  rowsRequiringReview: number;
-}) {
-  const recalculated = payload.rowsInserted + payload.rowsUpdated + payload.rowsCancelled;
-
-  return `Saved ${payload.policyRevisionLabel}: ${recalculated} rows updated (${payload.rowsInserted} inserted, ${payload.rowsUpdated} updated, ${payload.rowsCancelled} cancelled) and ${payload.rowsRequiringReview} rows still need manual review.`;
 }
 
 function revalidateRegenerationSurface() {
@@ -114,37 +62,21 @@ export async function runLedgerRegenerationAction(
   try {
     await requireStaffPermission("fees:write");
 
-    if (parseIntent(formData) === "apply") {
-      const batchId = parseUuid(formData.get("batchId"), "Preview batch");
-      const result = await applyLedgerRegenerationBatch(batchId);
-      revalidateRegenerationSurface();
+    const reason = parseRequiredString(formData.get("reason"), "Reason");
+    const previewResult = await createLedgerRegenerationPreview({ reason });
+    const result = await applyLedgerRegenerationBatch(previewResult.batchId);
 
-      return toSuccessState(
-        buildApplyMessage({
-          policyRevisionLabel: result.applied.policyRevisionLabel as string,
-          rowsInserted: Number(result.applied.rowsInserted ?? 0),
-          rowsUpdated: Number(result.applied.rowsUpdated ?? 0),
-          rowsCancelled: Number(result.applied.rowsCancelled ?? 0),
-          rowsRequiringReview: Number(result.applied.rowsRequiringReview ?? 0),
-        }),
-      );
-    }
+    revalidateRegenerationSurface();
 
-    const previewResult = await createLedgerRegenerationPreview({
-      reason: parseRequiredString(formData.get("reason"), "Reason"),
-    });
+    const recalculated =
+      Number(result.applied.rowsInserted ?? 0) +
+      Number(result.applied.rowsUpdated ?? 0) +
+      Number(result.applied.rowsCancelled ?? 0);
+    const studentsAffected = Number(result.applied.affectedStudents ?? 0);
 
-    return toPreviewState({
-      batchId: previewResult.batchId,
-      preview: previewResult.preview,
-      message: buildPreviewMessage({
-        policyRevisionLabel: previewResult.preview.policyRevisionLabel,
-        rowsRecalculated: previewResult.preview.rowsRecalculated,
-        rowsSkipped: previewResult.preview.rowsSkipped,
-        rowsRequiringReview: previewResult.preview.rowsRequiringReview,
-        studentsAffected: previewResult.preview.affectedStudents,
-      }),
-    });
+    return toSuccessState(
+      `Dues updated: ${recalculated} rows recalculated across ${studentsAffected} students.`,
+    );
   } catch (error) {
     return toErrorState(error);
   }

@@ -19,8 +19,8 @@ export default async function GenerateLedgerPage() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Fee Setup"
-        title="Check dues update"
-        description="Check how the current Fee Setup will update future and unpaid dues before you save the dues update."
+        title="Apply dues update"
+        description="Apply the current Fee Setup to all unpaid and future dues. Rows with existing payments are preserved."
       />
 
       {!readiness.recalculateLedgers.isReady ? (
@@ -43,7 +43,7 @@ export default async function GenerateLedgerPage() {
                 <p className="text-sm font-semibold text-foreground">{batch.policyRevisionLabel}</p>
                 <p className="mt-1 text-sm text-muted-foreground">{batch.reason}</p>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  {batch.rowsRecalculated} rows checked, {batch.rowsRequiringReview} rows held for review.
+                  {batch.rowsRecalculated} rows recalculated. Rows with prior payments were preserved.
                 </p>
               </div>
             ))}
