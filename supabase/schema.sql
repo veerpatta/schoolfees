@@ -3195,13 +3195,12 @@ language sql
 stable
 set search_path = public, private
 as $$
-  with active_policy as (
-    select academic_session_label
+  with session_policy as (
+    select distinct on (academic_session_label)
+      academic_session_label
     from public.fee_policy_configs
-    where is_active = true
-      and calculation_model = 'workbook_v1'
-    order by updated_at desc
-    limit 1
+    where calculation_model = 'workbook_v1'
+    order by academic_session_label, updated_at desc
   ),
   session_installments as (
     select
@@ -3232,7 +3231,7 @@ as $$
       on s.id = i.student_id
     join public.classes as c
       on c.id = i.class_id
-    join active_policy as policy_row
+    join session_policy as policy_row
       on policy_row.academic_session_label = c.session_label
     left join public.student_fee_overrides as override_row
       on override_row.student_id = i.student_id
@@ -3420,17 +3419,15 @@ drop view if exists public.v_workbook_student_financials;
 create or replace view public.v_workbook_student_financials
 with (security_invoker = true)
 as
-with active_policy as (
+with session_policy as (
   select
     academic_session_label,
     installment_schedule,
     new_student_academic_fee_amount,
     old_student_academic_fee_amount
   from public.fee_policy_configs
-  where is_active = true
-    and calculation_model = 'workbook_v1'
-  order by updated_at desc
-  limit 1
+  where calculation_model = 'workbook_v1'
+  order by academic_session_label, updated_at desc
 ),
 school_default as (
   select
@@ -3472,7 +3469,7 @@ student_base as (
       when override_row.custom_transport_fee_amount is not null then override_row.custom_transport_fee_amount
       when s.transport_route_id is not null then coalesce(
         route_row.annual_fee_amount,
-        route_row.default_installment_amount * jsonb_array_length(active_policy.installment_schedule)
+        route_row.default_installment_amount * jsonb_array_length(session_policy.installment_schedule)
       )
       else 0
     end as transport_fee,
@@ -3498,8 +3495,8 @@ student_base as (
   from public.students as s
   join public.classes as c
     on c.id = s.class_id
-  join active_policy
-    on active_policy.academic_session_label = c.session_label
+  join session_policy
+    on session_policy.academic_session_label = c.session_label
   left join school_default
     on true
   left join public.fee_settings as fee_row
@@ -3515,12 +3512,12 @@ student_profile as (
   select
     student_base.*,
     case
-      when student_base.student_status_code = 'new' then active_policy.new_student_academic_fee_amount
-      else active_policy.old_student_academic_fee_amount
+      when student_base.student_status_code = 'new' then session_policy.new_student_academic_fee_amount
+      else session_policy.old_student_academic_fee_amount
     end as academic_fee
   from student_base
-  join active_policy
-    on active_policy.academic_session_label = student_base.session_label
+  join session_policy
+    on session_policy.academic_session_label = student_base.session_label
 ),
 student_profile_enriched as (
   select
@@ -3729,13 +3726,11 @@ begin
   select fpc.calculation_model, fpc.academic_session_label
   into active_policy_model, active_policy_session
   from public.fee_policy_configs as fpc
-  where fpc.is_active = true
+  where fpc.academic_session_label = student_session_label
   order by fpc.updated_at desc
   limit 1;
 
-  use_workbook_mode :=
-    active_policy_model = 'workbook_v1'
-    and student_session_label = active_policy_session;
+  use_workbook_mode := active_policy_model = 'workbook_v1';
 
   normalized_prefix := nullif(trim(coalesce(p_receipt_prefix, '')), '');
 
@@ -4162,13 +4157,12 @@ language sql
 stable
 set search_path = public, private
 as $$
-  with active_policy as (
-    select academic_session_label
+  with session_policy as (
+    select distinct on (academic_session_label)
+      academic_session_label
     from public.fee_policy_configs
-    where is_active = true
-      and calculation_model = 'workbook_v1'
-    order by updated_at desc
-    limit 1
+    where calculation_model = 'workbook_v1'
+    order by academic_session_label, updated_at desc
   ),
   session_installments as (
     select
@@ -4199,7 +4193,7 @@ as $$
       on s.id = i.student_id
     join public.classes as c
       on c.id = i.class_id
-    join active_policy as policy_row
+    join session_policy as policy_row
       on policy_row.academic_session_label = c.session_label
     left join public.student_fee_overrides as override_row
       on override_row.student_id = i.student_id
@@ -4393,17 +4387,15 @@ drop view if exists public.v_workbook_student_financials;
 create or replace view public.v_workbook_student_financials
 with (security_invoker = true)
 as
-with active_policy as (
+with session_policy as (
   select
     academic_session_label,
     installment_schedule,
     new_student_academic_fee_amount,
     old_student_academic_fee_amount
   from public.fee_policy_configs
-  where is_active = true
-    and calculation_model = 'workbook_v1'
-  order by updated_at desc
-  limit 1
+  where calculation_model = 'workbook_v1'
+  order by academic_session_label, updated_at desc
 ),
 school_default as (
   select
@@ -4445,7 +4437,7 @@ student_base as (
       when override_row.custom_transport_fee_amount is not null then override_row.custom_transport_fee_amount
       when s.transport_route_id is not null then coalesce(
         route_row.annual_fee_amount,
-        route_row.default_installment_amount * jsonb_array_length(active_policy.installment_schedule)
+        route_row.default_installment_amount * jsonb_array_length(session_policy.installment_schedule)
       )
       else 0
     end as transport_fee,
@@ -4472,8 +4464,8 @@ student_base as (
   from public.students as s
   join public.classes as c
     on c.id = s.class_id
-  join active_policy
-    on active_policy.academic_session_label = c.session_label
+  join session_policy
+    on session_policy.academic_session_label = c.session_label
   left join school_default
     on true
   left join public.fee_settings as fee_row
@@ -4489,12 +4481,12 @@ student_profile as (
   select
     student_base.*,
     case
-      when student_base.student_status_code = 'new' then active_policy.new_student_academic_fee_amount
-      else active_policy.old_student_academic_fee_amount
+      when student_base.student_status_code = 'new' then session_policy.new_student_academic_fee_amount
+      else session_policy.old_student_academic_fee_amount
     end as academic_fee
   from student_base
-  join active_policy
-    on active_policy.academic_session_label = student_base.session_label
+  join session_policy
+    on session_policy.academic_session_label = student_base.session_label
 ),
 student_profile_enriched as (
   select
@@ -4659,17 +4651,17 @@ select
   case when nullif(trim(profile.student_status_code), '') is null then true else false end as missing_status_flag,
   profile.override_reason
 from student_profile_enriched as profile
-
--- Supports session-scoped dashboard financial view queries
-create index if not exists idx_students_active_session_dashboard
-  on students (status, class_id)
-  where status = 'active';
 left join installment_summary as summary
   on summary.student_id = profile.student_id
 left join next_due
   on next_due.student_id = profile.student_id
 left join last_payment
   on last_payment.student_id = profile.student_id;
+
+-- Supports session-scoped dashboard financial view queries
+create index if not exists idx_students_active_session_dashboard
+  on students (status, class_id)
+  where status = 'active';
 
 create or replace view public.v_student_financial_state
 with (security_invoker = true)

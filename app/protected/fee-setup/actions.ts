@@ -19,7 +19,10 @@ import type {
   FeeSetupActionState,
 } from "@/lib/fees/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
-import { revalidateCoreFinancePaths } from "@/lib/system-sync/finance-sync";
+import {
+  repairMissingDues,
+  revalidateCoreFinancePaths,
+} from "@/lib/system-sync/finance-sync";
 import {
   buildSyncedOfficeSyncOutcome,
   type OfficeSyncOutcome,
@@ -370,7 +373,52 @@ export async function saveWorkbookFeeSetupAction(
       return toSuccessState(result.message, syncOutcome);
     }
 
-    const previewResult = await createWorkbookFeeSetupPreview(payload);
+    let previewResult: Awaited<ReturnType<typeof createWorkbookFeeSetupPreview>>;
+
+    try {
+      previewResult = await createWorkbookFeeSetupPreview(payload);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+
+      if (intent !== "save" || !message.includes("No Fee Setup changes detected")) {
+        throw error;
+      }
+
+      await upsertConventionalDiscountPolicies({
+        academicSessionLabel: payload.academicSessionLabel,
+        policies: conventionalDiscountPolicies,
+      });
+      const repairResult = await repairMissingDues(payload.academicSessionLabel);
+      revalidateFeeSetupSurface();
+      const syncOutcome = buildSyncedOfficeSyncOutcome({
+        sessionLabel: payload.academicSessionLabel,
+        affectedStudentIds: [],
+      });
+      await publishOfficeSyncEvent({
+        sessionLabel: payload.academicSessionLabel,
+        entityType: "fee_setup",
+        entityId: payload.academicSessionLabel,
+        action: "resynced",
+        metadata: {
+          status: syncOutcome.status,
+          inserted: repairResult.installmentsToInsert,
+          updated: repairResult.installmentsToUpdate,
+          cancelled: repairResult.installmentsToCancel,
+        },
+      });
+
+      const changedRows =
+        repairResult.installmentsToInsert +
+        repairResult.installmentsToUpdate +
+        repairResult.installmentsToCancel;
+      const syncMessage =
+        changedRows > 0
+          ? `Fee Setup saved. Dues synced automatically: ${changedRows} fee record${changedRows === 1 ? "" : "s"} prepared.`
+          : "Fee Setup saved. Dues are already synced.";
+
+      return toSuccessState(syncMessage, syncOutcome);
+    }
+
     const preview = previewResult.preview;
 
     if (intent === "save") {

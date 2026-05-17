@@ -8,6 +8,7 @@ const getActiveSessionLabel = vi.fn();
 const setActiveSessionLabel = vi.fn();
 const revalidatePath = vi.fn();
 const revalidateCoreFinancePaths = vi.fn();
+const repairMissingDues = vi.fn();
 
 vi.mock("server-only", () => ({}));
 
@@ -37,6 +38,7 @@ vi.mock("@/lib/session/set-active", () => ({
 }));
 
 vi.mock("@/lib/system-sync/finance-sync", () => ({
+  repairMissingDues,
   revalidateCoreFinancePaths,
 }));
 
@@ -84,6 +86,11 @@ describe("Fee Setup publish working-session behavior", () => {
     upsertConventionalDiscountPolicies.mockResolvedValue(undefined);
     getActiveSessionLabel.mockResolvedValue("2026-27");
     setActiveSessionLabel.mockResolvedValue(undefined);
+    repairMissingDues.mockResolvedValue({
+      installmentsToInsert: 0,
+      installmentsToUpdate: 0,
+      installmentsToCancel: 0,
+    });
   });
 
   it("publishes the already-active session without switching", async () => {
@@ -108,6 +115,25 @@ describe("Fee Setup publish working-session behavior", () => {
       expect.objectContaining({ academicSessionLabel: "2026-27" }),
     );
     expect(result.message).toContain("Fee Setup saved");
+  });
+
+  it("saving an unchanged Fee Setup resyncs missing dues instead of blocking staff", async () => {
+    createWorkbookFeeSetupPreview.mockRejectedValueOnce(
+      new Error("No Fee Setup changes detected. Update at least one value before reviewing."),
+    );
+    repairMissingDues.mockResolvedValueOnce({
+      installmentsToInsert: 4,
+      installmentsToUpdate: 0,
+      installmentsToCancel: 0,
+    });
+    const { saveWorkbookFeeSetupAction } = await import("@/app/protected/fee-setup/actions");
+
+    const result = await saveWorkbookFeeSetupAction(previousState, workbookSaveForm("TEST-2026-27"));
+
+    expect(result.status).toBe("success");
+    expect(repairMissingDues).toHaveBeenCalledWith("TEST-2026-27");
+    expect(applyWorkbookFeeSetupBatch).not.toHaveBeenCalled();
+    expect(result.message).toContain("Dues synced automatically");
   });
 
   it("publishes a different working session without switching the default active session", async () => {

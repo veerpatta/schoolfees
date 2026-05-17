@@ -37,11 +37,14 @@ describe("source of truth audit fixes", () => {
     }
 
     const setActive = readRepoFile("lib/session/set-active.ts");
+    const feePolicy = readRepoFile("lib/fees/policy.ts");
 
-    expect(setActive).toContain(".from(\"fee_policy_configs\")");
-    expect(setActive).toContain("is_active: true");
+    expect(setActive).not.toContain(".from(\"fee_policy_configs\")");
     expect(setActive).toContain(".from(\"academic_sessions\")");
     expect(setActive).toContain("is_current: true");
+    expect(feePolicy).toContain(".from(\"fee_policy_configs\")");
+    expect(feePolicy).toContain(".neq(\"academic_session_label\", values.academic_session_label)");
+    expect(feePolicy).toContain("await setActiveSessionLabel(values.academic_session_label)");
   });
 
   it("reports_outstanding_uses_workbook_balances", () => {
@@ -164,6 +167,38 @@ describe("source of truth audit fixes", () => {
     expect(feePolicy).toContain("activateSession?: boolean");
     expect(feePolicy).toContain("const shouldActivateSession = payload.activateSession ?? true");
     expect(feePolicy).toMatch(/if \(shouldActivateSession\) \{\s+await setActiveSessionLabel/);
+  });
+
+  it("workbook_financial_views_are_session_scoped_not_live_policy_only", () => {
+    const schema = readRepoFile("supabase/schema.sql");
+    const migration = readRepoFile(
+      "supabase/migrations/20260517120000_session_scoped_workbook_financials.sql",
+    );
+    const snapshotFunction = schema.slice(
+      schema.lastIndexOf("create or replace function private.workbook_installment_snapshot"),
+      schema.lastIndexOf("create or replace view public.v_workbook_installment_balances"),
+    );
+    const studentFinancialView = schema.slice(
+      schema.lastIndexOf("create or replace view public.v_workbook_student_financials"),
+      schema.lastIndexOf("create or replace view public.v_student_financial_state"),
+    );
+    const paymentFunction = schema.slice(
+      schema.lastIndexOf("create or replace function public.post_student_payment"),
+    );
+
+    expect(snapshotFunction).toContain("select distinct on (academic_session_label)");
+    expect(snapshotFunction).toContain("join session_policy as policy_row");
+    expect(snapshotFunction).not.toContain(
+      "where is_active = true\n      and calculation_model = 'workbook_v1'",
+    );
+    expect(studentFinancialView).toContain("with session_policy as");
+    expect(studentFinancialView).toContain("order by academic_session_label, updated_at desc");
+    expect(studentFinancialView).not.toContain(
+      "where is_active = true\n    and calculation_model = 'workbook_v1'",
+    );
+    expect(paymentFunction).toContain("where fpc.academic_session_label = student_session_label");
+    expect(paymentFunction).toContain("use_workbook_mode := active_policy_model = 'workbook_v1'");
+    expect(migration).toContain("Make workbook financial projections session-scoped");
   });
 
   it("server_actions_do_not_export_runtime_type_only_session_values", () => {

@@ -20,24 +20,6 @@ export async function setActiveSessionLabel(label: string) {
     throw new Error(settingsError.message);
   }
 
-  const { error: deactivatePoliciesError } = await supabase
-    .from("fee_policy_configs")
-    .update({ is_active: false })
-    .neq("academic_session_label", normalizedLabel);
-
-  if (deactivatePoliciesError) {
-    throw new Error(deactivatePoliciesError.message);
-  }
-
-  const { error: activatePolicyError } = await supabase
-    .from("fee_policy_configs")
-    .update({ is_active: true })
-    .eq("academic_session_label", normalizedLabel);
-
-  if (activatePolicyError) {
-    throw new Error(activatePolicyError.message);
-  }
-
   const { error: clearSessionsError } = await supabase
     .from("academic_sessions")
     .update({ is_current: false })
