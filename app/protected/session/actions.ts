@@ -1,10 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateTag } from "next/cache";
 
 import { parseAcademicSessionLabel } from "@/lib/config/fee-rules";
 import type { AvailableSessionRow } from "@/lib/session/available-sessions";
-import { setViewSessionCookie } from "@/lib/session/cookie";
+import { getViewSessionCookie, setViewSessionCookie } from "@/lib/session/cookie";
 import { getSessionSwitcherData } from "@/lib/session/switcher";
 import { requireAuthenticatedStaff } from "@/lib/supabase/session";
 
@@ -17,9 +17,14 @@ export async function listAvailableSessionsAction(): Promise<AvailableSessionRow
 export async function setViewSessionAction(label: string) {
   await requireAuthenticatedStaff();
   const sessionLabel = parseAcademicSessionLabel(label).normalizedLabel;
+  const previousLabel = await getViewSessionCookie();
 
   await setViewSessionCookie(sessionLabel);
-  revalidatePath("/protected");
+
+  if (previousLabel) {
+    revalidateTag(`session:${previousLabel}`, "max");
+  }
+  revalidateTag(`session:${sessionLabel}`, "max");
 
   const { availableSessions } = await getSessionSwitcherData();
 

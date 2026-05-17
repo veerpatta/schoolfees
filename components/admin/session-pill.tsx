@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -14,6 +14,7 @@ import {
   setViewSessionAction,
 } from "@/app/protected/session/actions";
 import type { AvailableSessionRow } from "@/lib/session/available-sessions";
+import { useSessionSwitching } from "@/lib/session/switching-context";
 
 type SessionPillProps = {
   currentLabel: string;
@@ -93,12 +94,15 @@ export function SessionPill({
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const [sessions, setSessions] = useState<AvailableSessionRow[]>(initialSessions);
   const [isSwitching, setIsSwitching] = useState(false);
+  const [isRefreshing, startNavTransition] = useTransition();
+  const { setIsSwitching: setGlobalSessionSwitching } = useSessionSwitching();
   const urlSession = normalizeSessionLabel(searchParams.get("session"));
   const [optimisticLabel, setOptimisticLabel] = useState<string | null>(null);
   const displayLabel = optimisticLabel ?? urlSession ?? currentLabel;
   const displayIsTest =
     optimisticLabel || urlSession ? isTestSession(optimisticLabel ?? urlSession ?? "") : isTest;
   const groups = useMemo(() => groupSessions(sessions), [sessions]);
+  const isTransitioning = isSwitching || isRefreshing;
 
   useEffect(() => {
     if (initialSessions.length > 0) {
@@ -129,6 +133,14 @@ export function SessionPill({
     setOptimisticLabel(null);
   }, [currentLabel, urlSession]);
 
+  useEffect(() => {
+    setGlobalSessionSwitching(isTransitioning);
+
+    return () => {
+      setGlobalSessionSwitching(false);
+    };
+  }, [isTransitioning, setGlobalSessionSwitching]);
+
   useEffect(
     () =>
       syncTestSessionBodyAttribute(document.body, {
@@ -141,7 +153,7 @@ export function SessionPill({
   function selectSession(label: string) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("session", label);
-    const targetHref = `${pathname}?${params.toString()}`;
+    let targetHref = `${pathname}?${params.toString()}`;
 
     setOptimisticLabel(label);
     setIsSwitching(true);
@@ -162,11 +174,14 @@ export function SessionPill({
           }
 
           params.set("session", result.sessionLabel);
-          const targetHref = `${pathname}?${params.toString()}`;
-          router.prefetch(targetHref);
+          targetHref = `${pathname}?${params.toString()}`;
+
           setIsSwitching(false);
-          router.replace(targetHref, { scroll: false });
-          router.refresh();
+
+          startNavTransition(() => {
+            router.replace(targetHref, { scroll: false });
+            router.refresh();
+          });
         } else {
           setIsSwitching(false);
           setOptimisticLabel(null);
@@ -184,10 +199,10 @@ export function SessionPill({
         className={cn(
           "inline-flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-surface-2 focus-ring",
           displayIsTest && "border-fuchsia-500 text-fuchsia-700",
-          isSwitching && "opacity-75",
+          isTransitioning && "opacity-75",
         )}
         aria-label="Change academic session"
-        aria-busy={isSwitching}
+        aria-busy={isTransitioning}
       >
         <span className="text-muted-foreground">Session</span>
         <span>{displayLabel}</span>
@@ -196,14 +211,14 @@ export function SessionPill({
             TEST
           </span>
         ) : null}
-        {isSwitching ? (
+        {isTransitioning ? (
           <Loader2 className="size-3.5 motion-safe:animate-spin" aria-hidden="true" />
         ) : (
           <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden="true" />
         )}
       </summary>
       <div className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-lg">
-        {isSwitching ? (
+        {isTransitioning ? (
           <p className="px-2 py-1 text-xs font-medium text-muted-foreground">
             Changing to {displayLabel}...
           </p>
@@ -226,7 +241,7 @@ export function SessionPill({
                   <button
                     key={session.id}
                     type="button"
-                    disabled={isSwitching || selected}
+                    disabled={isTransitioning || selected}
                     onClick={() => selectSession(session.session_label)}
                     className={cn(
                       "flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent disabled:opacity-60",

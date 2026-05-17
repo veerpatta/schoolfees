@@ -7,10 +7,12 @@ import { SchoolBrand } from "@/components/branding/school-brand";
 import { MobileSessionPill } from "@/components/admin/mobile-session-pill";
 import { OfficeSyncListener } from "@/components/admin/office-sync-listener";
 import { SessionPill } from "@/components/admin/session-pill";
+import { SessionSwitchOverlayMount } from "@/components/admin/session-switch-overlay";
 import { getDefaultProtectedHref } from "@/lib/config/navigation";
 import { getFeePolicyForSession } from "@/lib/fees/data";
 import { formatInr } from "@/lib/helpers/currency";
 import { getSessionSwitcherData } from "@/lib/session/switcher";
+import { SessionSwitchingProvider } from "@/lib/session/switching-context";
 
 import { AppTopBar, MobileHeader } from "./app-topbar";
 import { MobileBottomNav } from "./mobile-bottom-nav";
@@ -40,7 +42,8 @@ export async function DashboardShell({
   const homeHref = getDefaultProtectedHref(staffRole);
 
   return (
-    <div className="min-h-svh bg-background text-foreground lg:h-screen lg:overflow-hidden">
+    <SessionSwitchingProvider>
+      <div className="min-h-svh bg-background text-foreground lg:h-screen lg:overflow-hidden">
       <Suspense fallback={null}>
         <RouteProgress />
         <OfficeSyncListener sessionLabel={viewSessionLabel} />
@@ -76,6 +79,7 @@ export async function DashboardShell({
       </aside>
 
       <div className="relative min-w-0 lg:ml-[252px] lg:h-screen lg:overflow-y-auto">
+        <SessionSwitchOverlayMount />
         <MobileHeader
           staffEmail={staffEmail}
           staffRole={staffRole}
@@ -106,6 +110,7 @@ export async function DashboardShell({
         </ScrollRestoringMain>
         <MobileBottomNav staffRole={staffRole} />
       </div>
-    </div>
+      </div>
+    </SessionSwitchingProvider>
   );
 }

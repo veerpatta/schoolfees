@@ -3,6 +3,8 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { useSessionSwitching } from "@/lib/session/switching-context";
+
 /**
  * Thin top-of-page indeterminate progress bar that fires on every client
  * navigation. Uses `usePathname` + `useSearchParams` so it triggers whenever
@@ -17,6 +19,8 @@ export function RouteProgress() {
   const [visible, setVisible] = useState(false);
   const timeoutRef = useRef<number | null>(null);
   const isFirstRender = useRef(true);
+  const { isSwitching } = useSessionSwitching();
+  const showProgress = visible || isSwitching;
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -49,13 +53,13 @@ export function RouteProgress() {
 
   return (
     <div
-      aria-hidden={!visible}
+      aria-hidden={!showProgress}
       className="pointer-events-none fixed inset-x-0 top-0 z-[60] h-0.5 print:hidden"
     >
       <div
         className={[
           "h-full origin-left bg-accent transition-opacity duration-150",
-          visible ? "opacity-100" : "opacity-0",
+          showProgress ? "opacity-100" : "opacity-0",
         ].join(" ")}
         style={{
           width: "100%",
