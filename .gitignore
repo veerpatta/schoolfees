@@ -48,3 +48,4 @@ next-env.d.ts
 /data/imports/backups/
 /docs/import-previews/*/apply-reports/
 /docs/import-previews/*/backups/
+.playwright-mcp/

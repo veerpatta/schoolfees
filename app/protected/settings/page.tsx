@@ -159,7 +159,7 @@ export default async function SettingsPage() {
             overrides.
           </div>
           <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm leading-6 text-foreground">
-            Manual UAT docs: <code>docs/uat-test-plan.md</code>,{" "}
+            Manual UAT docs: <code>docs/history/uat-test-plan.md</code>,{" "}
             <code>docs/test-data-setup.md</code>, and{" "}
             <code>docs/before-real-data-checklist.md</code>.
           </div>

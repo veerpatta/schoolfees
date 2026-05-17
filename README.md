@@ -17,6 +17,17 @@ This is an **internal office/accounts/admin** system for daily fee work:
 It is built to gradually replace workbook/Excel operations with safer, faster,
 audit-ready workflows.
 
+## Read First Before Product Decisions
+
+1. `AGENTS.md`
+2. `docs/product/project-context.md`
+3. `docs/product/mvp-scope.md`
+4. `docs/product/school-rules.md`
+5. `docs/modules/import.md`
+6. `docs/product/roadmap.md`
+7. `PRODUCTION_OPERATIONS_CHECKLIST.md`
+8. `UAT_CHECKLIST.md`
+
 ## 2) What this app is not
 
 - not a parent portal
@@ -278,13 +289,14 @@ node scripts/verify-required-sessions.mjs
 Detailed guides:
 
 - `PRODUCTION_OPERATIONS_CHECKLIST.md`
-- `docs/archive/uat-test-plan.md`
+- `UAT_CHECKLIST.md`
+- `docs/history/uat-test-plan.md`
 - `docs/workflows/test-data-setup.md`
 - `docs/workflows/production-operations-guide.md`
 
 ## 13) Current roadmap / pivot
 
-See `ROADMAP.md`.
+See `docs/product/roadmap.md`.
 
 Short version:
 

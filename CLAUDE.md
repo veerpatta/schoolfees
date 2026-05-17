@@ -2,6 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Read First Before Product Decisions
+
+1. `AGENTS.md`
+2. `docs/product/project-context.md`
+3. `docs/product/mvp-scope.md`
+4. `docs/product/school-rules.md`
+5. `docs/modules/import.md`
+6. `docs/product/roadmap.md`
+7. `PRODUCTION_OPERATIONS_CHECKLIST.md`
+8. `UAT_CHECKLIST.md`
+
 ## What This Project Is
 
 Internal fee-management admin app for **Shri Veer Patta Senior Secondary School (VPPS)**. One school, one tenant — not a parent portal, not public self-service, not multi-school SaaS. Audience is office staff, accounts team, and school admins.
@@ -51,6 +62,9 @@ Three roles defined in `lib/auth/roles.ts`: `admin`, `accountant`, `read_only_st
 
 ### Module Structure
 
+Folder structure: see `docs/maps/folder-map.md`.
+Keep this section for module ownership and routing guidance.
+
 Daily workspace modules under `app/protected/`, each with a parallel three-layer structure:
 
 | Module | Route | Purpose |
@@ -68,7 +82,10 @@ Every module follows: `app/protected/<module>/` (routes) + `components/<module>/
 
 ### Key Domain Files
 
-- `lib/config/fee-rules.ts` — session parsing, default schedules, core labels. This file and `SCHOOL_RULES.md` are authoritative when docs conflict.
+Folder structure: see `docs/maps/folder-map.md`.
+Keep this section for domain files that commonly anchor behavior changes.
+
+- `lib/config/fee-rules.ts` — session parsing, default schedules, core labels. This file and `docs/product/school-rules.md` are authoritative when docs conflict.
 - `lib/config/navigation.ts` — workspace nav items, route metadata, role-based visibility.
 - `lib/fees/policy.ts` — canonical active fee policy resolver (server-only).
 - `lib/fees/regeneration.ts` — safe dues recalculation logic.
@@ -150,7 +167,7 @@ Copy `.env.example` to `.env.local` for local development. Required values:
 
 ## Active AY 2026-27 Policy Defaults
 
-Canonical values (from `SCHOOL_RULES.md` and `lib/config/fee-rules.ts`):
+Canonical values (from `docs/product/school-rules.md` and `lib/config/fee-rules.ts`):
 - Late fee: ₹1,000 flat
 - Installment due dates: 20-04-2026, 20-07-2026, 20-10-2026, 20-01-2027
 - New student academic fee: ₹1,100 | Existing: ₹500

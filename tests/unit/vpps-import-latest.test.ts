@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import * as importer from "../../scripts/vpps-import-latest-2026-05-15.mjs";
+import * as importer from "../../scripts/_archive/2026-05-import/vpps-import-latest-2026-05-15.mjs";
 
 describe("vpps-import-latest-2026-05-15 helpers", () => {
   describe("normalizeClass", () => {

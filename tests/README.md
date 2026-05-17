@@ -1,5 +1,8 @@
 # Test Layout
 
+Folder structure: see `docs/maps/folder-map.md`.
+Keep this file focused on test suite responsibilities.
+
 - `tests/unit`: isolated pure/domain logic tests.
 - `tests/integration`: module/workflow/system integration tests.
 - `tests/ui`: route/component/resilience/UI policy tests.

@@ -1,0 +1,64 @@
+# VPPS Schoolfees Agent Map
+
+## What this app is
+Internal office/accounts fee-management app for **Shri Veer Patta Senior Secondary School (VPPS)**.
+
+## What this app is not
+- Not a parent portal
+- Not public self-service
+- Not multi-school SaaS
+
+## Read first
+1. `AGENTS.md`
+2. `docs/product/project-context.md`
+3. `docs/product/mvp-scope.md`
+4. `docs/product/school-rules.md`
+5. `docs/modules/import.md`
+6. `docs/product/roadmap.md`
+7. `PRODUCTION_OPERATIONS_CHECKLIST.md`
+8. `UAT_CHECKLIST.md`
+
+## Source of truth
+`Students` + `Fee Setup` are canonical. Dashboard, dues, Payment Desk, Transactions, Defaulters, and Exports must derive from these.
+
+## Folder map
+- `app/protected/*`: staff routes and module surfaces
+- `components/*`: UI by module + shared `components/ui`
+- `lib/*`: domain/business logic and data access
+- `supabase/schema.sql`, `supabase/migrations/*`: DB schema and changes
+- `tests/*`: unit/integration/ui/db test suites
+- `docs/product/*`: product scope, school rules, and roadmap
+- `docs/modules/*`: module guides for office workflows
+- `docs/maps/*`: folder, database, and module maps
+- `docs/design/*`: design system notes
+- `docs/workflows/*`: current operational workflows
+- `docs/history/*`: historical UAT/import plans and previews
+- `docs/plans/*`, `docs/specs/*`, `docs/samples/*`: implementation planning and samples
+
+## Module ownership quick map
+- Dashboard: analytics/read-only shortcuts
+- Students: student master + student-level exceptions
+- Fee Setup: school-wide AY policy/defaults
+- Payment Desk: only payment posting surface
+- Transactions: read-only financial history center
+- Defaulters: follow-up workspace
+- Exports: download workspace
+- Admin Tools: rare setup/config/troubleshooting
+
+## Safety rules
+- Preserve append-only payments, receipts, adjustments, and audit trails.
+- Do not alter payment/receipt history semantics.
+- Do not expose service-role keys in browser code.
+- Do not add hidden payment-posting paths outside Payment Desk.
+
+## Where to look
+- Payments: `app/protected/payments`, `lib/payments`, `components/payments`
+- Students: `app/protected/students`, `lib/students`, `components/students`
+- Fee Setup: `app/protected/fee-setup`, `lib/setup`, `lib/fees`, `components/fees`
+- Imports: `app/protected/imports`, `lib/import`, `components/imports`
+- Transactions: `app/protected/transactions`, `lib/ledger`, `lib/reports`
+- Defaulters: `app/protected/defaulters`, `lib/defaulters`
+- Exports: `app/protected/exports`, `lib/reports`
+- Admin tools: `app/protected/admin-tools` (+ legacy redirect from `/protected/advanced`)
+- Database: `supabase/schema.sql`, `supabase/migrations/*`
+- Tests: `tests/unit`, `tests/integration`, `tests/ui`, `tests/db`

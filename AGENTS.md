@@ -16,12 +16,13 @@ It is **not**:
 ## Read First Before Product Decisions
 
 1. `AGENTS.md`
-2. `PROJECT_CONTEXT.md`
-3. `MVP_SCOPE.md`
-4. `SCHOOL_RULES.md`
-5. `IMPORT_NOTES.md`
-6. `ROADMAP.md`
+2. `docs/product/project-context.md`
+3. `docs/product/mvp-scope.md`
+4. `docs/product/school-rules.md`
+5. `docs/modules/import.md`
+6. `docs/product/roadmap.md`
 7. `PRODUCTION_OPERATIONS_CHECKLIST.md`
+8. `UAT_CHECKLIST.md`
 
 ## Product Identity
 
@@ -157,6 +158,9 @@ Implemented/fixed paths to respect:
 - conventional discount policy tables + assignments are in schema
 
 ## Key Paths
+
+Folder structure: see `docs/maps/folder-map.md`.
+Keep this section for high-signal implementation entry points only.
 
 - `app/protected/dashboard/page.tsx`
 - `app/protected/students/*`

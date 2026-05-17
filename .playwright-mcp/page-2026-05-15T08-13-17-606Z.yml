@@ -1,8 +1,0 @@
-- generic [active] [ref=e1]:
-  - img "Loading..." [ref=e5]
-  - iframe [ref=e6]:
-    
-  - button "Open Intercom Messenger" [ref=e7] [cursor=pointer]:
-    - img [ref=e9]
-    - generic:
-      - img
