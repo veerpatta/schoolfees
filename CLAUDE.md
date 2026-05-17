@@ -98,9 +98,11 @@ Keep this section for domain files that commonly anchor behavior changes.
 ### Supabase Client Pattern
 
 Three clients used by context:
-- `utils/supabase/client.ts` — browser (client components)
-- `utils/supabase/server.ts` — Server Components, Route Handlers, Server Actions
+- `lib/supabase/client.ts` — browser (client components)
+- `lib/supabase/server.ts` — Server Components, Route Handlers, Server Actions
+- `lib/supabase/middleware.ts` + `lib/supabase/proxy.ts` — middleware session refresh
 - `lib/supabase/admin.ts` — service-role (server/scripts only; never expose to browser)
+- `lib/supabase/session.ts` — auth claims, RBAC guards, requireAuthenticatedStaff()
 
 `SUPABASE_SERVICE_ROLE_KEY` must never appear in `NEXT_PUBLIC_*` variables or be imported in browser code.
 

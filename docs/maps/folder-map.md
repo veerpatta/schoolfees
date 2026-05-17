@@ -25,6 +25,7 @@ Internal office/accounts fee-management app for **Shri Veer Patta Senior Seconda
 - `app/protected/*`: staff routes and module surfaces
 - `components/*`: UI by module + shared `components/ui`
 - `lib/*`: domain/business logic and data access
+- `lib/supabase/`: Supabase browser, server, middleware/proxy, admin, and session clients/helpers
 - `supabase/schema.sql`, `supabase/migrations/*`: DB schema and changes
 - `tests/*`: unit/integration/ui/db test suites
 - `docs/product/*`: product scope, school rules, and roadmap
@@ -62,6 +63,14 @@ Internal office/accounts fee-management app for **Shri Veer Patta Senior Seconda
 - Admin tools: `app/protected/admin-tools` (+ legacy redirect from `/protected/advanced`)
 - Database: `supabase/schema.sql`, `supabase/migrations/*`
 - Tests: `tests/unit`, `tests/integration`, `tests/ui`, `tests/db`
+
+## Supabase clients
+- `lib/supabase/client.ts`: browser client for Client Components and event handlers
+- `lib/supabase/server.ts`: server client for Server Components, Route Handlers, and Server Actions
+- `lib/supabase/middleware.ts`: middleware session refresh implementation
+- `lib/supabase/proxy.ts`: stable proxy export used by root `proxy.ts`
+- `lib/supabase/admin.ts`: service-role client for server/scripts only
+- `lib/supabase/session.ts`: auth claims, RBAC guards, and staff session helpers
 
 ## New module-aligned folders
 - `lib/transactions/`: workbook-style Transactions views and downloads; currently holds `workbook.ts` and `dues.ts` moved from `lib/office/`.
