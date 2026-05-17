@@ -172,7 +172,7 @@ describe("source of truth audit fixes", () => {
   it("workbook_financial_views_are_session_scoped_not_live_policy_only", () => {
     const schema = readRepoFile("supabase/schema.sql");
     const migration = readRepoFile(
-      "supabase/migrations/20260517120000_session_scoped_workbook_financials.sql",
+      "supabase/migrations/20260517075735_session_scoped_workbook_financials.sql",
     );
     const snapshotFunction = schema.slice(
       schema.lastIndexOf("create or replace function private.workbook_installment_snapshot"),
