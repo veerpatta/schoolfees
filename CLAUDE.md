@@ -98,7 +98,7 @@ The fee calculation engine is `workbook_v1`. Key DB objects:
 
 ### Academic Session Labels
 
-Format: `2026-27`. Test/UAT prefixes accepted: `TEST-2026-27`, `UAT-2026-27`, `DEMO-2026-27`. Parsing is handled by `parseAcademicSessionLabel()` in `lib/config/fee-rules.ts`. Always use `TEST-2026-27` or a local/staging environment for UAT — never post test payments against real students in `2026-27`.
+Format: `2026-27`. Test prefixes accepted: `TEST-2026-27`, `UAT-2026-27`, `DEMO-2026-27`. Parsing is handled by `parseAcademicSessionLabel()` in `lib/config/fee-rules.ts`. `2026-27` is the live production session. Use `TEST-2026-27` for all ongoing testing and debugging.
 
 ### Student Import
 
@@ -136,8 +136,17 @@ Copy `.env.example` to `.env.local` for local development. Required values:
 3. Keep public signup disabled after the bootstrap phase.
 4. The `/protected` root redirect must never loop back to itself.
 5. No alternate payment-posting paths outside Payment Desk (`/protected/payments`).
-6. Use `TEST-2026-27` (or local/staging) for all UAT — never test on live `2026-27` data.
+6. `2026-27` is the live production session with real school financial records.
+   Use `TEST-2026-27` for all testing and debugging. Never add test data,
+   post test payments, or make experimental changes to the `2026-27` session.
 7. Fee Setup publish must preview impact first and protect paid/partial/adjusted rows from silent rewrite.
+
+## Testing and Debugging Rules
+
+- Never modify the live `2026-27` session for testing.
+- Use `TEST-2026-27` for all ongoing testing.
+- Test student admission numbers must use the `TEST-` prefix.
+- Never post test payments against real students.
 
 ## Active AY 2026-27 Policy Defaults
 

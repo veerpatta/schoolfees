@@ -1,3 +1,8 @@
+> **ARCHIVED — UAT COMPLETE**
+> This test plan was used before go-live. The app is now live.
+> For current testing, use TEST-2026-27 session.
+> For production operations, see docs/workflows/production-operations-guide.md
+
 # VPPS UAT Test Plan
 
 Use this plan before entering real student records for Shri Veer Patta Senior

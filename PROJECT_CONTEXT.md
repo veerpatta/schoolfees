@@ -5,6 +5,13 @@
 This repo is the internal fee-management system for **one school**:
 Shri Veer Patta Senior Secondary School (VPPS / Veer Patta School).
 
+## Production Status
+
+The app is live as of AY 2026-27. Real student records, fee settings,
+payment receipts, and collection history are stored in the production database.
+The `TEST-2026-27` session is maintained in the same database for isolated
+testing and debugging.
+
 Audience:
 
 - office staff
@@ -226,8 +233,8 @@ Implemented in branch history:
 
 ## Known Pitfalls / Operational Cautions
 
-- do not test on real students/payments inside live AY `2026-27`
-- use `TEST-2026-27` or staging/local for UAT
+- never modify the live `2026-27` session for testing
+- use `TEST-2026-27` for all ongoing testing and debugging
 - avoid hidden alternative editing paths outside Students/Fee Setup/Payment Desk
 - keep technical wording collapsed on staff-facing pages
 - preserve append-only payment/receipt behavior in every change
@@ -237,5 +244,5 @@ Implemented in branch history:
 Use these labels in docs/tasks:
 
 - **Implemented in current branch**: confirmed by code/schema/migration presence
-- **Pending browser/UAT verification**: implemented but needs environment run-through
+- **Pending browser/production verification**: implemented but needs environment run-through
 - **Planned next**: not shipped yet

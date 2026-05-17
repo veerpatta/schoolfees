@@ -64,6 +64,24 @@ import valid rows only, keep batch and row traceability.
 This remains a migration aid, not the center of the product. Manual
 workflows always take priority over import automation.
 
+## Current Production Status
+
+The app is live. Core MVP scope is delivered and in daily use:
+
+- student master with auto dues preparation
+- fee setup with auto-sync on save
+- payment desk with idempotency guards
+- append-only receipt and payment history
+- dashboard analytics with real collection data
+- defaulters follow-up
+- exports for office XLSX downloads
+- conventional discount assignments (RTE, Staff Child, 3rd Child)
+- bulk student import with validation and audit trail
+- role-based access (admin, accountant, read-only)
+
+The `TEST-2026-27` session is maintained for ongoing debugging and testing.
+All production data lives in `2026-27`.
+
 ## Delivery Priorities
 
 Build in this order when choices compete:

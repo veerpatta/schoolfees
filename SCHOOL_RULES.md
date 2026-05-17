@@ -103,11 +103,16 @@ These may exist in old spreadsheets/notes but are **not current policy**:
 Current policy values above take precedence unless explicitly handling
 historical sessions.
 
-## UAT Safety Rules
+## Production Operations Rules
 
-- do not reset/overwrite real `2026-27` data for testing
-- use `TEST-2026-27` for UAT wherever possible
-- use dummy records only (e.g., `Test Student 001`, `TEST-SR-001`)
-- do not post test payments against real students
-- rotate shared admin passwords after UAT
-- do not store passwords in repo/docs/prompts
+These apply at all times while the app is live:
+
+- The `2026-27` session contains real student fee records and posted receipts.
+  Never use it for testing, debugging, or experimental changes.
+- All debugging, feature testing, and import dry-runs use `TEST-2026-27`.
+- Never post test payments against real students. Test students in
+  `TEST-2026-27` are named with the `TEST-` prefix on their admission numbers.
+- Admin passwords must never be stored in repo files, prompts, or documents.
+- Shared admin credentials should be rotated whenever a staff member leaves.
+- Corrections to real posted records use the explicit adjustment/reversal
+  workflow — never direct edits.

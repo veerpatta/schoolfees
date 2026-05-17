@@ -262,25 +262,25 @@ node scripts/verify-phase1-migrations.mjs
 node scripts/verify-required-sessions.mjs
 ```
 
-## 12) Testing / UAT rules
+## 12) Testing / Production rules
 
-- do not reset/overwrite real AY `2026-27` data
-- use `TEST-2026-27` (or staging/local) for UAT
+- never modify the live AY `2026-27` session for testing
+- use `TEST-2026-27` for all ongoing testing and debugging
 - use dummy names/SR values only:
   - `Test Student 001`
   - `Test Student 002`
   - `TEST-SR-001`
   - `TEST-SR-002`
 - do not post test payments against real students
-- rotate shared admin passwords after UAT
+- rotate shared admin passwords whenever staff access changes
 - do not store real passwords in repo/docs/prompts
 
 Detailed guides:
 
-- `UAT_CHECKLIST.md`
-- `docs/uat-test-plan.md`
-- `docs/test-data-setup.md`
-- `docs/before-real-data-checklist.md`
+- `PRODUCTION_OPERATIONS_CHECKLIST.md`
+- `docs/archive/uat-test-plan.md`
+- `docs/workflows/test-data-setup.md`
+- `docs/workflows/production-operations-guide.md`
 
 ## 13) Current roadmap / pivot
 
@@ -291,7 +291,7 @@ Short version:
 - current pivot: automation-first, office-friendly daily modules, faster Payment
   Desk, stronger analytics, top-level Defaulters + Exports, conventional
   discount support
-- next: browser/UAT verification hardening, UI polish, richer exports,
+- next: production stability monitoring, UI polish, richer exports,
   follow-up notes, print tuning, role-specific hardening
 
 ## 14) Known operational notes
@@ -310,7 +310,7 @@ Implemented in current branch:
 - `v_student_financial_state` supports pending vs credit/refund projection
 - conventional discount policy tables + assignment model added
 
-Pending browser/UAT verification in some environments:
+Pending browser/production verification in some environments:
 
 - print layout tuning per printer/browser combination
 - full end-to-end role-by-role smoke checks after every migration batch

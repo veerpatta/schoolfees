@@ -83,9 +83,15 @@ tables. Import behavior should remain conservative:
 - bypassing validation/preview
 - deleting batch/row audit trail metadata
 
-## UAT Safety
+## Import Safety (Production)
 
-- use `TEST-2026-27` for import UAT
-- use dummy names and SR values only
-- do not post test payments against real students
-- do not modify live AY `2026-27` data for import testing
+These rules apply at all times:
+
+- All import dry-runs and testing use TEST-2026-27.
+- Never upload real student files into TEST-2026-27 (use dummy data only).
+- Before committing a bulk import to the live 2026-27 session, always run
+  a dry-run validation and review the anomaly queue.
+- Import batches and row-level audit trails must be preserved — never
+  delete import_batches or import_rows records.
+- After a successful live import, the auto-prepare system fires in the
+  background. Dues will appear within a minute for newly added students.

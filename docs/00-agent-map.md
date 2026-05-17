@@ -15,7 +15,7 @@ Internal office/accounts fee-management app for **Shri Veer Patta Senior Seconda
 4. `SCHOOL_RULES.md`
 5. `IMPORT_NOTES.md`
 6. `ROADMAP.md`
-7. `UAT_CHECKLIST.md`
+7. `PRODUCTION_OPERATIONS_CHECKLIST.md`
 
 ## Source of truth
 `Students` + `Fee Setup` are canonical. Dashboard, dues, Payment Desk, Transactions, Defaulters, and Exports must derive from these.

@@ -21,7 +21,7 @@ It is **not**:
 4. `SCHOOL_RULES.md`
 5. `IMPORT_NOTES.md`
 6. `ROADMAP.md`
-7. `UAT_CHECKLIST.md`
+7. `PRODUCTION_OPERATIONS_CHECKLIST.md`
 
 ## Product Identity
 
@@ -98,11 +98,26 @@ Unless explicitly requested, do not steer toward:
 1. Never reset real data without explicit instruction.
 2. Never post test payments against real students.
 3. Preserve append-only behavior for payments/receipts/adjustments/audit logs.
-4. Use `TEST-2026-27` (or staging/local) for UAT.
+4. The `2026-27` session contains real school financial records. All testing
+   and debugging uses `TEST-2026-27` only. Never add test students, post test
+   payments, or make experimental fee changes in the live `2026-27` session.
 5. Do not expose `SUPABASE_SERVICE_ROLE_KEY` in browser code.
 6. Keep public signup disabled.
 7. Avoid hidden alternate edit paths outside intended modules.
 8. Keep staff-facing copy office-friendly and low-jargon.
+
+## Production Status
+
+The app is live. Real student records, fee dues, and payment receipts exist
+in the `2026-27` session. Every code change that touches data logic, fee
+calculations, dues preparation, or payment posting must be tested in
+`TEST-2026-27` before any consideration of production impact.
+
+Ongoing test session: `TEST-2026-27`
+Live production session: `2026-27`
+Live receipt prefix: `SVP`
+
+Use `TEST-2026-27` for all ongoing testing and debugging.
 
 ## Active School Policy Defaults (AY 2026-27)
 

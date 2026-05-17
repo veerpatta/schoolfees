@@ -1,6 +1,6 @@
 # Test Data Setup Guide
 
-Prepare dummy data safely before real go-live usage.
+Maintain dummy data safely while the app is live.
 
 ## Use a Dedicated Test Session
 
@@ -15,7 +15,8 @@ Also supported by parser (if needed):
 - `UAT-2026-27`
 - `DEMO-2026-27`
 
-Do not repurpose live AY `2026-27` data for tests.
+The live `2026-27` session contains real school financial records. Never
+modify it for testing.
 
 ## Keep Live AY 2026-27 Baseline Intact
 
@@ -38,9 +39,10 @@ Use clearly fake values:
 - `TEST-SR-002`
 - `9999999999` placeholder phones
 
-Never use real student names, real SRs, or real family contact details in UAT.
+Never use real student names, real SR numbers, or real family contact details
+in TEST-2026-27.
 
-## Recommended UAT Sequence
+## Recommended Test Session Maintenance Sequence
 
 1. Configure `TEST-2026-27` in Fee Setup.
 2. Add dummy classes/routes if required (prefix with `TEST`).
@@ -59,10 +61,13 @@ Include at least one dummy student for each policy:
 
 And one combined-policy case to verify “lowest tuition wins”.
 
-## After UAT Before Live Use
+## Ongoing Test Data Rules (Production)
 
-1. Export/save UAT evidence.
-2. Stop using test session for live operations.
-3. Confirm no dummy records in live AY workflow.
-4. Rotate shared admin passwords.
-5. Ensure no secrets/passwords were saved in repo/docs/prompts.
+The app is live. TEST-2026-27 is the permanent isolated test session.
+
+- All debugging and feature testing happens in TEST-2026-27.
+- Test student admission numbers are prefixed with TEST-.
+- Never use real student names, real SR numbers, or real phone numbers
+  in TEST-2026-27.
+- Test payments post only against TEST- students.
+- The live 2026-27 session must not be modified for testing purposes.
