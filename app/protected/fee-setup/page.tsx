@@ -1,6 +1,5 @@
 import { FeeSetupClient } from "@/components/fees/fee-setup-client";
 import { PageHeader } from "@/components/admin/page-header";
-import { StatusBadge } from "@/components/admin/status-badge";
 import { getFeeSetupPageData } from "@/lib/fees/data";
 import { INITIAL_FEE_SETUP_ACTION_STATE } from "@/lib/fees/types";
 import { getMasterDataPageData } from "@/lib/master-data/data";
@@ -54,13 +53,6 @@ export default async function FeeSetupPage({ searchParams }: FeeSetupPageProps) 
         eyebrow="Fee Setup"
         title="Academic Year Fee Setup"
         description="Set yearly fees, due dates, class fees, and transport fees. Saving syncs dues automatically."
-        actions={
-          canEdit ? (
-            <StatusBadge label="Admin editable" tone="good" />
-          ) : (
-            <StatusBadge label="View only" tone="warning" />
-          )
-        }
       />
 
       <FeeSetupClient

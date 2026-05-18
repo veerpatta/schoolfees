@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Plus, X } from "lucide-react";
 
 import type { MasterDataActionState } from "@/app/protected/master-data/actions";
 import { SectionCard } from "@/components/admin/section-card";
@@ -130,6 +131,19 @@ type SessionFormState = {
   }>;
 };
 
+type SyncStatus = "synced" | "dirty" | "saving" | "error";
+
+const FEE_SETUP_SECTIONS = [
+  { id: "session", label: "Session", icon: "📅" },
+  { id: "basic", label: "Basic rules", icon: "₹" },
+  { id: "classes", label: "Class fees", icon: "🏫" },
+  { id: "transport", label: "Transport", icon: "🚌" },
+  { id: "fee-heads", label: "Fee heads", icon: "📋" },
+  { id: "discounts", label: "Discounts", icon: "🏷" },
+] as const;
+
+type FeeSetupSectionId = (typeof FEE_SETUP_SECTIONS)[number]["id"];
+
 function formatDateTime(value: string | null) {
   if (!value) {
     return "Not saved yet";
@@ -160,23 +174,6 @@ function isTestSessionLabel(label: string) {
   } catch {
     return false;
   }
-}
-
-function formatDateOnly(value: string) {
-  if (!value) {
-    return "Not set";
-  }
-
-  const parsed = new Date(value);
-
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-    timeZone: "Asia/Kolkata",
-  }).format(parsed);
 }
 
 function buildFeeHeadRow(item: FeeHeadDefinition, index: number): FeeHeadRow {
@@ -319,23 +316,6 @@ function getFeeHeadChargeFrequencyLabel(value: FeeHeadChargeFrequency) {
   return value === "recurring" ? "Recurring" : "One-time";
 }
 
-function ChecklistItem({ done, label }: { done: boolean; label: string }) {
-  return (
-    <div
-      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium ${
-        done
-          ? "bg-success-soft text-success-soft-foreground"
-          : "border-border bg-card text-muted-foreground"
-      }`}
-    >
-      <span
-        className={`size-2 rounded-full ${done ? "bg-success" : "bg-border-strong"}`}
-      />
-      {label}
-    </div>
-  );
-}
-
 function AdvancedDetails({
   title,
   description,
@@ -369,6 +349,123 @@ function ReviewMetric({ label, value }: { label: string; value: React.ReactNode 
   );
 }
 
+function SyncPill({ status, lastSavedAt }: { status: SyncStatus; lastSavedAt: string | null }) {
+  const label =
+    status === "saving"
+      ? "Saving & syncing..."
+      : status === "error"
+        ? "Save failed"
+        : status === "dirty"
+          ? "Unsaved changes"
+          : lastSavedAt
+            ? `Synced - ${new Intl.DateTimeFormat("en-IN", {
+                dateStyle: "medium",
+                timeZone: "Asia/Kolkata",
+              }).format(new Date(lastSavedAt))}`
+            : "Not saved yet";
+
+  const toneClass =
+    status === "saving"
+      ? "border-info/40 bg-info-soft text-info-soft-foreground"
+      : status === "error"
+        ? "border-destructive/40 bg-destructive-soft text-destructive-soft-foreground"
+        : status === "dirty"
+          ? "border-warning/40 bg-warning-soft text-warning-soft-foreground"
+          : "border-success/40 bg-success-soft text-success-soft-foreground";
+
+  const icon =
+    status === "saving"
+      ? "↻"
+      : status === "error"
+        ? "✕"
+        : status === "dirty"
+          ? "●"
+          : "✓";
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${toneClass}`}
+    >
+      <span aria-hidden="true">{icon}</span>
+      {label}
+    </span>
+  );
+}
+
+function SectionNavRail({
+  activeSection,
+  dirtySections,
+  syncStatus,
+  lastSavedAt,
+  onSelect,
+}: {
+  activeSection: FeeSetupSectionId;
+  dirtySections: Set<FeeSetupSectionId>;
+  syncStatus: SyncStatus;
+  lastSavedAt: string | null;
+  onSelect: (id: FeeSetupSectionId) => void;
+}) {
+  return (
+    <nav
+      aria-label="Fee setup sections"
+      className="hidden w-48 shrink-0 flex-col gap-0.5 border-r border-border bg-surface-2 py-3 md:flex"
+    >
+      {FEE_SETUP_SECTIONS.map((section) => {
+        const isActive = activeSection === section.id;
+        const isDirtySection = dirtySections.has(section.id);
+
+        return (
+          <button
+            key={section.id}
+            type="button"
+            onClick={() => onSelect(section.id)}
+            aria-current={isActive ? "page" : undefined}
+            className={`flex items-center gap-3 border-l-2 px-4 py-2 text-left text-sm transition-colors ${
+              isActive
+                ? "border-l-accent bg-card font-medium text-foreground"
+                : "border-l-transparent text-muted-foreground hover:bg-card hover:text-foreground"
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className={`inline-block h-2 w-2 shrink-0 rounded-full ${
+                isDirtySection
+                  ? "bg-warning"
+                  : syncStatus === "synced"
+                    ? "bg-success"
+                    : "bg-border-strong"
+              }`}
+            />
+            <span className="truncate">{section.label}</span>
+          </button>
+        );
+      })}
+
+      <div className="mt-auto border-t border-border px-4 py-3">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          Last saved
+        </p>
+        <p className="mt-1 text-xs text-foreground">
+          {lastSavedAt
+            ? new Intl.DateTimeFormat("en-IN", {
+                dateStyle: "medium",
+                timeZone: "Asia/Kolkata",
+              }).format(new Date(lastSavedAt))
+            : "Never"}
+        </p>
+        {lastSavedAt ? (
+          <p className="text-[10px] text-muted-foreground">
+            {new Intl.DateTimeFormat("en-IN", {
+              timeStyle: "short",
+              timeZone: "Asia/Kolkata",
+            }).format(new Date(lastSavedAt))}
+          </p>
+        ) : null}
+      </div>
+    </nav>
+  );
+}
+
 export function FeeSetupClient({
   data,
   masterData,
@@ -387,8 +484,13 @@ export function FeeSetupClient({
   const [form, setForm] = useState<SessionFormState>(() =>
     buildSessionFormState(data, startingSessionLabel),
   );
+  const initialFormRef = useRef<SessionFormState>(
+    buildSessionFormState(data, startingSessionLabel),
+  );
+  const [isDirty, setIsDirty] = useState(false);
+  const [activeSection, setActiveSection] = useState<FeeSetupSectionId>("basic");
+  const [dirtySections, setDirtySections] = useState<Set<FeeSetupSectionId>>(new Set());
   const [saveState, setSaveState] = useState(initialState);
-  const [previewDirty, setPreviewDirty] = useState(false);
   const [sessionState, setSessionState] = useState(initialMasterDataState);
   const [classState, setClassState] = useState(initialMasterDataState);
   const [routeState, setRouteState] = useState(initialMasterDataState);
@@ -411,14 +513,18 @@ export function FeeSetupClient({
       : data.globalPolicy.academicSessionLabel;
 
     setSelectedSessionLabel(nextSessionLabel);
-    setForm(buildSessionFormState(data, nextSessionLabel));
+    const nextForm = buildSessionFormState(data, nextSessionLabel);
+    setForm(nextForm);
+    initialFormRef.current = nextForm;
     setSaveState(initialState);
-    setPreviewDirty(false);
+    setIsDirty(false);
+    setDirtySections(new Set());
   }, [data, initialState, masterData.sessions, selectedSessionLabel]);
 
-  function markDirty() {
-    if (saveState.status === "preview") {
-      setPreviewDirty(true);
+  function markDirty(sectionId?: FeeSetupSectionId) {
+    setIsDirty(true);
+    if (sectionId) {
+      setDirtySections((prev) => new Set([...prev, sectionId]));
     }
   }
 
@@ -449,12 +555,10 @@ export function FeeSetupClient({
 
       setSaveState(result);
 
-      if (result.status === "preview") {
-        setPreviewDirty(false);
-      }
-
       if (result.status === "success") {
-        setPreviewDirty(false);
+        setIsDirty(false);
+        setDirtySections(new Set());
+        initialFormRef.current = { ...form };
         router.refresh();
       }
     });
@@ -462,9 +566,6 @@ export function FeeSetupClient({
 
   const sessionRows = masterData.sessions;
   const selectedSessionIsTest = isTestSessionLabel(selectedSessionLabel);
-  const selectedPolicySnapshot = data.policySnapshots.find(
-    (item) => item.academicSessionLabel === selectedSessionLabel,
-  );
   const currentSessionLabel = data.globalPolicy.academicSessionLabel;
   const classRows = buildWorkbookClassSetupRows(data, selectedSessionLabel).map((row) => ({
     ...row,
@@ -490,20 +591,31 @@ export function FeeSetupClient({
   const visibleRouteRows = normalizedRouteSearch
     ? routeRows.filter((row) => row.routeName.toLowerCase().includes(normalizedRouteSearch))
     : routeRows;
-  const preview = saveState.preview;
-  const installmentChanges = preview
-    ? preview.installmentsToInsert +
-      preview.installmentsToUpdate +
-      preview.installmentsToCancel
-    : 0;
-  const feeRulesEntered =
-    form.installmentDates.length > 0 &&
-    form.installmentDates.every(Boolean) &&
-    form.lateFeeFlatAmount >= 0 &&
-    form.newStudentAcademicFeeAmount >= 0 &&
-    form.oldStudentAcademicFeeAmount >= 0;
-  const classFeesEntered = classRows.length > 0;
-  const transportFeesEntered = routeRows.length > 0;
+  const policySnapshot = data.policySnapshots.find(
+    (item) => item.academicSessionLabel === selectedSessionLabel,
+  );
+  const lastSavedAt = policySnapshot?.updatedAt ?? null;
+  const hasSavedSnapshot = Boolean(policySnapshot?.id);
+  const syncStatus: SyncStatus = isSaving
+    ? "saving"
+    : saveState.status === "error"
+      ? "error"
+      : isDirty
+        ? "dirty"
+        : hasSavedSnapshot
+          ? "synced"
+          : "dirty";
+
+  function formatLastSaved(value: string | null): string {
+    if (!value) return "Never saved";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "Unknown";
+    return new Intl.DateTimeFormat("en-IN", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "Asia/Kolkata",
+    }).format(d);
+  }
 
   function updateInstallmentDate(index: number, value: string) {
     setForm((current) => {
@@ -515,7 +627,7 @@ export function FeeSetupClient({
         installmentDates: nextDates,
       };
     });
-    markDirty();
+    markDirty("basic");
   }
 
   function addInstallmentDate() {
@@ -523,7 +635,7 @@ export function FeeSetupClient({
       ...current,
       installmentDates: [...current.installmentDates, ""],
     }));
-    markDirty();
+    markDirty("basic");
   }
 
   function removeInstallmentDate(index: number) {
@@ -539,7 +651,7 @@ export function FeeSetupClient({
         ),
       };
     });
-    markDirty();
+    markDirty("basic");
   }
 
   function updateClassAnnualTuition(label: string, annualTuition: number) {
@@ -549,7 +661,7 @@ export function FeeSetupClient({
         item.label === label ? { ...item, annualTuition } : item,
       ),
     }));
-    markDirty();
+    markDirty("classes");
   }
 
   function updateRouteAnnualFee(routeName: string, annualFee: number) {
@@ -559,7 +671,7 @@ export function FeeSetupClient({
         item.routeName === routeName ? { ...item, annualFee } : item,
       ),
     }));
-    markDirty();
+    markDirty("transport");
   }
 
   function addFeeHeadRow() {
@@ -582,7 +694,7 @@ export function FeeSetupClient({
         },
       ],
     }));
-    markDirty();
+    markDirty("fee-heads");
   }
 
   function updateFeeHeadRow(rowId: string, patch: Partial<FeeHeadRow>) {
@@ -592,7 +704,7 @@ export function FeeSetupClient({
         item.rowId === rowId ? { ...item, ...patch } : item,
       ),
     }));
-    markDirty();
+    markDirty("fee-heads");
   }
 
   function removeFeeHeadRow(rowId: string) {
@@ -600,7 +712,7 @@ export function FeeSetupClient({
       ...current,
       customFeeHeads: current.customFeeHeads.filter((item) => item.rowId !== rowId),
     }));
-    markDirty();
+    markDirty("fee-heads");
   }
 
   function updateConventionalDiscountRow(
@@ -613,43 +725,111 @@ export function FeeSetupClient({
         item.code === code ? { ...item, ...patch } : item,
       ),
     }));
-    markDirty();
+    markDirty("discounts");
   }
 
   function switchSession(sessionLabel: string) {
     setSelectedSessionLabel(sessionLabel);
-    setForm(buildSessionFormState(data, sessionLabel));
+    const nextForm = buildSessionFormState(data, sessionLabel);
+    setForm(nextForm);
+    initialFormRef.current = nextForm;
     setSaveState(initialState);
-    setPreviewDirty(false);
+    setIsDirty(false);
+    setDirtySections(new Set());
   }
 
   return (
-    <div className="space-y-6">
-      <ActionNotice state={saveState} />
-
-      {!canEdit ? (
-        <div className="rounded-2xl border bg-warning-soft px-4 py-3 text-sm leading-6 text-warning-soft-foreground">
-          Only admins can change Fee Setup. Accountant and read-only staff can review the current
-          and saved setup here.
+    <div className="space-y-0">
+      <div className="sticky top-0 z-30 flex flex-wrap items-center gap-3 border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur md:px-6">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground">Session</span>
+          <select
+            value={selectedSessionLabel}
+            onChange={(event) => switchSession(event.target.value)}
+            disabled={isSaving}
+            aria-label="Select academic session"
+            className="rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 disabled:opacity-50"
+          >
+            {masterData.sessions.map((session) => (
+              <option key={session.session_label} value={session.session_label}>
+                {session.session_label}
+              </option>
+            ))}
+          </select>
         </div>
-      ) : null}
 
-      {previewDirty ? (
-        <div className="rounded-2xl border bg-warning-soft px-4 py-3 text-sm leading-6 text-warning-soft-foreground">
-          Changes were made after the last review. Save Fee Setup again to sync the latest values.
-        </div>
-      ) : null}
+        <SyncPill status={syncStatus} lastSavedAt={lastSavedAt} />
 
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <div className="flex flex-wrap gap-2">
-          <ChecklistItem done={Boolean(selectedSessionLabel)} label="Academic year selected" />
-          <ChecklistItem done={feeRulesEntered} label="Fee rules entered" />
-          <ChecklistItem done={classFeesEntered} label="Class fees entered" />
-          <ChecklistItem done={transportFeesEntered} label="Transport fees entered" />
-          <ChecklistItem done={saveState.status === "success"} label="Saved and synced" />
-        </div>
+        {lastSavedAt && syncStatus === "synced" ? (
+          <span className="hidden text-xs text-muted-foreground sm:inline">
+            {formatLastSaved(lastSavedAt)}
+          </span>
+        ) : null}
+
+        <div className="flex-1" />
+
+        {canEdit ? (
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => submitFeeSetup("save")}
+            disabled={!isDirty || isSaving}
+            aria-label="Save fee setup and sync dues"
+          >
+            {isSaving ? "Saving..." : "Save Fee Setup"}
+          </Button>
+        ) : null}
       </div>
 
+      <div className="space-y-6 p-4 md:p-6">
+        <ActionNotice state={saveState} />
+
+        {!canEdit ? (
+          <div className="rounded-2xl border bg-warning-soft px-4 py-3 text-sm leading-6 text-warning-soft-foreground">
+            Only admins can change Fee Setup. Accountant and read-only staff can review
+            the current and saved setup here.
+          </div>
+        ) : null}
+
+        {isDirty ? (
+          <div className="rounded-2xl border bg-warning-soft px-4 py-3 text-sm leading-6 text-warning-soft-foreground">
+            You have unsaved changes. Click <strong>Save Fee Setup</strong> in the top
+            bar to apply and sync dues.
+          </div>
+        ) : null}
+
+        <div className="rounded-2xl border border-border bg-surface-2 px-4 py-3 text-sm leading-6 text-muted-foreground">
+          Saving updates future or unpaid dues automatically. Paid or adjusted rows stay
+          protected for review.
+        </div>
+
+        <div className="md:hidden">
+          <Label htmlFor="fee-setup-section">Section</Label>
+          <select
+            id="fee-setup-section"
+            value={activeSection}
+            onChange={(event) => setActiveSection(event.target.value as FeeSetupSectionId)}
+            className={`${selectClassName} mt-2`}
+          >
+            {FEE_SETUP_SECTIONS.map((section) => (
+              <option key={section.id} value={section.id}>
+                {section.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex min-h-[520px] overflow-hidden rounded-2xl border border-border bg-card">
+          <SectionNavRail
+            activeSection={activeSection}
+            dirtySections={dirtySections}
+            syncStatus={syncStatus}
+            lastSavedAt={lastSavedAt}
+            onSelect={setActiveSection}
+          />
+
+          <div className="flex-1 overflow-y-auto p-5">
+      {activeSection === "session" ? (
       <SectionCard
         title="1. Academic Year"
         description="Choose the year for this fee setup."
@@ -930,106 +1110,169 @@ export function FeeSetupClient({
           </AdvancedDetails>
         </div>
       </SectionCard>
+      ) : null}
 
+      {activeSection === "basic" || activeSection === "fee-heads" || activeSection === "discounts" ? (
       <SectionCard
-        title="2. Basic Fee Rules"
-        description="Set installment dates, late fee, and the annual academic fee for new and existing students."
+        title={
+          activeSection === "fee-heads"
+            ? "Fee Heads"
+            : activeSection === "discounts"
+              ? "Conventional Discounts"
+              : "2. Basic Fee Rules"
+        }
+        description={
+          activeSection === "fee-heads"
+            ? "Review extra fee heads saved with the selected academic year."
+            : activeSection === "discounts"
+              ? "Configure standard school discount policies. Student assignment stays in Students."
+              : "Set installment dates, late fee, and the annual academic fee for new and existing students."
+        }
+        actions={
+          activeSection === "basic" && canEdit ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addInstallmentDate}
+              leadingIcon={<Plus className="size-3.5" />}
+            >
+              Add installment
+            </Button>
+          ) : null
+        }
       >
         <div className="space-y-5">
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-foreground">Installment Dates</p>
-                <p className="text-sm text-muted-foreground">These dates define this academic year&apos;s fee schedule.</p>
+          {activeSection === "basic" ? (
+            <>
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(260px,0.65fr)]">
+            <div className="rounded-xl border border-border bg-surface-2 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">Installment Dates</p>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    These dates define this academic year&apos;s fee schedule.
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                  {form.installmentDates.length} dates
+                </span>
               </div>
-              {canEdit ? (
-                <Button type="button" variant="outline" onClick={addInstallmentDate}>
-                  Add installment
-                </Button>
-              ) : null}
+
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                {form.installmentDates.map((value, index) => (
+                  <div
+                    key={`installment-${index}`}
+                    className="rounded-lg border border-border bg-card p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]"
+                  >
+                    <div className="flex min-h-8 items-center gap-2">
+                      <span className="grid size-7 shrink-0 place-items-center rounded-full bg-accent-soft text-xs font-semibold text-accent-soft-foreground">
+                        {index + 1}
+                      </span>
+                      <Label
+                        htmlFor={`installment-date-${index}`}
+                        className="min-w-0 flex-1 text-sm font-medium text-foreground"
+                      >
+                        Due date
+                      </Label>
+                      {canEdit && form.installmentDates.length > 1 ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => removeInstallmentDate(index)}
+                          aria-label={`Remove installment ${index + 1}`}
+                          title={`Remove installment ${index + 1}`}
+                          className="shrink-0 rounded-full border border-border bg-surface text-muted-foreground hover:border-destructive/40 hover:bg-destructive-soft hover:text-destructive-soft-foreground"
+                        >
+                          <X className="size-3.5" />
+                        </Button>
+                      ) : null}
+                    </div>
+                    <Input
+                      id={`installment-date-${index}`}
+                      type="date"
+                      value={value}
+                      onChange={(event) => updateInstallmentDate(index, event.target.value)}
+                      className="mt-3 h-10 rounded-lg"
+                      disabled={!canEdit}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {form.installmentDates.map((value, index) => (
-                <div key={`installment-${index}`} className="rounded-xl border border-border bg-card p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <Label htmlFor={`installment-date-${index}`}>Installment {index + 1}</Label>
-                    {canEdit && form.installmentDates.length > 1 ? (
-                      <Button type="button" variant="ghost" onClick={() => removeInstallmentDate(index)}>
-                        Remove
-                      </Button>
-                    ) : null}
-                  </div>
+            <div className="rounded-xl border border-border bg-surface-2 p-4">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Annual Rules</p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  Default yearly amounts used when dues are prepared.
+                </p>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <Label htmlFor="late-fee-amount">Late Fee</Label>
                   <Input
-                    id={`installment-date-${index}`}
-                    type="date"
-                    value={value}
-                    onChange={(event) => updateInstallmentDate(index, event.target.value)}
-                    className="mt-2"
+                    id="late-fee-amount"
+                    type="number"
+                    min={0}
+                    value={form.lateFeeFlatAmount}
+                    onChange={(event) => {
+                      setForm((current) => ({
+                        ...current,
+                        lateFeeFlatAmount: Number(event.target.value || 0),
+                      }));
+                      markDirty("basic");
+                    }}
+                    className="mt-2 h-10 rounded-lg"
                     disabled={!canEdit}
                   />
                 </div>
-              ))}
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <Label htmlFor="new-academic-fee">New student academic fee</Label>
+                  <Input
+                    id="new-academic-fee"
+                    type="number"
+                    min={0}
+                    value={form.newStudentAcademicFeeAmount}
+                    onChange={(event) => {
+                      setForm((current) => ({
+                        ...current,
+                        newStudentAcademicFeeAmount: Number(event.target.value || 0),
+                      }));
+                      markDirty("basic");
+                    }}
+                    className="mt-2 h-10 rounded-lg"
+                    disabled={!canEdit}
+                  />
+                </div>
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <Label htmlFor="old-academic-fee">Existing student academic fee</Label>
+                  <Input
+                    id="old-academic-fee"
+                    type="number"
+                    min={0}
+                    value={form.oldStudentAcademicFeeAmount}
+                    onChange={(event) => {
+                      setForm((current) => ({
+                        ...current,
+                        oldStudentAcademicFeeAmount: Number(event.target.value || 0),
+                      }));
+                      markDirty("basic");
+                    }}
+                    className="mt-2 h-10 rounded-lg"
+                    disabled={!canEdit}
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <Label htmlFor="late-fee-amount">Late Fee</Label>
-              <Input
-                id="late-fee-amount"
-                type="number"
-                min={0}
-                value={form.lateFeeFlatAmount}
-                onChange={(event) => {
-                  setForm((current) => ({
-                    ...current,
-                    lateFeeFlatAmount: Number(event.target.value || 0),
-                  }));
-                  markDirty();
-                }}
-                className="mt-2"
-                disabled={!canEdit}
-              />
-            </div>
-            <div>
-              <Label htmlFor="new-academic-fee">New Student Annual/Academic Fee</Label>
-              <Input
-                id="new-academic-fee"
-                type="number"
-                min={0}
-                value={form.newStudentAcademicFeeAmount}
-                onChange={(event) => {
-                  setForm((current) => ({
-                    ...current,
-                    newStudentAcademicFeeAmount: Number(event.target.value || 0),
-                  }));
-                  markDirty();
-                }}
-                className="mt-2"
-                disabled={!canEdit}
-              />
-            </div>
-            <div>
-              <Label htmlFor="old-academic-fee">Existing Student Annual/Academic Fee</Label>
-              <Input
-                id="old-academic-fee"
-                type="number"
-                min={0}
-                value={form.oldStudentAcademicFeeAmount}
-                onChange={(event) => {
-                  setForm((current) => ({
-                    ...current,
-                    oldStudentAcademicFeeAmount: Number(event.target.value || 0),
-                  }));
-                  markDirty();
-                }}
-                className="mt-2"
-                disabled={!canEdit}
-              />
-            </div>
-          </div>
+            </>
+          ) : null}
 
+          {activeSection === "discounts" ? (
           <div className="space-y-4 rounded-xl border border-border bg-surface-2 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -1133,7 +1376,9 @@ export function FeeSetupClient({
               ))}
             </div>
           </div>
+          ) : null}
 
+          {activeSection === "fee-heads" ? (
           <AdvancedDetails
             title="Advanced fee-head options"
             description="Most schools do not need this during normal yearly fee setup."
@@ -1340,9 +1585,12 @@ export function FeeSetupClient({
               )}
             </div>
           </AdvancedDetails>
+          ) : null}
         </div>
       </SectionCard>
+      ) : null}
 
+      {activeSection === "classes" ? (
       <SectionCard
         title="3. Class Fees"
         description="Enter the annual tuition fee for each class."
@@ -1587,7 +1835,9 @@ export function FeeSetupClient({
           </AdvancedDetails>
         </div>
       </SectionCard>
+      ) : null}
 
+      {activeSection === "transport" ? (
       <SectionCard
         title="4. Transport Fees"
         description="Enter the annual transport fee for each route. Leave transport blank if the school is not using route fees."
@@ -1843,97 +2093,57 @@ export function FeeSetupClient({
           </AdvancedDetails>
         </div>
       </SectionCard>
+      ) : null}
 
-      <SectionCard
-        title="5. Save & Sync"
-        description="Save once. The app reviews the impact, updates unpaid dues, and keeps paid rows protected."
-      >
-        <div className="space-y-5">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <ReviewMetric label="Academic year" value={selectedSessionLabel || "Not selected"} />
-            <ReviewMetric label="Installment dates" value={form.installmentDates.map(formatDateOnly).join(", ")} />
-            <ReviewMetric label="Late fee" value={formatInr(form.lateFeeFlatAmount)} />
-            <ReviewMetric label="New student fee" value={formatInr(form.newStudentAcademicFeeAmount)} />
-            <ReviewMetric label="Existing student fee" value={formatInr(form.oldStudentAcademicFeeAmount)} />
-            <ReviewMetric label="Class fee rows" value={classRows.length} />
-            <ReviewMetric label="Transport routes" value={routeRows.length} />
-            <ReviewMetric label="Save status" value={saveState.status === "success" ? "Saved and synced" : "Ready to save"} />
-          </div>
-
-          {isSaving ? (
-            <div className="rounded-xl border bg-info-soft px-4 py-6 text-sm text-info-soft-foreground">
-              Saving Fee Setup and syncing dues...
-            </div>
-          ) : preview ? (
-            <div className="rounded-2xl border bg-info-soft p-4">
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <ReviewMetric label="Students affected" value={preview.studentsAffected} />
-                <ReviewMetric label="Dues rows changing" value={installmentChanges} />
-                <ReviewMetric label="Rows kept for review" value={preview.blockedInstallments} />
-                <ReviewMetric label="Students in scope" value={preview.studentsInScope} />
-              </div>
-              <div className="mt-4">
-                <p className="text-sm font-semibold text-foreground">Changed fields summary</p>
-                <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
-                  {preview.changedFields.length === 0 ? (
-                    <div className="rounded-xl border border-info/20 bg-card px-4 py-3 text-sm text-muted-foreground">
-                      No changed fields in this preview.
-                    </div>
-                  ) : (
-                    preview.changedFields.map((item) => (
-                      <div
-                        key={item.field}
-                        className="rounded-xl border border-info/20 bg-card px-4 py-3 text-sm"
-                      >
-                        <p className="font-medium text-foreground">{item.label}</p>
-                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                          {item.beforeValue} {"->"} {item.afterValue}
-                        </p>
-                      </div>
-                    ))
-                  )}
+            {(isSaving || saveState.status === "preview") && saveState.preview ? (
+              <div className="mt-5 rounded-xl border bg-info-soft p-4 text-sm text-info-soft-foreground">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-widest">
+                  Impact preview
+                </p>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <ReviewMetric
+                    label="Students affected"
+                    value={saveState.preview.studentsAffected}
+                  />
+                  <ReviewMetric
+                    label="Dues rows changing"
+                    value={
+                      saveState.preview.installmentsToInsert +
+                      saveState.preview.installmentsToUpdate +
+                      saveState.preview.installmentsToCancel
+                    }
+                  />
+                  <ReviewMetric
+                    label="Rows kept for review"
+                    value={saveState.preview.blockedInstallments}
+                  />
+                  <ReviewMetric
+                    label="Students in scope"
+                    value={saveState.preview.studentsInScope}
+                  />
                 </div>
               </div>
-            </div>
-          ) : saveState.status === "error" && saveState.message ? (
-            <div className="rounded-xl border bg-destructive-soft px-4 py-6 text-sm text-destructive-soft-foreground">
-              {saveState.message}
-            </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-border-strong bg-surface-2 px-4 py-6 text-sm text-muted-foreground">
-              Save Fee Setup to update unpaid dues automatically.
-            </div>
-          )}
-
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 pb-20 md:pb-4">
-            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-              Saving updates future or unpaid dues automatically. Receipts stay saved in
-              history, and paid or adjusted rows are kept for review.
-            </p>
-            <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-border bg-card/95 p-3 backdrop-blur md:static md:border-0 md:bg-transparent md:p-0">
-              {canEdit ? (
-                <Button
-                  type="button"
-                  onClick={() => submitFeeSetup("save")}
-                  disabled={!canEdit || isSaving}
-                >
-                  {isSaving ? "Saving & Syncing..." : "Save Fee Setup"}
-                </Button>
-              ) : (
-                <p className="text-sm leading-6 text-muted-foreground">
-                  View-only users can review the setup. Only admins can save changes.
-                </p>
-              )}
-            </div>
+            ) : null}
           </div>
-
-          {selectedPolicySnapshot?.id ? (
-            <p className="text-xs leading-5 text-muted-foreground">
-              Last saved fee setup: {formatDateTime(selectedPolicySnapshot.updatedAt ?? null)}
-            </p>
-          ) : null}
         </div>
-      </SectionCard>
+      </div>
+
+      {canEdit ? (
+        <div className="sticky bottom-0 z-30 flex items-center gap-3 border-t border-border bg-card/95 p-3 backdrop-blur md:hidden">
+          <div className="flex-1">
+            <SyncPill status={syncStatus} lastSavedAt={lastSavedAt} />
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => submitFeeSetup("save")}
+            disabled={!isDirty || isSaving}
+            aria-label="Save fee setup and sync dues"
+          >
+            {isSaving ? "Saving..." : "Save"}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }
