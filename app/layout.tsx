@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Source_Serif_4 } from "next/font/google";
 
+import { ServiceWorkerRegistration } from "@/components/system/service-worker-registration";
 import { schoolProfile } from "@/lib/config/school";
 import { getSiteUrl } from "@/lib/env";
 
@@ -58,7 +59,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${fontSans.variable} ${fontDisplay.variable}`}>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        {children}
+        <ServiceWorkerRegistration />
+      </body>
     </html>
   );
 }

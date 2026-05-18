@@ -1,11 +1,10 @@
 "use client";
 
 import {
-  PaymentDeskMobile,
+  PaymentDeskClient,
   type PaymentDeskMobileProps,
 } from "@/components/payments/payment-desk-mobile";
 
 export default function PaymentDeskDesktop(props: PaymentDeskMobileProps) {
-  return <PaymentDeskMobile {...props} formId="payment-entry-form-desktop" />;
+  return <PaymentDeskClient {...props} formId="payment-entry-form" />;
 }
-

@@ -1,4 +1,5 @@
 import { DashboardShell } from "@/components/admin/dashboard-shell";
+import { getAppMode } from "@/lib/env";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
 import { requireAuthenticatedStaff } from "@/lib/supabase/session";
@@ -14,7 +15,7 @@ export default async function ProtectedLayout({
       resolveViewSession({ cookieSession }),
     ),
   ]);
-  const isTestDatabase = process.env.NEXT_PUBLIC_APP_MODE === "test";
+  const isTestDatabase = getAppMode() === "test";
 
   return (
     <DashboardShell

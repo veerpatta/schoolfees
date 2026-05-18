@@ -113,12 +113,13 @@ describe("office performance guardrails", () => {
     expect(paymentsPage).toContain("getPaymentDeskReadiness({");
     expect(paymentsPage).not.toContain("getSetupWizardData()");
     expect(paymentsPage).not.toContain("getStudentFormOptions()");
-    expect(paymentClient).toContain("paymentDeskStudentIndexCacheKey");
+    expect(paymentClient).toContain("readPaymentDeskStudentIndexCache");
+    expect(paymentClient).toContain("writePaymentDeskStudentIndexCache");
     expect(paymentClient).toContain("studentIndex.length === 0");
     expect(paymentClient).toContain("prefetchStudentSummary");
     expect(paymentClient).toContain("onMouseEnter={() => prefetchStudentSummary");
     expect(paymentClient).toContain("onTouchStart={() => prefetchStudentSummary");
-    expect(paymentClient).toContain("sessionStorage.removeItem(`${paymentDeskStudentIndexCacheKey}:${paymentSessionLabel}`)");
+    expect(paymentClient).toContain("clearPaymentDeskStudentIndexCache");
   });
 
   it("keeps payment desk student index privately cacheable within the staff session", () => {

@@ -3,7 +3,7 @@ export const schoolProfile = {
     process.env.NEXT_PUBLIC_SCHOOL_NAME?.trim() ||
     "Shri Veer Patta Senior Secondary School",
   shortName: "Shri Veer Patta SSS",
-  appMode: process.env.NEXT_PUBLIC_APP_MODE?.trim() || "internal-admin",
+  appMode: process.env.APP_MODE?.trim() || "production",
   adminOnly: true,
   receiptPrefix: "SVP",
   staffAudience: "Office and accounts staff",

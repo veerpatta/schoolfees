@@ -264,7 +264,7 @@
     scrollbar-width: none;
   }
 
-  .payment-entry-mobile-layout,
+  .payment-entry-client-layout,
   .payment-entry-form {
     contain: layout style;
   }

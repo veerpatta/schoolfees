@@ -7,6 +7,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run typecheck",
+    "quality:budgets": "node scripts/check-quality-budgets.mjs",
     "bootstrap:staff": "node scripts/bootstrap-staff.mjs",
     "verify:fee-health": "node scripts/verify-live-fee-health.mjs",
     "test": "vitest run",

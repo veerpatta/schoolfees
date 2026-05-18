@@ -61,17 +61,61 @@ type StudentFormProps = {
 };
 
 const selectClassName =
-  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring aria-[invalid=true]:border-destructive aria-[invalid=true]:focus-visible:ring-destructive/30";
 
 const textAreaClassName =
-  "flex min-h-[84px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+  "flex min-h-[84px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring aria-[invalid=true]:border-destructive aria-[invalid=true]:focus-visible:ring-destructive/30";
+
+const studentFormFieldLabels: Partial<Record<keyof StudentFormValues, string>> = {
+  fullName: "Student name",
+  classId: "Class",
+  admissionNo: "SR no",
+  dateOfBirth: "DOB",
+  fatherPhone: "Phone",
+  motherPhone: "Mother phone",
+  transportRouteId: "Transport route",
+  studentTypeOverride: "New / Existing",
+  tuitionOverride: "Tuition override",
+  transportOverride: "Transport override",
+  discountAmount: "Discount",
+  lateFeeWaiverAmount: "Late fee waiver",
+  otherAdjustmentHead: "Other adjustment",
+  otherAdjustmentAmount: "Other adjustment amount",
+  feeProfileReason: "Fee exception reason",
+  conventionalPolicyIds: "Conventional discounts",
+  conventionalDiscountReason: "Conventional discount reason",
+  status: "Record status",
+};
 
 function getFieldError(state: StudentFormActionState, fieldName: keyof StudentFormValues) {
   return state.fieldErrors[fieldName] ?? null;
 }
 
-function FieldError({ message }: { message: string | null }) {
-  return message ? <p className="mt-1 text-xs text-destructive">{message}</p> : null;
+function getFieldErrorId(fieldName: keyof StudentFormValues) {
+  return `${fieldName}-error`;
+}
+
+function getFieldAccessibility(state: StudentFormActionState, fieldName: keyof StudentFormValues) {
+  const hasError = Boolean(getFieldError(state, fieldName));
+
+  return {
+    "aria-invalid": hasError ? true : undefined,
+    "aria-describedby": hasError ? getFieldErrorId(fieldName) : undefined,
+  };
+}
+
+function FieldError({
+  fieldName,
+  message,
+}: {
+  fieldName: keyof StudentFormValues;
+  message: string | null;
+}) {
+  return message ? (
+    <p id={getFieldErrorId(fieldName)} className="mt-1 text-xs text-destructive">
+      {message}
+    </p>
+  ) : null;
 }
 
 export function StudentForm({
@@ -96,6 +140,10 @@ export function StudentForm({
   const recordAlreadySaved = state.status === "error" && Boolean(state.studentId);
   const disableSubmit = classOptions.length === 0 || recordAlreadySaved;
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+  const fieldErrorEntries = Object.entries(state.fieldErrors).filter(
+    (entry): entry is [keyof StudentFormValues, string] => Boolean(entry[1]),
+  );
+  const hasFieldErrors = state.status === "error" && fieldErrorEntries.length > 0;
 
   return (
     <form action={formAction} className="space-y-6">
@@ -115,6 +163,7 @@ export function StudentForm({
               ? "rounded-md border bg-destructive-soft px-3 py-2 text-sm text-destructive-soft-foreground"
               : "rounded-md border bg-success-soft px-3 py-2 text-sm text-success-soft-foreground"
           }
+          role={state.status === "error" ? "alert" : "status"}
         >
           {state.message}
           {state.status === "success" && state.studentId ? (
@@ -129,6 +178,26 @@ export function StudentForm({
               </Button>
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {hasFieldErrors ? (
+        <div
+          className="rounded-md border bg-destructive-soft px-3 py-2 text-sm text-destructive-soft-foreground"
+          role="alert"
+        >
+          <p className="font-medium">
+            Please review {fieldErrorEntries.length} fields before saving.
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {fieldErrorEntries.map(([fieldName, message]) => (
+              <li key={fieldName}>
+                <a className="underline underline-offset-2" href={`#${fieldName}`}>
+                  {studentFormFieldLabels[fieldName] ?? fieldName}: {message}
+                </a>
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
 
@@ -148,8 +217,15 @@ export function StudentForm({
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <Label htmlFor="fullName">Student name</Label>
-            <Input id="fullName" name="fullName" defaultValue={values.fullName} className="mt-2" required />
-            <FieldError message={getFieldError(state, "fullName")} />
+            <Input
+              id="fullName"
+              name="fullName"
+              defaultValue={values.fullName}
+              className="mt-2"
+              required
+              {...getFieldAccessibility(state, "fullName")}
+            />
+            <FieldError fieldName="fullName" message={getFieldError(state, "fullName")} />
           </div>
 
           <div>
@@ -160,6 +236,7 @@ export function StudentForm({
               defaultValue={values.classId}
               className={`${selectClassName} mt-2`}
               required
+              {...getFieldAccessibility(state, "classId")}
             >
               <option value="">Select class</option>
               {classOptions.map((classOption) => (
@@ -168,7 +245,7 @@ export function StudentForm({
                 </option>
               ))}
             </select>
-            <FieldError message={getFieldError(state, "classId")} />
+            <FieldError fieldName="classId" message={getFieldError(state, "classId")} />
           </div>
 
           <div>
@@ -180,8 +257,9 @@ export function StudentForm({
               className="mt-2"
               placeholder={mode === "add" ? "Leave blank for temporary SR no" : undefined}
               required={mode === "edit"}
+              {...getFieldAccessibility(state, "admissionNo")}
             />
-            <FieldError message={getFieldError(state, "admissionNo")} />
+            <FieldError fieldName="admissionNo" message={getFieldError(state, "admissionNo")} />
           </div>
 
           <div>
@@ -191,8 +269,15 @@ export function StudentForm({
 
           <div>
             <Label htmlFor="fatherPhone">Phone</Label>
-            <Input id="fatherPhone" name="fatherPhone" type="tel" defaultValue={values.fatherPhone} className="mt-2" />
-            <FieldError message={getFieldError(state, "fatherPhone")} />
+            <Input
+              id="fatherPhone"
+              name="fatherPhone"
+              type="tel"
+              defaultValue={values.fatherPhone}
+              className="mt-2"
+              {...getFieldAccessibility(state, "fatherPhone")}
+            />
+            <FieldError fieldName="fatherPhone" message={getFieldError(state, "fatherPhone")} />
           </div>
 
           <div>
@@ -202,6 +287,7 @@ export function StudentForm({
               name="transportRouteId"
               defaultValue={values.transportRouteId}
               className={`${selectClassName} mt-2`}
+              {...getFieldAccessibility(state, "transportRouteId")}
             >
               <option value="">No Transport</option>
               {routeOptions.map((routeOption) => (
@@ -212,7 +298,7 @@ export function StudentForm({
                 </option>
               ))}
             </select>
-            <FieldError message={getFieldError(state, "transportRouteId")} />
+            <FieldError fieldName="transportRouteId" message={getFieldError(state, "transportRouteId")} />
           </div>
 
           <div>
@@ -223,11 +309,12 @@ export function StudentForm({
               defaultValue={values.studentTypeOverride}
               className={`${selectClassName} mt-2`}
               required
+              {...getFieldAccessibility(state, "studentTypeOverride")}
             >
               <option value="existing">Existing</option>
               <option value="new">New</option>
             </select>
-            <FieldError message={getFieldError(state, "studentTypeOverride")} />
+            <FieldError fieldName="studentTypeOverride" message={getFieldError(state, "studentTypeOverride")} />
           </div>
 
           <div className="md:col-span-2">
@@ -250,8 +337,15 @@ export function StudentForm({
         <div className="grid gap-4 border-t border-border p-4 md:grid-cols-2">
           <div>
             <Label htmlFor="dateOfBirth">DOB</Label>
-            <Input id="dateOfBirth" name="dateOfBirth" type="date" defaultValue={values.dateOfBirth} className="mt-2" />
-            <FieldError message={getFieldError(state, "dateOfBirth")} />
+            <Input
+              id="dateOfBirth"
+              name="dateOfBirth"
+              type="date"
+              defaultValue={values.dateOfBirth}
+              className="mt-2"
+              {...getFieldAccessibility(state, "dateOfBirth")}
+            />
+            <FieldError fieldName="dateOfBirth" message={getFieldError(state, "dateOfBirth")} />
           </div>
           <div>
             <Label htmlFor="motherName">Mother name</Label>
@@ -259,8 +353,15 @@ export function StudentForm({
           </div>
           <div>
             <Label htmlFor="motherPhone">Mother phone</Label>
-            <Input id="motherPhone" name="motherPhone" type="tel" defaultValue={values.motherPhone} className="mt-2" />
-            <FieldError message={getFieldError(state, "motherPhone")} />
+            <Input
+              id="motherPhone"
+              name="motherPhone"
+              type="tel"
+              defaultValue={values.motherPhone}
+              className="mt-2"
+              {...getFieldAccessibility(state, "motherPhone")}
+            />
+            <FieldError fieldName="motherPhone" message={getFieldError(state, "motherPhone")} />
           </div>
           <div className="md:col-span-2">
             <Label htmlFor="address">Address</Label>
@@ -287,7 +388,12 @@ export function StudentForm({
               Conventional discounts are not configured for this year yet.
             </div>
           ) : (
-            <div className="grid gap-3 md:grid-cols-3">
+            <div
+              className="grid gap-3 md:grid-cols-3"
+              role="group"
+              aria-label="Conventional discounts"
+              {...getFieldAccessibility(state, "conventionalPolicyIds")}
+            >
               {conventionalDiscountPolicies
                 .filter((policy) => policy.isActive && policy.id)
                 .map((policy) => (
@@ -316,7 +422,7 @@ export function StudentForm({
                 ))}
             </div>
           )}
-          <FieldError message={getFieldError(state, "conventionalPolicyIds")} />
+          <FieldError fieldName="conventionalPolicyIds" message={getFieldError(state, "conventionalPolicyIds")} />
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <Label htmlFor="conventionalDiscountReason">Reason</Label>
@@ -326,8 +432,9 @@ export function StudentForm({
                 defaultValue={values.conventionalDiscountReason}
                 className="mt-2"
                 placeholder="e.g. Approved by principal"
+                {...getFieldAccessibility(state, "conventionalDiscountReason")}
               />
-              <FieldError message={getFieldError(state, "conventionalDiscountReason")} />
+              <FieldError fieldName="conventionalDiscountReason" message={getFieldError(state, "conventionalDiscountReason")} />
             </div>
             <div>
               <Label htmlFor="conventionalDiscountFamilyGroup">Family / sibling group</Label>
@@ -374,38 +481,99 @@ export function StudentForm({
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <div>
               <Label htmlFor="tuitionOverride">Tuition override</Label>
-              <Input id="tuitionOverride" name="tuitionOverride" type="number" inputMode="decimal" min={0} defaultValue={values.tuitionOverride} className="mt-2" placeholder="Leave blank for class default" />
-              <FieldError message={getFieldError(state, "tuitionOverride")} />
+              <Input
+                id="tuitionOverride"
+                name="tuitionOverride"
+                type="number"
+                inputMode="decimal"
+                min={0}
+                defaultValue={values.tuitionOverride}
+                className="mt-2"
+                placeholder="Leave blank for class default"
+                {...getFieldAccessibility(state, "tuitionOverride")}
+              />
+              <FieldError fieldName="tuitionOverride" message={getFieldError(state, "tuitionOverride")} />
             </div>
             <div>
               <Label htmlFor="transportOverride">Transport override</Label>
-              <Input id="transportOverride" name="transportOverride" type="number" inputMode="decimal" min={0} defaultValue={values.transportOverride} className="mt-2" placeholder="Leave blank for route default" />
-              <FieldError message={getFieldError(state, "transportOverride")} />
+              <Input
+                id="transportOverride"
+                name="transportOverride"
+                type="number"
+                inputMode="decimal"
+                min={0}
+                defaultValue={values.transportOverride}
+                className="mt-2"
+                placeholder="Leave blank for route default"
+                {...getFieldAccessibility(state, "transportOverride")}
+              />
+              <FieldError fieldName="transportOverride" message={getFieldError(state, "transportOverride")} />
             </div>
             <div>
               <Label htmlFor="discountAmount">Discount</Label>
-              <Input id="discountAmount" name="discountAmount" type="number" inputMode="decimal" min={0} defaultValue={values.discountAmount} className="mt-2" />
-              <FieldError message={getFieldError(state, "discountAmount")} />
+              <Input
+                id="discountAmount"
+                name="discountAmount"
+                type="number"
+                inputMode="decimal"
+                min={0}
+                defaultValue={values.discountAmount}
+                className="mt-2"
+                {...getFieldAccessibility(state, "discountAmount")}
+              />
+              <FieldError fieldName="discountAmount" message={getFieldError(state, "discountAmount")} />
             </div>
             <div>
               <Label htmlFor="lateFeeWaiverAmount">Late fee waiver</Label>
-              <Input id="lateFeeWaiverAmount" name="lateFeeWaiverAmount" type="number" inputMode="decimal" min={0} defaultValue={values.lateFeeWaiverAmount} className="mt-2" />
-              <FieldError message={getFieldError(state, "lateFeeWaiverAmount")} />
+              <Input
+                id="lateFeeWaiverAmount"
+                name="lateFeeWaiverAmount"
+                type="number"
+                inputMode="decimal"
+                min={0}
+                defaultValue={values.lateFeeWaiverAmount}
+                className="mt-2"
+                {...getFieldAccessibility(state, "lateFeeWaiverAmount")}
+              />
+              <FieldError fieldName="lateFeeWaiverAmount" message={getFieldError(state, "lateFeeWaiverAmount")} />
             </div>
             <div>
               <Label htmlFor="otherAdjustmentHead">Other adjustment</Label>
-              <Input id="otherAdjustmentHead" name="otherAdjustmentHead" defaultValue={values.otherAdjustmentHead} className="mt-2" placeholder="e.g. Uniform adj." />
-              <FieldError message={getFieldError(state, "otherAdjustmentHead")} />
+              <Input
+                id="otherAdjustmentHead"
+                name="otherAdjustmentHead"
+                defaultValue={values.otherAdjustmentHead}
+                className="mt-2"
+                placeholder="e.g. Uniform adj."
+                {...getFieldAccessibility(state, "otherAdjustmentHead")}
+              />
+              <FieldError fieldName="otherAdjustmentHead" message={getFieldError(state, "otherAdjustmentHead")} />
             </div>
             <div>
               <Label htmlFor="otherAdjustmentAmount">Other adjustment amount</Label>
-              <Input id="otherAdjustmentAmount" name="otherAdjustmentAmount" type="number" inputMode="decimal" defaultValue={values.otherAdjustmentAmount} className="mt-2" placeholder="Positive or negative" />
-              <FieldError message={getFieldError(state, "otherAdjustmentAmount")} />
+              <Input
+                id="otherAdjustmentAmount"
+                name="otherAdjustmentAmount"
+                type="number"
+                inputMode="decimal"
+                defaultValue={values.otherAdjustmentAmount}
+                className="mt-2"
+                placeholder="Positive or negative"
+                {...getFieldAccessibility(state, "otherAdjustmentAmount")}
+              />
+              <FieldError fieldName="otherAdjustmentAmount" message={getFieldError(state, "otherAdjustmentAmount")} />
             </div>
             <div className="md:col-span-2 xl:col-span-3">
               <Label htmlFor="feeProfileReason">Reason</Label>
-              <Input id="feeProfileReason" name="feeProfileReason" defaultValue={values.feeProfileReason} className="mt-2" placeholder="e.g. Approved concession or route exception" />
-              <FieldError message={getFieldError(state, "feeProfileReason")} />
+              <Input
+                id="feeProfileReason"
+                name="feeProfileReason"
+                defaultValue={values.feeProfileReason}
+                className="mt-2"
+                placeholder="e.g. Approved concession or route exception"
+                {...getFieldAccessibility(state, "feeProfileReason")}
+              />
+              <FieldError fieldName="feeProfileReason" message={getFieldError(state, "feeProfileReason")} />
             </div>
             <div className="md:col-span-2 xl:col-span-3">
               <Label htmlFor="feeProfileNotes">Advanced notes</Label>
@@ -422,14 +590,21 @@ export function StudentForm({
         <div className="grid gap-4 border-t border-border p-4 md:grid-cols-2">
           <div>
             <Label htmlFor="status">Record status</Label>
-            <select id="status" name="status" defaultValue={values.status} className={`${selectClassName} mt-2`} required>
+            <select
+              id="status"
+              name="status"
+              defaultValue={values.status}
+              className={`${selectClassName} mt-2`}
+              required
+              {...getFieldAccessibility(state, "status")}
+            >
               {STUDENT_STATUSES.map((statusOption) => (
                 <option key={statusOption.value} value={statusOption.value}>
                   {statusOption.label}
                 </option>
               ))}
             </select>
-            <FieldError message={getFieldError(state, "status")} />
+            <FieldError fieldName="status" message={getFieldError(state, "status")} />
           </div>
         </div>
       </details>

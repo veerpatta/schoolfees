@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Slot } from "@radix-ui/react-slot";
+import { Slot, Slottable } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { Loader2 } from "lucide-react";
 
@@ -108,26 +108,41 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ) => {
     const Comp = asChild ? Slot : "button";
     const resolvedVariant = resolveVariant(variant);
+    const buttonClassName = cn(
+      buttonVariants({ variant: resolvedVariant, size, className }),
+    );
+    const busy = loading || undefined;
+
+    if (asChild && !loading && !leadingIcon && !trailingIcon) {
+      return (
+        <Slot
+          ref={ref}
+          className={buttonClassName}
+          aria-busy={busy}
+          {...props}
+        >
+          {children}
+        </Slot>
+      );
+    }
 
     return (
       <Comp
         ref={ref}
-        className={cn(
-          buttonVariants({ variant: resolvedVariant, size, className }),
-        )}
+        className={buttonClassName}
         disabled={disabled || loading}
-        aria-busy={loading || undefined}
+        aria-busy={busy}
         {...props}
       >
         {loading ? (
           <>
             <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            {loadingText ?? children}
+            {asChild ? <Slottable>{loadingText ?? children}</Slottable> : loadingText ?? children}
           </>
         ) : (
           <>
             {leadingIcon}
-            {children}
+            {asChild ? <Slottable>{children}</Slottable> : children}
             {trailingIcon}
           </>
         )}

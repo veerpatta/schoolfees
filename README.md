@@ -78,6 +78,14 @@ Production runs with `APP_MODE=production` and reads/writes the `public` schema.
 Staging can run with `APP_MODE=test` and reads/writes isolated operational tables
 in the `test` schema while shared setup catalogues remain read-only references.
 
+Quality guardrails:
+
+```bash
+npm run quality:budgets
+```
+
+The offline fallback is read-only. Payments and receipts still require server confirmation.
+
 See [Test Environment Isolation](docs/test-environment-isolation.md) for setup,
 the one-time TEST-data migration script, and the longer-term separate Supabase
 project option.
@@ -239,7 +247,7 @@ Required runtime env:
 - `NEXT_PUBLIC_SITE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY` (server-only)
 - `NEXT_PUBLIC_SCHOOL_NAME`
-- `NEXT_PUBLIC_APP_MODE`
+- `APP_MODE` (`production` for live/public schema, `test` for isolated test schema)
 - `OPENAI_MODEL` (optional, defaults to `gpt-5.5` in `lib/config/openai.ts`)
 
 Bootstrap script env (staff seeding):

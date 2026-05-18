@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 vi.mock("server-only", () => ({}));
 
@@ -9,9 +11,11 @@ const cookieStore = {
   set: vi.fn(),
 };
 const originalAppMode = process.env.APP_MODE;
+const originalPublicAppMode = process.env.NEXT_PUBLIC_APP_MODE;
 const originalSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const originalPublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 const originalServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const repoRoot = process.cwd();
 
 vi.mock("@supabase/ssr", () => ({
   createServerClient,
@@ -35,6 +39,8 @@ function setRequiredEnv(mode?: string) {
   } else {
     process.env.APP_MODE = mode;
   }
+
+  delete process.env.NEXT_PUBLIC_APP_MODE;
 }
 
 describe("test schema isolation", () => {
@@ -49,6 +55,12 @@ describe("test schema isolation", () => {
       delete process.env.APP_MODE;
     } else {
       process.env.APP_MODE = originalAppMode;
+    }
+
+    if (originalPublicAppMode === undefined) {
+      delete process.env.NEXT_PUBLIC_APP_MODE;
+    } else {
+      process.env.NEXT_PUBLIC_APP_MODE = originalPublicAppMode;
     }
 
     if (originalSupabaseUrl === undefined) {
@@ -117,5 +129,29 @@ describe("test schema isolation", () => {
     const { getAppMode } = await import("@/lib/env");
 
     expect(() => getAppMode()).toThrow("Invalid APP_MODE");
+  });
+
+  it("does not let the legacy public mode variable select the database schema", async () => {
+    process.env.NEXT_PUBLIC_APP_MODE = "test";
+
+    const { getAppMode, getSupabaseSchemaForAppMode } = await import("@/lib/env");
+
+    expect(getAppMode()).toBe("production");
+    expect(getSupabaseSchemaForAppMode()).toBe("public");
+  });
+
+  it("keeps runtime code on APP_MODE instead of the legacy public mode variable", () => {
+    const protectedLayout = readFileSync(
+      join(repoRoot, "app", "protected", "layout.tsx"),
+      "utf8",
+    );
+    const schoolConfig = readFileSync(
+      join(repoRoot, "lib", "config", "school.ts"),
+      "utf8",
+    );
+
+    expect(protectedLayout).toContain("getAppMode() === \"test\"");
+    expect(protectedLayout).not.toContain("NEXT_PUBLIC_APP_MODE");
+    expect(schoolConfig).not.toContain("NEXT_PUBLIC_APP_MODE");
   });
 });

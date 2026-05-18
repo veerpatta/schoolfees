@@ -27,6 +27,11 @@ All visual values flow from `app/globals.css` (HSL tokens) and
 semantic names — never raw Tailwind hues. The migration scripts in
 `scripts/migrate-design-tokens*.mjs` prove this is enforceable.
 
+Phase E adds a formal token registry in `lib/design/office-tokens.ts`. The
+registry maps office-friendly token names to the CSS variables in
+`app/globals.css`, and quality tests verify that each registered variable exists
+before visual work is treated as complete.
+
 ---
 
 ## 2. Component reference (when to use what)
@@ -238,9 +243,12 @@ diff, or because they need an independent design pass.
 
 ### 5.1 Split the Payment Desk client (high reward, medium risk)
 
-`components/payments/payment-entry-client.tsx` is 2,154 lines and one of the
-most-touched code paths. The visual pass migrated all 142 raw color usages
-to tokens, but the file is still a single client component. Suggested split:
+`components/payments/payment-desk-mobile.tsx` remains the current large Payment
+Desk state owner. Phase B started the split by routing `payment-entry-client.tsx`
+through a single client instance, extracting cache helpers, and moving reusable
+desktop layout framing into `components/payments/payment-desk/payment-desk-layout.tsx`.
+The next split should continue separating shared cashier state from mobile and
+desktop layout pieces. Suggested split:
 
 - `<StudentPicker>` — class filter, search, recent-students list, virtualized
   combobox.

@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { AutoSubmitForm } from "@/components/office/auto-submit-form";
-import { WorkflowGuard } from "@/components/office/office-ui";
+import { OfficeNotice, WorkflowGuard } from "@/components/office/office-ui";
 import { PrintReportButton } from "@/components/reports/print-report-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1108,6 +1108,11 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           actionHref={readiness.reports.actionHref}
         />
       ) : null}
+
+      <OfficeNotice title="Reports are read-only" tone="info">
+        These views use the selected session and current fee policy for review, print, and export.
+        Use Payment Desk for collections and Transactions for permanent receipt history.
+      </OfficeNotice>
 
       <ReportCatalog filters={filters} />
 

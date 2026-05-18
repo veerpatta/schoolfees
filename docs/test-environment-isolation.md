@@ -8,8 +8,8 @@ boundary is schema-level isolation.
 
 Use one Supabase project and two Vercel deployments:
 
-- Production deployment: `APP_MODE=production` and `NEXT_PUBLIC_APP_MODE=production`
-- Staging deployment: `APP_MODE=test` and `NEXT_PUBLIC_APP_MODE=test`
+- Production deployment: `APP_MODE=production`
+- Staging deployment: `APP_MODE=test`
 
 In `APP_MODE=test`, server-side Supabase clients target the `test` schema. The
 operational tables are mirrored there:

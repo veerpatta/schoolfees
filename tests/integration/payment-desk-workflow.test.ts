@@ -8,6 +8,7 @@ import {
   buildPaymentConfirmationSummary,
   buildStudentSelectLabel,
   filterPaymentDeskStudents,
+  getNextStudentOptionIndex,
   resetPaymentDraftForNextPayment,
   shouldBlockClientSubmission,
   shouldShowPaymentActionState,
@@ -614,19 +615,50 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("धन्यवाद — Veer Patta School");
   });
 
-  it("payment desk wrapper emits mobile and desktop branches with responsive classes", () => {
+  it("payment desk entry keeps one client state owner for mobile and desktop", () => {
     const wrapper = readFileSync(
       join(process.cwd(), "components/payments/payment-entry-client.tsx"),
       "utf8",
     );
+    const desktop = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-desktop.tsx"),
+      "utf8",
+    );
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
 
-    expect(wrapper).toContain("PaymentDeskMobile");
-    expect(wrapper).toContain("PaymentDeskDesktop");
-    expect(wrapper).toContain("md:hidden");
-    expect(wrapper).toContain("hidden md:block");
-    expect(wrapper).toContain("dynamic(");
-    expect(wrapper).toContain("ssr: true");
+    expect(wrapper).toContain("PaymentDeskClient");
+    expect(wrapper).not.toContain("PaymentDeskDesktop");
+    expect(wrapper).not.toContain("dynamic(");
+    expect(wrapper).not.toContain("md:hidden");
+    expect(wrapper).not.toContain("hidden md:block");
+    expect(component).toContain("export function PaymentDeskClient");
+    expect(component).toContain("export const PaymentDeskMobile = PaymentDeskClient");
+    expect(desktop).toContain("PaymentDeskClient");
+    expect(component).toContain("PaymentDeskRoot");
+    expect(component).toContain("DesktopPaymentDeskSection");
+    expect(component).toContain("DesktopPaymentDeskStudentPanel");
     expect(wrapper).not.toContain("isMobileView ? (");
+  });
+
+  it("student combobox keyboard movement is bounded and starts from the first result", () => {
+    expect(getNextStudentOptionIndex({ currentIndex: -1, resultCount: 5, key: "ArrowDown" })).toBe(0);
+    expect(getNextStudentOptionIndex({ currentIndex: 4, resultCount: 5, key: "ArrowDown" })).toBe(4);
+    expect(getNextStudentOptionIndex({ currentIndex: 0, resultCount: 5, key: "ArrowUp" })).toBe(0);
+    expect(getNextStudentOptionIndex({ currentIndex: -1, resultCount: 0, key: "ArrowDown" })).toBe(-1);
+  });
+
+  it("student combobox declares listbox popup semantics for mobile and desktop search", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+
+    expect(component.match(/aria-haspopup="listbox"/g)).toHaveLength(2);
+    expect(component).toContain('role="combobox"');
+    expect(component).toContain('role="listbox"');
   });
 
   it("all three payment desk overlay dialogs are rendered via createPortal", () => {

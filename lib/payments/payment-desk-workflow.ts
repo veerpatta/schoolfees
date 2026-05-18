@@ -203,6 +203,25 @@ export function filterPaymentDeskStudents(payload: {
     .slice(0, payload.limit ?? searched.length);
 }
 
+export function getNextStudentOptionIndex(payload: {
+  currentIndex: number;
+  resultCount: number;
+  key: "ArrowDown" | "ArrowUp";
+}) {
+  if (payload.resultCount <= 0) {
+    return -1;
+  }
+
+  if (payload.key === "ArrowDown") {
+    return Math.min(
+      payload.currentIndex < 0 ? 0 : payload.currentIndex + 1,
+      payload.resultCount - 1,
+    );
+  }
+
+  return Math.max(payload.currentIndex < 0 ? 0 : payload.currentIndex - 1, 0);
+}
+
 export function shouldBlockClientSubmission(payload: {
   isSubmitting: boolean;
   isLockedAfterSuccess: boolean;

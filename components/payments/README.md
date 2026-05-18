@@ -12,6 +12,7 @@ Key files:
 - `payment-entry-client.tsx`
 - `payment-desk-mobile.tsx`
 - `payment-desk-desktop.tsx`
+- `payment-desk/payment-desk-layout.tsx`
 - `confirm-receipt-sheet.tsx`
 - `success-receipt-sheet.tsx`
 - `duplicate-receipt-sheet.tsx`

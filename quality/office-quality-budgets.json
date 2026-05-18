@@ -1,0 +1,31 @@
+{
+  "performance": {
+    "webVitals": {
+      "lcpMs": 2500,
+      "inpMs": 200,
+      "cls": 0.1
+    },
+    "officeWorkflow": {
+      "paymentDeskSearchToSelectionMs": 6000,
+      "studentSelectedToReceiptMs": 30000,
+      "paymentPostFailureRate": 0.005
+    },
+    "sourceBudgets": {
+      "paymentDeskClientMaxLines": 3400,
+      "studentFormMaxLines": 1400
+    }
+  },
+  "visualRegression": {
+    "viewports": [
+      { "name": "desktop-office", "width": 1440, "height": 900 },
+      { "name": "mobile-counter", "width": 390, "height": 844 }
+    ],
+    "routes": [
+      "/protected/dashboard?session=TEST-2026-27",
+      "/protected/payments?session=TEST-2026-27",
+      "/protected/students?session=TEST-2026-27",
+      "/protected/reports?session=TEST-2026-27",
+      "/protected/admin-tools?session=TEST-2026-27"
+    ]
+  }
+}

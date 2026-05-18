@@ -16,6 +16,13 @@ import { LoadingBlock } from "@/components/ui/loading-skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Banknote, Building2, FileText, Smartphone } from "lucide-react";
 import { PayeeSummaryStrip } from "@/components/payments/payee-summary-strip";
+import {
+  DesktopPaymentDeskBody,
+  DesktopPaymentDeskMainPanel,
+  DesktopPaymentDeskSection,
+  DesktopPaymentDeskStudentPanel,
+  PaymentDeskRoot,
+} from "@/components/payments/payment-desk/payment-desk-layout";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useScrollIntoView } from "@/hooks/use-scroll-into-view";
 import { buildPaymentAllocation, buildReceiptPreviewAllocation } from "@/lib/payments/allocation";
@@ -27,11 +34,17 @@ import {
   buildStudentSelectLabel,
   filterPaymentDeskStudents,
   buildPaymentActionStateKey,
+  getNextStudentOptionIndex,
   resetPaymentDraftForNextPayment,
   shouldBlockClientSubmission,
   shouldShowPaymentActionState,
   validatePaymentDraft,
 } from "@/lib/payments/payment-desk-workflow";
+import {
+  clearPaymentDeskStudentIndexCache,
+  readPaymentDeskStudentIndexCache,
+  writePaymentDeskStudentIndexCache,
+} from "@/lib/payments/payment-desk-cache";
 import type {
   PaymentDeskIssue,
   PaymentDeskStudentSummary,
@@ -92,7 +105,6 @@ const studentComboboxOverscan = 4;
 const paymentDeskLastClassStorageKey = "vpps.paymentDesk.lastClassId";
 const paymentDeskLastModeStorageKey = "vpps.paymentDesk.lastPaymentMode";
 const paymentDeskRecentStudentsStorageKey = "vpps.paymentDesk.recentStudents";
-const paymentDeskStudentIndexCacheKey = "vpps.paymentDesk.studentIndex";
 const mobilePresetAmounts = [500, 1000, 2000, 5000, 10000];
 const paymentDeskReceiptCopyMarkers = [
   "Receipt Preview",
@@ -172,7 +184,7 @@ function ActionNotice({
   );
 }
 
-export function PaymentDeskMobile({
+export function PaymentDeskClient({
   data,
   canPost,
   canViewDiagnostics,
@@ -432,28 +444,23 @@ export function PaymentDeskMobile({
     let hasStaleCache = false;
 
     try {
-      const cached = sessionStorage.getItem(`${paymentDeskStudentIndexCacheKey}:${data.sessionLabel}`);
-      if (cached) {
-        const parsed = JSON.parse(cached) as {
-          ts?: number;
-          data?: PaymentStudentIndexItem[];
-        };
+      const cached = readPaymentDeskStudentIndexCache({
+        storage: sessionStorage,
+        sessionLabel: data.sessionLabel,
+      });
 
-        if (
-          typeof parsed.ts === "number" &&
-          Array.isArray(parsed.data) &&
-          Date.now() - parsed.ts < 5 * 60 * 1000
-        ) {
-          if (studentIndex.length === 0) {
-            setStudentIndex(parsed.data);
-          }
-          studentIndexLoadedRef.current = true;
+      if (cached && cached.students.length > 0) {
+        if (studentIndex.length === 0) {
+          setStudentIndex(cached.students);
+        }
+        studentIndexLoadedRef.current = true;
+
+        if (!cached.stale) {
           return;
         }
 
-        hasStaleCache =
-          typeof parsed.ts === "number" && Date.now() - parsed.ts >= 5 * 60 * 1000;
-        shouldFetch = shouldFetch || hasStaleCache;
+        hasStaleCache = true;
+        shouldFetch = true;
       }
     } catch {
       // Ignore unavailable or malformed cache.
@@ -477,10 +484,11 @@ export function PaymentDeskMobile({
 
         setStudentIndex(json.students);
         try {
-          sessionStorage.setItem(
-            `${paymentDeskStudentIndexCacheKey}:${data.sessionLabel}`,
-            JSON.stringify({ ts: Date.now(), data: json.students }),
-          );
+          writePaymentDeskStudentIndexCache({
+            storage: sessionStorage,
+            sessionLabel: data.sessionLabel,
+            students: json.students,
+          });
         } catch {
           // Storage may be unavailable or full.
         }
@@ -819,7 +827,10 @@ export function PaymentDeskMobile({
         );
       }
       try {
-        sessionStorage.removeItem(`${paymentDeskStudentIndexCacheKey}:${paymentSessionLabel}`);
+        clearPaymentDeskStudentIndexCache({
+          storage: sessionStorage,
+          sessionLabel: paymentSessionLabel,
+        });
       } catch {
         // Session storage may be unavailable.
       }
@@ -1214,7 +1225,7 @@ export function PaymentDeskMobile({
   }
 
   return (
-    <div className="payment-entry-mobile-layout space-y-6 mobile-payment-with-nav-clearance md:pb-4">
+    <PaymentDeskRoot>
       <OfficeRecentTracker
         student={
           selectedStudent
@@ -1353,6 +1364,7 @@ export function PaymentDeskMobile({
                   ref={mobileStudentSearchInputRef}
                   id={`${mobileStudentListId}-input`}
                   role="combobox"
+                  aria-haspopup="listbox"
                   aria-expanded={isStudentPickerOpen}
                   aria-controls={mobileStudentListId}
                   aria-activedescendant={
@@ -1379,12 +1391,22 @@ export function PaymentDeskMobile({
                       event.preventDefault();
                       setIsStudentPickerOpen(true);
                       setActiveStudentOptionIndex((index) =>
-                        Math.min(index < 0 ? 0 : index + 1, filteredStudents.length - 1),
+                        getNextStudentOptionIndex({
+                          currentIndex: index,
+                          resultCount: filteredStudents.length,
+                          key: "ArrowDown",
+                        }),
                       );
                     } else if (event.key === "ArrowUp") {
                       event.preventDefault();
                       setIsStudentPickerOpen(true);
-                      setActiveStudentOptionIndex((index) => Math.max(index - 1, 0));
+                      setActiveStudentOptionIndex((index) =>
+                        getNextStudentOptionIndex({
+                          currentIndex: index,
+                          resultCount: filteredStudents.length,
+                          key: "ArrowUp",
+                        }),
+                      );
                     } else if (event.key === "Enter") {
                       if (!isStudentPickerOpen) {
                         return;
@@ -1508,7 +1530,7 @@ export function PaymentDeskMobile({
       </div>
 
 
-      <section className="hidden md:block" aria-label="Payment Desk">
+      <DesktopPaymentDeskSection>
         {/* Top bar */}
         <div className="mb-3 flex items-center justify-between gap-4 rounded-xl border border-border bg-card px-4 py-2.5">
           <div className="flex items-center gap-3">
@@ -1544,9 +1566,9 @@ export function PaymentDeskMobile({
         </div>
 
         {/* Two-panel body */}
-        <div className="flex gap-3" style={{ height: "calc(100vh - 160px)", minHeight: 560 }}>
+        <DesktopPaymentDeskBody>
           {/* LEFT PANEL — Student picker */}
-          <div className="flex w-[280px] shrink-0 flex-col gap-2 overflow-y-auto rounded-xl border border-border bg-card p-3">
+          <DesktopPaymentDeskStudentPanel>
             <select
               id="desktop-payment-class-id"
               value={selectedClassId}
@@ -1563,6 +1585,7 @@ export function PaymentDeskMobile({
               <Input
                 ref={desktopStudentSearchInputRef}
                 role="combobox"
+                aria-haspopup="listbox"
                 aria-expanded={isStudentPickerOpen}
                 aria-controls={desktopStudentListId}
                 aria-activedescendant={
@@ -1589,11 +1612,21 @@ export function PaymentDeskMobile({
                     event.preventDefault();
                     setIsStudentPickerOpen(true);
                     setActiveStudentOptionIndex((index) =>
-                      Math.min(index < 0 ? 0 : index + 1, filteredStudents.length - 1),
+                      getNextStudentOptionIndex({
+                        currentIndex: index,
+                        resultCount: filteredStudents.length,
+                        key: "ArrowDown",
+                      }),
                     );
                   } else if (event.key === "ArrowUp") {
                     event.preventDefault();
-                    setActiveStudentOptionIndex((index) => Math.max(index - 1, 0));
+                    setActiveStudentOptionIndex((index) =>
+                      getNextStudentOptionIndex({
+                        currentIndex: index,
+                        resultCount: filteredStudents.length,
+                        key: "ArrowUp",
+                      }),
+                    );
                   } else if (event.key === "Enter") {
                     event.preventDefault();
                     const nextStudent = filteredStudents[activeStudentOptionIndex];
@@ -1662,10 +1695,10 @@ export function PaymentDeskMobile({
                 </div>
               )}
             </div>
-          </div>
+          </DesktopPaymentDeskStudentPanel>
 
           {/* RIGHT PANEL — Payment form */}
-          <div className="flex min-w-0 flex-1 flex-col gap-3 overflow-y-auto">
+          <DesktopPaymentDeskMainPanel>
             {formError ? (
               <div
                 role="alert"
@@ -2059,9 +2092,9 @@ export function PaymentDeskMobile({
                 </div>
               </details>
             ) : null}
-          </div>
-        </div>
-      </section>
+          </DesktopPaymentDeskMainPanel>
+        </DesktopPaymentDeskBody>
+      </DesktopPaymentDeskSection>
 
       {workflowGuard ? (
         <WorkflowGuard
@@ -3142,6 +3175,8 @@ export function PaymentDeskMobile({
           </div>
         </div>
       </SectionCard>
-    </div>
+    </PaymentDeskRoot>
   );
 }
+
+export const PaymentDeskMobile = PaymentDeskClient;

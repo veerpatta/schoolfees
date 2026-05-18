@@ -7,6 +7,7 @@ import { OfficeNotice } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { advancedHubSections } from "@/lib/config/navigation";
 import { appendSessionParam } from "@/lib/navigation/session-href";
+import qualityBudgets from "@/quality/office-quality-budgets.json";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
 import {
@@ -198,6 +199,46 @@ export default async function AdvancedPage({ searchParams }: AdvancedPageProps) 
               <p className="mt-1 text-muted-foreground">{autoSync.reason}</p>
             </div>
             <StatusBadge label={status.label} tone={status.tone} />
+          </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Platform quality safeguards"
+        description="Read-only guardrails for offline fallback, visual checks, and workflow speed targets."
+        actions={<StatusBadge label="Read-only" tone="info" />}
+      >
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              Offline fallback
+            </p>
+            <p className="mt-2 font-semibold text-foreground">Read-only</p>
+            <p className="mt-1 text-muted-foreground">
+              Payments and receipts still require server confirmation.
+            </p>
+          </div>
+          <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              Workflow target
+            </p>
+            <p className="mt-2 font-semibold text-foreground">
+              {qualityBudgets.performance.officeWorkflow.paymentDeskSearchToSelectionMs / 1000}s lookup
+            </p>
+            <p className="mt-1 text-muted-foreground">
+              Search-to-student selection budget for counter work.
+            </p>
+          </div>
+          <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              Visual smoke
+            </p>
+            <p className="mt-2 font-semibold text-foreground">
+              {qualityBudgets.visualRegression.routes.length} routes
+            </p>
+            <p className="mt-1 text-muted-foreground">
+              Dashboard, Payment Desk, Students, Reports, and Admin Tools in TEST session.
+            </p>
           </div>
         </div>
       </SectionCard>
