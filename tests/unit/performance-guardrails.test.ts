@@ -100,8 +100,7 @@ describe("office performance guardrails", () => {
     const paymentClient = readRepoFile("components/payments/payment-desk-mobile.tsx");
 
     expect(paymentsData).toContain("getPaymentDeskStudentIndex(payload:");
-    expect(paymentsData).toContain("shouldEagerLoadStudentIndex");
-    expect(paymentsData).toContain("Promise.resolve([])");
+    expect(paymentsData).toContain("getPaymentDeskStudentIndex({ sessionLabel })");
     expect(paymentsData).toContain("payload.studentId");
     expect(paymentsData).toContain("const [studentIndex, recentReceipts, todayCollection, summary] = await Promise.all");
     expect(paymentsData).toContain("getPaymentDeskStudentSummary({");
@@ -111,9 +110,11 @@ describe("office performance guardrails", () => {
     expect(paymentsData).not.toContain("getWorkbookStudentFinancials({\n      classId");
     expect(paymentsData).not.toContain(".sort((left, right) => left.fullName.localeCompare(right.fullName))");
     expect(paymentsPage).toContain("getPaymentDeskClassOptions(viewSession.sessionLabel)");
-    expect(paymentsPage).toContain("getSetupWizardData()");
+    expect(paymentsPage).toContain("getPaymentDeskReadiness({");
+    expect(paymentsPage).not.toContain("getSetupWizardData()");
     expect(paymentsPage).not.toContain("getStudentFormOptions()");
     expect(paymentClient).toContain("paymentDeskStudentIndexCacheKey");
+    expect(paymentClient).toContain("studentIndex.length === 0");
     expect(paymentClient).toContain("prefetchStudentSummary");
     expect(paymentClient).toContain("onMouseEnter={() => prefetchStudentSummary");
     expect(paymentClient).toContain("onTouchStart={() => prefetchStudentSummary");

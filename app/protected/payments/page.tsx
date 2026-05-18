@@ -5,16 +5,15 @@ import { OfficeNotice, WorkflowGuard } from "@/components/office/office-ui";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { PaymentEntryClient } from "@/components/payments/payment-entry-client";
 import { PaymentDeskSkeleton } from "@/components/payments/payment-desk-skeleton";
-import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
 import {
   getPaymentDeskClassOptions,
+  getPaymentDeskReadiness,
   getPaymentDeskStudentSummary,
   getPaymentEntryPageData,
 } from "@/lib/payments/data";
 import { INITIAL_PAYMENT_ENTRY_ACTION_STATE } from "@/lib/payments/types";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
-import { getSetupWizardData } from "@/lib/setup/data";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 import {
@@ -92,23 +91,73 @@ async function PaymentDeskDataLoader({
   classId: string | null;
   sessionLabel: string;
 }) {
-  const setup = await getSetupWizardData();
-  const readiness = getOfficeWorkflowReadiness(setup, staff.appRole);
-  const canPostPayments =
-    hasStaffPermission(staff, "payments:write") && readiness.postPayments.isReady;
-  const canRepairOrPrepareDues =
-    hasStaffPermission(staff, "payments:write") &&
-    staff.appRole === "admin" &&
-    readiness.recalculateLedgers.isReady;
   const today = new Date().toISOString().slice(0, 10);
-  const initialSelectedSummary = studentId
-    ? await getPaymentDeskStudentSummary({
+  const canWritePayments = hasStaffPermission(staff, "payments:write");
+  const readinessPromise = getPaymentDeskReadiness({
+    sessionLabel,
+    staffAppRole: staff.appRole,
+    canWritePayments,
+  });
+  if (!studentId) {
+    // Readiness and page data use independent reads, so start them together for normal desk opens.
+    const [readiness, data] = await Promise.all([
+      readinessPromise,
+      getPaymentEntryPageData({
+        searchQuery: "",
         studentId,
-        paymentDate: today,
+        classId: classId ?? undefined,
         sessionLabel,
-        autoPrepareMissingDues: canRepairOrPrepareDues,
-      })
-    : null;
+        autoPrepareMissingDues: false,
+        initialSelectedSummary: null,
+      }),
+    ]);
+    const { canPostPayments } = readiness;
+    const blockingReason = readiness.blockingReason;
+
+    return (
+      <>
+        <div className="flex justify-end">
+          <StatusBadge
+            label={canPostPayments ? "Posting enabled" : "Read-only access"}
+            tone={canPostPayments ? "good" : "warning"}
+          />
+        </div>
+
+        {blockingReason ? (
+          <WorkflowGuard
+            title={blockingReason.title}
+            detail={blockingReason.detail}
+            actionLabel={blockingReason.actionLabel}
+            actionHref={blockingReason.actionHref}
+          />
+        ) : null}
+
+        <PaymentEntryClient
+          data={data}
+          canPost={canPostPayments}
+          canViewDiagnostics={staff.appRole === "admin"}
+          classOptions={classOptions}
+          workflowGuard={blockingReason}
+          initialState={INITIAL_PAYMENT_ENTRY_ACTION_STATE}
+          defaultReceivedBy={staff.email ?? "Office desk"}
+          submitPaymentEntryAction={submitPaymentEntryAction}
+          repairPaymentDeskStudentDuesAction={repairPaymentDeskStudentDuesAction}
+        />
+      </>
+    );
+  }
+
+  // Readiness and selected-student summary use independent reads, so start them together.
+  const [readiness, initialSelectedSummary] = await Promise.all([
+    readinessPromise,
+    getPaymentDeskStudentSummary({
+      studentId,
+      paymentDate: today,
+      sessionLabel,
+      autoPrepareMissingDues: false,
+    }),
+  ]);
+  const { canPostPayments, canRepairOrPrepareDues } = readiness;
   const data = await getPaymentEntryPageData({
     searchQuery: "",
     studentId,
@@ -117,6 +166,7 @@ async function PaymentDeskDataLoader({
     autoPrepareMissingDues: canRepairOrPrepareDues,
     initialSelectedSummary,
   });
+  const blockingReason = readiness.blockingReason;
 
   return (
     <>
@@ -127,12 +177,12 @@ async function PaymentDeskDataLoader({
         />
       </div>
 
-      {!readiness.postPayments.isReady ? (
+      {blockingReason ? (
         <WorkflowGuard
-          title={readiness.postPayments.title}
-          detail={readiness.postPayments.detail}
-          actionLabel={readiness.postPayments.actionLabel}
-          actionHref={readiness.postPayments.actionHref}
+          title={blockingReason.title}
+          detail={blockingReason.detail}
+          actionLabel={blockingReason.actionLabel}
+          actionHref={blockingReason.actionHref}
         />
       ) : null}
 
@@ -141,7 +191,7 @@ async function PaymentDeskDataLoader({
         canPost={canPostPayments}
         canViewDiagnostics={staff.appRole === "admin"}
         classOptions={classOptions}
-        workflowGuard={!readiness.postPayments.isReady ? readiness.postPayments : null}
+        workflowGuard={blockingReason}
         initialState={INITIAL_PAYMENT_ENTRY_ACTION_STATE}
         defaultReceivedBy={staff.email ?? "Office desk"}
         submitPaymentEntryAction={submitPaymentEntryAction}

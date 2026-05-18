@@ -20,6 +20,17 @@ import type {
   SelectedStudentSummary,
 } from "@/lib/payments/types";
 
+export type PaymentDeskReadiness = {
+  canPostPayments: boolean;
+  blockingReason: {
+    title: string;
+    detail: string;
+    actionLabel: string | null;
+    actionHref: string | null;
+  } | null;
+  canRepairOrPrepareDues: boolean;
+};
+
 type PostStudentPaymentRow = {
   receipt_id: string;
   receipt_number: string;
@@ -351,6 +362,105 @@ function buildClassLabel(value: {
   return parts.join(" - ");
 }
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+async function getPaymentDeskReadinessUncached(payload: {
+  sessionLabel: string;
+  staffAppRole: "admin" | "accountant" | "read_only_staff";
+  canWritePayments: boolean;
+}): Promise<PaymentDeskReadiness> {
+  const [policy, hasActiveClass] = await Promise.all([
+    getFeePolicyForSession(payload.sessionLabel),
+    (async () => {
+      const supabase = await createClient();
+      const { data, error } = await supabase
+        .from("classes")
+        .select("id")
+        .eq("session_label", payload.sessionLabel)
+        .eq("status", "active")
+        .limit(1);
+
+      if (error) {
+        throw new Error(`Unable to check active classes: ${error.message}`);
+      }
+
+      return (data ?? []).length > 0;
+    })(),
+  ]);
+  const policyExists =
+    Boolean(policy.id) &&
+    policy.academicSessionLabel.trim().toLowerCase() ===
+      payload.sessionLabel.trim().toLowerCase();
+  let blockingReason: PaymentDeskReadiness["blockingReason"] = null;
+
+  if (!payload.canWritePayments) {
+    blockingReason = {
+      title: "Read-only access.",
+      detail: "You can review the desk but cannot post payments.",
+      actionLabel: null,
+      actionHref: null,
+    };
+  } else if (!policyExists) {
+    blockingReason = {
+      title: "Fee Setup is incomplete for this year.",
+      detail:
+        "Open Fee Setup and publish the academic year policy before collecting payments.",
+      actionLabel: "Open Fee Setup",
+      actionHref: "/protected/fee-setup",
+    };
+  } else if (!hasActiveClass) {
+    blockingReason = {
+      title: "No active classes for this academic year.",
+      detail: "Open Master Data and activate at least one class for the session.",
+      actionLabel: "Open Master Data",
+      actionHref: "/protected/admin-tools",
+    };
+  }
+
+  return {
+    canPostPayments: payload.canWritePayments && policyExists && hasActiveClass,
+    blockingReason,
+    canRepairOrPrepareDues:
+      payload.canWritePayments &&
+      payload.staffAppRole === "admin" &&
+      policyExists &&
+      hasActiveClass,
+  };
+}
+
+export async function getPaymentDeskReadiness(payload: {
+  sessionLabel: string;
+  staffAppRole: "admin" | "accountant" | "read_only_staff";
+  canWritePayments: boolean;
+}): Promise<PaymentDeskReadiness> {
+  try {
+    return await unstable_cache(
+      async () => getPaymentDeskReadinessUncached(payload),
+      [
+        "payment-desk-readiness",
+        payload.sessionLabel,
+        payload.staffAppRole,
+        String(payload.canWritePayments),
+      ],
+      { tags: [`session:${payload.sessionLabel}`] },
+    )();
+  } catch (error) {
+    console.warn("Payment Desk readiness check failed.", {
+      sessionLabel: payload.sessionLabel,
+      message: getErrorMessage(error),
+    });
+
+    return {
+      canPostPayments: payload.canWritePayments,
+      blockingReason: null,
+      canRepairOrPrepareDues:
+        payload.canWritePayments && payload.staffAppRole === "admin",
+    };
+  }
+}
+
 function toStudentIndexItem(row: PaymentStudentBaseRow): PaymentStudentIndexItem | null {
   const classRef = toSingleRecord(row.class_ref);
 
@@ -586,11 +696,11 @@ async function getTodayPaymentDeskCollectionUncached(sessionLabel: string) {
 }
 
 async function getLatestReceiptForStudent(studentId: string) {
-  return unstable_cache(
-    async () => getLatestReceiptForStudentUncached(studentId),
-    ["payment-desk-latest-receipt", studentId],
-    { tags: [`student:${studentId}`] },
-  )();
+  try {
+    return await getLatestReceiptForStudentUncached(studentId);
+  } catch {
+    return null;
+  }
 }
 
 async function getLatestReceiptForStudentUncached(studentId: string) {
@@ -949,11 +1059,8 @@ export async function getPaymentEntryPageData(payload: {
     : await getFeePolicySummary();
   const sessionLabel = payload.sessionLabel ?? policy.academicSessionLabel;
   const today = new Date().toISOString().slice(0, 10);
-  const shouldEagerLoadStudentIndex = Boolean(payload.studentId || payload.classId);
   const [studentIndex, recentReceipts, todayCollection, summary] = await Promise.all([
-    shouldEagerLoadStudentIndex
-      ? getPaymentDeskStudentIndex({ sessionLabel })
-      : Promise.resolve([]),
+    getPaymentDeskStudentIndex({ sessionLabel }),
     getRecentPaymentDeskReceipts(6, sessionLabel),
     getTodayPaymentDeskCollection(sessionLabel),
     payload.initialSelectedSummary !== undefined
@@ -994,54 +1101,112 @@ export async function getPaymentDeskStudentSummary(payload: {
     ? await getFeePolicyForSession(payload.sessionLabel)
     : await getFeePolicySummary();
   const sessionLabel = payload.sessionLabel ?? policy.academicSessionLabel;
-  const [selectedWorkbookRows, selectedStudentDetail] = await Promise.all([
-    getWorkbookStudentFinancials({
-      studentId: payload.studentId,
-      sessionLabel,
-    }),
-    getStudentDetail(payload.studentId),
-  ]);
-  const selectedFinancial = selectedWorkbookRows[0] ?? null;
+  const selectedWorkbookRows = await getWorkbookStudentFinancials({
+    studentId: payload.studentId,
+    sessionLabel,
+  });
+  let selectedFinancial = selectedWorkbookRows[0] ?? null;
+  let selectedStudentDetail: Awaited<ReturnType<typeof getStudentDetail>> | null = null;
   let selectedStudentIssue: PaymentDeskIssue | null = null;
   const shouldIncludeLatestReceipt = payload.includeLatestReceipt ?? true;
   const latestReceiptPromise = shouldIncludeLatestReceipt
     ? getLatestReceiptForStudent(payload.studentId)
     : Promise.resolve(null);
 
+  async function loadSelectedStudentDetail() {
+    selectedStudentDetail ??= await getStudentDetail(payload.studentId);
+    return selectedStudentDetail;
+  }
+
+  if (
+    !selectedFinancial &&
+    !payload.autoPrepareMissingDues &&
+    !selectedStudentDetail
+  ) {
+    selectedStudentDetail = await loadSelectedStudentDetail();
+  }
+
+  if (
+    !selectedFinancial &&
+    payload.autoPrepareMissingDues
+  ) {
+    const detail = await loadSelectedStudentDetail();
+    const autoPrepareIssue = await tryAutoPrepareSelectedStudentDues({
+      studentId: detail?.id ?? payload.studentId,
+      policySessionLabel: sessionLabel,
+    });
+
+    if (!autoPrepareIssue) {
+      const repairedWorkbookRows = await getWorkbookStudentFinancials({
+        studentId: detail?.id ?? payload.studentId,
+        sessionLabel,
+      });
+      selectedFinancial = repairedWorkbookRows[0] ?? null;
+    } else {
+      selectedStudentIssue = autoPrepareIssue;
+    }
+  }
+
   if (selectedFinancial) {
+    let previewReadError: unknown = null;
     let [breakdown, financialState] = await Promise.all([
       getPaymentDateAwareInstallmentBalances({
         studentId: selectedFinancial.studentId,
         paymentDate: payload.paymentDate,
+      }).catch((error) => {
+        previewReadError = error;
+        return [] as InstallmentBalanceItem[];
       }),
       getStudentFinancialState(selectedFinancial.studentId),
     ]);
 
-    if (breakdown.length === 0 && payload.autoPrepareMissingDues) {
+    const shouldRepairEmptyBreakdown =
+      breakdown.length === 0 &&
+      payload.autoPrepareMissingDues &&
+      (previewReadError || selectedFinancial.outstandingAmount > 0);
+
+    if (shouldRepairEmptyBreakdown) {
       const autoPrepareIssue = await tryAutoPrepareSelectedStudentDues({
         studentId: selectedFinancial.studentId,
         policySessionLabel: sessionLabel,
       });
 
       if (!autoPrepareIssue) {
-        breakdown = await getPaymentDateAwareInstallmentBalances({
-          studentId: selectedFinancial.studentId,
-          paymentDate: payload.paymentDate,
-        });
-        financialState = await getStudentFinancialState(selectedFinancial.studentId);
+        try {
+          breakdown = await getPaymentDateAwareInstallmentBalances({
+            studentId: selectedFinancial.studentId,
+            paymentDate: payload.paymentDate,
+          });
+          financialState = await getStudentFinancialState(selectedFinancial.studentId);
+          previewReadError = null;
+        } catch (error) {
+          previewReadError = error;
+          selectedStudentIssue = {
+            title: "Dues could not be loaded.",
+            detail: toFriendlyPaymentPreviewError(error),
+            actionLabel: "Prepare dues again",
+            actionHref: null,
+            repairStudentId: selectedFinancial.studentId,
+          };
+        }
       } else {
         selectedStudentIssue = autoPrepareIssue;
       }
     }
 
-    if (breakdown.length === 0) {
+    if (
+      breakdown.length === 0 &&
+      (selectedStudentIssue || previewReadError || selectedFinancial.outstandingAmount > 0)
+    ) {
       return {
         student: null,
         issue:
           selectedStudentIssue ?? {
             title: "Dues are not prepared for this student.",
             detail:
-              "Student exists, but dues are not prepared yet. Payment Desk can repair this only when Fee Setup is complete.",
+              previewReadError
+                ? toFriendlyPaymentPreviewError(previewReadError)
+                : "Student exists, but dues are not prepared yet. Payment Desk can repair this only when Fee Setup is complete.",
             actionLabel: "Prepare dues again",
             actionHref: null,
             repairStudentId: selectedFinancial.studentId,
@@ -1066,11 +1231,14 @@ export async function getPaymentDeskStudentSummary(payload: {
     };
   }
 
+  selectedStudentDetail = selectedStudentDetail ?? (await loadSelectedStudentDetail());
+
   if (selectedStudentDetail) {
     return {
       student: null,
       issue:
-        selectedStudentDetail.classSessionLabel !== sessionLabel
+        selectedStudentIssue ??
+        (selectedStudentDetail.classSessionLabel !== sessionLabel
           ? {
               title: "Selected student belongs to another academic session.",
               detail:
@@ -1085,7 +1253,7 @@ export async function getPaymentDeskStudentSummary(payload: {
             actionLabel: "Prepare dues again",
             actionHref: null,
             repairStudentId: selectedStudentDetail.id,
-            },
+            }),
       latestReceipt: await latestReceiptPromise,
       suggestedDefaultAmount: null,
       paymentDate: payload.paymentDate,
@@ -1289,11 +1457,7 @@ export async function getPaymentDateAwareInstallmentBalances(payload: {
   studentId: string;
   paymentDate: string;
 }) {
-  return unstable_cache(
-    async () => getPaymentDateAwareInstallmentBalancesUncached(payload),
-    ["payment-date-aware-installments", payload.studentId, payload.paymentDate],
-    { tags: [`student:${payload.studentId}`] },
-  )();
+  return getPaymentDateAwareInstallmentBalancesUncached(payload);
 }
 
 async function getPaymentDateAwareInstallmentBalancesUncached(payload: {

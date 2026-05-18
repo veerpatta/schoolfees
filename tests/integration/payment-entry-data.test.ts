@@ -227,6 +227,71 @@ describe("payment entry data", () => {
     expect(data.studentIndex[0]?.admissionNo).toBe("SR-3");
   });
 
+  it("getPaymentEntryPageData returns a populated studentIndex for the active session", async () => {
+    const studentQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: "student-1",
+            full_name: "Asha Sharma",
+            admission_no: "TEST-001",
+            class_ref: {
+              id: "class-1",
+              session_label: "TEST-2026-27",
+              class_name: "Class 1",
+              section: null,
+              stream_name: null,
+              status: "active",
+            },
+          },
+          {
+            id: "student-2",
+            full_name: "Bhavesh Patel",
+            admission_no: "TEST-002",
+            class_ref: {
+              id: "class-1",
+              session_label: "TEST-2026-27",
+              class_name: "Class 1",
+              section: null,
+              stream_name: null,
+              status: "active",
+            },
+          },
+        ],
+        error: null,
+      }),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+      then: vi.fn((resolve) => resolve({ data: [], error: null })),
+    };
+    const emptyReceiptQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+      then: vi.fn((resolve) => resolve({ data: [], error: null })),
+    };
+    createClient.mockResolvedValue({
+      from: vi.fn((table: string) =>
+        table === "students" ? studentQuery : emptyReceiptQuery,
+      ),
+      rpc: vi.fn().mockResolvedValue({ data: [], error: null }),
+    });
+
+    const { getPaymentEntryPageData } = await import("@/lib/payments/data");
+    const data = await getPaymentEntryPageData({
+      studentId: null,
+      searchQuery: "",
+      sessionLabel: "TEST-2026-27",
+    });
+
+    expect(data.studentIndex).toHaveLength(2);
+    expect(getWorkbookStudentFinancials).not.toHaveBeenCalled();
+  });
+
   it("shows a recovery message when a student exists but dues are not generated", async () => {
     getWorkbookStudentFinancials.mockResolvedValue([]);
     getStudentDetail.mockResolvedValue({
@@ -404,5 +469,376 @@ describe("payment entry data", () => {
     });
     expect(data.initialStudentSummary?.id).toBe("student-2");
     expect(data.initialStudentIssue).toBeNull();
+  });
+
+  it("loads the normal selected-student summary without the heavy student detail read", async () => {
+    getWorkbookStudentFinancials.mockResolvedValue([
+      {
+        studentId: "student-fast",
+        admissionNo: "SR-FAST",
+        studentName: "Fast Test Student",
+        fatherName: "Father",
+        motherName: null,
+        fatherPhone: "8888888888",
+        motherPhone: null,
+        recordStatus: "active",
+        classId: "class-1",
+        sessionLabel: "TEST-2026-27",
+        className: "Class 1",
+        classLabel: "Class 1",
+        sortOrder: 1,
+        transportRouteId: null,
+        transportRouteName: null,
+        transportRouteCode: null,
+        studentStatusCode: "existing",
+        studentStatusLabel: "Old",
+        tuitionFee: 1000,
+        transportFee: 0,
+        academicFee: 500,
+        otherAdjustmentHead: null,
+        otherAdjustmentAmount: 0,
+        grossBaseBeforeDiscount: 1500,
+        discountAmount: 0,
+        lateFeeWaiverAmount: 0,
+        lateFeeTotal: 0,
+        totalDue: 1500,
+        totalPaid: 0,
+        outstandingAmount: 1500,
+        nextDueDate: "2026-04-20",
+        nextDueAmount: 1500,
+        nextDueLabel: "Installment 1",
+        lastPaymentDate: null,
+        inst1Pending: 1500,
+        inst2Pending: 0,
+        inst3Pending: 0,
+        inst4Pending: 0,
+        statusLabel: "NOT STARTED",
+        overrideReason: null,
+      },
+    ]);
+
+    const { getPaymentDeskStudentSummary } = await import("@/lib/payments/data");
+    const summary = await getPaymentDeskStudentSummary({
+      studentId: "student-fast",
+      paymentDate: "2026-05-18",
+      sessionLabel: "TEST-2026-27",
+      autoPrepareMissingDues: true,
+      includeLatestReceipt: false,
+    });
+
+    expect(summary.student?.id).toBe("student-fast");
+    expect(summary.issue).toBeNull();
+    expect(getStudentDetail).not.toHaveBeenCalled();
+  });
+
+  it("auto-prepares selected active student dues when the workbook summary row is missing first", async () => {
+    getWorkbookStudentFinancials.mockImplementation(async (filters?: { studentId?: string }) => {
+      if (!filters?.studentId) {
+        return [];
+      }
+
+      if (getWorkbookStudentFinancials.mock.calls.length === 1) {
+        return [];
+      }
+
+      return [
+        {
+          studentId: "student-4",
+          admissionNo: "SR-4",
+          studentName: "Missing Summary Student",
+          fatherName: "Father",
+          motherName: null,
+          fatherPhone: "8888888888",
+          motherPhone: null,
+          recordStatus: "active",
+          classId: "class-1",
+          sessionLabel: "TEST-2026-27",
+          className: "Class 1",
+          classLabel: "Class 1",
+          sortOrder: 1,
+          transportRouteId: null,
+          transportRouteName: null,
+          transportRouteCode: null,
+          studentStatusCode: "existing",
+          studentStatusLabel: "Old",
+          tuitionFee: 1000,
+          transportFee: 0,
+          academicFee: 500,
+          otherAdjustmentHead: null,
+          otherAdjustmentAmount: 0,
+          grossBaseBeforeDiscount: 1500,
+          discountAmount: 0,
+          lateFeeWaiverAmount: 0,
+          lateFeeTotal: 0,
+          totalDue: 1500,
+          totalPaid: 0,
+          outstandingAmount: 1500,
+          nextDueDate: "2026-04-20",
+          nextDueAmount: 1500,
+          nextDueLabel: "Installment 1",
+          lastPaymentDate: null,
+          inst1Pending: 1500,
+          inst2Pending: 0,
+          inst3Pending: 0,
+          inst4Pending: 0,
+          statusLabel: "NOT STARTED",
+          overrideReason: null,
+        },
+      ];
+    });
+    getStudentDetail.mockResolvedValue({
+      id: "student-4",
+      admissionNo: "SR-4",
+      fullName: "Missing Summary Student",
+      classLabel: "Class 1",
+      classSessionLabel: "TEST-2026-27",
+      status: "active",
+    });
+    const studentQuery = {
+      select: vi.fn().mockReturnThis(),
+      in: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      or: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+      then: vi.fn((resolve) => resolve({ data: [], error: null })),
+    };
+    const installmentCountQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      neq: vi.fn().mockResolvedValue({ count: 0, error: null }),
+    };
+    createClient.mockResolvedValue({
+      from: vi.fn((table: string) => (table === "installments" ? installmentCountQuery : studentQuery)),
+      rpc: vi.fn().mockResolvedValue({
+        data: [
+          {
+            installment_id: "inst-1",
+            installment_no: 1,
+            installment_label: "Installment 1",
+            due_date: "2026-04-20",
+            total_charge: 1500,
+            paid_amount: 0,
+            adjustment_amount: 0,
+            raw_late_fee: 0,
+            waiver_applied: 0,
+            final_late_fee: 0,
+            pending_amount: 1500,
+            balance_status: "pending",
+          },
+        ],
+        error: null,
+      }),
+    });
+
+    const { getPaymentDeskStudentSummary } = await import("@/lib/payments/data");
+    const summary = await getPaymentDeskStudentSummary({
+      studentId: "student-4",
+      paymentDate: "2026-05-18",
+      sessionLabel: "TEST-2026-27",
+      autoPrepareMissingDues: true,
+      includeLatestReceipt: false,
+    });
+
+    expect(prepareDuesForStudentsAutomatically).toHaveBeenCalledWith({
+      studentIds: ["student-4"],
+      reason: "Payment Desk selected student",
+    });
+    expect(getWorkbookStudentFinancials).toHaveBeenCalledTimes(2);
+    expect(summary.student?.id).toBe("student-4");
+    expect(summary.issue).toBeNull();
+  });
+
+  it("does not raise a repair issue when the selected student has no pending dues", async () => {
+    getWorkbookStudentFinancials.mockResolvedValue([
+      {
+        studentId: "student-paid",
+        admissionNo: "SR-PAID",
+        studentName: "Paid Test Student",
+        fatherName: "Father",
+        motherName: null,
+        fatherPhone: "8888888888",
+        motherPhone: null,
+        recordStatus: "active",
+        classId: "class-1",
+        sessionLabel: "TEST-2026-27",
+        className: "Class 1",
+        classLabel: "Class 1",
+        sortOrder: 1,
+        transportRouteId: null,
+        transportRouteName: null,
+        transportRouteCode: null,
+        studentStatusCode: "existing",
+        studentStatusLabel: "Old",
+        tuitionFee: 1000,
+        transportFee: 0,
+        academicFee: 500,
+        otherAdjustmentHead: null,
+        otherAdjustmentAmount: 0,
+        grossBaseBeforeDiscount: 1500,
+        discountAmount: 0,
+        lateFeeWaiverAmount: 0,
+        lateFeeTotal: 0,
+        totalDue: 1500,
+        totalPaid: 1500,
+        outstandingAmount: 0,
+        nextDueDate: null,
+        nextDueAmount: null,
+        nextDueLabel: null,
+        lastPaymentDate: "2026-05-10",
+        inst1Pending: 0,
+        inst2Pending: 0,
+        inst3Pending: 0,
+        inst4Pending: 0,
+        statusLabel: "PAID",
+        overrideReason: null,
+      },
+    ]);
+    getStudentDetail.mockResolvedValue({
+      id: "student-paid",
+      admissionNo: "SR-PAID",
+      fullName: "Paid Test Student",
+      classLabel: "Class 1",
+      classSessionLabel: "TEST-2026-27",
+      status: "active",
+    });
+    createClient.mockResolvedValue({
+      from: vi.fn(() => ({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+      })),
+      rpc: vi.fn().mockResolvedValue({ data: [], error: null }),
+    });
+
+    const { getPaymentDeskStudentSummary } = await import("@/lib/payments/data");
+    const summary = await getPaymentDeskStudentSummary({
+      studentId: "student-paid",
+      paymentDate: "2026-05-18",
+      sessionLabel: "TEST-2026-27",
+      autoPrepareMissingDues: true,
+      includeLatestReceipt: false,
+    });
+
+    expect(prepareDuesForStudentsAutomatically).not.toHaveBeenCalled();
+    expect(summary.student?.id).toBe("student-paid");
+    expect(summary.student?.totalPending).toBe(0);
+    expect(summary.issue).toBeNull();
+  });
+
+  it("auto-prepares selected active student dues when the preview read fails first", async () => {
+    getWorkbookStudentFinancials.mockImplementation(async (filters?: { studentId?: string }) => {
+      if (!filters?.studentId) {
+        return [];
+      }
+
+      return [
+        {
+          studentId: "student-3",
+          admissionNo: "SR-3",
+          studentName: "Sync Test Student",
+          fatherName: "Father",
+          motherName: null,
+          fatherPhone: "8888888888",
+          motherPhone: null,
+          recordStatus: "active",
+          classId: "class-1",
+          sessionLabel: "TEST-2026-27",
+          className: "Class 1",
+          classLabel: "Class 1",
+          sortOrder: 1,
+          transportRouteId: null,
+          transportRouteName: null,
+          transportRouteCode: null,
+          studentStatusCode: "existing",
+          studentStatusLabel: "Old",
+          tuitionFee: 1000,
+          transportFee: 0,
+          academicFee: 500,
+          otherAdjustmentHead: null,
+          otherAdjustmentAmount: 0,
+          grossBaseBeforeDiscount: 1500,
+          discountAmount: 0,
+          lateFeeWaiverAmount: 0,
+          lateFeeTotal: 0,
+          totalDue: 1500,
+          totalPaid: 0,
+          outstandingAmount: 1500,
+          nextDueDate: "2026-04-20",
+          nextDueAmount: 1500,
+          nextDueLabel: "Installment 1",
+          lastPaymentDate: null,
+          inst1Pending: 1500,
+          inst2Pending: 0,
+          inst3Pending: 0,
+          inst4Pending: 0,
+          statusLabel: "NOT STARTED",
+          overrideReason: null,
+        },
+      ];
+    });
+    getStudentDetail.mockResolvedValue({
+      id: "student-3",
+      admissionNo: "SR-3",
+      fullName: "Sync Test Student",
+      classLabel: "Class 1",
+      classSessionLabel: "TEST-2026-27",
+      status: "active",
+    });
+    const studentQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+      then: vi.fn((resolve) => resolve({ data: [], error: null })),
+    };
+    const installmentCountQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      neq: vi.fn().mockResolvedValue({ count: 0, error: null }),
+    };
+    createClient.mockResolvedValue({
+      from: vi.fn((table: string) => (table === "installments" ? installmentCountQuery : studentQuery)),
+      rpc: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("fetch failed"))
+        .mockResolvedValueOnce({
+          data: [
+            {
+              installment_id: "inst-1",
+              installment_no: 1,
+              installment_label: "Installment 1",
+              due_date: "2026-04-20",
+              total_charge: 1500,
+              paid_amount: 0,
+              adjustment_amount: 0,
+              raw_late_fee: 0,
+              waiver_applied: 0,
+              final_late_fee: 0,
+              pending_amount: 1500,
+              balance_status: "pending",
+            },
+          ],
+          error: null,
+        }),
+    });
+
+    const { getPaymentDeskStudentSummary } = await import("@/lib/payments/data");
+    const summary = await getPaymentDeskStudentSummary({
+      studentId: "student-3",
+      paymentDate: "2026-05-18",
+      sessionLabel: "TEST-2026-27",
+      autoPrepareMissingDues: true,
+      includeLatestReceipt: false,
+    });
+
+    expect(prepareDuesForStudentsAutomatically).toHaveBeenCalledWith({
+      studentIds: ["student-3"],
+      reason: "Payment Desk selected student",
+    });
+    expect(summary.student?.id).toBe("student-3");
+    expect(summary.issue).toBeNull();
   });
 });

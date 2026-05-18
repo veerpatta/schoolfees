@@ -189,7 +189,7 @@ export function PaymentDeskMobile({
     initialState,
   );
   const [selectedClassId, setSelectedClassId] = useState(data.initialClassId);
-  const [studentIndex, setStudentIndex] = useState<PaymentStudentIndexItem[]>(data.studentIndex);
+  const [studentIndex, setStudentIndex] = useState<PaymentStudentIndexItem[]>(data.studentIndex ?? []);
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
   const deferredStudentSearchQuery = useDeferredValue(studentSearchQuery);
   const [selectedStudentId, setSelectedStudentId] = useState(data.initialStudentId ?? "");
@@ -251,7 +251,9 @@ export function PaymentDeskMobile({
   const optimisticReceiptKeyRef = useRef<string | null>(null);
   const studentIndexLoadedRef = useRef(data.studentIndex.length > 0);
   const prefetchCache = useRef<Map<string, Promise<PaymentDeskStudentSummary | null>>>(new Map());
+  const summaryCache = useRef<Map<string, PaymentDeskStudentSummary>>(new Map());
   const lastAmountFocusStudentIdRef = useRef<string | null>(null);
+  const lastClassRestoreAttemptedRef = useRef(false);
   const [activeStudentPickerMode, setActiveStudentPickerMode] = useState<"mobile" | "desktop">("mobile");
   const [recentStudentIds, setRecentStudentIds] = useState<string[]>(() => {
     if (typeof window === "undefined") return [];
@@ -367,6 +369,22 @@ export function PaymentDeskMobile({
     return response.json() as Promise<PaymentDeskStudentSummary>;
   }, [data.sessionLabel]);
 
+  const applyStudentSummaryPayload = useCallback((payload: PaymentDeskStudentSummary) => {
+    setSelectedStudent(payload.student);
+    setSelectedStudentIssue(payload.issue);
+    setLatestStudentReceipt(payload.latestReceipt);
+    setDateAwareBreakdown(payload.student?.breakdown ?? []);
+    setStudentSummaryLoading(false);
+    setStudentSummaryNotice(null);
+    setPreviewUnavailable(false);
+    setPreviewLoading(false);
+    setPreviewNotice(
+      payload.student
+        ? "Pending amount and late fee are recalculated for the selected payment date."
+        : "No pending dues for selected payment date.",
+    );
+  }, []);
+
   function prefetchStudentSummary(studentId: string) {
     const today = new Date().toISOString().slice(0, 10);
     const cacheKey = buildStudentSummaryCacheKey(studentId, today);
@@ -379,7 +397,16 @@ export function PaymentDeskMobile({
       studentId,
       requestedPaymentDate: today,
       includeLatestReceipt: false,
-    }).catch(() => null);
+    })
+      .then((payload) => {
+        summaryCache.current.set(cacheKey, payload);
+        return payload;
+      })
+      .catch(() => {
+        prefetchCache.current.delete(cacheKey);
+        summaryCache.current.delete(cacheKey);
+        return null;
+      });
 
     prefetchCache.current.set(cacheKey, promise);
   }
@@ -401,11 +428,8 @@ export function PaymentDeskMobile({
   }, [isConfirmOpen, isSuccessOpen, isDuplicateOpen]);
 
   useEffect(() => {
-    if (studentIndexLoadedRef.current) {
-      return;
-    }
-
-    studentIndexLoadedRef.current = true;
+    let shouldFetch = studentIndex.length === 0;
+    let hasStaleCache = false;
 
     try {
       const cached = sessionStorage.getItem(`${paymentDeskStudentIndexCacheKey}:${data.sessionLabel}`);
@@ -420,13 +444,27 @@ export function PaymentDeskMobile({
           Array.isArray(parsed.data) &&
           Date.now() - parsed.ts < 5 * 60 * 1000
         ) {
-          setStudentIndex(parsed.data);
+          if (studentIndex.length === 0) {
+            setStudentIndex(parsed.data);
+          }
+          studentIndexLoadedRef.current = true;
           return;
         }
+
+        hasStaleCache =
+          typeof parsed.ts === "number" && Date.now() - parsed.ts >= 5 * 60 * 1000;
+        shouldFetch = shouldFetch || hasStaleCache;
       }
     } catch {
       // Ignore unavailable or malformed cache.
     }
+
+    if (!shouldFetch || (studentIndexLoadedRef.current && !hasStaleCache)) {
+      studentIndexLoadedRef.current = studentIndex.length > 0;
+      return;
+    }
+
+    studentIndexLoadedRef.current = true;
 
     fetch(`/protected/students/index?purpose=paymentDesk&session=${encodeURIComponent(data.sessionLabel)}`, {
       headers: { accept: "application/json" },
@@ -450,7 +488,7 @@ export function PaymentDeskMobile({
       .catch(() => {
         // The search box remains usable once the next navigation retries.
       });
-  }, [data.sessionLabel]);
+  }, [data.sessionLabel, studentIndex.length]);
 
   useEffect(() => {
     if (!selectedStudentId) {
@@ -469,18 +507,36 @@ export function PaymentDeskMobile({
     summaryAbortRef.current = controller;
     const requestId = ++summaryRequestRef.current;
     const prefetchKey = buildStudentSummaryCacheKey(selectedStudentId, paymentDate);
+    const cachedSummary = summaryCache.current.get(prefetchKey);
+
+    if (cachedSummary) {
+      applyStudentSummaryPayload(cachedSummary);
+      return () => {
+        controller.abort();
+      };
+    }
 
     setStudentSummaryLoading(true);
     setStudentSummaryNotice("Loading dues...");
     setPreviewNotice("Refreshing pending amount for selected payment date...");
     setPreviewLoading(true);
+    const cachedSummaryPromise = prefetchCache.current.get(prefetchKey);
 
-    (
-      prefetchCache.current.get(prefetchKey) ??
-      fetchStudentSummary({
+    (cachedSummaryPromise
+      ? cachedSummaryPromise.then(
+          (payload) =>
+            payload ??
+            fetchStudentSummary({
+              studentId: selectedStudentId,
+              requestedPaymentDate: paymentDate,
+              includeLatestReceipt: false,
+              signal: controller.signal,
+            }),
+        )
+      : fetchStudentSummary({
         studentId: selectedStudentId,
         requestedPaymentDate: paymentDate,
-        includeLatestReceipt: true,
+        includeLatestReceipt: false,
         signal: controller.signal,
       })
     )
@@ -492,19 +548,8 @@ export function PaymentDeskMobile({
           throw new Error("Unable to refresh payment preview.");
         }
 
-        setSelectedStudent(payload.student);
-        setSelectedStudentIssue(payload.issue);
-        setLatestStudentReceipt(payload.latestReceipt);
-        setDateAwareBreakdown(payload.student?.breakdown ?? []);
-        setStudentSummaryLoading(false);
-        setStudentSummaryNotice(null);
-        setPreviewUnavailable(false);
-        setPreviewLoading(false);
-        setPreviewNotice(
-          payload.student
-            ? "Pending amount and late fee are recalculated for the selected payment date."
-            : "No pending dues for selected payment date.",
-        );
+        summaryCache.current.set(prefetchKey, payload);
+        applyStudentSummaryPayload(payload);
       })
       .catch((error) => {
         if (requestId !== summaryRequestRef.current) {
@@ -515,6 +560,7 @@ export function PaymentDeskMobile({
         }
 
         setDateAwareBreakdown(null);
+        prefetchCache.current.delete(prefetchKey);
         setStudentSummaryLoading(false);
         setStudentSummaryNotice("Unable to load dues. Ask admin to check Fee Setup.");
         setPreviewUnavailable(true);
@@ -525,7 +571,7 @@ export function PaymentDeskMobile({
     return () => {
       controller.abort();
     };
-  }, [buildStudentSummaryCacheKey, fetchStudentSummary, paymentDate, selectedStudentId]);
+  }, [applyStudentSummaryPayload, buildStudentSummaryCacheKey, fetchStudentSummary, paymentDate, selectedStudentId]);
 
   const allocationPreview = useMemo(() => {
     if (!selectedStudent) {
@@ -768,6 +814,9 @@ export function PaymentDeskMobile({
           studentId: state.studentId,
           paymentDate: state.paymentDate ?? paymentDate,
         });
+        summaryCache.current.delete(
+          buildStudentSummaryCacheKey(state.studentId, state.paymentDate ?? paymentDate),
+        );
       }
       try {
         sessionStorage.removeItem(`${paymentDeskStudentIndexCacheKey}:${paymentSessionLabel}`);
@@ -797,7 +846,7 @@ export function PaymentDeskMobile({
       setIsConfirmOpen(false);
       setFormError(state.message);
     }
-  }, [actionStateKey, paymentDate, paymentSessionLabel, state]);
+  }, [actionStateKey, buildStudentSummaryCacheKey, paymentDate, paymentSessionLabel, state]);
 
   useEffect(() => {
     if (lastAddedAmount === null) {
@@ -809,6 +858,11 @@ export function PaymentDeskMobile({
   }, [lastAddedAmount]);
 
   useEffect(() => {
+    if (lastClassRestoreAttemptedRef.current) {
+      return;
+    }
+    lastClassRestoreAttemptedRef.current = true;
+
     if (data.initialClassId || selectedClassId) {
       return;
     }
@@ -1010,15 +1064,21 @@ export function PaymentDeskMobile({
   }
 
   function clearSelectedStudent() {
+    summaryAbortRef.current?.abort();
+    summaryRequestRef.current += 1;
     setSelectedStudentId("");
     setSelectedStudent(null);
     setSelectedStudentIssue(null);
     setLatestStudentReceipt(null);
     setDateAwareBreakdown(null);
+    setStudentSummaryLoading(false);
+    setStudentSummaryNotice(null);
+    setPreviewLoading(false);
+    setPreviewNotice(null);
+    setPreviewUnavailable(false);
     setPaymentAmountInput("");
     setQuickDiscountInput("");
     setWaiveFullLateFee(false);
-    setLatestStudentReceipt(null);
     setFormError(null);
     setDismissedTodayReceiptId(null);
     lastAmountFocusStudentIdRef.current = null;
@@ -1029,19 +1089,12 @@ export function PaymentDeskMobile({
     setSelectedClassId(nextClassId);
     setStudentSearchQuery("");
     setStudentListScrollTop(0);
-
-    if (nextClassId) {
-      setIsStudentPickerOpen(true);
-      setActiveStudentOptionIndex(0);
-      focusStudentSearch(mode);
-    } else {
-      setIsStudentPickerOpen(false);
-      setActiveStudentOptionIndex(-1);
-      mobileStudentSearchInputRef.current?.blur();
-      desktopStudentSearchInputRef.current?.blur();
-    }
+    setIsStudentPickerOpen(true);
+    setActiveStudentOptionIndex(0);
+    focusStudentSearch(mode);
 
     if (
+      nextClassId &&
       selectedStudentId &&
       studentIndex.some(
         (student) => student.id === selectedStudentId && student.classId !== nextClassId,
@@ -1052,6 +1105,11 @@ export function PaymentDeskMobile({
   }
 
   function selectStudent(studentId: string) {
+    summaryAbortRef.current?.abort();
+    summaryRequestRef.current += 1;
+    const cacheKey = buildStudentSummaryCacheKey(studentId, paymentDate);
+    const cachedSummary = summaryCache.current.get(cacheKey);
+
     setSelectedStudentId(studentId);
     setPaymentAmountInput("");
     setQuickDiscountInput("");
@@ -1063,6 +1121,19 @@ export function PaymentDeskMobile({
     lastAmountFocusStudentIdRef.current = null;
     mobileStudentSearchInputRef.current?.blur();
     desktopStudentSearchInputRef.current?.blur();
+    if (cachedSummary) {
+      applyStudentSummaryPayload(cachedSummary);
+    } else {
+      setSelectedStudent(null);
+      setSelectedStudentIssue(null);
+      setLatestStudentReceipt(null);
+      setDateAwareBreakdown(null);
+      setStudentSummaryLoading(true);
+      setStudentSummaryNotice("Loading dues...");
+      setPreviewUnavailable(false);
+      setPreviewLoading(true);
+      setPreviewNotice("Refreshing pending amount for selected payment date...");
+    }
 
     setRecentStudentIds((prev) => {
       const next = [studentId, ...prev.filter((id) => id !== studentId)].slice(0, 5);
@@ -1609,7 +1680,25 @@ export function PaymentDeskMobile({
               </div>
             ) : null}
 
-            {selectedStudent ? (
+            {selectedStudentIndexItem && studentSummaryLoading && !selectedStudent ? (
+              <div
+                className="rounded-xl border border-border bg-card px-4 py-4"
+                aria-live="polite"
+                aria-busy={studentSummaryLoading}
+              >
+                <p className="text-sm font-semibold text-foreground">
+                  Loading dues for {selectedStudentIndexItem.fullName}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {selectedStudentIndexItem.classLabel} · SR {selectedStudentIndexItem.admissionNo}
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                  <LoadingBlock className="h-16 rounded-xl border-0 bg-surface-2 p-3" lines={1} />
+                  <LoadingBlock className="h-16 rounded-xl border-0 bg-surface-2 p-3" lines={1} />
+                  <LoadingBlock className="h-16 rounded-xl border-0 bg-surface-2 p-3" lines={1} />
+                </div>
+              </div>
+            ) : selectedStudent ? (
               <div className="rounded-xl border border-border bg-card px-4 py-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -1997,7 +2086,7 @@ export function PaymentDeskMobile({
           {selectedStudentIssue && !selectedStudent && !studentSummaryLoading ? (
             <SectionCard
               title={selectedStudentIssue.title}
-              description="Unable to load dues. Ask admin to check Fee Setup."
+              description={selectedStudentIssue.detail}
             >
               <div className="flex flex-wrap items-center gap-2">
                 {selectedStudentIssue.repairStudentId && selectedStudentIssue.actionLabel && canPost ? (

@@ -319,6 +319,23 @@ describe("payment desk cashier workflow", () => {
     expect(body).toContain("focusStudentSearch(activeStudentPickerMode)");
   });
 
+  it("all classes reset keeps the student picker open and searchable", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+    const body = component.match(
+      /function handleClassChange\(nextClassId: string, mode: "mobile" \| "desktop"\) \{([\s\S]*?)\n  \}/,
+    )?.[1] ?? "";
+
+    expect(body).toContain("setIsStudentPickerOpen(true)");
+    expect(body).toContain("setActiveStudentOptionIndex(0)");
+    expect(body).toContain("focusStudentSearch(mode)");
+    expect(body).not.toContain("setIsStudentPickerOpen(false)");
+    expect(body).not.toContain("desktopStudentSearchInputRef.current?.blur()");
+    expect(component).toContain("lastClassRestoreAttemptedRef.current");
+  });
+
   it("shows today receipt banner when same student has a receipt on payment date", () => {
     const component = readFileSync(
       join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
@@ -491,6 +508,27 @@ describe("payment desk cashier workflow", () => {
     });
 
     expect(matches.map((item) => item.admissionNo)).toContain("SR-120");
+  });
+
+  it("payment_search_all_classes_returns_the_full_index_by_default", () => {
+    const students = Array.from({ length: 260 }, (_, index) => ({
+      id: `s-${index + 1}`,
+      fullName: `Student ${String(index + 1).padStart(3, "0")}`,
+      admissionNo: `TEST-${String(index + 1).padStart(3, "0")}`,
+      classId: index % 2 === 0 ? "nursery" : "class-1",
+      classLabel: index % 2 === 0 ? "Nursery" : "Class 1",
+      studentStatus: "active",
+    }));
+    const searchIndex = buildPaymentDeskSearchIndex(students);
+
+    expect(
+      filterPaymentDeskStudents({
+        students,
+        searchIndex,
+        selectedClassId: "",
+        query: "",
+      }),
+    ).toHaveLength(260);
   });
 
   it("payment_search_handles_large_list_with_index_reuse", () => {
@@ -803,6 +841,45 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("Mobile amount received");
     expect(component).toContain("Mobile discount");
     expect(component).toContain("Mobile payment mode");
+  });
+
+  it("desktop desk shows a selected-student loading state immediately", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+
+    expect(component).toContain("selectedStudentIndexItem && studentSummaryLoading");
+    expect(component).toContain("Loading dues for");
+  });
+
+  it("student selection retries when a prefetch summary was empty", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+
+    expect(component).toContain("payload ??");
+    expect(component).toContain("fetchStudentSummary({");
+    expect(component).toContain("prefetchCache.current.delete(prefetchKey)");
+    expect(component).toContain("prefetchCache.current.delete(cacheKey)");
+  });
+
+  it("student selection clears stale dues immediately and caches successful summaries", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+    const selectBody = component.match(
+      /function selectStudent\(studentId: string\) \{([\s\S]*?)\n  \}/,
+    )?.[1] ?? "";
+
+    expect(component).toContain("summaryCache.current");
+    expect(component).toContain("applyStudentSummaryPayload");
+    expect(component).toContain("summaryCache.current.set(prefetchKey, payload)");
+    expect(selectBody).toContain("setSelectedStudent(null)");
+    expect(selectBody).toContain("setDateAwareBreakdown(null)");
+    expect(selectBody).toContain("setStudentSummaryLoading(true)");
   });
 
   it("mobile navigation and payment entry remain optimized for fast cashier flow", () => {

@@ -200,7 +200,7 @@ export function filterPaymentDeskStudents(payload: {
   return searched
     .slice()
     .sort((left, right) => left.fullName.localeCompare(right.fullName))
-    .slice(0, payload.limit ?? 200);
+    .slice(0, payload.limit ?? searched.length);
 }
 
 export function shouldBlockClientSubmission(payload: {
