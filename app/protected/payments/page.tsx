@@ -8,7 +8,6 @@ import { PaymentDeskSkeleton } from "@/components/payments/payment-desk-skeleton
 import {
   getPaymentDeskClassOptions,
   getPaymentDeskReadiness,
-  getPaymentDeskStudentSummary,
   getPaymentEntryPageData,
 } from "@/lib/payments/data";
 import { INITIAL_PAYMENT_ENTRY_ACTION_STATE } from "@/lib/payments/types";
@@ -147,25 +146,19 @@ async function PaymentDeskDataLoader({
     );
   }
 
-  // Readiness and selected-student summary use independent reads, so start them together.
-  const [readiness, initialSelectedSummary] = await Promise.all([
+  // Start readiness and all page data (including selected-student summary) in one parallel phase
+  // so the student index, recent receipts, and today collection load alongside the summary.
+  const [readiness, data] = await Promise.all([
     readinessPromise,
-    getPaymentDeskStudentSummary({
+    getPaymentEntryPageData({
+      searchQuery: "",
       studentId,
-      paymentDate: today,
+      classId: classId ?? undefined,
       sessionLabel,
       autoPrepareMissingDues: false,
     }),
   ]);
-  const { canPostPayments, canRepairOrPrepareDues } = readiness;
-  const data = await getPaymentEntryPageData({
-    searchQuery: "",
-    studentId,
-    classId: classId ?? undefined,
-    sessionLabel,
-    autoPrepareMissingDues: canRepairOrPrepareDues,
-    initialSelectedSummary,
-  });
+  const { canPostPayments } = readiness;
   const blockingReason = readiness.blockingReason;
 
   return (

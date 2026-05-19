@@ -264,6 +264,7 @@ export function PaymentDeskClient({
   const studentIndexLoadedRef = useRef(data.studentIndex.length > 0);
   const prefetchCache = useRef<Map<string, Promise<PaymentDeskStudentSummary | null>>>(new Map());
   const summaryCache = useRef<Map<string, PaymentDeskStudentSummary>>(new Map());
+  const cardOnlyCache = useRef<Map<string, PaymentDeskStudentSummary>>(new Map());
   const lastAmountFocusStudentIdRef = useRef<string | null>(null);
   const lastClassRestoreAttemptedRef = useRef(false);
   const [activeStudentPickerMode, setActiveStudentPickerMode] = useState<"mobile" | "desktop">("mobile");
@@ -359,6 +360,7 @@ export function PaymentDeskClient({
     studentId: string;
     requestedPaymentDate: string;
     includeLatestReceipt: boolean;
+    includeBreakdown?: boolean;
     signal?: AbortSignal;
   }) => {
     const params = new URLSearchParams({
@@ -367,6 +369,9 @@ export function PaymentDeskClient({
       includeLatestReceipt: String(payload.includeLatestReceipt),
       session: data.sessionLabel,
     });
+    if (payload.includeBreakdown === false) {
+      params.set("includeBreakdown", "false");
+    }
     const response = await fetch(`/protected/payments/student-summary?${params.toString()}`, {
       method: "GET",
       headers: { accept: "application/json" },
@@ -397,26 +402,45 @@ export function PaymentDeskClient({
     );
   }, []);
 
+  // Applies card-only data (no breakdown) while breakdown is still loading.
+  const applyStudentCardData = useCallback((payload: PaymentDeskStudentSummary) => {
+    setSelectedStudent(payload.student);
+    setSelectedStudentIssue(payload.issue);
+    setLatestStudentReceipt(payload.latestReceipt);
+    setDateAwareBreakdown(null);
+    setStudentSummaryLoading(false);
+    setStudentSummaryNotice(null);
+    setPreviewUnavailable(false);
+    setPreviewLoading(true);
+    setPreviewNotice("Loading installment breakdown...");
+  }, []);
+
   function prefetchStudentSummary(studentId: string) {
     const today = new Date().toISOString().slice(0, 10);
     const cacheKey = buildStudentSummaryCacheKey(studentId, today);
 
-    if (prefetchCache.current.has(cacheKey)) {
+    // Skip if we already have a full summary or a prefetch in flight.
+    if (summaryCache.current.has(cacheKey) || prefetchCache.current.has(cacheKey)) {
       return;
     }
 
+    // Fetch card-only (skip the slow preview RPC) so hover/focus prefetch is fast.
     const promise = fetchStudentSummary({
       studentId,
       requestedPaymentDate: today,
       includeLatestReceipt: false,
+      includeBreakdown: false,
     })
       .then((payload) => {
-        summaryCache.current.set(cacheKey, payload);
+        // Only store as card-only if we still don't have the full summary.
+        if (!summaryCache.current.has(cacheKey)) {
+          cardOnlyCache.current.set(cacheKey, payload);
+        }
         return payload;
       })
       .catch(() => {
         prefetchCache.current.delete(cacheKey);
-        summaryCache.current.delete(cacheKey);
+        cardOnlyCache.current.delete(cacheKey);
         return null;
       });
 
@@ -524,29 +548,67 @@ export function PaymentDeskClient({
       };
     }
 
+    // If we have card-only data from a prefetch, show the student immediately
+    // and fetch the full breakdown in a second request.
+    const cardCached = cardOnlyCache.current.get(prefetchKey);
+    if (cardCached) {
+      applyStudentCardData(cardCached);
+      fetchStudentSummary({
+        studentId: selectedStudentId,
+        requestedPaymentDate: paymentDate,
+        includeLatestReceipt: true,
+        includeBreakdown: true,
+        signal: controller.signal,
+      })
+        .then((payload) => {
+          if (requestId !== summaryRequestRef.current) return;
+          summaryCache.current.set(prefetchKey, payload);
+          cardOnlyCache.current.delete(prefetchKey);
+          prefetchCache.current.delete(prefetchKey);
+          applyStudentSummaryPayload(payload);
+        })
+        .catch((error) => {
+          if (requestId !== summaryRequestRef.current) return;
+          if (error instanceof Error && error.name === "AbortError") return;
+          setPreviewLoading(false);
+          setPreviewUnavailable(true);
+          setPreviewNotice("Unable to load installment breakdown. Ask admin to check Fee Setup.");
+        });
+      return () => {
+        controller.abort();
+      };
+    }
+
     setStudentSummaryLoading(true);
     setStudentSummaryNotice("Loading dues...");
     setPreviewNotice("Refreshing pending amount for selected payment date...");
     setPreviewLoading(true);
+
+    // If a card-only prefetch promise is in flight, wait for it then fetch breakdown.
+    // Otherwise fetch the full summary directly.
     const cachedSummaryPromise = prefetchCache.current.get(prefetchKey);
 
     (cachedSummaryPromise
-      ? cachedSummaryPromise.then(
-          (payload) =>
-            payload ??
-            fetchStudentSummary({
-              studentId: selectedStudentId,
-              requestedPaymentDate: paymentDate,
-              includeLatestReceipt: false,
-              signal: controller.signal,
-            }),
-        )
+      ? cachedSummaryPromise.then((cardPayload) => {
+          if (requestId !== summaryRequestRef.current) return Promise.reject(new Error("AbortError"));
+          if (cardPayload) {
+            applyStudentCardData(cardPayload);
+          }
+          return fetchStudentSummary({
+            studentId: selectedStudentId,
+            requestedPaymentDate: paymentDate,
+            includeLatestReceipt: true,
+            includeBreakdown: true,
+            signal: controller.signal,
+          });
+        })
       : fetchStudentSummary({
-        studentId: selectedStudentId,
-        requestedPaymentDate: paymentDate,
-        includeLatestReceipt: false,
-        signal: controller.signal,
-      })
+          studentId: selectedStudentId,
+          requestedPaymentDate: paymentDate,
+          includeLatestReceipt: true,
+          includeBreakdown: true,
+          signal: controller.signal,
+        })
     )
       .then((payload) => {
         if (requestId !== summaryRequestRef.current) {
@@ -557,13 +619,15 @@ export function PaymentDeskClient({
         }
 
         summaryCache.current.set(prefetchKey, payload);
+        cardOnlyCache.current.delete(prefetchKey);
+        prefetchCache.current.delete(prefetchKey);
         applyStudentSummaryPayload(payload);
       })
       .catch((error) => {
         if (requestId !== summaryRequestRef.current) {
           return;
         }
-        if (error instanceof Error && error.name === "AbortError") {
+        if (error instanceof Error && (error.name === "AbortError" || error.message === "AbortError")) {
           return;
         }
 
@@ -579,7 +643,7 @@ export function PaymentDeskClient({
     return () => {
       controller.abort();
     };
-  }, [applyStudentSummaryPayload, buildStudentSummaryCacheKey, fetchStudentSummary, paymentDate, selectedStudentId]);
+  }, [applyStudentCardData, applyStudentSummaryPayload, buildStudentSummaryCacheKey, fetchStudentSummary, paymentDate, selectedStudentId]);
 
   const allocationPreview = useMemo(() => {
     if (!selectedStudent) {
@@ -822,9 +886,9 @@ export function PaymentDeskClient({
           studentId: state.studentId,
           paymentDate: state.paymentDate ?? paymentDate,
         });
-        summaryCache.current.delete(
-          buildStudentSummaryCacheKey(state.studentId, state.paymentDate ?? paymentDate),
-        );
+        const postedCacheKey = buildStudentSummaryCacheKey(state.studentId, state.paymentDate ?? paymentDate);
+        summaryCache.current.delete(postedCacheKey);
+        cardOnlyCache.current.delete(postedCacheKey);
       }
       try {
         clearPaymentDeskStudentIndexCache({
@@ -1135,15 +1199,21 @@ export function PaymentDeskClient({
     if (cachedSummary) {
       applyStudentSummaryPayload(cachedSummary);
     } else {
-      setSelectedStudent(null);
-      setSelectedStudentIssue(null);
-      setLatestStudentReceipt(null);
-      setDateAwareBreakdown(null);
-      setStudentSummaryLoading(true);
-      setStudentSummaryNotice("Loading dues...");
-      setPreviewUnavailable(false);
-      setPreviewLoading(true);
-      setPreviewNotice("Refreshing pending amount for selected payment date...");
+      const cardCached = cardOnlyCache.current.get(cacheKey);
+      if (cardCached) {
+        // Show student info immediately; the useEffect will fetch the breakdown.
+        applyStudentCardData(cardCached);
+      } else {
+        setSelectedStudent(null);
+        setSelectedStudentIssue(null);
+        setLatestStudentReceipt(null);
+        setDateAwareBreakdown(null);
+        setStudentSummaryLoading(true);
+        setStudentSummaryNotice("Loading dues...");
+        setPreviewUnavailable(false);
+        setPreviewLoading(true);
+        setPreviewNotice("Refreshing pending amount for selected payment date...");
+      }
     }
 
     setRecentStudentIds((prev) => {

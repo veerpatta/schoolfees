@@ -40,12 +40,22 @@ function normalizeWhole(value: string | null) {
   return Number.isInteger(n) && n >= 0 ? n : 0;
 }
 
+function normalizeIncludeBreakdown(value: string | null) {
+  return (value ?? "").trim().toLowerCase() !== "false";
+}
+
 export async function GET(request: NextRequest) {
+  const t0 = performance.now();
   await requireStaffPermission("payments:view");
+  const tAuth = performance.now() - t0;
+
   const studentId = normalizeStudentId(request.nextUrl.searchParams.get("studentId"));
   const paymentDate = normalizePaymentDate(request.nextUrl.searchParams.get("paymentDate"));
   const includeLatestReceipt = normalizeIncludeLatestReceipt(
     request.nextUrl.searchParams.get("includeLatestReceipt"),
+  );
+  const includeBreakdown = normalizeIncludeBreakdown(
+    request.nextUrl.searchParams.get("includeBreakdown"),
   );
   const sessionLabel = normalizeSessionLabel(request.nextUrl.searchParams.get("session"));
   const quickDiscountAmount = normalizeWhole(request.nextUrl.searchParams.get("quickDiscountAmount"));
@@ -61,13 +71,17 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const tSummary0 = performance.now();
     const summary = await getPaymentDeskStudentSummary({
       studentId,
       paymentDate,
       sessionLabel: sessionLabel ?? undefined,
       autoPrepareMissingDues: true,
       includeLatestReceipt,
+      includeBreakdown,
     });
+    const tSummary = performance.now() - tSummary0;
+    const tTotal = performance.now() - t0;
 
     const pendingBeforeQuickDiscount = summary.student?.totalPending ?? 0;
     const revisedPendingBeforePayment = Math.max(
@@ -84,7 +98,12 @@ export async function GET(request: NextRequest) {
           revisedPendingBeforePayment,
         },
       },
-      { headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" } },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=30, stale-while-revalidate=60",
+          "Server-Timing": `auth;dur=${tAuth.toFixed(1)}, summary;dur=${tSummary.toFixed(1)}, total;dur=${tTotal.toFixed(1)}`,
+        },
+      },
     );
   } catch (error) {
     return Response.json(

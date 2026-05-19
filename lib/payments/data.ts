@@ -1096,6 +1096,7 @@ export async function getPaymentDeskStudentSummary(payload: {
   sessionLabel?: string;
   autoPrepareMissingDues?: boolean;
   includeLatestReceipt?: boolean;
+  includeBreakdown?: boolean;
 }): Promise<PaymentDeskStudentSummary> {
   const policy = payload.sessionLabel
     ? await getFeePolicyForSession(payload.sessionLabel)
@@ -1109,6 +1110,7 @@ export async function getPaymentDeskStudentSummary(payload: {
   let selectedStudentDetail: Awaited<ReturnType<typeof getStudentDetail>> | null = null;
   let selectedStudentIssue: PaymentDeskIssue | null = null;
   const shouldIncludeLatestReceipt = payload.includeLatestReceipt ?? true;
+  const shouldIncludeBreakdown = payload.includeBreakdown ?? true;
   const latestReceiptPromise = shouldIncludeLatestReceipt
     ? getLatestReceiptForStudent(payload.studentId)
     : Promise.resolve(null);
@@ -1150,17 +1152,20 @@ export async function getPaymentDeskStudentSummary(payload: {
   if (selectedFinancial) {
     let previewReadError: unknown = null;
     let [breakdown, financialState] = await Promise.all([
-      getPaymentDateAwareInstallmentBalances({
-        studentId: selectedFinancial.studentId,
-        paymentDate: payload.paymentDate,
-      }).catch((error) => {
-        previewReadError = error;
-        return [] as InstallmentBalanceItem[];
-      }),
+      shouldIncludeBreakdown
+        ? getPaymentDateAwareInstallmentBalances({
+            studentId: selectedFinancial.studentId,
+            paymentDate: payload.paymentDate,
+          }).catch((error) => {
+            previewReadError = error;
+            return [] as InstallmentBalanceItem[];
+          })
+        : Promise.resolve([] as InstallmentBalanceItem[]),
       getStudentFinancialState(selectedFinancial.studentId),
     ]);
 
     const shouldRepairEmptyBreakdown =
+      shouldIncludeBreakdown &&
       breakdown.length === 0 &&
       payload.autoPrepareMissingDues &&
       (previewReadError || selectedFinancial.outstandingAmount > 0);
@@ -1195,6 +1200,7 @@ export async function getPaymentDeskStudentSummary(payload: {
     }
 
     if (
+      shouldIncludeBreakdown &&
       breakdown.length === 0 &&
       (selectedStudentIssue || previewReadError || selectedFinancial.outstandingAmount > 0)
     ) {

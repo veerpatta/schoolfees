@@ -46,6 +46,7 @@ describe("payment student summary route", () => {
       sessionLabel: "TEST-2026-27",
       autoPrepareMissingDues: true,
       includeLatestReceipt: true,
+      includeBreakdown: true,
     });
   });
 });
