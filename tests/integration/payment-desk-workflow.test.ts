@@ -914,6 +914,21 @@ describe("payment desk cashier workflow", () => {
     expect(selectBody).toContain("setStudentSummaryLoading(true)");
   });
 
+  it("records selected-student timing marks and persists successful summaries", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+
+    expect(component).toContain('performance.mark("vpps:payment-desk:student_click")');
+    expect(component).toContain('performance.mark("vpps:payment-desk:summary_fetch_start")');
+    expect(component).toContain('performance.mark("vpps:payment-desk:summary_fetch_end")');
+    expect(component).toContain('performance.mark("vpps:payment-desk:summary_paint")');
+    expect(component).toContain("loadCachedPaymentDeskStudentSummary");
+    expect(component).toContain("saveCachedPaymentDeskStudentSummary");
+    expect(component).toContain("clearCachedPaymentDeskStudentSummary");
+  });
+
   it("mobile navigation and payment entry remain optimized for fast cashier flow", () => {
     const paymentDesk = readFileSync(
       join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),

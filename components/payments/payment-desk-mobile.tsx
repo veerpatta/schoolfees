@@ -45,6 +45,11 @@ import {
   readPaymentDeskStudentIndexCache,
   writePaymentDeskStudentIndexCache,
 } from "@/lib/payments/payment-desk-cache";
+import {
+  clearCachedPaymentDeskStudentSummary,
+  loadCachedPaymentDeskStudentSummary,
+  saveCachedPaymentDeskStudentSummary,
+} from "@/lib/payments/payment-desk-summary-cache";
 import type {
   PaymentDeskIssue,
   PaymentDeskStudentSummary,
@@ -126,6 +131,23 @@ function createClientRequestId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function markPaymentDeskStudentTiming(
+  name:
+    | "student_click"
+    | "summary_fetch_start"
+    | "summary_fetch_end"
+    | "summary_paint",
+) {
+  if (typeof performance === "undefined" || !performance.mark) {
+    return;
+  }
+
+  if (name === "student_click") performance.mark("vpps:payment-desk:student_click");
+  if (name === "summary_fetch_start") performance.mark("vpps:payment-desk:summary_fetch_start");
+  if (name === "summary_fetch_end") performance.mark("vpps:payment-desk:summary_fetch_end");
+  if (name === "summary_paint") performance.mark("vpps:payment-desk:summary_paint");
 }
 
 function ActionNotice({
@@ -363,6 +385,7 @@ export function PaymentDeskClient({
     includeBreakdown?: boolean;
     signal?: AbortSignal;
   }) => {
+    markPaymentDeskStudentTiming("summary_fetch_start");
     const params = new URLSearchParams({
       studentId: payload.studentId,
       paymentDate: payload.requestedPaymentDate,
@@ -383,7 +406,9 @@ export function PaymentDeskClient({
       throw new Error(errorPayload?.error ?? "Unable to refresh payment preview.");
     }
 
-    return response.json() as Promise<PaymentDeskStudentSummary>;
+    const summary = await response.json() as PaymentDeskStudentSummary;
+    markPaymentDeskStudentTiming("summary_fetch_end");
+    return summary;
   }, [data.sessionLabel]);
 
   const applyStudentSummaryPayload = useCallback((payload: PaymentDeskStudentSummary) => {
@@ -400,6 +425,7 @@ export function PaymentDeskClient({
         ? "Pending amount and late fee are recalculated for the selected payment date."
         : "No pending dues for selected payment date.",
     );
+    requestAnimationFrame(() => markPaymentDeskStudentTiming("summary_paint"));
   }, []);
 
   // Applies card-only data (no breakdown) while breakdown is still loading.
@@ -415,6 +441,24 @@ export function PaymentDeskClient({
     setPreviewNotice("Loading installment breakdown...");
   }, []);
 
+  const rememberFullStudentSummary = useCallback((payload: {
+    studentId: string;
+    requestedPaymentDate: string;
+    summary: PaymentDeskStudentSummary;
+  }) => {
+    const cacheKey = buildStudentSummaryCacheKey(payload.studentId, payload.requestedPaymentDate);
+
+    summaryCache.current.set(cacheKey, payload.summary);
+    cardOnlyCache.current.delete(cacheKey);
+    prefetchCache.current.delete(cacheKey);
+    void saveCachedPaymentDeskStudentSummary({
+      sessionLabel: data.sessionLabel,
+      studentId: payload.studentId,
+      paymentDate: payload.requestedPaymentDate,
+      summary: payload.summary,
+    });
+  }, [buildStudentSummaryCacheKey, data.sessionLabel]);
+
   function prefetchStudentSummary(studentId: string) {
     const today = new Date().toISOString().slice(0, 10);
     const cacheKey = buildStudentSummaryCacheKey(studentId, today);
@@ -424,7 +468,7 @@ export function PaymentDeskClient({
       return;
     }
 
-    // Fetch card-only (skip the slow preview RPC) so hover/focus prefetch is fast.
+    // Fetch card-only (skip the slow installment preview) so hover/focus prefetch is fast.
     const promise = fetchStudentSummary({
       studentId,
       requestedPaymentDate: today,
@@ -562,9 +606,11 @@ export function PaymentDeskClient({
       })
         .then((payload) => {
           if (requestId !== summaryRequestRef.current) return;
-          summaryCache.current.set(prefetchKey, payload);
-          cardOnlyCache.current.delete(prefetchKey);
-          prefetchCache.current.delete(prefetchKey);
+          rememberFullStudentSummary({
+            studentId: selectedStudentId,
+            requestedPaymentDate: paymentDate,
+            summary: payload,
+          });
           applyStudentSummaryPayload(payload);
         })
         .catch((error) => {
@@ -588,28 +634,50 @@ export function PaymentDeskClient({
     // Otherwise fetch the full summary directly.
     const cachedSummaryPromise = prefetchCache.current.get(prefetchKey);
 
-    (cachedSummaryPromise
-      ? cachedSummaryPromise.then((cardPayload) => {
-          if (requestId !== summaryRequestRef.current) return Promise.reject(new Error("AbortError"));
-          if (cardPayload) {
-            applyStudentCardData(cardPayload);
-          }
-          return fetchStudentSummary({
-            studentId: selectedStudentId,
-            requestedPaymentDate: paymentDate,
-            includeLatestReceipt: true,
-            includeBreakdown: true,
-            signal: controller.signal,
-          });
-        })
-      : fetchStudentSummary({
-          studentId: selectedStudentId,
-          requestedPaymentDate: paymentDate,
-          includeLatestReceipt: true,
-          includeBreakdown: true,
-          signal: controller.signal,
-        })
-    )
+    (async () => {
+      const persistedSummary = await loadCachedPaymentDeskStudentSummary({
+        sessionLabel: data.sessionLabel,
+        studentId: selectedStudentId,
+        paymentDate,
+      }).catch(() => null);
+
+      if (requestId !== summaryRequestRef.current) {
+        throw new Error("AbortError");
+      }
+
+      if (persistedSummary?.summary) {
+        summaryCache.current.set(prefetchKey, persistedSummary.summary);
+        applyStudentSummaryPayload(persistedSummary.summary);
+
+        if (!persistedSummary.stale) {
+          return persistedSummary.summary;
+        }
+
+        setPreviewLoading(true);
+        setPreviewNotice("Refreshing pending amount for selected payment date...");
+      }
+
+      if (cachedSummaryPromise) {
+        const cardPayload = await cachedSummaryPromise;
+        const payload = cardPayload;
+        const resolvedCardPayload = payload ?? cardOnlyCache.current.get(prefetchKey) ?? null;
+
+        if (requestId !== summaryRequestRef.current) {
+          throw new Error("AbortError");
+        }
+        if (resolvedCardPayload) {
+          applyStudentCardData(resolvedCardPayload);
+        }
+      }
+
+      return fetchStudentSummary({
+        studentId: selectedStudentId,
+        requestedPaymentDate: paymentDate,
+        includeLatestReceipt: true,
+        includeBreakdown: true,
+        signal: controller.signal,
+      });
+    })()
       .then((payload) => {
         if (requestId !== summaryRequestRef.current) {
           return;
@@ -619,8 +687,11 @@ export function PaymentDeskClient({
         }
 
         summaryCache.current.set(prefetchKey, payload);
-        cardOnlyCache.current.delete(prefetchKey);
-        prefetchCache.current.delete(prefetchKey);
+        rememberFullStudentSummary({
+          studentId: selectedStudentId,
+          requestedPaymentDate: paymentDate,
+          summary: payload,
+        });
         applyStudentSummaryPayload(payload);
       })
       .catch((error) => {
@@ -643,7 +714,7 @@ export function PaymentDeskClient({
     return () => {
       controller.abort();
     };
-  }, [applyStudentCardData, applyStudentSummaryPayload, buildStudentSummaryCacheKey, fetchStudentSummary, paymentDate, selectedStudentId]);
+  }, [applyStudentCardData, applyStudentSummaryPayload, buildStudentSummaryCacheKey, data.sessionLabel, fetchStudentSummary, paymentDate, rememberFullStudentSummary, selectedStudentId]);
 
   const allocationPreview = useMemo(() => {
     if (!selectedStudent) {
@@ -889,6 +960,11 @@ export function PaymentDeskClient({
         const postedCacheKey = buildStudentSummaryCacheKey(state.studentId, state.paymentDate ?? paymentDate);
         summaryCache.current.delete(postedCacheKey);
         cardOnlyCache.current.delete(postedCacheKey);
+        void clearCachedPaymentDeskStudentSummary({
+          sessionLabel: paymentSessionLabel,
+          studentId: state.studentId,
+          paymentDate: state.paymentDate ?? paymentDate,
+        });
       }
       try {
         clearPaymentDeskStudentIndexCache({
@@ -1180,6 +1256,7 @@ export function PaymentDeskClient({
   }
 
   function selectStudent(studentId: string) {
+    markPaymentDeskStudentTiming("student_click");
     summaryAbortRef.current?.abort();
     summaryRequestRef.current += 1;
     const cacheKey = buildStudentSummaryCacheKey(studentId, paymentDate);

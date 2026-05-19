@@ -90,7 +90,6 @@ async function PaymentDeskDataLoader({
   classId: string | null;
   sessionLabel: string;
 }) {
-  const today = new Date().toISOString().slice(0, 10);
   const canWritePayments = hasStaffPermission(staff, "payments:write");
   const readinessPromise = getPaymentDeskReadiness({
     sessionLabel,
