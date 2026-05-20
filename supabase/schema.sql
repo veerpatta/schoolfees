@@ -3355,8 +3355,158 @@ $$;
 create or replace view public.v_workbook_installment_balances
 with (security_invoker = true)
 as
-select *
-from private.workbook_installment_snapshot(null, current_date, false);
+with session_policy as (
+  select distinct on (academic_session_label)
+    academic_session_label
+  from public.fee_policy_configs
+  where calculation_model = 'workbook_v1'
+  order by academic_session_label, updated_at desc
+),
+session_installments as (
+  select
+    i.id as installment_id,
+    i.student_id,
+    s.admission_no,
+    s.full_name as student_name,
+    s.father_name,
+    s.primary_phone as father_phone,
+    c.session_label,
+    i.class_id,
+    c.class_name,
+    private.normalize_workbook_class_label(c.class_name, c.stream_name) as class_label,
+    coalesce(c.section, '') as section,
+    coalesce(c.stream_name, '') as stream_name,
+    i.installment_no,
+    i.installment_label,
+    i.due_date,
+    i.amount_due as base_charge,
+    i.status as installment_status,
+    i.late_fee_flat_amount,
+    coalesce(override_row.late_fee_waiver_amount, 0) as late_fee_waiver_total,
+    s.transport_route_id,
+    route_row.route_name as transport_route_name,
+    route_row.route_code as transport_route_code
+  from public.installments as i
+  join public.students as s
+    on s.id = i.student_id
+  join public.classes as c
+    on c.id = i.class_id
+  join session_policy as policy_row
+    on policy_row.academic_session_label = c.session_label
+  left join public.student_fee_overrides as override_row
+    on override_row.student_id = i.student_id
+   and override_row.is_active = true
+  left join public.transport_routes as route_row
+    on route_row.id = s.transport_route_id
+  where i.status <> 'cancelled'
+),
+rolled as (
+  select
+    session_installments.*,
+    coalesce(payment_row.paid_amount, 0)::integer as paid_amount,
+    coalesce(payment_row.paid_by_due_amount, 0)::integer as paid_by_due_amount,
+    coalesce(adjustment_row.adjustment_amount, 0)::integer as adjustment_amount,
+    payment_row.last_payment_date,
+    coalesce(payment_row.had_payment_after_due, false) as had_payment_after_due
+  from session_installments
+  left join lateral (
+    select
+      coalesce(sum(payment_row.amount), 0) as paid_amount,
+      coalesce(sum(payment_row.amount) filter (where receipt_row.payment_date <= session_installments.due_date), 0) as paid_by_due_amount,
+      max(receipt_row.payment_date) as last_payment_date,
+      bool_or(receipt_row.payment_date > session_installments.due_date) as had_payment_after_due
+    from public.payments as payment_row
+    join public.receipts as receipt_row
+      on receipt_row.id = payment_row.receipt_id
+    where payment_row.installment_id = session_installments.installment_id
+  ) as payment_row
+    on true
+  left join lateral (
+    select coalesce(sum(adjustment_row.amount_delta), 0) as adjustment_amount
+    from public.payment_adjustments as adjustment_row
+    where adjustment_row.installment_id = session_installments.installment_id
+  ) as adjustment_row
+    on true
+),
+late_eval as (
+  select
+    rolled.*,
+    greatest(rolled.paid_amount + rolled.adjustment_amount, 0)::integer as applied_amount,
+    greatest(
+      rolled.base_charge - greatest(rolled.paid_amount + rolled.adjustment_amount, 0),
+      0
+    )::integer as base_pending_amount,
+    case
+      when rolled.installment_status = 'waived' then 0
+      when rolled.base_charge <= 0 then 0
+      when rolled.paid_by_due_amount >= rolled.base_charge then 0
+      when rolled.had_payment_after_due then rolled.late_fee_flat_amount
+      else 0
+    end::integer as raw_late_fee
+  from rolled
+),
+waiver_eval as (
+  select
+    late_eval.*,
+    least(
+      late_eval.raw_late_fee,
+      greatest(
+        late_eval.late_fee_waiver_total - coalesce(
+          sum(late_eval.raw_late_fee) over (
+            partition by late_eval.student_id
+            order by late_eval.installment_no
+            rows between unbounded preceding and 1 preceding
+          ),
+          0
+        ),
+        0
+      )
+    )::integer as waiver_applied
+  from late_eval
+)
+select
+  waiver_eval.installment_id,
+  waiver_eval.student_id,
+  waiver_eval.admission_no,
+  waiver_eval.student_name,
+  waiver_eval.father_name,
+  waiver_eval.father_phone,
+  waiver_eval.session_label,
+  waiver_eval.class_id,
+  waiver_eval.class_name,
+  waiver_eval.class_label,
+  waiver_eval.section,
+  waiver_eval.stream_name,
+  waiver_eval.installment_no,
+  waiver_eval.installment_label,
+  waiver_eval.due_date,
+  waiver_eval.base_charge,
+  waiver_eval.paid_amount,
+  waiver_eval.adjustment_amount,
+  waiver_eval.applied_amount,
+  waiver_eval.raw_late_fee,
+  waiver_eval.waiver_applied,
+  greatest(waiver_eval.raw_late_fee - waiver_eval.waiver_applied, 0)::integer as final_late_fee,
+  greatest(waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied, 0)::integer as total_charge,
+  greatest(
+    waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied - waiver_eval.applied_amount,
+    0
+  )::integer as pending_amount,
+  case
+    when waiver_eval.installment_status = 'waived' then 'waived'
+    when greatest(
+      waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied - waiver_eval.applied_amount,
+      0
+    ) <= 0 then 'paid'
+    when waiver_eval.applied_amount > 0 then 'partial'
+    when current_date > waiver_eval.due_date then 'overdue'
+    else 'pending'
+  end as balance_status,
+  waiver_eval.last_payment_date,
+  waiver_eval.transport_route_id,
+  waiver_eval.transport_route_name,
+  waiver_eval.transport_route_code
+from waiver_eval;
 
 create or replace function public.preview_workbook_payment_allocation(
   p_student_id uuid,
@@ -4323,8 +4473,158 @@ $$;
 create or replace view public.v_workbook_installment_balances
 with (security_invoker = true)
 as
-select *
-from private.workbook_installment_snapshot(null, current_date, false);
+with session_policy as (
+  select distinct on (academic_session_label)
+    academic_session_label
+  from public.fee_policy_configs
+  where calculation_model = 'workbook_v1'
+  order by academic_session_label, updated_at desc
+),
+session_installments as (
+  select
+    i.id as installment_id,
+    i.student_id,
+    s.admission_no,
+    s.full_name as student_name,
+    s.father_name,
+    s.primary_phone as father_phone,
+    c.session_label,
+    i.class_id,
+    c.class_name,
+    private.normalize_workbook_class_label(c.class_name, c.stream_name) as class_label,
+    coalesce(c.section, '') as section,
+    coalesce(c.stream_name, '') as stream_name,
+    i.installment_no,
+    i.installment_label,
+    i.due_date,
+    i.amount_due as base_charge,
+    i.status as installment_status,
+    i.late_fee_flat_amount,
+    coalesce(override_row.late_fee_waiver_amount, 0) as late_fee_waiver_total,
+    s.transport_route_id,
+    route_row.route_name as transport_route_name,
+    route_row.route_code as transport_route_code
+  from public.installments as i
+  join public.students as s
+    on s.id = i.student_id
+  join public.classes as c
+    on c.id = i.class_id
+  join session_policy as policy_row
+    on policy_row.academic_session_label = c.session_label
+  left join public.student_fee_overrides as override_row
+    on override_row.student_id = i.student_id
+   and override_row.is_active = true
+  left join public.transport_routes as route_row
+    on route_row.id = s.transport_route_id
+  where i.status <> 'cancelled'
+),
+rolled as (
+  select
+    session_installments.*,
+    coalesce(payment_row.paid_amount, 0)::integer as paid_amount,
+    coalesce(payment_row.paid_by_due_amount, 0)::integer as paid_by_due_amount,
+    coalesce(adjustment_row.adjustment_amount, 0)::integer as adjustment_amount,
+    payment_row.last_payment_date,
+    coalesce(payment_row.had_payment_after_due, false) as had_payment_after_due
+  from session_installments
+  left join lateral (
+    select
+      coalesce(sum(payment_row.amount), 0) as paid_amount,
+      coalesce(sum(payment_row.amount) filter (where receipt_row.payment_date <= session_installments.due_date), 0) as paid_by_due_amount,
+      max(receipt_row.payment_date) as last_payment_date,
+      bool_or(receipt_row.payment_date > session_installments.due_date) as had_payment_after_due
+    from public.payments as payment_row
+    join public.receipts as receipt_row
+      on receipt_row.id = payment_row.receipt_id
+    where payment_row.installment_id = session_installments.installment_id
+  ) as payment_row
+    on true
+  left join lateral (
+    select coalesce(sum(adjustment_row.amount_delta), 0) as adjustment_amount
+    from public.payment_adjustments as adjustment_row
+    where adjustment_row.installment_id = session_installments.installment_id
+  ) as adjustment_row
+    on true
+),
+late_eval as (
+  select
+    rolled.*,
+    greatest(rolled.paid_amount + rolled.adjustment_amount, 0)::integer as applied_amount,
+    greatest(
+      rolled.base_charge - greatest(rolled.paid_amount + rolled.adjustment_amount, 0),
+      0
+    )::integer as base_pending_amount,
+    case
+      when rolled.installment_status = 'waived' then 0
+      when rolled.base_charge <= 0 then 0
+      when rolled.paid_by_due_amount >= rolled.base_charge then 0
+      when rolled.had_payment_after_due then rolled.late_fee_flat_amount
+      else 0
+    end::integer as raw_late_fee
+  from rolled
+),
+waiver_eval as (
+  select
+    late_eval.*,
+    least(
+      late_eval.raw_late_fee,
+      greatest(
+        late_eval.late_fee_waiver_total - coalesce(
+          sum(late_eval.raw_late_fee) over (
+            partition by late_eval.student_id
+            order by late_eval.installment_no
+            rows between unbounded preceding and 1 preceding
+          ),
+          0
+        ),
+        0
+      )
+    )::integer as waiver_applied
+  from late_eval
+)
+select
+  waiver_eval.installment_id,
+  waiver_eval.student_id,
+  waiver_eval.admission_no,
+  waiver_eval.student_name,
+  waiver_eval.father_name,
+  waiver_eval.father_phone,
+  waiver_eval.session_label,
+  waiver_eval.class_id,
+  waiver_eval.class_name,
+  waiver_eval.class_label,
+  waiver_eval.section,
+  waiver_eval.stream_name,
+  waiver_eval.installment_no,
+  waiver_eval.installment_label,
+  waiver_eval.due_date,
+  waiver_eval.base_charge,
+  waiver_eval.paid_amount,
+  waiver_eval.adjustment_amount,
+  waiver_eval.applied_amount,
+  waiver_eval.raw_late_fee,
+  waiver_eval.waiver_applied,
+  greatest(waiver_eval.raw_late_fee - waiver_eval.waiver_applied, 0)::integer as final_late_fee,
+  greatest(waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied, 0)::integer as total_charge,
+  greatest(
+    waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied - waiver_eval.applied_amount,
+    0
+  )::integer as pending_amount,
+  case
+    when waiver_eval.installment_status = 'waived' then 'waived'
+    when greatest(
+      waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied - waiver_eval.applied_amount,
+      0
+    ) <= 0 then 'paid'
+    when waiver_eval.applied_amount > 0 then 'partial'
+    when current_date > waiver_eval.due_date then 'overdue'
+    else 'pending'
+  end as balance_status,
+  waiver_eval.last_payment_date,
+  waiver_eval.transport_route_id,
+  waiver_eval.transport_route_name,
+  waiver_eval.transport_route_code
+from waiver_eval;
 
 create or replace function public.preview_workbook_payment_allocation(
   p_student_id uuid,
