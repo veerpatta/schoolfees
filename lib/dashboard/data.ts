@@ -193,13 +193,11 @@ async function getDashboardSyncHealth(sessionLabel: string): Promise<DashboardSy
   }
 
   const installmentStudentIds = new Set<string>();
-  const batchSize = 100;
-  for (let offset = 0; offset < studentIds.length; offset += batchSize) {
-    const batch = studentIds.slice(offset, offset + batchSize);
+  if (studentIds.length > 0) {
     const { data, error } = await supabase
       .from("installments")
       .select("student_id")
-      .in("student_id", batch)
+      .in("student_id", studentIds)
       .neq("status", "cancelled");
 
     if (error) {

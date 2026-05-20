@@ -1597,14 +1597,204 @@ export function resolveStudentPolicyBreakdown(payload: {
   };
 }
 
-export async function getStudentFinancialSnapshot(
+async function getStudentFeeSetupData(payload: {
+  studentId: string;
+  classId: string;
+  transportRouteId: string | null;
+  sessionLabel: string;
+  classRef: ClassRow | null;
+  studentRaw: { id: string; class_id: string; transport_route_id: string | null; full_name?: string; admission_no?: string };
+}) {
+  const supabase = await createClient();
+
+  const studentOverridesSelectWithNotes =
+    "id, student_id, fee_setting_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, late_fee_waiver_amount, discount_amount, student_type_override, transport_applies_override, reason, notes, updated_at";
+  const studentOverridesSelectWithoutNotes =
+    "id, student_id, fee_setting_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, late_fee_waiver_amount, discount_amount, student_type_override, transport_applies_override, reason, updated_at";
+
+  const studentOverridesRequest = supabase
+    .from("student_fee_overrides")
+    .select(studentOverridesSelectWithNotes)
+    .eq("student_id", payload.studentId)
+    .eq("is_active", true)
+    .order("updated_at", { ascending: false })
+    .maybeSingle();
+
+  const [
+    policy,
+    schoolDefaultResult,
+    classDefaultResult,
+    routeDefaultResult,
+    studentOverrideResponse,
+    conventionalDiscountAssignments,
+  ] = await Promise.all([
+    loadPolicyForSession(payload.sessionLabel),
+    supabase
+      .from("school_fee_defaults")
+      .select(
+        "id, tuition_fee_amount, transport_fee_amount, books_fee_amount, admission_activity_misc_fee_amount, other_fee_heads, student_type_default, transport_applies_default, notes, updated_at",
+      )
+      .eq("is_active", true)
+      .maybeSingle(),
+    supabase
+      .from("fee_settings")
+      .select(
+        "id, class_id, tuition_fee_amount, transport_fee_amount, books_fee_amount, admission_activity_misc_fee_amount, other_fee_heads, student_type_default, transport_applies_default, notes, updated_at",
+      )
+      .eq("class_id", payload.classId)
+      .eq("is_active", true)
+      .maybeSingle(),
+    payload.transportRouteId
+      ? supabase
+          .from("transport_routes")
+          .select(
+            "id, route_code, route_name, default_installment_amount, annual_fee_amount, is_active, notes, updated_at",
+          )
+          .eq("id", payload.transportRouteId)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    studentOverridesRequest,
+    getStudentConventionalDiscountAssignments({
+      academicSessionLabel: payload.sessionLabel,
+      studentIds: [payload.studentId],
+    }).catch(() => []),
+  ]);
+
+  let studentOverrideRaw = studentOverrideResponse.data as StudentOverrideRow | null;
+  let studentOverridesError = studentOverrideResponse.error;
+
+  if (
+    studentOverridesError &&
+    studentOverridesError.message.includes("student_fee_overrides.notes")
+  ) {
+    const fallback = await supabase
+      .from("student_fee_overrides")
+      .select(studentOverridesSelectWithoutNotes)
+      .eq("student_id", payload.studentId)
+      .eq("is_active", true)
+      .order("updated_at", { ascending: false })
+      .maybeSingle();
+
+    studentOverrideRaw = fallback.data as StudentOverrideRow | null;
+    studentOverridesError = fallback.error;
+  }
+
+  if (schoolDefaultResult.error) {
+    throw new Error(`Unable to load school defaults: ${schoolDefaultResult.error.message}`);
+  }
+  if (classDefaultResult.error) {
+    throw new Error(`Unable to load class defaults: ${classDefaultResult.error.message}`);
+  }
+  if (routeDefaultResult.error) {
+    throw new Error(`Unable to load route defaults: ${routeDefaultResult.error.message}`);
+  }
+  if (studentOverridesError) {
+    throw new Error(`Unable to load student overrides: ${studentOverridesError.message}`);
+  }
+
+  const schoolDefaultRaw = schoolDefaultResult.data;
+  const schoolDefault = schoolDefaultRaw
+    ? ({
+        id: schoolDefaultRaw.id,
+        tuitionFee: schoolDefaultRaw.tuition_fee_amount,
+        transportFee: schoolDefaultRaw.transport_fee_amount,
+        booksFee: schoolDefaultRaw.books_fee_amount,
+        admissionActivityMiscFee: schoolDefaultRaw.admission_activity_misc_fee_amount,
+        customFeeHeadAmounts: parseCustomAmountMap(schoolDefaultRaw.other_fee_heads),
+        studentTypeDefault: schoolDefaultRaw.student_type_default,
+        transportAppliesDefault: schoolDefaultRaw.transport_applies_default,
+        notes: schoolDefaultRaw.notes,
+        updatedAt: schoolDefaultRaw.updated_at,
+      } satisfies SchoolFeeDefault)
+    : createEmptySchoolDefault();
+
+  const classDefaultRaw = classDefaultResult.data;
+  let classDefault = null;
+  if (classDefaultRaw) {
+    const customFeeHeadAmounts = parseCustomAmountMap(classDefaultRaw.other_fee_heads);
+    classDefault = {
+      id: classDefaultRaw.id,
+      classId: classDefaultRaw.class_id,
+      classLabel: payload.classRef ? buildClassLabel(payload.classRef) : "Unknown class",
+      sessionLabel: payload.classRef?.session_label ?? "Unknown session",
+      tuitionFee: classDefaultRaw.tuition_fee_amount,
+      transportFee: classDefaultRaw.transport_fee_amount,
+      booksFee: classDefaultRaw.books_fee_amount,
+      admissionActivityMiscFee: classDefaultRaw.admission_activity_misc_fee_amount,
+      customFeeHeadAmounts,
+      annualTotal: calculateAnnualTotal({
+        tuitionFee: classDefaultRaw.tuition_fee_amount,
+        transportFee: classDefaultRaw.transport_fee_amount,
+        booksFee: classDefaultRaw.books_fee_amount,
+        admissionActivityMiscFee: classDefaultRaw.admission_activity_misc_fee_amount,
+        customFeeHeadAmounts,
+      }),
+      studentTypeDefault: classDefaultRaw.student_type_default,
+      transportAppliesDefault: classDefaultRaw.transport_applies_default,
+      notes: classDefaultRaw.notes,
+      updatedAt: classDefaultRaw.updated_at,
+    } satisfies ClassFeeDefault;
+  }
+
+  const routeDefaultRaw = routeDefaultResult.data;
+  const routeDefault = routeDefaultRaw
+    ? ({
+        id: routeDefaultRaw.id,
+        routeCode: routeDefaultRaw.route_code,
+        routeName: routeDefaultRaw.route_name,
+        defaultInstallmentAmount: routeDefaultRaw.default_installment_amount,
+        annualFeeAmount: routeDefaultRaw.annual_fee_amount,
+        isActive: routeDefaultRaw.is_active,
+        notes: routeDefaultRaw.notes,
+        updatedAt: routeDefaultRaw.updated_at,
+      } satisfies TransportDefault)
+    : null;
+
+  const studentOverride = studentOverrideRaw
+    ? ({
+        id: studentOverrideRaw.id,
+        studentId: studentOverrideRaw.student_id,
+        studentLabel: payload.studentRaw
+          ? `${payload.studentRaw.full_name ?? ""} (${payload.studentRaw.admission_no ?? ""})`
+          : "Unknown student",
+        classLabel: payload.classRef ? buildClassLabel(payload.classRef) : "Unknown class",
+        feeSettingId: studentOverrideRaw.fee_setting_id,
+        customTuitionFeeAmount: studentOverrideRaw.custom_tuition_fee_amount,
+        customTransportFeeAmount: studentOverrideRaw.custom_transport_fee_amount,
+        customBooksFeeAmount: studentOverrideRaw.custom_books_fee_amount,
+        customAdmissionActivityMiscFeeAmount: studentOverrideRaw.custom_admission_activity_misc_fee_amount,
+        customFeeHeadAmounts: parseCustomAmountMap(studentOverrideRaw.custom_other_fee_heads),
+        customLateFeeFlatAmount: studentOverrideRaw.custom_late_fee_flat_amount,
+        otherAdjustmentHead: studentOverrideRaw.other_adjustment_head,
+        otherAdjustmentAmount: studentOverrideRaw.other_adjustment_amount,
+        lateFeeWaiverAmount: toWholeNumber(studentOverrideRaw.late_fee_waiver_amount),
+        discountAmount: studentOverrideRaw.discount_amount,
+        studentTypeOverride: studentOverrideRaw.student_type_override,
+        transportAppliesOverride: studentOverrideRaw.transport_applies_override,
+        reason: studentOverrideRaw.reason,
+        notes: studentOverrideRaw.notes ?? null,
+        updatedAt: studentOverrideRaw.updated_at,
+      } satisfies StudentFeeOverride)
+    : null;
+
+  return {
+    policy,
+    schoolDefault,
+    classDefault,
+    routeDefault,
+    studentOverride,
+    conventionalDiscountAssignments,
+  };
+}
+
+async function getStudentFinancialSnapshotUncached(
   studentId: string,
 ): Promise<StudentFinancialSnapshot | null> {
   const supabase = await createClient();
   const { data: studentRaw, error: studentError } = await supabase
     .from("students")
     .select(
-      "id, class_id, transport_route_id, class_ref:classes(id, session_label, class_name, section, stream_name)",
+      "id, class_id, transport_route_id, full_name, admission_no, class_ref:classes(id, session_label, class_name, section, stream_name)",
     )
     .eq("id", studentId)
     .maybeSingle();
@@ -1621,22 +1811,30 @@ export async function getStudentFinancialSnapshot(
     id: string;
     class_id: string;
     transport_route_id: string | null;
+    full_name: string;
+    admission_no: string;
     class_ref: ClassRow | ClassRow[] | null;
   };
 
-  const pageData = await getFeeSetupPageData();
-  const classDefault =
-    pageData.classDefaults.find((item) => item.classId === student.class_id) ?? null;
-  const routeDefault =
-    pageData.transportDefaults.find((item) => item.id === student.transport_route_id) ??
-    null;
-  const studentOverride =
-    pageData.studentOverrides.find((item) => item.studentId === studentId) ?? null;
-  const conventionalDiscountAssignments = pageData.conventionalDiscountAssignments.filter(
-    (item) => item.studentId === studentId,
-  );
+  const classRef = toSingleRecord(student.class_ref);
+  const sessionLabel = classRef?.session_label ?? "";
+
+  const pageData = await getStudentFeeSetupData({
+    studentId,
+    classId: student.class_id,
+    transportRouteId: student.transport_route_id,
+    sessionLabel,
+    classRef,
+    studentRaw,
+  });
+
+  const classDefault = pageData.classDefault;
+  const routeDefault = pageData.routeDefault;
+  const studentOverride = pageData.studentOverride;
+  const conventionalDiscountAssignments = pageData.conventionalDiscountAssignments;
+
   const resolved = resolveStudentPolicyBreakdown({
-    policy: pageData.globalPolicy,
+    policy: pageData.policy,
     schoolDefault: pageData.schoolDefault,
     classDefault,
     routeDefault,
@@ -1645,7 +1843,7 @@ export async function getStudentFinancialSnapshot(
     hasTransportRoute: Boolean(student.transport_route_id),
   });
 
-  if (pageData.globalPolicy.calculationModel === "workbook_v1") {
+  if (pageData.policy.calculationModel === "workbook_v1") {
     const [
       { data: workbookStudentRaw, error: workbookStudentError },
       { data: workbookBalancesRaw, error: workbookBalancesError },
@@ -1702,7 +1900,7 @@ export async function getStudentFinancialSnapshot(
       | null;
 
     return {
-      policy: pageData.globalPolicy,
+      policy: pageData.policy,
       resolvedBreakdown: resolved.breakdown,
       currentOutstanding:
         financialState?.pending_amount ??
@@ -1735,7 +1933,7 @@ export async function getStudentFinancialSnapshot(
   const nextDue = balanceRows[0] ?? null;
 
   return {
-    policy: pageData.globalPolicy,
+    policy: pageData.policy,
     resolvedBreakdown: resolved.breakdown,
     currentOutstanding: balanceRows.reduce(
       (sum, row) => sum + row.outstanding_amount,
@@ -1751,6 +1949,16 @@ export async function getStudentFinancialSnapshot(
     nextDueAmount: nextDue?.outstanding_amount ?? null,
     activeOverrideReason: resolved.activeOverrideReason,
   };
+}
+
+export async function getStudentFinancialSnapshot(
+  studentId: string,
+): Promise<StudentFinancialSnapshot | null> {
+  return unstable_cache(
+    async () => getStudentFinancialSnapshotUncached(studentId),
+    ["student-financial-snapshot", studentId],
+    { tags: [`student:${studentId}`] },
+  )();
 }
 
 export async function getAcceptedPaymentModeOptions() {

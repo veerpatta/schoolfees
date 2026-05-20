@@ -867,7 +867,8 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
       .from("students")
       .select(
         "id, admission_no, full_name, status, class_id, transport_route_id, class_ref:classes(id, session_label, status, class_name, section, stream_name)",
-      );
+      )
+      .eq("status", "active");
 
     if (studentsError) {
       throw new Error(studentsError.message);
@@ -941,23 +942,35 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
   const importBatchSessionStatusMap = new Map<string, ImportBatchSessionStatusRow>();
 
   try {
-    const { data, error } = await supabase
-      .from("v_workbook_student_financials")
-      .select("student_id, session_label");
+    const { data: policiesData, error: policiesError } = await supabase
+      .from("fee_policy_configs")
+      .select("academic_session_label")
+      .eq("calculation_model", "workbook_v1");
 
-    if (error) {
-      throw new Error(error.message);
+    if (policiesError) {
+      throw new Error(policiesError.message);
     }
 
-    const viewRows = (data ?? []) as Array<{ student_id: string; session_label: string | null }>;
+    const sessionsWithPolicy = new Set(
+      (policiesData ?? [])
+        .map((p) => p.academic_session_label?.trim())
+        .filter((val): val is string => Boolean(val)),
+    );
 
-    viewRows.forEach((row) => {
-      addSessionCount(workbookFinancialRowsBySessionMap, row.session_label);
+    studentRows.forEach((row) => {
+      const classRef = toSingleRecord(row.class_ref);
+      if (!classRef?.session_label) return;
+
+      const normSession = classRef.session_label.trim();
+      if (sessionsWithPolicy.has(normSession)) {
+        addSessionCount(workbookFinancialRowsBySessionMap, normSession);
+      }
     });
 
-    if (activeSessionStudentIds.length > 0) {
-      const viewStudentIds = new Set(viewRows.map((row) => row.student_id));
-      studentsWithFinancialRows = activeSessionStudentIds.filter((id) => viewStudentIds.has(id)).length;
+    if (activeSessionStudentIds.length > 0 && sessionsWithPolicy.has(activeSession.trim())) {
+      studentsWithFinancialRows = activeSessionStudentIds.length;
+    } else {
+      studentsWithFinancialRows = 0;
     }
   } catch (error) {
     warnings.push(
@@ -992,21 +1005,17 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
 
   try {
     if (activeSessionStudentIds.length > 0) {
-      const BATCH_SIZE = 100;
-      for (let offset = 0; offset < activeSessionStudentIds.length; offset += BATCH_SIZE) {
-        const batch = activeSessionStudentIds.slice(offset, offset + BATCH_SIZE);
-        const { data, error } = await supabase
-          .from("installments")
-          .select("student_id")
-          .in("student_id", batch)
-          .neq("status", "cancelled");
+      const { data, error } = await supabase
+        .from("installments")
+        .select("student_id")
+        .in("student_id", activeSessionStudentIds)
+        .neq("status", "cancelled");
 
-        if (error) {
-          throw new Error(error.message);
-        }
-
-        installmentRowsData.push(...((data ?? []) as Array<{ student_id: string }>));
+      if (error) {
+        throw new Error(error.message);
       }
+
+      installmentRowsData.push(...((data ?? []) as Array<{ student_id: string }>));
     }
   } catch (error) {
     warnings.push(

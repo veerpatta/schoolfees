@@ -28,6 +28,7 @@ export function revalidateCoreFinancePaths(studentIds: readonly string[] = []) {
     revalidatePath(`/protected/students/${studentId}`);
     revalidatePath(`/protected/students/${studentId}/statement`);
     revalidatePath(`/protected/payments?studentId=${studentId}`);
+    revalidateTag(`student:${studentId}`, "max");
   }
 }
 
@@ -48,6 +49,7 @@ export function revalidateAfterPaymentPosting(studentIds: readonly string[] = []
     revalidatePath(`/protected/students/${studentId}`);
     revalidatePath(`/protected/students/${studentId}/statement`);
     revalidatePath(`/protected/payments?studentId=${studentId}`);
+    revalidateTag(`student:${studentId}`, "max");
   }
 }
 

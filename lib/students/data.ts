@@ -1,5 +1,7 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
+
 import { getFeePolicySummary, getFeeSetupPageData, upsertStudentFeeOverride } from "@/lib/fees/data";
 import {
   getConventionalDiscountPolicies,
@@ -625,7 +627,7 @@ export async function getStudents(filters: StudentListFilters) {
   return result.students;
 }
 
-export async function getStudentDetail(studentId: string) {
+async function getStudentDetailUncached(studentId: string): Promise<StudentDetail | null> {
   const supabase = await createClient();
   const policy = await getFeePolicySummary();
   const [studentResult, overrideRow, financialResult, conventionalAssignments] = await Promise.all([
@@ -718,6 +720,14 @@ export async function getStudentDetail(studentId: string) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   } satisfies StudentDetail;
+}
+
+export async function getStudentDetail(studentId: string): Promise<StudentDetail | null> {
+  return unstable_cache(
+    async () => getStudentDetailUncached(studentId),
+    ["student-detail", studentId],
+    { tags: [`student:${studentId}`] },
+  )();
 }
 
 export async function createStudent(payload: StudentValidatedInput) {

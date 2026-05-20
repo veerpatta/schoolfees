@@ -644,6 +644,9 @@ on public.payment_adjustments (payment_id, student_id, installment_id);
 create index if not exists idx_payment_adjustments_created_by
 on public.payment_adjustments (created_by);
 
+create index if not exists idx_payment_adjustments_installment_id
+on public.payment_adjustments (installment_id, amount_delta);
+
 create index if not exists idx_collection_closures_payment_date
 on public.collection_closures (payment_date desc);
 
