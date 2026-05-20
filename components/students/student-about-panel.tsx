@@ -1,12 +1,24 @@
+import { formatShortDate } from "@/lib/helpers/date";
+import type { LedgerSelectedStudent } from "@/lib/ledger/types";
+import type { StudentDetail } from "@/lib/students/types";
 import { Section } from "@/components/ui/section";
 
+type StudentReceipt = {
+  receiptNumber: string;
+};
+
+type StudentAboutPanelProps = {
+  student: StudentDetail;
+  ledger: LedgerSelectedStudent | null;
+  receipts: StudentReceipt[];
+};
+
 function formatDate(value: string | null) {
-  if (!value) return "-";
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(`${value}T00:00:00`));
+  if (!value) {
+    return "-";
+  }
+
+  return formatShortDate(value);
 }
 
 function formatDateTime(value: string) {
@@ -20,36 +32,7 @@ function readValue(value: string | null) {
   return value?.trim() || "-";
 }
 
-type AboutStudent = {
-  fullName: string;
-  admissionNo: string;
-  dateOfBirth: string | null;
-  address: string | null;
-  status: string;
-  studentStatusLabel: string;
-  fatherName: string | null;
-  motherName: string | null;
-  fatherPhone: string | null;
-  motherPhone: string | null;
-  transportRouteLabel: string;
-  notes: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type AboutLedger = {
-  payments: unknown[];
-  paymentOptions: unknown[];
-  adjustments: unknown[];
-} | null;
-
-type StudentAboutPanelProps = {
-  student: AboutStudent;
-  ledger: AboutLedger;
-  latestReceiptNumber: string | null;
-};
-
-export function StudentAboutPanel({ student, ledger, latestReceiptNumber }: StudentAboutPanelProps) {
+export function StudentAboutPanel({ student, ledger, receipts }: StudentAboutPanelProps) {
   return (
     <div className="space-y-4">
       <Section title="Basic details" description="Identity, family, class, and route.">
@@ -106,35 +89,35 @@ export function StudentAboutPanel({ student, ledger, latestReceiptNumber }: Stud
       </Section>
 
       <Section title="Notes" description="Office notes kept with the student record.">
-        <div className="rounded-xl border border-border bg-surface-2 px-4 py-4 text-sm text-foreground">
+        <div className="rounded-lg border border-border bg-surface-2 px-4 py-4 text-sm text-foreground">
           {readValue(student.notes)}
         </div>
       </Section>
 
       <Section title="Record history" description="High-level record activity.">
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+          <div className="rounded-lg border border-border bg-surface-2 px-4 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Created</p>
             <p className="mt-2 text-sm text-foreground">{formatDateTime(student.createdAt)}</p>
           </div>
-          <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+          <div className="rounded-lg border border-border bg-surface-2 px-4 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Last updated</p>
             <p className="mt-2 text-sm text-foreground">{formatDateTime(student.updatedAt)}</p>
           </div>
         </div>
         {ledger ? (
           <div className="mt-4 grid gap-4 md:grid-cols-3">
-            <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+            <div className="rounded-lg border border-border bg-surface-2 px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Payment rows</p>
-              <p className="mt-2 text-lg font-semibold tabular-nums text-foreground">{ledger.paymentOptions.length}</p>
+              <p className="mt-2 text-lg font-semibold text-foreground tabular-nums">{ledger.paymentOptions.length}</p>
             </div>
-            <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+            <div className="rounded-lg border border-border bg-surface-2 px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Adjustment rows</p>
-              <p className="mt-2 text-lg font-semibold tabular-nums text-foreground">{ledger.adjustments.length}</p>
+              <p className="mt-2 text-lg font-semibold text-foreground tabular-nums">{ledger.adjustments.length}</p>
             </div>
-            <div className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+            <div className="rounded-lg border border-border bg-surface-2 px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Latest receipt</p>
-              <p className="mt-2 text-lg font-semibold text-foreground">{latestReceiptNumber ?? "-"}</p>
+              <p className="mt-2 text-lg font-semibold text-foreground">{receipts[0]?.receiptNumber ?? "-"}</p>
             </div>
           </div>
         ) : null}

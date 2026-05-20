@@ -1,38 +1,24 @@
 import { Button } from "@/components/ui/button";
-import { archiveStudentAction, hardDeleteStudentAction } from "@/app/protected/students/actions";
+import type { StudentDeletionSafety } from "@/lib/students/types";
 
-type DangerZoneStudent = {
-  id: string;
-};
-
-type DeletionSafety = {
-  admissionNo: string;
-  receiptCount: number;
-  paymentCount: number;
-  installmentCount: number;
-  adjustmentCount: number;
-  refundRequestCount: number;
-  blockedInstallmentCount: number;
-  ledgerRegenerationRowCount: number;
-  hardDeleteBlockers: string[];
-  hardDeleteAllowed: boolean;
-  generatedDuesDeleteAllowed: boolean;
-  canForceDeleteTestRecord: boolean;
-};
+import {
+  archiveStudentAction,
+  hardDeleteStudentAction,
+} from "@/app/protected/students/actions";
 
 type StudentDangerZoneProps = {
-  student: DangerZoneStudent;
-  deletionSafety: DeletionSafety;
+  studentId: string;
+  deletionSafety: StudentDeletionSafety;
 };
 
-export function StudentDangerZone({ student, deletionSafety }: StudentDangerZoneProps) {
+export function StudentDangerZone({ studentId, deletionSafety }: StudentDangerZoneProps) {
   return (
-    <details className="overflow-hidden rounded-xl border border-border bg-card">
+    <details className="overflow-hidden rounded-lg border border-border bg-card">
       <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-destructive">
-        Danger zone — withdraw or delete this record
+        Danger zone - withdraw or delete this record
       </summary>
       <div className="grid gap-4 border-t border-border p-4 lg:grid-cols-[1fr_auto] lg:items-start">
-        <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm text-foreground">
+        <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm text-foreground">
           <p>
             Receipts: {deletionSafety.receiptCount}, payments: {deletionSafety.paymentCount},
             prepared dues: {deletionSafety.installmentCount}, adjustments: {deletionSafety.adjustmentCount},
@@ -59,14 +45,14 @@ export function StudentDangerZone({ student, deletionSafety }: StudentDangerZone
         </div>
         <div className="flex flex-wrap gap-2 lg:justify-end">
           <form action={archiveStudentAction}>
-            <input type="hidden" name="studentId" value={student.id} />
+            <input type="hidden" name="studentId" value={studentId} />
             <Button type="submit" variant="outline">
               Withdraw student
             </Button>
           </form>
           {deletionSafety.hardDeleteAllowed || deletionSafety.canForceDeleteTestRecord ? (
             <form action={hardDeleteStudentAction} className="flex max-w-xs flex-col gap-2">
-              <input type="hidden" name="studentId" value={student.id} />
+              <input type="hidden" name="studentId" value={studentId} />
               {deletionSafety.canForceDeleteTestRecord && !deletionSafety.hardDeleteAllowed ? (
                 <input type="hidden" name="forceTestRecord" value="yes" />
               ) : null}

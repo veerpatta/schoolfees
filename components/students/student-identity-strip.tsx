@@ -1,10 +1,10 @@
 import Link from "next/link";
 
+import { StudentStatusBadge } from "@/components/students/student-status-badge";
 import { Button } from "@/components/ui/button";
 import { Money } from "@/components/ui/money";
-import { StudentStatusBadge } from "@/components/students/student-status-badge";
-import type { StudentStatus } from "@/lib/db/types";
 import { formatShortDate } from "@/lib/helpers/date";
+import type { StudentStatus } from "@/lib/db/types";
 
 type StudentIdentityStripProps = {
   student: {
@@ -12,7 +12,7 @@ type StudentIdentityStripProps = {
     fullName: string;
     admissionNo: string;
     classLabel: string;
-    status: string;
+    status: StudentStatus;
     fatherName: string | null;
     fatherPhone: string | null;
     motherPhone: string | null;
@@ -40,18 +40,31 @@ function computeTemporalHint(
   if (credit > 0) {
     return { label: "Refund or adjust", tone: "warning" };
   }
+
   if (outstanding <= 0) {
     return { label: "All dues settled", tone: "success" };
   }
+
   if (!nextDueDate) {
     return { label: "Dues pending", tone: "neutral" };
   }
+
   const due = new Date(`${nextDueDate}T00:00:00`).getTime();
   const today = new Date(`${todayIso}T00:00:00`).getTime();
   const days = Math.round((due - today) / (1000 * 60 * 60 * 24));
-  if (days < 0) return { label: `Overdue by ${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"}`, tone: "danger" };
-  if (days === 0) return { label: "Due today", tone: "danger" };
-  if (days <= 7) return { label: `Due in ${days} day${days === 1 ? "" : "s"}`, tone: "info" };
+
+  if (days < 0) {
+    return { label: `Overdue by ${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"}`, tone: "danger" };
+  }
+
+  if (days === 0) {
+    return { label: "Due today", tone: "danger" };
+  }
+
+  if (days <= 7) {
+    return { label: `Due in ${days} day${days === 1 ? "" : "s"}`, tone: "info" };
+  }
+
   return { label: `Due ${formatShortDate(nextDueDate)}`, tone: "neutral" };
 }
 
@@ -63,23 +76,21 @@ const toneClasses = {
   success: "bg-success-soft text-success-soft-foreground",
 } as const;
 
-export function StudentIdentityStrip(props: StudentIdentityStripProps) {
-  const {
-    student,
-    outstandingAmount,
-    creditBalance,
-    nextDueDate,
-    nextDueLabel,
-    todayIso,
-    canPostPayments,
-    canEditStudent,
-    canPrintReceipts,
-    canViewLedger,
-    latestReceiptId,
-    returnTo,
-    encodedReturnTo,
-  } = props;
-
+export function StudentIdentityStrip({
+  student,
+  outstandingAmount,
+  creditBalance,
+  nextDueDate,
+  nextDueLabel,
+  todayIso,
+  canPostPayments,
+  canEditStudent,
+  canPrintReceipts,
+  canViewLedger,
+  latestReceiptId,
+  returnTo,
+  encodedReturnTo,
+}: StudentIdentityStripProps) {
   const hint = computeTemporalHint(nextDueDate, outstandingAmount, creditBalance, todayIso);
   const initials =
     student.fullName
@@ -96,7 +107,7 @@ export function StudentIdentityStrip(props: StudentIdentityStripProps) {
     >
       <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         {/* Left — identity */}
-        <div className="flex items-center gap-4 min-w-0">
+        <div className="flex min-w-0 items-center gap-4">
           <div
             aria-hidden="true"
             className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent-soft text-base font-semibold text-accent"
@@ -110,13 +121,13 @@ export function StudentIdentityStrip(props: StudentIdentityStripProps) {
             <h1 className="mt-1 truncate text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
               {student.fullName}
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              SR {student.admissionNo}
-              <span aria-hidden="true" className="mx-1.5 text-subtle-foreground">·</span>
-              {student.classLabel}
-              <span aria-hidden="true" className="mx-1.5 text-subtle-foreground">·</span>
-              <StudentStatusBadge status={student.status as StudentStatus} />
-            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+              <span>SR {student.admissionNo}</span>
+              <span aria-hidden="true" className="text-subtle-foreground">|</span>
+              <span>{student.classLabel}</span>
+              <span aria-hidden="true" className="text-subtle-foreground">|</span>
+              <StudentStatusBadge status={student.status} />
+            </div>
           </div>
         </div>
 
@@ -145,27 +156,29 @@ export function StudentIdentityStrip(props: StudentIdentityStripProps) {
         <div className="flex flex-wrap items-center gap-2 lg:justify-end">
           {canPostPayments ? (
             <Button asChild variant="accent" size="default">
-              <Link href={`/protected/payments?studentId=${student.id}`}>
+              <Link href={`/protected/payments?studentId=${student.id}&returnTo=${encodedReturnTo}`}>
                 Collect at Payment Desk
               </Link>
             </Button>
           ) : null}
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" size="default">
-              <Link href={`/protected/students/${student.id}/statement`}>
+              <Link href={`/protected/students/${student.id}/statement?returnTo=${encodedReturnTo}`}>
                 Print statement
               </Link>
             </Button>
             {latestReceiptId ? (
               <Button asChild variant="outline" size="default">
-                <Link href={`/protected/receipts/${latestReceiptId}`}>
+                <Link href={`/protected/receipts/${latestReceiptId}?returnTo=${encodedReturnTo}`}>
                   {canPrintReceipts ? "Print latest receipt" : "Open latest receipt"}
                 </Link>
               </Button>
             ) : null}
             {canViewLedger ? (
               <Button asChild variant="ghost" size="default">
-                <Link href={`/protected/ledger?studentId=${student.id}`}>Ledger</Link>
+                <Link href={`/protected/ledger?studentId=${student.id}&returnTo=${encodedReturnTo}`}>
+                  Ledger
+                </Link>
               </Button>
             ) : null}
             {canEditStudent ? (

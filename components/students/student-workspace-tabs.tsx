@@ -1,8 +1,9 @@
 "use client";
 
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type TabKey = "dues" | "receipts" | "payments" | "fee-plan" | "about";
 
@@ -43,7 +44,7 @@ export function StudentWorkspaceTabs(props: StudentWorkspaceTabsProps) {
 
   return (
     <Tabs defaultValue={props.defaultTab} onValueChange={handleChange} className="w-full">
-      <TabsList className="w-full justify-start overflow-x-auto">
+      <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
         <TabsTrigger value="dues">Dues{tabBadge(props.counts.dues)}</TabsTrigger>
         <TabsTrigger value="receipts">Receipts{tabBadge(props.counts.receipts)}</TabsTrigger>
         <TabsTrigger value="payments">Payments{tabBadge(props.counts.payments)}</TabsTrigger>
