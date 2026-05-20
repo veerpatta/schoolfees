@@ -35,7 +35,7 @@ export function KpiCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-lg border border-border bg-card p-5",
+        "relative overflow-hidden rounded-lg border border-border bg-card p-3.5 md:p-5",
         "transition-[border-color,box-shadow] duration-150",
         "hover:border-border-strong",
         showAccentRule &&
@@ -50,7 +50,7 @@ export function KpiCard({
         </p>
         {trailing ? <div className="shrink-0">{trailing}</div> : null}
       </div>
-      <div className="mt-3 text-2xl font-semibold tracking-tight tabular text-foreground md:text-[28px] md:leading-[34px]">
+      <div className="mt-2 text-xl font-semibold tracking-tight tabular text-foreground md:mt-3 md:text-[28px] md:leading-[34px]">
         {value}
       </div>
       {hint ? (

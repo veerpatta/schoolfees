@@ -121,15 +121,15 @@ function ViewTabs({
   };
 
   return (
-    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-5">
+    <div className="snap-x-strip gap-2 pb-1 md:grid md:grid-cols-4 xl:grid-cols-5 md:gap-2 md:overflow-visible">
       {officeWorkbookViews.map((view) => (
         <Link
           key={view}
           href={buildHref(view)}
           className={
             view === activeView
-              ? "inline-flex w-full items-center justify-center rounded-full border border-foreground bg-foreground px-2 py-2 text-[11px] font-medium leading-4 text-white sm:px-3 sm:text-sm"
-              : "inline-flex w-full items-center justify-center rounded-full border border-border bg-card px-2 py-2 text-[11px] font-medium leading-4 text-foreground hover:border-border-strong sm:px-3 sm:text-sm"
+              ? "inline-flex w-full items-center justify-center rounded-full border border-foreground bg-foreground px-3 py-2 text-[11px] font-medium leading-4 text-white sm:text-sm"
+              : "inline-flex w-full items-center justify-center rounded-full border border-border bg-card px-3 py-2 text-[11px] font-medium leading-4 text-foreground hover:border-border-strong sm:text-sm"
           }
         >
           {officeWorkbookMeta[view].shortTitle}
@@ -515,7 +515,46 @@ function ClassRegisterTable({
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
   return (
-    <div className="w-full overflow-x-auto rounded-xl border border-border">
+    <>
+      <div className="space-y-3 md:hidden">
+        {rows.length === 0 ? (
+          <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
+            No class register rows found.
+          </p>
+        ) : (
+          rows.map((row) => (
+            <div key={`cr-mobile-${row.studentId}`} className="rounded-xl border border-border bg-card p-3 text-sm">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-semibold text-foreground">{row.studentName}</p>
+                  <p className="text-xs text-muted-foreground">{row.classLabel} • SR {row.admissionNo}</p>
+                </div>
+                <span className="shrink-0 font-semibold text-foreground">{formatInr(row.outstandingAmount)}</span>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-1.5 text-xs text-muted-foreground">
+                <p>Due: {formatInr(row.totalDue)}</p>
+                <p>Paid: {formatInr(row.totalPaid)}</p>
+                <p>Next: {formatOptionalDate(row.nextDueDate)}</p>
+                <p>Last paid: {formatOptionalDate(row.lastPaymentDate)}</p>
+              </div>
+              <div className="mt-2">
+                <ValueStatePill tone={getStatusTone(row.statusLabel)} className="normal-case tracking-normal">
+                  {row.duesStatus === "missing_dues" ? "Dues not prepared" : row.statusLabel || "-"}
+                </ValueStatePill>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button asChild size="sm" variant="outline">
+                  <Link href={withSession(`/protected/students/${row.studentId}`)}>Student</Link>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link href={withSession(`/protected/payments?studentId=${row.studentId}`)}>Payment</Link>
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="hidden w-full overflow-x-auto rounded-xl border border-border md:block">
       <table className="min-w-[900px] text-left text-sm">
         <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
@@ -606,6 +645,7 @@ function ClassRegisterTable({
         </tbody>
       </table>
     </div>
+    </>
   );
 }
 
@@ -619,7 +659,48 @@ function DefaultersTable({
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
   return (
-    <div className="w-full overflow-x-auto rounded-xl border border-border">
+    <>
+      <div className="space-y-3 md:hidden">
+        {rows.length === 0 ? (
+          <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
+            No overdue students found.
+          </p>
+        ) : (
+          rows.map((row) => (
+            <div key={`def-mobile-${row.studentId}`} className="rounded-xl border border-border bg-card p-3 text-sm">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-semibold text-foreground">{row.studentName}</p>
+                  <p className="text-xs text-muted-foreground">{row.classLabel} • SR {row.admissionNo}</p>
+                </div>
+                <span className="shrink-0 font-semibold text-foreground">{formatInr(row.outstandingAmount)}</span>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-1.5 text-xs text-muted-foreground">
+                <p>Due: {formatInr(row.totalDue)}</p>
+                <p>Paid: {formatInr(row.totalPaid)}</p>
+                <p>Late fee: {formatInr(row.lateFeeTotal)}</p>
+                <p>Next due: {formatOptionalDate(row.nextDueDate)}</p>
+                <p>Father: {row.fatherName ?? "-"}</p>
+                <p>Last paid: {formatOptionalDate(row.lastPaymentDate)}</p>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {row.fatherPhone ? (
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`tel:${row.fatherPhone}`}>Call</Link>
+                  </Button>
+                ) : null}
+                <Button asChild size="sm" variant="outline">
+                  <Link href={withSession(`/protected/payments?studentId=${row.studentId}`)}>Payment</Link>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link href={withSession(`/protected/students/${row.studentId}`)}>Student</Link>
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="hidden w-full overflow-x-auto rounded-xl border border-border md:block">
       <table className="min-w-[900px] text-left text-sm">
         <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
@@ -682,6 +763,7 @@ function DefaultersTable({
         </tbody>
       </table>
     </div>
+    </>
   );
 }
 
@@ -695,7 +777,25 @@ function CollectionTable({
     : never;
 }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-border">
+    <>
+      <div className="space-y-3 md:hidden">
+        {rows.length === 0 ? (
+          <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
+            No collection rows found for today.
+          </p>
+        ) : (
+          rows.map((row) => (
+            <div key={`coll-mobile-${row.paymentDate}-${row.paymentMode}`} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 text-sm">
+              <div className="min-w-0">
+                <p className="font-semibold text-foreground">{row.paymentMode}</p>
+                <p className="text-xs text-muted-foreground">{formatShortDate(row.paymentDate)} • {row.receiptCount} receipt{row.receiptCount === 1 ? "" : "s"} • {row.studentCount} student{row.studentCount === 1 ? "" : "s"}</p>
+              </div>
+              <span className="shrink-0 font-semibold text-foreground">{formatInr(row.totalAmount)}</span>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
       <table className="w-full min-w-full text-left text-sm">
         <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
@@ -727,6 +827,7 @@ function CollectionTable({
         </tbody>
       </table>
     </div>
+    </>
   );
 }
 

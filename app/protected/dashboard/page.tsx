@@ -173,7 +173,7 @@ function HeroKpis({
   const rateSignal = getCollectionRateHealth(collectionRate);
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
       {/* Today - saffron accent border */}
       <KpiCard
         accent="accent"
@@ -181,7 +181,7 @@ function HeroKpis({
         value={
           <CountUp
             value={collected}
-            className="text-2xl font-semibold tracking-tight text-accent md:text-[28px] md:leading-[34px]"
+            className="text-xl font-semibold tracking-tight text-accent md:text-2xl md:text-[28px] md:leading-[34px]"
           />
         }
         hint={`${receiptsToday} receipt${receiptsToday === 1 ? "" : "s"} posted today`}
@@ -194,7 +194,7 @@ function HeroKpis({
         value={
           <CountUp
             value={pending}
-            className="text-2xl font-semibold tracking-tight md:text-[28px] md:leading-[34px]"
+            className="text-xl font-semibold tracking-tight md:text-2xl md:text-[28px] md:leading-[34px]"
           />
         }
         hint={`${followUpCount} student${followUpCount === 1 ? "" : "s"} need follow-up`}
@@ -227,7 +227,7 @@ function HeroKpis({
         <div className="mt-1">
           <CountUp
             value={overdueAmount}
-            className="text-2xl font-semibold tracking-tight text-destructive md:text-[28px] md:leading-[34px]"
+            className="text-xl font-semibold tracking-tight text-destructive md:text-2xl md:text-[28px] md:leading-[34px]"
           />
         </div>
         <p className="mt-1 text-xs text-destructive/60">
@@ -254,27 +254,29 @@ function QuickActions({
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
   return (
-    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+    <div className="space-y-2 sm:flex sm:flex-wrap sm:gap-2 sm:space-y-0">
       {canPostPayments ? (
-        <Button asChild variant="accent" className="min-h-11 justify-center" leadingIcon={<BadgeIndianRupee className="size-4" />}>
+        <Button asChild variant="accent" className="w-full justify-center sm:w-auto" leadingIcon={<BadgeIndianRupee className="size-4" />}>
           <Link href={withSession("/protected/payments")}>Open Payment Desk</Link>
         </Button>
       ) : null}
-      {canWriteStudents ? (
-        <Button asChild variant="outline" className="min-h-11 justify-center" leadingIcon={<UsersRound className="size-4" />}>
-          <Link href={withSession("/protected/students/new")}>Add student</Link>
+      <div className="grid grid-cols-3 gap-2 sm:contents">
+        {canWriteStudents ? (
+          <Button asChild variant="outline" className="min-h-11 justify-center" leadingIcon={<UsersRound className="size-4" />}>
+            <Link href={withSession("/protected/students/new")}>Add student</Link>
+          </Button>
+        ) : (
+          <Button asChild variant="outline" className="min-h-11 justify-center" leadingIcon={<UsersRound className="size-4" />}>
+            <Link href={withSession("/protected/students")}>Students</Link>
+          </Button>
+        )}
+        <Button asChild variant="outline" className="min-h-11 justify-center" leadingIcon={<ReceiptText className="size-4" />}>
+          <Link href={withSession("/protected/transactions")}>Transactions</Link>
         </Button>
-      ) : (
-        <Button asChild variant="outline" className="min-h-11 justify-center" leadingIcon={<UsersRound className="size-4" />}>
-          <Link href={withSession("/protected/students")}>Students</Link>
+        <Button asChild variant="ghost" className="min-h-11 justify-center" leadingIcon={<ClipboardList className="size-4" />}>
+          <Link href={withSession("/protected/defaulters")}>Defaulters</Link>
         </Button>
-      )}
-      <Button asChild variant="outline" className="min-h-11 justify-center" leadingIcon={<ReceiptText className="size-4" />}>
-        <Link href={withSession("/protected/transactions")}>Transactions</Link>
-      </Button>
-      <Button asChild variant="ghost" className="min-h-11 justify-center" leadingIcon={<ClipboardList className="size-4" />}>
-        <Link href={withSession("/protected/defaulters")}>Defaulters</Link>
-      </Button>
+      </div>
     </div>
   );
 }
@@ -421,16 +423,18 @@ function FollowUpQueue({
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-1.5 sm:shrink-0">
-            <Button asChild size="sm" variant="ghost">
-              <Link href={withSession(`/protected/students/${row.studentId}`)}>Open</Link>
-            </Button>
-            <Button asChild size="sm" variant={canPostPayments ? "primary" : "outline"}>
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-1.5">
+            <div className="flex gap-1.5 sm:contents">
+              <Button asChild size="sm" variant="ghost">
+                <Link href={withSession(`/protected/students/${row.studentId}`)}>Open</Link>
+              </Button>
+              <CopyReminderButton text={row.reminderText} />
+            </div>
+            <Button asChild size="sm" variant={canPostPayments ? "accent" : "outline"} className="w-full justify-center sm:w-auto">
               <Link href={withSession(`/protected/payments?studentId=${row.studentId}&classId=${row.classId}`)}>
                 {canPostPayments ? "Collect" : "Desk"}
               </Link>
             </Button>
-            <CopyReminderButton text={row.reminderText} />
           </div>
         </li>
       ))}
@@ -529,23 +533,25 @@ function ClassPendingChart({
       {chartRows.map((row) => (
         <div
           key={row.classLabel}
-          className="grid items-center gap-3 sm:grid-cols-[8rem_minmax(0,1fr)_8rem]"
+          className="space-y-1.5 sm:grid sm:items-center sm:gap-3 sm:space-y-0 sm:grid-cols-[8rem_minmax(0,1fr)_8rem]"
         >
-          <p className="truncate text-sm font-medium text-foreground">
-            {row.classLabel}
-          </p>
+          <div className="flex items-center justify-between gap-2 sm:contents">
+            <p className="truncate text-sm font-medium text-foreground">
+              {row.classLabel}
+            </p>
+            <div className="text-sm font-medium tabular text-foreground sm:order-last sm:text-right">
+              {row.studentsWithGeneratedDues === 0 && row.totalStudents > 0 ? (
+                <span className="text-muted-foreground">Not prepared</span>
+              ) : (
+                <Money value={row.pendingAmount} size="sm" />
+              )}
+            </div>
+          </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
             <div
               className="h-full rounded-full bg-warning"
               style={{ width: getBarWidth(row.pendingAmount, maxPending) }}
             />
-          </div>
-          <div className="text-sm font-medium tabular text-foreground sm:text-right">
-            {row.studentsWithGeneratedDues === 0 && row.totalStudents > 0 ? (
-              <span className="text-muted-foreground">Not prepared</span>
-            ) : (
-              <Money value={row.pendingAmount} size="sm" />
-            )}
           </div>
         </div>
       ))}
@@ -580,19 +586,21 @@ function TrendChart({
       {rows.map((row) => (
         <div
           key={row.date}
-          className="grid items-center gap-3 sm:grid-cols-[7rem_minmax(0,1fr)_8rem]"
+          className="space-y-1.5 sm:grid sm:items-center sm:gap-3 sm:space-y-0 sm:grid-cols-[7rem_minmax(0,1fr)_8rem]"
         >
-          <p className="text-sm font-medium text-foreground">
-            {formatShortDate(row.date)}
-          </p>
+          <div className="flex items-center justify-between gap-2 sm:contents">
+            <p className="text-sm font-medium text-foreground">
+              {formatShortDate(row.date)}
+            </p>
+            <div className="text-sm font-medium tabular text-foreground sm:order-last sm:text-right">
+              <Money value={row.amount} size="sm" />
+            </div>
+          </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
             <div
               className="h-full rounded-full bg-accent"
               style={{ width: getBarWidth(row.amount, maxAmount) }}
             />
-          </div>
-          <div className="text-sm font-medium tabular text-foreground sm:text-right">
-            <Money value={row.amount} size="sm" />
           </div>
         </div>
       ))}

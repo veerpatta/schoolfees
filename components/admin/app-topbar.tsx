@@ -122,8 +122,8 @@ export function MobileHeader({
   const passwordHref = appendCurrentSessionParam("/protected/password", searchParams);
 
   return (
-    <header className="sticky top-0 z-30 flex h-11 items-center justify-between border-b border-border bg-background/90 px-3 backdrop-blur print:hidden md:hidden">
-      <Link href={sessionAwareHomeHref} aria-label="Open home" className="min-w-0">
+    <header className="sticky top-0 z-30 flex h-12 items-center justify-between border-b border-border bg-background/90 px-3 backdrop-blur print:hidden md:hidden">
+      <Link href={sessionAwareHomeHref} aria-label="Open home" className="inline-flex min-w-0 items-center rounded-md p-1 transition-colors hover:bg-surface-2">
         <SchoolBrand variant="icon" priority />
       </Link>
       <div className="flex min-w-0 items-center gap-2">

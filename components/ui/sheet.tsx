@@ -6,6 +6,8 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
+  useRef,
+  useState,
 } from "react";
 
 import { cn } from "@/lib/utils";
@@ -13,7 +15,17 @@ import { cn } from "@/lib/utils";
 /**
  * Lightweight bottom sheet — used for mobile drawers.
  * Pure CSS + a controlled `open` prop. No Radix Dialog, to keep the bundle small.
+ * Supports swipe-to-dismiss on mobile bottom sheets.
  */
+
+const sheetSizeClass = {
+  sm: "max-h-[40dvh]",
+  md: "max-h-[60dvh]",
+  lg: "max-h-[80dvh]",
+  full: "max-h-[92dvh]",
+} as const;
+
+type SheetSize = keyof typeof sheetSizeClass;
 
 type SheetProps = ComponentPropsWithoutRef<"div"> & {
   open: boolean;
@@ -26,8 +38,12 @@ type SheetProps = ComponentPropsWithoutRef<"div"> & {
   side?: "bottom" | "right";
   /** Lock background scroll while open. */
   lockScroll?: boolean;
+  /** Sheet height for bottom sheets. Default: "full" (92dvh). */
+  size?: SheetSize;
   children: ReactNode;
 };
+
+const SWIPE_DISMISS_THRESHOLD = 80;
 
 export function Sheet({
   open,
@@ -36,6 +52,7 @@ export function Sheet({
   description,
   side = "bottom",
   lockScroll = true,
+  size = "full",
   className,
   children,
   ...props
@@ -61,9 +78,38 @@ export function Sheet({
     return () => document.removeEventListener("keydown", handleKey);
   }, [open, handleKey, lockScroll]);
 
+  /* ---- Swipe-to-dismiss for bottom sheets ---- */
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [dragY, setDragY] = useState(0);
+  const touchStartY = useRef<number | null>(null);
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    if (touchStartY.current === null) return;
+    const delta = e.touches[0].clientY - touchStartY.current;
+    // Only allow dragging downward
+    if (delta > 0) {
+      setDragY(delta);
+    }
+  }, []);
+
+  const onTouchEnd = useCallback(() => {
+    if (dragY > SWIPE_DISMISS_THRESHOLD) {
+      onClose();
+    }
+    setDragY(0);
+    touchStartY.current = null;
+  }, [dragY, onClose]);
+
   if (!open) return null;
 
   const isBottom = side === "bottom";
+  const panelStyle: React.CSSProperties = isBottom && dragY > 0
+    ? { transform: `translate3d(0, ${dragY}px, 0)`, transition: "none" }
+    : {};
 
   return (
     <div
@@ -77,19 +123,30 @@ export function Sheet({
         aria-label="Close"
         onClick={onClose}
         className="absolute inset-0 bg-foreground/30 anim-fade-in"
+        style={{ animationDuration: "250ms" }}
       />
       <div
+        ref={panelRef}
         className={cn(
-          "relative z-10 flex max-h-[92dvh] w-full flex-col bg-card text-foreground shadow-lg",
+          "relative z-10 flex w-full flex-col bg-card text-foreground shadow-lg",
           isBottom
-            ? "rounded-t-xl border-t border-border anim-slide-up"
+            ? cn("rounded-t-xl border-t border-border anim-slide-up", sheetSizeClass[size])
             : "h-full max-w-md rounded-l-xl border-l border-border anim-slide-up",
           className,
         )}
+        style={panelStyle}
         {...props}
       >
         {isBottom ? (
-          <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-border-strong" aria-hidden="true" />
+          <div
+            className="mx-auto mt-2 h-1 w-10 cursor-grab rounded-full bg-border-strong active:cursor-grabbing"
+            aria-hidden="true"
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+            /* Extend touch target for easier swiping */
+            style={{ padding: "8px 0", margin: "-8px auto 0", backgroundClip: "content-box" }}
+          />
         ) : null}
 
         {(title || description) && (
@@ -117,7 +174,7 @@ export function Sheet({
           </header>
         )}
 
-        <div className="flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] pt-1">
+        <div className="flex-1 overflow-y-auto momentum-scroll px-5 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] pt-1">
           {children}
         </div>
       </div>

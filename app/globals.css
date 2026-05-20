@@ -285,6 +285,29 @@
     padding-bottom: var(--mobile-payment-with-nav-offset);
   }
 
+  /* Horizontal swipeable strips — used for KPI strips, tab bars, chip rows. */
+  .snap-x-strip {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .snap-x-strip::-webkit-scrollbar { display: none; }
+  .snap-x-strip > * { scroll-snap-align: start; flex-shrink: 0; }
+
+  /* Tighter section padding on phones */
+  .mobile-section-padding {
+    @apply px-3 py-3 md:px-5 md:py-5;
+  }
+
+  /* Momentum-scroll container — for sheet bodies and scrollable panels */
+  .momentum-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
   /* Focus ring — saffron, single recipe used everywhere */
   .focus-ring {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;

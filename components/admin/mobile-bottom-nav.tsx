@@ -42,19 +42,25 @@ export function MobileBottomNav({ staffRole }: MobileBottomNavProps) {
               href={href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "relative flex min-h-11 min-w-0 flex-col items-center justify-center rounded-md px-1 py-1.5 text-xs font-medium leading-tight transition-colors",
+                "relative flex min-h-11 min-w-0 flex-col items-center justify-center rounded-md px-1 py-1.5 text-[10px] font-medium leading-tight transition-colors",
                 active
                   ? "text-foreground"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              <Icon className="size-5" aria-hidden="true" />
+              <Icon
+                className={cn(
+                  "size-5 transition-transform duration-150",
+                  active && "scale-110",
+                )}
+                aria-hidden="true"
+              />
               <span className="mt-0.5 max-w-full truncate">{item.label}</span>
               <span
                 aria-hidden="true"
                 className={cn(
-                  "absolute -top-px left-1/2 h-[2px] w-8 -translate-x-1/2 rounded-full transition-colors",
-                  active ? "bg-accent" : "bg-transparent",
+                  "absolute -top-px left-1/2 h-[2px] w-8 -translate-x-1/2 rounded-full transition-all duration-200",
+                  active ? "bg-accent scale-x-100" : "bg-transparent scale-x-0",
                 )}
               />
             </Link>

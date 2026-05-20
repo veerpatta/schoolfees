@@ -82,6 +82,8 @@ export interface ButtonProps
   loadingText?: string;
   leadingIcon?: React.ReactNode;
   trailingIcon?: React.ReactNode;
+  /** Expand to fill container width. Useful for mobile CTAs. */
+  fullWidth?: boolean;
 }
 
 function resolveVariant(variant?: ButtonVariant) {
@@ -100,6 +102,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       loadingText,
       leadingIcon,
       trailingIcon,
+      fullWidth = false,
       children,
       disabled,
       ...props
@@ -110,6 +113,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const resolvedVariant = resolveVariant(variant);
     const buttonClassName = cn(
       buttonVariants({ variant: resolvedVariant, size, className }),
+      fullWidth && "w-full",
     );
     const busy = loading || undefined;
 

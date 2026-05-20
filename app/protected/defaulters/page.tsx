@@ -422,7 +422,89 @@ export default async function DefaultersPage({
         title="Route-wise student list"
         description="Operational student list grouped by route for office calls and overdue follow-up."
       >
-        <div className="w-full overflow-x-auto rounded-xl border border-border">
+        {/* ── Mobile cards grouped by route ── */}
+        <div className="space-y-3 md:hidden">
+          {data.rows.length === 0 ? (
+            <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
+              No route-wise students for the selected filters.
+            </p>
+          ) : (
+            (() => {
+              const sorted = [...data.rows].sort((left, right) => {
+                const routeCompare = left.transportRouteLabel.localeCompare(right.transportRouteLabel);
+                if (routeCompare !== 0) return routeCompare;
+                return left.fullName.localeCompare(right.fullName);
+              });
+              const groups: { route: string; students: typeof sorted }[] = [];
+              for (const row of sorted) {
+                const last = groups[groups.length - 1];
+                if (last && last.route === row.transportRouteLabel) {
+                  last.students.push(row);
+                } else {
+                  groups.push({ route: row.transportRouteLabel, students: [row] });
+                }
+              }
+              return groups.map((group) => (
+                <div key={`route-group-${group.route}`} className="space-y-2">
+                  <div className="sticky top-0 z-10 flex items-center gap-2 bg-surface py-1">
+                    <span className="rounded-full bg-accent/15 px-2.5 py-0.5 text-xs font-semibold text-accent">
+                      {group.route}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {group.students.length} student{group.students.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  {group.students.map((row) => (
+                    <div key={`route-mobile-${row.studentId}`} className="rounded-xl border border-border bg-card p-3 text-sm">
+                      {/* Row 1: Name + Outstanding */}
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-semibold text-foreground">{row.fullName}</p>
+                        <span className="shrink-0 font-semibold text-foreground">{formatInr(row.totalPending)}</span>
+                      </div>
+                      {/* Row 2: Class + SR */}
+                      <p className="text-xs text-muted-foreground">{row.classLabel} • SR {row.admissionNo}</p>
+                      {/* Row 3: Details grid */}
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <p>Father: {row.fatherName ?? "-"}</p>
+                        <p>
+                          Phone:{" "}
+                          {row.fatherPhone ? (
+                            <Link href={`tel:${row.fatherPhone}`} className="text-info-soft-foreground hover:underline">
+                              {row.fatherPhone}
+                            </Link>
+                          ) : (
+                            "-"
+                          )}
+                        </p>
+                        <p>Late fee: {formatInr(row.lateFee)}</p>
+                        <p>Next due: {row.nextDueDate ? formatShortDate(row.nextDueDate) : "-"}</p>
+                      </div>
+                      {/* Row 4: Actions */}
+                      <div className="mt-3 flex items-center gap-2">
+                        {row.fatherPhone ? (
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`tel:${row.fatherPhone}`}>Call</Link>
+                          </Button>
+                        ) : null}
+                        <span
+                          className={`ml-auto rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
+                            row.followUpStatus === "overdue"
+                              ? "bg-destructive/10 text-destructive"
+                              : "bg-warning-soft text-warning-soft-foreground"
+                          }`}
+                        >
+                          {row.followUpStatus}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ));
+            })()
+          )}
+        </div>
+        {/* ── Desktop table ── */}
+        <div className="hidden w-full overflow-x-auto rounded-xl border border-border md:block">
           <table className="min-w-[900px] text-left text-sm">
             <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
