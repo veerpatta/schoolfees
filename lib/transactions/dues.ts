@@ -24,6 +24,8 @@ export type OfficeWorkbookFilters = {
   sessionLabel: string;
   toDate?: string;
   exportAll?: boolean;
+  /** When true, skips the getWorkbookStudentFinancials enrichment pass (faster for display-only views). */
+  skipFinancials?: boolean;
 };
 
 export type OfficeWorkbookCollectionRow = {
@@ -381,6 +383,7 @@ export async function getOfficeWorkbookData(
     sessionLabel: filters.sessionLabel || undefined,
     toDate: filters.toDate || undefined,
     limit: filters.exportAll ? null : undefined,
+    skipFinancials: filters.skipFinancials,
   };
 
   switch (filters.view) {

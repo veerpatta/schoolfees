@@ -579,6 +579,7 @@ export async function getWorkbookTransactions(filters?: {
   paymentMode?: string;
   query?: string;
   routeId?: string;
+  skipFinancials?: boolean;
   todayOnly?: boolean;
   studentId?: string;
   sessionLabel?: string;
@@ -587,23 +588,25 @@ export async function getWorkbookTransactions(filters?: {
   const supabase = await createClient();
   const normalizedSearch = normalizeTransactionSearch(filters?.query);
   const hasStudentScopeFilter = Boolean(filters?.classId || filters?.routeId || filters?.sessionLabel);
-  const scopedStudentIds =
+
+  // Run both student-id lookups in parallel to save a full DB round-trip
+  const [scopedStudentIds, searchStudentIds] = await Promise.all([
     filters?.studentId || !hasStudentScopeFilter
-      ? null
-      : await loadTransactionStudentIds({
+      ? Promise.resolve(null)
+      : loadTransactionStudentIds({
           classId: filters?.classId,
           routeId: filters?.routeId,
           sessionLabel: filters?.sessionLabel,
-        });
-  const searchStudentIds =
+        }),
     filters?.studentId || !normalizedSearch
-      ? null
-      : await loadTransactionStudentIds({
+      ? Promise.resolve(null)
+      : loadTransactionStudentIds({
           classId: filters?.classId,
           query: normalizedSearch,
           routeId: filters?.routeId,
           sessionLabel: filters?.sessionLabel,
-        });
+        }),
+  ]);
 
   if (scopedStudentIds && scopedStudentIds.length === 0) {
     return [];
@@ -667,8 +670,10 @@ export async function getWorkbookTransactions(filters?: {
 
   const receipts = (data ?? []) as ReceiptRow[];
   const receiptStudentIds = [...new Set(receipts.map((row) => row.student_id).filter(Boolean))];
+  // Skip financial enrichment when the caller only needs display data (not export).
+  // currentOutstanding / currentTotalPaid are not shown in the UI table — only in CSV exports.
   const financials =
-    receipts.length > 0
+    !filters?.skipFinancials && receipts.length > 0
       ? await getWorkbookStudentFinancials({
           classId: filters?.classId,
           studentId: filters?.studentId,
