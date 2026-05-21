@@ -1258,7 +1258,7 @@ returns table (
   allocated_total integer
 )
 language plpgsql
-security invoker
+security definer
 set search_path = public
 as $$
 declare
@@ -3548,7 +3548,7 @@ returns table (
 )
 language sql
 stable
-security invoker
+security definer
 set search_path = public, private
 as $$
   select *
@@ -3809,7 +3809,7 @@ returns table (
   allocated_total integer
 )
 language plpgsql
-security invoker
+security definer
 set search_path = public
 as $$
 declare
@@ -4666,7 +4666,7 @@ returns table (
 )
 language sql
 stable
-security invoker
+security definer
 set search_path = public, private
 as $$
   select *

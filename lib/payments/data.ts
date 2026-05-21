@@ -237,6 +237,7 @@ export function toFriendlyPaymentPostingError(error: unknown) {
     return error.message;
   }
 
+  console.error("[PaymentPostingError Debug] Raw error:", error);
   const rawMessage =
     error instanceof Error
       ? error.message
