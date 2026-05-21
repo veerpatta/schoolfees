@@ -6,7 +6,6 @@ import { OfficeEmptyState } from "@/components/office/office-ui";
 import { ConfirmSiblingGroupButton } from "@/app/protected/students/families/confirm-sibling-group-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { familyPaymentsEnabled } from "@/lib/config/feature-flags";
 import { formatInr } from "@/lib/helpers/currency";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { getSiblingGroups } from "@/lib/students/data";
@@ -30,13 +29,11 @@ function FamilyGroupRow({
   group,
   canConfirm,
   selected,
-  canPayTogether,
   sessionLabel,
 }: {
   group: SiblingGroupSummary;
   canConfirm: boolean;
   selected: boolean;
-  canPayTogether: boolean;
   sessionLabel: string;
 }) {
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
@@ -65,11 +62,6 @@ function FamilyGroupRow({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {canPayTogether && group.existingFamilyGroupId ? (
-            <Button asChild size="sm">
-              <Link href={withSession(`/protected/payments/family/${group.existingFamilyGroupId}`)}>Pay together</Link>
-            </Button>
-          ) : null}
           {group.confidence === "suspected" && canConfirm ? (
             <ConfirmSiblingGroupButton groupKey={group.groupKey} sessionLabel={group.sessionLabel} />
           ) : null}
@@ -116,7 +108,6 @@ function FamilyGroupSection({
   selectedGroupId,
   selectedSuspectKey,
   selectedStudentId,
-  canPayTogether,
   sessionLabel,
 }: {
   title: string;
@@ -126,7 +117,6 @@ function FamilyGroupSection({
   selectedGroupId: string | undefined;
   selectedSuspectKey: string | undefined;
   selectedStudentId: string | undefined;
-  canPayTogether: boolean;
   sessionLabel: string;
 }) {
   return (
@@ -143,7 +133,6 @@ function FamilyGroupSection({
               key={group.existingFamilyGroupId ?? group.groupKey}
               group={group}
               canConfirm={canConfirm}
-              canPayTogether={canPayTogether}
               selected={
                 group.existingFamilyGroupId === selectedGroupId ||
                 group.groupKey === selectedSuspectKey ||
@@ -168,7 +157,6 @@ export default async function StudentFamiliesPage({ searchParams }: FamiliesPage
   const groups = await getSiblingGroups(viewSession.sessionLabel);
   const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
   const canConfirm = hasStaffPermission(staff, "students:write");
-  const canPayTogether = familyPaymentsEnabled && hasStaffPermission(staff, "payments:write");
   const confirmedGroups = groups.filter((group) => group.confidence === "confirmed");
   const suspectedGroups = groups.filter((group) => group.confidence === "suspected");
 
@@ -195,7 +183,6 @@ export default async function StudentFamiliesPage({ searchParams }: FamiliesPage
         selectedGroupId={resolvedSearchParams?.group}
         selectedSuspectKey={resolvedSearchParams?.suspect}
         selectedStudentId={resolvedSearchParams?.search}
-        canPayTogether={canPayTogether}
         sessionLabel={viewSession.sessionLabel}
       />
 
@@ -207,7 +194,6 @@ export default async function StudentFamiliesPage({ searchParams }: FamiliesPage
         selectedGroupId={resolvedSearchParams?.group}
         selectedSuspectKey={resolvedSearchParams?.suspect}
         selectedStudentId={resolvedSearchParams?.search}
-        canPayTogether={false}
         sessionLabel={viewSession.sessionLabel}
       />
     </div>

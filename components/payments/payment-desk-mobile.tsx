@@ -29,7 +29,6 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { useScrollIntoView } from "@/hooks/use-scroll-into-view";
 import { buildPaymentAllocation, buildReceiptPreviewAllocation } from "@/lib/payments/allocation";
 import { buildPaymentQuickAmounts } from "@/lib/payments/workflow";
-import { familyPaymentsEnabled } from "@/lib/config/feature-flags";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import {
   buildPaymentConfirmationSummary,
@@ -834,12 +833,6 @@ export function PaymentDeskClient({
     selectedPaymentModeLabel;
   const paymentSessionLabel = data.sessionLabel || "Active session";
   const withSession = (href: string) => appendSessionParam(href, data.sessionLabel);
-  const familyPaymentHref =
-    familyPaymentsEnabled &&
-    selectedStudent?.confirmedFamilyGroupId &&
-    (selectedStudent.confirmedSiblingCount ?? 0) > 0
-      ? withSession(`/protected/payments/family/${selectedStudent.confirmedFamilyGroupId}`)
-      : null;
   const draftValidation = validatePaymentDraft({
     selectedStudent,
     amountInput: paymentAmountInput,
@@ -2018,16 +2011,6 @@ export function PaymentDeskClient({
             {selectedStudent ? (
               <>
               {todayReceiptWarning}
-              {familyPaymentHref ? (
-                <div className="rounded-xl border border-accent/25 bg-accent-soft px-3 py-2 text-sm text-accent-soft-foreground">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span>Confirmed family with {selectedStudent.confirmedSiblingCount} sibling(s).</span>
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={familyPaymentHref}>Pay for family</Link>
-                    </Button>
-                  </div>
-                </div>
-              ) : null}
               <div className="rounded-xl border border-border bg-card">
                 <div className="flex items-center border-b border-border">
                   <span className="border-r border-border px-3 py-3 text-lg font-medium text-muted-foreground">₹</span>
@@ -2800,16 +2783,6 @@ export function PaymentDeskClient({
                   style={{ paddingBottom: "calc(6rem + var(--keyboard-offset, 0px))" }}
                 >
                   {todayReceiptWarning}
-                  {familyPaymentHref ? (
-                    <div className="rounded-xl border border-accent/25 bg-accent-soft px-3 py-2 text-sm text-accent-soft-foreground">
-                      <div className="flex items-center justify-between gap-2">
-                        <span>Pay for family ({selectedStudent.confirmedSiblingCount} sibling(s))</span>
-                        <Button asChild size="sm" variant="outline">
-                          <Link href={familyPaymentHref}>Open</Link>
-                        </Button>
-                      </div>
-                    </div>
-                  ) : null}
                   {/* In-flow mobile payment card */}
                   <div className="overflow-hidden rounded-xl border border-border bg-card" data-payment-amount-section>
                     <div className="border-b border-border bg-surface-2 px-3 py-3">

@@ -1,5 +1,4 @@
 import type { PaymentMode } from "@/lib/db/types";
-import type { ConventionalDiscountAssignmentSummary } from "@/lib/receipts/types";
 import type { OfficeSyncOutcome } from "@/lib/system-sync/office-sync";
 
 export type PaymentEntryActionState = {
@@ -19,24 +18,6 @@ export type PaymentEntryActionState = {
   remainingBalance?: number | null;
   diagnostic?: PaymentPostingDiagnostic | null;
   syncOutcome?: OfficeSyncOutcome | null;
-};
-
-export type FamilyPaymentActionState = {
-  status: "idle" | "error" | "success";
-  message: string | null;
-  familyPaymentId: string | null;
-  receiptIds: string[];
-  receiptNumbers: string[];
-  clientRequestId?: string | null;
-};
-
-export const INITIAL_FAMILY_PAYMENT_ACTION_STATE: FamilyPaymentActionState = {
-  status: "idle",
-  message: null,
-  familyPaymentId: null,
-  receiptIds: [],
-  receiptNumbers: [],
-  clientRequestId: null,
 };
 
 export const INITIAL_PAYMENT_ENTRY_ACTION_STATE: PaymentEntryActionState = {
@@ -146,28 +127,6 @@ export type SelectedStudentSummary = {
   nextDueAmount: number | null;
   confirmedFamilyGroupId?: string | null;
   confirmedSiblingCount?: number;
-};
-
-export type FamilyPaymentChild = {
-  studentId: string;
-  fullName: string;
-  admissionNo: string;
-  classLabel: string;
-  outstandingAmount: number;
-  defaultAllocatedAmount: number;
-  conventionalDiscountAssignments: ConventionalDiscountAssignmentSummary[];
-};
-
-export type FamilyPaymentEntryPageData = {
-  familyGroupId: string;
-  sessionLabel: string;
-  familyLabel: string;
-  guardianName: string | null;
-  guardianPhone: string | null;
-  paymentDate: string;
-  totalOutstanding: number;
-  children: FamilyPaymentChild[];
-  modeOptions: PaymentModeOption[];
 };
 
 export type PaymentDeskIssue = {

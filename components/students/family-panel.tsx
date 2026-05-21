@@ -2,7 +2,6 @@ import Link from "next/link";
 import { formatInr } from "@/lib/helpers/currency";
 import { Section } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
-import { familyPaymentsEnabled } from "@/lib/config/feature-flags";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import type { StudentFamilyMemberDetail } from "@/lib/students/data";
 
@@ -127,23 +126,14 @@ export function StudentFamilyPanel({
         {/* Action Buttons */}
         <div className="grid gap-2">
           {confidence === "confirmed" && familyGroupId ? (
-            <>
-              {familyPaymentsEnabled ? (
-                <Button asChild size="sm" className="w-full">
-                  <Link href={withSession(`/protected/payments/family/${encodeURIComponent(familyGroupId)}`)}>
-                    Pay Together
-                  </Link>
-                </Button>
-              ) : null}
-              <Button asChild size="sm" variant="outline" className="w-full">
-                <Link
-                  href={withSession(`/protected/students/family/${encodeURIComponent(familyGroupId)}/statement`)}
-                  target="_blank"
-                >
-                  Print Family Statement
-                </Link>
-              </Button>
-            </>
+            <Button asChild size="sm" variant="outline" className="w-full">
+              <Link
+                href={withSession(`/protected/students/family/${encodeURIComponent(familyGroupId)}/statement`)}
+                target="_blank"
+              >
+                Print Family Statement
+              </Link>
+            </Button>
           ) : (
             <Button asChild size="sm" variant="outline" className="w-full">
               <Link href={withSession(`/protected/students/families?search=${encodeURIComponent(studentId)}`)}>
