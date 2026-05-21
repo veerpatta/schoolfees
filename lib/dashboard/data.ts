@@ -455,10 +455,16 @@ export async function getDashboardAboveFoldData(options: {
   const policy = await getFeePolicySummary();
   const sessionLabel = options.sessionLabel ?? policy.academicSessionLabel;
   const _t0 = Date.now();
-  const [financialRowsRaw, transactions, todayTransactions] = await Promise.all([
+  const [financialRowsRaw, installmentRows, transactions, todayTransactions] = await Promise.all([
     optionalLoad(
       "workbook student financials",
       () => loadDashboardFinancialRows(sessionLabel),
+      [],
+      warnings,
+    ),
+    optionalLoad(
+      "workbook installment balances",
+      () => loadDashboardInstallmentRows(sessionLabel),
       [],
       warnings,
     ),
@@ -496,6 +502,9 @@ export async function getDashboardAboveFoldData(options: {
   ]);
   console.log(`[dashboard-above-fold] loaded in ${Date.now() - _t0}ms`);
   const financialRows = financialRowsRaw.filter((row) => row.recordStatus === "active");
+  const overdueInstallments = installmentRows.filter(
+    (row) => row.balanceStatus === "overdue" && row.pendingAmount > 0,
+  );
   const activeStudents: ActiveStudentRow[] = financialRows.map((row) => ({
     studentId: row.studentId,
     classId: row.classId,
@@ -506,12 +515,22 @@ export async function getDashboardAboveFoldData(options: {
     financialRows,
     studentRows: activeStudents,
     classRows: [],
-    installmentRows: [],
-    overdueInstallments: [],
+    installmentRows,
+    overdueInstallments,
     transactions,
     todayTransactions,
     rawStudentCount: rawStudentCount || activeStudents.length,
   });
+  const overdueFallbackAmount =
+    overdueInstallments.length === 0 && installmentRows.length === 0
+      ? financialRows
+          .filter((row) => row.statusLabel === "OVERDUE")
+          .reduce((sum, row) => sum + row.outstandingAmount, 0)
+      : 0;
+  const kpis =
+    overdueFallbackAmount > summary.kpis.overdueAmount
+      ? { ...summary.kpis, overdueAmount: overdueFallbackAmount }
+      : summary.kpis;
   const totalRefundDue = refundStateRows.reduce(
     (sum, row) => sum + Math.max(Number(row.refundable_amount ?? 0), 0),
     0,
@@ -521,7 +540,7 @@ export async function getDashboardAboveFoldData(options: {
     currentSession: sessionLabel,
     currentInstallment: buildCurrentInstallment(policy, today),
     generatedAt: new Date().toISOString(),
-    kpis: summary.kpis,
+    kpis,
     todayPaymentModeBreakdown: summary.todayPaymentModeBreakdown,
     recentPayments: summary.recentPayments,
     followUpQueue: summary.followUpQueue,

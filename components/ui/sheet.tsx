@@ -44,6 +44,39 @@ type SheetProps = ComponentPropsWithoutRef<"div"> & {
 };
 
 const SWIPE_DISMISS_THRESHOLD = 80;
+let sheetScrollLockCount = 0;
+let previousBodyOverflow = "";
+let previousHtmlOverflow = "";
+
+function acquireSheetScrollLock() {
+  if (sheetScrollLockCount === 0) {
+    previousBodyOverflow = document.body.style.overflow;
+    previousHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+  }
+
+  sheetScrollLockCount += 1;
+}
+
+function releaseSheetScrollLock() {
+  sheetScrollLockCount = Math.max(0, sheetScrollLockCount - 1);
+
+  if (sheetScrollLockCount === 0) {
+    document.body.style.overflow = previousBodyOverflow;
+    document.documentElement.style.overflow = previousHtmlOverflow;
+    previousBodyOverflow = "";
+    previousHtmlOverflow = "";
+  }
+}
+
+export function releaseAllSheetScrollLocks() {
+  sheetScrollLockCount = 0;
+  document.body.style.overflow = previousBodyOverflow;
+  document.documentElement.style.overflow = previousHtmlOverflow;
+  previousBodyOverflow = "";
+  previousHtmlOverflow = "";
+}
 
 export function Sheet({
   open,
@@ -68,11 +101,10 @@ export function Sheet({
     if (!open) return;
     document.addEventListener("keydown", handleKey);
     if (lockScroll) {
-      const previous = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
+      acquireSheetScrollLock();
       return () => {
         document.removeEventListener("keydown", handleKey);
-        document.body.style.overflow = previous;
+        releaseSheetScrollLock();
       };
     }
     return () => document.removeEventListener("keydown", handleKey);

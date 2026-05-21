@@ -1,7 +1,7 @@
 "use client";
 
-import { type ReactNode, useEffect, useRef } from "react";
-import { usePathname } from "next/navigation";
+import { type ReactNode, useEffect, useMemo, useRef } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
@@ -12,34 +12,44 @@ type ScrollRestoringMainProps = {
 
 export function ScrollRestoringMain({ children, className }: ScrollRestoringMainProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const mainRef = useRef<HTMLElement>(null);
+  const storageKey = useMemo(() => {
+    const search = searchParams.toString();
+    return `vpps.scroll.${pathname}${search ? `?${search}` : ""}`;
+  }, [pathname, searchParams]);
 
   useEffect(() => {
-    const key = `vpps.scroll.${pathname}`;
     const mainElement = mainRef.current;
-    const saved = sessionStorage.getItem(key);
+    const saved = sessionStorage.getItem(storageKey);
     if (saved) {
-      const position = JSON.parse(saved) as { mainTop?: number; windowTop?: number };
-      requestAnimationFrame(() => {
-        if (typeof position.windowTop === "number") {
-          window.scrollTo({ top: position.windowTop });
-        }
-        if (typeof position.mainTop === "number" && mainElement) {
-          mainElement.scrollTop = position.mainTop;
-        }
-      });
+      try {
+        const position = JSON.parse(saved) as { mainTop?: number; windowTop?: number };
+        requestAnimationFrame(() => {
+          if (typeof position.windowTop === "number") {
+            const maxWindowTop = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+            window.scrollTo({ top: Math.min(position.windowTop, maxWindowTop) });
+          }
+          if (typeof position.mainTop === "number" && mainElement) {
+            const maxMainTop = Math.max(0, mainElement.scrollHeight - mainElement.clientHeight);
+            mainElement.scrollTop = Math.min(position.mainTop, maxMainTop);
+          }
+        });
+      } catch {
+        sessionStorage.removeItem(storageKey);
+      }
     }
 
     return () => {
       sessionStorage.setItem(
-        key,
+        storageKey,
         JSON.stringify({
           mainTop: mainElement?.scrollTop ?? 0,
           windowTop: window.scrollY,
         }),
       );
     };
-  }, [pathname]);
+  }, [storageKey]);
 
   return (
     <main ref={mainRef} className={cn(className)}>

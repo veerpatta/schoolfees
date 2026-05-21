@@ -208,7 +208,7 @@ export function ReceiptDocument({ receipt, className, mode = "print" }: ReceiptD
 
   return (
     <article
-      className={`receipt-print-page anim-slide-up relative mx-auto w-full max-w-5xl overflow-hidden rounded-lg border border-border bg-card p-5 text-foreground shadow-sm print:max-w-none print:rounded-none print:border-border-strong print:p-0 print:shadow-none ${className ?? ""}`.trim()}
+      className={`receipt-print-page anim-slide-up relative mx-auto w-full max-w-5xl overflow-hidden rounded-lg border border-border bg-card p-3 text-foreground shadow-sm sm:p-5 print:max-w-none print:rounded-none print:border-border-strong print:p-0 print:shadow-none ${className ?? ""}`.trim()}
     >
       <style>{`
         @page {
@@ -265,7 +265,7 @@ export function ReceiptDocument({ receipt, className, mode = "print" }: ReceiptD
 
       <div
         className={cn(
-          "receipt-watermark pointer-events-none absolute inset-0 flex items-center justify-center text-center text-5xl font-semibold uppercase print:text-foreground/8",
+          "receipt-watermark pointer-events-none absolute inset-0 hidden items-center justify-center text-center text-5xl font-semibold uppercase sm:flex print:flex print:text-foreground/8",
           isDraft ? "text-foreground/12" : "text-foreground/8",
         )}
       >
@@ -274,7 +274,7 @@ export function ReceiptDocument({ receipt, className, mode = "print" }: ReceiptD
       <div className="security-strip absolute inset-x-0 top-0 h-2 bg-foreground/85" />
 
       <div className="relative z-10 space-y-3 pt-2">
-        <header className="rounded-lg border border-border bg-card p-4 print-compact">
+        <header className="rounded-lg border border-border bg-card p-3 sm:p-4 print-compact">
           <div className="grid gap-3 md:grid-cols-[1fr_auto]">
             <div className="flex items-start gap-3">
               <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-border bg-card">
@@ -293,7 +293,7 @@ export function ReceiptDocument({ receipt, className, mode = "print" }: ReceiptD
                 <p className="mt-1 text-xs text-muted-foreground">Academic Year / शैक्षणिक सत्र: {receipt.sessionLabel}</p>
               </div>
             </div>
-            <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-right">
+            <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-left sm:text-right">
               <BilingualLabel english="Receipt No" hindi="रसीद संख्या" />
               <p className="mt-1 text-lg font-semibold text-foreground">
                 {isDraft ? "— (not yet saved) —" : receipt.receiptNumber}
@@ -313,7 +313,23 @@ export function ReceiptDocument({ receipt, className, mode = "print" }: ReceiptD
           </div>
         </header>
 
-        <section className="grid gap-2 sm:grid-cols-4">
+        <section
+          data-mobile-receipt-summary
+          className="grid gap-2 rounded-lg border border-accent/30 bg-accent-soft p-3 sm:hidden print:hidden"
+        >
+          <div>
+            <BilingualLabel english="Receipt No" hindi="रसीद संख्या" />
+            <p className="mt-1 break-all text-xl font-bold text-accent-soft-foreground">
+              {isDraft ? "Not yet saved" : receipt.receiptNumber}
+            </p>
+          </div>
+          <div>
+            <BilingualLabel english="Paid Today" hindi="आज जमा" />
+            <p className="mt-1 text-3xl font-bold text-accent-soft-foreground">{formatInr(receipt.totalAmount)}</p>
+          </div>
+        </section>
+
+        <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <div className="rounded-lg border border-border bg-surface-2 px-3 py-3 print-compact">
             <BilingualLabel english="Total Fee Due" hindi="कुल देय शुल्क" />
             <p className="mt-1 text-lg font-semibold text-foreground">{formatInr(receipt.totalDue)}</p>
@@ -402,7 +418,30 @@ export function ReceiptDocument({ receipt, className, mode = "print" }: ReceiptD
             <h2 className="text-sm font-semibold text-foreground">Installment Details / किस्त विवरण</h2>
             <p className="text-xs text-muted-foreground">Paid today rows / आज जमा विवरण</p>
           </div>
-          <div className="overflow-hidden rounded-md border border-border">
+          <div data-mobile-installment-stack className="space-y-2 sm:hidden print:hidden">
+            {receipt.breakdown.map((item) => (
+              <div key={`mobile-${item.paymentId}`} className="rounded-md border border-border bg-surface-2 px-3 py-2 text-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-foreground">{item.installmentLabel}</p>
+                    <p className="text-xs text-muted-foreground">Due {formatDate(item.dueDate)}</p>
+                  </div>
+                  <p className="text-base font-bold text-accent">{formatInr(item.amount)}</p>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                  <span>Pending before</span>
+                  <span className="text-right font-medium text-foreground">{formatInr(item.amount)}</span>
+                  <span>Allocated</span>
+                  <span className="text-right font-medium text-foreground">{formatInr(item.amount)}</span>
+                </div>
+              </div>
+            ))}
+            <div className="flex items-center justify-between rounded-md bg-surface-2 px-3 py-2 text-sm font-semibold">
+              <span>Paid Today Total / आज कुल जमा</span>
+              <span>{formatInr(breakdownTotal)}</span>
+            </div>
+          </div>
+          <div data-print-installment-table className="hidden sm:block print:block overflow-hidden rounded-md border border-border">
             <table className="w-full text-left text-xs">
               <thead className="bg-surface-2 text-muted-foreground">
                 <tr>

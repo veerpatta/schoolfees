@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Sheet } from "@/components/ui/sheet";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { isPendingAdmissionNo } from "@/lib/students/constants";
+import { cn } from "@/lib/utils";
 import type {
   StudentClassOption,
   StudentListFilters,
@@ -60,13 +61,30 @@ export function StudentQuickLoad({
   const [srBannerDismissed, setSrBannerDismissed] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const defaultStatusIsActive = filters.status === "active";
+  const hasVisibleFilters = Boolean(
+    filters.query ||
+      filters.classId ||
+      filters.transportRouteId ||
+      (filters.status && !defaultStatusIsActive),
+  );
+
+  function resetFilters() {
+    setPage(1);
+    setFilters({
+      query: "",
+      classId: "",
+      transportRouteId: "",
+      status: "active",
+    });
+  }
 
   const activeFilterCount = useMemo(() => {
     return (
       (filters.query ? 1 : 0) +
       (filters.classId ? 1 : 0) +
       (filters.transportRouteId ? 1 : 0) +
-      (filters.status ? 1 : 0)
+      (filters.status && filters.status !== "active" ? 1 : 0)
     );
   }, [filters]);
 
@@ -170,82 +188,79 @@ export function StudentQuickLoad({
         title="Find students"
         description="Search by student name, SR no, or phone, then narrow by class, route, or status."
       >
-        {/* Mobile: filter button that opens a sheet */}
-        <div className="md:hidden flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="w-full gap-2 h-10 rounded-lg justify-center font-medium"
-            onClick={() => setFilterSheetOpen(true)}
-          >
-            <SlidersHorizontal className="size-4" />
-            Filter Students
-            {activeFilterCount > 0 && (
-              <span className="ml-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-foreground">
-                {activeFilterCount}
-              </span>
-            )}
-          </Button>
-          {activeFilterCount > 0 && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-10 px-3 hover:bg-surface-2 shrink-0"
-              onClick={() => {
-                setPage(1);
-                setFilters({
-                  query: "",
-                  classId: "",
-                  transportRouteId: "",
-                  status: "",
-                });
-              }}
-            >
-              Clear
-            </Button>
-          )}
-        </div>
-
-        <Sheet
-          open={filterSheetOpen}
-          onClose={() => setFilterSheetOpen(false)}
-          title="Filter Students"
-          size="lg"
-        >
-          <div className="space-y-4 pt-2">
-            <div>
-              <Label htmlFor="query-mobile">Search</Label>
-              <div className="relative mt-2">
-                <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                <Input
-                  id="query-mobile"
-                  data-student-search="true"
-                  value={filters.query}
-                  onChange={(event) => {
-                    setPage(1);
-                    setFilters((previous) => ({ ...previous, query: event.target.value }));
-                  }}
-                  placeholder="Student name, SR no, or phone"
-                  title="Press / to focus"
-                  className="pl-9 h-11"
-                />
-              </div>
+        <div className="md:hidden space-y-3" data-mobile-student-search>
+          <div>
+            <Label htmlFor="query-mobile-inline">Search</Label>
+            <div className="relative mt-2">
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Input
+                id="query-mobile-inline"
+                ref={searchRef}
+                data-student-search="true"
+                value={filters.query}
+                onChange={(event) => {
+                  setPage(1);
+                  setFilters((previous) => ({ ...previous, query: event.target.value }));
+                }}
+                placeholder="Student name, SR no, or phone"
+                title="Press / to focus"
+                className="h-11 pl-9"
+              />
             </div>
+          </div>
 
-            <div>
-              <Label htmlFor="classId-mobile">Class</Label>
+          <div data-mobile-class-filter>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="classId-mobile-inline">Class</Label>
+              <button
+                type="button"
+                className="text-xs font-medium text-muted-foreground underline underline-offset-2"
+                onClick={() => {
+                  setPage(1);
+                  setFilters((previous) => ({ ...previous, classId: "" }));
+                }}
+              >
+                All classes
+              </button>
+            </div>
+            <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+              {classOptions.slice(0, 10).map((classOption) => {
+                const selected = filters.classId === classOption.id;
+
+                return (
+                  <button
+                    key={classOption.id}
+                    type="button"
+                    className={cn(
+                      "h-9 shrink-0 rounded-full border px-3 text-sm font-medium transition-colors",
+                      selected
+                        ? "border-accent bg-accent text-accent-foreground"
+                        : "border-border bg-surface text-foreground hover:bg-surface-2",
+                    )}
+                    onClick={() => {
+                      setPage(1);
+                      setFilters((previous) => ({
+                        ...previous,
+                        classId: selected ? "" : classOption.id,
+                      }));
+                    }}
+                  >
+                    {classOption.label}
+                  </button>
+                );
+              })}
+            </div>
+            {classOptions.length > 10 ? (
               <div className="relative mt-2">
                 <GraduationCap className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 <select
-                  id="classId-mobile"
+                  id="classId-mobile-inline"
                   value={filters.classId}
                   onChange={(event) => {
                     setPage(1);
                     setFilters((previous) => ({ ...previous, classId: event.target.value }));
                   }}
-                  className={`${selectClassName} pl-9 h-11`}
+                  className={`${selectClassName} h-10 pl-9`}
                 >
                   <option value="">All classes</option>
                   {classOptions.map((classOption) => (
@@ -255,8 +270,46 @@ export function StudentQuickLoad({
                   ))}
                 </select>
               </div>
-            </div>
+            ) : null}
+          </div>
 
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-10 flex-1 justify-center gap-2 rounded-lg font-medium"
+              onClick={() => setFilterSheetOpen(true)}
+            >
+              <SlidersHorizontal className="size-4" />
+              Route and status
+              {activeFilterCount > 0 && (
+                <span className="ml-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-foreground">
+                  {activeFilterCount}
+                </span>
+              )}
+            </Button>
+            {hasVisibleFilters ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-10 px-3 hover:bg-surface-2 shrink-0"
+              onClick={resetFilters}
+            >
+              Clear
+            </Button>
+            ) : null}
+          </div>
+        </div>
+
+        <Sheet
+          open={filterSheetOpen}
+          onClose={() => setFilterSheetOpen(false)}
+          title="Route and status"
+          size="md"
+        >
+          <div className="space-y-4 pt-2">
             <div>
               <Label htmlFor="transportRouteId-mobile">Transport route</Label>
               <div className="relative mt-2">
@@ -313,15 +366,7 @@ export function StudentQuickLoad({
                 type="button"
                 variant="outline"
                 className="h-12 px-4 text-sm font-medium rounded-xl"
-                onClick={() => {
-                  setPage(1);
-                  setFilters({
-                    query: "",
-                    classId: "",
-                    transportRouteId: "",
-                    status: "",
-                  });
-                }}
+                onClick={resetFilters}
               >
                 Reset
               </Button>
@@ -422,14 +467,8 @@ export function StudentQuickLoad({
               variant="outline"
               size="sm"
               className="h-9 flex items-center gap-1.5 hover:bg-surface-2"
-              onClick={() => {
-                setPage(1);
-                setFilters({
-                  query: "",
-                  classId: "",
-                  transportRouteId: "",
-                  status: "",
-                });
+            onClick={() => {
+                resetFilters();
               }}
             >
               <X className="h-3.5 w-3.5" />
@@ -500,7 +539,7 @@ export function StudentQuickLoad({
           ) : (
             <StudentListTable
               students={students}
-              hasFilters={Boolean(filters.query || filters.classId || filters.transportRouteId || filters.status)}
+              hasFilters={hasVisibleFilters}
               canWrite={canWrite}
               returnTo={returnTo}
               session={initialFilters.sessionLabel}

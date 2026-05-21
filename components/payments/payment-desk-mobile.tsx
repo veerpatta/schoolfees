@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingBlock } from "@/components/ui/loading-skeleton";
+import { Sheet } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Banknote, Building2, FileText, Smartphone } from "lucide-react";
 import { PayeeSummaryStrip } from "@/components/payments/payee-summary-strip";
@@ -230,6 +231,7 @@ export function PaymentDeskClient({
     initialState,
   );
   const [selectedClassId, setSelectedClassId] = useState(data.initialClassId);
+  const [mobileClassPickerOpen, setMobileClassPickerOpen] = useState(false);
   const [studentIndex, setStudentIndex] = useState<PaymentStudentIndexItem[]>(data.studentIndex ?? []);
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
   const deferredStudentSearchQuery = useDeferredValue(studentSearchQuery);
@@ -296,6 +298,7 @@ export function PaymentDeskClient({
   const cardOnlyCache = useRef<Map<string, PaymentDeskStudentSummary>>(new Map());
   const lastAmountFocusStudentIdRef = useRef<string | null>(null);
   const lastClassRestoreAttemptedRef = useRef(false);
+  const mobileClassPickerAutoOpenedRef = useRef(false);
   const [activeStudentPickerMode, setActiveStudentPickerMode] = useState<"mobile" | "desktop">("mobile");
   const [recentStudentIds, setRecentStudentIds] = useState<string[]>(() => {
     if (typeof window === "undefined") return [];
@@ -377,6 +380,7 @@ export function PaymentDeskClient({
   const quickLateFeeWaiverInput = quickLateFeeWaiverAmount > 0 ? String(quickLateFeeWaiverAmount) : "";
   const creditBalance = selectedStudent?.creditBalance ?? 0;
   const refundableAmount = selectedStudent?.refundableAmount ?? 0;
+  const creditOrRefundAmount = Math.max(creditBalance, refundableAmount);
   const studentSelectedFromIndex = Boolean(selectedStudentId && selectedStudentIndexItem);
   const showReferenceField = paymentMode !== "cash";
   const referenceInputMode = paymentMode === "cheque" ? "numeric" : "text";
@@ -1104,6 +1108,10 @@ export function PaymentDeskClient({
       return;
     }
 
+    if (previewLoading) {
+      return;
+    }
+
     if (lastAmountFocusStudentIdRef.current === selectedStudent.id) {
       return;
     }
@@ -1113,7 +1121,21 @@ export function PaymentDeskClient({
     setTimeout(() => {
       amountInputRef.current?.focus({ preventScroll: true });
     }, 350);
-  }, [amountInputRef, isMobileView, scrollAmountInputIntoView, selectedStudent, studentSummaryLoading]);
+  }, [amountInputRef, isMobileView, previewLoading, scrollAmountInputIntoView, selectedStudent, studentSummaryLoading]);
+
+  useEffect(() => {
+    if (!isMobileView || selectedStudentId || selectedClassId || mobileClassPickerAutoOpenedRef.current) {
+      return;
+    }
+
+    const storedClassId = window.localStorage.getItem(paymentDeskLastClassStorageKey);
+    if (storedClassId && classOptions.some((classOption) => classOption.id === storedClassId)) {
+      return;
+    }
+
+    mobileClassPickerAutoOpenedRef.current = true;
+    setMobileClassPickerOpen(true);
+  }, [classOptions, isMobileView, selectedClassId, selectedStudentId]);
 
   useEffect(() => {
     if (isConfirmOpen && isMobileView) {
@@ -1266,6 +1288,15 @@ export function PaymentDeskClient({
     ) {
       clearSelectedStudent();
     }
+  }
+
+  function selectMobileClass(nextClassId: string) {
+    handleClassChange(nextClassId, "mobile");
+    setMobileClassPickerOpen(false);
+    window.setTimeout(() => {
+      setIsStudentPickerOpen(true);
+      focusStudentSearch("mobile");
+    }, 120);
   }
 
   function selectStudent(studentId: string) {
@@ -1450,30 +1481,66 @@ export function PaymentDeskClient({
         description="Start with class, then choose the student."
       >
         <div className="grid gap-2 md:gap-3 md:grid-cols-[minmax(220px,320px)_1fr] md:items-end">
-          <div>
-            <Label htmlFor="payment-class-id">Class</Label>
-            <select
-              id="payment-class-id"
-              value={selectedClassId}
-              className={`${selectClassName} mt-2`}
-              onChange={(event) => {
-                const nextClassId = event.target.value;
-                handleClassChange(nextClassId, "mobile");
-              }}
+          <div data-mobile-class-picker-sheet>
+            <Label>Class</Label>
+            <button
+              type="button"
+              className="mt-2 flex h-12 w-full items-center justify-between rounded-xl border border-border bg-card px-3 text-left text-sm font-semibold text-foreground"
+              onClick={() => setMobileClassPickerOpen(true)}
             >
-              <option value="">Select class</option>
-              {classOptions.map((classOption) => (
-                <option key={classOption.id} value={classOption.id}>
-                  {classOption.label}
-                </option>
-              ))}
-            </select>
+              <span>
+                {classOptions.find((classOption) => classOption.id === selectedClassId)?.label ?? "Select class"}
+              </span>
+              <span className="text-xs font-medium text-muted-foreground">Change</span>
+            </button>
+            {selectedClassId ? (
+              <button
+                type="button"
+                className="mt-2 text-xs font-medium text-muted-foreground underline underline-offset-2"
+                onClick={() => {
+                  handleClassChange("", "mobile");
+                  setMobileClassPickerOpen(true);
+                }}
+              >
+                Clear class
+              </button>
+            ) : null}
           </div>
           <p className="text-sm text-muted-foreground">
             Student list stays ready for the selected class and remains in alphabetical order with SR no.
           </p>
         </div>
       </SectionCard>
+      <Sheet
+        open={mobileClassPickerOpen}
+        onClose={() => setMobileClassPickerOpen(false)}
+        title="Select class"
+        description="Choose a class first to show only relevant students."
+        size="lg"
+      >
+        <div className="grid gap-2">
+          {classOptions.map((classOption) => {
+            const selected = classOption.id === selectedClassId;
+
+            return (
+              <button
+                key={classOption.id}
+                type="button"
+                className={cn(
+                  "flex min-h-12 w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm font-semibold",
+                  selected
+                    ? "border-accent bg-accent-soft text-accent-soft-foreground"
+                    : "border-border bg-card text-foreground hover:bg-surface-2",
+                )}
+                onClick={() => selectMobileClass(classOption.id)}
+              >
+                <span>{classOption.label}</span>
+                {selected ? <span className="text-xs">Selected</span> : null}
+              </button>
+            );
+          })}
+        </div>
+      </Sheet>
       </div>
 
       <div ref={studentSearchSectionRef} className={cn("md:hidden", selectedStudent ? "hidden" : "")}>
@@ -2744,11 +2811,45 @@ export function PaymentDeskClient({
                     </div>
                   ) : null}
                   {/* In-flow mobile payment card */}
-                  <div className="overflow-hidden rounded-xl border border-border bg-card">
+                  <div className="overflow-hidden rounded-xl border border-border bg-card" data-payment-amount-section>
+                    <div className="border-b border-border bg-surface-2 px-3 py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-foreground">{selectedStudent.fullName}</p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            SR {selectedStudent.admissionNo} - {selectedStudent.classLabel}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Pending</p>
+                          <p className="text-base font-bold tabular-nums text-accent">{formatInr(previewTotalPending)}</p>
+                        </div>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-lg border border-border bg-card px-2 py-2">
+                          <p className="text-muted-foreground">Overdue</p>
+                          <p className="font-semibold text-destructive">{formatInr(previewOverdueAmount)}</p>
+                        </div>
+                        <div className="rounded-lg border border-border bg-card px-2 py-2">
+                          <p className="text-muted-foreground">Next due</p>
+                          <p className="font-semibold text-foreground">
+                            {previewNextDue
+                              ? `${previewNextDue.installmentLabel} ${formatInr(previewNextDue.outstandingAmount)}`
+                              : "None"}
+                          </p>
+                        </div>
+                      </div>
+                      {creditOrRefundAmount > 0 ? (
+                        <p className="mt-2 rounded-lg border border-info/30 bg-info-soft px-2 py-2 text-xs font-medium text-info-soft-foreground">
+                          Credit/refund warning: {formatInr(creditOrRefundAmount)} is already available for this student.
+                        </p>
+                      ) : null}
+                    </div>
                     {/* Amount row */}
                     <div className="flex items-center border-b border-border">
                       <span className="border-r border-border px-3 py-3 text-xl font-medium text-muted-foreground">₹</span>
                       <input
+                        ref={amountInputRef}
                         aria-label="Mobile amount received"
                         type="number"
                         inputMode="decimal"
@@ -2793,7 +2894,7 @@ export function PaymentDeskClient({
                       ))}
                     </div>
 
-                    {/* Quick amount chips + waiver chip + mobile discount */}
+                    {/* Quick amount chips */}
                     <div className="flex gap-1.5 overflow-x-auto border-b border-border px-3 py-2">
                       {quickAmounts.map((qa) => (
                           <Button
@@ -2815,7 +2916,7 @@ export function PaymentDeskClient({
                         <button
                           type="button"
                           className={cn(
-                            "shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                            "hidden shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors",
                             waiveFullLateFee
                               ? "border-info bg-info-soft text-info-soft-foreground"
                               : "border-border bg-surface text-muted-foreground hover:bg-surface-2",
@@ -2829,6 +2930,42 @@ export function PaymentDeskClient({
                           Waive late {formatInr(pendingLateFeeAmount)}
                         </button>
                       ) : null}
+                    </div>
+
+                    <div
+                      data-mobile-late-fee-waiver
+                      className={cn(
+                        "border-b border-border px-3 py-3",
+                        pendingLateFeeAmount > 0 ? "bg-info-soft/40" : "bg-surface-2",
+                      )}
+                    >
+                      <label
+                        className={cn(
+                          "flex min-h-12 items-center justify-between gap-3 rounded-xl border px-3 py-2",
+                          pendingLateFeeAmount > 0
+                            ? "cursor-pointer border-info/30 bg-card text-info-soft-foreground"
+                            : "cursor-not-allowed border-border bg-card text-muted-foreground",
+                        )}
+                      >
+                        <span>
+                          <span className="block text-sm font-semibold">Waive full late fee</span>
+                          <span className="block text-xs">
+                            {pendingLateFeeAmount > 0
+                              ? `${formatInr(pendingLateFeeAmount)} pending late fee`
+                              : "No late fee pending"}
+                          </span>
+                        </span>
+                        <input
+                          type="checkbox"
+                          className="size-5 rounded border-border-strong"
+                          checked={waiveFullLateFee}
+                          disabled={pendingLateFeeAmount <= 0}
+                          onChange={(event) => {
+                            setWaiveFullLateFee(event.target.checked);
+                            setFormError(null);
+                          }}
+                        />
+                      </label>
                     </div>
 
                     {/* Mobile discount (compact) */}

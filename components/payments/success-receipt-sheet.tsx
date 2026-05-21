@@ -116,7 +116,7 @@ export function SuccessReceiptSheet({
           ) : null}
         </div>
 
-        <div className="mt-4 rounded-xl border border-border bg-card p-4 text-sm">
+        <div data-mobile-success-receipt-summary className="mt-4 rounded-xl border border-border bg-card p-4 text-sm">
           <p className="font-semibold text-foreground">
             {studentFullName} · {admissionNo} · {classLabel}
           </p>

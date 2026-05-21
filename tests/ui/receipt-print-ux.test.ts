@@ -46,6 +46,20 @@ describe("receipt print and loading UX", () => {
     expect(receiptDocument).not.toContain("bg-slate-950");
   });
 
+  it("uses a stacked mobile receipt layout while keeping the print table", () => {
+    const receiptDocument = readRepoFile("components/receipts/receipt-document.tsx");
+    const successSheet = readRepoFile("components/payments/success-receipt-sheet.tsx");
+
+    expect(receiptDocument).toContain("data-mobile-receipt-summary");
+    expect(receiptDocument).toContain("data-mobile-installment-stack");
+    expect(receiptDocument).toContain("data-print-installment-table");
+    expect(receiptDocument).toContain("hidden sm:block print:block");
+    expect(receiptDocument).toContain("sm:hidden print:hidden");
+    expect(successSheet).toContain("data-mobile-success-receipt-summary");
+    expect(successSheet).toContain("Late fee waived");
+    expect(successSheet).toContain("Remaining");
+  });
+
   it("receipt-document renders draft watermark text in draft mode", () => {
     // This is a string-presence test on the component source.
     // Verify that the component contains the strings required for all three modes.

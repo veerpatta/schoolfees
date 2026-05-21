@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -10,6 +13,12 @@ import type {
   WorkbookStudentFinancial,
   WorkbookTransaction,
 } from "@/lib/workbook/data";
+
+const repoRoot = process.cwd();
+
+function readRepoFile(path: string) {
+  return readFileSync(join(repoRoot, path), "utf8");
+}
 
 function student(
   overrides: Partial<WorkbookStudentFinancial>,
@@ -334,5 +343,19 @@ describe("dashboard summary", () => {
     expect(formatPaymentModeLabel("bank_transfer")).toBe("Bank transfer");
     expect(formatPaymentModeLabel("cheque")).toBe("Cheque");
     expect(formatPaymentModeLabel("cash")).toBe("Cash");
+  });
+
+  it("above-fold dashboard data loads installment balances before calculating overdue KPI", () => {
+    const dashboardData = readRepoFile("lib/dashboard/data.ts");
+    const aboveFoldFunction = dashboardData.slice(
+      dashboardData.indexOf("export async function getDashboardAboveFoldData"),
+      dashboardData.indexOf("export async function getDashboardPageData"),
+    );
+
+    expect(aboveFoldFunction).toContain("loadDashboardInstallmentRows(sessionLabel)");
+    expect(aboveFoldFunction).toContain("overdueInstallments");
+    expect(aboveFoldFunction).toContain("installmentRows");
+    expect(aboveFoldFunction).not.toContain("installmentRows: []");
+    expect(aboveFoldFunction).not.toContain("overdueInstallments: []");
   });
 });

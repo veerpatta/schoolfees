@@ -8,7 +8,7 @@ import {
   listAvailableSessionsAction,
   setViewSessionAction,
 } from "@/app/protected/session/actions";
-import { Sheet } from "@/components/ui/sheet";
+import { releaseAllSheetScrollLocks, Sheet } from "@/components/ui/sheet";
 import type { AvailableSessionRow } from "@/lib/session/available-sessions";
 import { useSessionSwitching } from "@/lib/session/switching-context";
 import { cn } from "@/lib/utils";
@@ -90,6 +90,8 @@ export function MobileSessionPill({
 
     setOptimisticLabel(label);
     setIsSwitching(true);
+    setOpen(false);
+    releaseAllSheetScrollLocks();
     router.prefetch(targetHref);
 
     void (async () => {
@@ -104,20 +106,19 @@ export function MobileSessionPill({
           params.set("session", result.sessionLabel);
           targetHref = `${pathname}?${params.toString()}`;
 
-          setIsSwitching(false);
-
           startNavTransition(() => {
             router.replace(targetHref, { scroll: false });
             router.refresh();
-            setOpen(false);
           });
         } else {
-          setIsSwitching(false);
           setOptimisticLabel(null);
         }
       } catch {
-        setIsSwitching(false);
         setOptimisticLabel(null);
+      } finally {
+        setIsSwitching(false);
+        setGlobalSessionSwitching(false);
+        releaseAllSheetScrollLocks();
       }
     })();
   }

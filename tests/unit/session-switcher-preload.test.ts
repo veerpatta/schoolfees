@@ -32,4 +32,19 @@ describe("session switcher preload", () => {
     expect(combined).toContain("router.replace(targetHref, { scroll: false })");
     expect(combined).toContain("Changing to");
   });
+
+  it("mobile session switching closes the sheet and always clears scroll locks", () => {
+    const mobilePill = readRepoFile("components/admin/mobile-session-pill.tsx");
+    const sheet = readRepoFile("components/ui/sheet.tsx");
+    const scrollMain = readRepoFile("components/admin/scroll-restoring-main.tsx");
+
+    expect(sheet).toContain("sheetScrollLockCount");
+    expect(sheet).toContain("document.documentElement.style.overflow");
+    expect(sheet).toContain("releaseAllSheetScrollLocks");
+    expect(mobilePill).toContain("setOpen(false)");
+    expect(mobilePill).toContain("releaseAllSheetScrollLocks()");
+    expect(mobilePill).toContain("finally");
+    expect(scrollMain).toContain("useSearchParams");
+    expect(scrollMain).toContain("Math.min");
+  });
 });
