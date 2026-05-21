@@ -30,7 +30,10 @@ describe("office performance guardrails", () => {
     expect(dashboardData).toContain('row.recordStatus === "active"');
     expect(dashboardPage).toContain("CriticalAlerts");
     expect(dashboardPage).toContain("getCollectionRateHealth");
-    expect(dashboardPage).toContain("classId=${row.classId}");
+    expect(dashboardPage).toContain("CollectionFunnelBar");
+    expect(dashboardPage).toContain("QuickJumpLinks");
+    expect(dashboardPage).not.toContain("FollowUpQueue");
+    expect(dashboardPage).not.toContain("RecentReceipts");
     expect(dashboardPage).toContain("Show all classes");
     expect(dashboardPage).toContain("md:hidden");
   });

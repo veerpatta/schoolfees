@@ -1,31 +1,23 @@
 import Link from "next/link";
-import { Suspense, type ReactNode } from "react";
+import { Suspense } from "react";
 import { after } from "next/server";
 import {
   AlertTriangle,
   ArrowRight,
   BadgeIndianRupee,
-  CalendarClock,
   CheckCircle2,
-  ChevronDown,
   ChevronRight,
   CircleAlert,
   ClipboardList,
-  Inbox,
-  Phone,
   ReceiptText,
-  TrendingUp,
   UsersRound,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { StatusBadge } from "@/components/admin/status-badge";
-import { CopyReminderButton } from "@/components/dashboard/copy-reminder-button";
-import { ClassInstallmentMatrixTable } from "@/components/dashboard/class-installment-matrix";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CountUp } from "@/components/ui/count-up";
-import { EmptyState } from "@/components/ui/empty-state";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { LoadingBlock } from "@/components/ui/loading-skeleton";
 import { Money } from "@/components/ui/money";
@@ -36,7 +28,15 @@ import {
   getDashboardAboveFoldData,
   getDashboardPageData,
   type DashboardAlert,
+  type DashboardCurrentInstallment,
 } from "@/lib/dashboard/data";
+import type {
+  DashboardClassSummaryRow,
+  DashboardInstallmentSummaryRow,
+  DashboardKpis,
+  DashboardPaymentModeBreakdown,
+  DashboardTrendPoint,
+} from "@/lib/dashboard/summary";
 import { formatShortDate } from "@/lib/helpers/date";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { getViewSessionCookie } from "@/lib/session/cookie";
@@ -51,11 +51,6 @@ import { cn } from "@/lib/utils";
 
 function formatPercent(value: number) {
   return `${value}%`;
-}
-
-function getBarWidth(value: number, maxValue: number) {
-  if (maxValue <= 0) return "0%";
-  return `${Math.max(4, Math.round((value / maxValue) * 100))}%`;
 }
 
 function alertTone(tone: DashboardAlert["tone"]): React.ComponentProps<typeof Notice>["tone"] {
@@ -502,420 +497,855 @@ function QuickActions({
 }
 
 /* ---------------------------------------------------------------------------
-   Today panel - collection + payment-mode breakdown
+   Analytics widgets
    --------------------------------------------------------------------------- */
 
-function TodayPanel({
-  amount,
-  receiptCount,
-  monthAmount,
-  refundDue,
-  modes,
+function CollectionFunnelBar({
+  expected,
+  collected,
+  pending,
+  overdue,
 }: {
-  amount: number;
-  receiptCount: number;
-  monthAmount: number;
-  refundDue: number;
-  modes: Array<{ paymentMode: string; amount: number; receiptCount: number }>;
+  expected: number;
+  collected: number;
+  pending: number;
+  overdue: number;
 }) {
+  if (expected === 0) return null;
+
+  const collectedPct = Math.min(100, Math.round((collected / expected) * 100));
+  const overdueWithinPending = Math.min(overdue, pending);
+  const normalPending = Math.max(0, pending - overdueWithinPending);
+  const pendingPct = Math.min(100, Math.round((normalPending / expected) * 100));
+  const overduePct = Math.min(100, Math.round((overdueWithinPending / expected) * 100));
+  const unaccountedPct = Math.max(0, 100 - collectedPct - pendingPct - overduePct);
+
   return (
     <Section
-      title="Today"
-      description="Collection posted at the desk for the current school day."
-      actions={
-        <Badge variant="accent" dot>
-          {receiptCount} receipt{receiptCount === 1 ? "" : "s"}
-        </Badge>
-      }
+      title="Collection Funnel"
+      description="Where fees stand this academic year"
+      variant="card"
     >
       <div className="space-y-4">
-        <div className="rounded-xl bg-surface-2/70 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-            Collected today
-          </p>
-          <Money value={amount} size="display" className="mt-2" />
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
-              This month: <Money value={monthAmount} size="xs" />
+        <div className="relative h-8 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="absolute left-0 top-0 h-full bg-emerald-500 transition-all duration-700"
+            style={{ width: `${collectedPct}%` }}
+            title={`Collected: ${collectedPct}%`}
+          />
+          <div
+            className="absolute top-0 h-full bg-amber-400 transition-all duration-700"
+            style={{ left: `${collectedPct}%`, width: `${pendingPct}%` }}
+            title={`Pending: ${pendingPct}%`}
+          />
+          <div
+            className="absolute top-0 h-full bg-red-500 transition-all duration-700"
+            style={{ left: `${collectedPct + pendingPct}%`, width: `${overduePct}%` }}
+            title={`Overdue: ${overduePct}%`}
+          />
+          {unaccountedPct > 0 ? (
+            <div
+              className="absolute top-0 h-full bg-muted-foreground/20"
+              style={{
+                left: `${collectedPct + pendingPct + overduePct}%`,
+                width: `${unaccountedPct}%`,
+              }}
+            />
+          ) : null}
+          {collectedPct >= 12 ? (
+            <span className="absolute inset-0 flex items-center pl-3 text-xs font-semibold text-white">
+              {collectedPct}% collected
             </span>
-            {refundDue > 0 ? (
-              <span className="inline-flex items-center gap-1">
-                Credit/refund: <Money value={refundDue} size="xs" />
-              </span>
-            ) : null}
-          </div>
+          ) : null}
         </div>
 
-        {modes.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border bg-surface-2/40 px-4 py-3 text-sm text-muted-foreground">
-            No payment-mode breakup yet for today.
-          </p>
-        ) : (
-          <ul className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
-            {modes.map((mode) => {
-              const modeLabel = mode.paymentMode.toLowerCase();
+        <div className="grid grid-cols-3 gap-3 text-sm">
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" />
+              <span className="font-medium text-foreground">Collected</span>
+            </div>
+            <Money value={collected} size="sm" tone="success" className="pl-4" />
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-amber-400" />
+              <span className="font-medium text-foreground">Pending</span>
+            </div>
+            <Money value={pending} size="sm" tone="warning" className="pl-4" />
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" />
+              <span className="font-medium text-foreground">Overdue</span>
+            </div>
+            <Money value={overdue} size="sm" tone="danger" className="pl-4" />
+          </div>
+        </div>
+      </div>
+    </Section>
+  );
+}
 
-              return (
-                <li
-                  key={mode.paymentMode}
-                  className="flex items-center gap-3 px-4 py-3.5"
-                >
-                  <span
-                    className={cn(
-                      "size-2 shrink-0 rounded-full",
-                      modeLabel === "cash" && "bg-success",
-                      modeLabel === "upi" && "bg-info",
-                      modeLabel === "bank transfer" && "bg-accent",
-                      modeLabel === "cheque" && "bg-warning",
-                      !["cash", "upi", "bank transfer", "cheque"].includes(modeLabel) &&
-                        "bg-muted-foreground",
-                    )}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-foreground">
-                      {mode.paymentMode}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {mode.receiptCount} receipt{mode.receiptCount === 1 ? "" : "s"}
-                    </p>
-                  </div>
-                  <Money value={mode.amount} size="lg" />
-                </li>
-              );
-            })}
-          </ul>
+function DailyMomentumCard({
+  todaysCollection,
+  receiptsToday,
+  totalPending,
+  installments,
+  currentInstallment,
+}: {
+  todaysCollection: number;
+  receiptsToday: number;
+  totalPending: number;
+  installments: DashboardInstallmentSummaryRow[];
+  currentInstallment?: DashboardCurrentInstallment | null;
+}) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const upcoming = installments
+    .filter((installment) => {
+      if (!installment.dueDate) return false;
+      return new Date(installment.dueDate) >= today && installment.pendingAmount > 0;
+    })
+    .sort((a, b) => {
+      if (!a.dueDate || !b.dueDate) return 0;
+      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+    });
+
+  const nextInstallment = upcoming[0] ?? null;
+  const targetLabel =
+    nextInstallment?.installmentLabel ?? currentInstallment?.label ?? "next installment";
+  const targetDueDate = nextInstallment?.dueDate ?? currentInstallment?.dueDate ?? null;
+  const targetPending = nextInstallment?.pendingAmount ?? totalPending;
+  let dailyTarget: number | null = null;
+  let daysLeft: number | null = null;
+
+  if (targetDueDate && targetPending > 0) {
+    const due = new Date(targetDueDate);
+    due.setHours(0, 0, 0, 0);
+    daysLeft = Math.max(1, Math.ceil((due.getTime() - today.getTime()) / 86_400_000));
+    dailyTarget = Math.ceil(targetPending / daysLeft);
+  }
+
+  const onTrack = dailyTarget !== null && todaysCollection >= dailyTarget;
+
+  return (
+    <Section title="Today's Momentum" variant="card">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Collected Today
+          </span>
+          <Money
+            value={todaysCollection}
+            size="md"
+            tone={todaysCollection > 0 ? "success" : "muted"}
+          />
+          <span className="text-xs text-muted-foreground">
+            {receiptsToday} receipt{receiptsToday !== 1 ? "s" : ""}
+          </span>
+        </div>
+
+        {dailyTarget !== null && daysLeft !== null && targetDueDate ? (
+          <>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Daily Target
+              </span>
+              <Money value={dailyTarget} size="md" tone={onTrack ? "success" : "warning"} />
+              <span className="text-xs text-muted-foreground">to clear {targetLabel}</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Days Left
+              </span>
+              <span
+                className={cn(
+                  "text-2xl font-bold tabular-nums",
+                  daysLeft <= 7
+                    ? "text-red-600"
+                    : daysLeft <= 14
+                      ? "text-amber-600"
+                      : "text-foreground",
+                )}
+              >
+                {daysLeft}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                to{" "}
+                {new Date(targetDueDate).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                })}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Pace
+              </span>
+              <div
+                className={cn(
+                  "inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-0.5 text-sm font-semibold",
+                  onTrack
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-amber-100 text-amber-700",
+                )}
+              >
+                {onTrack ? "On Track" : "Behind"}
+              </div>
+              <span className="text-xs text-muted-foreground">{targetLabel} target</span>
+            </div>
+          </>
+        ) : (
+          <div className="col-span-1 flex items-center text-sm text-muted-foreground sm:col-span-3">
+            All upcoming installments are on track. No pending dues detected.
+          </div>
         )}
       </div>
     </Section>
   );
 }
 
-/* ---------------------------------------------------------------------------
-   Follow-up queue
-   --------------------------------------------------------------------------- */
-
-function FollowUpQueue({
-  rows,
-  canPostPayments,
-  sessionLabel,
+function PaymentModeDonut({
+  modes,
+  totalAmount,
 }: {
-  rows: Array<{
-    studentId: string;
-    studentName: string;
-    admissionNo: string;
-    classId: string;
-    classLabel: string;
-    fatherPhone: string | null;
-    outstandingAmount: number;
-    nextDueDate: string | null;
-    statusLabel: string;
-    reminderText: string;
-  }>;
-  canPostPayments: boolean;
-  sessionLabel: string;
+  modes: DashboardPaymentModeBreakdown[];
+  totalAmount: number;
 }) {
-  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+  if (modes.length === 0 || totalAmount === 0) return null;
 
-  if (rows.length === 0) {
-    return (
-      <EmptyState
-        variant="inline"
-        icon={CheckCircle2}
-        title="No defaulters in view"
-        description="No outstanding follow-up items in the current dashboard window."
-      />
-    );
-  }
+  const radius = 36;
+  const circumference = 2 * Math.PI * radius;
+  const size = 96;
+  const center = size / 2;
+  const palette = ["#f97316", "#0ea5e9", "#8b5cf6", "#10b981", "#f59e0b", "#64748b"];
+
+  let offset = 0;
+  const segments = modes.map((mode, index) => {
+    const fraction = totalAmount > 0 ? mode.amount / totalAmount : 0;
+    const dash = fraction * circumference;
+    const segment = {
+      ...mode,
+      dash,
+      offset,
+      color: palette[index % palette.length],
+    };
+    offset += dash;
+    return segment;
+  });
 
   return (
-    <ul className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
-      {rows.map((row) => (
-        <li
-          key={row.studentId}
-          className="px-4 py-4 transition-colors hover:bg-surface-2/40"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <Link href={withSession(`/protected/students/${row.studentId}`)} className="hover:underline">
-                <p className="font-semibold text-foreground truncate">{row.studentName}</p>
-              </Link>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {row.classLabel}
-                {row.admissionNo ? ` - SR ${row.admissionNo}` : ""}
-              </p>
-            </div>
-            <div className="shrink-0 text-right">
-              <Money value={row.outstandingAmount} size="lg" tone="warning" />
-              <p className="mt-0.5 text-[10px] text-muted-foreground">
-                {row.nextDueDate ? `Due ${formatShortDate(row.nextDueDate)}` : row.statusLabel || "Pending"}
-              </p>
-            </div>
-          </div>
+    <div className="flex items-center gap-4">
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        className="shrink-0 -rotate-90"
+        aria-hidden="true"
+      >
+        <circle
+          cx={center}
+          cy={center}
+          r={radius}
+          fill="none"
+          stroke="hsl(var(--muted))"
+          strokeWidth={10}
+        />
+        {segments.map((segment) => (
+          <circle
+            key={segment.paymentMode}
+            cx={center}
+            cy={center}
+            r={radius}
+            fill="none"
+            stroke={segment.color}
+            strokeWidth={10}
+            strokeDasharray={`${segment.dash} ${circumference - segment.dash}`}
+            strokeDashoffset={-segment.offset}
+            strokeLinecap="butt"
+          />
+        ))}
+      </svg>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {row.fatherPhone ? (
-              <a
-                href={`tel:${row.fatherPhone}`}
-                className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-3 active:bg-surface-3"
-                aria-label={`Call ${row.studentName}'s parent at ${row.fatherPhone}`}
-              >
-                <Phone className="size-3.5 text-success" aria-hidden="true" />
-                {row.fatherPhone}
-              </a>
-            ) : null}
-            <CopyReminderButton text={row.reminderText} />
-            <Button
-              asChild
-              size="sm"
-              variant={canPostPayments ? "accent" : "outline"}
-              className="ml-auto rounded-full px-4 font-semibold"
-            >
-              <Link href={withSession(`/protected/payments?studentId=${row.studentId}&classId=${row.classId}`)}>
-                {canPostPayments ? "Collect" : "View"}
-              </Link>
-            </Button>
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        {segments.map((segment) => (
+          <div key={segment.paymentMode} className="flex min-w-0 items-center gap-2 text-sm">
+            <span
+              className="h-2 w-2 shrink-0 rounded-full"
+              style={{ backgroundColor: segment.color }}
+            />
+            <span className="truncate text-muted-foreground">{segment.paymentMode}</span>
+            <span className="ml-auto shrink-0 font-medium tabular-nums">
+              {Math.round((segment.amount / totalAmount) * 100)}%
+            </span>
           </div>
-        </li>
-      ))}
-    </ul>
+        ))}
+      </div>
+    </div>
   );
 }
 
-/* ---------------------------------------------------------------------------
-   Recent receipts
-   --------------------------------------------------------------------------- */
-
-function RecentReceipts({
-  rows,
-  sessionLabel,
+function TodayBreakdown({
+  kpis,
+  paymentModeBreakdown,
 }: {
-  rows: Array<{
-    receiptId: string;
-    receiptNumber: string;
-    paymentDate: string;
-    studentName: string;
-    classLabel: string;
-    paymentMode: string;
-    amount: number;
-  }>;
-  sessionLabel: string;
+  kpis: DashboardKpis;
+  paymentModeBreakdown: DashboardPaymentModeBreakdown[];
 }) {
-  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
-
-  if (rows.length === 0) {
-    return (
-      <EmptyState
-        variant="inline"
-        icon={Inbox}
-        title="No receipts yet"
-        description="Latest receipts will appear here after payment posting starts."
-      />
-    );
-  }
+  const hasActivity = kpis.todaysCollection > 0 || kpis.receiptsToday > 0;
 
   return (
-    <ul className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
-      {rows.map((row) => (
-        <li key={row.receiptId}>
-          <Link
-            href={withSession(`/protected/receipts/${row.receiptId}`)}
-            className="flex items-center justify-between gap-3 px-4 py-4 transition-colors hover:bg-surface-2/40 active:bg-surface-2/60"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-foreground">{row.receiptNumber}</p>
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {row.studentName} - {row.classLabel}
+    <Section title="Today" variant="card">
+      {!hasActivity ? (
+        <p className="text-sm text-muted-foreground">No collections recorded yet today.</p>
+      ) : (
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-8">
+          <div className="flex flex-col gap-3">
+            <div>
+              <p className="mb-0.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Total Collected
               </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {formatShortDate(row.paymentDate)} - {row.paymentMode}
-              </p>
+              <Money value={kpis.todaysCollection} size="lg" tone="success" />
             </div>
-            <div className="shrink-0 text-right">
-              <Money value={row.amount} size="lg" />
-              <ChevronRight
-                className="mt-1 ml-auto size-3.5 text-muted-foreground"
-                aria-hidden="true"
+            <div>
+              <p className="mb-0.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Receipts Issued
+              </p>
+              <span className="text-2xl font-bold tabular-nums text-foreground">
+                {kpis.receiptsToday}
+              </span>
+            </div>
+          </div>
+
+          {paymentModeBreakdown.length > 0 ? (
+            <>
+              <div className="hidden h-full w-px bg-border sm:block" />
+              <div className="flex-1">
+                <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  By Payment Mode
+                </p>
+                <PaymentModeDonut
+                  modes={paymentModeBreakdown}
+                  totalAmount={kpis.todaysCollection}
+                />
+              </div>
+            </>
+          ) : null}
+        </div>
+      )}
+    </Section>
+  );
+}
+
+function SVGTrendBarChart({ trendData }: { trendData: DashboardTrendPoint[] }) {
+  if (!trendData.length) return null;
+
+  const chartHeight = 120;
+  const chartWidth = 600;
+  const barAreaTop = 10;
+  const barAreaBottom = 80;
+  const barAreaHeight = barAreaBottom - barAreaTop;
+  const maxAmount = Math.max(...trendData.map((point) => point.amount), 1);
+  const slotWidth = chartWidth / trendData.length;
+  const barWidth = Math.max(4, slotWidth * 0.55);
+  const todayStamp = new Date().toISOString().slice(0, 10);
+
+  const formatLabel = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short" }).slice(0, 6);
+  };
+
+  const formatAmount = (value: number) =>
+    value >= 100_000
+      ? `Rs ${(value / 100_000).toFixed(1)}L`
+      : value >= 1_000
+        ? `Rs ${(value / 1_000).toFixed(0)}K`
+        : `Rs ${value}`;
+
+  return (
+    <Section title="Collection Trend" description="Daily fee receipts" variant="card">
+      <div className="w-full overflow-x-auto">
+        <svg
+          viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+          className="w-full"
+          style={{ minWidth: "260px", height: "auto" }}
+          aria-hidden="true"
+        >
+          {[0.25, 0.5, 0.75, 1].map((fraction) => {
+            const y = barAreaBottom - fraction * barAreaHeight;
+            return (
+              <line
+                key={fraction}
+                x1={0}
+                y1={y}
+                x2={chartWidth}
+                y2={y}
+                stroke="hsl(var(--border))"
+                strokeWidth={0.8}
+                strokeDasharray="4 4"
               />
-            </div>
-          </Link>
-        </li>
-      ))}
-    </ul>
+            );
+          })}
+
+          {trendData.map((point, index) => {
+            const barHeight = Math.max(2, (point.amount / maxAmount) * barAreaHeight);
+            const x = index * slotWidth + slotWidth / 2;
+            const barX = x - barWidth / 2;
+            const barY = barAreaBottom - barHeight;
+            const isToday = point.date === todayStamp;
+
+            return (
+              <g key={point.date}>
+                <rect
+                  x={barX}
+                  y={barY}
+                  width={barWidth}
+                  height={barHeight}
+                  rx={2}
+                  fill={isToday ? "hsl(var(--accent))" : "hsl(var(--primary) / 0.65)"}
+                />
+                {barHeight > 16 ? (
+                  <text
+                    x={x}
+                    y={barY - 3}
+                    textAnchor="middle"
+                    fontSize={7}
+                    fill="hsl(var(--muted-foreground))"
+                  >
+                    {formatAmount(point.amount)}
+                  </text>
+                ) : null}
+                <text
+                  x={x}
+                  y={barAreaBottom + 10}
+                  textAnchor="middle"
+                  fontSize={7}
+                  fill="hsl(var(--muted-foreground))"
+                >
+                  {formatLabel(point.date)}
+                </text>
+                {point.receiptCount > 0 ? (
+                  <text
+                    x={x}
+                    y={barAreaBottom + 20}
+                    textAnchor="middle"
+                    fontSize={6}
+                    fill="hsl(var(--muted-foreground) / 0.7)"
+                  >
+                    {point.receiptCount}r
+                  </text>
+                ) : null}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </Section>
   );
 }
 
-/* ---------------------------------------------------------------------------
-   Class-wise pending - minimal hairline bar list
-   --------------------------------------------------------------------------- */
+function InstallmentTrack({ installments }: { installments: DashboardInstallmentSummaryRow[] }) {
+  if (!installments.length) return null;
 
-function ClassPendingChart({
-  rows,
-}: {
-  rows: Array<{
-    classLabel: string;
-    pendingAmount: number;
-    collectionRate: number;
-    totalStudents: number;
-    studentsWithGeneratedDues: number;
-  }>;
-}) {
-  const chartRows = rows.slice(0, 8);
-  const maxPending = Math.max(...chartRows.map((row) => row.pendingAmount), 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  if (chartRows.length === 0) {
-    return (
-      <EmptyState
-        variant="inline"
-        icon={ClipboardList}
-        title="No class-wise pending yet"
-        description="Class-wise pending dues will appear after student fee data is ready."
-      />
-    );
-  }
+  const getStatus = (row: DashboardInstallmentSummaryRow) => {
+    if (!row.dueDate) return "upcoming";
+    const due = new Date(row.dueDate);
+    due.setHours(0, 0, 0, 0);
+    if (row.collectionRate >= 95) return "done";
+    if (due < today) return "overdue";
+    if (due <= new Date(today.getTime() + 30 * 86_400_000)) return "current";
+    return "upcoming";
+  };
+
+  const statusConfig = {
+    done: {
+      ring: "border-emerald-500 bg-emerald-500",
+      text: "text-emerald-700",
+      label: "Cleared",
+      dotColor: "#10b981",
+    },
+    overdue: {
+      ring: "border-red-500 bg-red-50",
+      text: "text-red-700",
+      label: "Overdue",
+      dotColor: "#ef4444",
+    },
+    current: {
+      ring: "border-amber-500 bg-amber-50",
+      text: "text-amber-700",
+      label: "Due Soon",
+      dotColor: "#f59e0b",
+    },
+    upcoming: {
+      ring: "border-muted bg-muted/40",
+      text: "text-muted-foreground",
+      label: "Upcoming",
+      dotColor: "#94a3b8",
+    },
+  } as const;
 
   return (
-    <div className="space-y-2.5">
-      {chartRows.map((row) => (
-        <div
-          key={row.classLabel}
-          className="space-y-1.5 sm:grid sm:items-center sm:gap-3 sm:space-y-0 sm:grid-cols-[8rem_minmax(0,1fr)_8rem]"
-        >
-          <div className="flex items-center justify-between gap-2 sm:contents">
-            <p className="truncate text-sm font-medium text-foreground">
-              {row.classLabel}
-            </p>
-            <div className="text-sm font-medium tabular text-foreground sm:order-last sm:text-right">
-              {row.studentsWithGeneratedDues === 0 && row.totalStudents > 0 ? (
-                <span className="text-muted-foreground">Not prepared</span>
-              ) : (
-                <Money value={row.pendingAmount} size="sm" />
-              )}
-            </div>
-          </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
-            <div
-              className="h-full rounded-full bg-warning"
-              style={{ width: getBarWidth(row.pendingAmount, maxPending) }}
-            />
+    <Section title="Installment Progress" description="Across all due dates" variant="card">
+      <div className="hidden sm:block">
+        <div className="relative">
+          <div className="absolute left-0 right-0 top-5 h-0.5 bg-border" />
+          <div className="relative grid grid-cols-4 gap-2">
+            {installments.map((installment) => {
+              const status = getStatus(installment);
+              const config = statusConfig[status];
+              const percent = Math.round(installment.collectionRate);
+              return (
+                <div key={installment.installmentNo} className="flex flex-col items-center gap-2">
+                  <div
+                    className={cn(
+                      "relative z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 text-xs font-bold",
+                      config.ring,
+                    )}
+                  >
+                    {status === "done" ? (
+                      <CheckCircle2 className="size-4 text-white" aria-hidden="true" />
+                    ) : (
+                      <span className={config.text}>{installment.installmentNo}</span>
+                    )}
+                  </div>
+
+                  <div className="text-center">
+                    <p className="text-xs font-semibold leading-tight text-foreground">
+                      {installment.installmentLabel}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {installment.dueDate
+                        ? new Date(installment.dueDate).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "2-digit",
+                          })
+                        : "No due date"}
+                    </p>
+                  </div>
+
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${percent}%`, backgroundColor: config.dotColor }}
+                    />
+                  </div>
+
+                  <div className="text-center">
+                    <span className={cn("text-sm font-bold tabular-nums", config.text)}>
+                      {percent}%
+                    </span>
+                    <p className={cn("text-[10px] font-medium", config.text)}>{config.label}</p>
+                  </div>
+
+                  {installment.pendingAmount > 0 ? (
+                    <Money value={installment.pendingAmount} size="xs" tone="warning" />
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         </div>
-      ))}
-    </div>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:hidden">
+        {installments.map((installment) => {
+          const status = getStatus(installment);
+          const config = statusConfig[status];
+          const percent = Math.round(installment.collectionRate);
+          return (
+            <div key={installment.installmentNo} className="flex items-center gap-3">
+              <div
+                className={cn(
+                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold",
+                  config.ring,
+                )}
+              >
+                {status === "done" ? (
+                  <CheckCircle2 className="size-3.5 text-white" aria-hidden="true" />
+                ) : (
+                  <span className={config.text}>{installment.installmentNo}</span>
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-sm font-semibold text-foreground">
+                    {installment.installmentLabel}
+                  </span>
+                  <span className={cn("shrink-0 text-sm font-bold tabular-nums", config.text)}>
+                    {percent}%
+                  </span>
+                </div>
+                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${percent}%`, backgroundColor: config.dotColor }}
+                  />
+                </div>
+                <div className="mt-0.5 flex items-center justify-between">
+                  <span className="text-[10px] text-muted-foreground">
+                    Due{" "}
+                    {installment.dueDate
+                      ? new Date(installment.dueDate).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                        })
+                      : "-"}
+                  </span>
+                  {installment.pendingAmount > 0 ? (
+                    <Money value={installment.pendingAmount} size="xs" tone="warning" />
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Section>
   );
 }
 
-/* ---------------------------------------------------------------------------
-   Collection trend
-   --------------------------------------------------------------------------- */
+function ClassLeaderboard({ classSummary }: { classSummary: DashboardClassSummaryRow[] }) {
+  if (!classSummary.length) return null;
 
-function TrendChart({
-  rows,
-}: {
-  rows: Array<{ date: string; amount: number; receiptCount: number }>;
-}) {
-  if (rows.length === 0) {
-    return (
-      <EmptyState
-        variant="inline"
-        icon={TrendingUp}
-        title="No collection trend yet"
-        description="Trend will appear after receipts are posted."
-      />
-    );
-  }
+  const sorted = [...classSummary].sort((a, b) => b.collectionRate - a.collectionRate);
 
-  const maxAmount = Math.max(...rows.map((r) => r.amount), 0);
+  const getRateColor = (rate: number) =>
+    rate >= 75 ? "#10b981" : rate >= 50 ? "#f59e0b" : "#ef4444";
+
+  const getRateBg = (rate: number) =>
+    rate >= 75
+      ? "bg-emerald-50 text-emerald-700"
+      : rate >= 50
+        ? "bg-amber-50 text-amber-700"
+        : "bg-red-50 text-red-700";
 
   return (
-    <div className="space-y-2.5">
-      {rows.map((row) => (
-        <div
-          key={row.date}
-          className="space-y-1.5 sm:grid sm:items-center sm:gap-3 sm:space-y-0 sm:grid-cols-[7rem_minmax(0,1fr)_8rem]"
-        >
-          <div className="flex items-center justify-between gap-2 sm:contents">
-            <p className="text-sm font-medium text-foreground">
-              {formatShortDate(row.date)}
-            </p>
-            <div className="text-sm font-medium tabular text-foreground sm:order-last sm:text-right">
-              <Money value={row.amount} size="sm" />
+    <Section
+      title="Class Leaderboard"
+      description="Ranked by collection rate. Red needs attention."
+      variant="card"
+    >
+      <div className="space-y-2.5">
+        {sorted.map((row, index) => {
+          const rate = Math.round(row.collectionRate);
+          return (
+            <div key={row.classId} className="flex items-center gap-3">
+              <span className="w-5 shrink-0 text-right text-xs font-bold text-muted-foreground">
+                {index + 1}
+              </span>
+              <span className="w-20 shrink-0 truncate text-sm font-medium text-foreground">
+                {row.classLabel}
+              </span>
+              <div className="h-4 flex-1 overflow-hidden rounded bg-muted">
+                <div
+                  className="h-full rounded transition-all duration-500"
+                  style={{
+                    width: `${rate}%`,
+                    backgroundColor: getRateColor(rate),
+                  }}
+                />
+              </div>
+              <span
+                className={cn(
+                  "shrink-0 rounded px-1.5 py-0.5 text-xs font-bold tabular-nums",
+                  getRateBg(rate),
+                )}
+              >
+                {rate}%
+              </span>
+              <div className="hidden w-24 shrink-0 text-right sm:block">
+                {row.pendingAmount > 0 ? (
+                  <Money value={row.pendingAmount} size="xs" tone="warning" />
+                ) : (
+                  <span className="text-xs font-medium text-emerald-600">Cleared</span>
+                )}
+              </div>
             </div>
-          </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
-            <div
-              className="h-full rounded-full bg-accent"
-              style={{ width: getBarWidth(row.amount, maxAmount) }}
+          );
+        })}
+      </div>
+
+      <div className="mt-4 flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+        <span>{sorted.filter((row) => row.collectionRate >= 75).length} classes above 75%</span>
+        <span>{sorted.filter((row) => row.collectionRate < 50).length} classes below 50%</span>
+      </div>
+    </Section>
+  );
+}
+
+function StudentStatusRing({
+  classSummary,
+  totalStudents,
+}: {
+  classSummary: DashboardClassSummaryRow[];
+  totalStudents: number;
+}) {
+  if (!classSummary.length || totalStudents === 0) return null;
+
+  const studentsWithPending = classSummary.reduce((sum, row) => sum + row.studentsWithPending, 0);
+  const studentsOverdue = classSummary.reduce((sum, row) => sum + row.overdueStudents, 0);
+  const studentsFullyPaid = Math.max(0, totalStudents - studentsWithPending);
+  const studentsNormal = Math.max(0, studentsWithPending - studentsOverdue);
+  const missingDues = classSummary.reduce((sum, row) => sum + row.missingDuesStudents, 0);
+  const radius = 40;
+  const circumference = 2 * Math.PI * radius;
+  const size = 104;
+  const center = size / 2;
+  const segments = [
+    { count: studentsFullyPaid, color: "#10b981", label: "Fully Paid" },
+    { count: studentsNormal, color: "#f59e0b", label: "Pending" },
+    { count: studentsOverdue, color: "#ef4444", label: "Overdue" },
+  ].filter((segment) => segment.count > 0);
+
+  let offset = 0;
+  const rings = segments.map((segment) => {
+    const fraction = segment.count / totalStudents;
+    const dash = fraction * circumference;
+    const ring = { ...segment, dash, offset };
+    offset += dash;
+    return ring;
+  });
+
+  return (
+    <Section title="Student Status" description="Payment standing of all students" variant="card">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-8">
+        <div className="relative flex items-center justify-center">
+          <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+            <circle
+              cx={center}
+              cy={center}
+              r={radius}
+              fill="none"
+              stroke="hsl(var(--muted))"
+              strokeWidth={12}
             />
+            {rings.map((segment) => (
+              <circle
+                key={segment.label}
+                cx={center}
+                cy={center}
+                r={radius}
+                fill="none"
+                stroke={segment.color}
+                strokeWidth={12}
+                strokeDasharray={`${segment.dash} ${circumference - segment.dash}`}
+                strokeDashoffset={-segment.offset}
+              />
+            ))}
+          </svg>
+          <div className="absolute flex flex-col items-center">
+            <span className="text-xl font-bold tabular-nums text-foreground">{totalStudents}</span>
+            <span className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
+              students
+            </span>
           </div>
         </div>
-      ))}
-    </div>
+
+        <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:flex sm:flex-col sm:gap-2.5">
+          {segments.map((segment) => (
+            <div key={segment.label} className="flex items-center gap-2.5">
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: segment.color }}
+              />
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-base font-bold tabular-nums text-foreground">
+                    {segment.count}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    ({Math.round((segment.count / totalStudents) * 100)}%)
+                  </span>
+                </div>
+                <p className="text-[11px] font-medium text-muted-foreground">{segment.label}</p>
+              </div>
+            </div>
+          ))}
+          {missingDues > 0 ? (
+            <div className="flex items-center gap-2.5">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-slate-400" />
+              <div>
+                <span className="text-base font-bold tabular-nums text-foreground">
+                  {missingDues}
+                </span>
+                <p className="text-[11px] font-medium text-muted-foreground">
+                  No dues generated
+                </p>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </Section>
   );
 }
 
-/* ---------------------------------------------------------------------------
-   Installment status
-   --------------------------------------------------------------------------- */
-
-function InstallmentStatus({
-  rows,
+function QuickJumpLinks({
+  kpis,
+  classSummary,
+  sessionLabel,
 }: {
-  rows: Array<{
-    installmentLabel: string;
-    dueDate: string | null;
-    expectedAmount: number;
-    collectedAmount: number;
-    pendingAmount: number;
-    overdueAmount: number;
-    collectionRate: number;
-  }>;
+  kpis: DashboardKpis;
+  classSummary: DashboardClassSummaryRow[];
+  sessionLabel: string;
 }) {
-  if (rows.length === 0) {
-    return (
-      <EmptyState
-        variant="inline"
-        icon={CalendarClock}
-        title="No installment status yet"
-        description="Installment status will appear after ledgers are generated."
-      />
-    );
-  }
+  const overdueStudents = classSummary.reduce((sum, row) => sum + row.overdueStudents, 0);
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+  const links = [
+    {
+      href: "/protected/defaulters",
+      icon: <UsersRound className="h-5 w-5 text-red-500" />,
+      label: "Defaulters",
+      value: overdueStudents,
+      unit: "students overdue",
+      amount: kpis.overdueAmount,
+      tone: "danger" as const,
+      accent: "border-red-200 hover:border-red-400",
+    },
+    {
+      href: "/protected/transactions",
+      icon: <ReceiptText className="h-5 w-5 text-primary" />,
+      label: "Transactions",
+      value: kpis.receiptsToday,
+      unit: "receipts today",
+      amount: kpis.todaysCollection,
+      tone: "success" as const,
+      accent: "border-primary/20 hover:border-primary/50",
+    },
+  ] as const;
 
   return (
-    <ul className="divide-y divide-border rounded-md border border-border bg-card">
-      {rows.map((row) => (
-        <li key={row.installmentLabel} className="space-y-2 px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="font-medium text-foreground">{row.installmentLabel}</p>
-              <p className="text-xs text-muted-foreground">
-                Due {row.dueDate ? formatShortDate(row.dueDate) : "-"}
-              </p>
-            </div>
-            <p className="text-sm font-semibold tabular text-foreground">
-              {formatPercent(row.collectionRate)}
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {links.map((link) => (
+        <Link
+          key={link.href}
+          href={withSession(link.href)}
+          className={cn(
+            "group flex items-center gap-4 rounded-xl border-2 bg-card p-4 transition-colors",
+            link.accent,
+          )}
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+            {link.icon}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">{link.label}</p>
+            <p className="text-xs text-muted-foreground">
+              <span className="font-bold tabular-nums text-foreground">{link.value}</span>{" "}
+              {link.unit}
             </p>
+            <Money value={link.amount} size="xs" tone={link.tone} />
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
-            <div
-              className="h-full rounded-full bg-info"
-              style={{ width: `${row.collectionRate}%` }}
-            />
-          </div>
-          <div className="grid gap-1 text-[11px] text-muted-foreground sm:grid-cols-3">
-            <span className="inline-flex items-center gap-1">
-              Expected <Money value={row.expectedAmount} size="xs" />
-            </span>
-            <span className="inline-flex items-center gap-1">
-              Collected <Money value={row.collectedAmount} size="xs" />
-            </span>
-            <span className="inline-flex items-center gap-1">
-              Pending <Money value={row.pendingAmount} size="xs" />
-            </span>
-          </div>
-        </li>
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+        </Link>
       ))}
-    </ul>
+    </div>
   );
 }
 
@@ -924,20 +1354,11 @@ function InstallmentStatus({
    --------------------------------------------------------------------------- */
 
 function ClassSummaryTable({
-  rows,
+  classSummary,
 }: {
-  rows: Array<{
-    classLabel: string;
-    totalStudents: number;
-    expectedAmount: number;
-    collectedAmount: number;
-    pendingAmount: number;
-    overdueAmount: number;
-    collectionRate: number;
-    studentsWithGeneratedDues: number;
-    missingDuesStudents: number;
-  }>;
+  classSummary: DashboardClassSummaryRow[];
 }) {
+  const rows = classSummary;
   const renderTable = (tableRows: typeof rows, emptyLabel: string) => (
     <div className="overflow-x-auto rounded-md border border-border">
       <table className="w-full text-left text-sm">
@@ -1120,54 +1541,6 @@ type DashboardAutoPrepareHealth = Pick<
   "studentsMissingInstallmentRows" | "studentsMissingInstallments"
 >;
 
-/**
- * MobileCollapse keeps secondary dashboard analysis behind one-tap disclosure on
- * phones, then renders the normal Section card from tablet width upward.
- */
-function MobileCollapse({
-  title,
-  mobileTitle,
-  description,
-  children,
-  defaultOpen = false,
-  className,
-}: {
-  title: string;
-  mobileTitle?: string;
-  description?: string;
-  children: ReactNode;
-  defaultOpen?: boolean;
-  className?: string;
-}) {
-  return (
-    <>
-      <details
-        className="group sm:hidden rounded-xl border border-border bg-card overflow-hidden"
-        open={defaultOpen}
-      >
-        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-sm font-semibold text-foreground select-none">
-          {mobileTitle ?? title}
-          <ChevronDown
-            className="size-4 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
-            aria-hidden="true"
-          />
-        </summary>
-        <div className="border-t border-border px-4 pb-4 pt-3">
-          {children}
-        </div>
-      </details>
-
-      <Section
-        title={title}
-        description={description}
-        className={cn("hidden sm:block", className)}
-      >
-        {children}
-      </Section>
-    </>
-  );
-}
-
 export function scheduleDashboardAutoPrepare({
   canAutoPrepareDues,
   sessionLabel,
@@ -1197,21 +1570,16 @@ export function scheduleDashboardAutoPrepare({
 
 function DashboardBelowFoldSkeleton() {
   return (
-    <div className="space-y-4 sm:space-y-7">
-      {/* Follow-up + Recent receipts row */}
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+    <div className="space-y-4 md:space-y-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
         <LoadingBlock />
         <LoadingBlock />
       </div>
-      {/* Charts row */}
-      <div className="grid gap-5 xl:grid-cols-2">
+      <LoadingBlock />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
         <LoadingBlock />
         <LoadingBlock />
-        <div className="xl:col-span-2">
-          <LoadingBlock />
-        </div>
       </div>
-      {/* Class summary full width */}
       <LoadingBlock />
     </div>
   );
@@ -1219,17 +1587,16 @@ function DashboardBelowFoldSkeleton() {
 
 async function DashboardBelowFold({
   staffRole,
-  canPostPayments,
   sessionLabel,
   canAutoPrepareDues,
+  kpis,
 }: {
   staffRole: Awaited<ReturnType<typeof requireStaffPermission>>["appRole"];
-  canPostPayments: boolean;
   sessionLabel: string;
   canAutoPrepareDues: boolean;
+  kpis: DashboardKpis;
 }) {
   const data = await getDashboardPageData({ staffRole, sessionLabel });
-  const maxChartCards = data.classSummary.slice(0, 8);
   scheduleDashboardAutoPrepare({
     canAutoPrepareDues,
     sessionLabel,
@@ -1248,131 +1615,44 @@ async function DashboardBelowFold({
   });
 
   return (
-    <>
+    <div className="space-y-4 md:space-y-6">
       {autoPrepareCount > 0 ? (
         <Notice tone="info" title="Dues update started">
           Preparing dues for {autoPrepareCount} student{autoPrepareCount === 1 ? "" : "s"} in the background. Refresh in a moment to see the updated totals.
         </Notice>
       ) : null}
 
-      {visibleAlerts
-        .filter((a) => a.tone === "danger" || a.tone === "warning")
-        .filter((a) =>
-          staffRole === "admin" || !a.actionHref?.includes("/admin-tools"),
-        )
-        .map((a) => (
-          <Notice
-            key={a.key}
-            tone={a.tone === "danger" ? "danger" : "warning"}
-            title={a.title}
-            action={
-              a.actionHref && a.actionLabel ? (
-                <Button asChild size="sm" variant="outline">
-                  <Link href={a.actionHref}>{a.actionLabel}</Link>
-                </Button>
-              ) : undefined
-            }
-          >
-            {a.detail}
-          </Notice>
-        ))}
-
       {staffRole === "admin" && data.systemSyncHealth ? (
         <FeeDataAttentionBanner health={data.systemSyncHealth} />
       ) : null}
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <Section
-          title="Top defaulters"
-          description="Students with the highest pending balances for daily follow-up."
-          actions={
-            <Button asChild size="sm" variant="ghost">
-              <Link
-                href="/protected/defaulters"
-                className="inline-flex items-center gap-1"
-              >
-                Open all
-                <ArrowRight className="size-3.5" />
-              </Link>
-            </Button>
-          }
-        >
-          <FollowUpQueue
-            rows={data.followUpQueue}
-            canPostPayments={canPostPayments}
-            sessionLabel={sessionLabel}
-          />
-        </Section>
+      {visibleAlerts.length > 0 ? <AlertsPanel alerts={visibleAlerts} /> : null}
 
-        <Section
-          title="Recent receipts"
-          description="Latest receipts saved by the office."
-          actions={
-            <Button asChild size="sm" variant="ghost">
-              <Link
-                href="/protected/transactions"
-                className="inline-flex items-center gap-1"
-              >
-                All receipts
-                <ArrowRight className="size-3.5" />
-              </Link>
-            </Button>
-          }
-        >
-          <RecentReceipts rows={data.recentPayments} sessionLabel={sessionLabel} />
-        </Section>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
+        <TodayBreakdown kpis={kpis} paymentModeBreakdown={data.todayPaymentModeBreakdown} />
+        <StudentStatusRing classSummary={data.classSummary} totalStudents={kpis.totalStudents} />
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-2">
-        <MobileCollapse
-          title="Class-wise pending"
-          description="Highest pending classes appear first."
-        >
-          <ClassPendingChart rows={maxChartCards} />
-        </MobileCollapse>
-        <MobileCollapse
-          title="Collection trend"
-          description="Daily collection over the recent window."
-        >
-          <TrendChart rows={data.collectionTrend} />
-        </MobileCollapse>
-        <MobileCollapse
-          title="Installment status"
-          description="Expected, collected, and pending totals by installment."
-          defaultOpen
-          className="xl:col-span-2"
-        >
-          <InstallmentStatus rows={data.installmentSummary} />
-        </MobileCollapse>
+      <InstallmentTrack installments={data.installmentSummary} />
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
+        <SVGTrendBarChart trendData={data.collectionTrend} />
+        <ClassLeaderboard classSummary={data.classSummary} />
       </div>
 
-      <MobileCollapse
-        title="Class-wise & Installment-wise Pending Matrix"
-        mobileTitle="Class / Installment pending matrix"
-        description="Detailed pending balance grid across classes and installments."
-      >
-        <ClassInstallmentMatrixTable matrix={data.classInstallmentMatrix} />
-      </MobileCollapse>
-
-      <MobileCollapse
+      <Section
         title="Class-wise fee position"
         description="Sorted by highest pending amount."
       >
-        <ClassSummaryTable rows={data.classSummary} />
-      </MobileCollapse>
+        <ClassSummaryTable classSummary={data.classSummary} />
+      </Section>
 
-      <MobileCollapse
-        title="Attention"
-        mobileTitle="Attention items"
-        description="Informational setup and activity items."
-      >
-        <AlertsPanel
-          alerts={visibleAlerts.filter(
-            (a) => a.tone !== "danger" && a.tone !== "warning",
-          )}
-        />
-      </MobileCollapse>
-    </>
+      <QuickJumpLinks
+        kpis={kpis}
+        classSummary={data.classSummary}
+        sessionLabel={sessionLabel}
+      />
+    </div>
   );
 }
 
@@ -1511,56 +1791,29 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             sessionLabel={viewSession.sessionLabel}
           />
         </div>
-      </div>
 
-      {/* Today + secondary KPIs */}
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] anim-fade-in [animation-delay:120ms]">
-        <TodayPanel
-          amount={aboveFold.kpis.todaysCollection}
-          receiptCount={aboveFold.kpis.receiptsToday}
-          monthAmount={aboveFold.kpis.thisMonthCollection}
-          refundDue={aboveFold.totalRefundDue}
-          modes={aboveFold.todayPaymentModeBreakdown}
+        <CollectionFunnelBar
+          expected={aboveFold.kpis.totalExpectedFees}
+          collected={aboveFold.kpis.totalCollected}
+          pending={aboveFold.kpis.totalPending}
+          overdue={aboveFold.kpis.overdueAmount}
         />
-        <div className="hidden lg:grid grid-cols-2 content-start gap-3">
-          <KpiCard
-            label="Total expected"
-            value={<Money value={aboveFold.kpis.totalExpectedFees} size="xl" />}
-          />
-          <KpiCard
-            label="Total collected"
-            value={<Money value={aboveFold.kpis.totalCollected} size="xl" tone="success" />}
-            hint={`${formatPercent(aboveFold.kpis.collectionRate)} of expected`}
-          />
-          <KpiCard
-            label="Active students"
-            value={
-              <span className="tabular">{aboveFold.kpis.totalStudents}</span>
-            }
-            hint={
-              aboveFold.totalRefundDue > 0
-                ? (
-                  <span className="inline-flex items-center gap-1">
-                    <Money value={aboveFold.totalRefundDue} size="xs" /> refund/credit due
-                  </span>
-                )
-                : undefined
-            }
-          />
-          <KpiCard
-            label="This month"
-            value={<Money value={aboveFold.kpis.thisMonthCollection} size="xl" />}
-            hint="Receipts posted in the current month."
-          />
-        </div>
+
+        <DailyMomentumCard
+          todaysCollection={aboveFold.kpis.todaysCollection}
+          receiptsToday={aboveFold.kpis.receiptsToday}
+          totalPending={aboveFold.kpis.totalPending}
+          installments={[]}
+          currentInstallment={aboveFold.currentInstallment}
+        />
       </div>
 
       <Suspense fallback={<DashboardBelowFoldSkeleton />}>
         <DashboardBelowFold
           staffRole={staff.appRole}
-          canPostPayments={canPostPayments}
           sessionLabel={viewSession.sessionLabel}
           canAutoPrepareDues={canAutoPrepareDues}
+          kpis={aboveFold.kpis}
         />
       </Suspense>
 
