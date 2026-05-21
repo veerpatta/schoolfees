@@ -1,4 +1,5 @@
 import { schoolProfile } from "@/lib/config/school";
+import { buildFeeBreakupDisplayRows } from "@/lib/fees/display-breakdown";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import type { getFamilyWorkspaceData } from "@/lib/students/workspace";
@@ -198,11 +199,7 @@ export function FamilyStatementDocument({
         <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Detailed Child-wise Breakdown</h2>
         {students.map(({ student, financialSnapshot, installmentBalances }) => {
           if (!financialSnapshot) return null;
-          const feeHeads = [
-            ...financialSnapshot.resolvedBreakdown.coreHeads,
-            ...financialSnapshot.resolvedBreakdown.customHeads,
-          ];
-          const hasConventionalDiscount = financialSnapshot.resolvedBreakdown.conventionalDiscountApplied > 0;
+          const feeHeads = buildFeeBreakupDisplayRows(financialSnapshot.resolvedBreakdown);
 
           return (
             <div key={student.id} className="space-y-4 rounded-lg border border-border p-4 bg-card print:border-none print:p-0">
@@ -224,21 +221,18 @@ export function FamilyStatementDocument({
                   <table className="w-full border-collapse text-left text-xs border border-border rounded-md">
                     <tbody>
                       {feeHeads.map((item) => (
-                        <tr key={item.id} className="border-t border-border first:border-t-0">
+                        <tr
+                          key={item.id}
+                          className={
+                            item.kind === "discount"
+                              ? "border-t border-accent/20 bg-accent-soft/40 text-accent-soft-foreground"
+                              : "border-t border-border first:border-t-0"
+                          }
+                        >
                           <td className="px-2 py-1.5">{item.label}</td>
                           <td className="px-2 py-1.5 text-right font-medium">{formatInr(item.amount)}</td>
                         </tr>
                       ))}
-                      {hasConventionalDiscount && (
-                        <tr className="border-t border-accent/20 bg-accent-soft/40 text-accent-soft-foreground">
-                          <td className="px-2 py-1.5 font-medium">
-                            Discount ({financialSnapshot.resolvedBreakdown.conventionalDiscountLabels.join(", ")})
-                          </td>
-                          <td className="px-2 py-1.5 text-right font-bold">
-                            -{formatInr(financialSnapshot.resolvedBreakdown.conventionalDiscountApplied)}
-                          </td>
-                        </tr>
-                      )}
                       <tr className="border-t border-border-strong bg-surface-2 font-semibold">
                         <td className="px-2 py-1.5">Annual Total</td>
                         <td className="px-2 py-1.5 text-right">

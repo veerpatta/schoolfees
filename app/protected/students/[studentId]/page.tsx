@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Money } from "@/components/ui/money";
 import { Notice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
+import { buildFeeBreakupDisplayRows } from "@/lib/fees/display-breakdown";
 import { formatShortDate } from "@/lib/helpers/date";
 import { getStudentDeletionSafety, getStudentFamilyMembersDetail } from "@/lib/students/data";
 import { getStudentWorkspaceData } from "@/lib/students/workspace";
@@ -91,6 +92,9 @@ export default async function StudentDetailPage({
   const canShowDangerZone = staff.appRole === "admin" && canEditStudent && deletionSafety;
   const outstandingAmount = installmentBalances.reduce((sum, row) => sum + row.pendingAmount, 0);
   const todayIso = getSchoolDateStamp();
+  const feeBreakupRows = financialSnapshot
+    ? buildFeeBreakupDisplayRows(financialSnapshot.resolvedBreakdown)
+    : [];
 
   // Payment stat cards — computed from already-fetched data, no extra DB calls
   const allPayments = ledger?.payments ?? [];
@@ -187,14 +191,18 @@ export default async function StudentDetailPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
-                {[
-                  ...financialSnapshot.resolvedBreakdown.coreHeads,
-                  ...financialSnapshot.resolvedBreakdown.customHeads,
-                ].map((item) => (
-                  <tr key={item.id} className="even:bg-surface-2/30 hover:bg-surface-2/10 transition-colors">
+                {feeBreakupRows.map((item) => (
+                  <tr
+                    key={item.id}
+                    className={
+                      item.kind === "discount"
+                        ? "bg-accent-soft/30 text-accent-soft-foreground"
+                        : "even:bg-surface-2/30 hover:bg-surface-2/10 transition-colors"
+                    }
+                  >
                     <td className="px-4 py-3 font-medium text-foreground">{item.label}</td>
                     <td className="px-4 py-3 text-right font-mono tabular-nums font-semibold text-foreground">
-                      <Money value={item.amount} size="sm" />
+                      <Money value={item.amount} size="sm" tone={item.kind === "discount" ? "auto" : "neutral"} />
                     </td>
                   </tr>
                 ))}

@@ -1,4 +1,5 @@
 import { schoolProfile } from "@/lib/config/school";
+import { buildFeeBreakupDisplayRows } from "@/lib/fees/display-breakdown";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import type { getStudentWorkspaceData } from "@/lib/students/workspace";
@@ -14,10 +15,7 @@ export function MasterStatementDocument({
     return null;
   }
 
-  const feeHeads = [
-    ...financialSnapshot.resolvedBreakdown.coreHeads,
-    ...financialSnapshot.resolvedBreakdown.customHeads,
-  ];
+  const feeHeads = buildFeeBreakupDisplayRows(financialSnapshot.resolvedBreakdown);
   const totalDue = installmentBalances.reduce((sum, item) => sum + item.totalCharge, 0);
   const totalPaid = installmentBalances.reduce((sum, item) => sum + item.paidAmount, 0);
 
@@ -73,21 +71,18 @@ export function MasterStatementDocument({
             <table className="w-full border-collapse text-left text-sm">
               <tbody>
                 {feeHeads.map((item) => (
-                  <tr key={item.id} className="border-t border-border first:border-t-0">
+                  <tr
+                    key={item.id}
+                    className={
+                      item.kind === "discount"
+                        ? "border-t border-accent/20 bg-accent-soft/30 text-accent-soft-foreground text-xs"
+                        : "border-t border-border first:border-t-0"
+                    }
+                  >
                     <td className="px-3 py-2">{item.label}</td>
                     <td className="px-3 py-2 text-right font-medium">{formatInr(item.amount)}</td>
                   </tr>
                 ))}
-                {financialSnapshot.resolvedBreakdown.conventionalDiscountApplied > 0 && (
-                  <tr className="border-t border-accent/20 bg-accent-soft/30 text-accent-soft-foreground text-xs">
-                    <td className="px-3 py-2 font-medium">
-                      Conventional Discount ({financialSnapshot.resolvedBreakdown.conventionalDiscountLabels.join(", ")})
-                    </td>
-                    <td className="px-3 py-2 text-right font-bold">
-                      -{formatInr(financialSnapshot.resolvedBreakdown.conventionalDiscountApplied)}
-                    </td>
-                  </tr>
-                )}
                 <tr className="border-t border-border-strong bg-surface-2">
                   <td className="px-3 py-2 font-semibold">Resolved annual total</td>
                   <td className="px-3 py-2 text-right font-semibold">
