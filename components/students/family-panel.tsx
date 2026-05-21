@@ -2,6 +2,7 @@ import Link from "next/link";
 import { formatInr } from "@/lib/helpers/currency";
 import { Section } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 import type { StudentFamilyMemberDetail } from "@/lib/students/data";
 
 type StudentFamilyPanelProps = {
@@ -35,6 +36,7 @@ export function StudentFamilyPanel({
   const totalOutstanding = members.reduce((sum, m) => sum + (m.financials?.outstanding ?? 0), 0);
   const totalDue = members.reduce((sum, m) => sum + (m.financials?.totalDue ?? 0), 0);
   const totalPaid = members.reduce((sum, m) => sum + (m.financials?.totalPaid ?? 0), 0);
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
   return (
     <Section title="Family & Siblings" description="Consolidated sibling dashboard." variant="card" padding="tight">
@@ -72,7 +74,7 @@ export function StudentFamilyPanel({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <Link 
-                      href={`/protected/students/${member.id}`} 
+                      href={withSession(`/protected/students/${member.id}`)}
                       className={`font-medium truncate hover:underline ${
                         member.isSelf ? "text-foreground font-semibold" : "text-primary"
                       }`}
@@ -126,19 +128,22 @@ export function StudentFamilyPanel({
           {confidence === "confirmed" && familyGroupId ? (
             <>
               <Button asChild size="sm" className="w-full">
-                <Link href={`/protected/payments/family?group=${encodeURIComponent(familyGroupId)}`}>
+                <Link href={withSession(`/protected/payments/family/${encodeURIComponent(familyGroupId)}`)}>
                   Pay Together
                 </Link>
               </Button>
               <Button asChild size="sm" variant="outline" className="w-full">
-                <Link href={`/protected/students/family/${encodeURIComponent(familyGroupId)}/statement`} target="_blank">
+                <Link
+                  href={withSession(`/protected/students/family/${encodeURIComponent(familyGroupId)}/statement`)}
+                  target="_blank"
+                >
                   Print Family Statement
                 </Link>
               </Button>
             </>
           ) : (
             <Button asChild size="sm" variant="outline" className="w-full">
-              <Link href={`/protected/students/families?search=${encodeURIComponent(studentId)}`}>
+              <Link href={withSession(`/protected/students/families?search=${encodeURIComponent(studentId)}`)}>
                 Confirm Sibling Group
               </Link>
             </Button>

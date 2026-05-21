@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { familyPaymentsEnabled } from "@/lib/config/feature-flags";
 import { formatInr } from "@/lib/helpers/currency";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 import { getSiblingGroups } from "@/lib/students/data";
 import type { SiblingGroupSummary } from "@/lib/students/types";
 import { getViewSessionCookie } from "@/lib/session/cookie";
@@ -21,6 +22,7 @@ type FamiliesPageProps = {
     sessionLabel?: string;
     group?: string;
     suspect?: string;
+    search?: string;
   }>;
 };
 
@@ -29,12 +31,16 @@ function FamilyGroupRow({
   canConfirm,
   selected,
   canPayTogether,
+  sessionLabel,
 }: {
   group: SiblingGroupSummary;
   canConfirm: boolean;
   selected: boolean;
   canPayTogether: boolean;
+  sessionLabel: string;
 }) {
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+
   return (
     <div
       className={cn(
@@ -61,7 +67,7 @@ function FamilyGroupRow({
         <div className="flex flex-wrap items-center gap-2">
           {canPayTogether && group.existingFamilyGroupId ? (
             <Button asChild size="sm">
-              <Link href={`/protected/payments/family/${group.existingFamilyGroupId}`}>Pay together</Link>
+              <Link href={withSession(`/protected/payments/family/${group.existingFamilyGroupId}`)}>Pay together</Link>
             </Button>
           ) : null}
           {group.confidence === "suspected" && canConfirm ? (
@@ -84,7 +90,7 @@ function FamilyGroupRow({
             {group.students.map((student) => (
               <tr key={student.studentId}>
                 <td className="py-2 pr-4 font-medium text-foreground">
-                  <Link href={`/protected/students/${student.studentId}`} className="hover:underline">
+                  <Link href={withSession(`/protected/students/${student.studentId}`)} className="hover:underline">
                     {student.fullName}
                   </Link>
                 </td>
@@ -109,7 +115,9 @@ function FamilyGroupSection({
   canConfirm,
   selectedGroupId,
   selectedSuspectKey,
+  selectedStudentId,
   canPayTogether,
+  sessionLabel,
 }: {
   title: string;
   description: string;
@@ -117,7 +125,9 @@ function FamilyGroupSection({
   canConfirm: boolean;
   selectedGroupId: string | undefined;
   selectedSuspectKey: string | undefined;
+  selectedStudentId: string | undefined;
   canPayTogether: boolean;
+  sessionLabel: string;
 }) {
   return (
     <SectionCard title={title} description={description}>
@@ -136,8 +146,10 @@ function FamilyGroupSection({
               canPayTogether={canPayTogether}
               selected={
                 group.existingFamilyGroupId === selectedGroupId ||
-                group.groupKey === selectedSuspectKey
+                group.groupKey === selectedSuspectKey ||
+                Boolean(selectedStudentId && group.studentIds.includes(selectedStudentId))
               }
+              sessionLabel={sessionLabel}
             />
           ))}
         </div>
@@ -154,6 +166,7 @@ export default async function StudentFamiliesPage({ searchParams }: FamiliesPage
     cookieSession: await getViewSessionCookie(),
   });
   const groups = await getSiblingGroups(viewSession.sessionLabel);
+  const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
   const canConfirm = hasStaffPermission(staff, "students:write");
   const canPayTogether = familyPaymentsEnabled && hasStaffPermission(staff, "payments:write");
   const confirmedGroups = groups.filter((group) => group.confidence === "confirmed");
@@ -167,7 +180,7 @@ export default async function StudentFamiliesPage({ searchParams }: FamiliesPage
         description="Review confirmed family groups and phone-matched sibling candidates."
         actions={
           <Button asChild variant="outline">
-            <Link href={`/protected/students?session=${encodeURIComponent(viewSession.sessionLabel)}`}>
+            <Link href={withSession("/protected/students")}>
               Back to Students
             </Link>
           </Button>
@@ -181,7 +194,9 @@ export default async function StudentFamiliesPage({ searchParams }: FamiliesPage
         canConfirm={false}
         selectedGroupId={resolvedSearchParams?.group}
         selectedSuspectKey={resolvedSearchParams?.suspect}
+        selectedStudentId={resolvedSearchParams?.search}
         canPayTogether={canPayTogether}
+        sessionLabel={viewSession.sessionLabel}
       />
 
       <FamilyGroupSection
@@ -191,7 +206,9 @@ export default async function StudentFamiliesPage({ searchParams }: FamiliesPage
         canConfirm={canConfirm}
         selectedGroupId={resolvedSearchParams?.group}
         selectedSuspectKey={resolvedSearchParams?.suspect}
+        selectedStudentId={resolvedSearchParams?.search}
         canPayTogether={false}
+        sessionLabel={viewSession.sessionLabel}
       />
     </div>
   );

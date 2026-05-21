@@ -161,7 +161,7 @@ export function FamilyPaymentClient({ data, action }: FamilyPaymentClientProps) 
           {state.message}
         </p>
       ) : null}
-      <FamilySuccessSheet state={state} />
+      <FamilySuccessSheet state={state} sessionLabel={data.sessionLabel} />
       <Button type="submit" disabled={pending || !validation.valid}>
         {pending ? "Posting family payment..." : "Post family payment"}
       </Button>

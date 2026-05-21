@@ -49,14 +49,14 @@ function DuesChip({ student }: { student: StudentListItem }) {
   );
 }
 
-function SiblingPill({ student }: { student: StudentListItem }) {
+function SiblingPill({ student, session }: { student: StudentListItem; session?: string }) {
   if (!student.siblingPill || student.siblingPill.siblingCount < 1) {
     return null;
   }
 
   return (
     <Link
-      href={student.siblingPill.href}
+      href={appendSessionParam(student.siblingPill.href, session)}
       onClick={(event) => {
         event.stopPropagation();
       }}
@@ -76,6 +76,8 @@ export function StudentListTable({
   returnTo,
   session,
 }: StudentListTableProps) {
+  const withSession = (href: string) => appendSessionParam(href, session);
+
   if (students.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-border-strong bg-surface-2 p-8 text-center">
@@ -86,16 +88,13 @@ export function StudentListTable({
             : "Start by adding the first student record for this session."}
         </p>
         {!hasFilters && canWrite ? (
-          <Link href="/protected/students/new" className={cn(buttonVariants(), "mt-4")}>
+          <Link href={withSession("/protected/students/new")} className={cn(buttonVariants(), "mt-4")}>
             Add first student
           </Link>
         ) : null}
       </div>
     );
   }
-
-  const withSession = (href: string) => appendSessionParam(href, session);
-
   return (
     <div className="rounded-xl border border-border overflow-hidden bg-card">
       <ul className="divide-y divide-border/60 md:hidden bg-card">
@@ -124,7 +123,7 @@ export function StudentListTable({
                         SR missing
                       </span>
                     ) : null}
-                    <SiblingPill student={student} />
+                    <SiblingPill student={student} session={session} />
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     {student.classLabel} · SR {student.admissionNo || "Pending"}
@@ -183,7 +182,7 @@ export function StudentListTable({
                 key={student.id}
                 className="group cursor-pointer align-top even:bg-surface-2/30 hover:bg-surface-2 transition-colors border-b border-border/40"
                 onClick={() => {
-                  window.location.href = `/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`;
+                  window.location.href = withSession(`/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`);
                 }}
               >
                 <td className="px-4 py-3.5 text-sm font-mono text-foreground">
@@ -198,7 +197,7 @@ export function StudentListTable({
                         SR missing
                       </span>
                     ) : null}
-                    <SiblingPill student={student} />
+                    <SiblingPill student={student} session={session} />
                   </div>
                   {student.conventionalDiscountLabels.length > 0 ? (
                     <div className="mt-1.5 flex flex-wrap gap-1">
@@ -232,7 +231,7 @@ export function StudentListTable({
                   <div className="flex justify-end gap-1.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                     {canWrite ? (
                       <Link
-                        href={`/protected/students/${student.id}/edit?returnTo=${encodeURIComponent(returnTo)}`}
+                        href={withSession(`/protected/students/${student.id}/edit?returnTo=${encodeURIComponent(returnTo)}`)}
                         className={cn(buttonVariants({ size: "sm", variant: "outline" }), "h-7 text-xs px-2.5")}
                         onClick={(event) => {
                           event.stopPropagation();
@@ -242,7 +241,7 @@ export function StudentListTable({
                       </Link>
                     ) : null}
                     <Link
-                      href={`/protected/payments?studentId=${student.id}`}
+                      href={withSession(`/protected/payments?studentId=${student.id}`)}
                       className={cn(buttonVariants({ variant: "accent", size: "sm" }), "h-7 text-xs px-2.5 font-semibold")}
                       onClick={(event) => {
                         event.stopPropagation();

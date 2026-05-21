@@ -1,16 +1,23 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 import type { FamilyPaymentActionState } from "@/lib/payments/types";
 
 type FamilySuccessSheetProps = {
   state: FamilyPaymentActionState;
+  sessionLabel?: string;
 };
 
-export function FamilySuccessSheet({ state }: FamilySuccessSheetProps) {
+export function FamilySuccessSheet({ state, sessionLabel }: FamilySuccessSheetProps) {
   if (state.status !== "success" || !state.familyPaymentId) {
     return null;
   }
+
+  const receiptHref = appendSessionParam(
+    `/protected/receipts/family/${state.familyPaymentId}`,
+    sessionLabel,
+  );
 
   return (
     <div className="rounded-lg border border-success/30 bg-success-soft p-4 text-sm text-success-soft-foreground">
@@ -23,7 +30,7 @@ export function FamilySuccessSheet({ state }: FamilySuccessSheetProps) {
         ))}
       </div>
       <Button asChild className="mt-3" size="sm">
-        <Link href={`/protected/receipts/family/${state.familyPaymentId}`}>Print Family Statement</Link>
+        <Link href={receiptHref}>Print Family Statement</Link>
       </Button>
     </div>
   );

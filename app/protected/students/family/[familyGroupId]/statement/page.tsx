@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/admin/page-header";
 import { FamilyStatementDocument } from "@/components/students/family-statement-document";
 import { MasterStatementPrintActions } from "@/components/students/master-statement-print-actions";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 import { getFamilyWorkspaceData } from "@/lib/students/workspace";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
@@ -24,6 +25,8 @@ export default async function FamilyStatementPage({
   }
 
   const primaryStudent = workspace.students[0].student;
+  const sessionLabel = workspace.familyGroup.academic_session_label;
+  const backHref = appendSessionParam(`/protected/students/${primaryStudent.id}`, sessionLabel);
 
   return (
     <div className="space-y-6">
@@ -31,7 +34,7 @@ export default async function FamilyStatementPage({
         eyebrow="Students / Families"
         title={`Family Statement: Group ${workspace.familyGroup.name}`}
         description="Printable consolidated master statement for all siblings in the family group."
-        actions={<MasterStatementPrintActions backHref={`/protected/students/${primaryStudent.id}`} />}
+        actions={<MasterStatementPrintActions backHref={backHref} />}
         className="no-print"
       />
 

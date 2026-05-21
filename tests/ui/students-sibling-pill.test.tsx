@@ -69,11 +69,12 @@ describe("students sibling pill", () => {
         hasFilters={false}
         canWrite={true}
         returnTo="/protected/students"
+        session="TEST-2026-27"
       />,
     );
 
     expect(html).toContain("+2 sibling");
-    expect(html).toContain("/protected/students/families?group=family-1");
+    expect(html).toContain("/protected/students/families?group=family-1&amp;session=TEST-2026-27");
   });
 
   it("does not render a sibling pill when the student has no group", () => {
