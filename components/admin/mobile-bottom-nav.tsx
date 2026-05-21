@@ -28,8 +28,8 @@ export function MobileBottomNav({ staffRole }: MobileBottomNavProps) {
       aria-label="Primary navigation"
       className={cn(
         "fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur",
-        "px-2 pb-1 pt-1.5 mobile-safe-bottom-padding",
-        "print:hidden md:hidden landscape:py-1",
+        "min-h-[var(--mobile-bottom-nav-height)] px-2 pb-1 pt-1.5 mobile-safe-bottom-padding",
+        "print:hidden md:hidden landscape:min-h-12 landscape:py-1",
       )}
     >
       <div

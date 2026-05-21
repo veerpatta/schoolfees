@@ -1187,6 +1187,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
       {/* Hero strip */}
       <div className="space-y-4 anim-fade-in">
+        <div className="sticky top-14 z-20 -mx-4 bg-background/95 px-4 py-2 backdrop-blur md:static md:mx-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-none">
+          <QuickActions
+            canWriteStudents={canWriteStudents}
+            canPostPayments={canPostPayments}
+            sessionLabel={viewSession.sessionLabel}
+          />
+        </div>
         <HeroKpis
           collected={aboveFold.kpis.todaysCollection}
           pending={aboveFold.kpis.totalPending}
@@ -1201,13 +1208,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           followUpCount={aboveFold.studentsWithPending}
         />
         <CriticalAlerts syncError={aboveFold.syncError} appRole={staff.appRole} />
-        <div className="anim-fade-in [animation-delay:60ms]">
-          <QuickActions
-            canWriteStudents={canWriteStudents}
-            canPostPayments={canPostPayments}
-            sessionLabel={viewSession.sessionLabel}
-          />
-        </div>
       </div>
 
       {/* Today + secondary KPIs */}

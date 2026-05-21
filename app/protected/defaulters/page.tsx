@@ -157,7 +157,7 @@ export default async function DefaultersPage({
       </SectionCard>
 
       <section className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 snap-x no-scrollbar md:mx-0 md:px-0 md:grid md:grid-cols-2 md:overflow-visible xl:grid-cols-5">
-        <div className="rounded-lg border border-border bg-card p-4 shrink-0 w-[72vw] snap-start md:w-auto">
+        <div className="rounded-lg border border-border bg-card p-4 shrink-0 w-[70vw] snap-start md:w-auto">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Students listed
           </p>
@@ -169,7 +169,7 @@ export default async function DefaultersPage({
           </p>
         </div>
 
-        <div className="rounded-lg border border-border bg-card p-4 shrink-0 w-[72vw] snap-start md:w-auto">
+        <div className="rounded-lg border border-border bg-card p-4 shrink-0 w-[70vw] snap-start md:w-auto">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Pending amount
           </p>
@@ -181,7 +181,7 @@ export default async function DefaultersPage({
           </p>
         </div>
 
-        <div className="rounded-lg border border-border bg-card p-4 shrink-0 w-[72vw] snap-start md:w-auto">
+        <div className="rounded-lg border border-border bg-card p-4 shrink-0 w-[70vw] snap-start md:w-auto">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Overdue installments
           </p>
@@ -193,7 +193,7 @@ export default async function DefaultersPage({
           </p>
         </div>
 
-        <div className="rounded-lg border border-border bg-card p-4 shrink-0 w-[72vw] snap-start md:w-auto">
+        <div className="rounded-lg border border-border bg-card p-4 shrink-0 w-[70vw] snap-start md:w-auto">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Open installments
           </p>
@@ -205,7 +205,7 @@ export default async function DefaultersPage({
           </p>
         </div>
 
-        <div className="rounded-lg border bg-warning-soft p-4 shrink-0 w-[72vw] snap-start md:w-auto">
+        <div className="rounded-lg border bg-warning-soft p-4 shrink-0 w-[70vw] snap-start md:w-auto">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-warning-soft-foreground">
             Dues not prepared
           </p>

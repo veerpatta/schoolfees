@@ -1587,7 +1587,7 @@ export function PaymentDeskClient({
                     id={mobileStudentListId}
                     role="listbox"
                     ref={mobileStudentListRef}
-                    className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-xl border border-border bg-card shadow-lg scroll-smooth"
+                    className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-xl border border-border bg-card shadow-lg scroll-smooth momentum-scroll"
                     style={{ height: `${studentComboboxPanelHeight}px` }}
                     onScroll={(event) => setStudentListScrollTop(event.currentTarget.scrollTop)}
                   >
@@ -2861,7 +2861,7 @@ export function PaymentDeskClient({
                           className={cn(
                             "flex flex-col items-center gap-1.5 rounded-xl border py-3 transition-all",
                             paymentMode === value
-                              ? "border-accent bg-accent/8 text-accent animate-pulse-soft"
+                              ? "border-accent bg-accent/8 text-accent"
                               : "border-border bg-surface-2 text-muted-foreground hover:bg-surface-3"
                           )}
                         >

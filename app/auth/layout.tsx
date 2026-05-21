@@ -12,7 +12,7 @@ export default function AuthLayout({
         <div className="mb-6 text-center flex flex-col items-center">
           <SchoolBrand variant="icon" className="mx-auto [&>div]:size-14" priority />
           <h1 className="mt-3 text-xl font-display font-semibold text-foreground">
-            {process.env[["NEXT", "PUBLIC", "SCHOOL", "NAME"].join("_")] || "Shri Veer Patta Senior Secondary School"}
+            {process.env.NEXT_PUBLIC_SCHOOL_NAME || "Shri Veer Patta Senior Secondary School"}
           </h1>
           <p className="mt-1 text-sm font-medium text-muted-foreground">
             Fee Management System
