@@ -1,4 +1,5 @@
 import { SchoolBrand } from "@/components/branding/school-brand";
+import { schoolProfile } from "@/lib/config/school";
 
 export default function AuthLayout({
   children,
@@ -9,10 +10,11 @@ export default function AuthLayout({
     <main className="flex min-h-screen flex-col items-center justify-center bg-background p-4 text-foreground">
       <section className="w-full max-w-sm">
         {/* School brand at top */}
+        {/* Shri Veer Patta Senior Secondary School */}
         <div className="mb-6 text-center flex flex-col items-center">
           <SchoolBrand variant="icon" className="mx-auto [&>div]:size-14" priority />
           <h1 className="mt-3 text-xl font-display font-semibold text-foreground">
-            {process.env.NEXT_PUBLIC_SCHOOL_NAME || "Shri Veer Patta Senior Secondary School"}
+            {schoolProfile.name}
           </h1>
           <p className="mt-1 text-sm font-medium text-muted-foreground">
             Fee Management System

@@ -46,12 +46,12 @@ describe("read-only UX audit implementation", () => {
   });
 
   it("read-only finance filters no longer need manual apply buttons", () => {
-    const transactions = readRepoFile("app/protected/transactions/page.tsx");
+    const transactions = readRepoFile("components/transactions/transactions-client-shell.tsx");
     const reports = readRepoFile("app/protected/reports/page.tsx");
     const defaulters = readRepoFile("components/defaulters/defaulter-filters.tsx");
     const receipts = readRepoFile("app/protected/receipts/page.tsx");
 
-    expect(transactions).toContain("AutoSubmitForm");
+    expect(transactions).toContain("handleFilterChange");
     expect(transactions).not.toContain("Apply filters");
     expect(transactions).toContain("Academic year");
     expect(reports).toContain("AutoSubmitForm");
@@ -159,7 +159,7 @@ describe("read-only UX audit implementation", () => {
 
   it("daily tables expose compact default columns", () => {
     const studentsTable = readRepoFile("components/students/student-list-table.tsx");
-    const transactions = readRepoFile("app/protected/transactions/page.tsx");
+    const transactions = readRepoFile("components/transactions/transactions-client-shell.tsx");
     const defaulters = readRepoFile("app/protected/defaulters/page.tsx");
     const dashboard = readRepoFile("app/protected/dashboard/page.tsx");
 

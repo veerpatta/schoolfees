@@ -282,7 +282,7 @@ function InstallmentTrackerTable({ rows, sessionLabel }: { rows: OfficeWorkbookS
         ) : (
           <div className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
             {rows.map((row) => (
-              <Link key={row.studentId} href={withSession(`/protected/students/${row.studentId}`)}
+              <Link key={`tracker-mobile-${row.studentId}`} href={withSession(`/protected/students/${row.studentId}`)}
                 className="flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-surface-2/40 transition-colors block">
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-foreground truncate">{row.studentName}</p>
