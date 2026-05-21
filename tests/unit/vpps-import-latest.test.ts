@@ -1,5 +1,72 @@
-import { describe, it, expect } from "vitest";
-import * as importer from "../../scripts/_archive/2026-05-import/vpps-import-latest-2026-05-15.mjs";
+import { execFileSync } from "node:child_process";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+
+import { describe, expect, it } from "vitest";
+
+type ImporterModule = {
+  normalizeClass(value: string): string | null;
+  normalizeTransportRoute(value: string): { isNoTransport: boolean; routeName: string | null };
+  normalizePaymentMode(value: string): { mode: string | null; requiresReview: boolean };
+  parseDate(value: string): string | null;
+  studentSourceKey(row: Record<string, unknown>): string;
+  paymentSourceKey(row: Record<string, unknown>): string;
+  validateWorkbookCounts(sheets: Record<string, unknown[]>): {
+    mismatches: Array<{ key: string; expected: number; detected: number }>;
+  };
+};
+
+const importerModuleUrl = pathToFileURL(
+  join(process.cwd(), "scripts/_archive/2026-05-import/vpps-import-latest-2026-05-15.mjs"),
+).href;
+
+function callImporter<T>(prop: string, ...args: unknown[]): T {
+  const script = `
+const payload = JSON.parse(process.env.VPPS_IMPORT_TEST_CALL ?? "{}");
+const moduleUrl = process.env.VPPS_IMPORT_TEST_MODULE_URL;
+const importer = await import(moduleUrl);
+const target = importer[payload.prop];
+const value = typeof target === "function" ? target(...payload.args) : target;
+process.stdout.write(JSON.stringify(value));
+`;
+  const output = execFileSync(process.execPath, ["--input-type=module", "-e", script], {
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      VPPS_IMPORT_TEST_CALL: JSON.stringify({ prop, args }),
+      VPPS_IMPORT_TEST_MODULE_URL: importerModuleUrl,
+    },
+  });
+
+  return JSON.parse(output) as T;
+}
+
+const importer: ImporterModule & {
+  PRODUCTION_SESSION_LABEL: string;
+  TEST_SESSION_FINAL_LABEL: string;
+  TEST_SESSION_ALIASES_TO_RENAME: string[];
+  EXPECTED_COUNTS: Record<string, number>;
+} = {
+  normalizeClass: (value) => callImporter("normalizeClass", value),
+  normalizeTransportRoute: (value) => callImporter("normalizeTransportRoute", value),
+  normalizePaymentMode: (value) => callImporter("normalizePaymentMode", value),
+  parseDate: (value) => callImporter("parseDate", value),
+  studentSourceKey: (row) => callImporter("studentSourceKey", row),
+  paymentSourceKey: (row) => callImporter("paymentSourceKey", row),
+  validateWorkbookCounts: (sheets) => callImporter("validateWorkbookCounts", sheets),
+  get PRODUCTION_SESSION_LABEL() {
+    return callImporter<string>("PRODUCTION_SESSION_LABEL");
+  },
+  get TEST_SESSION_FINAL_LABEL() {
+    return callImporter<string>("TEST_SESSION_FINAL_LABEL");
+  },
+  get TEST_SESSION_ALIASES_TO_RENAME() {
+    return callImporter<string[]>("TEST_SESSION_ALIASES_TO_RENAME");
+  },
+  get EXPECTED_COUNTS() {
+    return callImporter<Record<string, number>>("EXPECTED_COUNTS");
+  },
+};
 
 describe("vpps-import-latest-2026-05-15 helpers", () => {
   describe("normalizeClass", () => {

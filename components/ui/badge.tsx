@@ -30,6 +30,8 @@ const badgeVariants = cva(
           "bg-destructive text-destructive-foreground",
         info:
           "bg-info-soft text-info-soft-foreground",
+        soft:
+          "bg-accent-soft text-accent-soft-foreground",
       },
     },
     defaultVariants: {
@@ -90,6 +92,8 @@ function variantToDotTone(variant: BadgeProps["variant"]): DotTone {
       return "danger";
     case "info":
       return "info";
+    case "soft":
+      return "accent";
     default:
       return "neutral";
   }

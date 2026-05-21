@@ -95,6 +95,10 @@ type StudentFinancialStateRow = {
   installment_pending_amount: number | null;
 };
 
+type ConfirmedFamilyMembershipRow = {
+  family_group_id: string;
+};
+
 type PaymentDeskReceiptRow = {
   id: string;
   receipt_number: string;
@@ -617,6 +621,32 @@ async function getStudentFinancialState(studentId: string) {
   } catch {
     return null;
   }
+}
+
+async function getConfirmedFamilyMembership(studentId: string, sessionLabel: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("student_family_members")
+    .select("family_group_id")
+    .eq("student_id", studentId)
+    .eq("academic_session_label", sessionLabel)
+    .maybeSingle();
+
+  if (error || !data?.family_group_id) {
+    return { familyGroupId: null, siblingCount: 0 };
+  }
+
+  const familyGroupId = (data as ConfirmedFamilyMembershipRow).family_group_id;
+  const { count } = await supabase
+    .from("student_family_members")
+    .select("id", { count: "exact", head: true })
+    .eq("family_group_id", familyGroupId)
+    .eq("academic_session_label", sessionLabel);
+
+  return {
+    familyGroupId,
+    siblingCount: Math.max((count ?? 1) - 1, 0),
+  };
 }
 
 function mapPaymentDeskReceipt(row: PaymentDeskReceiptRow) {
@@ -1151,7 +1181,7 @@ export async function getPaymentDeskStudentSummary(payload: {
 
   if (selectedFinancial) {
     let previewReadError: unknown = null;
-    let [breakdown, financialState] = await Promise.all([
+    let [breakdown, financialState, familyMembership] = await Promise.all([
       shouldIncludeBreakdown
         ? getPaymentDateAwareInstallmentBalances({
             studentId: selectedFinancial.studentId,
@@ -1162,6 +1192,7 @@ export async function getPaymentDeskStudentSummary(payload: {
           })
         : Promise.resolve([] as InstallmentBalanceItem[]),
       getStudentFinancialState(selectedFinancial.studentId),
+      getConfirmedFamilyMembership(selectedFinancial.studentId, sessionLabel),
     ]);
 
     const shouldRepairEmptyBreakdown =
@@ -1183,6 +1214,7 @@ export async function getPaymentDeskStudentSummary(payload: {
             paymentDate: payload.paymentDate,
           });
           financialState = await getStudentFinancialState(selectedFinancial.studentId);
+          familyMembership = await getConfirmedFamilyMembership(selectedFinancial.studentId, sessionLabel);
           previewReadError = null;
         } catch (error) {
           previewReadError = error;
@@ -1223,7 +1255,11 @@ export async function getPaymentDeskStudentSummary(payload: {
       };
     }
 
-    const selectedStudent = summarizeStudent(selectedFinancial, breakdown, financialState);
+    const selectedStudent = {
+      ...summarizeStudent(selectedFinancial, breakdown, financialState),
+      confirmedFamilyGroupId: familyMembership.familyGroupId,
+      confirmedSiblingCount: familyMembership.siblingCount,
+    };
 
     return {
       student: selectedStudent,

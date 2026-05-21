@@ -38,6 +38,8 @@ export type DefaulterSummaryRow = {
   daysOverdue: number;
   defaulterScore: number;
   rank: number;
+  familyGroupId?: string | null;
+  familyVisibleSiblingCount?: number;
 };
 
 export type MissingDuesWarningRow = {

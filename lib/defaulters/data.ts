@@ -49,6 +49,11 @@ type BaseDefaulterStudentRow = {
     | null;
 };
 
+type FamilyMemberRow = {
+  student_id: string;
+  family_group_id: string;
+};
+
 function toSingleRecord<T>(value: T | T[] | null) {
   return Array.isArray(value) ? value[0] ?? null : value;
 }
@@ -167,6 +172,36 @@ async function getActiveSessionStudents(filters: DefaulterFilters, sessionLabel:
   )();
 }
 
+async function loadDefaulterFamilyMembers(studentIds: string[], sessionLabel: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("student_family_members")
+    .select("student_id, family_group_id")
+    .in("student_id", studentIds)
+    .eq("academic_session_label", sessionLabel);
+
+  if (error || !data) {
+    return new Map<string, { familyGroupId: string; visibleSiblingCount: number }>();
+  }
+
+  const rows = data as FamilyMemberRow[];
+  const visibleByFamily = new Map<string, number>();
+
+  rows.forEach((row) => {
+    visibleByFamily.set(row.family_group_id, (visibleByFamily.get(row.family_group_id) ?? 0) + 1);
+  });
+
+  return new Map(
+    rows.map((row) => [
+      row.student_id,
+      {
+        familyGroupId: row.family_group_id,
+        visibleSiblingCount: Math.max((visibleByFamily.get(row.family_group_id) ?? 1) - 1, 0),
+      },
+    ]),
+  );
+}
+
 export async function getDefaultersPageData(
   filters: DefaulterFilters,
   sessionLabel?: string,
@@ -263,6 +298,23 @@ export async function getDefaultersPageData(
     })
     .map((row, index) => ({ ...row, rank: index + 1 }));
 
+  const familyMembership =
+    rows.length > 0
+      ? await loadDefaulterFamilyMembers(
+          rows.map((row) => row.studentId),
+          resolvedSessionLabel,
+        )
+      : new Map<string, { familyGroupId: string; visibleSiblingCount: number }>();
+  const rowsWithFamilies = rows.map((row) => {
+    const family = familyMembership.get(row.studentId);
+
+    return {
+      ...row,
+      familyGroupId: family?.familyGroupId ?? null,
+      familyVisibleSiblingCount: family?.visibleSiblingCount ?? 0,
+    };
+  });
+
   const generatedStudentIds = new Set(financialRows.map((row) => row.studentId));
   const missingDuesRows = activeStudents.filter(
     (row) => !generatedStudentIds.has(row.studentId),
@@ -270,7 +322,7 @@ export async function getDefaultersPageData(
 
   const routeSummaryMap = new Map<string, RouteOutstandingSummaryRow>();
 
-  rows.forEach((row) => {
+  rowsWithFamilies.forEach((row) => {
     const routeKey = row.transportRouteId ?? `label::${row.transportRouteLabel}`;
     const existing = routeSummaryMap.get(routeKey);
 
@@ -306,7 +358,7 @@ export async function getDefaultersPageData(
     return left.routeLabel.localeCompare(right.routeLabel);
   });
 
-  const metrics = rows.reduce(
+  const metrics = rowsWithFamilies.reduce(
     (acc, row) => {
       acc.totalStudents += 1;
       acc.totalPending += row.totalPending;
@@ -327,7 +379,7 @@ export async function getDefaultersPageData(
     classOptions,
     routeOptions,
     metrics,
-    rows,
+    rows: rowsWithFamilies,
     missingDuesRows,
     routeSummaryRows,
   };

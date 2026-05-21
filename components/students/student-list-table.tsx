@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
 import type { StudentListItem } from "@/lib/students/types";
@@ -41,6 +42,26 @@ function DuesChip({ student }: { student: StudentListItem }) {
     <span className="inline-flex items-center rounded-full border bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning-soft-foreground">
       {formatInr(student.outstandingAmount)} due
     </span>
+  );
+}
+
+function SiblingPill({ student }: { student: StudentListItem }) {
+  if (!student.siblingPill || student.siblingPill.siblingCount < 1) {
+    return null;
+  }
+
+  return (
+    <Link
+      href={student.siblingPill.href}
+      onClick={(event) => {
+        event.stopPropagation();
+      }}
+    >
+      <Badge variant="soft">
+        +{student.siblingPill.siblingCount} sibling
+        {student.siblingPill.siblingCount === 1 ? "" : "s"}
+      </Badge>
+    </Link>
   );
 }
 
@@ -86,6 +107,7 @@ export function StudentListTable({
                         SR no missing
                       </span>
                     ) : null}
+                    <SiblingPill student={student} />
                   </div>
                   <p className="text-xs text-muted-foreground">SR no {student.admissionNo}</p>
                 </div>
@@ -154,6 +176,7 @@ export function StudentListTable({
                       SR no missing
                     </span>
                   ) : null}
+                  <SiblingPill student={student} />
                 </div>
                 {student.conventionalDiscountLabels.length > 0 ? (
                   <div className="mt-1 flex flex-wrap gap-1">

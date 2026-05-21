@@ -19,6 +19,8 @@ import type {
   StudentListItem,
   StudentRouteOption,
   StudentSessionOption,
+  StudentSiblingPill,
+  SiblingGroupSummary,
   StudentDeletionSafety,
   StudentValidatedInput,
 } from "@/lib/students/types";
@@ -102,6 +104,37 @@ type StudentWorkbookFinancialRow = {
   missing_status_flag?: boolean | null;
 };
 
+type SiblingGroupViewRow = {
+  group_key: string;
+  session_label: string;
+  student_ids: string[] | null;
+  student_count: number;
+  phone_match: string[] | null;
+  father_name_match: boolean | null;
+  confidence: "confirmed" | "suspected";
+  existing_family_group_id: string | null;
+};
+
+type SiblingGroupStudentRow = {
+  id: string;
+  admission_no: string;
+  full_name: string;
+  class_ref: StudentJoinClass | StudentJoinClass[] | null;
+};
+
+type StudentFamilyGroupRow = {
+  id: string;
+  academic_session_label: string;
+  family_label: string;
+  guardian_phone: string | null;
+};
+
+type StudentFamilyMemberRow = {
+  family_group_id: string;
+  student_id: string;
+  academic_session_label: string;
+};
+
 type StudentFeeOverrideRow = {
   id: string;
   custom_tuition_fee_amount: number | null;
@@ -162,6 +195,315 @@ function isRecoverableWorkbookLoadError(error: { message?: string } | null | und
     message.includes("permission denied for schema private") ||
     message.includes("permission denied")
   );
+}
+
+function isRecoverableSiblingGroupLoadError(error: { message?: string } | null | undefined) {
+  if (!error?.message) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return message.includes("v_student_sibling_groups") || isRecoverableWorkbookLoadError(error);
+}
+
+function buildSiblingPill(group: SiblingGroupViewRow, studentId: string): StudentSiblingPill | null {
+  const studentIds = group.student_ids ?? [];
+  const siblingCount = Math.max(0, studentIds.filter((id) => id !== studentId).length);
+
+  if (siblingCount < 1) {
+    return null;
+  }
+
+  const href = group.existing_family_group_id
+    ? `/protected/students/families?group=${encodeURIComponent(group.existing_family_group_id)}`
+    : `/protected/students/families?suspect=${encodeURIComponent(group.group_key)}`;
+
+  return {
+    siblingCount,
+    href,
+    confidence: group.confidence,
+  };
+}
+
+async function getStudentSiblingPills(
+  studentIds: readonly string[],
+  sessionLabel?: string | null,
+) {
+  if (studentIds.length === 0) {
+    return new Map<string, StudentSiblingPill>();
+  }
+
+  const supabase = await createClient();
+  let query = supabase
+    .from("v_student_sibling_groups")
+    .select(
+      "group_key, session_label, student_ids, student_count, phone_match, father_name_match, confidence, existing_family_group_id",
+    )
+    .overlaps("student_ids", studentIds);
+
+  if (sessionLabel) {
+    query = query.eq("session_label", sessionLabel);
+  }
+
+  const [
+    { data, error },
+    { data: matchingMembersRaw, error: matchingMembersError },
+  ] = await Promise.all([
+    query,
+    (() => {
+      let memberQuery = supabase
+        .from("student_family_members")
+        .select("family_group_id, student_id, academic_session_label")
+        .in("student_id", studentIds);
+
+      if (sessionLabel) {
+        memberQuery = memberQuery.eq("academic_session_label", sessionLabel);
+      }
+
+      return memberQuery;
+    })(),
+  ]);
+
+  if (error) {
+    if (isRecoverableSiblingGroupLoadError(error)) {
+      console.warn("Sibling group fields could not be loaded; falling back to base student data.", error.message);
+      return new Map<string, StudentSiblingPill>();
+    }
+
+    throw new Error(`Unable to load sibling group fields: ${error.message}`);
+  }
+
+  const groups = ((data ?? []) as SiblingGroupViewRow[]).filter((group) => group.student_count >= 2);
+  const map = new Map<string, StudentSiblingPill>();
+
+  if (matchingMembersError) {
+    if (!isRecoverableSiblingGroupLoadError(matchingMembersError)) {
+      throw new Error(`Unable to load confirmed sibling fields: ${matchingMembersError.message}`);
+    }
+  } else {
+    const matchingMembers = (matchingMembersRaw ?? []) as StudentFamilyMemberRow[];
+    const familyGroupIds = [...new Set(matchingMembers.map((row) => row.family_group_id))];
+
+    if (familyGroupIds.length > 0) {
+      const { data: familyMembersRaw, error: familyMembersError } = await supabase
+        .from("student_family_members")
+        .select("family_group_id, student_id, academic_session_label")
+        .in("family_group_id", familyGroupIds);
+
+      if (familyMembersError && !isRecoverableSiblingGroupLoadError(familyMembersError)) {
+        throw new Error(`Unable to load confirmed family members: ${familyMembersError.message}`);
+      }
+
+      const membersByFamily = new Map<string, StudentFamilyMemberRow[]>();
+      ((familyMembersRaw ?? []) as StudentFamilyMemberRow[]).forEach((row) => {
+        membersByFamily.set(row.family_group_id, [...(membersByFamily.get(row.family_group_id) ?? []), row]);
+      });
+
+      membersByFamily.forEach((members, familyGroupId) => {
+        if (members.length < 2) {
+          return;
+        }
+
+        members.forEach((member) => {
+          if (!studentIds.includes(member.student_id)) {
+            return;
+          }
+
+          map.set(member.student_id, {
+            siblingCount: members.filter((row) => row.student_id !== member.student_id).length,
+            href: `/protected/students/families?group=${encodeURIComponent(familyGroupId)}`,
+            confidence: "confirmed",
+          });
+        });
+      });
+    }
+  }
+
+  groups.forEach((group) => {
+    (group.student_ids ?? []).forEach((studentId) => {
+      if (!studentIds.includes(studentId) || map.has(studentId)) {
+        return;
+      }
+
+      const pill = buildSiblingPill(group, studentId);
+
+      if (pill) {
+        map.set(studentId, pill);
+      }
+    });
+  });
+
+  return map;
+}
+
+/** Loads detected sibling groups with child rows and pending totals for the Students family workspace. */
+export async function getSiblingGroups(sessionLabel?: string | null): Promise<SiblingGroupSummary[]> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("v_student_sibling_groups")
+    .select(
+      "group_key, session_label, student_ids, student_count, phone_match, father_name_match, confidence, existing_family_group_id",
+    )
+    .order("confidence", { ascending: true })
+    .order("student_count", { ascending: false });
+
+  if (sessionLabel) {
+    query = query.eq("session_label", sessionLabel);
+  }
+
+  const [
+    { data, error },
+    { data: familyGroupsRaw, error: familyGroupsError },
+  ] = await Promise.all([
+    query,
+    (() => {
+      let familyQuery = supabase
+        .from("student_family_groups")
+        .select("id, academic_session_label, family_label, guardian_phone")
+        .order("family_label", { ascending: true });
+
+      if (sessionLabel) {
+        familyQuery = familyQuery.eq("academic_session_label", sessionLabel);
+      }
+
+      return familyQuery;
+    })(),
+  ]);
+
+  if (error) {
+    throw new Error(`Unable to load sibling groups: ${error.message}`);
+  }
+
+  if (familyGroupsError) {
+    throw new Error(`Unable to load confirmed family groups: ${familyGroupsError.message}`);
+  }
+
+  const groups = ((data ?? []) as SiblingGroupViewRow[]).filter((group) => group.student_count >= 2);
+  const familyGroups = (familyGroupsRaw ?? []) as StudentFamilyGroupRow[];
+  let confirmedFamilyMembers: StudentFamilyMemberRow[] = [];
+
+  if (familyGroups.length > 0) {
+    const { data: membersRaw, error: membersError } = await supabase
+      .from("student_family_members")
+      .select("family_group_id, student_id, academic_session_label")
+      .in("family_group_id", familyGroups.map((group) => group.id));
+
+    if (membersError) {
+      throw new Error(`Unable to load confirmed family members: ${membersError.message}`);
+    }
+
+    confirmedFamilyMembers = (membersRaw ?? []) as StudentFamilyMemberRow[];
+  }
+
+  const detectedFamilyIds = new Set(
+    groups.flatMap((group) => (group.existing_family_group_id ? [group.existing_family_group_id] : [])),
+  );
+  const membersByFamily = new Map<string, StudentFamilyMemberRow[]>();
+  confirmedFamilyMembers.forEach((member) => {
+    membersByFamily.set(member.family_group_id, [...(membersByFamily.get(member.family_group_id) ?? []), member]);
+  });
+  const persistedOnlyGroups: SiblingGroupViewRow[] = familyGroups.flatMap((group) => {
+    if (detectedFamilyIds.has(group.id)) {
+      return [];
+    }
+
+    const members = membersByFamily.get(group.id) ?? [];
+    const memberIds = members.map((member) => member.student_id).sort();
+
+    if (memberIds.length < 2) {
+      return [];
+    }
+
+    return [
+      {
+        group_key: group.id,
+        session_label: group.academic_session_label,
+        student_ids: memberIds,
+        student_count: memberIds.length,
+        phone_match: group.guardian_phone ? [group.guardian_phone] : [],
+        father_name_match: false,
+        confidence: "confirmed",
+        existing_family_group_id: group.id,
+      } satisfies SiblingGroupViewRow,
+    ];
+  });
+  const allGroups = [...groups, ...persistedOnlyGroups];
+  const allStudentIds = [...new Set(allGroups.flatMap((group) => group.student_ids ?? []))];
+
+  if (allGroups.length === 0 || allStudentIds.length === 0) {
+    return [];
+  }
+
+  const [studentsResult, financialsResult] = await Promise.all([
+    supabase
+      .from("students")
+      .select(
+        "id, admission_no, full_name, class_ref:classes(id, session_label, status, class_name, section, stream_name)",
+      )
+      .in("id", allStudentIds),
+    supabase
+      .from("v_workbook_student_financials")
+      .select("student_id, outstanding_amount")
+      .in("student_id", allStudentIds),
+  ]);
+
+  if (studentsResult.error) {
+    throw new Error(`Unable to load sibling students: ${studentsResult.error.message}`);
+  }
+
+  if (financialsResult.error && !isRecoverableWorkbookLoadError(financialsResult.error)) {
+    throw new Error(`Unable to load sibling pending totals: ${financialsResult.error.message}`);
+  }
+
+  const studentMap = new Map(
+    ((studentsResult.data ?? []) as SiblingGroupStudentRow[]).map((row) => [row.id, row]),
+  );
+  const outstandingMap = new Map(
+    ((financialsResult.data ?? []) as Array<{ student_id: string; outstanding_amount: number | null }>).map(
+      (row) => [row.student_id, row.outstanding_amount ?? 0],
+    ),
+  );
+
+  return allGroups.map((group) => {
+    const studentIds = group.student_ids ?? [];
+    const students = studentIds.flatMap((studentId) => {
+      const row = studentMap.get(studentId);
+
+      if (!row) {
+        return [];
+      }
+
+      const classRef = toSingleRecord(row.class_ref);
+
+      return [
+        {
+          studentId: row.id,
+          admissionNo: row.admission_no,
+          fullName: row.full_name,
+          classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
+          outstandingAmount: outstandingMap.get(row.id) ?? 0,
+        },
+      ];
+    });
+
+    return {
+      groupKey: group.group_key,
+      sessionLabel: group.session_label,
+      studentIds,
+      studentCount: group.student_count,
+      phoneMatch: group.phone_match ?? [],
+      fatherNameMatch: Boolean(group.father_name_match),
+      confidence: group.confidence,
+      existingFamilyGroupId: group.existing_family_group_id,
+      guardianPhone: group.phone_match?.[0] ?? null,
+      pendingTotal: students.reduce((total, student) => total + student.outstandingAmount, 0),
+      students,
+    } satisfies SiblingGroupSummary;
+  });
+}
+
+export async function getStudentSiblingPill(studentId: string) {
+  return (await getStudentSiblingPills([studentId])).get(studentId) ?? null;
 }
 
 export function getClassOptionsForSession(
@@ -451,6 +793,7 @@ async function getStudentsPageUncached(
   let financialMap = new Map<string, StudentWorkbookFinancialRow>();
   let overrideMap = new Map<string, StudentFeeOverrideRow>();
   let conventionalDiscountMap = new Map<string, string[]>();
+  let siblingPillMap = new Map<string, StudentSiblingPill>();
 
   if (studentRows.length > 0) {
     const studentIds = studentRows.map((row) => row.id);
@@ -458,6 +801,7 @@ async function getStudentsPageUncached(
       { data: financialsRaw, error: financialsError },
       { data: overridesRaw, error: overridesError },
       conventionalAssignments,
+      loadedSiblingPills,
     ] = await Promise.all([
       supabase
         .from("v_workbook_student_financials")
@@ -476,6 +820,13 @@ async function getStudentsPageUncached(
         academicSessionLabel: listSessionLabel,
         studentIds,
       }).catch(() => []),
+      getStudentSiblingPills(studentIds, listSessionLabel).catch((error) => {
+        if (isRecoverableSiblingGroupLoadError(error)) {
+          return new Map<string, StudentSiblingPill>();
+        }
+
+        throw error;
+      }),
     ]);
 
     if (financialsError) {
@@ -517,6 +868,7 @@ async function getStudentsPageUncached(
       labels.push(assignment.policy.displayName);
       conventionalDiscountMap.set(assignment.studentId, labels);
     });
+    siblingPillMap = loadedSiblingPills;
   }
 
   const students = studentRows.map((row) => {
@@ -600,6 +952,7 @@ async function getStudentsPageUncached(
       missingStatusFlag: Boolean(financial?.missing_status_flag),
       outstandingAmount: financial?.outstanding_amount ?? 0,
       conventionalDiscountLabels: conventionalDiscountMap.get(row.id) ?? [],
+      siblingPill: siblingPillMap.get(row.id) ?? null,
       updatedAt: row.updated_at,
     } satisfies StudentListItem;
   });

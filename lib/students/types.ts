@@ -68,7 +68,36 @@ export type StudentListItem = {
   missingStatusFlag: boolean;
   outstandingAmount: number;
   conventionalDiscountLabels: string[];
+  siblingPill?: StudentSiblingPill | null;
   updatedAt: string;
+};
+
+export type StudentSiblingPill = {
+  siblingCount: number;
+  href: string;
+  confidence: "confirmed" | "suspected";
+};
+
+export type SiblingGroupStudentSummary = {
+  studentId: string;
+  admissionNo: string;
+  fullName: string;
+  classLabel: string;
+  outstandingAmount: number;
+};
+
+export type SiblingGroupSummary = {
+  groupKey: string;
+  sessionLabel: string;
+  studentIds: string[];
+  studentCount: number;
+  phoneMatch: string[];
+  fatherNameMatch: boolean;
+  confidence: "confirmed" | "suspected";
+  existingFamilyGroupId: string | null;
+  guardianPhone: string | null;
+  pendingTotal: number;
+  students: SiblingGroupStudentSummary[];
 };
 
 export type StudentDetail = {

@@ -122,6 +122,16 @@ function adjustmentsQuery() {
   };
 }
 
+function conventionalAssignmentsQuery() {
+  return {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    then(resolve: (value: unknown) => void) {
+      return Promise.resolve({ data: [], error: null }).then(resolve);
+    },
+  };
+}
+
 describe("receipt session display", () => {
   it("shows the paid installment session instead of the student's current session", async () => {
     let receiptsCalls = 0;
@@ -134,6 +144,9 @@ describe("receipt session display", () => {
         if (table === "payments") return paymentsQuery();
         if (table === "v_workbook_student_financials") return financialQuery();
         if (table === "receipt_adjustments") return adjustmentsQuery();
+        if (table === "student_conventional_discount_assignments") {
+          return conventionalAssignmentsQuery();
+        }
         throw new Error(`Unexpected table ${table}`);
       }),
     });

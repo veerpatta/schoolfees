@@ -11,12 +11,13 @@ import {
   EMPTY_DEFAULTER_FILTERS,
   type DefaulterFilters as DefaulterFiltersType,
 } from "@/lib/defaulters/types";
+import { familyPaymentsEnabled } from "@/lib/config/feature-flags";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
-import { requireStaffPermission } from "@/lib/supabase/session";
+import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 type DefaultersPageProps = {
   searchParams?: Promise<{
@@ -62,7 +63,7 @@ function normalizeFilters(
 export default async function DefaultersPage({
   searchParams,
 }: DefaultersPageProps) {
-  await requireStaffPermission("defaulters:view", { onDenied: "redirect" });
+  const staff = await requireStaffPermission("defaulters:view", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const filters = normalizeFilters(resolvedSearchParams);
   const viewSession = await resolveViewSession({
@@ -71,6 +72,7 @@ export default async function DefaultersPage({
   });
   const data = await getDefaultersPageData(filters, viewSession.sessionLabel);
   const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
+  const canPayTogether = familyPaymentsEnabled && hasStaffPermission(staff, "payments:write");
 
   return (
     <div className="space-y-6">
@@ -262,6 +264,11 @@ export default async function DefaultersPage({
                   <Button asChild size="sm" variant="outline">
                     <Link href={withSession(`/protected/payments?studentId=${row.studentId}${row.classId ? `&classId=${row.classId}` : ""}`)}>Collect</Link>
                   </Button>
+                  {canPayTogether && row.familyGroupId && (row.familyVisibleSiblingCount ?? 0) > 0 ? (
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={withSession(`/protected/payments/family/${row.familyGroupId}`)}>Pay together</Link>
+                    </Button>
+                  ) : null}
                 </div>
               </div>
             ))
@@ -328,6 +335,14 @@ export default async function DefaultersPage({
                         >
                           Collect
                         </Link>
+                        {canPayTogether && row.familyGroupId && (row.familyVisibleSiblingCount ?? 0) > 0 ? (
+                          <Link
+                            href={withSession(`/protected/payments/family/${row.familyGroupId}`)}
+                            className="text-sm font-semibold text-accent hover:text-accent"
+                          >
+                            Pay together
+                          </Link>
+                        ) : null}
                       </div>
                     </td>
                   </tr>

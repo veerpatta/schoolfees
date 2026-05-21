@@ -30,6 +30,14 @@ export type ReceiptFeeSummaryItem = {
   amount: number;
 };
 
+export type ConventionalDiscountAssignmentSummary = {
+  assignmentId: string;
+  policyCode: string;
+  policyDisplayName: string;
+  beforeTuitionAmount: number;
+  resultingTuitionAmount: number;
+};
+
 export type ReceiptDetail = {
   id: string;
   studentId: string;
@@ -60,4 +68,5 @@ export type ReceiptDetail = {
   lateFeeAmount: number;
   lateFeeWaived: number;
   breakdown: ReceiptBreakdownItem[];
+  conventionalDiscountAssignments: ConventionalDiscountAssignmentSummary[];
 };

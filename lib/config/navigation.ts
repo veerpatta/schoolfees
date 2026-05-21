@@ -125,6 +125,12 @@ const routeMetaItems: Array<
     description: "Today collection, pending dues, students, and follow-up.",
   },
   {
+    match: "/protected/students/families",
+    href: "/protected/students",
+    label: "Families",
+    description: "Confirmed and suspected sibling groups from student records.",
+  },
+  {
     match: "/protected/students",
     href: "/protected/students",
     label: "Students",

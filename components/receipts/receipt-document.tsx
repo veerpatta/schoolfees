@@ -144,6 +144,63 @@ export function BilingualLabel({ english, hindi }: { english: string; hindi: str
   );
 }
 
+function ConventionalDiscountBlock({
+  assignments,
+}: {
+  assignments: ReceiptDetail["conventionalDiscountAssignments"];
+}) {
+  if (assignments.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="rounded-lg border border-accent/25 bg-accent-soft/70 p-4 print-compact">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">
+            Conventional Discount / à¤ªà¤¾à¤°à¤‚à¤ªà¤°à¤¿à¤• à¤›à¥‚à¤Ÿ
+          </h2>
+          <p className="mt-1 text-xs text-accent-soft-foreground">
+            Tuition-only policy applied for this academic session.
+          </p>
+        </div>
+      </div>
+      <div className="mt-3 grid gap-2">
+        {assignments.map((assignment) => {
+          const savings = Math.max(assignment.beforeTuitionAmount - assignment.resultingTuitionAmount, 0);
+
+          return (
+            <div
+              key={assignment.assignmentId}
+              className="grid gap-2 rounded-md border border-accent/20 bg-card/90 px-3 py-2 text-sm sm:grid-cols-[1fr_auto_auto]"
+            >
+              <div>
+                <p className="font-semibold text-foreground">{assignment.policyDisplayName}</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{assignment.policyCode}</p>
+              </div>
+              <div>
+                <BilingualLabel english="Baseline Tuition" hindi="à¤®à¥‚à¤² à¤¶à¤¿à¤•à¥à¤·à¤£ à¤¶à¥à¤²à¥à¤•" />
+                <p className="font-semibold text-muted-foreground line-through">
+                  {formatInr(assignment.beforeTuitionAmount)}
+                </p>
+              </div>
+              <div>
+                <BilingualLabel english="Resulting Tuition" hindi="à¤²à¤¾à¤—à¥‚ à¤¶à¤¿à¤•à¥à¤·à¤£ à¤¶à¥à¤²à¥à¤•" />
+                <p className="font-semibold text-accent-soft-foreground">
+                  {formatInr(assignment.resultingTuitionAmount)}
+                </p>
+                <p className="mt-0.5 text-[10px] text-accent-soft-foreground">
+                  you save {formatInr(savings)} on tuition
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export function ReceiptDocument({ receipt, className, mode = "print" }: ReceiptDocumentProps) {
   const breakdownTotal = receipt.breakdown.reduce((sum, item) => sum + item.amount, 0);
   const isDraft = mode === "draft";
@@ -265,13 +322,18 @@ export function ReceiptDocument({ receipt, className, mode = "print" }: ReceiptD
             <BilingualLabel english="Paid Till Date" hindi="अब तक जमा" />
             <p className="mt-1 text-lg font-semibold text-foreground">{formatInr(receipt.totalPaidToDate)}</p>
           </div>
-          <div className="rounded-lg border bg-success-soft px-3 py-3 print-compact">
+          <div className="rounded-lg border border-accent/30 bg-accent-soft px-3 py-3 print-compact">
             <BilingualLabel english="Paid Today" hindi="आज जमा" />
-            <p className="mt-1 text-xl font-semibold text-success-soft-foreground">{formatInr(receipt.totalAmount)}</p>
+            <p className="mt-1 text-2xl font-semibold text-accent-soft-foreground">{formatInr(receipt.totalAmount)}</p>
           </div>
-           <div className="rounded-lg border bg-warning-soft px-3 py-3 print-compact">
+           <div
+             className={cn(
+               "rounded-lg border px-3 py-3 print-compact",
+               receipt.outstandingAfterReceipt === 0 ? "bg-success-soft" : "bg-warning-soft",
+             )}
+           >
              <BilingualLabel english="Balance Due" hindi="शेष राशि" />
-             <p className="mt-1 text-lg font-semibold text-warning-soft-foreground">{formatInr(receipt.outstandingAfterReceipt)}</p>
+             <p className="mt-1 text-lg font-semibold">{formatInr(receipt.outstandingAfterReceipt)}</p>
              <p className="mt-1 text-[10px] text-warning-soft-foreground">Balance after this receipt / इस रसीद के बाद शेष</p>
              <p className="mt-1 text-[10px] text-warning-soft-foreground">
                Current outstanding now / वर्तमान बकाया: {formatInr(receipt.currentOutstanding)}
@@ -333,6 +395,8 @@ export function ReceiptDocument({ receipt, className, mode = "print" }: ReceiptD
           </div>
         </section>
 
+        <ConventionalDiscountBlock assignments={receipt.conventionalDiscountAssignments} />
+
         <section className="rounded-lg border border-border bg-card/95 p-4 print-compact">
           <div className="mb-2 flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-foreground">Installment Details / किस्त विवरण</h2>
@@ -344,8 +408,8 @@ export function ReceiptDocument({ receipt, className, mode = "print" }: ReceiptD
                 <tr>
                   <th className="px-2 py-2">Installment / किस्त</th>
                   <th className="px-2 py-2">Due Date / देय दिनांक</th>
-                  <th className="px-2 py-2">Note / टिप्पणी</th>
-                  <th className="px-2 py-2 text-right">Paid Today / आज जमा</th>
+                  <th className="px-2 py-2 text-right">Pending Before / पहले बकाया</th>
+                  <th className="px-2 py-2 text-right">Allocated / आज जमा</th>
                 </tr>
               </thead>
               <tbody>
@@ -353,7 +417,7 @@ export function ReceiptDocument({ receipt, className, mode = "print" }: ReceiptD
                   <tr key={item.paymentId} className="border-t border-border">
                     <td className="px-2 py-2 font-medium text-foreground">{item.installmentLabel}</td>
                     <td className="px-2 py-2">{formatDate(item.dueDate)}</td>
-                    <td className="px-2 py-2">{item.notes || "-"}</td>
+                    <td className="px-2 py-2 text-right">{formatInr(item.amount)}</td>
                     <td className="px-2 py-2 text-right font-semibold">{formatInr(item.amount)}</td>
                   </tr>
                 ))}

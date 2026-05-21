@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { buildReceiptAdjustmentTotals } from "@/lib/receipts/amounts";
 import { resolveReceiptSessionLabel } from "@/lib/receipts/session-label";
 import type {
+  ConventionalDiscountAssignmentSummary,
   ReceiptBreakdownItem,
   ReceiptDetail,
   ReceiptFeeSummaryItem,
@@ -107,6 +108,19 @@ type WorkbookFinancialRow = {
 type UserRow = {
   id: string;
   full_name: string;
+};
+
+type ConventionalDiscountPolicyRow = {
+  code: string;
+  display_name: string;
+};
+
+type ConventionalDiscountAssignmentRow = {
+  id: string;
+  academic_session_label: string;
+  before_tuition_amount: number;
+  resulting_tuition_amount: number;
+  policy_ref: ConventionalDiscountPolicyRow | ConventionalDiscountPolicyRow[] | null;
 };
 
 function toSingleRecord<T>(value: T | T[] | null) {
@@ -269,6 +283,7 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     { data: financialRaw, error: financialError },
     { data: studentReceiptsRaw, error: studentReceiptsError },
     { data: receiptAdjustmentsRaw, error: receiptAdjustmentsError },
+    { data: conventionalAssignmentsRaw, error: conventionalAssignmentsError },
   ] = await Promise.all([
     supabase
       .from("payments")
@@ -297,6 +312,13 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
       .from("receipt_adjustments")
       .select("receipt_id, adjustment_type, amount_delta")
       .eq("student_id", receipt.student_id),
+    supabase
+      .from("student_conventional_discount_assignments")
+      .select(
+        "id, academic_session_label, before_tuition_amount, resulting_tuition_amount, policy_ref:conventional_discount_policies(code, display_name)",
+      )
+      .eq("student_id", receipt.student_id)
+      .eq("is_active", true),
   ]);
 
   if (paymentsError) {
@@ -317,6 +339,10 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
 
   if (receiptAdjustmentsError && !receiptAdjustmentsError.message.includes("does not exist")) {
     throw new Error(`Unable to load receipt adjustments: ${receiptAdjustmentsError.message}`);
+  }
+
+  if (conventionalAssignmentsError && !conventionalAssignmentsError.message.includes("does not exist")) {
+    throw new Error(`Unable to load conventional discount receipt context: ${conventionalAssignmentsError.message}`);
   }
 
   const breakdown: ReceiptBreakdownItem[] = ((paymentsRaw ?? []) as ReceiptPaymentRow[])
@@ -365,6 +391,25 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     (financial?.total_due ?? totalPaidToDate) - totalPaidToDate - adjustmentTotals.adjustmentsUpToCurrent,
     0,
   );
+  const sessionLabel = resolveReceiptSessionLabel({
+    paymentSessionLabels: breakdown.map((item) => item.sessionLabel),
+    studentSessionLabel: studentClass?.session_label,
+  });
+  const conventionalDiscountAssignments: ConventionalDiscountAssignmentSummary[] = (
+    (conventionalAssignmentsRaw ?? []) as ConventionalDiscountAssignmentRow[]
+  )
+    .filter((row) => row.academic_session_label === sessionLabel)
+    .map((row) => {
+      const policy = toSingleRecord(row.policy_ref);
+
+      return {
+        assignmentId: row.id,
+        policyCode: policy?.code ?? "unknown",
+        policyDisplayName: policy?.display_name ?? "Conventional discount",
+        beforeTuitionAmount: row.before_tuition_amount,
+        resultingTuitionAmount: row.resulting_tuition_amount,
+      };
+    });
 
   return {
     id: receipt.id,
@@ -383,10 +428,7 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     fatherName: student?.father_name ?? null,
     fatherPhone: student?.primary_phone ?? null,
     classLabel: buildClassLabel(student?.class_ref ?? null),
-    sessionLabel: resolveReceiptSessionLabel({
-      paymentSessionLabels: breakdown.map((item) => item.sessionLabel),
-      studentSessionLabel: studentClass?.session_label,
-    }),
+    sessionLabel,
     transportRouteLabel: buildRouteLabel(student?.route_ref ?? null),
     studentStatusLabel: financial?.student_status_label ?? "Old",
     feeSummary: buildFeeSummary(financial, {
@@ -403,5 +445,6 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     lateFeeAmount: adjustmentTotals.receiptLateFeeAmount,
     lateFeeWaived: adjustmentTotals.receiptLateFeeWaived,
     breakdown,
+    conventionalDiscountAssignments,
   };
 }
