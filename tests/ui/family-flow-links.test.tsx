@@ -1,9 +1,8 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FamilySuccessSheet } from "@/components/payments/family-success-sheet";
-import { StudentFamilyPanel } from "@/components/students/family-panel";
 import type { FamilyPaymentActionState } from "@/lib/payments/types";
 import type { StudentFamilyMemberDetail } from "@/lib/students/data";
 
@@ -11,6 +10,7 @@ const familyGroupId = "11111111-1111-4111-8111-111111111111";
 const selfStudentId = "22222222-2222-4222-8222-222222222222";
 const siblingStudentId = "33333333-3333-4333-8333-333333333333";
 const sessionLabel = "TEST-2026-27";
+const originalFamilyPaymentsFlag = process.env.NEXT_PUBLIC_FAMILY_PAYMENTS_ENABLED;
 
 function member(overrides: Partial<StudentFamilyMemberDetail>): StudentFamilyMemberDetail {
   return {
@@ -30,7 +30,20 @@ function member(overrides: Partial<StudentFamilyMemberDetail>): StudentFamilyMem
 }
 
 describe("family flow links", () => {
-  it("uses real family routes and preserves the active session from the student family panel", () => {
+  afterEach(() => {
+    if (originalFamilyPaymentsFlag === undefined) {
+      delete process.env.NEXT_PUBLIC_FAMILY_PAYMENTS_ENABLED;
+    } else {
+      process.env.NEXT_PUBLIC_FAMILY_PAYMENTS_ENABLED = originalFamilyPaymentsFlag;
+    }
+    vi.resetModules();
+  });
+
+  it("uses real family routes and preserves the active session from the student family panel", async () => {
+    delete process.env.NEXT_PUBLIC_FAMILY_PAYMENTS_ENABLED;
+    vi.resetModules();
+    const { StudentFamilyPanel } = await import("@/components/students/family-panel");
+
     const html = renderToStaticMarkup(
       <StudentFamilyPanel
         studentId={selfStudentId}
@@ -50,7 +63,31 @@ describe("family flow links", () => {
     expect(html).not.toContain("/protected/payments/family?group=");
   });
 
-  it("keeps the session when sending suspected siblings to confirmation", () => {
+  it("does not render Pay Together when family payments are explicitly disabled", async () => {
+    process.env.NEXT_PUBLIC_FAMILY_PAYMENTS_ENABLED = "false";
+    vi.resetModules();
+    const { StudentFamilyPanel } = await import("@/components/students/family-panel");
+
+    const html = renderToStaticMarkup(
+      <StudentFamilyPanel
+        studentId={selfStudentId}
+        familyGroupId={familyGroupId}
+        confidence="confirmed"
+        sessionLabel={sessionLabel}
+        members={[
+          member({ id: selfStudentId, fullName: "TEST Self", isSelf: true }),
+          member({ id: siblingStudentId, fullName: "TEST Sibling" }),
+        ]}
+      />,
+    );
+
+    expect(html).not.toContain("Pay Together");
+    expect(html).not.toContain(`/protected/payments/family/${familyGroupId}`);
+  });
+
+  it("keeps the session when sending suspected siblings to confirmation", async () => {
+    const { StudentFamilyPanel } = await import("@/components/students/family-panel");
+
     const html = renderToStaticMarkup(
       <StudentFamilyPanel
         studentId={selfStudentId}
