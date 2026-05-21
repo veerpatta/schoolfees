@@ -61,4 +61,27 @@ describe("individual student payment boundary", () => {
 
     expect(disablingMigration).toBeDefined();
   });
+
+  it("keeps the student payment RPC signature free of family payment parameters", () => {
+    const schema = readRepoFile("supabase/schema.sql");
+    const paymentRpc = schema.slice(
+      schema.indexOf("create or replace function public.post_student_payment_with_adjustments"),
+      schema.indexOf("drop policy if exists \"authenticated can update students\""),
+    );
+    const migrations = collectFiles("supabase/migrations").filter((file) => file.endsWith(".sql"));
+    const restoringMigration = migrations.find((file) => {
+      const sql = readRepoFile(file);
+      return (
+        sql.includes("drop function if exists public.post_student_payment_with_adjustments") &&
+        sql.includes("uuid, date, public.payment_mode, integer, text, text, text, text, uuid, integer, integer, uuid") &&
+        sql.includes("grant execute on function public.post_student_payment_with_adjustments") &&
+        sql.includes("uuid, date, public.payment_mode, integer, text, text, text, text, uuid, integer, integer") &&
+        !sql.includes("p_family_payment_id")
+      );
+    });
+
+    expect(paymentRpc).not.toContain("p_family_payment_id");
+    expect(paymentRpc).not.toContain("family_payment_id");
+    expect(restoringMigration).toBeDefined();
+  });
 });
