@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 import { after } from "next/server";
 import {
   AlertTriangle,
@@ -7,6 +7,8 @@ import {
   BadgeIndianRupee,
   CalendarClock,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   CircleAlert,
   ClipboardList,
   Inbox,
@@ -156,6 +158,132 @@ function getCollectionRateHealth(rate: number) {
   return getCollectionRateSignal(rate);
 }
 
+/**
+ * MobileDashboardHero replaces the horizontal KPI rail on phones with a single
+ * first-screen summary: today, collection rate, and the three office stats.
+ */
+function MobileDashboardHero({
+  collected,
+  pending,
+  collectionRate,
+  receiptsToday,
+  followUpCount,
+  overdueAmount,
+  updatedAt,
+  currentInstallmentLabel,
+}: {
+  collected: number;
+  pending: number;
+  collectionRate: number;
+  receiptsToday: number;
+  followUpCount: number;
+  overdueAmount: number;
+  updatedAt: string;
+  currentInstallmentLabel?: string;
+}) {
+  const todayLabel = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date());
+
+  return (
+    <div
+      className="sm:hidden -mx-4 bg-card border-b border-border"
+      aria-label={`Dashboard summary. Updated at ${formatUpdatedAt(updatedAt)}`}
+    >
+      <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          Today - {todayLabel}
+        </p>
+        {currentInstallmentLabel ? (
+          <span className="rounded-full bg-accent-soft px-2.5 py-0.5 text-[10px] font-semibold text-accent-soft-foreground">
+            {currentInstallmentLabel}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="flex items-end justify-between gap-4 px-4 pb-4">
+        <div className="min-w-0">
+          <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+            Today&apos;s collection
+          </p>
+          <div className="mt-1.5">
+            <Money
+              value={collected}
+              size="display"
+              className="text-[2.25rem] leading-none font-bold tracking-tight text-accent"
+            />
+          </div>
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            {receiptsToday} receipt{receiptsToday === 1 ? "" : "s"} posted today
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-col items-center gap-1">
+          <RateGauge value={collectionRate} size="md" />
+          <p className="text-[10px] font-medium text-muted-foreground">
+            Collection rate
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 border-t border-border">
+        {[
+          {
+            label: "Pending",
+            value: pending,
+            tone: "warning" as const,
+            subtext: `${followUpCount} students`,
+          },
+          {
+            label: "Overdue",
+            value: overdueAmount,
+            tone: "danger" as const,
+            subtext: "past due date",
+          },
+          {
+            label: "Receipts",
+            value: receiptsToday,
+            tone: "neutral" as const,
+            subtext: "posted today",
+            isCount: true,
+          },
+        ].map((stat, index) => (
+          <div
+            key={stat.label}
+            className={cn(
+              "flex flex-col items-center justify-center px-2 py-3 text-center",
+              index < 2 && "border-r border-border",
+            )}
+          >
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {stat.label}
+            </p>
+            <div className="mt-1">
+              {stat.isCount ? (
+                <span className="text-lg font-bold tabular text-foreground">
+                  {stat.value}
+                </span>
+              ) : (
+                <Money
+                  value={stat.value}
+                  size="lg"
+                  tone={stat.tone}
+                  className="text-base font-bold"
+                />
+              )}
+            </div>
+            <p className="mt-0.5 text-[9px] text-muted-foreground">
+              {stat.subtext}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function HeroKpis({
   collected,
   pending,
@@ -174,7 +302,7 @@ function HeroKpis({
   const rateSignal = getCollectionRateHealth(collectionRate);
 
   return (
-    <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 snap-x scroll-smooth sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4 no-scrollbar">
+    <div className="hidden sm:grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
       {/* Today - saffron accent border */}
       <KpiCard
         accent="accent"
@@ -246,6 +374,88 @@ function HeroKpis({
    Quick actions - single row of clear, labeled buttons (no icon-only confusion)
    --------------------------------------------------------------------------- */
 
+/**
+ * MobileQuickActions gives the phone layout one dominant collection action and
+ * three compact secondary destinations.
+ */
+function MobileQuickActions({
+  canWriteStudents,
+  canPostPayments,
+  sessionLabel,
+}: {
+  canWriteStudents: boolean;
+  canPostPayments: boolean;
+  sessionLabel?: string;
+}) {
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+
+  return (
+    <div className="sm:hidden space-y-2.5">
+      {canPostPayments ? (
+        <Button
+          asChild
+          variant="accent"
+          className="h-14 w-full justify-between rounded-2xl px-5 text-base font-semibold shadow-sm"
+        >
+          <Link href={withSession("/protected/payments")}>
+            <span className="flex items-center gap-2.5">
+              <BadgeIndianRupee className="size-5" aria-hidden="true" />
+              Open Payment Desk
+            </span>
+            <ArrowRight className="size-5" aria-hidden="true" />
+          </Link>
+        </Button>
+      ) : null}
+
+      <div className="grid grid-cols-3 gap-2">
+        {canWriteStudents ? (
+          <Button
+            asChild
+            variant="outline"
+            className="flex h-16 flex-col items-center justify-center gap-1.5 rounded-xl text-[11px] font-medium leading-tight"
+          >
+            <Link href={withSession("/protected/students/new")}>
+              <UsersRound className="size-[18px]" aria-hidden="true" />
+              Add student
+            </Link>
+          </Button>
+        ) : (
+          <Button
+            asChild
+            variant="outline"
+            className="flex h-16 flex-col items-center justify-center gap-1.5 rounded-xl text-[11px] font-medium leading-tight"
+          >
+            <Link href={withSession("/protected/students")}>
+              <UsersRound className="size-[18px]" aria-hidden="true" />
+              Students
+            </Link>
+          </Button>
+        )}
+        <Button
+          asChild
+          variant="outline"
+          className="flex h-16 flex-col items-center justify-center gap-1.5 rounded-xl text-[11px] font-medium leading-tight"
+        >
+          <Link href={withSession("/protected/defaulters")}>
+            <ClipboardList className="size-[18px]" aria-hidden="true" />
+            Defaulters
+          </Link>
+        </Button>
+        <Button
+          asChild
+          variant="outline"
+          className="flex h-16 flex-col items-center justify-center gap-1.5 rounded-xl text-[11px] font-medium leading-tight"
+        >
+          <Link href={withSession("/protected/transactions")}>
+            <ReceiptText className="size-[18px]" aria-hidden="true" />
+            History
+          </Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function QuickActions({
   canWriteStudents,
   canPostPayments,
@@ -258,7 +468,7 @@ function QuickActions({
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
   return (
-    <div className="space-y-2 sm:flex sm:flex-wrap sm:gap-2 sm:space-y-0">
+    <div className="hidden sm:flex sm:flex-wrap sm:gap-2 sm:space-y-0">
       {canPostPayments && (
         <Button asChild variant="accent" size="lg"
           className="w-full justify-between px-5 h-14 text-base rounded-xl shadow-sm sm:w-auto sm:h-10 sm:text-sm sm:rounded-md"
@@ -319,12 +529,12 @@ function TodayPanel({
       }
     >
       <div className="space-y-4">
-        <div className="rounded-md bg-surface-2/70 p-4">
+        <div className="rounded-xl bg-surface-2/70 p-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             Collected today
           </p>
           <Money value={amount} size="display" className="mt-2" />
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               This month: <Money value={monthAmount} size="xs" />
             </span>
@@ -337,25 +547,42 @@ function TodayPanel({
         </div>
 
         {modes.length === 0 ? (
-          <p className="rounded-md border border-dashed border-border bg-surface-2/40 px-4 py-3 text-sm text-muted-foreground">
+          <p className="rounded-lg border border-dashed border-border bg-surface-2/40 px-4 py-3 text-sm text-muted-foreground">
             No payment-mode breakup yet for today.
           </p>
         ) : (
-          <ul className="divide-y divide-border rounded-md border border-border bg-card">
-            {modes.map((mode) => (
-              <li
-                key={mode.paymentMode}
-                className="flex min-h-11 items-center justify-between gap-3 px-4 py-2.5 text-sm"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium text-foreground">{mode.paymentMode}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {mode.receiptCount} receipt{mode.receiptCount === 1 ? "" : "s"}
-                  </p>
-                </div>
-                <Money value={mode.amount} size="lg" />
-              </li>
-            ))}
+          <ul className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
+            {modes.map((mode) => {
+              const modeLabel = mode.paymentMode.toLowerCase();
+
+              return (
+                <li
+                  key={mode.paymentMode}
+                  className="flex items-center gap-3 px-4 py-3.5"
+                >
+                  <span
+                    className={cn(
+                      "size-2 shrink-0 rounded-full",
+                      modeLabel === "cash" && "bg-success",
+                      modeLabel === "upi" && "bg-info",
+                      modeLabel === "bank transfer" && "bg-accent",
+                      modeLabel === "cheque" && "bg-warning",
+                      !["cash", "upi", "bank transfer", "cheque"].includes(modeLabel) &&
+                        "bg-muted-foreground",
+                    )}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-foreground">
+                      {mode.paymentMode}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {mode.receiptCount} receipt{mode.receiptCount === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                  <Money value={mode.amount} size="lg" />
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
@@ -401,45 +628,47 @@ function FollowUpQueue({
   }
 
   return (
-    <ul className="divide-y divide-border rounded-md border border-border bg-card">
+    <ul className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
       {rows.map((row) => (
         <li
           key={row.studentId}
-          className="px-4 py-3.5 transition-colors hover:bg-surface-2/40"
+          className="px-4 py-4 transition-colors hover:bg-surface-2/40"
         >
-          {/* Row 1: Name + Amount */}
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <Link href={withSession(`/protected/students/${row.studentId}`)} className="hover:underline">
                 <p className="font-semibold text-foreground truncate">{row.studentName}</p>
               </Link>
-              <p className="text-xs text-muted-foreground mt-0.5">{row.classLabel} · SR {row.admissionNo}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {row.classLabel}
+                {row.admissionNo ? ` - SR ${row.admissionNo}` : ""}
+              </p>
             </div>
-            <div className="text-right shrink-0">
+            <div className="shrink-0 text-right">
               <Money value={row.outstandingAmount} size="lg" tone="warning" />
-              <p className="text-[10px] text-muted-foreground mt-0.5">
+              <p className="mt-0.5 text-[10px] text-muted-foreground">
                 {row.nextDueDate ? `Due ${formatShortDate(row.nextDueDate)}` : row.statusLabel || "Pending"}
               </p>
             </div>
           </div>
 
-          {/* Row 2: Action chips */}
-          <div className="mt-3 flex items-center gap-2">
-            {row.fatherPhone && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {row.fatherPhone ? (
               <a
                 href={`tel:${row.fatherPhone}`}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-3 transition-colors min-h-9"
-                aria-label={`Call ${row.studentName}'s parent`}
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-3 active:bg-surface-3"
+                aria-label={`Call ${row.studentName}'s parent at ${row.fatherPhone}`}
               >
-                <Phone className="size-3.5" aria-hidden="true" /> Call
+                <Phone className="size-3.5 text-success" aria-hidden="true" />
+                {row.fatherPhone}
               </a>
-            )}
+            ) : null}
             <CopyReminderButton text={row.reminderText} />
             <Button
               asChild
               size="sm"
               variant={canPostPayments ? "accent" : "outline"}
-              className="ml-auto rounded-full px-4"
+              className="ml-auto rounded-full px-4 font-semibold"
             >
               <Link href={withSession(`/protected/payments?studentId=${row.studentId}&classId=${row.classId}`)}>
                 {canPostPayments ? "Collect" : "View"}
@@ -485,15 +714,15 @@ function RecentReceipts({
   }
 
   return (
-    <ul className="divide-y divide-border rounded-md border border-border bg-card">
+    <ul className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
       {rows.map((row) => (
         <li key={row.receiptId}>
           <Link
             href={withSession(`/protected/receipts/${row.receiptId}`)}
-            className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-2/40"
+            className="flex items-center justify-between gap-3 px-4 py-4 transition-colors hover:bg-surface-2/40 active:bg-surface-2/60"
           >
-            <div className="min-w-0">
-              <p className="font-medium text-foreground">{row.receiptNumber}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-foreground">{row.receiptNumber}</p>
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
                 {row.studentName} - {row.classLabel}
               </p>
@@ -501,7 +730,13 @@ function RecentReceipts({
                 {formatShortDate(row.paymentDate)} - {row.paymentMode}
               </p>
             </div>
-            <Money value={row.amount} size="lg" />
+            <div className="shrink-0 text-right">
+              <Money value={row.amount} size="lg" />
+              <ChevronRight
+                className="mt-1 ml-auto size-3.5 text-muted-foreground"
+                aria-hidden="true"
+              />
+            </div>
           </Link>
         </li>
       ))}
@@ -885,6 +1120,54 @@ type DashboardAutoPrepareHealth = Pick<
   "studentsMissingInstallmentRows" | "studentsMissingInstallments"
 >;
 
+/**
+ * MobileCollapse keeps secondary dashboard analysis behind one-tap disclosure on
+ * phones, then renders the normal Section card from tablet width upward.
+ */
+function MobileCollapse({
+  title,
+  mobileTitle,
+  description,
+  children,
+  defaultOpen = false,
+  className,
+}: {
+  title: string;
+  mobileTitle?: string;
+  description?: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+  className?: string;
+}) {
+  return (
+    <>
+      <details
+        className="group sm:hidden rounded-xl border border-border bg-card overflow-hidden"
+        open={defaultOpen}
+      >
+        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-sm font-semibold text-foreground select-none">
+          {mobileTitle ?? title}
+          <ChevronDown
+            className="size-4 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+            aria-hidden="true"
+          />
+        </summary>
+        <div className="border-t border-border px-4 pb-4 pt-3">
+          {children}
+        </div>
+      </details>
+
+      <Section
+        title={title}
+        description={description}
+        className={cn("hidden sm:block", className)}
+      >
+        {children}
+      </Section>
+    </>
+  );
+}
+
 export function scheduleDashboardAutoPrepare({
   canAutoPrepareDues,
   sessionLabel,
@@ -914,7 +1197,7 @@ export function scheduleDashboardAutoPrepare({
 
 function DashboardBelowFoldSkeleton() {
   return (
-    <div className="space-y-7">
+    <div className="space-y-4 sm:space-y-7">
       {/* Follow-up + Recent receipts row */}
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <LoadingBlock />
@@ -1041,43 +1324,46 @@ async function DashboardBelowFold({
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
-        <Section
+        <MobileCollapse
           title="Class-wise pending"
           description="Highest pending classes appear first."
         >
           <ClassPendingChart rows={maxChartCards} />
-        </Section>
-        <Section
+        </MobileCollapse>
+        <MobileCollapse
           title="Collection trend"
           description="Daily collection over the recent window."
         >
           <TrendChart rows={data.collectionTrend} />
-        </Section>
-        <Section
+        </MobileCollapse>
+        <MobileCollapse
           title="Installment status"
           description="Expected, collected, and pending totals by installment."
+          defaultOpen
           className="xl:col-span-2"
         >
           <InstallmentStatus rows={data.installmentSummary} />
-        </Section>
+        </MobileCollapse>
       </div>
 
-      <Section
+      <MobileCollapse
         title="Class-wise & Installment-wise Pending Matrix"
+        mobileTitle="Class / Installment pending matrix"
         description="Detailed pending balance grid across classes and installments."
       >
         <ClassInstallmentMatrixTable matrix={data.classInstallmentMatrix} />
-      </Section>
+      </MobileCollapse>
 
-      <Section
+      <MobileCollapse
         title="Class-wise fee position"
         description="Sorted by highest pending amount."
       >
         <ClassSummaryTable rows={data.classSummary} />
-      </Section>
+      </MobileCollapse>
 
-      <Section
+      <MobileCollapse
         title="Attention"
+        mobileTitle="Attention items"
         description="Informational setup and activity items."
       >
         <AlertsPanel
@@ -1085,7 +1371,7 @@ async function DashboardBelowFold({
             (a) => a.tone !== "danger" && a.tone !== "warning",
           )}
         />
-      </Section>
+      </MobileCollapse>
     </>
   );
 }
@@ -1116,7 +1402,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-4 sm:space-y-7">
       <PageHeader
         eyebrow="Workspace"
         title="Dashboard"
@@ -1134,7 +1420,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         }
       />
 
-      <p className="text-xs text-muted-foreground -mt-5">
+      <p className="hidden sm:block text-xs text-muted-foreground -mt-5">
         Updated at {formatUpdatedAt(aboveFold.generatedAt)}
       </p>
 
@@ -1185,15 +1471,18 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </Section>
       ) : null}
 
-      {/* Hero strip */}
       <div className="space-y-4 anim-fade-in">
-        <div className="sticky top-14 z-20 -mx-4 bg-background/95 px-4 py-2 backdrop-blur md:static md:mx-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-none">
-          <QuickActions
-            canWriteStudents={canWriteStudents}
-            canPostPayments={canPostPayments}
-            sessionLabel={viewSession.sessionLabel}
-          />
-        </div>
+        <MobileDashboardHero
+          collected={aboveFold.kpis.todaysCollection}
+          pending={aboveFold.kpis.totalPending}
+          collectionRate={aboveFold.kpis.collectionRate}
+          receiptsToday={aboveFold.kpis.receiptsToday}
+          followUpCount={aboveFold.studentsWithPending}
+          overdueAmount={aboveFold.kpis.overdueAmount}
+          updatedAt={aboveFold.generatedAt}
+          currentInstallmentLabel={aboveFold.currentInstallment?.label}
+        />
+
         <HeroKpis
           collected={aboveFold.kpis.todaysCollection}
           pending={aboveFold.kpis.totalPending}
@@ -1208,6 +1497,20 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           followUpCount={aboveFold.studentsWithPending}
         />
         <CriticalAlerts syncError={aboveFold.syncError} appRole={staff.appRole} />
+
+        <MobileQuickActions
+          canWriteStudents={canWriteStudents}
+          canPostPayments={canPostPayments}
+          sessionLabel={viewSession.sessionLabel}
+        />
+
+        <div className="anim-fade-in [animation-delay:60ms]">
+          <QuickActions
+            canWriteStudents={canWriteStudents}
+            canPostPayments={canPostPayments}
+            sessionLabel={viewSession.sessionLabel}
+          />
+        </div>
       </div>
 
       {/* Today + secondary KPIs */}

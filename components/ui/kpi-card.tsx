@@ -10,6 +10,8 @@ type KpiCardProps = {
   trailing?: ReactNode;
   /** Tone to subtly tint the card border-left. */
   accent?: "neutral" | "accent" | "success" | "warning" | "danger" | "info";
+  /** Layout style. `strip` is a compact horizontal row for dense mobile lists. */
+  variant?: "card" | "strip";
   className?: string;
 };
 
@@ -28,9 +30,42 @@ export function KpiCard({
   hint,
   trailing,
   accent = "neutral",
+  variant = "card",
   className,
 }: KpiCardProps) {
   const showAccentRule = accent !== "neutral";
+
+  if (variant === "strip") {
+    return (
+      <div
+        className={cn(
+          "relative flex items-center justify-between gap-3 overflow-hidden rounded-lg border border-border bg-card px-4 py-3",
+          "transition-[border-color,box-shadow] duration-150 hover:border-border-strong",
+          showAccentRule &&
+            "before:absolute before:left-0 before:top-0 before:h-full before:w-[3px] before:content-['']",
+          accentBorder[accent],
+          className,
+        )}
+      >
+        <div className="min-w-0">
+          <p className="truncate text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            {label}
+          </p>
+          {hint ? (
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              {hint}
+            </p>
+          ) : null}
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <div className="text-right text-base font-semibold tracking-tight tabular text-foreground">
+            {value}
+          </div>
+          {trailing ? <div className="shrink-0">{trailing}</div> : null}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

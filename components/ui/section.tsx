@@ -47,7 +47,7 @@ export function Section({
             {title}
           </h2>
           {description ? (
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+            <p className="mt-1 hidden max-w-3xl text-sm leading-6 text-muted-foreground sm:block">
               {description}
             </p>
           ) : null}
