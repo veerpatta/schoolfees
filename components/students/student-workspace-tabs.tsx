@@ -44,19 +44,44 @@ export function StudentWorkspaceTabs(props: StudentWorkspaceTabsProps) {
 
   return (
     <Tabs defaultValue={props.defaultTab} onValueChange={handleChange} className="w-full">
-      <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
-        <TabsTrigger value="dues">Dues{tabBadge(props.counts.dues)}</TabsTrigger>
-        <TabsTrigger value="receipts">Receipts{tabBadge(props.counts.receipts)}</TabsTrigger>
-        <TabsTrigger value="payments">Payments{tabBadge(props.counts.payments)}</TabsTrigger>
-        <TabsTrigger value="fee-plan">Fee Plan</TabsTrigger>
-        <TabsTrigger value="about">About</TabsTrigger>
+      <TabsList className="flex h-auto w-full justify-start gap-2 bg-transparent p-0 border-b border-border rounded-none">
+        <TabsTrigger
+          value="dues"
+          className="rounded-none bg-transparent border-b-2 border-transparent px-4 py-2 hover:text-foreground text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:border-accent data-[state=active]:text-foreground data-[state=active]:shadow-none transition-all font-semibold text-sm"
+        >
+          Dues{tabBadge(props.counts.dues)}
+        </TabsTrigger>
+        <TabsTrigger
+          value="receipts"
+          className="rounded-none bg-transparent border-b-2 border-transparent px-4 py-2 hover:text-foreground text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:border-accent data-[state=active]:text-foreground data-[state=active]:shadow-none transition-all font-semibold text-sm"
+        >
+          Receipts{tabBadge(props.counts.receipts)}
+        </TabsTrigger>
+        <TabsTrigger
+          value="payments"
+          className="rounded-none bg-transparent border-b-2 border-transparent px-4 py-2 hover:text-foreground text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:border-accent data-[state=active]:text-foreground data-[state=active]:shadow-none transition-all font-semibold text-sm"
+        >
+          Payments{tabBadge(props.counts.payments)}
+        </TabsTrigger>
+        <TabsTrigger
+          value="fee-plan"
+          className="rounded-none bg-transparent border-b-2 border-transparent px-4 py-2 hover:text-foreground text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:border-accent data-[state=active]:text-foreground data-[state=active]:shadow-none transition-all font-semibold text-sm"
+        >
+          Fee Plan
+        </TabsTrigger>
+        <TabsTrigger
+          value="about"
+          className="rounded-none bg-transparent border-b-2 border-transparent px-4 py-2 hover:text-foreground text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:border-accent data-[state=active]:text-foreground data-[state=active]:shadow-none transition-all font-semibold text-sm"
+        >
+          About
+        </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="dues" className="mt-4">{props.duesContent}</TabsContent>
-      <TabsContent value="receipts" className="mt-4">{props.receiptsContent}</TabsContent>
-      <TabsContent value="payments" className="mt-4">{props.paymentsContent}</TabsContent>
-      <TabsContent value="fee-plan" className="mt-4">{props.feePlanContent}</TabsContent>
-      <TabsContent value="about" className="mt-4">{props.aboutContent}</TabsContent>
+      <TabsContent value="dues" className="mt-4 focus-visible:ring-0 focus-visible:ring-offset-0">{props.duesContent}</TabsContent>
+      <TabsContent value="receipts" className="mt-4 focus-visible:ring-0 focus-visible:ring-offset-0">{props.receiptsContent}</TabsContent>
+      <TabsContent value="payments" className="mt-4 focus-visible:ring-0 focus-visible:ring-offset-0">{props.paymentsContent}</TabsContent>
+      <TabsContent value="fee-plan" className="mt-4 focus-visible:ring-0 focus-visible:ring-offset-0">{props.feePlanContent}</TabsContent>
+      <TabsContent value="about" className="mt-4 focus-visible:ring-0 focus-visible:ring-offset-0">{props.aboutContent}</TabsContent>
     </Tabs>
   );
 }

@@ -6,6 +6,7 @@ import { StudentAboutPanel } from "@/components/students/student-about-panel";
 import { StudentDangerZone } from "@/components/students/student-danger-zone";
 import { StudentIdentityStrip } from "@/components/students/student-identity-strip";
 import { StudentQuickReference } from "@/components/students/student-quick-reference";
+import { StudentStatCards } from "@/components/students/student-stat-cards";
 import { StudentWorkspaceTabs } from "@/components/students/student-workspace-tabs";
 import { StudentFamilyPanel } from "@/components/students/family-panel";
 import { Button } from "@/components/ui/button";
@@ -58,11 +59,6 @@ function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
-function installmentTone(status: string) {
-  if (status === "paid") return "locked";
-  if (status === "overdue" || status === "partial") return "review";
-  return "calculated";
-}
 
 export default async function StudentDetailPage({
   params,
@@ -96,6 +92,47 @@ export default async function StudentDetailPage({
   const outstandingAmount = installmentBalances.reduce((sum, row) => sum + row.pendingAmount, 0);
   const todayIso = getSchoolDateStamp();
 
+  // Payment stat cards — computed from already-fetched data, no extra DB calls
+  const allPayments = ledger?.payments ?? [];
+  const paidInstallments = installmentBalances.filter((b) => b.balanceStatus === "paid").length;
+  const overdueInstallments = installmentBalances.filter((b) => b.balanceStatus === "overdue").length;
+  const partialInstallments = installmentBalances.filter((b) => b.balanceStatus === "partial").length;
+
+  const modeLabels: Record<string, string> = {
+    cash: "Cash",
+    upi: "UPI",
+    bank_transfer: "Bank transfer",
+    cheque: "Cheque",
+  };
+  const lastPaymentRow = allPayments[0] ?? null;
+  const lastPaymentInfo = lastPaymentRow
+    ? {
+        date: lastPaymentRow.paymentDate,
+        amount: lastPaymentRow.paymentAmount,
+        mode: modeLabels[lastPaymentRow.paymentMode] ?? lastPaymentRow.paymentMode,
+      }
+    : null;
+
+  const onTimePaid = allPayments.filter((p) => p.paymentDate <= p.dueDate).length;
+  const paymentReliability =
+    allPayments.length >= 3
+      ? {
+          onTimeCount: onTimePaid,
+          totalCount: allPayments.length,
+          percent: Math.round((onTimePaid / allPayments.length) * 100),
+        }
+      : null;
+
+  const firstPendingInstallment = installmentBalances.find((b) => b.pendingAmount > 0) ?? null;
+  const nextPendingInfo = firstPendingInstallment
+    ? {
+        label: firstPendingInstallment.installmentLabel,
+        amount: firstPendingInstallment.pendingAmount,
+        dueDate: firstPendingInstallment.dueDate,
+        isOverdue: firstPendingInstallment.balanceStatus === "overdue",
+      }
+    : null;
+
   const feePlanContent = (
     <Section
       title="Fee exceptions"
@@ -109,29 +146,29 @@ export default async function StudentDetailPage({
           </div>
 
           <div className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-lg border border-border bg-surface-2 px-4 py-4">
+            <div className="rounded-lg border border-border bg-surface-2/60 px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Tuition override</p>
               <p className="mt-2 font-semibold text-foreground">
                 {student.tuitionOverride !== null ? <Money value={student.tuitionOverride} /> : "Class default"}
               </p>
             </div>
-            <div className="rounded-lg border border-border bg-surface-2 px-4 py-4">
+            <div className="rounded-lg border border-border bg-surface-2/60 px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Transport override</p>
               <p className="mt-2 font-semibold text-foreground">
                 {student.transportOverride !== null ? <Money value={student.transportOverride} /> : "Route default"}
               </p>
             </div>
-            <div className="rounded-lg border border-border bg-surface-2 px-4 py-4">
+            <div className="rounded-lg border border-border bg-surface-2/60 px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Discount</p>
               <p className="mt-2 font-semibold text-foreground"><Money value={student.discountAmount} /></p>
             </div>
-            <div className="rounded-lg border border-border bg-surface-2 px-4 py-4">
+            <div className="rounded-lg border border-border bg-surface-2/60 px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Late fee waiver</p>
               <p className="mt-2 font-semibold text-foreground"><Money value={student.lateFeeWaiverAmount} /></p>
             </div>
           </div>
 
-          <div className="mb-4 rounded-lg border border-border bg-surface-2 px-4 py-4 text-sm text-foreground">
+          <div className="mb-4 rounded-lg border border-border bg-surface-2/60 px-4 py-3 text-sm text-foreground">
             <span className="font-semibold text-foreground">Other fee / adjustment:</span>{" "}
             {student.otherAdjustmentHead ? (
               <>
@@ -141,82 +178,115 @@ export default async function StudentDetailPage({
             <Money value={student.otherAdjustmentAmount ?? 0} size="sm" />
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="overflow-x-auto rounded-lg border border-border bg-card">
             <table className="w-full min-w-[420px] text-left text-sm">
-              <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
+              <thead className="bg-surface-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-border">
                 <tr>
                   <th className="px-4 py-3">Fee head</th>
-                  <th className="px-4 py-3">Amount</th>
+                  <th className="px-4 py-3 text-right">Amount</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-border/60">
                 {[
                   ...financialSnapshot.resolvedBreakdown.coreHeads,
                   ...financialSnapshot.resolvedBreakdown.customHeads,
                 ].map((item) => (
-                  <tr key={item.id} className="border-t border-border">
-                    <td className="px-4 py-3">{item.label}</td>
-                    <td className="px-4 py-3 font-medium text-foreground"><Money value={item.amount} size="sm" /></td>
+                  <tr key={item.id} className="even:bg-surface-2/30 hover:bg-surface-2/10 transition-colors">
+                    <td className="px-4 py-3 font-medium text-foreground">{item.label}</td>
+                    <td className="px-4 py-3 text-right font-mono tabular-nums font-semibold text-foreground">
+                      <Money value={item.amount} size="sm" />
+                    </td>
                   </tr>
                 ))}
-                <tr className="border-t border-border bg-surface-2 font-semibold text-foreground">
+                <tr className="bg-surface-2 font-bold text-foreground">
                   <td className="px-4 py-3">Resolved annual total</td>
-                  <td className="px-4 py-3"><Money value={financialSnapshot.resolvedBreakdown.annualTotal} size="sm" /></td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums"><Money value={financialSnapshot.resolvedBreakdown.annualTotal} size="sm" /></td>
                 </tr>
               </tbody>
             </table>
           </div>
         </>
       ) : (
-        <p className="text-sm text-muted-foreground">Fee summary is not available yet.</p>
+        <div className="rounded-lg border border-dashed border-border bg-surface-2/40 px-4 py-8 text-center">
+          <p className="font-semibold text-foreground">Fee summary unavailable</p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+            Fee summary is not available for this student yet.
+          </p>
+        </div>
       )}
     </Section>
   );
 
+  const getInstallmentStatusPill = (status: string) => {
+    switch (status) {
+      case "paid":
+        return (
+          <span className="inline-flex items-center rounded-full bg-success-soft px-2.5 py-0.5 text-[11px] font-semibold text-success-soft-foreground">
+            Paid
+          </span>
+        );
+      case "overdue":
+        return (
+          <span className="inline-flex items-center rounded-full bg-destructive-soft px-2.5 py-0.5 text-[11px] font-semibold text-destructive-soft-foreground">
+            Overdue
+          </span>
+        );
+      case "partial":
+        return (
+          <span className="inline-flex items-center rounded-full bg-warning-soft px-2.5 py-0.5 text-[11px] font-semibold text-warning-soft-foreground">
+            Partial
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center rounded-full bg-surface-3/50 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+            {status}
+          </span>
+        );
+    }
+  };
+
   const duesContent = (
     <Section title="Dues" description="Current dues position for the student.">
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full min-w-[820px] text-left text-sm">
-          <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3">Installment</th>
-              <th className="px-4 py-3">Due date</th>
-              <th className="px-4 py-3">Base due</th>
-              <th className="px-4 py-3">Late fee</th>
-              <th className="px-4 py-3">Paid</th>
-              <th className="px-4 py-3">Adjustments</th>
-              <th className="px-4 py-3">Outstanding</th>
-              <th className="px-4 py-3">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {installmentBalances.length === 0 ? (
+      {installmentBalances.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-surface-2/40 px-4 py-8 text-center">
+          <p className="font-semibold text-foreground">No dues prepared</p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+            No installment balance rows are available for this student yet.
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+          <table className="w-full min-w-[820px] text-left text-sm">
+            <thead className="bg-surface-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-border">
               <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">
-                  No installment balance rows are available yet.
-                </td>
+                <th className="px-4 py-3">Installment</th>
+                <th className="px-4 py-3">Due date</th>
+                <th className="px-4 py-3 text-right">Base due</th>
+                <th className="px-4 py-3 text-right">Late fee</th>
+                <th className="px-4 py-3 text-right">Paid</th>
+                <th className="px-4 py-3 text-right">Adjustments</th>
+                <th className="px-4 py-3 text-right">Outstanding</th>
+                <th className="px-4 py-3">Status</th>
               </tr>
-            ) : (
-              installmentBalances.map((item) => (
-                <tr key={item.installmentId} className="border-t border-border">
-                  <td className="px-4 py-3">{item.installmentLabel}</td>
-                  <td className="px-4 py-3">{formatShortDate(item.dueDate)}</td>
-                  <td className="px-4 py-3"><Money value={item.baseCharge} size="sm" /></td>
-                  <td className="px-4 py-3"><Money value={item.finalLateFee} size="sm" /></td>
-                  <td className="px-4 py-3"><Money value={item.paidAmount} size="sm" /></td>
-                  <td className="px-4 py-3"><Money value={item.adjustmentAmount} size="sm" /></td>
-                  <td className="px-4 py-3 font-medium text-foreground"><Money value={item.pendingAmount} size="sm" /></td>
-                  <td className="px-4 py-3">
-                    <ValueStatePill tone={installmentTone(item.balanceStatus)} className="normal-case tracking-normal">
-                      {item.balanceStatus}
-                    </ValueStatePill>
-                  </td>
+            </thead>
+            <tbody className="divide-y divide-border/60">
+              {installmentBalances.map((item) => (
+                <tr key={item.installmentId} className="even:bg-surface-2/30 hover:bg-surface-2/10 transition-colors">
+                  <td className="px-4 py-3 font-medium text-foreground">{item.installmentLabel}</td>
+                  <td className="px-4 py-3 font-mono tabular-nums text-muted-foreground">{formatShortDate(item.dueDate)}</td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums"><Money value={item.baseCharge} size="sm" /></td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums"><Money value={item.finalLateFee} size="sm" /></td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums text-success-soft-foreground"><Money value={item.paidAmount} size="sm" /></td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground"><Money value={item.adjustmentAmount} size="sm" /></td>
+                  <td className="px-4 py-3 text-right font-semibold text-foreground font-mono tabular-nums"><Money value={item.pendingAmount} size="sm" /></td>
+                  <td className="px-4 py-3">{getInstallmentStatusPill(item.balanceStatus)}</td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </Section>
   );
 
@@ -225,90 +295,106 @@ export default async function StudentDetailPage({
       <div className="mb-4 flex flex-wrap gap-2">
         <ValueStatePill tone="locked">Locked payment history</ValueStatePill>
       </div>
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full min-w-[760px] text-left text-sm">
-          <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3">Posted at</th>
-              <th className="px-4 py-3">Receipt</th>
-              <th className="px-4 py-3">Installment</th>
-              <th className="px-4 py-3">Mode</th>
-              <th className="px-4 py-3">Amount</th>
-              <th className="px-4 py-3">Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {!ledger || ledger.payments.length === 0 ? (
+      {!ledger || ledger.payments.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-surface-2/40 px-4 py-8 text-center">
+          <p className="font-semibold text-foreground">No payments posted yet</p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+            There are no payment history records found for this student.
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead className="bg-surface-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-border">
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
-                  No payment rows found for this student yet.
-                </td>
+                <th className="px-4 py-3">Posted at</th>
+                <th className="px-4 py-3">Receipt</th>
+                <th className="px-4 py-3">Installment</th>
+                <th className="px-4 py-3">Mode</th>
+                <th className="px-4 py-3 text-right">Amount</th>
+                <th className="px-4 py-3">Notes</th>
               </tr>
-            ) : (
-              ledger.payments.map((payment) => (
-                <tr key={payment.id} className="border-t border-border">
-                  <td className="px-4 py-3">{formatDateTime(payment.createdAt)}</td>
-                  <td className="px-4 py-3 font-medium text-foreground">{payment.receiptNumber}</td>
+            </thead>
+            <tbody className="divide-y divide-border/60">
+              {ledger.payments.map((payment) => (
+                <tr key={payment.id} className="even:bg-surface-2/30 hover:bg-surface-2/10 transition-colors">
+                  <td className="px-4 py-3 font-mono text-muted-foreground text-xs">{formatDateTime(payment.createdAt)}</td>
+                  <td className="px-4 py-3 font-semibold text-foreground">{payment.receiptNumber}</td>
                   <td className="px-4 py-3">
-                    {payment.installmentLabel}
-                    <div className="text-xs text-muted-foreground">Due {formatShortDate(payment.dueDate)}</div>
+                    <span className="font-medium text-foreground">{payment.installmentLabel}</span>
+                    <div className="text-[11px] text-muted-foreground font-mono tabular-nums">Due {formatShortDate(payment.dueDate)}</div>
                   </td>
-                  <td className="px-4 py-3">{payment.paymentMode}</td>
-                  <td className="px-4 py-3"><Money value={payment.paymentAmount} size="sm" /></td>
-                  <td className="px-4 py-3">{payment.notes || "-"}</td>
+                  <td className="px-4 py-3 text-xs">
+                    <span className="inline-flex items-center rounded-md bg-surface-3/50 px-2 py-0.5 font-medium text-muted-foreground">
+                      {payment.paymentMode}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums font-semibold text-foreground">
+                    <Money value={payment.paymentAmount} size="sm" />
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate" title={payment.notes || undefined}>
+                    {payment.notes || "—"}
+                  </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </Section>
   );
 
   const receiptsContent = (
     <Section title="Receipts" description="Latest receipts and quick print/open actions for this student.">
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full min-w-[760px] text-left text-sm">
-          <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3">Receipt</th>
-              <th className="px-4 py-3">Date</th>
-              <th className="px-4 py-3">Mode</th>
-              <th className="px-4 py-3">Amount</th>
-              <th className="px-4 py-3">Reference</th>
-              <th className="px-4 py-3">Received by</th>
-              <th className="px-4 py-3">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {receipts.length === 0 ? (
+      {receipts.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-surface-2/40 px-4 py-8 text-center">
+          <p className="font-semibold text-foreground">No receipts found</p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+            No receipt records exist for this student yet.
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead className="bg-surface-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-border">
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
-                  No receipts found for this student.
-                </td>
+                <th className="px-4 py-3">Receipt</th>
+                <th className="px-4 py-3">Date</th>
+                <th className="px-4 py-3">Mode</th>
+                <th className="px-4 py-3 text-right">Amount</th>
+                <th className="px-4 py-3">Reference</th>
+                <th className="px-4 py-3">Received by</th>
+                <th className="px-4 py-3 text-right">Action</th>
               </tr>
-            ) : (
-              receipts.map((receipt) => (
-                <tr key={receipt.id} className="border-t border-border">
-                  <td className="px-4 py-3 font-medium text-foreground">{receipt.receiptNumber}</td>
-                  <td className="px-4 py-3">{formatShortDate(receipt.paymentDate)}</td>
-                  <td className="px-4 py-3">{receipt.paymentModeLabel}</td>
-                  <td className="px-4 py-3"><Money value={receipt.totalAmount} size="sm" /></td>
-                  <td className="px-4 py-3">{receipt.referenceNumber ?? "-"}</td>
-                  <td className="px-4 py-3">{receipt.receivedBy || "-"}</td>
-                  <td className="px-4 py-3">
-                    <Button asChild size="sm" variant="outline">
+            </thead>
+            <tbody className="divide-y divide-border/60">
+              {receipts.map((receipt) => (
+                <tr key={receipt.id} className="even:bg-surface-2/30 hover:bg-surface-2/10 transition-colors">
+                  <td className="px-4 py-3 font-semibold text-foreground">{receipt.receiptNumber}</td>
+                  <td className="px-4 py-3 font-mono tabular-nums text-muted-foreground">{formatShortDate(receipt.paymentDate)}</td>
+                  <td className="px-4 py-3 text-xs">
+                    <span className="inline-flex items-center rounded-md bg-surface-3/50 px-2 py-0.5 font-medium text-muted-foreground">
+                      {receipt.paymentModeLabel}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums font-semibold text-foreground">
+                    <Money value={receipt.totalAmount} size="sm" />
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{receipt.referenceNumber ?? "—"}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">{receipt.receivedBy || "—"}</td>
+                  <td className="px-4 py-3 text-right">
+                    <Button asChild size="sm" variant="outline" className="h-8">
                       <Link href={`/protected/receipts/${receipt.id}?returnTo=${encodedReturnTo}`}>
                         {canPrintReceipts ? "Print" : "Open"}
                       </Link>
                     </Button>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </Section>
   );
 
@@ -345,6 +431,20 @@ export default async function StudentDetailPage({
         latestReceiptId={receipts[0]?.id ?? null}
         returnTo={returnTo}
         encodedReturnTo={encodedReturnTo}
+      />
+
+      <StudentStatCards
+        installmentProgress={{
+          paid: paidInstallments,
+          overdue: overdueInstallments,
+          partial: partialInstallments,
+          total: installmentBalances.length,
+        }}
+        totalCollected={ledger?.totalPayments ?? 0}
+        annualTotal={financialSnapshot?.resolvedBreakdown.annualTotal ?? 0}
+        lastPayment={lastPaymentInfo}
+        reliability={paymentReliability}
+        nextPending={nextPendingInfo}
       />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px] min-w-0">

@@ -15,8 +15,10 @@ import type {
   StudentRouteOption,
 } from "@/lib/students/types";
 
+import { Search, GraduationCap, Bus, UserCheck, X } from "lucide-react";
+
 const selectClassName =
-  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus:ring-ring focus:border-ring";
 
 const PAGE_SIZE = 40;
 
@@ -152,14 +154,82 @@ export function StudentQuickLoad({
         description="Search by student name, SR no, or phone, then narrow by class, route, or status."
       >
         <details className="md:hidden">
-          <summary className="cursor-pointer rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-foreground">
+          <summary className="cursor-pointer rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-foreground hover:bg-surface-3 transition-colors">
             Open filters
           </summary>
           <div className="mt-3 grid gap-3">
             <div>
-              <Label htmlFor="query">Search</Label>
+              <Label htmlFor="query-mobile">Search</Label>
+              <div className="relative mt-2">
+                <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <Input
+                  id="query-mobile"
+                  data-student-search="true"
+                  value={filters.query}
+                  onChange={(event) => {
+                    setPage(1);
+                    setFilters((previous) => ({ ...previous, query: event.target.value }));
+                  }}
+                  placeholder="Student name, SR no, or phone"
+                  title="Press / to focus"
+                  className="pl-9 h-11"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="classId-mobile">Class</Label>
+                <div className="relative mt-2">
+                  <GraduationCap className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                  <select
+                    id="classId-mobile"
+                    value={filters.classId}
+                    onChange={(event) => {
+                      setPage(1);
+                      setFilters((previous) => ({ ...previous, classId: event.target.value }));
+                    }}
+                    className={`${selectClassName} pl-9 h-11`}
+                  >
+                    <option value="">All classes</option>
+                    {classOptions.map((classOption) => (
+                      <option key={classOption.id} value={classOption.id}>
+                        {classOption.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="status-mobile">Status</Label>
+                <div className="relative mt-2">
+                  <UserCheck className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                  <select
+                    id="status-mobile"
+                    value={filters.status}
+                    onChange={(event) => {
+                      setPage(1);
+                      setFilters((previous) => ({ ...previous, status: event.target.value as StudentListFilters["status"] }));
+                    }}
+                    className={`${selectClassName} pl-9 h-11`}
+                  >
+                    <option value="">All statuses</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="withdrawn">Withdrawn</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </details>
+        <div className="hidden gap-3 md:grid md:grid-cols-2 xl:grid-cols-5">
+          <div className="xl:col-span-2">
+            <Label htmlFor="query">Search</Label>
+            <div className="relative mt-2">
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               <Input
                 id="query"
+                ref={searchRef}
                 data-student-search="true"
                 value={filters.query}
                 onChange={(event) => {
@@ -168,129 +238,84 @@ export function StudentQuickLoad({
                 }}
                 placeholder="Student name, SR no, or phone"
                 title="Press / to focus"
-                className="mt-2"
+                className="pl-9 h-9"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="classId-mobile">Class</Label>
-                <select
-                  id="classId-mobile"
-                  value={filters.classId}
-                  onChange={(event) => {
-                    setPage(1);
-                    setFilters((previous) => ({ ...previous, classId: event.target.value }));
-                  }}
-                  className={`${selectClassName} mt-2`}
-                >
-                  <option value="">All classes</option>
-                  {classOptions.map((classOption) => (
-                    <option key={classOption.id} value={classOption.id}>
-                      {classOption.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="status-mobile">Status</Label>
-                <select
-                  id="status-mobile"
-                  value={filters.status}
-                  onChange={(event) => {
-                    setPage(1);
-                    setFilters((previous) => ({ ...previous, status: event.target.value as StudentListFilters["status"] }));
-                  }}
-                  className={`${selectClassName} mt-2`}
-                >
-                  <option value="">All statuses</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="withdrawn">Withdrawn</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </details>
-        <div className="hidden gap-3 md:grid md:grid-cols-2 xl:grid-cols-5">
-          <div className="xl:col-span-2">
-            <Label htmlFor="query">Search</Label>
-            <Input
-              id="query"
-              ref={searchRef}
-              data-student-search="true"
-              value={filters.query}
-              onChange={(event) => {
-                setPage(1);
-                setFilters((previous) => ({ ...previous, query: event.target.value }));
-              }}
-              placeholder="Student name, SR no, or phone"
-              title="Press / to focus"
-              className="mt-2"
-            />
           </div>
 
           <div>
             <Label htmlFor="classId">Class</Label>
-            <select
-              id="classId"
-              value={filters.classId}
-              onChange={(event) => {
-                setPage(1);
-                setFilters((previous) => ({ ...previous, classId: event.target.value }));
-              }}
-              className={`${selectClassName} mt-2`}
-            >
-              <option value="">All classes</option>
-              {classOptions.map((classOption) => (
-                <option key={classOption.id} value={classOption.id}>
-                  {classOption.label}
-                </option>
-              ))}
-            </select>
+            <div className="relative mt-2">
+              <GraduationCap className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <select
+                id="classId"
+                value={filters.classId}
+                onChange={(event) => {
+                  setPage(1);
+                  setFilters((previous) => ({ ...previous, classId: event.target.value }));
+                }}
+                className={`${selectClassName} pl-9 h-9`}
+              >
+                <option value="">All classes</option>
+                {classOptions.map((classOption) => (
+                  <option key={classOption.id} value={classOption.id}>
+                    {classOption.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div>
             <Label htmlFor="transportRouteId">Transport route</Label>
-            <select
-              id="transportRouteId"
-              value={filters.transportRouteId}
-              onChange={(event) => {
-                setPage(1);
-                setFilters((previous) => ({ ...previous, transportRouteId: event.target.value }));
-              }}
-              className={`${selectClassName} mt-2`}
-            >
-              <option value="">All routes</option>
-              {routeOptions.map((route) => (
-                <option key={route.id} value={route.id}>
-                  {route.routeCode ? `${route.label} (${route.routeCode})` : route.label}
-                </option>
-              ))}
-            </select>
+            <div className="relative mt-2">
+              <Bus className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <select
+                id="transportRouteId"
+                value={filters.transportRouteId}
+                onChange={(event) => {
+                  setPage(1);
+                  setFilters((previous) => ({ ...previous, transportRouteId: event.target.value }));
+                }}
+                className={`${selectClassName} pl-9 h-9`}
+              >
+                <option value="">All routes</option>
+                {routeOptions.map((route) => (
+                  <option key={route.id} value={route.id}>
+                    {route.routeCode ? `${route.label} (${route.routeCode})` : route.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div>
             <Label htmlFor="status">Status</Label>
-            <select
-              id="status"
-              value={filters.status}
-              onChange={(event) => {
-                setPage(1);
-                setFilters((previous) => ({ ...previous, status: event.target.value as StudentListFilters["status"] }));
-              }}
-              className={`${selectClassName} mt-2`}
-            >
-              <option value="">All statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="withdrawn">Withdrawn</option>
-            </select>
+            <div className="relative mt-2">
+              <UserCheck className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <select
+                id="status"
+                value={filters.status}
+                onChange={(event) => {
+                  setPage(1);
+                  setFilters((previous) => ({ ...previous, status: event.target.value as StudentListFilters["status"] }));
+                }}
+                className={`${selectClassName} pl-9 h-9`}
+              >
+                <option value="">All statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="withdrawn">Withdrawn</option>
+              </select>
+            </div>
           </div>
 
-          <div className="flex items-end gap-2 xl:col-span-5">
+          <div className="flex items-end gap-2 xl:col-span-5 mt-2">
             <Button
               type="button"
               variant="outline"
+              size="sm"
+              className="h-9 flex items-center gap-1.5 hover:bg-surface-2"
               onClick={() => {
                 setPage(1);
                 setFilters({
@@ -301,7 +326,8 @@ export function StudentQuickLoad({
                 });
               }}
             >
-              Clear
+              <X className="h-3.5 w-3.5" />
+              Clear Filters
             </Button>
           </div>
         </div>
