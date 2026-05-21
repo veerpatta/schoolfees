@@ -347,22 +347,24 @@ export default async function StudentDetailPage({
         encodedReturnTo={encodedReturnTo}
       />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <StudentWorkspaceTabs
-          defaultTab={activeTab}
-          counts={{
-            dues: installmentBalances.filter((row) => row.pendingAmount > 0).length,
-            receipts: receipts.length,
-            payments: ledger?.payments.length ?? 0,
-          }}
-          duesContent={duesContent}
-          receiptsContent={receiptsContent}
-          paymentsContent={paymentsContent}
-          feePlanContent={feePlanContent}
-          aboutContent={<StudentAboutPanel student={student} ledger={ledger} receipts={receipts} />}
-        />
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px] min-w-0">
+        <div className="min-w-0">
+          <StudentWorkspaceTabs
+            defaultTab={activeTab}
+            counts={{
+              dues: installmentBalances.filter((row) => row.pendingAmount > 0).length,
+              receipts: receipts.length,
+              payments: ledger?.payments.length ?? 0,
+            }}
+            duesContent={duesContent}
+            receiptsContent={receiptsContent}
+            paymentsContent={paymentsContent}
+            feePlanContent={feePlanContent}
+            aboutContent={<StudentAboutPanel student={student} ledger={ledger} receipts={receipts} />}
+          />
+        </div>
 
-        <aside className="lg:sticky lg:top-20 lg:self-start space-y-6">
+        <aside className="lg:sticky lg:top-20 lg:self-start space-y-6 min-w-0">
           <StudentQuickReference student={student} financialSnapshot={financialSnapshot} />
           <StudentFamilyPanel
             studentId={student.id}
