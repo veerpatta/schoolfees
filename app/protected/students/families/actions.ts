@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
+import { applyThirdChildPolicyForFamilyGroup } from "@/lib/fees/conventional-discounts";
+import { prepareDuesForStudentsAutomatically } from "@/lib/system-sync/finance-sync";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
@@ -154,8 +156,21 @@ export async function confirmSiblingGroupAction(
     };
   }
 
+  const thirdChildResult = await applyThirdChildPolicyForFamilyGroup(familyGroup.id, {
+    academicSessionLabel: groupRow.session_label,
+  });
+  if (thirdChildResult?.affectedStudentIds.length) {
+    await prepareDuesForStudentsAutomatically({
+      studentIds: thirdChildResult.affectedStudentIds,
+      sessionLabel: groupRow.session_label,
+      reason: "Sibling policy updated",
+    });
+  }
+
   revalidatePath("/protected/students");
   revalidatePath("/protected/students/families");
+  revalidatePath("/protected/payments");
+  revalidatePath("/protected/defaulters");
 
   return {
     status: "success",

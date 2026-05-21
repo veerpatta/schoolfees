@@ -20,6 +20,7 @@ import type {
 } from "@/lib/fees/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import {
+  prepareDuesForStudentsAutomatically,
   repairMissingDues,
   revalidateCoreFinancePaths,
 } from "@/lib/system-sync/finance-sync";
@@ -340,6 +341,24 @@ function revalidateFeeSetupSurface() {
   revalidateCoreFinancePaths();
 }
 
+async function saveConventionalDiscountPoliciesAndSync(payload: {
+  academicSessionLabel: string;
+  policies: ReturnType<typeof parseConventionalDiscountRows>;
+}) {
+  const results = await upsertConventionalDiscountPolicies(payload);
+  const affectedStudentIds = Array.from(
+    new Set(results.flatMap((result) => result.affectedStudentIds)),
+  );
+
+  if (affectedStudentIds.length > 0) {
+    await prepareDuesForStudentsAutomatically({
+      studentIds: affectedStudentIds,
+      sessionLabel: payload.academicSessionLabel,
+      reason: "Conventional discount policy updated",
+    });
+  }
+}
+
 export async function saveWorkbookFeeSetupAction(
   _previous: FeeSetupActionState,
   formData: FormData,
@@ -354,7 +373,7 @@ export async function saveWorkbookFeeSetupAction(
     if (intent === "apply") {
       const batchId = parseUuid(formData.get("changeBatchId"), "Review batch");
       const result = await applyWorkbookFeeSetupBatch(batchId, payload);
-      await upsertConventionalDiscountPolicies({
+      await saveConventionalDiscountPoliciesAndSync({
         academicSessionLabel: payload.academicSessionLabel,
         policies: conventionalDiscountPolicies,
       });
@@ -384,7 +403,7 @@ export async function saveWorkbookFeeSetupAction(
         throw error;
       }
 
-      await upsertConventionalDiscountPolicies({
+      await saveConventionalDiscountPoliciesAndSync({
         academicSessionLabel: payload.academicSessionLabel,
         policies: conventionalDiscountPolicies,
       });
@@ -423,7 +442,7 @@ export async function saveWorkbookFeeSetupAction(
 
     if (intent === "save") {
       const result = await applyWorkbookFeeSetupBatch(previewResult.batchId, payload);
-      await upsertConventionalDiscountPolicies({
+      await saveConventionalDiscountPoliciesAndSync({
         academicSessionLabel: payload.academicSessionLabel,
         policies: conventionalDiscountPolicies,
       });

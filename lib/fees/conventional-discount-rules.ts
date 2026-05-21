@@ -3,10 +3,46 @@ import type {
   StudentConventionalDiscountAssignment,
 } from "@/lib/fees/types";
 
+export type ThirdChildPolicyFamilyMember = {
+  studentId: string;
+  classSortOrder: number | null;
+  classLabel?: string | null;
+  admissionNo?: string | null;
+};
+
 function toWholeNumber(value: unknown) {
   return typeof value === "number" && Number.isFinite(value)
     ? Math.max(0, Math.trunc(value))
     : 0;
+}
+
+function compareNullableText(left: string | null | undefined, right: string | null | undefined) {
+  return (left ?? "").localeCompare(right ?? "", "en-IN", {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
+
+export function selectThirdChildPolicyRecipient(
+  members: ThirdChildPolicyFamilyMember[],
+) {
+  if (members.length < 3) {
+    return null;
+  }
+
+  const [recipient = null] = [...members].sort((left, right) => {
+    const leftOrder = left.classSortOrder ?? Number.MAX_SAFE_INTEGER;
+    const rightOrder = right.classSortOrder ?? Number.MAX_SAFE_INTEGER;
+
+    return (
+      leftOrder - rightOrder ||
+      compareNullableText(left.classLabel, right.classLabel) ||
+      compareNullableText(left.admissionNo, right.admissionNo) ||
+      left.studentId.localeCompare(right.studentId)
+    );
+  });
+
+  return recipient;
 }
 
 export function calculateConventionalPolicyTuition(payload: {

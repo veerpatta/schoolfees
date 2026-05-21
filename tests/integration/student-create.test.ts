@@ -16,6 +16,7 @@ vi.mock("@/lib/fees/data", () => ({
 }));
 
 vi.mock("@/lib/fees/conventional-discounts", () => ({
+  applyThirdChildPolicyForStudentFamilies: vi.fn(async () => []),
   saveStudentConventionalDiscountAssignments: vi.fn(async () => undefined),
 }));
 

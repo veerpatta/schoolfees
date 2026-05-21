@@ -23,6 +23,10 @@ vi.mock("@/lib/students/data", () => ({
   updateStudent,
 }));
 
+vi.mock("@/lib/fees/conventional-discounts", () => ({
+  applyThirdChildPolicyForStudentFamilies: vi.fn(async () => []),
+}));
+
 vi.mock("@/lib/system-sync/finance-sync", () => ({
   prepareDuesForStudentsAutomatically,
   revalidateFinanceSurfaces,

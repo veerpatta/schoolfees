@@ -8,7 +8,7 @@ import Link from "next/link";
 import { MetricCard } from "@/components/admin/metric-card";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
-import { OfficeRecentActions, OfficeRecentTracker, ValueStatePill, WorkflowGuard } from "@/components/office/office-ui";
+import { OfficeRecentTracker, ValueStatePill, WorkflowGuard } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

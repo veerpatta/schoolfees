@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyConventionalDiscountsToTuition,
   calculateConventionalPolicyTuition,
+  selectThirdChildPolicyRecipient,
 } from "@/lib/fees/conventional-discount-rules";
 import type {
   ConventionalDiscountCalculationType,
@@ -110,5 +111,25 @@ describe("conventional discount rules", () => {
     });
 
     expect(result.resultingTuition).toBe(19000);
+  });
+
+  it("selects only the sibling in the smallest class for the 3rd Child Policy", () => {
+    const recipient = selectThirdChildPolicyRecipient([
+      { studentId: "class-8-child", classSortOrder: 11, classLabel: "Class 8", admissionNo: "A-8" },
+      { studentId: "class-2-child", classSortOrder: 5, classLabel: "Class 2", admissionNo: "A-2" },
+      { studentId: "class-6-child", classSortOrder: 9, classLabel: "Class 6", admissionNo: "A-6" },
+      { studentId: "class-4-child", classSortOrder: 7, classLabel: "Class 4", admissionNo: "A-4" },
+    ]);
+
+    expect(recipient?.studentId).toBe("class-2-child");
+  });
+
+  it("does not select a 3rd Child Policy recipient when fewer than three siblings are active", () => {
+    expect(
+      selectThirdChildPolicyRecipient([
+        { studentId: "class-2-child", classSortOrder: 5, classLabel: "Class 2", admissionNo: "A-2" },
+        { studentId: "class-6-child", classSortOrder: 9, classLabel: "Class 6", admissionNo: "A-6" },
+      ]),
+    ).toBeNull();
   });
 });

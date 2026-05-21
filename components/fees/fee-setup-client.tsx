@@ -819,7 +819,7 @@ export function FeeSetupClient({
         className={`group md:contents ${
           activeSection !== "session" ? "md:hidden" : ""
         }`}
-        open={true}
+        open={activeSection === "session"}
       >
         <summary className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5 font-medium text-foreground md:hidden" onClick={() => setActiveSection("session")}>
           <span className="flex items-center gap-2">
@@ -1116,7 +1116,7 @@ export function FeeSetupClient({
         className={`group md:contents ${
           activeSection !== "basic" ? "md:hidden" : ""
         }`}
-        open={false}
+        open={activeSection === "basic"}
       >
         <summary className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5 font-medium text-foreground md:hidden" onClick={() => setActiveSection("basic")}>
           <span className="flex items-center gap-2">
@@ -1276,7 +1276,7 @@ export function FeeSetupClient({
         className={`group md:contents ${
           activeSection !== "discounts" ? "md:hidden" : ""
         }`}
-        open={false}
+        open={activeSection === "discounts"}
       >
         <summary className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5 font-medium text-foreground md:hidden" onClick={() => setActiveSection("discounts")}>
           <span className="flex items-center gap-2">
@@ -1401,7 +1401,7 @@ export function FeeSetupClient({
         className={`group md:contents ${
           activeSection !== "fee-heads" ? "md:hidden" : ""
         }`}
-        open={false}
+        open={activeSection === "fee-heads"}
       >
         <summary className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5 font-medium text-foreground md:hidden" onClick={() => setActiveSection("fee-heads")}>
           <span className="flex items-center gap-2">
@@ -1624,7 +1624,7 @@ export function FeeSetupClient({
         className={`group md:contents ${
           activeSection !== "classes" ? "md:hidden" : ""
         }`}
-        open={false}
+        open={activeSection === "classes"}
       >
         <summary className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5 font-medium text-foreground md:hidden" onClick={() => setActiveSection("classes")}>
           <span className="flex items-center gap-2">
@@ -1885,7 +1885,7 @@ export function FeeSetupClient({
         className={`group md:contents ${
           activeSection !== "transport" ? "md:hidden" : ""
         }`}
-        open={false}
+        open={activeSection === "transport"}
       >
         <summary className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5 font-medium text-foreground md:hidden" onClick={() => setActiveSection("transport")}>
           <span className="flex items-center gap-2">

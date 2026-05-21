@@ -8,6 +8,7 @@ const getActiveSessionLabel = vi.fn();
 const setActiveSessionLabel = vi.fn();
 const revalidatePath = vi.fn();
 const revalidateCoreFinancePaths = vi.fn();
+const prepareDuesForStudentsAutomatically = vi.fn();
 const repairMissingDues = vi.fn();
 
 vi.mock("server-only", () => ({}));
@@ -38,6 +39,7 @@ vi.mock("@/lib/session/set-active", () => ({
 }));
 
 vi.mock("@/lib/system-sync/finance-sync", () => ({
+  prepareDuesForStudentsAutomatically,
   repairMissingDues,
   revalidateCoreFinancePaths,
 }));
@@ -83,7 +85,13 @@ describe("Fee Setup publish working-session behavior", () => {
         blockedInstallments: 0,
       },
     });
-    upsertConventionalDiscountPolicies.mockResolvedValue(undefined);
+    upsertConventionalDiscountPolicies.mockResolvedValue([]);
+    prepareDuesForStudentsAutomatically.mockResolvedValue({
+      readyForPaymentCount: 0,
+      duesNeedAttentionCount: 0,
+      reasonSummary: null,
+      raw: { academicSessionLabel: "2026-27" },
+    });
     getActiveSessionLabel.mockResolvedValue("2026-27");
     setActiveSessionLabel.mockResolvedValue(undefined);
     repairMissingDues.mockResolvedValue({

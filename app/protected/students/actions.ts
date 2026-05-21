@@ -10,6 +10,7 @@ import {
   updateStudent,
 } from "@/lib/students/data";
 import { parseAcademicSessionLabel } from "@/lib/config/fee-rules";
+import { applyThirdChildPolicyForStudentFamilies } from "@/lib/fees/conventional-discounts";
 import {
   type StudentFormInput,
   type StudentFormActionState,
@@ -122,6 +123,18 @@ function conventionalDiscountSelectionChanged(
   return previousKey !== nextKey;
 }
 
+async function getThirdChildPolicyAffectedStudentIds(
+  studentId: string,
+  sessionLabel: string,
+) {
+  const results = await applyThirdChildPolicyForStudentFamilies({
+    studentId,
+    academicSessionLabel: sessionLabel,
+  });
+
+  return results.flatMap((result) => result.affectedStudentIds);
+}
+
 export async function createStudentAction(
   _previous: StudentFormActionState,
   formData: FormData,
@@ -165,15 +178,23 @@ export async function createStudentAction(
   let syncOutcome: OfficeSyncOutcome;
 
   try {
+    const thirdChildAffectedStudentIds = await getThirdChildPolicyAffectedStudentIds(
+      studentId,
+      resolvedSessionLabel,
+    );
+    const affectedStudentIds = Array.from(
+      new Set([studentId, ...thirdChildAffectedStudentIds]),
+    );
+
     if (isDuesSyncRelevantStatus(validated.data.status)) {
       const duesResult = await prepareDuesForStudentsAutomatically({
-        studentIds: [studentId],
+        studentIds: affectedStudentIds,
         sessionLabel: resolvedSessionLabel,
         reason: "Student added",
       });
       syncOutcome = buildStudentDuesSyncOutcome({
         sessionLabel: resolvedSessionLabel,
-        studentIds: [studentId],
+        studentIds: affectedStudentIds,
         duesResult,
       });
 
@@ -184,10 +205,10 @@ export async function createStudentAction(
         reasonSummary: duesResult.reasonSummary,
       });
     } else {
-      revalidateFinanceSurfaces({ studentIds: [studentId] });
+      revalidateFinanceSurfaces({ studentIds: affectedStudentIds });
       syncOutcome = buildSyncedOfficeSyncOutcome({
         sessionLabel: resolvedSessionLabel,
-        affectedStudentIds: [studentId],
+        affectedStudentIds,
       });
     }
     await publishOfficeSyncEvent({
@@ -195,7 +216,7 @@ export async function createStudentAction(
       entityType: "student",
       entityId: studentId,
       action: "created",
-      affectedStudentIds: [studentId],
+      affectedStudentIds,
       metadata: { status: syncOutcome.status },
     });
 
@@ -274,8 +295,16 @@ export async function updateStudentAction(
     }
 
     const updatedStudentId = await updateStudent(studentId, validated.data);
+    const thirdChildAffectedStudentIds = await getThirdChildPolicyAffectedStudentIds(
+      updatedStudentId,
+      resolvedSessionLabel,
+    );
+    const affectedStudentIds = Array.from(
+      new Set([updatedStudentId, ...thirdChildAffectedStudentIds]),
+    );
     const shouldSyncDues =
       shouldSyncStudentDuesForChange(previousStudent, validated.data) ||
+      thirdChildAffectedStudentIds.length > 0 ||
       conventionalDiscountSelectionChanged(
         previousStudent.conventionalDiscountPolicyIds,
         validated.data.conventionalPolicyIds,
@@ -286,13 +315,13 @@ export async function updateStudentAction(
 
     if (shouldSyncDues) {
       const duesResult = await prepareDuesForStudentsAutomatically({
-        studentIds: [updatedStudentId],
+        studentIds: affectedStudentIds,
         sessionLabel: resolvedSessionLabel,
         reason: "Student updated",
       });
       syncOutcome = buildStudentDuesSyncOutcome({
         sessionLabel: resolvedSessionLabel,
-        studentIds: [updatedStudentId],
+        studentIds: affectedStudentIds,
         duesResult,
       });
 
@@ -303,10 +332,10 @@ export async function updateStudentAction(
         reasonSummary: duesResult.reasonSummary,
       })}`;
     } else {
-      revalidateFinanceSurfaces({ studentIds: [updatedStudentId] });
+      revalidateFinanceSurfaces({ studentIds: affectedStudentIds });
       syncOutcome = buildSyncedOfficeSyncOutcome({
         sessionLabel: resolvedSessionLabel,
-        affectedStudentIds: [updatedStudentId],
+        affectedStudentIds,
       });
     }
     await publishOfficeSyncEvent({
@@ -314,7 +343,7 @@ export async function updateStudentAction(
       entityType: "student",
       entityId: updatedStudentId,
       action: "updated",
-      affectedStudentIds: [updatedStudentId],
+      affectedStudentIds,
       metadata: { status: syncOutcome.status },
     });
 
