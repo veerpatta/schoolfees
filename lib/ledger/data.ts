@@ -268,7 +268,30 @@ export async function getLedgerPageData(payload: {
     };
   }
 
-  const selectedStudent = studentOptions.find((student) => student.id === payload.studentId);
+  let selectedStudent =
+    studentOptions.find((student) => student.id === payload.studentId) ?? null;
+
+  if (!selectedStudent) {
+    const { data: selectedStudentRaw, error: selectedStudentError } = await supabase
+      .from("students")
+      .select(
+        "id, full_name, admission_no, class_ref:classes(class_name, section, stream_name)",
+      )
+      .eq("id", payload.studentId)
+      .maybeSingle();
+
+    if (selectedStudentError) {
+      throw new Error(`Unable to load selected student for ledger: ${selectedStudentError.message}`);
+    }
+
+    selectedStudent = selectedStudentRaw
+      ? mapStudentOptions([selectedStudentRaw as StudentRow])[0] ?? null
+      : null;
+
+    if (selectedStudent) {
+      studentOptions.unshift(selectedStudent);
+    }
+  }
 
   if (!selectedStudent) {
     return {

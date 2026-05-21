@@ -69,6 +69,75 @@ function SiblingPill({ student, session }: { student: StudentListItem; session?:
   );
 }
 
+function MobileStudentListItem({
+  student,
+  returnTo,
+  session,
+}: {
+  student: StudentListItem;
+  returnTo: string;
+  session?: string;
+}) {
+  const withSession = (href: string) => appendSessionParam(href, session);
+  const srNoMissing = student.status === "active" && !student.admissionNo.trim();
+  const studentHref = withSession(
+    `/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`,
+  );
+
+  return (
+    <li className="group relative flex items-center gap-3 px-4 py-4 transition-all hover:bg-surface-2/50 active:bg-surface-2">
+      <span
+        className={cn(
+          "size-2.5 shrink-0 rounded-full mt-0.5",
+          student.status === "active" ? "bg-success" : "bg-muted-foreground/30",
+        )}
+      />
+
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Link
+            href={studentHref}
+            className="truncate text-sm font-semibold text-foreground underline-offset-4 hover:underline"
+          >
+            {student.fullName}
+          </Link>
+          {srNoMissing ? (
+            <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[9px] font-medium text-warning-soft-foreground flex items-center gap-0.5">
+              <ShieldAlert className="h-2.5 w-2.5" />
+              SR missing
+            </span>
+          ) : null}
+          <SiblingPill student={student} session={session} />
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          {student.classLabel} · SR {student.admissionNo || "Pending"}
+        </p>
+      </div>
+
+      {student.outstandingAmount > 0 ? (
+        <div className="shrink-0 text-right">
+          <Money value={student.outstandingAmount} size="sm" tone="warning" />
+          <p className="text-[10px] text-muted-foreground">pending</p>
+        </div>
+      ) : (
+        <div className="shrink-0 text-right">
+          <span className="inline-flex items-center rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-semibold text-success-soft-foreground">
+            Paid
+          </span>
+        </div>
+      )}
+
+      <Link
+        href={studentHref}
+        aria-label={`Open ${student.fullName}`}
+        className="shrink-0 rounded-full p-1 text-muted-foreground/40 transition hover:bg-surface-2 hover:text-foreground"
+      >
+        <ChevronRight className="size-4" />
+      </Link>
+    </li>
+  );
+}
+
 export function StudentListTable({
   students,
   hasFilters,
@@ -98,57 +167,14 @@ export function StudentListTable({
   return (
     <div className="rounded-xl border border-border overflow-hidden bg-card">
       <ul className="divide-y divide-border/60 md:hidden bg-card">
-        {students.map((student) => {
-          const srNoMissing = student.status === "active" && !student.admissionNo.trim();
-
-          return (
-            <li key={student.id} className="group relative">
-              <Link
-                href={withSession(`/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`)}
-                className="flex items-center gap-3 px-4 py-4 transition-all hover:bg-surface-2/50 active:bg-surface-2"
-              >
-                {/* Status dot */}
-                <span className={cn(
-                  "size-2.5 shrink-0 rounded-full mt-0.5",
-                  student.status === "active" ? "bg-success" : "bg-muted-foreground/30"
-                )} />
-
-                {/* Name + class + admission */}
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <p className="font-semibold text-foreground truncate text-sm">{student.fullName}</p>
-                    {srNoMissing ? (
-                      <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[9px] font-medium text-warning-soft-foreground flex items-center gap-0.5">
-                        <ShieldAlert className="h-2.5 w-2.5" />
-                        SR missing
-                      </span>
-                    ) : null}
-                    <SiblingPill student={student} session={session} />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {student.classLabel} · SR {student.admissionNo || "Pending"}
-                  </p>
-                </div>
-
-                {/* Pending amount if any */}
-                {student.outstandingAmount > 0 ? (
-                  <div className="shrink-0 text-right">
-                    <Money value={student.outstandingAmount} size="sm" tone="warning" />
-                    <p className="text-[10px] text-muted-foreground">pending</p>
-                  </div>
-                ) : (
-                  <div className="shrink-0 text-right">
-                    <span className="inline-flex items-center rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-semibold text-success-soft-foreground">
-                      Paid
-                    </span>
-                  </div>
-                )}
-
-                <ChevronRight className="size-4 text-muted-foreground/40 shrink-0" />
-              </Link>
-            </li>
-          );
-        })}
+        {students.map((student) => (
+          <MobileStudentListItem
+            key={student.id}
+            student={student}
+            returnTo={returnTo}
+            session={session}
+          />
+        ))}
       </ul>
       <table className="hidden min-w-full divide-y divide-border/60 md:table">
         <thead className="bg-surface-2">
