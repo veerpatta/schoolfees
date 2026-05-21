@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Calendar, BadgeIndianRupee, School, Bus, ClipboardList, Tag, ChevronDown } from "lucide-react";
 
 import type { MasterDataActionState } from "@/app/protected/master-data/actions";
 import { SectionCard } from "@/components/admin/section-card";
@@ -803,21 +803,7 @@ export function FeeSetupClient({
           protected for review.
         </div>
 
-        <div className="md:hidden">
-          <Label htmlFor="fee-setup-section">Section</Label>
-          <select
-            id="fee-setup-section"
-            value={activeSection}
-            onChange={(event) => setActiveSection(event.target.value as FeeSetupSectionId)}
-            className={`${selectClassName} mt-2`}
-          >
-            {FEE_SETUP_SECTIONS.map((section) => (
-              <option key={section.id} value={section.id}>
-                {section.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Mobile section dropdown is hidden because we use the accordion layout below on mobile */}
 
         <div className="flex min-h-[520px] overflow-hidden rounded-2xl border border-border bg-card">
           <SectionNavRail
@@ -829,559 +815,605 @@ export function FeeSetupClient({
           />
 
           <div className="flex-1 overflow-y-auto p-5">
-      {activeSection === "session" ? (
-      <SectionCard
-        title="1. Academic Year"
-        description="Choose the year for this fee setup."
-        actions={
-          <div className="min-w-[240px]">
-            <Label htmlFor="selected-session">Academic year</Label>
-            <select
-              id="selected-session"
-              value={selectedSessionLabel}
-              onChange={(event) => switchSession(event.target.value)}
-              className={`${selectClassName} mt-2`}
-            >
-              {sessionRows.length === 0 ? (
-                <option value="">Create Academic Year</option>
-              ) : (
-                sessionRows.map((item) => (
-                  <option key={item.id} value={item.session_label}>
-                    {item.session_label}
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
-        }
+      <details
+        className={`group md:contents ${
+          activeSection !== "session" ? "md:hidden" : ""
+        }`}
+        open={true}
       >
-        <div className="space-y-4">
-          <ActionNotice state={sessionState} />
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge label={`Live session: ${currentSessionLabel}`} tone="good" />
-            {selectedSessionLabel && selectedSessionLabel !== currentSessionLabel ? (
-              <StatusBadge label={`Editing: ${selectedSessionLabel}`} tone="accent" />
-            ) : null}
-            {selectedSessionIsTest ? (
-              <StatusBadge label="Test session" tone="warning" />
-            ) : null}
-          </div>
-
-          {selectedSessionIsTest ? (
-            <div className="rounded-xl border bg-warning-soft px-4 py-3 text-sm leading-6 text-warning-soft-foreground">
-              This is a test academic year. Do not mix real students or real payments into test
-              records.
-            </div>
-          ) : null}
-
-          {canEdit ? (
-            <div className="grid gap-4 xl:grid-cols-2">
-              <form
-                className="rounded-2xl border border-border bg-surface-2 p-4"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const formData = new FormData(event.currentTarget);
-                  runSupportAction(actions.copySessionAction, sessionState, formData, setSessionState, {
-                    onSuccess: () => setCopyTargetSessionLabel(""),
-                  });
-                }}
-              >
-                <p className="text-sm font-semibold text-foreground">Copy Previous Year</p>
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  <div>
-                    <Label htmlFor="source-session-label">Copy from</Label>
-                    <select
-                      id="source-session-label"
-                      name="sourceSessionLabel"
-                      defaultValue={selectedSessionLabel}
-                      className={`${selectClassName} mt-2`}
-                    >
-                      {sessionRows.map((item) => (
-                        <option key={item.id} value={item.session_label}>
-                          {item.session_label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <Label htmlFor="target-session-label">New academic year</Label>
-                    <Input
-                      id="target-session-label"
-                      name="targetSessionLabel"
-                      value={copyTargetSessionLabel}
-                      onChange={(event) => setCopyTargetSessionLabel(event.target.value)}
-                      placeholder="TEST-2026-27"
-                      className="mt-2"
-                      required
-                    />
-                  </div>
-                </div>
-                <Button type="submit" className="mt-4" variant="outline" disabled={isSupportingPending}>
-                  Copy Previous Year
-                </Button>
-              </form>
-
-              <form
-                className="rounded-2xl border border-border bg-surface-2 p-4"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const formData = new FormData(event.currentTarget);
-                  runSupportAction(actions.createSessionAction, sessionState, formData, setSessionState, {
-                    onSuccess: () => setNewSessionLabel(""),
-                  });
-                }}
-              >
-                <p className="text-sm font-semibold text-foreground">Create New Year</p>
-                <div className="mt-3">
-                  <Label htmlFor="new-session-label">Academic year</Label>
-                  <Input
-                    id="new-session-label"
-                    name="sessionLabel"
-                    value={newSessionLabel}
-                    onChange={(event) => setNewSessionLabel(event.target.value)}
-                    placeholder="TEST-2026-27"
-                    className="mt-2"
-                    required
-                  />
-                </div>
-                <input type="hidden" name="sessionStatus" value="active" />
-                <input type="hidden" name="isCurrentSession" value="no" />
-                <input type="hidden" name="sessionNotes" value="" />
-                <Button type="submit" className="mt-4" disabled={isSupportingPending}>
-                  Create New Year
-                </Button>
-              </form>
-            </div>
-          ) : null}
-
-          <AdvancedDetails
-            title="Advanced academic-year options"
-            description="Old-year maintenance and saved setup details."
-          >
-            <div className="overflow-auto rounded-xl border border-border bg-card">
-              <table className="w-full min-w-full text-left text-sm">
-                <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3">Session</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Saved setup</th>
-                    <th className="px-4 py-3">Updated</th>
-                    <th className="px-4 py-3">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
+        <summary className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5 font-medium text-foreground md:hidden" onClick={() => setActiveSection("session")}>
+          <span className="flex items-center gap-2">
+            <Calendar className="size-4 text-accent" />
+            1. Academic Year
+          </span>
+          <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="md:contents">
+          <SectionCard
+            title="1. Academic Year"
+            description="Choose the year for this fee setup."
+            actions={
+              <div className="min-w-[240px]">
+                <Label htmlFor="selected-session">Academic year</Label>
+                <select
+                  id="selected-session"
+                  value={selectedSessionLabel}
+                  onChange={(event) => switchSession(event.target.value)}
+                  className={`${selectClassName} mt-2`}
+                >
                   {sessionRows.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">
-                        Create Academic Year
-                      </td>
-                    </tr>
+                    <option value="">Create Academic Year</option>
                   ) : (
-                    sessionRows.map((item) => {
-                      const formId = `session-row-${item.id}`;
-                      const snapshot = data.policySnapshots.find(
-                        (policy) => policy.academicSessionLabel === item.session_label,
-                      );
-
-                      return (
-                        <tr key={item.id} className="border-t border-border align-top">
-                          <td className="px-4 py-3">
-                            <form
-                              id={formId}
-                              onSubmit={(event) => {
-                                event.preventDefault();
-                                runSupportAction(
-                                  actions.updateSessionAction,
-                                  sessionState,
-                                  new FormData(event.currentTarget),
-                                  setSessionState,
-                                );
-                              }}
-                            >
-                              <input type="hidden" name="sessionId" value={item.id} />
-                              <input type="hidden" name="isCurrentSession" value={item.is_current ? "yes" : "no"} />
-                              <input type="hidden" name="sessionNotes" value={item.notes ?? ""} />
-                              <Input
-                                name="sessionLabel"
-                                defaultValue={item.session_label}
-                                disabled={!canEdit}
-                              />
-                            </form>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {item.session_label === currentSessionLabel ? (
-                                <StatusBadge label="Live" tone="good" />
-                              ) : null}
-                              {item.session_label === selectedSessionLabel ? (
-                                <StatusBadge label="Selected" tone="accent" />
-                              ) : null}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <select
-                              form={formId}
-                              name="sessionStatus"
-                              defaultValue={item.status}
-                              className={selectClassName}
-                              disabled={!canEdit}
-                            >
-                              <option value="active">Active</option>
-                              <option value="inactive">Inactive</option>
-                              <option value="archived">Archived</option>
-                            </select>
-                          </td>
-                          <td className="px-4 py-3 text-muted-foreground">
-                            {snapshot ? (
-                              <div className="space-y-1">
-                                <p className="font-medium text-foreground">
-                                  {snapshot.installmentCount} installments
-                                </p>
-                                <p>{snapshot.customFeeHeads.filter((head) => head.isActive).length} fee heads</p>
-                              </div>
-                            ) : (
-                              <span>No saved setup yet</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-muted-foreground">
-                            {formatDateTime(snapshot?.updatedAt ?? item.updated_at)}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex flex-wrap gap-2">
-                              <Button
-                                type="button"
-                                variant={item.session_label === selectedSessionLabel ? "default" : "outline"}
-                                onClick={() => switchSession(item.session_label)}
-                              >
-                                Work on this year
-                              </Button>
-                              {canEdit ? (
-                                <>
-                                  <Button type="submit" form={formId} variant="outline" disabled={isSupportingPending}>
-                                    Save session row
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    disabled={isSupportingPending || item.status === "archived"}
-                                    onClick={() => {
-                                      const formData = new FormData();
-                                      formData.set("sessionId", item.id);
-                                      formData.set("sessionLabel", item.session_label);
-                                      formData.set("sessionStatus", "archived");
-                                      formData.set("isCurrentSession", item.is_current ? "yes" : "no");
-                                      formData.set("sessionNotes", item.notes ?? "");
-                                      runSupportAction(
-                                        actions.updateSessionAction,
-                                        sessionState,
-                                        formData,
-                                        setSessionState,
-                                      );
-                                    }}
-                                  >
-                                    Archive old session
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    disabled={isSupportingPending}
-                                    onClick={() => {
-                                      const formData = new FormData();
-                                      formData.set("sessionId", item.id);
-                                      runSupportAction(
-                                        actions.deleteSessionAction,
-                                        sessionState,
-                                        formData,
-                                        setSessionState,
-                                      );
-                                    }}
-                                  >
-                                    Delete unused session only
-                                  </Button>
-                                </>
-                              ) : null}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
+                    sessionRows.map((item) => (
+                      <option key={item.id} value={item.session_label}>
+                        {item.session_label}
+                      </option>
+                    ))
                   )}
-                </tbody>
-              </table>
-            </div>
-          </AdvancedDetails>
-        </div>
-      </SectionCard>
-      ) : null}
-
-      {activeSection === "basic" || activeSection === "fee-heads" || activeSection === "discounts" ? (
-      <SectionCard
-        title={
-          activeSection === "fee-heads"
-            ? "Fee Heads"
-            : activeSection === "discounts"
-              ? "Conventional Discounts"
-              : "2. Basic Fee Rules"
-        }
-        description={
-          activeSection === "fee-heads"
-            ? "Review extra fee heads saved with the selected academic year."
-            : activeSection === "discounts"
-              ? "Configure standard school discount policies. Student assignment stays in Students."
-              : "Set installment dates, late fee, and the annual academic fee for new and existing students."
-        }
-        actions={
-          activeSection === "basic" && canEdit ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={addInstallmentDate}
-              leadingIcon={<Plus className="size-3.5" />}
-            >
-              Add installment
-            </Button>
-          ) : null
-        }
-      >
-        <div className="space-y-5">
-          {activeSection === "basic" ? (
-            <>
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(260px,0.65fr)]">
-            <div className="rounded-xl border border-border bg-surface-2 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground">Installment Dates</p>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    These dates define this academic year&apos;s fee schedule.
-                  </p>
-                </div>
-                <span className="shrink-0 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                  {form.installmentDates.length} dates
-                </span>
+                </select>
+              </div>
+            }
+          >
+            <div className="space-y-4">
+              <ActionNotice state={sessionState} />
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge label={`Live session: ${currentSessionLabel}`} tone="good" />
+                {selectedSessionLabel && selectedSessionLabel !== currentSessionLabel ? (
+                  <StatusBadge label={`Editing: ${selectedSessionLabel}`} tone="accent" />
+                ) : null}
+                {selectedSessionIsTest ? (
+                  <StatusBadge label="Test session" tone="warning" />
+                ) : null}
               </div>
 
-              <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                {form.installmentDates.map((value, index) => (
-                  <div
-                    key={`installment-${index}`}
-                    className="rounded-lg border border-border bg-card p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]"
+              {selectedSessionIsTest ? (
+                <div className="rounded-xl border bg-warning-soft px-4 py-3 text-sm leading-6 text-warning-soft-foreground">
+                  This is a test academic year. Do not mix real students or real payments into test
+                  records.
+                </div>
+              ) : null}
+
+              {canEdit ? (
+                <div className="grid gap-4 xl:grid-cols-2">
+                  <form
+                    className="rounded-2xl border border-border bg-surface-2 p-4"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const formData = new FormData(event.currentTarget);
+                      runSupportAction(actions.copySessionAction, sessionState, formData, setSessionState, {
+                        onSuccess: () => setCopyTargetSessionLabel(""),
+                      });
+                    }}
                   >
-                    <div className="flex min-h-8 items-center gap-2">
-                      <span className="grid size-7 shrink-0 place-items-center rounded-full bg-accent-soft text-xs font-semibold text-accent-soft-foreground">
-                        {index + 1}
-                      </span>
-                      <Label
-                        htmlFor={`installment-date-${index}`}
-                        className="min-w-0 flex-1 text-sm font-medium text-foreground"
-                      >
-                        Due date
-                      </Label>
-                      {canEdit && form.installmentDates.length > 1 ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => removeInstallmentDate(index)}
-                          aria-label={`Remove installment ${index + 1}`}
-                          title={`Remove installment ${index + 1}`}
-                          className="shrink-0 rounded-full border border-border bg-surface text-muted-foreground hover:border-destructive/40 hover:bg-destructive-soft hover:text-destructive-soft-foreground"
+                    <p className="text-sm font-semibold text-foreground">Copy Previous Year</p>
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      <div>
+                        <Label htmlFor="source-session-label">Copy from</Label>
+                        <select
+                          id="source-session-label"
+                          name="sourceSessionLabel"
+                          defaultValue={selectedSessionLabel}
+                          className={`${selectClassName} mt-2`}
                         >
-                          <X className="size-3.5" />
-                        </Button>
+                          {sessionRows.map((item) => (
+                            <option key={item.id} value={item.session_label}>
+                              {item.session_label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <Label htmlFor="target-session-label">New academic year</Label>
+                        <Input
+                          id="target-session-label"
+                          name="targetSessionLabel"
+                          value={copyTargetSessionLabel}
+                          onChange={(event) => setCopyTargetSessionLabel(event.target.value)}
+                          placeholder="TEST-2026-27"
+                          className="mt-2"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <Button type="submit" className="mt-4" variant="outline" disabled={isSupportingPending}>
+                      Copy Previous Year
+                    </Button>
+                  </form>
+
+                  <form
+                    className="rounded-2xl border border-border bg-surface-2 p-4"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const formData = new FormData(event.currentTarget);
+                      runSupportAction(actions.createSessionAction, sessionState, formData, setSessionState, {
+                        onSuccess: () => setNewSessionLabel(""),
+                      });
+                    }}
+                  >
+                    <p className="text-sm font-semibold text-foreground">Create New Year</p>
+                    <div className="mt-3">
+                      <Label htmlFor="new-session-label">Academic year</Label>
+                      <Input
+                        id="new-session-label"
+                        name="sessionLabel"
+                        value={newSessionLabel}
+                        onChange={(event) => setNewSessionLabel(event.target.value)}
+                        placeholder="TEST-2026-27"
+                        className="mt-2"
+                        required
+                      />
+                    </div>
+                    <input type="hidden" name="sessionStatus" value="active" />
+                    <input type="hidden" name="isCurrentSession" value="no" />
+                    <input type="hidden" name="sessionNotes" value="" />
+                    <Button type="submit" className="mt-4" disabled={isSupportingPending}>
+                      Create New Year
+                    </Button>
+                  </form>
+                </div>
+              ) : null}
+
+              <AdvancedDetails
+                title="Advanced academic-year options"
+                description="Old-year maintenance and saved setup details."
+              >
+                <div className="overflow-auto rounded-xl border border-border bg-card">
+                  <table className="w-full min-w-full text-left text-sm">
+                    <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
+                      <tr>
+                        <th className="px-4 py-3">Session</th>
+                        <th className="px-4 py-3">Status</th>
+                        <th className="px-4 py-3">Saved setup</th>
+                        <th className="px-4 py-3">Updated</th>
+                        <th className="px-4 py-3">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sessionRows.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                            Create Academic Year
+                          </td>
+                        </tr>
+                      ) : (
+                        sessionRows.map((item) => {
+                          const formId = `session-row-${item.id}`;
+                          const snapshot = data.policySnapshots.find(
+                            (policy) => policy.academicSessionLabel === item.session_label,
+                          );
+
+                          return (
+                            <tr key={item.id} className="border-t border-border align-top">
+                              <td className="px-4 py-3">
+                                <form
+                                  id={formId}
+                                  onSubmit={(event) => {
+                                    event.preventDefault();
+                                    runSupportAction(
+                                      actions.updateSessionAction,
+                                      sessionState,
+                                      new FormData(event.currentTarget),
+                                      setSessionState,
+                                    );
+                                  }}
+                                >
+                                  <input type="hidden" name="sessionId" value={item.id} />
+                                  <input type="hidden" name="isCurrentSession" value={item.is_current ? "yes" : "no"} />
+                                  <input type="hidden" name="sessionNotes" value={item.notes ?? ""} />
+                                  <Input
+                                    name="sessionLabel"
+                                    defaultValue={item.session_label}
+                                    disabled={!canEdit}
+                                  />
+                                </form>
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {item.session_label === currentSessionLabel ? (
+                                    <StatusBadge label="Live" tone="good" />
+                                  ) : null}
+                                  {item.session_label === selectedSessionLabel ? (
+                                    <StatusBadge label="Selected" tone="accent" />
+                                  ) : null}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <select
+                                  form={formId}
+                                  name="sessionStatus"
+                                  defaultValue={item.status}
+                                  className={selectClassName}
+                                  disabled={!canEdit}
+                                >
+                                  <option value="active">Active</option>
+                                  <option value="inactive">Inactive</option>
+                                  <option value="archived">Archived</option>
+                                </select>
+                              </td>
+                              <td className="px-4 py-3 text-muted-foreground">
+                                {snapshot ? (
+                                  <div className="space-y-1">
+                                    <p className="font-medium text-foreground">
+                                      {snapshot.installmentCount} installments
+                                    </p>
+                                    <p>{snapshot.customFeeHeads.filter((head) => head.isActive).length} fee heads</p>
+                                  </div>
+                                ) : (
+                                  <span>No saved setup yet</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-muted-foreground">
+                                {formatDateTime(snapshot?.updatedAt ?? item.updated_at)}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex flex-wrap gap-2">
+                                  <Button
+                                    type="button"
+                                    variant={item.session_label === selectedSessionLabel ? "default" : "outline"}
+                                    onClick={() => switchSession(item.session_label)}
+                                  >
+                                    Work on this year
+                                  </Button>
+                                  {canEdit ? (
+                                    <>
+                                      <Button type="submit" form={formId} variant="outline" disabled={isSupportingPending}>
+                                        Save session row
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        disabled={isSupportingPending || item.status === "archived"}
+                                        onClick={() => {
+                                          const formData = new FormData();
+                                          formData.set("sessionId", item.id);
+                                          formData.set("sessionLabel", item.session_label);
+                                          formData.set("sessionStatus", "archived");
+                                          formData.set("isCurrentSession", item.is_current ? "yes" : "no");
+                                          formData.set("sessionNotes", item.notes ?? "");
+                                          runSupportAction(
+                                            actions.updateSessionAction,
+                                            sessionState,
+                                            formData,
+                                            setSessionState,
+                                          );
+                                        }}
+                                      >
+                                        Archive old session
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        disabled={isSupportingPending}
+                                        onClick={() => {
+                                          const formData = new FormData();
+                                          formData.set("sessionId", item.id);
+                                          runSupportAction(
+                                            actions.deleteSessionAction,
+                                            sessionState,
+                                            formData,
+                                            setSessionState,
+                                          );
+                                        }}
+                                      >
+                                        Delete unused session only
+                                      </Button>
+                                    </>
+                                  ) : null}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </AdvancedDetails>
+            </div>
+          </SectionCard>
+        </div>
+      </details>
+
+      <details
+        className={`group md:contents ${
+          activeSection !== "basic" ? "md:hidden" : ""
+        }`}
+        open={false}
+      >
+        <summary className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5 font-medium text-foreground md:hidden" onClick={() => setActiveSection("basic")}>
+          <span className="flex items-center gap-2">
+            <BadgeIndianRupee className="size-4 text-accent" />
+            2. Basic Fee Rules
+          </span>
+          <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="md:contents">
+          <SectionCard
+            title="2. Basic Fee Rules"
+            description="Set installment dates, late fee, and the annual academic fee for new and existing students."
+            actions={
+              activeSection === "basic" && canEdit ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addInstallmentDate}
+                  leadingIcon={<Plus className="size-3.5" />}
+                >
+                  Add installment
+                </Button>
+              ) : null
+            }
+          >
+            <div className="space-y-5">
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(260px,0.65fr)]">
+                <div className="rounded-xl border border-border bg-surface-2 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground">Installment Dates</p>
+                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                        These dates define this academic year&apos;s fee schedule.
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                      {form.installmentDates.length} dates
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    {form.installmentDates.map((value, index) => (
+                      <div
+                        key={`installment-${index}`}
+                        className="rounded-lg border border-border bg-card p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]"
+                      >
+                        <div className="flex min-h-8 items-center gap-2">
+                          <span className="grid size-7 shrink-0 place-items-center rounded-full bg-accent-soft text-xs font-semibold text-accent-soft-foreground">
+                            {index + 1}
+                          </span>
+                          <Label
+                            htmlFor={`installment-date-${index}`}
+                            className="min-w-0 flex-1 text-sm font-medium text-foreground"
+                          >
+                            Due date
+                          </Label>
+                          {canEdit && form.installmentDates.length > 1 ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => removeInstallmentDate(index)}
+                              aria-label={`Remove installment ${index + 1}`}
+                              title={`Remove installment ${index + 1}`}
+                              className="shrink-0 rounded-full border border-border bg-surface text-muted-foreground hover:border-destructive/40 hover:bg-destructive-soft hover:text-destructive-soft-foreground"
+                            >
+                              <X className="size-3.5" />
+                            </Button>
+                          ) : null}
+                        </div>
+                        <Input
+                          id={`installment-date-${index}`}
+                          type="date"
+                          value={value}
+                          onChange={(event) => updateInstallmentDate(index, event.target.value)}
+                          className="mt-3 h-10 rounded-lg"
+                          disabled={!canEdit}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border bg-surface-2 p-4">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Annual Rules</p>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                      Default yearly amounts used when dues are prepared.
+                    </p>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    <div className="rounded-lg border border-border bg-card p-3">
+                      <Label htmlFor="late-fee-amount">Late Fee</Label>
+                      <Input
+                        id="late-fee-amount"
+                        type="number"
+                        min={0}
+                        value={form.lateFeeFlatAmount}
+                        onChange={(event) => {
+                          setForm((current) => ({
+                            ...current,
+                            lateFeeFlatAmount: Number(event.target.value || 0),
+                          }));
+                          markDirty("basic");
+                        }}
+                        className="mt-2 h-10 rounded-lg"
+                        disabled={!canEdit}
+                      />
+                    </div>
+                    <div className="rounded-lg border border-border bg-card p-3">
+                      <Label htmlFor="new-academic-fee">New student academic fee</Label>
+                      <Input
+                        id="new-academic-fee"
+                        type="number"
+                        min={0}
+                        value={form.newStudentAcademicFeeAmount}
+                        onChange={(event) => {
+                          setForm((current) => ({
+                            ...current,
+                            newStudentAcademicFeeAmount: Number(event.target.value || 0),
+                          }));
+                          markDirty("basic");
+                        }}
+                        className="mt-2 h-10 rounded-lg"
+                        disabled={!canEdit}
+                      />
+                    </div>
+                    <div className="rounded-lg border border-border bg-card p-3">
+                      <Label htmlFor="old-academic-fee">Existing student academic fee</Label>
+                      <Input
+                        id="old-academic-fee"
+                        type="number"
+                        min={0}
+                        value={form.oldStudentAcademicFeeAmount}
+                        onChange={(event) => {
+                          setForm((current) => ({
+                            ...current,
+                            oldStudentAcademicFeeAmount: Number(event.target.value || 0),
+                          }));
+                          markDirty("basic");
+                        }}
+                        className="mt-2 h-10 rounded-lg"
+                        disabled={!canEdit}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </SectionCard>
+        </div>
+      </details>
+
+      <details
+        className={`group md:contents ${
+          activeSection !== "discounts" ? "md:hidden" : ""
+        }`}
+        open={false}
+      >
+        <summary className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5 font-medium text-foreground md:hidden" onClick={() => setActiveSection("discounts")}>
+          <span className="flex items-center gap-2">
+            <Tag className="size-4 text-accent" />
+            Conventional Discounts
+          </span>
+          <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="md:contents">
+          <SectionCard
+            title="Conventional Discounts"
+            description="Configure standard school discount policies. Student assignment stays in Students."
+          >
+            <div className="space-y-4 rounded-xl border border-border bg-surface-2 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Conventional Discounts</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Configure standard school policies. Student-specific approval is done from Students.
+                  </p>
+                </div>
+                <StatusBadge label="Max 2 per student" tone="accent" />
+              </div>
+              <div className="grid gap-3 lg:grid-cols-3">
+                {form.conventionalDiscountPolicies.map((policy) => (
+                  <div key={policy.code} className="rounded-xl border border-border bg-card p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <Label htmlFor={`policy-name-${policy.code}`}>Policy name</Label>
+                        <Input
+                          id={`policy-name-${policy.code}`}
+                          value={policy.displayName}
+                          onChange={(event) =>
+                            updateConventionalDiscountRow(policy.code, {
+                              displayName: event.target.value,
+                            })
+                          }
+                          className="mt-2"
+                          disabled={!canEdit}
+                        />
+                      </div>
+                      <label className="mt-7 flex items-center gap-2 text-sm text-foreground">
+                        <input
+                          type="checkbox"
+                          checked={policy.isActive}
+                          onChange={(event) =>
+                            updateConventionalDiscountRow(policy.code, {
+                              isActive: event.target.checked,
+                            })
+                          }
+                          disabled={!canEdit}
+                        />
+                        Active
+                      </label>
+                    </div>
+                    <div className="mt-4 grid gap-3">
+                      <div>
+                        <Label htmlFor={`policy-type-${policy.code}`}>Calculation</Label>
+                        <select
+                          id={`policy-type-${policy.code}`}
+                          value={policy.calculationType}
+                          onChange={(event) =>
+                            updateConventionalDiscountRow(policy.code, {
+                              calculationType: event.target.value as ConventionalDiscountRow["calculationType"],
+                            })
+                          }
+                          className={`${selectClassName} mt-2`}
+                          disabled={!canEdit}
+                        >
+                          <option value="tuition_zero">Tuition becomes Rs 0</option>
+                          <option value="tuition_percentage">Tuition percentage</option>
+                          <option value="tuition_fixed_amount">Fixed tuition amount</option>
+                        </select>
+                      </div>
+                      {policy.calculationType === "tuition_percentage" ? (
+                        <div>
+                          <Label htmlFor={`policy-percent-${policy.code}`}>Tuition percentage</Label>
+                          <Input
+                            id={`policy-percent-${policy.code}`}
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={policy.percentage ?? 0}
+                            onChange={(event) =>
+                              updateConventionalDiscountRow(policy.code, {
+                                percentage: Number(event.target.value || 0),
+                              })
+                            }
+                            className="mt-2"
+                            disabled={!canEdit}
+                          />
+                        </div>
+                      ) : null}
+                      {policy.calculationType === "tuition_fixed_amount" ? (
+                        <div>
+                          <Label htmlFor={`policy-fixed-${policy.code}`}>Fixed tuition</Label>
+                          <Input
+                            id={`policy-fixed-${policy.code}`}
+                            type="number"
+                            min={0}
+                            value={policy.fixedTuitionAmount ?? 0}
+                            onChange={(event) =>
+                              updateConventionalDiscountRow(policy.code, {
+                                fixedTuitionAmount: Number(event.target.value || 0),
+                              })
+                            }
+                            className="mt-2"
+                            disabled={!canEdit}
+                          />
+                        </div>
                       ) : null}
                     </div>
-                    <Input
-                      id={`installment-date-${index}`}
-                      type="date"
-                      value={value}
-                      onChange={(event) => updateInstallmentDate(index, event.target.value)}
-                      className="mt-3 h-10 rounded-lg"
-                      disabled={!canEdit}
-                    />
                   </div>
                 ))}
               </div>
             </div>
+          </SectionCard>
+        </div>
+      </details>
 
-            <div className="rounded-xl border border-border bg-surface-2 p-4">
-              <div>
-                <p className="text-sm font-semibold text-foreground">Annual Rules</p>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  Default yearly amounts used when dues are prepared.
-                </p>
-              </div>
-
-              <div className="mt-4 space-y-3">
-                <div className="rounded-lg border border-border bg-card p-3">
-                  <Label htmlFor="late-fee-amount">Late Fee</Label>
-                  <Input
-                    id="late-fee-amount"
-                    type="number"
-                    min={0}
-                    value={form.lateFeeFlatAmount}
-                    onChange={(event) => {
-                      setForm((current) => ({
-                        ...current,
-                        lateFeeFlatAmount: Number(event.target.value || 0),
-                      }));
-                      markDirty("basic");
-                    }}
-                    className="mt-2 h-10 rounded-lg"
-                    disabled={!canEdit}
-                  />
-                </div>
-                <div className="rounded-lg border border-border bg-card p-3">
-                  <Label htmlFor="new-academic-fee">New student academic fee</Label>
-                  <Input
-                    id="new-academic-fee"
-                    type="number"
-                    min={0}
-                    value={form.newStudentAcademicFeeAmount}
-                    onChange={(event) => {
-                      setForm((current) => ({
-                        ...current,
-                        newStudentAcademicFeeAmount: Number(event.target.value || 0),
-                      }));
-                      markDirty("basic");
-                    }}
-                    className="mt-2 h-10 rounded-lg"
-                    disabled={!canEdit}
-                  />
-                </div>
-                <div className="rounded-lg border border-border bg-card p-3">
-                  <Label htmlFor="old-academic-fee">Existing student academic fee</Label>
-                  <Input
-                    id="old-academic-fee"
-                    type="number"
-                    min={0}
-                    value={form.oldStudentAcademicFeeAmount}
-                    onChange={(event) => {
-                      setForm((current) => ({
-                        ...current,
-                        oldStudentAcademicFeeAmount: Number(event.target.value || 0),
-                      }));
-                      markDirty("basic");
-                    }}
-                    className="mt-2 h-10 rounded-lg"
-                    disabled={!canEdit}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-            </>
-          ) : null}
-
-          {activeSection === "discounts" ? (
-          <div className="space-y-4 rounded-xl border border-border bg-surface-2 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Conventional Discounts</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Configure standard school policies. Student-specific approval is done from Students.
-                </p>
-              </div>
-              <StatusBadge label="Max 2 per student" tone="accent" />
-            </div>
-            <div className="grid gap-3 lg:grid-cols-3">
-              {form.conventionalDiscountPolicies.map((policy) => (
-                <div key={policy.code} className="rounded-xl border border-border bg-card p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <Label htmlFor={`policy-name-${policy.code}`}>Policy name</Label>
-                      <Input
-                        id={`policy-name-${policy.code}`}
-                        value={policy.displayName}
-                        onChange={(event) =>
-                          updateConventionalDiscountRow(policy.code, {
-                            displayName: event.target.value,
-                          })
-                        }
-                        className="mt-2"
-                        disabled={!canEdit}
-                      />
-                    </div>
-                    <label className="mt-7 flex items-center gap-2 text-sm text-foreground">
-                      <input
-                        type="checkbox"
-                        checked={policy.isActive}
-                        onChange={(event) =>
-                          updateConventionalDiscountRow(policy.code, {
-                            isActive: event.target.checked,
-                          })
-                        }
-                        disabled={!canEdit}
-                      />
-                      Active
-                    </label>
-                  </div>
-                  <div className="mt-4 grid gap-3">
-                    <div>
-                      <Label htmlFor={`policy-type-${policy.code}`}>Calculation</Label>
-                      <select
-                        id={`policy-type-${policy.code}`}
-                        value={policy.calculationType}
-                        onChange={(event) =>
-                          updateConventionalDiscountRow(policy.code, {
-                            calculationType: event.target.value as ConventionalDiscountRow["calculationType"],
-                          })
-                        }
-                        className={`${selectClassName} mt-2`}
-                        disabled={!canEdit}
-                      >
-                        <option value="tuition_zero">Tuition becomes Rs 0</option>
-                        <option value="tuition_percentage">Tuition percentage</option>
-                        <option value="tuition_fixed_amount">Fixed tuition amount</option>
-                      </select>
-                    </div>
-                    {policy.calculationType === "tuition_percentage" ? (
-                      <div>
-                        <Label htmlFor={`policy-percent-${policy.code}`}>Tuition percentage</Label>
-                        <Input
-                          id={`policy-percent-${policy.code}`}
-                          type="number"
-                          min={0}
-                          max={100}
-                          value={policy.percentage ?? 0}
-                          onChange={(event) =>
-                            updateConventionalDiscountRow(policy.code, {
-                              percentage: Number(event.target.value || 0),
-                            })
-                          }
-                          className="mt-2"
-                          disabled={!canEdit}
-                        />
-                      </div>
-                    ) : null}
-                    {policy.calculationType === "tuition_fixed_amount" ? (
-                      <div>
-                        <Label htmlFor={`policy-fixed-${policy.code}`}>Fixed tuition</Label>
-                        <Input
-                          id={`policy-fixed-${policy.code}`}
-                          type="number"
-                          min={0}
-                          value={policy.fixedTuitionAmount ?? 0}
-                          onChange={(event) =>
-                            updateConventionalDiscountRow(policy.code, {
-                              fixedTuitionAmount: Number(event.target.value || 0),
-                            })
-                          }
-                          className="mt-2"
-                          disabled={!canEdit}
-                        />
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          ) : null}
-
-          {activeSection === "fee-heads" ? (
-          <AdvancedDetails
-            title="Advanced fee-head options"
-            description="Most schools do not need this during normal yearly fee setup."
+      <details
+        className={`group md:contents ${
+          activeSection !== "fee-heads" ? "md:hidden" : ""
+        }`}
+        open={false}
+      >
+        <summary className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5 font-medium text-foreground md:hidden" onClick={() => setActiveSection("fee-heads")}>
+          <span className="flex items-center gap-2">
+            <ClipboardList className="size-4 text-accent" />
+            Fee Heads
+          </span>
+          <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="md:contents">
+          <SectionCard
+            title="Fee Heads"
+            description="Review extra fee heads saved with the selected academic year."
           >
             <div className="space-y-4">
               <div className="rounded-xl border bg-warning-soft px-4 py-3 text-sm leading-6 text-warning-soft-foreground">
@@ -1584,516 +1616,542 @@ export function FeeSetupClient({
                 </div>
               )}
             </div>
-          </AdvancedDetails>
-          ) : null}
+          </SectionCard>
         </div>
-      </SectionCard>
-      ) : null}
+      </details>
 
-      {activeSection === "classes" ? (
-      <SectionCard
-        title="3. Class Fees"
-        description="Enter the annual tuition fee for each class."
-        actions={
-          <div className="flex flex-wrap items-end gap-2">
-            <div className="min-w-[220px]">
-              <Label htmlFor="class-search">Search</Label>
-              <Input
-                id="class-search"
-                value={classSearch}
-                onChange={(event) => setClassSearch(event.target.value)}
-                placeholder="Class name"
-                className="mt-2"
-              />
-            </div>
-          </div>
-        }
+      <details
+        className={`group md:contents ${
+          activeSection !== "classes" ? "md:hidden" : ""
+        }`}
+        open={false}
       >
-        <div className="space-y-4">
-          <ActionNotice state={classState} />
-          <div className="space-y-3 md:hidden">
-            {visibleClassRows.map((row) => (
-              <div key={`mobile-${selectedSessionLabel}-${row.label}`} className="rounded-xl border border-border bg-card p-3">
-                <p className="font-semibold text-foreground">{row.label}</p>
-                <Label className="mt-2 block" htmlFor={`class-fee-${row.label}`}>Annual tuition</Label>
-                <Input
-                  id={`class-fee-${row.label}`}
-                  type="number"
-                  inputMode="decimal"
-                  min={0}
-                  value={row.annualTuition}
-                  onChange={(event) =>
-                    updateClassAnnualTuition(row.label, Number(event.target.value || 0))
-                  }
-                  disabled={!canEdit}
-                  className="mt-2"
-                />
+        <summary className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5 font-medium text-foreground md:hidden" onClick={() => setActiveSection("classes")}>
+          <span className="flex items-center gap-2">
+            <School className="size-4 text-accent" />
+            3. Class Fees
+          </span>
+          <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="md:contents">
+          <SectionCard
+            title="3. Class Fees"
+            description="Enter the annual tuition fee for each class."
+            actions={
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="min-w-[220px]">
+                  <Label htmlFor="class-search">Search</Label>
+                  <Input
+                    id="class-search"
+                    value={classSearch}
+                    onChange={(event) => setClassSearch(event.target.value)}
+                    placeholder="Class name"
+                    className="mt-2"
+                  />
+                </div>
               </div>
-            ))}
-          </div>
-          <div className="hidden overflow-auto rounded-xl border border-border bg-card md:block">
-            <table className="w-full min-w-full text-left text-sm">
-              <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3">Class</th>
-                  <th className="px-4 py-3">Annual Tuition Fee</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleClassRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={2} className="px-4 py-6 text-center text-sm text-muted-foreground">
-                      No classes found. Add classes from School Lists or First-time Setup.
-                    </td>
-                  </tr>
-                ) : (
-                  visibleClassRows.map((row) => (
-                    <tr key={`${selectedSessionLabel}-${row.label}`} className="border-t border-border">
-                      <td className="px-4 py-3 font-medium text-foreground">{row.label}</td>
-                      <td className="px-4 py-3">
-                        <Input
-                          type="number"
-                          min={0}
-                          value={row.annualTuition}
-                          onChange={(event) =>
-                            updateClassAnnualTuition(row.label, Number(event.target.value || 0))
-                          }
-                          disabled={!canEdit}
-                        />
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <AdvancedDetails
-            title="Advanced class-list options"
-            description="Manage class list, status, and unused rows."
+            }
           >
             <div className="space-y-4">
-              {canEdit ? (
-                <form
-                  className="rounded-xl border border-border bg-surface-2 p-4"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    const formData = new FormData();
-                    formData.set("sessionLabel", selectedSessionLabel);
-                    formData.set("className", newClassName);
-                    formData.set("section", "");
-                    formData.set("streamName", "");
-                    formData.set("sortOrder", String(classRows.length + 1));
-                    formData.set("classStatus", "active");
-                    formData.set("classNotes", "");
-                    runSupportAction(actions.createClassAction, classState, formData, setClassState, {
-                      onSuccess: () => setNewClassName(""),
-                    });
-                  }}
-                >
-                  <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-                    <div>
-                      <Label htmlFor="new-class-name">Manage class list</Label>
-                      <Input
-                        id="new-class-name"
-                        value={newClassName}
-                        onChange={(event) => setNewClassName(event.target.value)}
-                        placeholder="Class 11 Humanities"
-                        className="mt-2"
-                        required
-                      />
-                    </div>
-                    <div className="flex items-end">
-                      <Button type="submit" disabled={isSupportingPending}>
-                        Add class
-                      </Button>
-                    </div>
+              <ActionNotice state={classState} />
+              <div className="space-y-3 md:hidden">
+                {visibleClassRows.map((row) => (
+                  <div key={`mobile-${selectedSessionLabel}-${row.label}`} className="rounded-xl border border-border bg-card p-3">
+                    <p className="font-semibold text-foreground">{row.label}</p>
+                    <Label className="mt-2 block" htmlFor={`class-fee-${row.label}`}>Annual tuition</Label>
+                    <Input
+                      id={`class-fee-${row.label}`}
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      value={row.annualTuition}
+                      onChange={(event) =>
+                        updateClassAnnualTuition(row.label, Number(event.target.value || 0))
+                      }
+                      disabled={!canEdit}
+                      className="mt-2"
+                    />
                   </div>
-                </form>
-              ) : null}
-
-              <div className="overflow-auto rounded-xl border border-border bg-card">
+                ))}
+              </div>
+              <div className="hidden overflow-auto rounded-xl border border-border bg-card md:block">
                 <table className="w-full min-w-full text-left text-sm">
                   <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
-                      <th className="px-4 py-3">Class Name</th>
+                      <th className="px-4 py-3">Class</th>
                       <th className="px-4 py-3">Annual Tuition Fee</th>
-                      <th className="px-4 py-3">Class Record</th>
-                      <th className="px-4 py-3">Saved Default</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleClassRows.map((row) => {
-                      const formId = row.classRecord ? `class-row-${row.classRecord.id}` : null;
+                    {visibleClassRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={2} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                          No classes found. Add classes from School Lists or First-time Setup.
+                        </td>
+                      </tr>
+                    ) : (
+                      visibleClassRows.map((row) => (
+                        <tr key={`${selectedSessionLabel}-${row.label}`} className="border-t border-border">
+                          <td className="px-4 py-3 font-medium text-foreground">{row.label}</td>
+                          <td className="px-4 py-3">
+                            <Input
+                              type="number"
+                              min={0}
+                              value={row.annualTuition}
+                              onChange={(event) =>
+                                updateClassAnnualTuition(row.label, Number(event.target.value || 0))
+                              }
+                              disabled={!canEdit}
+                            />
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-                      return (
-                        <tr key={`${selectedSessionLabel}-${row.label}-advanced`} className="border-t border-border align-top">
-                          <td className="px-4 py-3">
-                            {row.classRecord && formId ? (
-                              <form
-                                id={formId}
-                                onSubmit={(event) => {
-                                  event.preventDefault();
-                                  runSupportAction(
-                                    actions.updateClassAction,
-                                    classState,
-                                    new FormData(event.currentTarget),
-                                    setClassState,
-                                  );
-                                }}
-                              >
-                                <input type="hidden" name="classId" value={row.classRecord.id} />
-                                <input type="hidden" name="sessionLabel" value={selectedSessionLabel} />
-                                <input type="hidden" name="section" value={row.classRecord.section ?? ""} />
-                                <input type="hidden" name="streamName" value={row.classRecord.stream_name ?? ""} />
-                                <input type="hidden" name="sortOrder" value={String(row.classRecord.sort_order)} />
-                                <input type="hidden" name="classNotes" value={row.classRecord.notes ?? ""} />
-                                <Input
-                                  name="className"
-                                  defaultValue={row.classRecord.class_name}
-                                  disabled={!canEdit}
-                                />
-                              </form>
-                            ) : (
-                              <div>
-                                <p className="font-medium text-foreground">{row.label}</p>
-                                <p className="mt-1 text-xs text-muted-foreground">Will be created on apply</p>
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">{formatInr(row.annualTuition)}</td>
-                          <td className="px-4 py-3">
-                            <StatusBadge
-                              label={row.hasClassRecord ? "Exists" : "Will be created"}
-                              tone={row.hasClassRecord ? "good" : "warning"}
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <StatusBadge
-                              label={row.hasSavedDefault ? "Saved" : "Pending default"}
-                              tone={row.hasSavedDefault ? "good" : "warning"}
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            {row.classRecord && formId ? (
-                              <select
-                                form={formId}
-                                name="classStatus"
-                                defaultValue={row.classRecord.status}
-                                className={selectClassName}
-                                disabled={!canEdit}
-                              >
-                                <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
-                                <option value="archived">Archived</option>
-                              </select>
-                            ) : (
-                              <StatusBadge label="Pending create" tone="warning" />
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex flex-wrap gap-2">
-                              {row.classRecord && formId ? (
-                                <>
-                                  <Button type="submit" form={formId} variant="outline" disabled={!canEdit || isSupportingPending}>
-                                    Save
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    disabled={!canEdit || isSupportingPending}
-                                    onClick={() => {
-                                      const formData = new FormData();
-                                      formData.set("classId", row.classRecord!.id);
+              <AdvancedDetails
+                title="Advanced class-list options"
+                description="Manage class list, status, and unused rows."
+              >
+                <div className="space-y-4">
+                  {canEdit ? (
+                    <form
+                      className="rounded-xl border border-border bg-surface-2 p-4"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const formData = new FormData();
+                        formData.set("sessionLabel", selectedSessionLabel);
+                        formData.set("className", newClassName);
+                        formData.set("section", "");
+                        formData.set("streamName", "");
+                        formData.set("sortOrder", String(classRows.length + 1));
+                        formData.set("classStatus", "active");
+                        formData.set("classNotes", "");
+                        runSupportAction(actions.createClassAction, classState, formData, setClassState, {
+                          onSuccess: () => setNewClassName(""),
+                        });
+                      }}
+                    >
+                      <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                        <div>
+                          <Label htmlFor="new-class-name">Manage class list</Label>
+                          <Input
+                            id="new-class-name"
+                            value={newClassName}
+                            onChange={(event) => setNewClassName(event.target.value)}
+                            placeholder="Class 11 Humanities"
+                            className="mt-2"
+                            required
+                          />
+                        </div>
+                        <div className="flex items-end">
+                          <Button type="submit" disabled={isSupportingPending}>
+                            Add class
+                          </Button>
+                        </div>
+                      </div>
+                    </form>
+                  ) : null}
+
+                  <div className="overflow-auto rounded-xl border border-border bg-card">
+                    <table className="w-full min-w-full text-left text-sm">
+                      <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
+                        <tr>
+                          <th className="px-4 py-3">Class Name</th>
+                          <th className="px-4 py-3">Annual Tuition Fee</th>
+                          <th className="px-4 py-3">Class Record</th>
+                          <th className="px-4 py-3">Saved Default</th>
+                          <th className="px-4 py-3">Status</th>
+                          <th className="px-4 py-3">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleClassRows.map((row) => {
+                          const formId = row.classRecord ? `class-row-${row.classRecord.id}` : null;
+
+                          return (
+                            <tr key={`${selectedSessionLabel}-${row.label}-advanced`} className="border-t border-border align-top">
+                              <td className="px-4 py-3">
+                                {row.classRecord && formId ? (
+                                  <form
+                                    id={formId}
+                                    onSubmit={(event) => {
+                                      event.preventDefault();
                                       runSupportAction(
-                                        actions.deleteClassAction,
+                                        actions.updateClassAction,
                                         classState,
-                                        formData,
+                                        new FormData(event.currentTarget),
                                         setClassState,
                                       );
                                     }}
                                   >
-                                    Remove
-                                  </Button>
-                                </>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">
-                                  Tuition will save and sync automatically.
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                                    <input type="hidden" name="classId" value={row.classRecord.id} />
+                                    <input type="hidden" name="sessionLabel" value={selectedSessionLabel} />
+                                    <input type="hidden" name="section" value={row.classRecord.section ?? ""} />
+                                    <input type="hidden" name="streamName" value={row.classRecord.stream_name ?? ""} />
+                                    <input type="hidden" name="sortOrder" value={String(row.classRecord.sort_order)} />
+                                    <input type="hidden" name="classNotes" value={row.classRecord.notes ?? ""} />
+                                    <Input
+                                      name="className"
+                                      defaultValue={row.classRecord.class_name}
+                                      disabled={!canEdit}
+                                    />
+                                  </form>
+                                ) : (
+                                  <div>
+                                    <p className="font-medium text-foreground">{row.label}</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">Will be created on apply</p>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">{formatInr(row.annualTuition)}</td>
+                              <td className="px-4 py-3">
+                                <StatusBadge
+                                  label={row.hasClassRecord ? "Exists" : "Will be created"}
+                                  tone={row.hasClassRecord ? "good" : "warning"}
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <StatusBadge
+                                  label={row.hasSavedDefault ? "Saved" : "Pending default"}
+                                  tone={row.hasSavedDefault ? "good" : "warning"}
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                {row.classRecord && formId ? (
+                                  <select
+                                    form={formId}
+                                    name="classStatus"
+                                    defaultValue={row.classRecord.status}
+                                    className={selectClassName}
+                                    disabled={!canEdit}
+                                  >
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                    <option value="archived">Archived</option>
+                                  </select>
+                                ) : (
+                                  <StatusBadge label="Pending create" tone="warning" />
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex flex-wrap gap-2">
+                                  {row.classRecord && formId ? (
+                                    <>
+                                      <Button type="submit" form={formId} variant="outline" disabled={!canEdit || isSupportingPending}>
+                                        Save
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        disabled={!canEdit || isSupportingPending}
+                                        onClick={() => {
+                                          const formData = new FormData();
+                                          formData.set("classId", row.classRecord!.id);
+                                          runSupportAction(
+                                            actions.deleteClassAction,
+                                            classState,
+                                            formData,
+                                            setClassState,
+                                          );
+                                        }}
+                                      >
+                                        Remove
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">
+                                      Tuition will save and sync automatically.
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </AdvancedDetails>
             </div>
-          </AdvancedDetails>
+          </SectionCard>
         </div>
-      </SectionCard>
-      ) : null}
+      </details>
 
-      {activeSection === "transport" ? (
-      <SectionCard
-        title="4. Transport Fees"
-        description="Enter the annual transport fee for each route. Leave transport blank if the school is not using route fees."
-        actions={
-          <div className="min-w-[220px]">
-            <Label htmlFor="route-search">Search</Label>
-            <Input
-              id="route-search"
-              value={routeSearch}
-              onChange={(event) => setRouteSearch(event.target.value)}
-              placeholder="Route name"
-              className="mt-2"
-            />
-          </div>
-        }
+      <details
+        className={`group md:contents ${
+          activeSection !== "transport" ? "md:hidden" : ""
+        }`}
+        open={false}
       >
-        <div className="space-y-4">
-          <ActionNotice state={routeState} />
-          <div className="space-y-3 md:hidden">
-            {visibleRouteRows.map((row) => (
-              <div key={`mobile-route-${row.routeName}`} className="rounded-xl border border-border bg-card p-3">
-                <p className="font-semibold text-foreground">{row.routeName}</p>
-                <Label className="mt-2 block" htmlFor={`route-fee-${row.routeName}`}>Annual transport fee</Label>
+        <summary className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5 font-medium text-foreground md:hidden" onClick={() => setActiveSection("transport")}>
+          <span className="flex items-center gap-2">
+            <Bus className="size-4 text-accent" />
+            4. Transport Fees
+          </span>
+          <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="md:contents">
+          <SectionCard
+            title="4. Transport Fees"
+            description="Enter the annual transport fee for each route. Leave transport blank if the school is not using route fees."
+            actions={
+              <div className="min-w-[220px]">
+                <Label htmlFor="route-search">Search</Label>
                 <Input
-                  id={`route-fee-${row.routeName}`}
-                  type="number"
-                  inputMode="decimal"
-                  min={0}
-                  value={row.annualFee}
-                  onChange={(event) =>
-                    updateRouteAnnualFee(row.routeName, Number(event.target.value || 0))
-                  }
-                  disabled={!canEdit}
+                  id="route-search"
+                  value={routeSearch}
+                  onChange={(event) => setRouteSearch(event.target.value)}
+                  placeholder="Route name"
                   className="mt-2"
                 />
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Per installment {formatInr(Math.floor(row.annualFee / Math.max(form.installmentDates.length, 1)))}
-                </p>
               </div>
-            ))}
-          </div>
-          <div className="hidden overflow-auto rounded-xl border border-border bg-card md:block">
-            <table className="w-full min-w-full text-left text-sm">
-              <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3">Route</th>
-                  <th className="px-4 py-3">Annual Transport Fee</th>
-                  <th className="px-4 py-3">Per installment</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleRouteRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="px-4 py-6 text-center text-sm text-muted-foreground">
-                      No transport routes found. Add routes from School Lists, or leave transport
-                      blank if not used.
-                    </td>
-                  </tr>
-                ) : (
-                  visibleRouteRows.map((row) => (
-                    <tr key={row.routeName} className="border-t border-border">
-                      <td className="px-4 py-3 font-medium text-foreground">{row.routeName}</td>
-                      <td className="px-4 py-3">
-                        <Input
-                          type="number"
-                          min={0}
-                          value={row.annualFee}
-                          onChange={(event) =>
-                            updateRouteAnnualFee(row.routeName, Number(event.target.value || 0))
-                          }
-                          disabled={!canEdit}
-                        />
-                      </td>
-                      <td className="px-4 py-3 text-foreground">
-                        {formatInr(Math.floor(row.annualFee / Math.max(form.installmentDates.length, 1)))}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <AdvancedDetails
-            title="Advanced route-list options"
-            description="Manage route names, route codes, status, and unused routes."
+            }
           >
             <div className="space-y-4">
-              {canEdit ? (
-                <form
-                  className="rounded-xl border border-border bg-surface-2 p-4"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    const formData = new FormData();
-                    formData.set("routeCode", newRouteCode);
-                    formData.set("routeName", newRouteName);
-                    formData.set(
-                      "defaultInstallmentAmount",
-                      String(Math.floor(0 / Math.max(form.installmentDates.length, 1))),
-                    );
-                    formData.set("routeIsActive", "yes");
-                    formData.set("routeNotes", "");
-                    runSupportAction(actions.createRouteAction, routeState, formData, setRouteState, {
-                      onSuccess: () => {
-                        setNewRouteName("");
-                        setNewRouteCode("");
-                      },
-                    });
-                  }}
-                >
-                  <div className="grid gap-3 md:grid-cols-[180px_1fr_auto]">
-                    <div>
-                      <Label htmlFor="new-route-code">Route code</Label>
-                      <Input
-                        id="new-route-code"
-                        value={newRouteCode}
-                        onChange={(event) => setNewRouteCode(event.target.value)}
-                        className="mt-2"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="new-route-name">Manage route list</Label>
-                      <Input
-                        id="new-route-name"
-                        value={newRouteName}
-                        onChange={(event) => setNewRouteName(event.target.value)}
-                        placeholder="Amet Bus"
-                        className="mt-2"
-                        required
-                      />
-                    </div>
-                    <div className="flex items-end">
-                      <Button type="submit" disabled={isSupportingPending}>
-                        Add route
-                      </Button>
-                    </div>
+              <ActionNotice state={routeState} />
+              <div className="space-y-3 md:hidden">
+                {visibleRouteRows.map((row) => (
+                  <div key={`mobile-route-${row.routeName}`} className="rounded-xl border border-border bg-card p-3">
+                    <p className="font-semibold text-foreground">{row.routeName}</p>
+                    <Label className="mt-2 block" htmlFor={`route-fee-${row.routeName}`}>Annual transport fee</Label>
+                    <Input
+                      id={`route-fee-${row.routeName}`}
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      value={row.annualFee}
+                      onChange={(event) =>
+                        updateRouteAnnualFee(row.routeName, Number(event.target.value || 0))
+                      }
+                      disabled={!canEdit}
+                      className="mt-2"
+                    />
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Per installment {formatInr(Math.floor(row.annualFee / Math.max(form.installmentDates.length, 1)))}
+                    </p>
                   </div>
-                </form>
-              ) : null}
-
-              <div className="overflow-auto rounded-xl border border-border bg-card">
+                ))}
+              </div>
+              <div className="hidden overflow-auto rounded-xl border border-border bg-card md:block">
                 <table className="w-full min-w-full text-left text-sm">
                   <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
-                      <th className="px-4 py-3">Route Name</th>
-                      <th className="px-4 py-3">Code</th>
-                      <th className="px-4 py-3">Annual Fee</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Actions</th>
+                      <th className="px-4 py-3">Route</th>
+                      <th className="px-4 py-3">Annual Transport Fee</th>
+                      <th className="px-4 py-3">Per installment</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleRouteRows.map((row) => {
-                      const routeRecord = row.routeRecord;
-                      const formId = routeRecord ? `route-row-${routeRecord.id}` : null;
+                    {visibleRouteRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                          No transport routes found. Add routes from School Lists, or leave transport
+                          blank if not used.
+                        </td>
+                      </tr>
+                    ) : (
+                      visibleRouteRows.map((row) => (
+                        <tr key={row.routeName} className="border-t border-border">
+                          <td className="px-4 py-3 font-medium text-foreground">{row.routeName}</td>
+                          <td className="px-4 py-3">
+                            <Input
+                              type="number"
+                              min={0}
+                              value={row.annualFee}
+                              onChange={(event) =>
+                                updateRouteAnnualFee(row.routeName, Number(event.target.value || 0))
+                              }
+                              disabled={!canEdit}
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-foreground">
+                            {formatInr(Math.floor(row.annualFee / Math.max(form.installmentDates.length, 1)))}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-                      return (
-                        <tr key={`${row.routeName}-advanced`} className="border-t border-border align-top">
-                          <td className="px-4 py-3">
-                            {routeRecord && formId ? (
-                              <form
-                                id={formId}
-                                onSubmit={(event) => {
-                                  event.preventDefault();
-                                  runSupportAction(
-                                    actions.updateRouteAction,
-                                    routeState,
-                                    new FormData(event.currentTarget),
-                                    setRouteState,
-                                  );
-                                }}
-                              >
-                                <input type="hidden" name="routeId" value={routeRecord.id} />
-                                <input type="hidden" name="routeCode" value={routeRecord.route_code ?? ""} />
-                                <input
-                                  type="hidden"
-                                  name="defaultInstallmentAmount"
-                                  value={String(routeRecord.default_installment_amount)}
-                                />
-                                <input type="hidden" name="routeNotes" value={routeRecord.notes ?? ""} />
-                                <Input
-                                  name="routeName"
-                                  defaultValue={routeRecord.route_name}
-                                  disabled={!canEdit}
-                                />
-                              </form>
-                            ) : (
-                              <div>
-                                <p className="font-medium text-foreground">{row.routeName}</p>
-                                <p className="mt-1 text-xs text-muted-foreground">Will be created on apply</p>
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-muted-foreground">
-                            {routeRecord?.route_code ?? "-"}
-                          </td>
-                          <td className="px-4 py-3">{formatInr(row.annualFee)}</td>
-                          <td className="px-4 py-3">
-                            {routeRecord && formId ? (
-                              <select
-                                form={formId}
-                                name="routeIsActive"
-                                defaultValue={routeRecord.is_active ? "yes" : "no"}
-                                className={selectClassName}
-                                disabled={!canEdit}
-                              >
-                                <option value="yes">Active</option>
-                                <option value="no">Inactive</option>
-                              </select>
-                            ) : (
-                              <StatusBadge label="Pending create" tone="warning" />
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex flex-wrap gap-2">
-                              {routeRecord && formId ? (
-                                <>
-                                  <Button type="submit" form={formId} variant="outline" disabled={!canEdit || isSupportingPending}>
-                                    Save
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    disabled={!canEdit || isSupportingPending}
-                                    onClick={() => {
-                                      const formData = new FormData();
-                                      formData.set("routeId", routeRecord.id);
+              <AdvancedDetails
+                title="Advanced route-list options"
+                description="Manage route names, route codes, status, and unused routes."
+              >
+                <div className="space-y-4">
+                  {canEdit ? (
+                    <form
+                      className="rounded-xl border border-border bg-surface-2 p-4"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const formData = new FormData();
+                        formData.set("routeCode", newRouteCode);
+                        formData.set("routeName", newRouteName);
+                        formData.set(
+                          "defaultInstallmentAmount",
+                          String(Math.floor(0 / Math.max(form.installmentDates.length, 1))),
+                        );
+                        formData.set("routeIsActive", "yes");
+                        formData.set("routeNotes", "");
+                        runSupportAction(actions.createRouteAction, routeState, formData, setRouteState, {
+                          onSuccess: () => {
+                            setNewRouteName("");
+                            setNewRouteCode("");
+                          },
+                        });
+                      }}
+                    >
+                      <div className="grid gap-3 md:grid-cols-[180px_1fr_auto]">
+                        <div>
+                          <Label htmlFor="new-route-code">Route code</Label>
+                          <Input
+                            id="new-route-code"
+                            value={newRouteCode}
+                            onChange={(event) => setNewRouteCode(event.target.value)}
+                            className="mt-2"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="new-route-name">Manage route list</Label>
+                          <Input
+                            id="new-route-name"
+                            value={newRouteName}
+                            onChange={(event) => setNewRouteName(event.target.value)}
+                            placeholder="Amet Bus"
+                            className="mt-2"
+                            required
+                          />
+                        </div>
+                        <div className="flex items-end">
+                          <Button type="submit" disabled={isSupportingPending}>
+                            Add route
+                          </Button>
+                        </div>
+                      </div>
+                    </form>
+                  ) : null}
+
+                  <div className="overflow-auto rounded-xl border border-border bg-card">
+                    <table className="w-full min-w-full text-left text-sm">
+                      <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
+                        <tr>
+                          <th className="px-4 py-3">Route Name</th>
+                          <th className="px-4 py-3">Code</th>
+                          <th className="px-4 py-3">Annual Fee</th>
+                          <th className="px-4 py-3">Status</th>
+                          <th className="px-4 py-3">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleRouteRows.map((row) => {
+                          const routeRecord = row.routeRecord;
+                          const formId = routeRecord ? `route-row-${routeRecord.id}` : null;
+
+                          return (
+                            <tr key={`${row.routeName}-advanced`} className="border-t border-border align-top">
+                              <td className="px-4 py-3">
+                                {routeRecord && formId ? (
+                                  <form
+                                    id={formId}
+                                    onSubmit={(event) => {
+                                      event.preventDefault();
                                       runSupportAction(
-                                        actions.deleteRouteAction,
+                                        actions.updateRouteAction,
                                         routeState,
-                                        formData,
+                                        new FormData(event.currentTarget),
                                         setRouteState,
                                       );
                                     }}
                                   >
-                                    Remove
-                                  </Button>
-                                </>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">
-                                  Route fee will save and sync automatically.
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                                    <input type="hidden" name="routeId" value={routeRecord.id} />
+                                    <input type="hidden" name="routeCode" value={routeRecord.route_code ?? ""} />
+                                    <input
+                                      type="hidden"
+                                      name="defaultInstallmentAmount"
+                                      value={String(routeRecord.default_installment_amount)}
+                                    />
+                                    <input type="hidden" name="routeNotes" value={routeRecord.notes ?? ""} />
+                                    <Input
+                                      name="routeName"
+                                      defaultValue={routeRecord.route_name}
+                                      disabled={!canEdit}
+                                    />
+                                  </form>
+                                ) : (
+                                  <div>
+                                    <p className="font-medium text-foreground">{row.routeName}</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">Will be created on apply</p>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-muted-foreground">
+                                {routeRecord?.route_code ?? "-"}
+                              </td>
+                              <td className="px-4 py-3">{formatInr(row.annualFee)}</td>
+                              <td className="px-4 py-3">
+                                {routeRecord && formId ? (
+                                  <select
+                                    form={formId}
+                                    name="routeIsActive"
+                                    defaultValue={routeRecord.is_active ? "yes" : "no"}
+                                    className={selectClassName}
+                                    disabled={!canEdit}
+                                  >
+                                    <option value="yes">Active</option>
+                                    <option value="no">Inactive</option>
+                                  </select>
+                                ) : (
+                                  <StatusBadge label="Pending create" tone="warning" />
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex flex-wrap gap-2">
+                                  {routeRecord && formId ? (
+                                    <>
+                                      <Button type="submit" form={formId} variant="outline" disabled={!canEdit || isSupportingPending}>
+                                        Save
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        disabled={!canEdit || isSupportingPending}
+                                        onClick={() => {
+                                          const formData = new FormData();
+                                          formData.set("routeId", routeRecord.id);
+                                          runSupportAction(
+                                            actions.deleteRouteAction,
+                                            routeState,
+                                            formData,
+                                            setRouteState,
+                                          );
+                                        }}
+                                      >
+                                        Remove
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">
+                                      Route fee will save and sync automatically.
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </AdvancedDetails>
             </div>
-          </AdvancedDetails>
+          </SectionCard>
         </div>
-      </SectionCard>
-      ) : null}
+      </details>
 
             {(isSaving || saveState.status === "preview") && saveState.preview ? (
               <div className="mt-5 rounded-xl border bg-info-soft p-4 text-sm text-info-soft-foreground">

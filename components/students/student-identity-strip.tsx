@@ -110,9 +110,9 @@ export function StudentIdentityStrip({
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary-foreground/50">
               Student Ledger Profile
             </p>
-            <h2 className="mt-1 font-display text-xl md:text-2xl font-bold tracking-tight text-white">
+            <h1 className="mt-1 font-display text-xl sm:text-2xl font-semibold tracking-tight text-white">
               {student.fullName}
-            </h2>
+            </h1>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-primary-foreground/80">
               <div className="flex items-center gap-1">
                 <Fingerprint className="h-3.5 w-3.5 text-primary-foreground/40" />

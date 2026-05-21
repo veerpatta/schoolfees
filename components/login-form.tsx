@@ -88,7 +88,7 @@ export function LoginForm({
               ) : null}
               <Button
                 type="submit"
-                className="h-12 w-full justify-between px-4 text-base"
+                className="h-12 w-full justify-between px-4 text-base active:scale-[0.98] transition-transform"
                 disabled={isPending}
               >
                 <span>{isPending ? "Signing in..." : "Sign in"}</span>

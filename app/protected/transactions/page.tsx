@@ -6,6 +6,8 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { AutoSubmitForm } from "@/components/office/auto-submit-form";
 import { OfficeNotice, ValueStatePill, WorkflowGuard } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
+import { Money } from "@/components/ui/money";
+import { cn } from "@/lib/utils";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { appendSessionParam } from "@/lib/navigation/session-href";
@@ -121,20 +123,24 @@ function ViewTabs({
   };
 
   return (
-    <div className="snap-x-strip gap-2 pb-1 md:grid md:grid-cols-4 xl:grid-cols-5 md:gap-2 md:overflow-visible">
-      {officeWorkbookViews.map((view) => (
-        <Link
-          key={view}
-          href={buildHref(view)}
-          className={
-            view === activeView
-              ? "inline-flex w-full items-center justify-center rounded-full border border-foreground bg-foreground px-3 py-2 text-[11px] font-medium leading-4 text-white sm:text-sm"
-              : "inline-flex w-full items-center justify-center rounded-full border border-border bg-card px-3 py-2 text-[11px] font-medium leading-4 text-foreground hover:border-border-strong sm:text-sm"
-          }
-        >
-          {officeWorkbookMeta[view].shortTitle}
-        </Link>
-      ))}
+    <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1.5 no-scrollbar md:mx-0 md:px-0 md:grid md:grid-cols-4 xl:grid-cols-5 md:gap-2 md:overflow-visible">
+      {officeWorkbookViews.map((view) => {
+        const isActive = view === activeView;
+        return (
+          <Link
+            key={view}
+            href={buildHref(view)}
+            className={cn(
+              "shrink-0 rounded-full border px-4 py-2 text-xs font-semibold transition-colors whitespace-nowrap text-center md:inline-flex md:w-full md:items-center md:justify-center md:px-3 md:py-2 md:text-sm md:leading-4",
+              isActive
+                ? "bg-accent border-accent text-accent-foreground"
+                : "bg-surface-2 border-border text-foreground hover:bg-surface-3"
+            )}
+          >
+            {officeWorkbookMeta[view].shortTitle}
+          </Link>
+        );
+      })}
     </div>
   );
 }
@@ -303,20 +309,39 @@ function InstallmentTrackerTable({
 
   return (
     <>
-      <div className="space-y-3 md:hidden">
+      <div className="md:hidden">
         {rows.length === 0 ? (
           <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
             No dues tracker rows found.
           </p>
         ) : (
-          rows.map((row) => (
-            <div key={`tracker-mobile-${row.studentId}`} className="rounded-xl border border-border bg-card p-3 text-sm">
-              <p className="font-semibold text-foreground">{row.studentName}</p>
-              <p className="text-xs text-muted-foreground">{row.classLabel} • SR {row.admissionNo}</p>
-              <p className="mt-2 text-xs text-muted-foreground">Next due: {row.nextDueLabel ?? "No pending dues"}</p>
-              <p className="mt-1 font-semibold text-foreground">Outstanding: {formatInr(row.outstandingAmount)}</p>
-            </div>
-          ))
+          <div className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
+            {rows.map((row) => (
+              <Link
+                key={`tracker-mobile-${row.studentId}`}
+                href={withSession(`/protected/students/${row.studentId}`)}
+                className="flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-surface-2/40 transition-colors block"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-foreground truncate">{row.studentName}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{row.classLabel} · SR {row.admissionNo}</p>
+                  <div className="mt-1.5 flex items-center gap-1.5">
+                    <ValueStatePill tone={getStatusTone(row.statusLabel)} className="normal-case tracking-normal">
+                      {row.duesStatus === "missing_dues" ? "Dues not prepared" : row.statusLabel || "-"}
+                    </ValueStatePill>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <Money value={row.outstandingAmount} size="lg" />
+                  {row.nextDueAmount !== null && row.nextDueAmount > 0 && (
+                    <p className="text-xs text-warning mt-0.5">
+                      <Money value={row.nextDueAmount} size="xs" tone="warning" /> due
+                    </p>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
         )}
       </div>
       <div className="hidden w-full overflow-x-auto rounded-xl border border-border md:block">
@@ -408,23 +433,34 @@ function StudentDuesTable({
 
   return (
     <>
-      <div className="space-y-3 md:hidden">
+      <div className="md:hidden">
         {rows.length === 0 ? (
           <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
             No students found for statement view.
           </p>
         ) : (
-          rows.map((row) => (
-            <div key={`dues-mobile-${row.studentId}`} className="rounded-xl border border-border bg-card p-3 text-sm">
-              <p className="font-semibold text-foreground">{row.studentName}</p>
-              <p className="text-xs text-muted-foreground">{row.classLabel} • SR {row.admissionNo}</p>
-              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                <p>Total due: {formatInr(row.totalDue)}</p>
-                <p>Paid: {formatInr(row.totalPaid)}</p>
-              </div>
-              <p className="mt-1 font-semibold text-foreground">Outstanding: {formatInr(row.outstandingAmount)}</p>
-            </div>
-          ))
+          <div className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
+            {rows.map((row) => (
+              <Link
+                key={`dues-mobile-${row.studentId}`}
+                href={withSession(`/protected/students/${row.studentId}`)}
+                className="flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-surface-2/40 transition-colors block"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-foreground truncate">{row.studentName}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{row.classLabel} · SR {row.admissionNo}</p>
+                  <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                    <p>Total due: {formatInr(row.totalDue)}</p>
+                    <p>Paid: {formatInr(row.totalPaid)}</p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <Money value={row.outstandingAmount} size="lg" />
+                  <p className="text-[10px] text-muted-foreground mt-0.5">outstanding</p>
+                </div>
+              </Link>
+            ))}
+          </div>
         )}
       </div>
       <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
@@ -516,42 +552,35 @@ function ClassRegisterTable({
 
   return (
     <>
-      <div className="space-y-3 md:hidden">
+      <div className="md:hidden">
         {rows.length === 0 ? (
           <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
             No class register rows found.
           </p>
         ) : (
-          rows.map((row) => (
-            <div key={`cr-mobile-${row.studentId}`} className="rounded-xl border border-border bg-card p-3 text-sm">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="font-semibold text-foreground">{row.studentName}</p>
-                  <p className="text-xs text-muted-foreground">{row.classLabel} • SR {row.admissionNo}</p>
+          <div className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
+            {rows.map((row) => (
+              <Link
+                key={`cr-mobile-${row.studentId}`}
+                href={withSession(`/protected/students/${row.studentId}`)}
+                className="flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-surface-2/40 transition-colors block"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-foreground truncate">{row.studentName}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{row.classLabel} · SR {row.admissionNo}</p>
+                  <div className="mt-1.5 flex items-center gap-1.5">
+                    <ValueStatePill tone={getStatusTone(row.statusLabel)} className="normal-case tracking-normal">
+                      {row.duesStatus === "missing_dues" ? "Dues not prepared" : row.statusLabel || "-"}
+                    </ValueStatePill>
+                  </div>
                 </div>
-                <span className="shrink-0 font-semibold text-foreground">{formatInr(row.outstandingAmount)}</span>
-              </div>
-              <div className="mt-2 grid grid-cols-2 gap-1.5 text-xs text-muted-foreground">
-                <p>Due: {formatInr(row.totalDue)}</p>
-                <p>Paid: {formatInr(row.totalPaid)}</p>
-                <p>Next: {formatOptionalDate(row.nextDueDate)}</p>
-                <p>Last paid: {formatOptionalDate(row.lastPaymentDate)}</p>
-              </div>
-              <div className="mt-2">
-                <ValueStatePill tone={getStatusTone(row.statusLabel)} className="normal-case tracking-normal">
-                  {row.duesStatus === "missing_dues" ? "Dues not prepared" : row.statusLabel || "-"}
-                </ValueStatePill>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <Button asChild size="sm" variant="outline">
-                  <Link href={withSession(`/protected/students/${row.studentId}`)}>Student</Link>
-                </Button>
-                <Button asChild size="sm" variant="outline">
-                  <Link href={withSession(`/protected/payments?studentId=${row.studentId}`)}>Payment</Link>
-                </Button>
-              </div>
-            </div>
-          ))
+                <div className="text-right shrink-0">
+                  <Money value={row.outstandingAmount} size="lg" />
+                  <p className="text-[10px] text-muted-foreground mt-0.5">outstanding</p>
+                </div>
+              </Link>
+            ))}
+          </div>
         )}
       </div>
       <div className="hidden w-full overflow-x-auto rounded-xl border border-border md:block">
@@ -660,44 +689,35 @@ function DefaultersTable({
 
   return (
     <>
-      <div className="space-y-3 md:hidden">
+      <div className="md:hidden">
         {rows.length === 0 ? (
           <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
             No overdue students found.
           </p>
         ) : (
-          rows.map((row) => (
-            <div key={`def-mobile-${row.studentId}`} className="rounded-xl border border-border bg-card p-3 text-sm">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="font-semibold text-foreground">{row.studentName}</p>
-                  <p className="text-xs text-muted-foreground">{row.classLabel} • SR {row.admissionNo}</p>
+          <div className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
+            {rows.map((row) => (
+              <Link
+                key={`def-mobile-${row.studentId}`}
+                href={withSession(`/protected/students/${row.studentId}`)}
+                className="flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-surface-2/40 transition-colors block"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-foreground truncate">{row.studentName}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{row.classLabel} · SR {row.admissionNo}</p>
+                  <div className="mt-1.5 flex items-center gap-1.5">
+                    <ValueStatePill tone={getStatusTone(row.statusLabel)} className="normal-case tracking-normal">
+                      {row.duesStatus === "missing_dues" ? "Dues not prepared" : row.statusLabel || "-"}
+                    </ValueStatePill>
+                  </div>
                 </div>
-                <span className="shrink-0 font-semibold text-foreground">{formatInr(row.outstandingAmount)}</span>
-              </div>
-              <div className="mt-2 grid grid-cols-2 gap-1.5 text-xs text-muted-foreground">
-                <p>Due: {formatInr(row.totalDue)}</p>
-                <p>Paid: {formatInr(row.totalPaid)}</p>
-                <p>Late fee: {formatInr(row.lateFeeTotal)}</p>
-                <p>Next due: {formatOptionalDate(row.nextDueDate)}</p>
-                <p>Father: {row.fatherName ?? "-"}</p>
-                <p>Last paid: {formatOptionalDate(row.lastPaymentDate)}</p>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {row.fatherPhone ? (
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`tel:${row.fatherPhone}`}>Call</Link>
-                  </Button>
-                ) : null}
-                <Button asChild size="sm" variant="outline">
-                  <Link href={withSession(`/protected/payments?studentId=${row.studentId}`)}>Payment</Link>
-                </Button>
-                <Button asChild size="sm" variant="outline">
-                  <Link href={withSession(`/protected/students/${row.studentId}`)}>Student</Link>
-                </Button>
-              </div>
-            </div>
-          ))
+                <div className="text-right shrink-0">
+                  <Money value={row.outstandingAmount} size="lg" />
+                  <p className="text-[10px] text-muted-foreground mt-0.5">outstanding</p>
+                </div>
+              </Link>
+            ))}
+          </div>
         )}
       </div>
       <div className="hidden w-full overflow-x-auto rounded-xl border border-border md:block">

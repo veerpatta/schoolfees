@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
@@ -246,7 +247,7 @@ export default async function AdvancedPage({ searchParams }: AdvancedPageProps) 
       <div className="grid gap-5 xl:grid-cols-2">
         {visibleSections.map((section) => (
           <SectionCard key={section.title} title={section.title} description={section.description}>
-            <div className="grid gap-3">
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
               {section.items.map((item) => {
                 const Icon = item.icon;
 
@@ -254,18 +255,16 @@ export default async function AdvancedPage({ searchParams }: AdvancedPageProps) 
                   <Link
                     key={item.href}
                     href={withSession(item.href)}
-                    className="rounded-xl border border-border bg-surface-2 p-4 transition-colors hover:border-border-strong hover:bg-card"
+                    className="group flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-4 hover:border-border-strong hover:bg-surface-2 active:scale-[0.99] transition-all"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="rounded-full border border-border bg-card p-2.5 text-foreground">
-                        <Icon className="size-4" />
-                      </div>
-                      <span className="inline-flex h-9 items-center rounded-md border border-input bg-background px-3 text-sm font-medium shadow-sm">
-                        Open
-                      </span>
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 group-hover:bg-surface-3 transition-colors">
+                      <Icon className="size-5 text-accent" />
                     </div>
-                    <p className="mt-3 text-sm font-semibold text-foreground">{item.label}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-foreground text-sm">{item.label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{item.description}</p>
+                    </div>
+                    <ChevronRight className="size-4 text-muted-foreground/50 shrink-0" />
                   </Link>
                 );
               })}

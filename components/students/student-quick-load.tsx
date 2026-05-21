@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 
 import { SectionCard } from "@/components/admin/section-card";
 import { StudentListTable } from "@/components/students/student-list-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Sheet } from "@/components/ui/sheet";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 import { isPendingAdmissionNo } from "@/lib/students/constants";
 import type {
   StudentClassOption,
@@ -15,7 +18,7 @@ import type {
   StudentRouteOption,
 } from "@/lib/students/types";
 
-import { Search, GraduationCap, Bus, UserCheck, X } from "lucide-react";
+import { Search, GraduationCap, Bus, UserCheck, X, SlidersHorizontal, Plus } from "lucide-react";
 
 const selectClassName =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus:ring-ring focus:border-ring";
@@ -55,7 +58,21 @@ export function StudentQuickLoad({
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [srBannerDismissed, setSrBannerDismissed] = useState(false);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  const activeFilterCount = useMemo(() => {
+    return (
+      (filters.query ? 1 : 0) +
+      (filters.classId ? 1 : 0) +
+      (filters.transportRouteId ? 1 : 0) +
+      (filters.status ? 1 : 0)
+    );
+  }, [filters]);
+
+  const withSession = (href: string) => {
+    return appendSessionParam(href, initialFilters.sessionLabel);
+  };
 
   const params = useMemo(() => {
     const searchParams = new URLSearchParams();
@@ -153,11 +170,51 @@ export function StudentQuickLoad({
         title="Find students"
         description="Search by student name, SR no, or phone, then narrow by class, route, or status."
       >
-        <details className="md:hidden">
-          <summary className="cursor-pointer rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-foreground hover:bg-surface-3 transition-colors">
-            Open filters
-          </summary>
-          <div className="mt-3 grid gap-3">
+        {/* Mobile: filter button that opens a sheet */}
+        <div className="md:hidden flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full gap-2 h-10 rounded-lg justify-center font-medium"
+            onClick={() => setFilterSheetOpen(true)}
+          >
+            <SlidersHorizontal className="size-4" />
+            Filter Students
+            {activeFilterCount > 0 && (
+              <span className="ml-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-foreground">
+                {activeFilterCount}
+              </span>
+            )}
+          </Button>
+          {activeFilterCount > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-10 px-3 hover:bg-surface-2 shrink-0"
+              onClick={() => {
+                setPage(1);
+                setFilters({
+                  query: "",
+                  classId: "",
+                  transportRouteId: "",
+                  status: "",
+                });
+              }}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+
+        <Sheet
+          open={filterSheetOpen}
+          onClose={() => setFilterSheetOpen(false)}
+          title="Filter Students"
+          size="lg"
+        >
+          <div className="space-y-4 pt-2">
             <div>
               <Label htmlFor="query-mobile">Search</Label>
               <div className="relative mt-2">
@@ -176,52 +233,101 @@ export function StudentQuickLoad({
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="classId-mobile">Class</Label>
-                <div className="relative mt-2">
-                  <GraduationCap className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                  <select
-                    id="classId-mobile"
-                    value={filters.classId}
-                    onChange={(event) => {
-                      setPage(1);
-                      setFilters((previous) => ({ ...previous, classId: event.target.value }));
-                    }}
-                    className={`${selectClassName} pl-9 h-11`}
-                  >
-                    <option value="">All classes</option>
-                    {classOptions.map((classOption) => (
-                      <option key={classOption.id} value={classOption.id}>
-                        {classOption.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="status-mobile">Status</Label>
-                <div className="relative mt-2">
-                  <UserCheck className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                  <select
-                    id="status-mobile"
-                    value={filters.status}
-                    onChange={(event) => {
-                      setPage(1);
-                      setFilters((previous) => ({ ...previous, status: event.target.value as StudentListFilters["status"] }));
-                    }}
-                    className={`${selectClassName} pl-9 h-11`}
-                  >
-                    <option value="">All statuses</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                    <option value="withdrawn">Withdrawn</option>
-                  </select>
-                </div>
+
+            <div>
+              <Label htmlFor="classId-mobile">Class</Label>
+              <div className="relative mt-2">
+                <GraduationCap className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <select
+                  id="classId-mobile"
+                  value={filters.classId}
+                  onChange={(event) => {
+                    setPage(1);
+                    setFilters((previous) => ({ ...previous, classId: event.target.value }));
+                  }}
+                  className={`${selectClassName} pl-9 h-11`}
+                >
+                  <option value="">All classes</option>
+                  {classOptions.map((classOption) => (
+                    <option key={classOption.id} value={classOption.id}>
+                      {classOption.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
+
+            <div>
+              <Label htmlFor="transportRouteId-mobile">Transport route</Label>
+              <div className="relative mt-2">
+                <Bus className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <select
+                  id="transportRouteId-mobile"
+                  value={filters.transportRouteId}
+                  onChange={(event) => {
+                    setPage(1);
+                    setFilters((previous) => ({ ...previous, transportRouteId: event.target.value }));
+                  }}
+                  className={`${selectClassName} pl-9 h-11`}
+                >
+                  <option value="">All routes</option>
+                  {routeOptions.map((route) => (
+                    <option key={route.id} value={route.id}>
+                      {route.routeCode ? `${route.label} (${route.routeCode})` : route.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="status-mobile">Status</Label>
+              <div className="relative mt-2">
+                <UserCheck className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <select
+                  id="status-mobile"
+                  value={filters.status}
+                  onChange={(event) => {
+                    setPage(1);
+                    setFilters((previous) => ({ ...previous, status: event.target.value as StudentListFilters["status"] }));
+                  }}
+                  className={`${selectClassName} pl-9 h-11`}
+                >
+                  <option value="">All statuses</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="withdrawn">Withdrawn</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="pt-4 flex gap-2">
+              <Button
+                type="button"
+                className="flex-1 h-12 text-sm font-semibold rounded-xl"
+                onClick={() => setFilterSheetOpen(false)}
+              >
+                Apply Filters
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 px-4 text-sm font-medium rounded-xl"
+                onClick={() => {
+                  setPage(1);
+                  setFilters({
+                    query: "",
+                    classId: "",
+                    transportRouteId: "",
+                    status: "",
+                  });
+                }}
+              >
+                Reset
+              </Button>
+            </div>
           </div>
-        </details>
+        </Sheet>
         <div className="hidden gap-3 md:grid md:grid-cols-2 xl:grid-cols-5">
           <div className="xl:col-span-2">
             <Label htmlFor="query">Search</Label>
@@ -397,6 +503,7 @@ export function StudentQuickLoad({
               hasFilters={Boolean(filters.query || filters.classId || filters.transportRouteId || filters.status)}
               canWrite={canWrite}
               returnTo={returnTo}
+              session={initialFilters.sessionLabel}
             />
           )}
 
@@ -415,6 +522,16 @@ export function StudentQuickLoad({
           </div>
         </div>
       </SectionCard>
+
+      {canWrite && (
+        <Link
+          href={withSession(`/protected/students/new?sessionLabel=${encodeURIComponent(initialFilters.sessionLabel || "")}`)}
+          className="fixed bottom-24 right-4 z-30 flex size-14 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg hover:bg-accent/90 active:scale-95 transition-all md:hidden"
+          aria-label="Add new student"
+        >
+          <Plus className="size-6" />
+        </Link>
+      )}
     </>
   );
 }

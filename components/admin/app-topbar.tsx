@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { ChevronDown, KeyRound, LogOut, MoreVertical, UserRound } from "lucide-react";
+import { ChevronDown, KeyRound, LogOut, UserRound } from "lucide-react";
 
 import { roleLabels, type StaffRole } from "@/lib/auth/roles";
 import { getProtectedRouteMeta } from "@/lib/config/navigation";
@@ -117,23 +117,28 @@ export function MobileHeader({
 }: AppTopBarProps & {
   homeHref: string;
 }) {
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const sessionAwareHomeHref = appendCurrentSessionParam(homeHref, searchParams);
   const passwordHref = appendCurrentSessionParam("/protected/password", searchParams);
+  const routeTitle = getProtectedRouteMeta(pathname).label;
 
   return (
-    <header className="sticky top-0 z-30 flex h-12 items-center justify-between border-b border-border bg-background/90 px-3 backdrop-blur print:hidden md:hidden">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/90 px-3 backdrop-blur print:hidden md:hidden">
       <Link href={sessionAwareHomeHref} aria-label="Open home" className="inline-flex min-w-0 items-center rounded-md p-1 transition-colors hover:bg-surface-2">
         <SchoolBrand variant="icon" priority />
       </Link>
+      <p className="absolute left-1/2 -translate-x-1/2 text-sm font-semibold text-foreground truncate max-w-[44vw]">
+        {routeTitle}
+      </p>
       <div className="flex min-w-0 items-center gap-2">
         {sessionPill}
         <DropdownMenu>
           <DropdownMenuTrigger
-            className="grid size-9 place-items-center rounded-md border border-border bg-surface text-foreground transition-colors hover:bg-surface-2 focus-ring"
+            className="grid size-9 place-items-center rounded-full border border-border bg-surface-2 text-[11px] font-semibold uppercase text-foreground focus-ring"
             aria-label="Account menu"
           >
-            <MoreVertical className="size-5" aria-hidden="true" />
+            {initialsOf(staffEmail)}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-60">
             <DropdownMenuLabel className="flex items-center gap-2 py-2">

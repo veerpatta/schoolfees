@@ -15,7 +15,13 @@ type MobileBottomNavProps = {
 export function MobileBottomNav({ staffRole }: MobileBottomNavProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const items = getMobileBottomNavigation(staffRole).slice(0, 5);
+  const items = getMobileBottomNavigation(staffRole)
+    .slice(0, 5)
+    .map((item) => {
+      if (item.label === "Dues") return { ...item, label: "Defaulters" };
+      if (item.label === "Receipts") return { ...item, label: "History" };
+      return item;
+    });
 
   return (
     <nav
@@ -41,28 +47,30 @@ export function MobileBottomNav({ staffRole }: MobileBottomNavProps) {
               key={item.href}
               href={href}
               aria-current={active ? "page" : undefined}
-              className={cn(
-                "relative flex min-h-11 min-w-0 flex-col items-center justify-center rounded-md px-1 py-1.5 text-[10px] font-medium leading-tight transition-colors",
-                active
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
+              className="relative flex min-h-11 min-w-0 flex-col items-center justify-center rounded-md px-1 py-1 transition-colors"
             >
-              <Icon
-                className={cn(
-                  "size-5 transition-transform duration-150",
-                  active && "scale-110",
-                )}
-                aria-hidden="true"
-              />
-              <span className="mt-0.5 max-w-full truncate">{item.label}</span>
               <span
-                aria-hidden="true"
                 className={cn(
-                  "absolute -top-px left-1/2 h-[2px] w-8 -translate-x-1/2 rounded-full transition-all duration-200",
-                  active ? "bg-accent scale-x-100" : "bg-transparent scale-x-0",
+                  "flex size-8 items-center justify-center rounded-full transition-all duration-200",
+                  active ? "bg-accent/12" : "",
                 )}
-              />
+              >
+                <Icon
+                  className={cn(
+                    "size-5",
+                    active ? "text-accent" : "text-muted-foreground/70",
+                  )}
+                  aria-hidden="true"
+                />
+              </span>
+              <span
+                className={cn(
+                  "mt-0.5 max-w-full truncate text-[10px] font-medium transition-colors",
+                  active ? "text-accent" : "text-muted-foreground/70",
+                )}
+              >
+                {item.label}
+              </span>
             </Link>
           );
         })}

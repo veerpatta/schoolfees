@@ -1,10 +1,13 @@
 import Link from "next/link";
+import { Phone } from "lucide-react";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { OfficeNotice } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
+import { Money } from "@/components/ui/money";
+import { cn } from "@/lib/utils";
 import { DefaulterFilters } from "@/components/defaulters/defaulter-filters";
 import { getDefaultersPageData } from "@/lib/defaulters/data";
 import {
@@ -73,6 +76,50 @@ export default async function DefaultersPage({
   const data = await getDefaultersPageData(filters, viewSession.sessionLabel);
   const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
   const canPayTogether = familyPaymentsEnabled && hasStaffPermission(staff, "payments:write");
+  const canPostPayments = hasStaffPermission(staff, "payments:write");
+
+  const buildFilterHref = (chip: { label: string; value: string }) => {
+    const search = new URLSearchParams();
+    if (resolvedSearchParams?.session) {
+      search.set("session", asString(resolvedSearchParams.session));
+    }
+    if (resolvedSearchParams?.classId) {
+      search.set("classId", asString(resolvedSearchParams.classId));
+    }
+    if (resolvedSearchParams?.transportRouteId) {
+      search.set("transportRouteId", asString(resolvedSearchParams.transportRouteId));
+    }
+    if (resolvedSearchParams?.query) {
+      search.set("query", asString(resolvedSearchParams.query));
+    }
+
+    if (chip.value === "overdue") {
+      search.set("overdue", "overdue");
+    } else if (chip.value === "5000") {
+      search.set("minPendingAmount", "5000");
+    } else if (chip.value === "10000") {
+      search.set("minPendingAmount", "10000");
+    }
+
+    const qs = search.toString();
+    return `/protected/defaulters${qs ? `?${qs}` : ""}`;
+  };
+
+  const isActive = (chip: { label: string; value: string }) => {
+    if (chip.value === "all") {
+      return !filters.overdue && !filters.minPendingAmount;
+    }
+    if (chip.value === "overdue") {
+      return filters.overdue === "overdue";
+    }
+    if (chip.value === "5000") {
+      return filters.minPendingAmount === "5000";
+    }
+    if (chip.value === "10000") {
+      return filters.minPendingAmount === "10000";
+    }
+    return false;
+  };
 
   return (
     <div className="space-y-6">
@@ -109,8 +156,8 @@ export default async function DefaultersPage({
         />
       </SectionCard>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <div className="rounded-lg border border-border bg-card p-4">
+      <section className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 snap-x no-scrollbar md:mx-0 md:px-0 md:grid md:grid-cols-2 md:overflow-visible xl:grid-cols-5">
+        <div className="rounded-lg border border-border bg-card p-4 shrink-0 w-[72vw] snap-start md:w-auto">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Students listed
           </p>
@@ -122,7 +169,7 @@ export default async function DefaultersPage({
           </p>
         </div>
 
-        <div className="rounded-lg border border-border bg-card p-4">
+        <div className="rounded-lg border border-border bg-card p-4 shrink-0 w-[72vw] snap-start md:w-auto">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Pending amount
           </p>
@@ -134,7 +181,7 @@ export default async function DefaultersPage({
           </p>
         </div>
 
-        <div className="rounded-lg border border-border bg-card p-4">
+        <div className="rounded-lg border border-border bg-card p-4 shrink-0 w-[72vw] snap-start md:w-auto">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Overdue installments
           </p>
@@ -146,7 +193,7 @@ export default async function DefaultersPage({
           </p>
         </div>
 
-        <div className="rounded-lg border border-border bg-card p-4">
+        <div className="rounded-lg border border-border bg-card p-4 shrink-0 w-[72vw] snap-start md:w-auto">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Open installments
           </p>
@@ -158,7 +205,7 @@ export default async function DefaultersPage({
           </p>
         </div>
 
-        <div className="rounded-lg border bg-warning-soft p-4">
+        <div className="rounded-lg border bg-warning-soft p-4 shrink-0 w-[72vw] snap-start md:w-auto">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-warning-soft-foreground">
             Dues not prepared
           </p>
@@ -230,49 +277,92 @@ export default async function DefaultersPage({
         title="Defaulter list"
         description="Ranked by pending amount and overdue days so the highest-risk follow-ups appear first."
       >
-        <div className="space-y-3 md:hidden">
-          {data.rows.length === 0 ? (
-            <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
-              No defaulters found for the selected filters.
-            </p>
-          ) : (
-            data.rows.map((row) => (
-              <div key={row.studentId} className="rounded-xl border border-border bg-card p-3">
-                <div className="flex items-center justify-between">
-                  <span className="rounded-full bg-warning-soft px-2 py-1 text-xs font-semibold text-warning-soft-foreground">
-                    Rank #{row.rank}
-                  </span>
-                  <span className="text-sm font-semibold text-foreground">{formatInr(row.totalPending)}</span>
-                </div>
-                <p className="mt-2 font-semibold text-foreground">{row.fullName}</p>
-                <p className="text-xs text-muted-foreground">SR no {row.admissionNo} • {row.classLabel}</p>
-                <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                  <p>Days overdue: {row.daysOverdue}</p>
-                  <p>Oldest due: {row.oldestDueDate ? formatShortDate(row.oldestDueDate) : "-"}</p>
-                  <p>Father: {row.fatherName ?? "-"}</p>
-                  <p>Last payment: {row.lastPaymentDate ? formatShortDate(row.lastPaymentDate) : "-"}</p>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {row.fatherPhone ? (
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={`tel:${row.fatherPhone}`}>Call</Link>
-                    </Button>
-                  ) : null}
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={withSession(`/protected/students/${row.studentId}`)}>Open Student</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={withSession(`/protected/payments?studentId=${row.studentId}${row.classId ? `&classId=${row.classId}` : ""}`)}>Collect</Link>
-                  </Button>
-                  {canPayTogether && row.familyGroupId && (row.familyVisibleSiblingCount ?? 0) > 0 ? (
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={withSession(`/protected/payments/family/${row.familyGroupId}`)}>Pay together</Link>
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-            ))
-          )}
+        <div className="space-y-4">
+          {/* Quick filter chips - horizontal scroll */}
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar md:mx-0 md:px-0">
+            {[
+              { label: "All", value: "all" },
+              { label: "Overdue only", value: "overdue" },
+              { label: "₹5,000+", value: "5000" },
+              { label: "₹10,000+", value: "10000" },
+            ].map((chip) => (
+              <Link
+                key={chip.value}
+                href={buildFilterHref(chip)}
+                className={cn(
+                  "shrink-0 rounded-full px-4 py-2 text-sm font-medium border transition-colors",
+                  isActive(chip)
+                    ? "bg-accent text-accent-foreground border-accent"
+                    : "bg-surface-2 text-foreground border-border hover:bg-surface-3"
+                )}
+              >
+                {chip.label}
+              </Link>
+            ))}
+          </div>
+
+          <div className="md:hidden">
+            {data.rows.length === 0 ? (
+              <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
+                No defaulters found for the selected filters.
+              </p>
+            ) : (
+              <ul className="divide-y divide-border/60 rounded-xl border border-border bg-card overflow-hidden">
+                {data.rows.map((row) => (
+                  <li key={row.studentId} className="px-4 py-3.5 hover:bg-surface-2/40">
+                    {/* Name + class + outstanding */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-foreground">{row.fullName}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{row.classLabel} · SR {row.admissionNo}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <Money value={row.totalPending} size="lg" tone="warning" />
+                        <div className="mt-1">
+                          <StatusBadge label={row.followUpStatus === "overdue" ? "OVERDUE" : row.followUpStatus} tone="warning" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Extra metadata grid */}
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                      <p>Days overdue: {row.daysOverdue}</p>
+                      <p>Oldest due: {row.oldestDueDate ? formatShortDate(row.oldestDueDate) : "-"}</p>
+                      <p>Father: {row.fatherName ?? "-"}</p>
+                      <p>Last payment: {row.lastPaymentDate ? formatShortDate(row.lastPaymentDate) : "-"}</p>
+                    </div>
+
+                    {/* Action row */}
+                    <div className="mt-3 flex items-center gap-2">
+                      {row.fatherPhone && (
+                        <a href={`tel:${row.fatherPhone}`}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-foreground min-h-10 hover:bg-surface-3 transition-colors"
+                        >
+                          <Phone className="size-4 text-success" />
+                          {row.fatherPhone}
+                        </a>
+                      )}
+                      <div className="ml-auto flex gap-1.5">
+                        <Button asChild size="sm" variant="ghost">
+                          <Link href={withSession(`/protected/students/${row.studentId}`)}>View</Link>
+                        </Button>
+                        {canPostPayments && (
+                          <Button asChild size="sm" variant="accent" className="rounded-full">
+                            <Link href={withSession(`/protected/payments?studentId=${row.studentId}${row.classId ? `&classId=${row.classId}` : ""}`)}>Collect</Link>
+                          </Button>
+                        )}
+                        {canPayTogether && row.familyGroupId && (row.familyVisibleSiblingCount ?? 0) > 0 && (
+                          <Button asChild size="sm" variant="outline" className="rounded-full">
+                            <Link href={withSession(`/protected/payments/family/${row.familyGroupId}`)}>Pay together</Link>
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
         <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
           <table className="w-full min-w-full text-left text-sm">
@@ -329,12 +419,14 @@ export default async function DefaultersPage({
                         >
                           View
                         </Link>
-                        <Link
-                          href={withSession(`/protected/payments?studentId=${row.studentId}`)}
-                          className="text-sm font-semibold text-info-soft-foreground hover:text-info-soft-foreground"
-                        >
-                          Collect
-                        </Link>
+                        {canPostPayments && (
+                          <Link
+                            href={withSession(`/protected/payments?studentId=${row.studentId}`)}
+                            className="text-sm font-semibold text-info-soft-foreground hover:text-info-soft-foreground"
+                          >
+                            Collect
+                          </Link>
+                        )}
                         {canPayTogether && row.familyGroupId && (row.familyVisibleSiblingCount ?? 0) > 0 ? (
                           <Link
                             href={withSession(`/protected/payments/family/${row.familyGroupId}`)}

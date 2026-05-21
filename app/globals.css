@@ -93,7 +93,7 @@
 
     /* Mobile geometry --------------------------------------------------- */
     --mobile-safe-area-bottom: env(safe-area-inset-bottom, 0px);
-    --mobile-bottom-nav-height: 4rem;
+    --mobile-bottom-nav-height: 4.25rem;
     --mobile-bottom-nav-offset: calc(var(--mobile-bottom-nav-height) + var(--mobile-safe-area-bottom));
     --mobile-payment-cta-height: 4.5rem;
     --mobile-payment-cta-offset: calc(var(--mobile-payment-cta-height) + var(--mobile-safe-area-bottom));
@@ -311,6 +311,30 @@
   /* Focus ring — saffron, single recipe used everywhere */
   .focus-ring {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Tap highlight suppression already exists, but add active:scale feedback */
+  .tap-scale {
+    @apply active:scale-[0.97] transition-transform duration-100;
+  }
+
+  /* Card as tappable link */
+  .card-link {
+    @apply rounded-xl border border-border bg-card transition-all duration-150
+           hover:border-border-strong hover:bg-surface-2
+           active:scale-[0.99] active:bg-surface-2;
+  }
+
+  /* Larger bottom nav clearance to account for payment CTA */
+  .bottom-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Section header compact on mobile */
+  @media (max-width: 767px) {
+    .page-section-gap {
+      @apply space-y-4;
+    }
   }
 }
 

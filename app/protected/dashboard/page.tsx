@@ -174,11 +174,12 @@ function HeroKpis({
   const rateSignal = getCollectionRateHealth(collectionRate);
 
   return (
-    <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+    <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 snap-x scroll-smooth sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4 no-scrollbar">
       {/* Today - saffron accent border */}
       <KpiCard
         accent="accent"
         label="Today collection"
+        className="snap-start shrink-0 w-[72vw] sm:w-auto"
         value={
           <CountUp
             value={collected}
@@ -192,6 +193,7 @@ function HeroKpis({
       <KpiCard
         accent="warning"
         label="Pending dues"
+        className="snap-start shrink-0 w-[72vw] sm:w-auto"
         value={
           <CountUp
             value={pending}
@@ -205,6 +207,7 @@ function HeroKpis({
       <KpiCard
         accent="info"
         label="Collection rate"
+        className="snap-start shrink-0 w-[72vw] sm:w-auto"
         value={<RateGauge value={collectionRate} size="md" />}
         hint={
           <span
@@ -221,7 +224,7 @@ function HeroKpis({
       />
 
       {/* Overdue amount - destructive-soft tinted card */}
-      <div className="rounded-lg border border-destructive/30 bg-destructive-soft px-4 py-3">
+      <div className="snap-start shrink-0 w-[72vw] sm:w-auto rounded-lg border border-destructive/30 bg-destructive-soft px-4 py-3">
         <p className="text-[10px] font-medium uppercase tracking-widest text-destructive/70">
           Overdue amount
         </p>
@@ -256,12 +259,18 @@ function QuickActions({
 
   return (
     <div className="space-y-2 sm:flex sm:flex-wrap sm:gap-2 sm:space-y-0">
-      {canPostPayments ? (
-        <Button asChild variant="accent" className="w-full justify-center sm:w-auto" leadingIcon={<BadgeIndianRupee className="size-4" />}>
-          <Link href={withSession("/protected/payments")}>Open Payment Desk</Link>
+      {canPostPayments && (
+        <Button asChild variant="accent" size="lg"
+          className="w-full justify-between px-5 h-14 text-base rounded-xl shadow-sm sm:w-auto sm:h-10 sm:text-sm sm:rounded-md"
+          leadingIcon={<BadgeIndianRupee className="size-5" />}
+        >
+          <Link href={withSession("/protected/payments")}>
+            Open Payment Desk
+            <ArrowRight className="size-5 ml-2" />
+          </Link>
         </Button>
-      ) : null}
-      <div className="grid grid-cols-3 gap-2 sm:contents">
+      )}
+      <div className="grid grid-cols-2 gap-2 sm:contents">
         {canWriteStudents ? (
           <Button asChild variant="outline" className="min-h-11 justify-center" leadingIcon={<UsersRound className="size-4" />}>
             <Link href={withSession("/protected/students/new")}>Add student</Link>
@@ -274,7 +283,7 @@ function QuickActions({
         <Button asChild variant="outline" className="min-h-11 justify-center" leadingIcon={<ReceiptText className="size-4" />}>
           <Link href={withSession("/protected/transactions")}>Transactions</Link>
         </Button>
-        <Button asChild variant="ghost" className="min-h-11 justify-center" leadingIcon={<ClipboardList className="size-4" />}>
+        <Button asChild variant="ghost" className="min-h-11 justify-center col-span-2 sm:col-span-1" leadingIcon={<ClipboardList className="size-4" />}>
           <Link href={withSession("/protected/defaulters")}>Defaulters</Link>
         </Button>
       </div>
@@ -336,7 +345,7 @@ function TodayPanel({
             {modes.map((mode) => (
               <li
                 key={mode.paymentMode}
-                className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
+                className="flex min-h-11 items-center justify-between gap-3 px-4 py-2.5 text-sm"
               >
                 <div className="min-w-0">
                   <p className="font-medium text-foreground">{mode.paymentMode}</p>
@@ -396,44 +405,44 @@ function FollowUpQueue({
       {rows.map((row) => (
         <li
           key={row.studentId}
-          className="flex flex-col gap-3 px-4 py-3.5 transition-colors hover:bg-surface-2/40 sm:flex-row sm:items-center sm:gap-4"
+          className="px-4 py-3.5 transition-colors hover:bg-surface-2/40"
         >
-          <div className="min-w-0 flex-1">
-            <p className="font-medium text-foreground">{row.studentName}</p>
-            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-              <span>{row.classLabel} - SR {row.admissionNo}</span>
-              {row.fatherPhone ? (
-                <a
-                  href={`tel:${row.fatherPhone}`}
-                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                  aria-label={`Call ${row.studentName}'s parent`}
-                >
-                  <Phone className="size-3" aria-hidden="true" />
-                  {row.fatherPhone}
-                </a>
-              ) : null}
-            </p>
-          </div>
-
-          <div className="text-left sm:text-right">
-            <Money value={row.outstandingAmount} size="lg" tone="warning" />
-            <p className="text-xs text-muted-foreground">
-              {row.nextDueDate
-                ? `Oldest due ${formatShortDate(row.nextDueDate)}`
-                : row.statusLabel || "Pending"}
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-1.5">
-            <div className="flex gap-1.5 sm:contents">
-              <Button asChild size="sm" variant="ghost">
-                <Link href={withSession(`/protected/students/${row.studentId}`)}>Open</Link>
-              </Button>
-              <CopyReminderButton text={row.reminderText} />
+          {/* Row 1: Name + Amount */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <Link href={withSession(`/protected/students/${row.studentId}`)} className="hover:underline">
+                <p className="font-semibold text-foreground truncate">{row.studentName}</p>
+              </Link>
+              <p className="text-xs text-muted-foreground mt-0.5">{row.classLabel} · SR {row.admissionNo}</p>
             </div>
-            <Button asChild size="sm" variant={canPostPayments ? "accent" : "outline"} className="w-full justify-center sm:w-auto">
+            <div className="text-right shrink-0">
+              <Money value={row.outstandingAmount} size="lg" tone="warning" />
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {row.nextDueDate ? `Due ${formatShortDate(row.nextDueDate)}` : row.statusLabel || "Pending"}
+              </p>
+            </div>
+          </div>
+
+          {/* Row 2: Action chips */}
+          <div className="mt-3 flex items-center gap-2">
+            {row.fatherPhone && (
+              <a
+                href={`tel:${row.fatherPhone}`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-3 transition-colors min-h-9"
+                aria-label={`Call ${row.studentName}'s parent`}
+              >
+                <Phone className="size-3.5" aria-hidden="true" /> Call
+              </a>
+            )}
+            <CopyReminderButton text={row.reminderText} />
+            <Button
+              asChild
+              size="sm"
+              variant={canPostPayments ? "accent" : "outline"}
+              className="ml-auto rounded-full px-4"
+            >
               <Link href={withSession(`/protected/payments?studentId=${row.studentId}&classId=${row.classId}`)}>
-                {canPostPayments ? "Collect" : "Desk"}
+                {canPostPayments ? "Collect" : "View"}
               </Link>
             </Button>
           </div>
@@ -681,7 +690,6 @@ function InstallmentStatus({
 
 function ClassSummaryTable({
   rows,
-  sessionLabel,
 }: {
   rows: Array<{
     classLabel: string;
@@ -694,7 +702,6 @@ function ClassSummaryTable({
     studentsWithGeneratedDues: number;
     missingDuesStudents: number;
   }>;
-  sessionLabel: string;
 }) {
   const renderTable = (tableRows: typeof rows, emptyLabel: string) => (
     <div className="overflow-x-auto rounded-md border border-border">
@@ -758,19 +765,17 @@ function ClassSummaryTable({
 
   return (
     <>
-      <div className="md:hidden">
-        <Notice
-          tone="info"
-          iconless
-          title="Class summary is available in Exports"
-          action={
-            <Button asChild size="sm" variant="outline">
-              <Link href={appendSessionParam("/protected/exports", sessionLabel)}>Open Exports</Link>
-            </Button>
-          }
-        >
-          The full class-wise table is hidden on phone screens to keep the dashboard readable.
-        </Notice>
+      <div className="md:hidden grid grid-cols-2 gap-2">
+        {[...rows]
+          .sort((a, b) => b.pendingAmount - a.pendingAmount)
+          .slice(0, 4)
+          .map((row) => (
+            <div key={row.classLabel} className="rounded-lg border border-border bg-card p-3">
+              <p className="text-xs font-semibold text-foreground">{row.classLabel}</p>
+              <Money value={row.pendingAmount} size="sm" className="mt-1" />
+              <p className="text-[10px] text-muted-foreground mt-1">{row.collectionRate}% collected</p>
+            </div>
+          ))}
       </div>
       <div className="hidden space-y-3 md:block">
         {renderTable(visibleRows, "No class-wise fee position is available yet.")}
@@ -1068,7 +1073,7 @@ async function DashboardBelowFold({
         title="Class-wise fee position"
         description="Sorted by highest pending amount."
       >
-        <ClassSummaryTable rows={data.classSummary} sessionLabel={sessionLabel} />
+        <ClassSummaryTable rows={data.classSummary} />
       </Section>
 
       <Section

@@ -35,7 +35,7 @@ export function PageHeader({
           {title}
         </h1>
         {description ? (
-          <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
+          <p className="mt-1.5 hidden text-sm leading-6 text-muted-foreground sm:block">
             {description}
           </p>
         ) : null}

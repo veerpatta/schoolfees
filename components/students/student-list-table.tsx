@@ -1,17 +1,20 @@
 import Link from "next/link";
-import { Users, GraduationCap, Bus, ShieldAlert } from "lucide-react";
+import { Users, GraduationCap, Bus, ShieldAlert, ChevronRight } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
 import type { StudentListItem } from "@/lib/students/types";
 import { cn } from "@/lib/utils";
+import { Money } from "@/components/ui/money";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 
 type StudentListTableProps = {
   students: StudentListItem[];
   hasFilters: boolean;
   canWrite: boolean;
   returnTo: string;
+  session?: string;
 };
 
 function DuesChip({ student }: { student: StudentListItem }) {
@@ -71,6 +74,7 @@ export function StudentListTable({
   hasFilters,
   canWrite,
   returnTo,
+  session,
 }: StudentListTableProps) {
   if (students.length === 0) {
     return (
@@ -90,90 +94,63 @@ export function StudentListTable({
     );
   }
 
+  const withSession = (href: string) => appendSessionParam(href, session);
+
   return (
-    <div className="rounded-xl border border-border overflow-hidden">
-      <div className="space-y-3 p-3 md:hidden">
+    <div className="rounded-xl border border-border overflow-hidden bg-card">
+      <ul className="divide-y divide-border/60 md:hidden bg-card">
         {students.map((student) => {
           const srNoMissing = student.status === "active" && !student.admissionNo.trim();
 
           return (
-            <div
-              key={student.id}
-              className="rounded-xl border border-border bg-card p-4 transition-all hover:shadow-xs cursor-pointer"
-              onClick={() => {
-                window.location.href = `/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`;
-              }}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-bold text-foreground text-base">{student.fullName}</p>
+            <li key={student.id} className="group relative">
+              <Link
+                href={withSession(`/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`)}
+                className="flex items-center gap-3 px-4 py-4 transition-all hover:bg-surface-2/50 active:bg-surface-2"
+              >
+                {/* Status dot */}
+                <span className={cn(
+                  "size-2.5 shrink-0 rounded-full mt-0.5",
+                  student.status === "active" ? "bg-success" : "bg-muted-foreground/30"
+                )} />
+
+                {/* Name + class + admission */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <p className="font-semibold text-foreground truncate text-sm">{student.fullName}</p>
                     {srNoMissing ? (
-                      <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning-soft-foreground flex items-center gap-1">
-                        <ShieldAlert className="h-3 w-3" />
+                      <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[9px] font-medium text-warning-soft-foreground flex items-center gap-0.5">
+                        <ShieldAlert className="h-2.5 w-2.5" />
                         SR missing
                       </span>
                     ) : null}
                     <SiblingPill student={student} />
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                    <span className="font-mono bg-surface-2 px-1.5 py-0.5 rounded text-foreground">SR: {student.admissionNo}</span>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {student.classLabel} · SR {student.admissionNo || "Pending"}
                   </p>
                 </div>
-                <div className="shrink-0">
-                  <DuesChip student={student} />
-                </div>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-muted-foreground border-t border-border/40 pt-2">
-                <p className="flex items-center gap-1.5">
-                  <GraduationCap className="h-3.5 w-3.5 text-subtle-foreground" />
-                  Class: {student.classLabel}
-                </p>
-                <p className="flex items-center gap-1.5">
-                  <Bus className="h-3.5 w-3.5 text-subtle-foreground" />
-                  Route: {student.transportRouteLabel}
-                </p>
-              </div>
-              <div className="mt-3 flex justify-between items-center border-t border-border/40 pt-2">
-                {student.conventionalDiscountLabels.length > 0 ? (
-                  <div className="flex flex-wrap gap-1">
-                    {student.conventionalDiscountLabels.map((label) => (
-                      <span
-                        key={label}
-                        className="rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-semibold text-success-soft-foreground"
-                      >
-                        {label}
-                      </span>
-                    ))}
+
+                {/* Pending amount if any */}
+                {student.outstandingAmount > 0 ? (
+                  <div className="shrink-0 text-right">
+                    <Money value={student.outstandingAmount} size="sm" tone="warning" />
+                    <p className="text-[10px] text-muted-foreground">pending</p>
                   </div>
-                ) : <div />}
-                <div className="flex items-center gap-2">
-                  {canWrite ? (
-                    <Link
-                      href={`/protected/students/${student.id}/edit?returnTo=${encodeURIComponent(returnTo)}`}
-                      className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 text-xs")}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                      }}
-                    >
-                      Edit
-                    </Link>
-                  ) : null}
-                  <Link
-                    href={`/protected/payments?studentId=${student.id}`}
-                    className={cn(buttonVariants({ variant: "accent", size: "sm" }), "h-8 text-xs font-semibold")}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                    }}
-                  >
-                    Collect
-                  </Link>
-                </div>
-              </div>
-            </div>
+                ) : (
+                  <div className="shrink-0 text-right">
+                    <span className="inline-flex items-center rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-semibold text-success-soft-foreground">
+                      Paid
+                    </span>
+                  </div>
+                )}
+
+                <ChevronRight className="size-4 text-muted-foreground/40 shrink-0" />
+              </Link>
+            </li>
           );
         })}
-      </div>
+      </ul>
       <table className="hidden min-w-full divide-y divide-border/60 md:table">
         <thead className="bg-surface-2">
           <tr>

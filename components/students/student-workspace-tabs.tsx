@@ -44,38 +44,40 @@ export function StudentWorkspaceTabs(props: StudentWorkspaceTabsProps) {
 
   return (
     <Tabs defaultValue={props.defaultTab} onValueChange={handleChange} className="w-full">
-      <TabsList className="flex h-auto w-full justify-start gap-2 bg-transparent p-0 border-b border-border rounded-none">
-        <TabsTrigger
-          value="dues"
-          className="rounded-none bg-transparent border-b-2 border-transparent px-4 py-2 hover:text-foreground text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:border-accent data-[state=active]:text-foreground data-[state=active]:shadow-none transition-all font-semibold text-sm"
-        >
-          Dues{tabBadge(props.counts.dues)}
-        </TabsTrigger>
-        <TabsTrigger
-          value="receipts"
-          className="rounded-none bg-transparent border-b-2 border-transparent px-4 py-2 hover:text-foreground text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:border-accent data-[state=active]:text-foreground data-[state=active]:shadow-none transition-all font-semibold text-sm"
-        >
-          Receipts{tabBadge(props.counts.receipts)}
-        </TabsTrigger>
-        <TabsTrigger
-          value="payments"
-          className="rounded-none bg-transparent border-b-2 border-transparent px-4 py-2 hover:text-foreground text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:border-accent data-[state=active]:text-foreground data-[state=active]:shadow-none transition-all font-semibold text-sm"
-        >
-          Payments{tabBadge(props.counts.payments)}
-        </TabsTrigger>
-        <TabsTrigger
-          value="fee-plan"
-          className="rounded-none bg-transparent border-b-2 border-transparent px-4 py-2 hover:text-foreground text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:border-accent data-[state=active]:text-foreground data-[state=active]:shadow-none transition-all font-semibold text-sm"
-        >
-          Fee Plan
-        </TabsTrigger>
-        <TabsTrigger
-          value="about"
-          className="rounded-none bg-transparent border-b-2 border-transparent px-4 py-2 hover:text-foreground text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:border-accent data-[state=active]:text-foreground data-[state=active]:shadow-none transition-all font-semibold text-sm"
-        >
-          About
-        </TabsTrigger>
-      </TabsList>
+      <div className="no-scrollbar -mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+        <TabsList className="flex h-auto w-full justify-start gap-1.5 bg-transparent p-0 border-b border-border rounded-none min-w-max md:min-w-0 pb-1.5 md:pb-0">
+          <TabsTrigger
+            value="dues"
+            className="shrink-0 whitespace-nowrap rounded-full bg-transparent border-transparent px-4 py-2 hover:text-foreground text-muted-foreground data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:shadow-none transition-all font-semibold text-sm md:rounded-none md:border-b-2 md:border-transparent md:data-[state=active]:bg-transparent md:data-[state=active]:border-accent md:data-[state=active]:text-foreground"
+          >
+            Dues{tabBadge(props.counts.dues)}
+          </TabsTrigger>
+          <TabsTrigger
+            value="receipts"
+            className="shrink-0 whitespace-nowrap rounded-full bg-transparent border-transparent px-4 py-2 hover:text-foreground text-muted-foreground data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:shadow-none transition-all font-semibold text-sm md:rounded-none md:border-b-2 md:border-transparent md:data-[state=active]:bg-transparent md:data-[state=active]:border-accent md:data-[state=active]:text-foreground"
+          >
+            Receipts{tabBadge(props.counts.receipts)}
+          </TabsTrigger>
+          <TabsTrigger
+            value="payments"
+            className="shrink-0 whitespace-nowrap rounded-full bg-transparent border-transparent px-4 py-2 hover:text-foreground text-muted-foreground data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:shadow-none transition-all font-semibold text-sm md:rounded-none md:border-b-2 md:border-transparent md:data-[state=active]:bg-transparent md:data-[state=active]:border-accent md:data-[state=active]:text-foreground"
+          >
+            Payments{tabBadge(props.counts.payments)}
+          </TabsTrigger>
+          <TabsTrigger
+            value="fee-plan"
+            className="shrink-0 whitespace-nowrap rounded-full bg-transparent border-transparent px-4 py-2 hover:text-foreground text-muted-foreground data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:shadow-none transition-all font-semibold text-sm md:rounded-none md:border-b-2 md:border-transparent md:data-[state=active]:bg-transparent md:data-[state=active]:border-accent md:data-[state=active]:text-foreground"
+          >
+            Fee Plan
+          </TabsTrigger>
+          <TabsTrigger
+            value="about"
+            className="shrink-0 whitespace-nowrap rounded-full bg-transparent border-transparent px-4 py-2 hover:text-foreground text-muted-foreground data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:shadow-none transition-all font-semibold text-sm md:rounded-none md:border-b-2 md:border-transparent md:data-[state=active]:bg-transparent md:data-[state=active]:border-accent md:data-[state=active]:text-foreground"
+          >
+            About
+          </TabsTrigger>
+        </TabsList>
+      </div>
 
       <TabsContent value="dues" className="mt-4 focus-visible:ring-0 focus-visible:ring-offset-0">{props.duesContent}</TabsContent>
       <TabsContent value="receipts" className="mt-4 focus-visible:ring-0 focus-visible:ring-offset-0">{props.receiptsContent}</TabsContent>

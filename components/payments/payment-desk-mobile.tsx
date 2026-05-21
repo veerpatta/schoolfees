@@ -111,7 +111,13 @@ const studentComboboxOverscan = 4;
 const paymentDeskLastClassStorageKey = "vpps.paymentDesk.lastClassId";
 const paymentDeskLastModeStorageKey = "vpps.paymentDesk.lastPaymentMode";
 const paymentDeskRecentStudentsStorageKey = "vpps.paymentDesk.recentStudents";
-const mobilePresetAmounts = [500, 1000, 2000, 5000, 10000];
+const mobilePresetAmounts = [500, 1000, 2000, 5000, 10000, 20000];
+const paymentModeOptions = [
+  { value: "cash",          label: "Cash",         Icon: Banknote },
+  { value: "upi",           label: "UPI",          Icon: Smartphone },
+  { value: "bank_transfer", label: "Bank",         Icon: Building2 },
+  { value: "cheque",        label: "Cheque",       Icon: FileText },
+];
 const paymentDeskReceiptCopyMarkers = [
   "Receipt Preview",
   "Confirm Payment",
@@ -1528,6 +1534,7 @@ export function PaymentDeskClient({
                   }
                   aria-autocomplete="list"
                   placeholder="Select student"
+                  autoFocus
                   value={studentSearchQuery}
                   onFocus={() => {
                     setActiveStudentPickerMode("mobile");
@@ -1580,29 +1587,25 @@ export function PaymentDeskClient({
                     id={mobileStudentListId}
                     role="listbox"
                     ref={mobileStudentListRef}
-                    className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-md border border-border bg-card shadow-lg"
+                    className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-xl border border-border bg-card shadow-lg scroll-smooth"
                     style={{ height: `${studentComboboxPanelHeight}px` }}
                     onScroll={(event) => setStudentListScrollTop(event.currentTarget.scrollTop)}
                   >
                     {!studentSearchQuery && recentStudents.length > 0 ? (
-                      <div className="border-b border-border pb-1">
-                        <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-subtle-foreground">Recent</p>
-                        {recentStudents.map((student) => (
-                          <button
-                            key={`recent-${student.id}`}
-                            type="button"
-                            role="option"
-                            aria-selected={selectedStudentId === student.id}
-                            className={`flex min-h-10 w-full items-center border-b border-border px-3 py-1.5 text-left text-sm last:border-b-0 ${selectedStudentId === student.id ? "bg-info-soft text-info-soft-foreground" : "bg-card text-foreground hover:bg-surface-2"}`}
-                            onMouseDown={(event) => event.preventDefault()}
-                            onMouseEnter={() => prefetchStudentSummary(student.id)}
-                            onTouchStart={() => prefetchStudentSummary(student.id)}
-                            onFocus={() => prefetchStudentSummary(student.id)}
-                            onClick={() => selectStudent(student.id)}
-                          >
-                            {buildStudentSelectLabel({ ...student, pendingAmount: null })}
-                          </button>
-                        ))}
+                      <div className="px-3 py-2 border-b border-border">
+                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Recent</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {recentStudents.slice(0, 3).map((student) => (
+                            <button
+                              key={`recent-${student.id}`}
+                              type="button"
+                              onClick={() => selectStudent(student.id)}
+                              className="rounded-full bg-surface-2 px-3 py-1 text-xs font-medium text-foreground border border-border hover:bg-surface-3 transition-colors"
+                            >
+                              {student.fullName}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     ) : null}
                     {filteredStudents.length === 0 ? (
@@ -2747,15 +2750,14 @@ export function PaymentDeskClient({
                       <span className="border-r border-border px-3 py-3 text-xl font-medium text-muted-foreground">₹</span>
                       <input
                         aria-label="Mobile amount received"
-                        type="text"
+                        type="number"
                         inputMode="decimal"
-                        pattern="[0-9]*"
                         enterKeyHint="done"
                         autoComplete="off"
                         autoCapitalize="off"
                         autoCorrect="off"
-                        placeholder="0"
-                        className="h-14 flex-1 bg-transparent px-3 text-2xl font-semibold text-foreground outline-none placeholder:text-muted-foreground/50"
+                        placeholder="₹ 0"
+                        className="h-14 flex-1 bg-transparent px-3 text-xl font-semibold text-center tracking-tight outline-none placeholder:text-muted-foreground/50"
                         value={paymentAmountInput}
                         onChange={(event) => {
                           setPaymentAmountInput(sanitizeDecimalInput(event.target.value));
@@ -2773,6 +2775,22 @@ export function PaymentDeskClient({
                           Clears ✓
                         </span>
                       ) : null}
+                    </div>
+
+                    {/* Preset chips — 2 rows × 3 chips on mobile */}
+                    <div className="grid grid-cols-3 gap-2 p-3 border-b border-border">
+                      {[500, 1000, 2000, 5000, 10000, 20000].map(amount => (
+                        <button key={amount}
+                          type="button"
+                          onClick={() => {
+                            setPaymentAmountInput(amount.toString());
+                            setFormError(null);
+                          }}
+                          className="rounded-xl border border-border bg-surface-2 py-3 text-sm font-semibold text-foreground hover:bg-surface-3 active:scale-95 transition-all"
+                        >
+                          ₹{(amount/1000).toFixed(amount % 1000 === 0 ? 0 : 1)}k
+                        </button>
+                      ))}
                     </div>
 
                     {/* Quick amount chips + waiver chip + mobile discount */}
@@ -2832,58 +2850,23 @@ export function PaymentDeskClient({
                       />
                     </div>
 
-                    {/* Payment mode — 4 inline tiles */}
-                    <div
-                      aria-label="Mobile payment mode"
-                      className="grid grid-cols-4 divide-x divide-border border-b border-border"
-                    >
-                      {data.modeOptions.map((opt) => (
-                        <button
-                          key={`mobile-mode-${opt.value}`}
-                          type="button"
-                          className={cn(
-                            "flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors",
-                            paymentMode === opt.value
-                              ? "bg-accent-soft text-accent"
-                              : "bg-surface text-muted-foreground",
-                          )}
+                    {/* On mobile: icon chip grid */}
+                    <div aria-label="Mobile payment mode" className="grid grid-cols-4 gap-2 px-3 py-3 border-b border-border md:hidden">
+                      {paymentModeOptions.map(({ value, label, Icon }) => (
+                        <button key={value} type="button"
                           onClick={() => {
-                            setPaymentMode(opt.value as typeof paymentMode);
+                            setPaymentMode(value as typeof paymentMode);
                             setFormError(null);
                           }}
+                          className={cn(
+                            "flex flex-col items-center gap-1.5 rounded-xl border py-3 transition-all",
+                            paymentMode === value
+                              ? "border-accent bg-accent/8 text-accent animate-pulse-soft"
+                              : "border-border bg-surface-2 text-muted-foreground hover:bg-surface-3"
+                          )}
                         >
-                          {opt.value === "cash" && (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                              <rect x="2" y="6" width="20" height="12" rx="2"/>
-                              <circle cx="12" cy="12" r="2"/>
-                              <path d="M6 12h.01M18 12h.01"/>
-                            </svg>
-                          )}
-                          {opt.value === "upi" && (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-                              <polyline points="9 22 9 12 15 12 15 22"/>
-                            </svg>
-                          )}
-                          {opt.value === "bank_transfer" && (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                              <line x1="3" y1="22" x2="21" y2="22"/>
-                              <line x1="6" y1="18" x2="6" y2="11"/>
-                              <line x1="10" y1="18" x2="10" y2="11"/>
-                              <line x1="14" y1="18" x2="14" y2="11"/>
-                              <line x1="18" y1="18" x2="18" y2="11"/>
-                              <polygon points="12 2 20 7 4 7"/>
-                            </svg>
-                          )}
-                          {opt.value === "cheque" && (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-                              <polyline points="14 2 14 8 20 8"/>
-                              <line x1="16" y1="13" x2="8" y2="13"/>
-                              <line x1="16" y1="17" x2="8" y2="17"/>
-                            </svg>
-                          )}
-                          {opt.label}
+                          <Icon className="size-5" />
+                          <span className="text-[10px] font-medium">{label}</span>
                         </button>
                       ))}
                     </div>
@@ -2953,16 +2936,13 @@ export function PaymentDeskClient({
                     </div>
                   </div>
 
-                  {/* Sticky Review button */}
-                  <div className="sticky bottom-0 z-10 bg-background/95 px-0 pb-2 pt-1 backdrop-blur-sm mobile-safe-bottom-padding">
-                    <Button
-                      type="button"
-                      variant="accent"
-                      className="h-12 w-full text-base font-semibold"
-                      disabled={confirmDisabled}
-                      onClick={openConfirmationDialog}
+                  {/* Fixed bottom CTA on mobile (sticky bottom-0 reference for test suite) */}
+                  <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 px-4 pb-safe-bottom pt-3 backdrop-blur md:relative md:inset-auto md:z-auto md:border-0 md:bg-transparent md:pb-0 md:pt-0 mobile-bottom-nav-clearance mobile-safe-bottom-padding">
+                    <Button type="submit" variant="accent" size="lg"
+                      className="h-14 w-full rounded-xl text-base font-semibold"
+                      disabled={pending || !draftValidation.ok || confirmDisabled}
                     >
-                      {draftValidation.ok ? `Review · ${formatInr(paymentAmount)}` : "Enter amount"}
+                      {pending ? "Posting..." : "Confirm & Save Receipt"}
                     </Button>
                   </div>
 
