@@ -12,6 +12,7 @@ import {
 import {
   buildDashboardSummary,
   type DashboardClassSummaryRow,
+  type DashboardClassInstallmentPendingRow,
   type DashboardEmptyState,
   type DashboardFollowUpStudent,
   type DashboardInstallmentSummaryRow,
@@ -51,6 +52,7 @@ export type DashboardPageData = {
   collectionTrend: DashboardTrendPoint[];
   classSummary: DashboardClassSummaryRow[];
   installmentSummary: DashboardInstallmentSummaryRow[];
+  classInstallmentMatrix: DashboardClassInstallmentPendingRow[];
   followUpQueue: DashboardFollowUpStudent[];
   recentPayments: DashboardRecentPayment[];
   todayPaymentModeBreakdown: DashboardPaymentModeBreakdown[];
@@ -656,6 +658,7 @@ export async function getDashboardPageData(options: {
     collectionTrend: summary.collectionTrend,
     classSummary: summary.classSummary,
     installmentSummary: summary.installmentSummary,
+    classInstallmentMatrix: summary.classInstallmentMatrix,
     followUpQueue: summary.followUpQueue,
     recentPayments: summary.recentPayments,
     todayPaymentModeBreakdown: summary.todayPaymentModeBreakdown,

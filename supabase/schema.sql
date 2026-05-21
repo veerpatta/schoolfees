@@ -5236,10 +5236,13 @@ with student_phones as (
     s.id as student_id,
     c.session_label,
     s.father_name,
-    regexp_replace(coalesce(s.primary_phone, ''), '[^0-9]', '', 'g') as normalized_phone
+    regexp_replace(coalesce(raw_phone.raw_value, ''), '[^0-9]', '', 'g') as normalized_phone
   from public.students as s
   join public.classes as c
     on c.id = s.class_id
+  cross join lateral (
+    values (s.primary_phone), (s.secondary_phone)
+  ) as raw_phone(raw_value)
   where s.status = 'active'
 ),
 valid_student_phones as (

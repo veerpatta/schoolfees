@@ -44,6 +44,17 @@ export type DashboardClassSummaryRow = {
   collectionRate: number;
 };
 
+export type DashboardClassInstallmentPendingRow = {
+  classId: string;
+  classLabel: string;
+  installments: Array<{
+    installmentNo: number;
+    installmentLabel: string;
+    pendingAmount: number;
+  }>;
+  totalPendingAmount: number;
+};
+
 export type DashboardInstallmentSummaryRow = {
   installmentNo: number;
   installmentLabel: string;
@@ -396,6 +407,53 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
       reminderText: buildReminderText(row),
     }));
 
+  const classMatrixMap = new Map<string, { classId: string; classLabel: string; installmentsMap: Map<number, number> }>();
+  for (const row of input.installmentRows) {
+    const classKey = `${row.sessionLabel}::${row.classId}`;
+    const existing = classMatrixMap.get(classKey) ?? {
+      classId: row.classId,
+      classLabel: row.classLabel,
+      installmentsMap: new Map<number, number>(),
+    };
+    const currentPending = existing.installmentsMap.get(row.installmentNo) ?? 0;
+    existing.installmentsMap.set(row.installmentNo, currentPending + row.pendingAmount);
+    classMatrixMap.set(classKey, existing);
+  }
+
+  const distinctInstallmentNos = Array.from(
+    new Set(input.installmentRows.map((r) => r.installmentNo))
+  ).sort((a, b) => a - b);
+
+  const distinctInstallments = distinctInstallmentNos.map((no) => {
+    const match = input.installmentRows.find((r) => r.installmentNo === no);
+    return {
+      installmentNo: no,
+      installmentLabel: match?.installmentLabel ?? `Inst ${no}`,
+    };
+  });
+
+  const classInstallmentMatrix: DashboardClassInstallmentPendingRow[] = Array.from(classMatrixMap.values())
+    .map((row) => {
+      const installments = distinctInstallments.map((inst) => ({
+        installmentNo: inst.installmentNo,
+        installmentLabel: inst.installmentLabel,
+        pendingAmount: row.installmentsMap.get(inst.installmentNo) ?? 0,
+      }));
+      const totalPendingAmount = installments.reduce((sum, inst) => sum + inst.pendingAmount, 0);
+      return {
+        classId: row.classId,
+        classLabel: row.classLabel,
+        installments,
+        totalPendingAmount,
+      };
+    })
+    .sort((a, b) => {
+      if (b.totalPendingAmount !== a.totalPendingAmount) {
+        return b.totalPendingAmount - a.totalPendingAmount;
+      }
+      return a.classLabel.localeCompare(b.classLabel);
+    });
+
   const emptyState: DashboardEmptyState = {
     hasStudents: totalStudents > 0,
     hasReceipts: input.transactions.length > 0,
@@ -406,6 +464,7 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
     kpis,
     classSummary,
     installmentSummary,
+    classInstallmentMatrix,
     collectionTrend,
     todayPaymentModeBreakdown,
     recentPayments,

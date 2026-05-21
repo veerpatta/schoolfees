@@ -78,6 +78,16 @@ export function MasterStatementDocument({
                     <td className="px-3 py-2 text-right font-medium">{formatInr(item.amount)}</td>
                   </tr>
                 ))}
+                {financialSnapshot.resolvedBreakdown.conventionalDiscountApplied > 0 && (
+                  <tr className="border-t border-accent/20 bg-accent-soft/30 text-accent-soft-foreground text-xs">
+                    <td className="px-3 py-2 font-medium">
+                      Conventional Discount ({financialSnapshot.resolvedBreakdown.conventionalDiscountLabels.join(", ")})
+                    </td>
+                    <td className="px-3 py-2 text-right font-bold">
+                      -{formatInr(financialSnapshot.resolvedBreakdown.conventionalDiscountApplied)}
+                    </td>
+                  </tr>
+                )}
                 <tr className="border-t border-border-strong bg-surface-2">
                   <td className="px-3 py-2 font-semibold">Resolved annual total</td>
                   <td className="px-3 py-2 text-right font-semibold">
@@ -154,7 +164,42 @@ export function MasterStatementDocument({
         </div>
       </section>
 
-      <section className="border-t border-border-strong pt-4 text-sm">
+      <section className="border-t border-border-strong pt-4 text-sm space-y-3">
+        {financialSnapshot.resolvedBreakdown.conventionalDiscountApplied > 0 && (
+          <div className="rounded-lg border border-accent/25 bg-accent-soft/30 p-3 text-xs space-y-2 no-print">
+            <p className="font-semibold text-accent-soft-foreground uppercase tracking-wider text-[10px]">Active Conventional Discount Policy</p>
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              <div>
+                <span className="text-muted-foreground">Policy:</span>{" "}
+                <span className="font-semibold text-foreground">
+                  {financialSnapshot.resolvedBreakdown.conventionalDiscountLabels.join(", ")}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Baseline Tuition:</span>{" "}
+                <span className="font-medium text-muted-foreground line-through">
+                  {formatInr(financialSnapshot.resolvedBreakdown.tuitionBeforeConventionalDiscount)}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Applied Tuition:</span>{" "}
+                <span className="font-bold text-foreground">
+                  {formatInr(
+                    financialSnapshot.resolvedBreakdown.tuitionBeforeConventionalDiscount -
+                      financialSnapshot.resolvedBreakdown.conventionalDiscountApplied
+                  )}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Savings:</span>{" "}
+                <span className="font-bold text-success">
+                  {formatInr(financialSnapshot.resolvedBreakdown.conventionalDiscountApplied)} saved
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid gap-3 md:grid-cols-4">
           <div>
             <span className="font-semibold">Tuition override:</span>{" "}

@@ -1327,3 +1327,118 @@ export async function hardDeleteStudent(studentId: string, options: { forceTestR
     throw new Error(`Unable to delete student safely: ${error.message}`);
   }
 }
+
+export type StudentFamilyMemberDetail = {
+  id: string;
+  fullName: string;
+  admissionNo: string;
+  classLabel: string;
+  statusLabel: string;
+  isSelf: boolean;
+  financials?: {
+    totalDue: number;
+    totalPaid: number;
+    outstanding: number;
+  } | null;
+};
+
+export async function getStudentFamilyMembersDetail(
+  studentId: string,
+  sessionLabel: string,
+): Promise<{
+  familyGroupId: string | null;
+  confidence: "confirmed" | "suspected" | null;
+  members: StudentFamilyMemberDetail[];
+}> {
+  const supabase = await createClient();
+
+  // 1. Check if student has a confirmed family group
+  const { data: confirmedGroupRow } = await supabase
+    .from("student_family_members")
+    .select("family_group_id")
+    .eq("student_id", studentId)
+    .eq("academic_session_label", sessionLabel)
+    .maybeSingle();
+
+  let targetStudentIds: string[] = [studentId];
+  let familyGroupId: string | null = null;
+  let confidence: "confirmed" | "suspected" | null = null;
+
+  if (confirmedGroupRow) {
+    familyGroupId = confirmedGroupRow.family_group_id;
+    confidence = "confirmed";
+    const { data: allConfirmedMembers } = await supabase
+      .from("student_family_members")
+      .select("student_id")
+      .eq("family_group_id", familyGroupId)
+      .eq("academic_session_label", sessionLabel);
+
+    if (allConfirmedMembers && allConfirmedMembers.length > 0) {
+      targetStudentIds = allConfirmedMembers.map((m) => m.student_id);
+    }
+  } else {
+    // 2. If not confirmed, check if suspected sibling group exists
+    const { data: suspectedGroupRow } = await supabase
+      .from("v_student_sibling_groups")
+      .select("student_ids, confidence, existing_family_group_id")
+      .overlaps("student_ids", [studentId])
+      .eq("session_label", sessionLabel)
+      .maybeSingle();
+
+    if (suspectedGroupRow && suspectedGroupRow.student_ids) {
+      targetStudentIds = suspectedGroupRow.student_ids;
+      confidence = suspectedGroupRow.confidence as "confirmed" | "suspected";
+      familyGroupId = suspectedGroupRow.existing_family_group_id;
+    }
+  }
+
+  if (targetStudentIds.length === 0) {
+    return { familyGroupId: null, confidence: null, members: [] };
+  }
+
+  // 3. Fetch student details and class labels
+  const { data: students, error: studentsError } = await supabase
+    .from("students")
+    .select("id, full_name, admission_no, status, class_ref:classes(class_name, section, stream_name)")
+    .in("id", targetStudentIds);
+
+  if (studentsError) {
+    throw new Error(`Unable to load student family details: ${studentsError.message}`);
+  }
+
+  // 4. Fetch financial status from v_workbook_student_financials or v_student_financial_state
+  const { data: financials } = await supabase
+    .from("v_workbook_student_financials")
+    .select("student_id, total_due, total_paid, outstanding_amount")
+    .in("student_id", targetStudentIds);
+
+  const financialsMap = new Map<string, { totalDue: number; totalPaid: number; outstanding: number }>();
+  if (financials) {
+    financials.forEach((f) => {
+      financialsMap.set(f.student_id, {
+        totalDue: f.total_due,
+        totalPaid: f.total_paid,
+        outstanding: f.outstanding_amount,
+      });
+    });
+  }
+
+  const members = students.map((s) => {
+    const classRef = toSingleRecord(s.class_ref);
+    return {
+      id: s.id,
+      fullName: s.full_name,
+      admissionNo: s.admission_no,
+      classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
+      statusLabel: s.status === "active" ? "Active" : "Inactive",
+      isSelf: s.id === studentId,
+      financials: financialsMap.get(s.id) ?? null,
+    } satisfies StudentFamilyMemberDetail;
+  });
+
+  return {
+    familyGroupId,
+    confidence,
+    members: members.sort((a, b) => (a.isSelf ? -1 : b.isSelf ? 1 : a.fullName.localeCompare(b.fullName))),
+  };
+}

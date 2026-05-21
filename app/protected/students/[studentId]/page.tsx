@@ -7,12 +7,13 @@ import { StudentDangerZone } from "@/components/students/student-danger-zone";
 import { StudentIdentityStrip } from "@/components/students/student-identity-strip";
 import { StudentQuickReference } from "@/components/students/student-quick-reference";
 import { StudentWorkspaceTabs } from "@/components/students/student-workspace-tabs";
+import { StudentFamilyPanel } from "@/components/students/family-panel";
 import { Button } from "@/components/ui/button";
 import { Money } from "@/components/ui/money";
 import { Notice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
 import { formatShortDate } from "@/lib/helpers/date";
-import { getStudentDeletionSafety } from "@/lib/students/data";
+import { getStudentDeletionSafety, getStudentFamilyMembersDetail } from "@/lib/students/data";
 import { getStudentWorkspaceData } from "@/lib/students/workspace";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
@@ -78,6 +79,10 @@ export default async function StudentDetailPage({
   const { student, financialSnapshot, ledger, receipts, installmentBalances } =
     await getStudentWorkspaceData(resolvedParams.studentId);
   const deletionSafety = await getStudentDeletionSafety(resolvedParams.studentId);
+  const familyMembersDetail = await getStudentFamilyMembersDetail(
+    resolvedParams.studentId,
+    financialSnapshot?.policy.academicSessionLabel || "2026-27"
+  );
 
   if (!student) {
     notFound();
@@ -357,8 +362,15 @@ export default async function StudentDetailPage({
           aboutContent={<StudentAboutPanel student={student} ledger={ledger} receipts={receipts} />}
         />
 
-        <aside className="lg:sticky lg:top-20 lg:self-start">
+        <aside className="lg:sticky lg:top-20 lg:self-start space-y-6">
           <StudentQuickReference student={student} financialSnapshot={financialSnapshot} />
+          <StudentFamilyPanel
+            studentId={student.id}
+            familyGroupId={familyMembersDetail.familyGroupId}
+            confidence={familyMembersDetail.confidence}
+            members={familyMembersDetail.members}
+            sessionLabel={financialSnapshot?.policy.academicSessionLabel || "2026-27"}
+          />
         </aside>
       </div>
 

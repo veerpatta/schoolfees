@@ -78,3 +78,49 @@ export async function getStudentWorkspaceData(studentId: string) {
     installmentBalances,
   };
 }
+
+export async function getFamilyWorkspaceData(familyGroupId: string) {
+  const supabase = await createClient();
+  const { data: members, error: membersError } = await supabase
+    .from("student_family_members")
+    .select("student_id, academic_session_label")
+    .eq("family_group_id", familyGroupId);
+
+  if (membersError) {
+    throw new Error(`Unable to load family members: ${membersError.message}`);
+  }
+
+  if (!members || members.length === 0) {
+    throw new Error("No family members found for the provided familyGroupId.");
+  }
+
+  const studentIds = members.map((m) => m.student_id);
+  const workspaces = await Promise.all(
+    studentIds.map(async (studentId) => {
+      try {
+        const workspace = await getStudentWorkspaceData(studentId);
+        return workspace;
+      } catch (err) {
+        console.error(`Error loading workspace for student ${studentId}`, err);
+        return null;
+      }
+    })
+  );
+
+  const activeWorkspaces = workspaces.filter(
+    (w): w is Omit<NonNullable<typeof w>, "student"> & { student: NonNullable<NonNullable<typeof w>["student"]> } =>
+      w !== null && w.student !== null
+  );
+
+  // Fetch family group details
+  const { data: familyGroup } = await supabase
+    .from("student_family_groups")
+    .select("id, name, academic_session_label")
+    .eq("id", familyGroupId)
+    .maybeSingle();
+
+  return {
+    familyGroup: familyGroup ?? { id: familyGroupId, name: "Family Group", academic_session_label: members[0]?.academic_session_label ?? "2026-27" },
+    students: activeWorkspaces,
+  };
+}

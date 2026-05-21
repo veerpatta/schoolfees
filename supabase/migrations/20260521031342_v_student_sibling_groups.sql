@@ -7,9 +7,9 @@ begin
     from information_schema.columns
     where table_schema = 'public'
       and table_name = 'students'
-      and column_name = 'alternate_phone'
+      and column_name = 'secondary_phone'
   ) then
-    phone_values_sql := '(s.primary_phone), (s.alternate_phone)';
+    phone_values_sql := '(s.primary_phone), (s.secondary_phone)';
   end if;
 
   execute format($view$

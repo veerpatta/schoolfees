@@ -158,7 +158,7 @@ function ConventionalDiscountBlock({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-foreground">
-            Conventional Discount / à¤ªà¤¾à¤°à¤‚à¤ªà¤°à¤¿à¤• à¤›à¥‚à¤Ÿ
+            Conventional Discount / पारंपरिक छूट
           </h2>
           <p className="mt-1 text-xs text-accent-soft-foreground">
             Tuition-only policy applied for this academic session.
@@ -179,13 +179,13 @@ function ConventionalDiscountBlock({
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{assignment.policyCode}</p>
               </div>
               <div>
-                <BilingualLabel english="Baseline Tuition" hindi="à¤®à¥‚à¤² à¤¶à¤¿à¤•à¥à¤·à¤£ à¤¶à¥à¤²à¥à¤•" />
+                <BilingualLabel english="Baseline Tuition" hindi="मूल शिक्षण शुल्क" />
                 <p className="font-semibold text-muted-foreground line-through">
                   {formatInr(assignment.beforeTuitionAmount)}
                 </p>
               </div>
               <div>
-                <BilingualLabel english="Resulting Tuition" hindi="à¤²à¤¾à¤—à¥‚ à¤¶à¤¿à¤•à¥à¤·à¤£ à¤¶à¥à¤²à¥à¤•" />
+                <BilingualLabel english="Resulting Tuition" hindi="लागू शिक्षण शुल्क" />
                 <p className="font-semibold text-accent-soft-foreground">
                   {formatInr(assignment.resultingTuitionAmount)}
                 </p>

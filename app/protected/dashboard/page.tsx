@@ -19,6 +19,7 @@ import {
 import { PageHeader } from "@/components/admin/page-header";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { CopyReminderButton } from "@/components/dashboard/copy-reminder-button";
+import { ClassInstallmentMatrixTable } from "@/components/dashboard/class-installment-matrix";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CountUp } from "@/components/ui/count-up";
@@ -1055,6 +1056,13 @@ async function DashboardBelowFold({
           <InstallmentStatus rows={data.installmentSummary} />
         </Section>
       </div>
+
+      <Section
+        title="Class-wise & Installment-wise Pending Matrix"
+        description="Detailed pending balance grid across classes and installments."
+      >
+        <ClassInstallmentMatrixTable matrix={data.classInstallmentMatrix} />
+      </Section>
 
       <Section
         title="Class-wise fee position"
