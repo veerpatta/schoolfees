@@ -61,6 +61,7 @@ export function StudentQuickLoad({
   const [srBannerDismissed, setSrBannerDismissed] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const isFirstRender = useRef(true);
   const defaultStatusIsActive = filters.status === "active";
   const hasVisibleFilters = Boolean(
     filters.query ||
@@ -109,6 +110,10 @@ export function StudentQuickLoad({
   }, [params]);
 
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     const controller = new AbortController();
     const timeout = setTimeout(async () => {
       setIsLoading(true);

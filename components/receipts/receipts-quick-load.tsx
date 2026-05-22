@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 import { SectionCard } from "@/components/admin/section-card";
@@ -35,6 +35,7 @@ export function ReceiptsQuickLoad({
   const [receipts, setReceipts] = useState(initialReceipts);
   const [totalCount, setTotalCount] = useState(initialTotalCount);
   const [isLoading, setIsLoading] = useState(false);
+  const isFirstRender = useRef(true);
   const params = useMemo(() => {
     const value = new URLSearchParams();
     if (query) value.set("query", query);
@@ -51,6 +52,10 @@ export function ReceiptsQuickLoad({
   }, [params]);
 
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     const controller = new AbortController();
     const timeout = setTimeout(async () => {
       setIsLoading(true);
