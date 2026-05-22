@@ -101,6 +101,7 @@ describe("office performance guardrails", () => {
     const paymentsData = readRepoFile("lib/payments/data.ts");
     const paymentsPage = readRepoFile("app/protected/payments/page.tsx");
     const paymentClient = readRepoFile("components/payments/payment-desk-mobile.tsx");
+    const mobileSheet = readRepoFile("components/payments/mobile-payment-flow-sheet.tsx");
 
     expect(paymentsData).toContain("getPaymentDeskStudentIndex(payload:");
     expect(paymentsData).toContain("getPaymentDeskStudentIndex({ sessionLabel })");
@@ -120,8 +121,9 @@ describe("office performance guardrails", () => {
     expect(paymentClient).toContain("writePaymentDeskStudentIndexCache");
     expect(paymentClient).toContain("studentIndex.length === 0");
     expect(paymentClient).toContain("prefetchStudentSummary");
-    expect(paymentClient).toContain("onMouseEnter={() => prefetchStudentSummary");
-    expect(paymentClient).toContain("onTouchStart={() => prefetchStudentSummary");
+    expect(paymentClient).toContain("onPrefetchStudent={(id) => prefetchStudentSummary(id)}");
+    expect(mobileSheet).toContain("onMouseEnter={() => onPrefetchStudent");
+    expect(mobileSheet).toContain("onTouchStart={() => onPrefetchStudent");
     expect(paymentClient).toContain("clearPaymentDeskStudentIndexCache");
   });
 

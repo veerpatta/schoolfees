@@ -22,12 +22,16 @@ describe("mobile office workflow source markers", () => {
 
   it("keeps Payment Desk mobile class-first collection and late fee waiver visible", () => {
     const paymentDesk = readRepoFile("components/payments/payment-desk-mobile.tsx");
+    const mobileSheet = readRepoFile("components/payments/mobile-payment-flow-sheet.tsx");
 
-    expect(paymentDesk).toContain("data-mobile-class-picker-sheet");
-    expect(paymentDesk).toContain("mobileClassPickerOpen");
+    expect(paymentDesk).toContain("<MobilePaymentFlowSheet");
+    expect(paymentDesk).toContain("mobileSheetView");
     expect(paymentDesk).toContain("mobileClassPickerAutoOpenedRef");
-    expect(paymentDesk).toContain("data-mobile-late-fee-waiver");
-    expect(paymentDesk).toContain("No late fee pending");
-    expect(paymentDesk).toContain("amountInputRef.current?.focus");
+    expect(mobileSheet).toContain('"class-picker"');
+    expect(mobileSheet).toContain('"student-picker"');
+    expect(mobileSheet).toContain('"payment-entry"');
+    expect(mobileSheet).toContain("Waive late fee");
+    expect(mobileSheet).toContain("<MobileNumPad");
+    expect(paymentDesk).not.toContain("amountInputRef.current?.focus");
   });
 });

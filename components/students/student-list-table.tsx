@@ -6,8 +6,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
 import type { StudentListItem } from "@/lib/students/types";
 import { cn } from "@/lib/utils";
-import { Money } from "@/components/ui/money";
 import { appendSessionParam } from "@/lib/navigation/session-href";
+import { StudentStatusBadge } from "@/components/students/student-status-badge";
 
 type StudentListTableProps = {
   students: StudentListItem[];
@@ -17,39 +17,62 @@ type StudentListTableProps = {
   session?: string;
 };
 
-function DuesChip({ student }: { student: StudentListItem }) {
+function OutstandingCell({ student }: { student: StudentListItem }) {
   if (student.duesStatus !== "generated") {
     return (
-      <span className="inline-flex items-center rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-medium text-muted-foreground border border-border">
-        Dues not prepared
-      </span>
+      <div className="flex flex-col items-end gap-1">
+        <span className="text-sm font-semibold text-muted-foreground font-mono">—</span>
+        <Badge variant="outline" className="rounded-full text-[10px] py-0 px-2 font-medium border-border">
+          Dues not prepared
+        </Badge>
+      </div>
     );
   }
 
   if (student.outstandingAmount <= 0) {
     return (
-      <span className="inline-flex items-center rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-semibold text-success-soft-foreground">
-        Paid
-      </span>
+      <div className="flex flex-col items-end gap-1">
+        <span className="text-sm font-bold text-success-soft-foreground font-mono">
+          {formatInr(0)}
+        </span>
+        <Badge variant="success" dot className="rounded-full text-[10px] py-0 px-2 font-semibold">
+          Paid
+        </Badge>
+      </div>
     );
   }
 
-  if (student.overdueAmount > 0) {
-    return (
-      <span className="inline-flex flex-col items-end gap-0.5 rounded-lg bg-destructive-soft px-2.5 py-1 text-xs font-semibold text-destructive-soft-foreground">
-        <span>{formatInr(student.outstandingAmount)} due</span>
-        <span>{formatInr(student.overdueAmount)} overdue</span>
-        {student.pendingLateFeeAmount > 0 ? (
-          <span className="font-medium">Late fee {formatInr(student.pendingLateFeeAmount)}</span>
-        ) : null}
-      </span>
-    );
-  }
+  const isOverdue = student.overdueAmount > 0;
 
   return (
-    <span className="inline-flex items-center rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-semibold text-warning-soft-foreground">
-      {formatInr(student.outstandingAmount)} due
-    </span>
+    <div className="flex flex-col items-end gap-1">
+      <span
+        className={cn(
+          "text-sm font-bold font-mono",
+          isOverdue ? "text-destructive" : "text-warning"
+        )}
+      >
+        {formatInr(student.outstandingAmount)}
+      </span>
+      <div className="flex flex-col items-end gap-0.5">
+        {isOverdue ? (
+          <>
+            <Badge variant="danger" dot className="rounded-full text-[10px] py-0 px-2 font-semibold">
+              {formatInr(student.overdueAmount)} overdue
+            </Badge>
+            {student.pendingLateFeeAmount > 0 ? (
+              <span className="text-[9px] font-semibold text-destructive/80 mt-0.5">
+                + {formatInr(student.pendingLateFeeAmount)} late fee
+              </span>
+            ) : null}
+          </>
+        ) : (
+          <Badge variant="warning" dot className="rounded-full text-[10px] py-0 px-2 font-semibold">
+            Pending
+          </Badge>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -89,13 +112,18 @@ function MobileStudentListItem({
   );
 
   return (
-    <li className="group relative flex items-center gap-3 px-4 py-4 transition-all hover:bg-surface-2/50 active:bg-surface-2">
-      <span
-        className={cn(
-          "size-2.5 shrink-0 rounded-full mt-0.5",
-          student.status === "active" ? "bg-success" : "bg-muted-foreground/30",
-        )}
-      />
+    <li className="group relative flex items-center gap-3 pl-6 pr-4 py-4 transition-all hover:bg-surface-2/50 active:bg-surface-2 border-b border-border/40">
+      {/* Visual Dues Indicator Strip */}
+      <div className={cn(
+        "absolute left-0 top-0 bottom-0 w-1",
+        student.duesStatus !== "generated"
+          ? "bg-muted-foreground/20"
+          : student.outstandingAmount <= 0
+          ? "bg-success"
+          : student.overdueAmount > 0
+          ? "bg-destructive"
+          : "bg-warning"
+      )} />
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -112,29 +140,18 @@ function MobileStudentListItem({
             </span>
           ) : null}
           <SiblingPill student={student} session={session} />
+          {student.status !== "active" && (
+            <StudentStatusBadge status={student.status} />
+          )}
         </div>
         <p className="text-xs text-muted-foreground mt-1">
           {student.classLabel} · SR {student.admissionNo || "Pending"}
         </p>
       </div>
 
-      {student.outstandingAmount > 0 ? (
-        <div className="shrink-0 text-right">
-          <Money value={student.outstandingAmount} size="sm" tone="warning" />
-          <p className="text-[10px] text-muted-foreground">session due</p>
-          {student.overdueAmount > 0 ? (
-            <p className="text-[10px] font-medium text-destructive">
-              {formatInr(student.overdueAmount)} overdue
-            </p>
-          ) : null}
-        </div>
-      ) : (
-        <div className="shrink-0 text-right">
-          <span className="inline-flex items-center rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-semibold text-success-soft-foreground">
-            Paid
-          </span>
-        </div>
-      )}
+      <div className="shrink-0 text-right">
+        <OutstandingCell student={student} />
+      </div>
 
       <Link
         href={studentHref}
@@ -174,7 +191,7 @@ export function StudentListTable({
     );
   }
   return (
-    <div className="rounded-xl border border-border overflow-hidden bg-card">
+    <div className="rounded-xl border border-border overflow-hidden bg-card shadow-xs">
       <ul className="divide-y divide-border/60 md:hidden bg-card">
         {students.map((student) => (
           <MobileStudentListItem
@@ -188,7 +205,7 @@ export function StudentListTable({
       <table className="hidden min-w-full divide-y divide-border/60 md:table">
         <thead className="bg-surface-2">
           <tr>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground pl-6">
               SR no
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -200,7 +217,7 @@ export function StudentListTable({
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Transport
             </th>
-            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground pr-6">
               Outstanding
             </th>
             <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -220,12 +237,26 @@ export function StudentListTable({
                   window.location.href = withSession(`/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`);
                 }}
               >
-                <td className="px-4 py-3.5 text-sm font-mono text-foreground">
-                  <p>{student.admissionNo}</p>
+                <td className="relative px-4 py-3.5 text-sm font-mono text-foreground pl-6">
+                  {/* Visual Dues Indicator Strip */}
+                  <div className={cn(
+                    "absolute left-0 top-0 bottom-0 w-1",
+                    student.duesStatus !== "generated"
+                      ? "bg-muted-foreground/20"
+                      : student.outstandingAmount <= 0
+                      ? "bg-success"
+                      : student.overdueAmount > 0
+                      ? "bg-destructive"
+                      : "bg-warning"
+                  )} />
+                  <p>{student.admissionNo || "—"}</p>
                 </td>
                 <td className="px-4 py-3.5">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm font-semibold text-foreground">{student.fullName}</p>
+                    {student.status !== "active" && (
+                      <StudentStatusBadge status={student.status} />
+                    )}
                     {srNoMissing ? (
                       <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning-soft-foreground flex items-center gap-1">
                         <ShieldAlert className="h-3 w-3" />
@@ -259,8 +290,8 @@ export function StudentListTable({
                     <span>{student.transportRouteLabel}</span>
                   </div>
                 </td>
-                <td className="px-4 py-3.5 text-right">
-                  <DuesChip student={student} />
+                <td className="px-4 py-3.5 text-right pr-6">
+                  <OutstandingCell student={student} />
                 </td>
                 <td className="px-4 py-3.5 text-right">
                   <div className="flex justify-end gap-1.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">

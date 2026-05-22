@@ -64,6 +64,7 @@ describe("read-only UX audit implementation", () => {
 
   it("payment desk and ledger open selected students without extra load buttons", () => {
     const paymentDesk = readRepoFile("components/payments/payment-desk-mobile.tsx");
+    const mobileSheet = readRepoFile("components/payments/mobile-payment-flow-sheet.tsx");
     const paymentData = readRepoFile("lib/payments/data.ts");
     const ledger = readRepoFile("components/ledger/ledger-client.tsx");
 
@@ -72,8 +73,8 @@ describe("read-only UX audit implementation", () => {
     expect(paymentData).toContain("tryAutoPrepareSelectedStudentDues");
     expect(paymentData).toContain("Prepare dues again");
     expect(paymentDesk).toContain("/protected/payments/student-summary");
-    expect(paymentDesk).toContain("mobile-payment-cta-clearance");
-    expect(paymentDesk).toContain("mobile-safe-bottom-padding");
+    expect(paymentDesk).toContain("<MobilePaymentFlowSheet");
+    expect(mobileSheet).toContain("<MobileNumPad");
     expect(ledger).toContain("AutoSubmitForm");
     expect(ledger).not.toContain("Open ledger");
     expect(ledger).not.toContain("Apply filters");
@@ -81,6 +82,7 @@ describe("read-only UX audit implementation", () => {
 
   it("mobile payment layout avoids stacked bottom bars", () => {
     const paymentDesk = readRepoFile("components/payments/payment-desk-mobile.tsx");
+    const mobileSheet = readRepoFile("components/payments/mobile-payment-flow-sheet.tsx");
     const topbar = readRepoFile("components/admin/app-topbar.tsx");
     const shell = readRepoFile("components/admin/dashboard-shell.tsx");
     const mobileNav = readRepoFile("components/admin/mobile-bottom-nav.tsx");
@@ -94,9 +96,10 @@ describe("read-only UX audit implementation", () => {
     expect(shell).toContain("<MobileBottomNav staffRole={staffRole} />");
     expect(mobileNav).toContain("fixed inset-x-0 bottom-0");
     expect(mobileNav).toContain("getMobileBottomNavigation(staffRole)");
-    expect(paymentDesk).toContain("mobile-payment-cta-clearance");
+    expect(paymentDesk).toContain("<MobilePaymentFlowSheet");
+    expect(mobileSheet).toContain("fixed inset-0 z-40 md:hidden");
     expect(paymentDesk).toContain("--keyboard-offset");
-    expect(paymentDesk).toContain("mobile-safe-bottom-padding");
+    expect(paymentDesk).not.toContain("mobile-payment-cta-clearance");
     expect(globals).toContain("--mobile-safe-area-bottom");
     expect(globals).toContain("--mobile-payment-cta-offset");
     expect(globals).toContain("--mobile-payment-with-nav-offset");

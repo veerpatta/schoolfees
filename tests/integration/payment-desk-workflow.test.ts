@@ -383,14 +383,15 @@ describe("payment desk cashier workflow", () => {
       join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
       "utf8",
     );
-    const selectedBanner = component.match(
-      /Selected:\{" "\}[\s\S]*?studentSearchSectionRef\.current\?\.scrollIntoView[\s\S]*?<\/button>/,
-    )?.[0] ?? "";
+    const sheet = readFileSync(
+      join(process.cwd(), "components/payments/mobile-payment-flow-sheet.tsx"),
+      "utf8",
+    );
 
-    expect(component).toContain('aria-label="Change student"');
-    expect(selectedBanner).toContain("clearSelectedStudent()");
-    expect(selectedBanner).toContain("setStudentSearchQuery(\"\")");
-    expect(selectedBanner).toContain("studentSearchSectionRef.current?.scrollIntoView");
+    expect(sheet).toContain('aria-label="Change student"');
+    expect(sheet).toContain("onChangeStudent");
+    expect(component).toContain("clearSelectedStudent()");
+    expect(component).toContain('setMobileSheetView("student-picker")');
   });
 
   it("today collection ticker receives optimistic increment after success", () => {
@@ -575,12 +576,20 @@ describe("payment desk cashier workflow", () => {
       join(process.cwd(), "components/payments/duplicate-receipt-sheet.tsx"),
       "utf8",
     );
-    const component = [wrapper, mobile, desktop, duplicate].join("\n");
+    const success = readFileSync(
+      join(process.cwd(), "components/payments/success-receipt-sheet.tsx"),
+      "utf8",
+    );
+    const mobileSheet = readFileSync(
+      join(process.cwd(), "components/payments/mobile-payment-flow-sheet.tsx"),
+      "utf8",
+    );
+    const component = [wrapper, mobile, desktop, duplicate, success, mobileSheet].join("\n");
 
     expect(component).toContain("Receipt Preview");
     expect(component).toContain("Confirm Payment");
     expect(component).toContain("Collect");
-    expect(component).toContain("Dues Details");
+    expect(component).toContain("Total pending");
     expect(component).toContain("Recent Receipt");
     expect(component).toContain("Notes");
     expect(component).toContain("Confirm & Save Receipt");
@@ -601,18 +610,17 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("ConfirmReceiptSheet");
     expect(component).toContain("SuccessReceiptSheet");
     expect(component).toContain("Review Receipt");
-    expect(component).toContain("Will leave");
-    expect(component).toContain("Fully clears pending dues");
+    expect(component).toContain("Clears");
     expect(component).toContain("createPortal");
     expect(component).toContain("form={formId}");
     expect(component).toContain('formId = "payment-entry-form"');
     expect(component).toContain("mounted && isConfirmOpen");
     expect(component).toContain("mounted && isSuccessOpen");
     expect(component).toContain("mounted && isDuplicateOpen");
-    expect(component).toContain("प्रिय अभिभावक / Dear Parent,");
-    expect(component).toContain("शुल्क प्राप्त / Payment received:");
-    expect(component).toContain("रसीद / Receipt:");
-    expect(component).toContain("धन्यवाद — Veer Patta School");
+    expect(component).toContain("Dear Parent,");
+    expect(component).toContain("Payment received:");
+    expect(component).toContain("Receipt:");
+    expect(component).toContain("Veer Patta School");
   });
 
   it("payment desk entry keeps one client state owner for mobile and desktop", () => {
@@ -655,10 +663,15 @@ describe("payment desk cashier workflow", () => {
       join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
       "utf8",
     );
+    const mobileSheet = readFileSync(
+      join(process.cwd(), "components/payments/mobile-payment-flow-sheet.tsx"),
+      "utf8",
+    );
+    const combined = `${component}\n${mobileSheet}`;
 
-    expect(component.match(/aria-haspopup="listbox"/g)).toHaveLength(2);
-    expect(component).toContain('role="combobox"');
-    expect(component).toContain('role="listbox"');
+    expect(combined.match(/aria-haspopup="listbox"/g)).toHaveLength(2);
+    expect(combined).toContain('role="combobox"');
+    expect(combined).toContain('role="listbox"');
   });
 
   it("all three payment desk overlay dialogs are rendered via createPortal", () => {
@@ -766,8 +779,6 @@ describe("payment desk cashier workflow", () => {
       "utf8",
     );
 
-    expect(component).toContain("studentSearchSectionRef");
-    expect(component).toContain("mobileStudentPickerRef");
     expect(component).toContain("desktopStudentPickerRef");
     expect(component).toContain("mobileStudentSearchInputRef");
     expect(component).toContain("desktopStudentSearchInputRef");
@@ -810,20 +821,24 @@ describe("payment desk cashier workflow", () => {
       join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
       "utf8",
     );
+    const mobileSheet = readFileSync(
+      join(process.cwd(), "components/payments/mobile-payment-flow-sheet.tsx"),
+      "utf8",
+    );
+    const combined = `${component}\n${mobileSheet}`;
 
-    expect(component).toContain('role="combobox"');
-    expect(component).toContain('role="listbox"');
+    expect(combined).toContain('role="combobox"');
+    expect(combined).toContain('role="listbox"');
     expect(component).toContain("studentComboboxRowHeight");
     expect(component).toContain("filteredStudents.slice");
-    expect(component).toContain("Selected:");
-    expect(component).toContain("Clear");
+    expect(mobileSheet).toContain("Recent");
+    expect(mobileSheet).toContain("No matching students.");
     expect(component).toContain("setIsStudentPickerOpen(false)");
     expect(component).toContain("setActiveStudentOptionIndex(-1)");
     expect(component).toContain("mobileStudentSearchInputRef.current?.blur()");
     expect(component).toContain("desktopStudentSearchInputRef.current?.blur()");
-    expect(component).toContain("scrollIntoView");
     expect(component).toContain("amountSectionRef");
-    expect(component).toContain("amountInputRef.current?.focus({ preventScroll: true })");
+    expect(mobileSheet).toContain("onMouseDown={(event) => event.preventDefault()}");
     expect(component).toContain("useDeferredValue(studentSearchQuery)");
     expect(component).toContain("query: deferredStudentSearchQuery");
   });
@@ -839,7 +854,7 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("setStudentListScrollTop(0)");
     expect(component).toContain("studentList?.scrollTo({ top: 0 })");
     expect(component).toContain("studentSearchInput?.focus({ preventScroll: mode === \"mobile\" })");
-    expect(component).toContain("studentSearchSectionRef.current?.scrollIntoView({ behavior: \"smooth\", block: \"start\" })");
+    expect(component).toContain('setMobileSheetView("student-picker")');
     expect(component).not.toContain("studentPickerRef.current?.scrollIntoView");
   });
 
@@ -865,14 +880,18 @@ describe("payment desk cashier workflow", () => {
       join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
       "utf8",
     );
+    const mobileSheet = readFileSync(
+      join(process.cwd(), "components/payments/mobile-payment-flow-sheet.tsx"),
+      "utf8",
+    );
 
     expect(component).toContain("previewLoading ||");
     expect(component).toContain("studentSummaryLoading ||");
-    expect(component).toContain("Enter amount");
+    expect(mobileSheet).toContain("Enter amount");
     expect(component).toContain("desktop-payment-class-id");
-    expect(component).toContain("Mobile amount received");
-    expect(component).toContain("Mobile discount");
-    expect(component).toContain("Mobile payment mode");
+    expect(component).toContain("<MobilePaymentFlowSheet");
+    expect(mobileSheet).toContain("<MobileNumPad");
+    expect(mobileSheet).toContain("disabled={confirmDisabled || !draftValidationOk || isLockedAfterSuccess}");
   });
 
   it("desktop desk shows a selected-student loading state immediately", () => {
@@ -988,24 +1007,25 @@ describe("payment desk cashier workflow", () => {
 
   it("error banner renders above the payment card, not below the review button", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "components/payments/mobile-payment-flow-sheet.tsx"),
       "utf8",
     );
 
-    // formError display must come before the amount input in source order
+    // formError display must come before the review button in source order
     expect(component.indexOf("formError")).toBeLessThan(
-      component.indexOf("Mobile amount received"),
+      component.indexOf("Review Receipt"),
     );
     // Must have role="alert" for accessibility
     expect(component).toContain('role="alert"');
   });
 
-  it("review button is wrapped in a sticky container on mobile", () => {
+  it("review button lives inside the full-screen mobile sheet", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "components/payments/mobile-payment-flow-sheet.tsx"),
       "utf8",
     );
 
-    expect(component).toContain("sticky bottom-0");
+    expect(component).toContain("fixed inset-0 z-40 md:hidden");
+    expect(component).toContain("Review Receipt");
   });
 });

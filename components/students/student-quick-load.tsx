@@ -19,10 +19,10 @@ import type {
   StudentRouteOption,
 } from "@/lib/students/types";
 
-import { Search, GraduationCap, Bus, UserCheck, X, SlidersHorizontal, Plus } from "lucide-react";
+import { Search, GraduationCap, Bus, UserCheck, X, SlidersHorizontal, Plus, ChevronDown } from "lucide-react";
 
 const selectClassName =
-  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus:ring-ring focus:border-ring";
+  "appearance-none flex w-full rounded-md border border-input bg-card px-3 py-1 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus:ring-ring focus:border-ring cursor-pointer hover:border-border-strong";
 
 const PAGE_SIZE = 40;
 
@@ -274,6 +274,7 @@ export function StudentQuickLoad({
                     </option>
                   ))}
                 </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               </div>
             ) : null}
           </div>
@@ -335,6 +336,7 @@ export function StudentQuickLoad({
                     </option>
                   ))}
                 </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               </div>
             </div>
 
@@ -356,6 +358,7 @@ export function StudentQuickLoad({
                   <option value="inactive">Inactive</option>
                   <option value="withdrawn">Withdrawn</option>
                 </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               </div>
             </div>
 
@@ -394,8 +397,11 @@ export function StudentQuickLoad({
                 }}
                 placeholder="Student name, SR no, or phone"
                 title="Press / to focus"
-                className="pl-9 h-9"
+                className="pl-9 pr-8 h-9 peer"
               />
+              <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground transition-opacity opacity-0 peer-placeholder-shown:opacity-100 peer-focus:opacity-0">
+                /
+              </kbd>
             </div>
           </div>
 
@@ -419,6 +425,7 @@ export function StudentQuickLoad({
                   </option>
                 ))}
               </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             </div>
           </div>
 
@@ -442,6 +449,7 @@ export function StudentQuickLoad({
                   </option>
                 ))}
               </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             </div>
           </div>
 
@@ -463,23 +471,26 @@ export function StudentQuickLoad({
                 <option value="inactive">Inactive</option>
                 <option value="withdrawn">Withdrawn</option>
               </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             </div>
           </div>
 
-          <div className="flex items-end gap-2 xl:col-span-5 mt-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 flex items-center gap-1.5 hover:bg-surface-2"
-            onClick={() => {
-                resetFilters();
-              }}
-            >
-              <X className="h-3.5 w-3.5" />
-              Clear Filters
-            </Button>
-          </div>
+          {hasVisibleFilters && (
+            <div className="flex items-end gap-2 xl:col-span-5 mt-2 animate-in fade-in slide-in-from-top-1 duration-200">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 flex items-center gap-1.5 hover:bg-surface-2 border-dashed border-accent/40 text-accent hover:border-accent hover:bg-accent-soft/20 transition-all font-medium"
+                onClick={() => {
+                  resetFilters();
+                }}
+              >
+                <X className="h-3.5 w-3.5" />
+                Clear Filters
+              </Button>
+            </div>
+          )}
         </div>
       </SectionCard>
 
