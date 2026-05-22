@@ -13,8 +13,6 @@ import type {
 } from "@/lib/payments/types";
 import { cn } from "@/lib/utils";
 
-import { MobileNumPad } from "./mobile-numpad";
-
 type MobilePaymentFlowSheetProps = {
   view: "class-picker" | "student-picker" | "payment-entry" | null;
   onClose: () => void;
@@ -64,7 +62,7 @@ type MobilePaymentFlowSheetProps = {
   latestReceiptToday: { id: string; receiptNumber: string; totalAmount: number } | null;
   dismissedTodayReceiptId: string | null;
   onDismissTodayReceipt: (id: string) => void;
-  onNumpadKey: (key: string) => void;
+  onAmountChange: (value: string) => void;
   onSetPaymentMode: (mode: string) => void;
   onSetReferenceNumber: (ref: string) => void;
   onSetPaymentDate: (date: string) => void;
@@ -79,15 +77,38 @@ type MobilePaymentFlowSheetProps = {
   }>;
   showReferenceField: boolean;
   previewLoading: boolean;
+  getStudentPendingAmount: (studentId: string) => number | null;
+  getClassStats: (classId: string) => { total: number; pendingCount: number; pendingTotal: number | null };
+  onBackToClassPicker: () => void;
+  onBackToStudentPicker: () => void;
+  lastPostedAmount: number | null;
+  onUseLastAmount: () => void;
+  isLastAmountArmed: boolean;
 };
 
 function studentLabel(student: PaymentStudentIndexItem) {
   return `${student.fullName} · SR ${student.admissionNo}`;
 }
 
-function SheetHandle() {
+function useSwipeDown(onSwipeDown: () => void, threshold = 80) {
+  const startY = React.useRef<number | null>(null);
+
+  return {
+    onTouchStart: (e: React.TouchEvent) => {
+      startY.current = e.touches[0].clientY;
+    },
+    onTouchEnd: (e: React.TouchEvent) => {
+      if (startY.current === null) return;
+      const delta = e.changedTouches[0].clientY - startY.current;
+      startY.current = null;
+      if (delta > threshold) onSwipeDown();
+    },
+  };
+}
+
+function SheetHandle({ swipeHandlers }: { swipeHandlers?: ReturnType<typeof useSwipeDown> }) {
   return (
-    <div className="flex-none flex justify-center py-2">
+    <div className="flex-none flex justify-center py-2 cursor-grab" {...swipeHandlers}>
       <div className="w-10 h-1 rounded-full bg-border" />
     </div>
   );
@@ -122,7 +143,6 @@ export function MobilePaymentFlowSheet({
   selectedStudent,
   previewTotalPending,
   previewOverdueAmount,
-  previewNextDue,
   previewBreakdown,
   pendingLateFeeAmount,
   creditOrRefundAmount,
@@ -142,7 +162,7 @@ export function MobilePaymentFlowSheet({
   latestReceiptToday,
   dismissedTodayReceiptId,
   onDismissTodayReceipt,
-  onNumpadKey,
+  onAmountChange,
   onSetPaymentMode,
   onSetReferenceNumber,
   onSetPaymentDate,
@@ -153,12 +173,29 @@ export function MobilePaymentFlowSheet({
   paymentModeOptions,
   showReferenceField,
   previewLoading,
+  getStudentPendingAmount,
+  getClassStats,
+  onBackToClassPicker,
+  onBackToStudentPicker,
+  lastPostedAmount,
+  onUseLastAmount,
+  isLastAmountArmed,
 }: MobilePaymentFlowSheetProps) {
+  const [breakdownExpanded, setBreakdownExpanded] = React.useState(false);
+
+  React.useEffect(() => {
+    if (view === "payment-entry") {
+      setBreakdownExpanded(false);
+    }
+  }, [view]);
+
+  const classPickerSwipe = useSwipeDown(onClose);
+  const studentPickerSwipe = useSwipeDown(onBackToClassPicker);
+  const paymentEntrySwipe = useSwipeDown(onBackToStudentPicker);
+
   if (view === null) return null;
 
   const selectedClassLabel = classOptions.find((classOption) => classOption.id === selectedClassId)?.label ?? "All classes";
-  const sanitizedPaymentAmount = sanitizeDecimalInput(paymentAmountInput);
-  const amountValue = Number(sanitizedPaymentAmount) || 0;
   const showTodayReceiptWarning = latestReceiptToday && latestReceiptToday.id !== dismissedTodayReceiptId;
   const disablePaymentActions = isLockedAfterSuccess || !canPost;
 
@@ -170,25 +207,34 @@ export function MobilePaymentFlowSheet({
 
       {view === "class-picker" ? (
         <div className="absolute bottom-0 left-0 right-0 max-h-[70svh] rounded-t-2xl border-t border-border bg-card flex flex-col overflow-y-auto">
-          <SheetHandle />
+          <SheetHandle swipeHandlers={classPickerSwipe} />
           <h2 className="px-4 pb-2 text-base font-semibold text-foreground">Select Class</h2>
           <div className="grid grid-cols-2 gap-2 p-4">
             {classOptions.map((classOption) => {
               const selected = classOption.id === selectedClassId;
+              const stats = getClassStats(classOption.id);
 
               return (
                 <button
                   key={classOption.id}
                   type="button"
                   className={cn(
-                    "min-h-[52px] w-full rounded-xl border px-3 text-sm font-semibold transition-colors",
+                    "relative flex flex-col items-start gap-0.5 min-h-[56px] w-full rounded-xl border px-3 py-2 text-sm transition-colors",
                     selected
                       ? "border-accent bg-accent-soft text-accent-soft-foreground"
                       : "border-border bg-card hover:bg-surface-2 text-foreground",
                   )}
                   onClick={() => onSelectClass(classOption.id)}
                 >
-                  {classOption.label}
+                  <span className="font-semibold">{classOption.label}</span>
+                  <span className="text-[11px] text-muted-foreground leading-none">
+                    {stats.total > 0
+                      ? stats.pendingTotal !== null
+                        ? `${stats.pendingCount} pending · ${formatInr(stats.pendingTotal)}`
+                        : `${stats.total} students`
+                      : null}
+                  </span>
+                  {selected ? <span className="absolute top-2 right-2 text-xs text-accent">✓</span> : null}
                 </button>
               );
             })}
@@ -198,7 +244,7 @@ export function MobilePaymentFlowSheet({
 
       {view === "student-picker" ? (
         <div className="absolute bottom-0 left-0 right-0 h-[85svh] rounded-t-2xl border-t border-border bg-card flex flex-col">
-          <SheetHandle />
+          <SheetHandle swipeHandlers={studentPickerSwipe} />
           <div className="flex-none px-4 pb-2 flex items-center justify-between">
             <p className="text-sm font-semibold text-foreground">{selectedClassLabel}</p>
             <button
@@ -223,23 +269,55 @@ export function MobilePaymentFlowSheet({
               placeholder="Search by name or SR no"
               value={studentSearchQuery}
               onChange={(event) => onStudentSearchChange(event.target.value)}
-              autoFocus
             />
           </div>
+
+          {lastPostedAmount !== null ? (
+            <div className="flex-none px-3 pb-2">
+              <button
+                type="button"
+                onClick={onUseLastAmount}
+                className={cn(
+                  "w-full rounded-xl border px-3 py-2.5 text-left text-sm transition-all active:scale-[0.98]",
+                  isLastAmountArmed
+                    ? "border-accent bg-accent/20 text-accent font-semibold"
+                    : "border-accent/30 bg-accent-soft text-accent-soft-foreground"
+                )}
+              >
+                <span className="font-semibold">Use {formatInr(lastPostedAmount)} again</span>
+                <span className="ml-2 text-xs opacity-70">
+                  {isLastAmountArmed ? "— Armed! Select student to pre-fill" : "— select a student and this amount will be pre-filled"}
+                </span>
+              </button>
+            </div>
+          ) : null}
+
           {!studentSearchQuery && recentStudents.length > 0 ? (
             <div className="flex-none px-3 pb-2">
               <p className="mb-1.5 text-[10px] uppercase text-muted-foreground">Recent</p>
               <div className="flex flex-wrap gap-1.5">
-                {recentStudents.map((student) => (
-                  <button
-                    key={`recent-${student.id}`}
-                    type="button"
-                    className="rounded-full border border-border bg-surface-2 px-3 py-1.5 text-xs font-medium text-foreground"
-                    onClick={() => onSelectStudent(student.id)}
-                  >
-                    {student.fullName}
-                  </button>
-                ))}
+                {recentStudents.map((student) => {
+                  const amt = getStudentPendingAmount(student.id);
+                  return (
+                    <button
+                      key={`recent-${student.id}`}
+                      type="button"
+                      className="flex flex-col items-center justify-center rounded-2xl border border-border bg-surface-2 px-3.5 py-1.5 text-xs font-medium text-foreground active:scale-95 transition-transform"
+                      onClick={() => onSelectStudent(student.id)}
+                    >
+                      <span>{student.fullName}</span>
+                      {amt !== null ? (
+                        amt <= 0 ? (
+                          <span className="text-[9px] font-semibold text-success-soft-foreground uppercase">Paid</span>
+                        ) : (
+                          <span className="text-[10px] font-semibold tabular-nums text-destructive">
+                            {formatInr(amt)}
+                          </span>
+                        )
+                      ) : null}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ) : null}
@@ -279,7 +357,24 @@ export function MobilePaymentFlowSheet({
                       onTouchStart={() => onPrefetchStudent(student.id)}
                       onClick={() => onSelectStudent(student.id)}
                     >
-                      {studentLabel(student)}
+                      <span className="flex w-full items-center justify-between gap-2">
+                        <span className="min-w-0 truncate">{studentLabel(student)}</span>
+                        {(() => {
+                          const amt = getStudentPendingAmount(student.id);
+                          if (amt === null) return null;
+                          if (amt <= 0) return (
+                            <span className="shrink-0 text-[10px] font-medium text-success-soft-foreground">Paid</span>
+                          );
+                          return (
+                            <span className={cn(
+                              "shrink-0 text-xs font-semibold tabular-nums",
+                              amt > 0 ? "text-destructive" : "text-success-soft-foreground"
+                            )}>
+                              {formatInr(amt)}
+                            </span>
+                          );
+                        })()}
+                      </span>
                     </button>
                   );
                 })}
@@ -290,8 +385,8 @@ export function MobilePaymentFlowSheet({
       ) : null}
 
       {view === "payment-entry" ? (
-        <div className="absolute inset-0 bg-background flex flex-col">
-          <SheetHandle />
+        <div className="absolute bottom-0 left-0 right-0 h-[85svh] rounded-t-2xl border-t border-border bg-background flex flex-col">
+          <SheetHandle swipeHandlers={paymentEntrySwipe} />
           <div className="flex-none px-4 py-2 flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-foreground">
@@ -337,55 +432,57 @@ export function MobilePaymentFlowSheet({
             </div>
           ) : null}
 
-          <div className="flex-[2] min-h-0 overflow-y-auto border-b border-border px-3 py-2">
-            {previewLoading ? (
-              <p className="rounded-lg bg-surface-2 px-3 py-3 text-sm text-muted-foreground">Loading breakdown...</p>
-            ) : previewBreakdown.length === 0 ? (
-              <p className="rounded-lg bg-surface-2 px-3 py-3 text-sm text-muted-foreground">No installment dues found.</p>
-            ) : (
-              <div className="space-y-1.5">
-                {previewBreakdown.map((installment) => {
-                  const paid = installment.outstandingAmount <= 0;
-                  const overdue = installment.balanceStatus === "overdue";
-
-                  return (
-                    <div key={installment.installmentId} className="flex items-center justify-between gap-3 rounded-lg bg-card px-2 py-1.5 text-xs">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-foreground">{installment.installmentLabel}</p>
-                        <p className="text-[10px] text-muted-foreground">Due {installment.dueDate}</p>
-                      </div>
-                      <p
-                        className={cn(
-                          "shrink-0 font-semibold tabular-nums",
-                          overdue ? "text-destructive" : paid ? "text-success-soft-foreground" : "text-foreground",
-                        )}
-                      >
-                        {paid ? "Paid" : formatInr(installment.outstandingAmount)}
-                      </p>
-                    </div>
-                  );
-                })}
-                <div className="flex items-center justify-between pt-1 text-sm font-semibold">
-                  <span className="text-muted-foreground">Total pending</span>
-                  <span className="tabular-nums text-accent">{formatInr(previewTotalPending)}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Overdue</span>
-                  <span className="tabular-nums text-destructive">{formatInr(previewOverdueAmount)}</span>
-                </div>
-                {previewNextDue ? (
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Next due</span>
-                    <span className="tabular-nums text-foreground">
-                      {previewNextDue.installmentLabel} · {formatInr(previewNextDue.outstandingAmount)}
-                    </span>
-                  </div>
+          {/* Collapsed summary — always visible */}
+          <div className="flex-none border-b border-border px-3 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex gap-4 text-sm">
+                <span>
+                  <span className="text-muted-foreground font-medium">Pending </span>
+                  <span className="font-bold tabular-nums text-foreground">{formatInr(previewTotalPending)}</span>
+                </span>
+                {previewOverdueAmount > 0 ? (
+                  <span>
+                    <span className="text-muted-foreground font-medium">Overdue </span>
+                    <span className="font-semibold tabular-nums text-destructive">{formatInr(previewOverdueAmount)}</span>
+                  </span>
                 ) : null}
               </div>
-            )}
+              <button
+                type="button"
+                className="text-xs font-medium text-accent underline-offset-2 hover:underline"
+                onClick={() => setBreakdownExpanded((prev) => !prev)}
+              >
+                {breakdownExpanded ? "Hide ↑" : "Details ↓"}
+              </button>
+            </div>
+
+            {/* Expanded breakdown */}
+            {breakdownExpanded ? (
+              <div className="mt-2 space-y-1 max-h-[20svh] overflow-y-auto pr-1">
+                {previewLoading ? (
+                  <p className="text-xs text-muted-foreground">Loading breakdown...</p>
+                ) : previewBreakdown.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No installment dues found.</p>
+                ) : (
+                  previewBreakdown.map((item) => (
+                    <div key={item.installmentId} className="flex items-center justify-between text-xs py-0.5 border-b border-border/40 last:border-0">
+                      <span className="text-muted-foreground">{item.installmentLabel} · {item.dueDate}</span>
+                      <span className={cn(
+                        "font-semibold tabular-nums",
+                        item.outstandingAmount <= 0 ? "text-success-soft-foreground"
+                          : item.balanceStatus === "overdue" ? "text-destructive"
+                          : "text-foreground"
+                      )}>
+                        {item.outstandingAmount <= 0 ? "Paid" : formatInr(item.outstandingAmount)}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            ) : null}
           </div>
 
-          <div className="flex-[3] min-h-0 flex flex-col overflow-y-auto">
+          <div className="flex flex-col gap-0">
             {pendingLateFeeAmount > 0 ? (
               <label className="flex-none flex items-center justify-between gap-3 border-b border-border px-3 py-2 text-sm text-foreground">
                 <span>Waive late fee {formatInr(pendingLateFeeAmount)}</span>
@@ -398,27 +495,80 @@ export function MobilePaymentFlowSheet({
               </label>
             ) : null}
 
-            <div className="flex-none border-b border-border bg-surface-2 px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <div
-                  aria-label="Payment amount"
-                  className={cn(
-                    "text-3xl font-bold tabular-nums text-foreground",
-                    !sanitizedPaymentAmount && "text-muted-foreground",
-                  )}
-                >
-                  {sanitizedPaymentAmount ? formatInr(amountValue) : "₹ 0"}
+            {/* Primary amounts — Full Due and Next Installment as large tappable cards */}
+            {(() => {
+              const fullDue = quickAmounts.find((q) => q.key === "full");
+              const nextInst = quickAmounts.find((q) => q.key === "next");
+              if (!fullDue && !nextInst) return null;
+              return (
+                <div className="flex gap-2 px-3 py-2 border-b border-border">
+                  {fullDue && fullDue.amount !== null ? (
+                    <button
+                      type="button"
+                      disabled={fullDue.disabled || disablePaymentActions}
+                      onClick={() => onQuickAmount(fullDue.amount)}
+                      className={cn(
+                        "flex flex-1 flex-col items-center rounded-xl border py-3 transition-all active:scale-95 disabled:opacity-40",
+                        paymentAmountInput === String(fullDue.amount)
+                          ? "border-accent bg-accent/10 text-accent font-semibold"
+                          : "border-border bg-surface-2 text-foreground hover:bg-surface-3"
+                      )}
+                    >
+                      <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Full Due</span>
+                      <span className="text-lg font-bold tabular-nums">{formatInr(fullDue.amount)}</span>
+                    </button>
+                  ) : null}
+                  {nextInst && nextInst.amount !== null ? (
+                    <button
+                      type="button"
+                      disabled={nextInst.disabled || disablePaymentActions}
+                      onClick={() => onQuickAmount(nextInst.amount)}
+                      className={cn(
+                        "flex flex-1 flex-col items-center rounded-xl border py-3 transition-all active:scale-95 disabled:opacity-40",
+                        paymentAmountInput === String(nextInst.amount)
+                          ? "border-accent bg-accent/10 text-accent font-semibold"
+                          : "border-border bg-surface-2 text-foreground hover:bg-surface-3"
+                      )}
+                    >
+                      <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Next Installment</span>
+                      <span className="text-lg font-bold tabular-nums">{formatInr(nextInst.amount)}</span>
+                    </button>
+                  ) : null}
                 </div>
-                {remainingAfterPayment === 0 && sanitizedPaymentAmount ? (
-                  <span className="rounded-full bg-success-soft px-2.5 py-1 text-xs font-semibold text-success-soft-foreground">
-                    Clears ✓
-                  </span>
-                ) : null}
-              </div>
+              );
+            })()}
+
+            <div className="flex items-center border-b border-border bg-background">
+              <span className="border-r border-border px-4 py-3 text-2xl font-medium text-muted-foreground">₹</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                enterKeyHint="done"
+                autoComplete="off"
+                autoCapitalize="off"
+                autoCorrect="off"
+                placeholder="0"
+                className="h-16 flex-1 bg-transparent px-4 text-3xl font-bold tabular-nums text-foreground outline-none placeholder:text-muted-foreground/40"
+                value={paymentAmountInput}
+                onChange={(e) => {
+                  onAmountChange(sanitizeDecimalInput(e.target.value));
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.currentTarget.blur();
+                  }
+                }}
+              />
+              {paymentAmountInput && remainingAfterPayment === 0 ? (
+                <span className="mr-3 rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-medium text-success-soft-foreground">
+                  Clears ✓
+                </span>
+              ) : null}
             </div>
 
             <div className="flex-none flex gap-1.5 overflow-x-auto border-b border-border px-3 py-2">
-              {quickAmounts.map((qa) => (
+              {quickAmounts.filter((q) => q.key !== "full" && q.key !== "next").map((qa) => (
                 <button
                   key={`mobile-sheet-${qa.key}`}
                   type="button"
@@ -430,12 +580,6 @@ export function MobilePaymentFlowSheet({
                 </button>
               ))}
             </div>
-
-            <MobileNumPad
-              className="flex-1 min-h-0 p-2"
-              onKey={onNumpadKey}
-              disabled={disablePaymentActions}
-            />
 
             <div className="flex-none grid grid-cols-4 gap-2 border-t border-border px-3 py-2">
               {paymentModeOptions.map(({ value, label, Icon }) => (
@@ -498,7 +642,7 @@ export function MobilePaymentFlowSheet({
                 disabled={confirmDisabled || !draftValidationOk || isLockedAfterSuccess}
                 onClick={onOpenConfirm}
               >
-                {sanitizedPaymentAmount ? `Review Receipt · ${formatInr(amountValue)}` : "Enter amount"}
+                {paymentAmountInput ? `Review Receipt · ${formatInr(Number(paymentAmountInput))}` : "Enter amount"}
               </Button>
             </div>
           </div>

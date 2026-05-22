@@ -74,7 +74,9 @@ describe("read-only UX audit implementation", () => {
     expect(paymentData).toContain("Prepare dues again");
     expect(paymentDesk).toContain("/protected/payments/student-summary");
     expect(paymentDesk).toContain("<MobilePaymentFlowSheet");
-    expect(mobileSheet).toContain("<MobileNumPad");
+    expect(mobileSheet).toContain('type="number"');
+    expect(mobileSheet).toContain("onAmountChange(sanitizeDecimalInput(e.target.value))");
+    expect(mobileSheet).not.toContain("<MobileNumPad");
     expect(ledger).toContain("AutoSubmitForm");
     expect(ledger).not.toContain("Open ledger");
     expect(ledger).not.toContain("Apply filters");

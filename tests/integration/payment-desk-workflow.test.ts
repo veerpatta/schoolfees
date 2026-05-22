@@ -317,7 +317,50 @@ describe("payment desk cashier workflow", () => {
       body.indexOf("setStudentListScrollTop(0)"),
     );
     expect(body).toContain("setActiveStudentOptionIndex(0)");
+    expect(body).toContain('if (activeStudentPickerMode === "desktop")');
     expect(body).toContain("focusStudentSearch(activeStudentPickerMode)");
+  });
+
+  it("mobile class stats use cached summaries and report zero pending when all cached students are paid", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+    const statsBody = component.match(
+      /function getClassStats\(classId: string\): \{ total: number; pendingCount: number; pendingTotal: number \| null \} \{([\s\S]*?)\n  \}/,
+    )?.[1] ?? "";
+
+    expect(component).toContain("function getStudentPendingAmount(studentId: string): number | null");
+    expect(component).toContain("summaryCache.current.get(key) ?? cardOnlyCache.current.get(key)");
+    expect(statsBody).toContain("const amt = getStudentPendingAmount(s.id)");
+    expect(statsBody).toContain("pendingTotal: allKnown ? (pendingTotal ?? 0) : null");
+  });
+
+  it("mobile class streak skips the class picker after repeated same-class use", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+    const restoreEffect = component.match(
+      /useEffect\(\(\) => \{\n    if \(isMobileView\) return;[\s\S]*?lastClassRestoreAttemptedRef\.current = true;[\s\S]*?\}, \[classOptions, data\.initialClassId, isMobileView, selectedClassId\]\);/,
+    )?.[0] ?? "";
+    const autoOpenEffect = component.match(
+      /const streak = getClassStreak\(\);[\s\S]*?setMobileSheetView\("class-picker"\);/,
+    )?.[0] ?? "";
+    const selectMobileClass = component.match(
+      /function selectMobileClass\(nextClassId: string\) \{([\s\S]*?)\n  \}/,
+    )?.[1] ?? "";
+
+    expect(component).toContain('paymentDeskClassStreakStorageKey = "vpps.paymentDesk.classStreak"');
+    expect(component).toContain("type ClassStreak = { classId: string; count: number }");
+    expect(component).toContain("function recordClassUsed(classId: string)");
+    expect(component).toContain("function getClassStreak(): ClassStreak | null");
+    expect(restoreEffect).toContain("if (isMobileView) return;");
+    expect(selectMobileClass).toContain("recordClassUsed(nextClassId)");
+    expect(autoOpenEffect).toContain("streak.count >= 3");
+    expect(autoOpenEffect).toContain("setSelectedClassId(streak.classId)");
+    expect(autoOpenEffect).toContain('setMobileSheetView("student-picker")');
+    expect(autoOpenEffect).not.toContain("storedClassId");
   });
 
   it("all classes reset keeps the student picker open and searchable", () => {
@@ -331,6 +374,7 @@ describe("payment desk cashier workflow", () => {
 
     expect(body).toContain("setIsStudentPickerOpen(true)");
     expect(body).toContain("setActiveStudentOptionIndex(0)");
+    expect(body).toContain('if (mode === "desktop")');
     expect(body).toContain("focusStudentSearch(mode)");
     expect(body).not.toContain("setIsStudentPickerOpen(false)");
     expect(body).not.toContain("desktopStudentSearchInputRef.current?.blur()");
@@ -394,6 +438,28 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain('setMobileSheetView("student-picker")');
   });
 
+  it("cash payments under the fast-post threshold submit without opening the confirm sheet", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+    const openConfirmationBody = component.match(
+      /function openConfirmationDialog\(\) \{([\s\S]*?)\n  \}/,
+    )?.[1] ?? "";
+    const submitBody = component.match(
+      /onSubmit=\{\(event\) => \{([\s\S]*?)\n              \}\}/,
+    )?.[1] ?? "";
+
+    expect(component).toContain("const CASH_FAST_POST_THRESHOLD = 15000");
+    expect(component).toContain("const fastPostRequestedRef = useRef(false)");
+    expect(openConfirmationBody).toContain("paymentMode === \"cash\"");
+    expect(openConfirmationBody).toContain("paymentAmount <= CASH_FAST_POST_THRESHOLD");
+    expect(openConfirmationBody).toContain("fastPostRequestedRef.current = true");
+    expect(openConfirmationBody).toContain("form.requestSubmit()");
+    expect(submitBody).toContain("!isConfirmOpen && !fastPostRequestedRef.current");
+    expect(submitBody).toContain("fastPostRequestedRef.current = false");
+  });
+
   it("today collection ticker receives optimistic increment after success", () => {
     const component = readFileSync(
       join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
@@ -406,6 +472,23 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("optimisticCollectionAdd");
     expect(successEffect).toContain("setOptimisticCollectionAdd");
     expect(component).toContain("(data.todayCollection?.totalAmount ?? 0) + optimisticCollectionAdd");
+  });
+
+  it("success handling stores the last amount and triggers mobile haptics once per receipt", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+    const successEffect = component.match(
+      /if \(state\.status === "success"\) \{[\s\S]*?return;/,
+    )?.[0] ?? "";
+
+    expect(component).toContain("const [lastPostedAmount, setLastPostedAmount] = useState<number | null>(null)");
+    expect(successEffect).toContain("setLastPostedAmount(state.amountReceived)");
+    expect(successEffect).toContain("navigator.vibrate(80)");
+    expect(successEffect).toContain("optimisticReceiptKeyRef.current = actionStateKey");
+    expect(component).toContain("lastPostedAmount={lastPostedAmount}");
+    expect(component).toContain("setPaymentAmountInput(String(lastPostedAmount))");
   });
 
   it("payment date backdated warning is visible and non-dismissable", () => {
@@ -741,6 +824,20 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("onCollectAnother");
   });
 
+  it("success receipt sheet offers a WhatsApp deep link only when a phone is available", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/success-receipt-sheet.tsx"),
+      "utf8",
+    );
+
+    expect(component).toContain("const rawPhone = (whatsappPhone ?? \"\").replace(/\\D/g, \"\")");
+    expect(component).toContain("https://wa.me/${normalizedWhatsappPhone}?text=${encodeURIComponent(whatsappMessage)}");
+    expect(component).toContain("whatsappHref ? (");
+    expect(component).toContain("Send WhatsApp");
+    expect(component).toContain("Copy WhatsApp Message");
+    expect(component).toContain(") : whatsappMessage ? (");
+  });
+
   it("payee summary strip component contains sticky header and risk pills", () => {
     const component = readFileSync(
       join(process.cwd(), "components/payments/payee-summary-strip.tsx"),
@@ -848,12 +945,17 @@ describe("payment desk cashier workflow", () => {
       join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
       "utf8",
     );
+    const body = component.match(
+      /function handleClassChange\(nextClassId: string, mode: "mobile" \| "desktop"\) \{([\s\S]*?)\n  \}/,
+    )?.[1] ?? "";
 
-    expect(component).toContain("setIsStudentPickerOpen(true)");
-    expect(component).toContain("setActiveStudentOptionIndex(0)");
-    expect(component).toContain("setStudentListScrollTop(0)");
+    expect(body).toContain("setIsStudentPickerOpen(true)");
+    expect(body).toContain("setActiveStudentOptionIndex(0)");
+    expect(body).toContain("setStudentListScrollTop(0)");
     expect(component).toContain("studentList?.scrollTo({ top: 0 })");
-    expect(component).toContain("studentSearchInput?.focus({ preventScroll: mode === \"mobile\" })");
+    expect(body).toContain('if (mode === "desktop")');
+    expect(body).toContain("focusStudentSearch(mode);");
+    expect(component).toContain('studentSearchInput?.focus({ preventScroll: mode === "mobile" })');
     expect(component).toContain('setMobileSheetView("student-picker")');
     expect(component).not.toContain("studentPickerRef.current?.scrollIntoView");
   });
@@ -890,7 +992,9 @@ describe("payment desk cashier workflow", () => {
     expect(mobileSheet).toContain("Enter amount");
     expect(component).toContain("desktop-payment-class-id");
     expect(component).toContain("<MobilePaymentFlowSheet");
-    expect(mobileSheet).toContain("<MobileNumPad");
+    expect(mobileSheet).toContain('type="number"');
+    expect(mobileSheet).toContain("onAmountChange(sanitizeDecimalInput(e.target.value))");
+    expect(mobileSheet).not.toContain("<MobileNumPad");
     expect(mobileSheet).toContain("disabled={confirmDisabled || !draftValidationOk || isLockedAfterSuccess}");
   });
 

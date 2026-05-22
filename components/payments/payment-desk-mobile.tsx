@@ -116,6 +116,8 @@ const studentComboboxOverscan = 4;
 const paymentDeskLastClassStorageKey = "vpps.paymentDesk.lastClassId";
 const paymentDeskLastModeStorageKey = "vpps.paymentDesk.lastPaymentMode";
 const paymentDeskRecentStudentsStorageKey = "vpps.paymentDesk.recentStudents";
+const paymentDeskClassStreakStorageKey = "vpps.paymentDesk.classStreak";
+const CASH_FAST_POST_THRESHOLD = 15000;
 const paymentModeOptions = [
   { value: "cash",          label: "Cash",         Icon: Banknote },
   { value: "upi",           label: "UPI",          Icon: Smartphone },
@@ -217,6 +219,8 @@ function ActionNotice({
   );
 }
 
+type ClassStreak = { classId: string; count: number };
+
 export function PaymentDeskClient({
   data,
   canPost,
@@ -278,6 +282,9 @@ export function PaymentDeskClient({
   const [dismissedTodayReceiptId, setDismissedTodayReceiptId] = useState<string | null>(null);
   const [optimisticCollectionAdd, setOptimisticCollectionAdd] = useState(0);
   const [lastAddedAmount, setLastAddedAmount] = useState<number | null>(null);
+  const [lastPostedAmount, setLastPostedAmount] = useState<number | null>(null);
+  const [isLastAmountArmed, setIsLastAmountArmed] = useState(false);
+  const fastPostRequestedRef = useRef(false);
   const isMobileView = useMediaQuery("(max-width: 767px)");
   const { ref: amountInputRef } = useScrollIntoView<HTMLInputElement>();
   const { ref: refInputRef, scrollIntoView: scrollReferenceInputIntoView } = useScrollIntoView<HTMLInputElement>();
@@ -382,6 +389,54 @@ export function PaymentDeskClient({
   const buildStudentSummaryCacheKey = useCallback((studentId: string, requestedPaymentDate: string) => {
     return `${data.sessionLabel}:${studentId}:${requestedPaymentDate}`;
   }, [data.sessionLabel]);
+
+  function getStudentPendingAmount(studentId: string): number | null {
+    const today = new Date().toISOString().slice(0, 10);
+    const key = buildStudentSummaryCacheKey(studentId, today);
+    const cached = summaryCache.current.get(key) ?? cardOnlyCache.current.get(key);
+    return cached?.student?.totalPending ?? null;
+  }
+
+  function getClassStats(classId: string): { total: number; pendingCount: number; pendingTotal: number | null } {
+    const classStudents = studentIndex.filter((s) => s.classId === classId);
+    const total = classStudents.length;
+    let pendingCount = 0;
+    let pendingTotal: number | null = null;
+    let allKnown = classStudents.length > 0;
+
+    for (const s of classStudents) {
+      const amt = getStudentPendingAmount(s.id);
+      if (amt === null) {
+        allKnown = false;
+        continue;
+      }
+      if (amt > 0) {
+        pendingCount++;
+        pendingTotal = (pendingTotal ?? 0) + amt;
+      }
+    }
+
+    return { total, pendingCount, pendingTotal: allKnown ? (pendingTotal ?? 0) : null };
+  }
+
+  function recordClassUsed(classId: string) {
+    try {
+      const raw = window.localStorage.getItem(paymentDeskClassStreakStorageKey);
+      const streak: ClassStreak = raw ? JSON.parse(raw) : { classId: "", count: 0 };
+      const next: ClassStreak = streak.classId === classId
+        ? { classId, count: streak.count + 1 }
+        : { classId, count: 1 };
+      window.localStorage.setItem(paymentDeskClassStreakStorageKey, JSON.stringify(next));
+    } catch { /* ignore */ }
+  }
+
+  function getClassStreak(): ClassStreak | null {
+    try {
+      const raw = window.localStorage.getItem(paymentDeskClassStreakStorageKey);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }
+
 
   const fetchStudentSummary = useCallback(async (payload: {
     studentId: string;
@@ -954,8 +1009,14 @@ export function PaymentDeskClient({
         if (state.amountReceived && state.amountReceived > 0) {
           setOptimisticCollectionAdd((prev) => prev + state.amountReceived!);
           setLastAddedAmount(state.amountReceived);
+          setLastPostedAmount(state.amountReceived);
         }
       }
+      try {
+        if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+          navigator.vibrate(80);
+        }
+      } catch { /* ignore */ }
       if (state.studentId) {
         void clearDraft({
           sessionLabel: paymentSessionLabel,
@@ -1014,6 +1075,7 @@ export function PaymentDeskClient({
   }, [lastAddedAmount]);
 
   useEffect(() => {
+    if (isMobileView) return;
     if (lastClassRestoreAttemptedRef.current) return;
     lastClassRestoreAttemptedRef.current = true;
     if (data.initialClassId || selectedClassId) return;
@@ -1023,7 +1085,7 @@ export function PaymentDeskClient({
 
     setSelectedClassId(storedClassId);
     setMobileSheetView("student-picker");
-  }, [classOptions, data.initialClassId, selectedClassId]);
+  }, [classOptions, data.initialClassId, isMobileView, selectedClassId]);
 
   useEffect(() => {
     if (!selectedClassId) {
@@ -1086,8 +1148,15 @@ export function PaymentDeskClient({
       return;
     }
 
-    const storedClassId = window.localStorage.getItem(paymentDeskLastClassStorageKey);
-    if (storedClassId && classOptions.some((classOption) => classOption.id === storedClassId)) {
+    const streak = getClassStreak();
+    if (
+      streak &&
+      streak.count >= 3 &&
+      classOptions.some((c) => c.id === streak.classId)
+    ) {
+      mobileClassPickerAutoOpenedRef.current = true;
+      setSelectedClassId(streak.classId);
+      setMobileSheetView("student-picker");
       return;
     }
 
@@ -1232,7 +1301,9 @@ export function PaymentDeskClient({
     setStudentListScrollTop(0);
     setIsStudentPickerOpen(true);
     setActiveStudentOptionIndex(0);
-    focusStudentSearch(mode);
+    if (mode === "desktop") {
+      focusStudentSearch(mode);
+    }
 
     if (
       nextClassId &&
@@ -1246,6 +1317,7 @@ export function PaymentDeskClient({
   }
 
   function selectMobileClass(nextClassId: string) {
+    recordClassUsed(nextClassId);
     handleClassChange(nextClassId, "mobile");
     setMobileSheetView("student-picker");
   }
@@ -1258,7 +1330,12 @@ export function PaymentDeskClient({
     const cachedSummary = summaryCache.current.get(cacheKey);
 
     setSelectedStudentId(studentId);
-    setPaymentAmountInput("");
+    if (isLastAmountArmed && lastPostedAmount !== null) {
+      setPaymentAmountInput(String(lastPostedAmount));
+      setIsLastAmountArmed(false);
+    } else {
+      setPaymentAmountInput("");
+    }
     setQuickDiscountInput("");
     setWaiveFullLateFee(false);
     setFormError(null);
@@ -1326,25 +1403,31 @@ export function PaymentDeskClient({
       return;
     }
 
+    const isCashFastPost =
+      paymentMode === "cash" &&
+      paymentAmount > 0 &&
+      paymentAmount <= CASH_FAST_POST_THRESHOLD &&
+      !quickDiscountAmount &&
+      !quickLateFeeWaiverAmount;
+
+    if (isCashFastPost) {
+      // Skip confirm sheet — submit the form directly.
+      setFormError(null);
+      setIsConfirmOpen(false);
+      const form = document.getElementById(formId) as HTMLFormElement | null;
+      if (!form) {
+        setFormError("Payment form is not ready.");
+        return;
+      }
+      fastPostRequestedRef.current = true;
+      form.requestSubmit();
+      return;
+    }
+
     setFormError(null);
     setIsConfirmOpen(true);
   }
 
-  function handleNumpadKey(key: string) {
-    if (key === "⌫") {
-      setPaymentAmountInput((prev) => prev.slice(0, -1));
-    } else if (key === "." && paymentAmountInput.includes(".")) {
-      // ignore second decimal point
-    } else if (key === "." && paymentAmountInput === "") {
-      setPaymentAmountInput("0.");
-    } else {
-      setPaymentAmountInput((prev) => {
-        const next = prev + key;
-        return sanitizeDecimalInput(next);
-      });
-    }
-    setFormError(null);
-  }
 
   function handleCollectAnotherPayment() {
     const resetValues = resetPaymentDraftForNextPayment({
@@ -1384,7 +1467,9 @@ export function PaymentDeskClient({
     setStudentListScrollTop(0);
     if (selectedClassId) {
       setActiveStudentOptionIndex(0);
-      focusStudentSearch(activeStudentPickerMode);
+      if (activeStudentPickerMode === "desktop") {
+        focusStudentSearch(activeStudentPickerMode);
+      }
     }
   }
 
@@ -1476,7 +1561,10 @@ export function PaymentDeskClient({
         }
         dismissedTodayReceiptId={dismissedTodayReceiptId}
         onDismissTodayReceipt={(id) => setDismissedTodayReceiptId(id)}
-        onNumpadKey={handleNumpadKey}
+        onAmountChange={(value) => {
+          setPaymentAmountInput(value);
+          setFormError(null);
+        }}
         onSetPaymentMode={(mode) => {
           setPaymentMode(mode as typeof paymentMode);
           setFormError(null);
@@ -1505,6 +1593,22 @@ export function PaymentDeskClient({
         paymentModeOptions={paymentModeOptions}
         showReferenceField={showReferenceField}
         previewLoading={previewLoading}
+        getStudentPendingAmount={getStudentPendingAmount}
+        getClassStats={getClassStats}
+        onBackToClassPicker={() => setMobileSheetView("class-picker")}
+        onBackToStudentPicker={() => {
+          clearSelectedStudent();
+          setMobileSheetView("student-picker");
+        }}
+        lastPostedAmount={lastPostedAmount}
+        onUseLastAmount={() => {
+          if (lastPostedAmount !== null) {
+            setPaymentAmountInput(String(lastPostedAmount));
+          }
+          setIsLastAmountArmed(true);
+          setFormError(null);
+        }}
+        isLastAmountArmed={isLastAmountArmed}
       />
 
       <DesktopPaymentDeskSection>
@@ -2164,11 +2268,12 @@ export function PaymentDeskClient({
               className="payment-entry-form relative space-y-3"
               data-receipt-copy-markers={paymentDeskReceiptCopyMarkers.join("|")}
               onSubmit={(event) => {
-                if (!isConfirmOpen) {
+                if (!isConfirmOpen && !fastPostRequestedRef.current) {
                   event.preventDefault();
                   openConfirmationDialog();
                   return;
                 }
+                fastPostRequestedRef.current = false;
 
                 const submitter = event.nativeEvent.submitter;
                 const printModeValue =
