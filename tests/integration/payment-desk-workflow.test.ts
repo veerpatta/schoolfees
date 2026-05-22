@@ -955,7 +955,8 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("studentList?.scrollTo({ top: 0 })");
     expect(body).toContain('if (mode === "desktop")');
     expect(body).toContain("focusStudentSearch(mode);");
-    expect(component).toContain('studentSearchInput?.focus({ preventScroll: mode === "mobile" })');
+    expect(component).toContain("desktopStudentSearchInputRef.current?.focus({ preventScroll: false })");
+    expect(component).not.toContain('preventScroll: mode === "mobile"');
     expect(component).toContain('setMobileSheetView("student-picker")');
     expect(component).not.toContain("studentPickerRef.current?.scrollIntoView");
   });

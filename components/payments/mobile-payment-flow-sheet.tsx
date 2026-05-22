@@ -186,11 +186,12 @@ export function MobilePaymentFlowSheet({
 
   React.useEffect(() => {
     if (view !== "payment-entry") return;
+    if (studentSummaryLoading || previewLoading) return;
     const timer = setTimeout(() => {
       amountInputRef.current?.focus({ preventScroll: true });
     }, 200);
     return () => clearTimeout(timer);
-  }, [view]);
+  }, [view, studentSummaryLoading, previewLoading]);
 
   React.useEffect(() => {
     if (view === "payment-entry") {

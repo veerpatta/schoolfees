@@ -20,6 +20,9 @@ describe("mobile payment bottom sheet flow", () => {
     expect(source).toContain('view === "payment-entry"');
     expect(source).toContain('type="number"');
     expect(source).toContain('inputMode="decimal"');
+    expect(source).toContain('if (studentSummaryLoading || previewLoading) return;');
+    expect(source).toContain("amountInputRef.current?.focus({ preventScroll: true })");
+    expect(source).toContain("[view, studentSummaryLoading, previewLoading]");
     expect(source).toContain("onAmountChange(sanitizeDecimalInput(e.target.value))");
     expect(source).toContain("h-[85svh]");
     expect(source).toContain("Review Receipt");
@@ -76,5 +79,16 @@ describe("mobile payment bottom sheet flow", () => {
     expect(source).not.toContain("Mobile amount received");
     expect(source).not.toContain("mobile-payment-cta-clearance");
     expect(source).not.toContain("data-mobile-class-picker-sheet");
+  });
+
+  it("keeps the desktop payment form hidden on mobile while preserving hidden submission fields", () => {
+    const source = readRepoFile("components/payments/payment-desk-mobile.tsx");
+
+    expect(source).toContain('title="3. Fast Payment"');
+    expect(source).toContain('className="hidden md:block"');
+    expect(source).toContain('<input type="hidden" name="referenceNumber" value="" />');
+    expect(source).not.toContain("setReferenceNumber");
+    expect(source).not.toContain("showReferenceField");
+    expect(source).not.toContain("referenceInputMode");
   });
 });

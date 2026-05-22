@@ -267,7 +267,7 @@ export function PaymentDeskClient({
     const stored = window.localStorage.getItem(paymentDeskLastModeStorageKey);
     return stored && data.modeOptions.some((m) => m.value === stored) ? stored : defaultMode;
   });
-  const [referenceNumber, setReferenceNumber] = useState("");
+  const referenceNumber = "";
   const [receivedBy, setReceivedBy] = useState(defaultReceivedBy);
   const [remarks, setRemarks] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -1213,7 +1213,6 @@ export function PaymentDeskClient({
 
       setPaymentAmountInput(draft.amountInput);
       setPaymentMode(draft.paymentMode as typeof paymentMode);
-      setReferenceNumber(draft.referenceNumber);
     });
 
     return () => {
@@ -1234,7 +1233,7 @@ export function PaymentDeskClient({
         draft: {
           amountInput: paymentAmountInput,
           paymentMode,
-          referenceNumber,
+          referenceNumber: "",
         },
       });
     }, 350);
@@ -1246,7 +1245,6 @@ export function PaymentDeskClient({
     paymentDate,
     paymentMode,
     paymentSessionLabel,
-    referenceNumber,
     selectedStudentId,
   ]);
 
@@ -1254,13 +1252,10 @@ export function PaymentDeskClient({
     requestAnimationFrame(() => {
       const studentList =
         mode === "desktop" ? desktopStudentListRef.current : mobileStudentListRef.current;
-      const studentSearchInput =
-        mode === "desktop"
-          ? desktopStudentSearchInputRef.current
-          : mobileStudentSearchInputRef.current;
-
       studentList?.scrollTo({ top: 0 });
-      studentSearchInput?.focus({ preventScroll: mode === "mobile" });
+      if (mode === "desktop") {
+        desktopStudentSearchInputRef.current?.focus({ preventScroll: false });
+      }
     });
   }
 
@@ -1452,7 +1447,6 @@ export function PaymentDeskClient({
     setPaymentAmountInput(resetValues.amountInput);
     setQuickDiscountInput("");
     setWaiveFullLateFee(false);
-    setReferenceNumber("");
     setRemarks(resetValues.remarks);
     setPaymentMode(resetValues.paymentMode as typeof paymentMode);
     setReceivedBy(resetValues.receivedBy);
