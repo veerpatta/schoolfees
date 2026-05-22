@@ -74,7 +74,7 @@ describe("read-only UX audit implementation", () => {
     expect(paymentData).toContain("Prepare dues again");
     expect(paymentDesk).toContain("/protected/payments/student-summary");
     expect(paymentDesk).toContain("<MobilePaymentFlowSheet");
-    expect(mobileSheet).toContain('type="number"');
+    expect(mobileSheet).toContain('type="text"');
     expect(mobileSheet).toContain("onAmountChange(sanitizeDecimalInput(e.target.value))");
     expect(mobileSheet).not.toContain("<MobileNumPad");
     expect(ledger).toContain("AutoSubmitForm");
@@ -99,7 +99,7 @@ describe("read-only UX audit implementation", () => {
     expect(mobileNav).toContain("fixed inset-x-0 bottom-0");
     expect(mobileNav).toContain("getMobileBottomNavigation(staffRole)");
     expect(paymentDesk).toContain("<MobilePaymentFlowSheet");
-    expect(mobileSheet).toContain("fixed inset-0 z-40 md:hidden");
+    expect(mobileSheet).toContain("fixed inset-0 z-[45] md:hidden");
     expect(paymentDesk).toContain("--keyboard-offset");
     expect(paymentDesk).not.toContain("mobile-payment-cta-clearance");
     expect(globals).toContain("--mobile-safe-area-bottom");

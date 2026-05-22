@@ -31,7 +31,7 @@ describe("mobile office workflow source markers", () => {
     expect(mobileSheet).toContain('"student-picker"');
     expect(mobileSheet).toContain('"payment-entry"');
     expect(mobileSheet).toContain("Waive late fee");
-    expect(mobileSheet).toContain('type="number"');
+    expect(mobileSheet).toContain('type="text"');
     expect(mobileSheet).toContain("onAmountChange(sanitizeDecimalInput(e.target.value))");
     expect(mobileSheet).not.toContain("<MobileNumPad");
     expect(paymentDesk).not.toContain("amountInputRef.current?.focus");

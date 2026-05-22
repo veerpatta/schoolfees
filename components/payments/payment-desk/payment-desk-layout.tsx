@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 export function PaymentDeskRoot({ children }: { children: ReactNode }) {
   return (
-    <div className="payment-entry-client-layout space-y-6 mobile-payment-with-nav-clearance md:pb-4">
+    <div className="payment-entry-client-layout space-y-6 mobile-bottom-nav-clearance md:pb-4">
       {children}
     </div>
   );

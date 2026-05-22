@@ -1536,7 +1536,6 @@ export function PaymentDeskClient({
         studentSearchInputRef={mobileStudentSearchInputRef}
         onStudentListScroll={(top) => setStudentListScrollTop(top)}
         studentComboboxRowHeight={studentComboboxRowHeight}
-        studentComboboxPanelHeight={studentComboboxPanelHeight}
         studentListId={mobileStudentListId}
         studentSummaryLoading={studentSummaryLoading}
         selectedStudent={selectedStudent}

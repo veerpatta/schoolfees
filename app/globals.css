@@ -264,7 +264,6 @@
     scrollbar-width: none;
   }
 
-  .payment-entry-client-layout,
   .payment-entry-form {
     contain: layout style;
   }
@@ -430,6 +429,14 @@ body[data-vpps-test-session="true"]::before {
   letter-spacing: 0.05em;
   pointer-events: none;
 }
+
+@media (max-width: 767px) {
+  body[data-vpps-test-session="true"]::before {
+    top: auto;
+    bottom: calc(var(--mobile-bottom-nav-height, 4.25rem) + var(--mobile-safe-area-bottom, 0px) + 8px);
+  }
+}
+
 
 @media print {
   @page {

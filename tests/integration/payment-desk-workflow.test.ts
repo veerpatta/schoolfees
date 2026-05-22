@@ -993,7 +993,7 @@ describe("payment desk cashier workflow", () => {
     expect(mobileSheet).toContain("Enter amount");
     expect(component).toContain("desktop-payment-class-id");
     expect(component).toContain("<MobilePaymentFlowSheet");
-    expect(mobileSheet).toContain('type="number"');
+    expect(mobileSheet).toContain('type="text"');
     expect(mobileSheet).toContain("onAmountChange(sanitizeDecimalInput(e.target.value))");
     expect(mobileSheet).not.toContain("<MobileNumPad");
     expect(mobileSheet).toContain("disabled={confirmDisabled || !draftValidationOk || isLockedAfterSuccess || studentSummaryLoading}");
@@ -1130,7 +1130,7 @@ describe("payment desk cashier workflow", () => {
       "utf8",
     );
 
-    expect(component).toContain("fixed inset-0 z-40 md:hidden");
+    expect(component).toContain("fixed inset-0 z-[45] md:hidden");
     expect(component).toContain("Review Receipt");
   });
 });

@@ -15,16 +15,16 @@ describe("mobile payment bottom sheet flow", () => {
   it("keeps payment entry on a compact sheet with native numeric amount entry", () => {
     const source = readRepoFile("components/payments/mobile-payment-flow-sheet.tsx");
 
-    expect(source).toContain('fixed inset-0 z-40 md:hidden');
+    expect(source).toContain('fixed inset-0 z-[45] md:hidden');
     expect(source).toContain('"class-picker" | "student-picker" | "payment-entry" | null');
     expect(source).toContain('view === "payment-entry"');
-    expect(source).toContain('type="number"');
+    expect(source).toContain('type="text"');
     expect(source).toContain('inputMode="decimal"');
-    expect(source).toContain('if (studentSummaryLoading || previewLoading) return;');
+    expect(source).toContain('if (studentSummaryLoading) return;');
     expect(source).toContain("amountInputRef.current?.focus({ preventScroll: true })");
-    expect(source).toContain("[view, studentSummaryLoading, previewLoading]");
+    expect(source).toContain("[view, studentSummaryLoading]");
     expect(source).toContain("onAmountChange(sanitizeDecimalInput(e.target.value))");
-    expect(source).toContain("h-[85svh]");
+    expect(source).toContain("calc(100svh - 3.5rem)");
     expect(source).toContain("Review Receipt");
     expect(source).toContain("Enter amount");
     expect(source).not.toContain("<MobileNumPad");

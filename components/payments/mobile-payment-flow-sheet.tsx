@@ -37,7 +37,6 @@ type MobilePaymentFlowSheetProps = {
   studentSearchInputRef: React.RefObject<HTMLInputElement | null>;
   onStudentListScroll: (scrollTop: number) => void;
   studentComboboxRowHeight: number;
-  studentComboboxPanelHeight: number;
   studentListId: string;
   studentSummaryLoading: boolean;
   selectedStudent: SelectedStudentSummary | null;
@@ -136,7 +135,6 @@ export function MobilePaymentFlowSheet({
   studentSearchInputRef,
   onStudentListScroll,
   studentComboboxRowHeight,
-  studentComboboxPanelHeight,
   studentListId,
   studentSummaryLoading,
   selectedStudent,
@@ -179,25 +177,31 @@ export function MobilePaymentFlowSheet({
 }: MobilePaymentFlowSheetProps) {
   const [breakdownExpanded, setBreakdownExpanded] = React.useState(false);
   const amountInputRef = React.useRef<HTMLInputElement>(null);
+  const hasFocusedRef = React.useRef(false);
 
   const displayName = selectedStudent?.fullName ?? selectedStudentIndexItem?.fullName ?? "";
   const displayClass = selectedStudent?.classLabel ?? selectedStudentIndexItem?.classLabel ?? "";
   const displayAdmNo = selectedStudent?.admissionNo ?? selectedStudentIndexItem?.admissionNo ?? "";
 
-  React.useEffect(() => {
-    if (view !== "payment-entry") return;
-    if (studentSummaryLoading || previewLoading) return;
-    const timer = setTimeout(() => {
-      amountInputRef.current?.focus({ preventScroll: true });
-    }, 200);
-    return () => clearTimeout(timer);
-  }, [view, studentSummaryLoading, previewLoading]);
-
+  // Reset focus guard and breakdown when entering payment-entry view
   React.useEffect(() => {
     if (view === "payment-entry") {
+      hasFocusedRef.current = false;
       setBreakdownExpanded(false);
     }
   }, [view]);
+
+  // Focus amount input as soon as student data is available (not after preview loads)
+  React.useEffect(() => {
+    if (view !== "payment-entry") return;
+    if (hasFocusedRef.current) return;
+    if (studentSummaryLoading) return;
+    hasFocusedRef.current = true;
+    const timer = setTimeout(() => {
+      amountInputRef.current?.focus({ preventScroll: true });
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [view, studentSummaryLoading]);
 
   const classPickerSwipe = useSwipeDown(onClose);
   const studentPickerSwipe = useSwipeDown(onBackToClassPicker);
@@ -210,7 +214,7 @@ export function MobilePaymentFlowSheet({
   const disablePaymentActions = isLockedAfterSuccess || !canPost;
 
   return (
-    <div className="fixed inset-0 z-40 md:hidden">
+    <div className="fixed inset-0 z-[45] md:hidden">
       {view !== "payment-entry" ? (
         <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       ) : null}
@@ -219,7 +223,7 @@ export function MobilePaymentFlowSheet({
         <div className="absolute bottom-0 left-0 right-0 max-h-[70svh] rounded-t-2xl border-t border-border bg-card flex flex-col overflow-y-auto">
           <SheetHandle swipeHandlers={classPickerSwipe} />
           <h2 className="px-4 pb-2 text-base font-semibold text-foreground">Select Class</h2>
-          <div className="grid grid-cols-2 gap-2 p-4">
+          <div className="grid grid-cols-2 gap-2 p-4" style={{ paddingBottom: 'calc(var(--mobile-bottom-nav-offset, 4.25rem) + 0.5rem)' }}>
             {classOptions.map((classOption) => {
               const selected = classOption.id === selectedClassId;
               const stats = getClassStats(classOption.id);
@@ -253,7 +257,7 @@ export function MobilePaymentFlowSheet({
       ) : null}
 
       {view === "student-picker" ? (
-        <div className="absolute bottom-0 left-0 right-0 h-[85svh] rounded-t-2xl border-t border-border bg-card flex flex-col">
+        <div className="absolute bottom-0 left-0 right-0 h-[88svh] rounded-t-2xl border-t border-border bg-card flex flex-col">
           <SheetHandle swipeHandlers={studentPickerSwipe} />
           <div className="flex-none px-4 pb-2 flex items-center justify-between">
             <p className="text-sm font-semibold text-foreground">{selectedClassLabel}</p>
@@ -336,7 +340,7 @@ export function MobilePaymentFlowSheet({
             role="listbox"
             ref={studentListRef}
             className="flex-1 min-h-0 overflow-y-auto"
-            style={{ height: `${studentComboboxPanelHeight}px` }}
+            style={{ paddingBottom: 'calc(var(--mobile-bottom-nav-offset, 4.25rem) + 0.5rem)' }}
             onScroll={(event) => onStudentListScroll(event.currentTarget.scrollTop)}
           >
             {studentSummaryLoading && filteredStudents.length === 0 ? (
@@ -395,7 +399,7 @@ export function MobilePaymentFlowSheet({
       ) : null}
 
       {view === "payment-entry" ? (
-        <div className="absolute bottom-0 left-0 right-0 h-[85svh] rounded-t-2xl border-t border-border bg-background flex flex-col">
+        <div className="absolute bottom-0 left-0 right-0 rounded-t-2xl border-t border-border bg-background flex flex-col" style={{ height: 'calc(100svh - 3.5rem)' }}>
           <SheetHandle swipeHandlers={paymentEntrySwipe} />
           {(studentSummaryLoading || previewLoading) ? (
             <div className="flex-none h-0.5 bg-surface-2 overflow-hidden">
@@ -573,7 +577,7 @@ export function MobilePaymentFlowSheet({
                     <span className="border-r border-border px-4 py-3 text-2xl font-medium text-muted-foreground">₹</span>
                     <input
                       ref={amountInputRef}
-                      type="number"
+                      type="text"
                       inputMode="decimal"
                       enterKeyHint="done"
                       autoComplete="off"
@@ -662,7 +666,7 @@ export function MobilePaymentFlowSheet({
               </p>
             ) : null}
 
-            <div className="flex-none px-3 pb-4 pt-2">
+            <div className="flex-none px-3 pt-2" style={{ paddingBottom: 'calc(var(--mobile-safe-area-bottom, 0px) + 0.75rem)' }}>
               <Button
                 type="button"
                 variant="accent"
