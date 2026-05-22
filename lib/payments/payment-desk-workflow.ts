@@ -242,8 +242,17 @@ export function buildPaymentActionStateKey(state: PaymentEntryActionState) {
 export function shouldShowPaymentActionState(payload: {
   state: PaymentEntryActionState;
   dismissedActionStateKey: string | null;
+  currentClientRequestId?: string | null;
 }) {
   if (payload.state.status === "idle") {
+    return false;
+  }
+
+  if (
+    payload.currentClientRequestId &&
+    payload.state.clientRequestId &&
+    payload.state.clientRequestId !== payload.currentClientRequestId
+  ) {
     return false;
   }
 

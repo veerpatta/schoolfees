@@ -104,7 +104,7 @@ function parsePaymentDate(value: FormDataEntryValue | null) {
   return normalized;
 }
 
-function toActionStateError(error: unknown): PaymentEntryActionState {
+function toActionStateError(error: unknown, clientRequestId?: string | null): PaymentEntryActionState {
   if (error instanceof DuplicatePaymentWarning) {
     return {
       status: "duplicate",
@@ -119,7 +119,7 @@ function toActionStateError(error: unknown): PaymentEntryActionState {
       paymentMode: null,
       referenceNumber: null,
       receivedBy: null,
-      clientRequestId: null,
+      clientRequestId: clientRequestId ?? null,
       remainingBalance: null,
       diagnostic: null,
     };
@@ -138,7 +138,7 @@ function toActionStateError(error: unknown): PaymentEntryActionState {
     paymentMode: null,
     referenceNumber: null,
     receivedBy: null,
-    clientRequestId: null,
+    clientRequestId: clientRequestId ?? null,
     remainingBalance: null,
     diagnostic: getPaymentPostingDiagnostic(error),
   };
@@ -148,7 +148,16 @@ export async function submitPaymentEntryAction(
   _previous: PaymentEntryActionState,
   formData: FormData,
 ): Promise<PaymentEntryActionState> {
+  let clientRequestId: string | null = null;
   try {
+    const rawClientRequestId = formData.get("clientRequestId");
+    if (rawClientRequestId) {
+      try {
+        clientRequestId = parseUuid(rawClientRequestId, "Payment attempt");
+      } catch {
+        // ignore parsing error here, will be caught by the main validator
+      }
+    }
     await requireStaffPermission("payments:write");
     const studentId = parseUuid(formData.get("studentId"), "Student");
     const sessionLabel = parseSessionLabel(formData.get("sessionLabel"));
@@ -163,7 +172,8 @@ export async function submitPaymentEntryAction(
       formData.get("quickLateFeeWaiverAmount"),
       "Late fee waiver",
     );
-    const clientRequestId = parseUuid(formData.get("clientRequestId"), "Payment attempt");
+    const validatedClientRequestId = parseUuid(formData.get("clientRequestId"), "Payment attempt");
+    clientRequestId = validatedClientRequestId;
     const referenceNumber = (formData.get("referenceNumber") ?? "").toString().trim() || null;
     const receivedBy = parseRequiredString(formData.get("receivedBy"), "Received by");
     const student = await getStudentDetail(studentId);
@@ -229,7 +239,7 @@ export async function submitPaymentEntryAction(
       syncOutcome,
     };
   } catch (error) {
-    return toActionStateError(error);
+    return toActionStateError(error, clientRequestId);
   }
 }
 

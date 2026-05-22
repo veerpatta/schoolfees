@@ -862,6 +862,7 @@ export function PaymentDeskClient({
   const visibleActionState = shouldShowPaymentActionState({
     state,
     dismissedActionStateKey,
+    currentClientRequestId: clientRequestId,
   })
     ? state
     : initialState;
@@ -1002,6 +1003,13 @@ export function PaymentDeskClient({
     submittingRef.current = false;
 
     if (state.status === "success") {
+      if (!shouldShowPaymentActionState({
+        state,
+        dismissedActionStateKey,
+        currentClientRequestId: clientRequestId,
+      })) {
+        return;
+      }
       if (actionStateKey !== optimisticReceiptKeyRef.current) {
         optimisticReceiptKeyRef.current = actionStateKey;
         if (state.amountReceived && state.amountReceived > 0) {
@@ -1048,6 +1056,13 @@ export function PaymentDeskClient({
     }
 
     if (state.status === "duplicate") {
+      if (!shouldShowPaymentActionState({
+        state,
+        dismissedActionStateKey,
+        currentClientRequestId: clientRequestId,
+      })) {
+        return;
+      }
       setDismissedActionStateKey(null);
       setIsConfirmOpen(false);
       setIsSuccessOpen(false);
@@ -1057,11 +1072,26 @@ export function PaymentDeskClient({
     }
 
     if (state.status === "error") {
+      if (!shouldShowPaymentActionState({
+        state,
+        dismissedActionStateKey,
+        currentClientRequestId: clientRequestId,
+      })) {
+        return;
+      }
       setDismissedActionStateKey(null);
       setIsConfirmOpen(false);
       setFormError(state.message);
     }
-  }, [actionStateKey, buildStudentSummaryCacheKey, paymentDate, paymentSessionLabel, state]);
+  }, [
+    actionStateKey,
+    buildStudentSummaryCacheKey,
+    paymentDate,
+    paymentSessionLabel,
+    state,
+    clientRequestId,
+    dismissedActionStateKey,
+  ]);
 
   useEffect(() => {
     if (lastAddedAmount === null) {
@@ -1330,6 +1360,8 @@ export function PaymentDeskClient({
     const cachedSummary = summaryCache.current.get(cacheKey);
 
     setSelectedStudentId(studentId);
+    setClientRequestId(createClientRequestId());
+    setIsLockedAfterSuccess(false);
     if (isLastAmountArmed && lastPostedAmount !== null) {
       setPaymentAmountInput(String(lastPostedAmount));
       setIsLastAmountArmed(false);

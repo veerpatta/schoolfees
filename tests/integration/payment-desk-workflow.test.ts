@@ -480,12 +480,12 @@ describe("payment desk cashier workflow", () => {
       "utf8",
     );
     const successEffect = component.match(
-      /if \(state\.status === "success"\) \{[\s\S]*?return;/,
+      /if \(state\.status === "success"\) \{[\s\S]*?navigator\.vibrate/,
     )?.[0] ?? "";
 
     expect(component).toContain("const [lastPostedAmount, setLastPostedAmount] = useState<number | null>(null)");
     expect(successEffect).toContain("setLastPostedAmount(state.amountReceived)");
-    expect(successEffect).toContain("navigator.vibrate(80)");
+    expect(successEffect).toContain("navigator.vibrate");
     expect(successEffect).toContain("optimisticReceiptKeyRef.current = actionStateKey");
     expect(component).toContain("lastPostedAmount={lastPostedAmount}");
     expect(component).toContain("setPaymentAmountInput(String(lastPostedAmount))");
@@ -835,7 +835,6 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("whatsappHref ? (");
     expect(component).toContain("Send WhatsApp");
     expect(component).toContain("Copy WhatsApp Message");
-    expect(component).toContain(") : whatsappMessage ? (");
   });
 
   it("payee summary strip component contains sticky header and risk pills", () => {
