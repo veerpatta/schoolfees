@@ -376,25 +376,10 @@ async function getPaymentDeskReadinessUncached(payload: {
   sessionLabel: string;
   staffAppRole: "admin" | "accountant" | "read_only_staff";
   canWritePayments: boolean;
+  policy: Awaited<ReturnType<typeof getFeePolicyForSession>>;
 }): Promise<PaymentDeskReadiness> {
-  const [policy, hasActiveClass] = await Promise.all([
-    getFeePolicyForSession(payload.sessionLabel),
-    (async () => {
-      const supabase = await getCacheSafeClient();
-      const { data, error } = await supabase
-        .from("classes")
-        .select("id")
-        .eq("session_label", payload.sessionLabel)
-        .eq("status", "active")
-        .limit(1);
-
-      if (error) {
-        throw new Error(`Unable to check active classes: ${error.message}`);
-      }
-
-      return (data ?? []).length > 0;
-    })(),
-  ]);
+  const hasActiveClass = await getPaymentDeskHasActiveClass(payload.sessionLabel);
+  const { policy } = payload;
   const policyExists =
     Boolean(policy.id) &&
     policy.academicSessionLabel.trim().toLowerCase() ===
@@ -436,22 +421,38 @@ async function getPaymentDeskReadinessUncached(payload: {
   };
 }
 
+async function getPaymentDeskHasActiveClassUncached(sessionLabel: string) {
+  const supabase = await getCacheSafeClient();
+  const { data, error } = await supabase
+    .from("classes")
+    .select("id")
+    .eq("session_label", sessionLabel)
+    .eq("status", "active")
+    .limit(1);
+
+  if (error) {
+    throw new Error(`Unable to check active classes: ${error.message}`);
+  }
+
+  return (data ?? []).length > 0;
+}
+
+async function getPaymentDeskHasActiveClass(sessionLabel: string) {
+  return cacheSafeUnstableCache(
+    async () => getPaymentDeskHasActiveClassUncached(sessionLabel),
+    ["payment-desk-active-class", sessionLabel],
+    { tags: [`session:${sessionLabel}`] },
+  )();
+}
+
 export async function getPaymentDeskReadiness(payload: {
   sessionLabel: string;
   staffAppRole: "admin" | "accountant" | "read_only_staff";
   canWritePayments: boolean;
 }): Promise<PaymentDeskReadiness> {
   try {
-    return await cacheSafeUnstableCache(
-      async () => getPaymentDeskReadinessUncached(payload),
-      [
-        "payment-desk-readiness",
-        payload.sessionLabel,
-        payload.staffAppRole,
-        String(payload.canWritePayments),
-      ],
-      { tags: [`session:${payload.sessionLabel}`] },
-    )();
+    const policy = await getFeePolicyForSession(payload.sessionLabel);
+    return await getPaymentDeskReadinessUncached({ ...payload, policy });
   } catch (error) {
     console.warn("Payment Desk readiness check failed.", {
       sessionLabel: payload.sessionLabel,
@@ -489,8 +490,8 @@ async function getPaymentDeskStudentIndexUncached(payload: {
   limit?: number;
   sessionLabel?: string;
 } = {}) {
-  const policy = await getFeePolicySummary();
-  const sessionLabel = payload.sessionLabel ?? policy.academicSessionLabel;
+  const sessionLabel =
+    payload.sessionLabel ?? (await getFeePolicySummary()).academicSessionLabel;
   const supabase = await getCacheSafeClient();
   let query = supabase
     .from("students")
@@ -537,8 +538,8 @@ export async function getPaymentDeskStudentIndex(payload: {
 }
 
 async function getPaymentDeskClassOptionsUncached(sessionLabel?: string) {
-  const policy = await getFeePolicySummary();
-  const resolvedSessionLabel = sessionLabel ?? policy.academicSessionLabel;
+  const resolvedSessionLabel =
+    sessionLabel ?? (await getFeePolicySummary()).academicSessionLabel;
   const supabase = await getCacheSafeClient();
   const { data, error } = await supabase
     .from("classes")
