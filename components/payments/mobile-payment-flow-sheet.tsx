@@ -30,8 +30,9 @@ type MobilePaymentFlowSheetProps = {
   firstVisibleStudentIndex: number;
   activeStudentOptionIndex: number;
   selectedStudentId: string;
+  selectedStudentIndexItem: PaymentStudentIndexItem | null;
   onSelectStudent: (id: string) => void;
-  onPrefetchStudent: (id: string) => void;
+  onPrefetchStudent: (id: string, full?: boolean) => void;
   studentListRef: React.RefObject<HTMLDivElement | null>;
   studentSearchInputRef: React.RefObject<HTMLInputElement | null>;
   onStudentListScroll: (scrollTop: number) => void;
@@ -48,7 +49,6 @@ type MobilePaymentFlowSheetProps = {
   creditOrRefundAmount: number;
   paymentAmountInput: string;
   paymentMode: string;
-  referenceNumber: string;
   paymentDate: string;
   paymentDateIsBackdated: boolean;
   waiveFullLateFee: boolean;
@@ -64,7 +64,6 @@ type MobilePaymentFlowSheetProps = {
   onDismissTodayReceipt: (id: string) => void;
   onAmountChange: (value: string) => void;
   onSetPaymentMode: (mode: string) => void;
-  onSetReferenceNumber: (ref: string) => void;
   onSetPaymentDate: (date: string) => void;
   onToggleWaiveLateFee: () => void;
   onQuickAmount: (amount: number | null) => void;
@@ -75,7 +74,6 @@ type MobilePaymentFlowSheetProps = {
     label: string;
     Icon: React.ComponentType<{ className?: string }>;
   }>;
-  showReferenceField: boolean;
   previewLoading: boolean;
   getStudentPendingAmount: (studentId: string) => number | null;
   getClassStats: (classId: string) => { total: number; pendingCount: number; pendingTotal: number | null };
@@ -131,6 +129,7 @@ export function MobilePaymentFlowSheet({
   firstVisibleStudentIndex,
   activeStudentOptionIndex,
   selectedStudentId,
+  selectedStudentIndexItem,
   onSelectStudent,
   onPrefetchStudent,
   studentListRef,
@@ -148,7 +147,6 @@ export function MobilePaymentFlowSheet({
   creditOrRefundAmount,
   paymentAmountInput,
   paymentMode,
-  referenceNumber,
   paymentDate,
   paymentDateIsBackdated,
   waiveFullLateFee,
@@ -164,14 +162,12 @@ export function MobilePaymentFlowSheet({
   onDismissTodayReceipt,
   onAmountChange,
   onSetPaymentMode,
-  onSetReferenceNumber,
   onSetPaymentDate,
   onToggleWaiveLateFee,
   onQuickAmount,
   onOpenConfirm,
   onChangeStudent,
   paymentModeOptions,
-  showReferenceField,
   previewLoading,
   getStudentPendingAmount,
   getClassStats,
@@ -182,6 +178,19 @@ export function MobilePaymentFlowSheet({
   isLastAmountArmed,
 }: MobilePaymentFlowSheetProps) {
   const [breakdownExpanded, setBreakdownExpanded] = React.useState(false);
+  const amountInputRef = React.useRef<HTMLInputElement>(null);
+
+  const displayName = selectedStudent?.fullName ?? selectedStudentIndexItem?.fullName ?? "";
+  const displayClass = selectedStudent?.classLabel ?? selectedStudentIndexItem?.classLabel ?? "";
+  const displayAdmNo = selectedStudent?.admissionNo ?? selectedStudentIndexItem?.admissionNo ?? "";
+
+  React.useEffect(() => {
+    if (view !== "payment-entry") return;
+    const timer = setTimeout(() => {
+      amountInputRef.current?.focus({ preventScroll: true });
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [view]);
 
   React.useEffect(() => {
     if (view === "payment-entry") {
@@ -353,8 +362,8 @@ export function MobilePaymentFlowSheet({
                       )}
                       style={{ minHeight: `${studentComboboxRowHeight}px` }}
                       onMouseDown={(event) => event.preventDefault()}
-                      onMouseEnter={() => onPrefetchStudent(student.id)}
-                      onTouchStart={() => onPrefetchStudent(student.id)}
+                      onMouseEnter={() => onPrefetchStudent(student.id, false)}
+                      onTouchStart={() => onPrefetchStudent(student.id, true)}
                       onClick={() => onSelectStudent(student.id)}
                     >
                       <span className="flex w-full items-center justify-between gap-2">
@@ -387,13 +396,18 @@ export function MobilePaymentFlowSheet({
       {view === "payment-entry" ? (
         <div className="absolute bottom-0 left-0 right-0 h-[85svh] rounded-t-2xl border-t border-border bg-background flex flex-col">
           <SheetHandle swipeHandlers={paymentEntrySwipe} />
+          {(studentSummaryLoading || previewLoading) ? (
+            <div className="flex-none h-0.5 bg-surface-2 overflow-hidden">
+              <div className="h-full bg-accent anim-route-progress" style={{ width: "60%" }} />
+            </div>
+          ) : null}
           <div className="flex-none px-4 py-2 flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-foreground">
-                {selectedStudent?.fullName ?? "Select student"}
+                {displayName || "Select student"}
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {selectedStudent ? `SR ${selectedStudent.admissionNo} · ${selectedStudent.classLabel}` : selectedClassLabel}
+                {displayName ? `SR ${displayAdmNo} · ${displayClass}` : selectedClassLabel}
               </p>
             </div>
             <div className="shrink-0 text-right">
@@ -495,93 +509,118 @@ export function MobilePaymentFlowSheet({
               </label>
             ) : null}
 
-            {/* Primary amounts — Full Due and Next Installment as large tappable cards */}
-            {(() => {
-              const fullDue = quickAmounts.find((q) => q.key === "full");
-              const nextInst = quickAmounts.find((q) => q.key === "next");
-              if (!fullDue && !nextInst) return null;
-              return (
-                <div className="flex gap-2 px-3 py-2 border-b border-border">
-                  {fullDue && fullDue.amount !== null ? (
-                    <button
-                      type="button"
-                      disabled={fullDue.disabled || disablePaymentActions}
-                      onClick={() => onQuickAmount(fullDue.amount)}
-                      className={cn(
-                        "flex flex-1 flex-col items-center rounded-xl border py-3 transition-all active:scale-95 disabled:opacity-40",
-                        paymentAmountInput === String(fullDue.amount)
-                          ? "border-accent bg-accent/10 text-accent font-semibold"
-                          : "border-border bg-surface-2 text-foreground hover:bg-surface-3"
-                      )}
-                    >
-                      <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Full Due</span>
-                      <span className="text-lg font-bold tabular-nums">{formatInr(fullDue.amount)}</span>
-                    </button>
-                  ) : null}
-                  {nextInst && nextInst.amount !== null ? (
-                    <button
-                      type="button"
-                      disabled={nextInst.disabled || disablePaymentActions}
-                      onClick={() => onQuickAmount(nextInst.amount)}
-                      className={cn(
-                        "flex flex-1 flex-col items-center rounded-xl border py-3 transition-all active:scale-95 disabled:opacity-40",
-                        paymentAmountInput === String(nextInst.amount)
-                          ? "border-accent bg-accent/10 text-accent font-semibold"
-                          : "border-border bg-surface-2 text-foreground hover:bg-surface-3"
-                      )}
-                    >
-                      <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Next Installment</span>
-                      <span className="text-lg font-bold tabular-nums">{formatInr(nextInst.amount)}</span>
-                    </button>
+            {studentSummaryLoading || previewLoading ? (
+              <div className="px-3 py-3 border-b border-border space-y-3">
+                <div className="flex gap-2">
+                  <div className="h-16 flex-1 rounded-xl bg-surface-2 animate-pulse" />
+                  <div className="h-16 flex-1 rounded-xl bg-surface-2 animate-pulse" />
+                </div>
+                <div className="h-16 w-full rounded-xl bg-surface-2 animate-pulse" />
+                <div className="flex gap-1.5 overflow-x-auto py-1">
+                  <div className="h-8 w-16 rounded-full bg-surface-2 animate-pulse" />
+                  <div className="h-8 w-16 rounded-full bg-surface-2 animate-pulse" />
+                  <div className="h-8 w-24 rounded-full bg-surface-2 animate-pulse" />
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Primary amounts — Full Due and Next Installment as large tappable cards */}
+                {(() => {
+                  const fullDue = quickAmounts.find((q) => q.key === "full");
+                  const nextInst = quickAmounts.find((q) => q.key === "next");
+                  if (!fullDue && !nextInst) return null;
+                  return (
+                    <div className="flex gap-2 px-3 py-2 border-b border-border">
+                      {fullDue && fullDue.amount !== null ? (
+                        <button
+                          type="button"
+                          disabled={fullDue.disabled || disablePaymentActions}
+                          onClick={() => onQuickAmount(fullDue.amount)}
+                          className={cn(
+                            "flex flex-1 flex-col items-center rounded-xl border py-3 transition-all active:scale-95 disabled:opacity-40",
+                            paymentAmountInput === String(fullDue.amount)
+                              ? "border-accent bg-accent/10 text-accent font-semibold"
+                              : "border-border bg-surface-2 text-foreground hover:bg-surface-3"
+                          )}
+                        >
+                          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Full Due</span>
+                          <span className="text-lg font-bold tabular-nums">{formatInr(fullDue.amount)}</span>
+                        </button>
+                      ) : null}
+                      {nextInst && nextInst.amount !== null ? (
+                        <button
+                          type="button"
+                          disabled={nextInst.disabled || disablePaymentActions}
+                          onClick={() => onQuickAmount(nextInst.amount)}
+                          className={cn(
+                            "flex flex-1 flex-col items-center rounded-xl border py-3 transition-all active:scale-95 disabled:opacity-40",
+                            paymentAmountInput === String(nextInst.amount)
+                              ? "border-accent bg-accent/10 text-accent font-semibold"
+                              : "border-border bg-surface-2 text-foreground hover:bg-surface-3"
+                          )}
+                        >
+                          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Next Installment</span>
+                          <span className="text-lg font-bold tabular-nums">{formatInr(nextInst.amount)}</span>
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })()}
+
+                <div className="flex flex-col border-b border-border bg-background">
+                  <div className="flex items-center">
+                    <span className="border-r border-border px-4 py-3 text-2xl font-medium text-muted-foreground">₹</span>
+                    <input
+                      ref={amountInputRef}
+                      type="number"
+                      inputMode="decimal"
+                      enterKeyHint="done"
+                      autoComplete="off"
+                      autoCapitalize="off"
+                      autoCorrect="off"
+                      placeholder="0"
+                      className="h-16 flex-1 bg-transparent px-4 text-3xl font-bold tabular-nums text-foreground outline-none placeholder:text-muted-foreground/40"
+                      value={paymentAmountInput}
+                      onChange={(e) => {
+                        onAmountChange(sanitizeDecimalInput(e.target.value));
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          e.currentTarget.blur();
+                        }
+                      }}
+                    />
+                    {paymentAmountInput && remainingAfterPayment === 0 ? (
+                      <span className="mr-3 rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-medium text-success-soft-foreground">
+                        Clears ✓
+                      </span>
+                    ) : null}
+                  </div>
+                  {paymentAmountInput && Number(paymentAmountInput) > 0 ? (
+                    <p className="text-center text-xs text-muted-foreground pb-2">
+                      {formatInr(Number(paymentAmountInput))}
+                    </p>
                   ) : null}
                 </div>
-              );
-            })()}
 
-            <div className="flex items-center border-b border-border bg-background">
-              <span className="border-r border-border px-4 py-3 text-2xl font-medium text-muted-foreground">₹</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                enterKeyHint="done"
-                autoComplete="off"
-                autoCapitalize="off"
-                autoCorrect="off"
-                placeholder="0"
-                className="h-16 flex-1 bg-transparent px-4 text-3xl font-bold tabular-nums text-foreground outline-none placeholder:text-muted-foreground/40"
-                value={paymentAmountInput}
-                onChange={(e) => {
-                  onAmountChange(sanitizeDecimalInput(e.target.value));
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    e.currentTarget.blur();
-                  }
-                }}
-              />
-              {paymentAmountInput && remainingAfterPayment === 0 ? (
-                <span className="mr-3 rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-medium text-success-soft-foreground">
-                  Clears ✓
-                </span>
-              ) : null}
-            </div>
+                <div className="flex-none flex gap-1.5 overflow-x-auto border-b border-border px-3 py-2">
+                  {quickAmounts.filter((q) => q.key !== "full" && q.key !== "next").map((qa) => (
+                    <button
+                      key={`mobile-sheet-${qa.key}`}
+                      type="button"
+                      disabled={qa.disabled || disablePaymentActions}
+                      className="shrink-0 rounded-full border border-border bg-surface-2 px-3 py-1.5 text-xs font-semibold text-foreground disabled:pointer-events-none disabled:opacity-40"
+                      onClick={() => onQuickAmount(qa.amount)}
+                    >
+                      {qa.key === "clear" ? qa.label ?? "Clear" : `${qa.label ?? qa.key} ${qa.amount ? formatInr(qa.amount) : ""}`}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
 
-            <div className="flex-none flex gap-1.5 overflow-x-auto border-b border-border px-3 py-2">
-              {quickAmounts.filter((q) => q.key !== "full" && q.key !== "next").map((qa) => (
-                <button
-                  key={`mobile-sheet-${qa.key}`}
-                  type="button"
-                  disabled={qa.disabled || disablePaymentActions}
-                  className="shrink-0 rounded-full border border-border bg-surface-2 px-3 py-1.5 text-xs font-semibold text-foreground disabled:pointer-events-none disabled:opacity-40"
-                  onClick={() => onQuickAmount(qa.amount)}
-                >
-                  {qa.key === "clear" ? qa.label ?? "Clear" : `${qa.label ?? qa.key} ${qa.amount ? formatInr(qa.amount) : ""}`}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex-none grid grid-cols-4 gap-2 border-t border-border px-3 py-2">
+            <div className="flex-none grid grid-cols-2 gap-2 border-t border-border px-3 py-2">
               {paymentModeOptions.map(({ value, label, Icon }) => (
                 <button
                   key={value}
@@ -599,16 +638,6 @@ export function MobilePaymentFlowSheet({
                 </button>
               ))}
             </div>
-
-            {showReferenceField ? (
-              <div className="flex-none px-3 py-2">
-                <Input
-                  placeholder="UPI / bank ref — optional"
-                  value={referenceNumber}
-                  onChange={(event) => onSetReferenceNumber(event.target.value)}
-                />
-              </div>
-            ) : null}
 
             <div className="flex-none border-t border-border px-3 py-2">
               <div className="flex items-center gap-2">
@@ -639,7 +668,7 @@ export function MobilePaymentFlowSheet({
                 size="lg"
                 fullWidth
                 className="h-14 rounded-xl text-base font-semibold"
-                disabled={confirmDisabled || !draftValidationOk || isLockedAfterSuccess}
+                disabled={confirmDisabled || !draftValidationOk || isLockedAfterSuccess || studentSummaryLoading}
                 onClick={onOpenConfirm}
               >
                 {paymentAmountInput ? `Review Receipt · ${formatInr(Number(paymentAmountInput))}` : "Enter amount"}

@@ -121,7 +121,7 @@ describe("office performance guardrails", () => {
     expect(paymentClient).toContain("writePaymentDeskStudentIndexCache");
     expect(paymentClient).toContain("studentIndex.length === 0");
     expect(paymentClient).toContain("prefetchStudentSummary");
-    expect(paymentClient).toContain("onPrefetchStudent={(id) => prefetchStudentSummary(id)}");
+    expect(paymentClient).toContain("onPrefetchStudent={(id, full) => prefetchStudentSummary(id, full)}");
     expect(mobileSheet).toContain("onMouseEnter={() => onPrefetchStudent");
     expect(mobileSheet).toContain("onTouchStart={() => onPrefetchStudent");
     expect(paymentClient).toContain("clearPaymentDeskStudentIndexCache");

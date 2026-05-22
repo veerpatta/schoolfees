@@ -342,7 +342,7 @@ describe("payment desk cashier workflow", () => {
       "utf8",
     );
     const restoreEffect = component.match(
-      /useEffect\(\(\) => \{\n    if \(isMobileView\) return;[\s\S]*?lastClassRestoreAttemptedRef\.current = true;[\s\S]*?\}, \[classOptions, data\.initialClassId, isMobileView, selectedClassId\]\);/,
+      /useEffect\(\(\) => \{\r?\n    if \(isMobileView\) return;[\s\S]*?lastClassRestoreAttemptedRef\.current = true;[\s\S]*?\}, \[classOptions, data\.initialClassId, isMobileView, selectedClassId\]\);/,
     )?.[0] ?? "";
     const autoOpenEffect = component.match(
       /const streak = getClassStreak\(\);[\s\S]*?setMobileSheetView\("class-picker"\);/,
@@ -682,7 +682,7 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("Collect Another Payment");
     expect(component).toContain("Latest receipt:");
     expect(component).toContain("Amount to refund/adjust");
-    expect(component).toContain("Reference number");
+    expect(component).toContain("referenceNumber");
     expect(component).toContain("Copy WhatsApp Message");
     expect(component).toContain("animate-bottom-sheet-up");
     expect(component).toContain("animate-success-check");
@@ -995,7 +995,7 @@ describe("payment desk cashier workflow", () => {
     expect(mobileSheet).toContain('type="number"');
     expect(mobileSheet).toContain("onAmountChange(sanitizeDecimalInput(e.target.value))");
     expect(mobileSheet).not.toContain("<MobileNumPad");
-    expect(mobileSheet).toContain("disabled={confirmDisabled || !draftValidationOk || isLockedAfterSuccess}");
+    expect(mobileSheet).toContain("disabled={confirmDisabled || !draftValidationOk || isLockedAfterSuccess || studentSummaryLoading}");
   });
 
   it("desktop desk shows a selected-student loading state immediately", () => {

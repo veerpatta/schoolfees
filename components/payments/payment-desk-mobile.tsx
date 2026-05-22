@@ -287,7 +287,7 @@ export function PaymentDeskClient({
   const fastPostRequestedRef = useRef(false);
   const isMobileView = useMediaQuery("(max-width: 767px)");
   const { ref: amountInputRef } = useScrollIntoView<HTMLInputElement>();
-  const { ref: refInputRef, scrollIntoView: scrollReferenceInputIntoView } = useScrollIntoView<HTMLInputElement>();
+
   const submittingRef = useRef(false);
   const amountSectionRef = useRef<HTMLDivElement>(null);
   const desktopStudentPickerRef = useRef<HTMLDivElement>(null);
@@ -383,8 +383,7 @@ export function PaymentDeskClient({
   const refundableAmount = selectedStudent?.refundableAmount ?? 0;
   const creditOrRefundAmount = Math.max(creditBalance, refundableAmount);
   const studentSelectedFromIndex = Boolean(selectedStudentId && selectedStudentIndexItem);
-  const showReferenceField = paymentMode !== "cash";
-  const referenceInputMode = paymentMode === "cheque" ? "numeric" : "text";
+
 
   const buildStudentSummaryCacheKey = useCallback((studentId: string, requestedPaymentDate: string) => {
     return `${data.sessionLabel}:${studentId}:${requestedPaymentDate}`;
@@ -519,25 +518,24 @@ export function PaymentDeskClient({
     });
   }, [buildStudentSummaryCacheKey, data.sessionLabel]);
 
-  function prefetchStudentSummary(studentId: string) {
+  function prefetchStudentSummary(studentId: string, full = false) {
     const today = new Date().toISOString().slice(0, 10);
     const cacheKey = buildStudentSummaryCacheKey(studentId, today);
 
-    // Skip if we already have a full summary or a prefetch in flight.
-    if (summaryCache.current.has(cacheKey) || prefetchCache.current.has(cacheKey)) {
-      return;
-    }
+    if (summaryCache.current.has(cacheKey)) return; // already have full data
+    if (!full && prefetchCache.current.has(cacheKey)) return; // card-only prefetch in flight
 
-    // Fetch card-only (skip the slow installment preview) so hover/focus prefetch is fast.
     const promise = fetchStudentSummary({
       studentId,
       requestedPaymentDate: today,
-      includeLatestReceipt: false,
-      includeBreakdown: false,
+      includeLatestReceipt: full,
+      includeBreakdown: full,
     })
       .then((payload) => {
-        // Only store as card-only if we still don't have the full summary.
-        if (!summaryCache.current.has(cacheKey)) {
+        if (full) {
+          summaryCache.current.set(cacheKey, payload);
+          cardOnlyCache.current.delete(cacheKey);
+        } else if (!summaryCache.current.has(cacheKey)) {
           cardOnlyCache.current.set(cacheKey, payload);
         }
         return payload;
@@ -1170,14 +1168,7 @@ export function PaymentDeskClient({
     }
   }, [isConfirmOpen, isMobileView]);
 
-  useEffect(() => {
-    if (showReferenceField && isMobileView) {
-      scrollReferenceInputIntoView();
-      setTimeout(() => {
-        refInputRef.current?.focus({ preventScroll: true });
-      }, 300);
-    }
-  }, [isMobileView, refInputRef, scrollReferenceInputIntoView, showReferenceField]);
+
 
   useEffect(() => {
     const visualViewport = window.visualViewport;
@@ -1320,6 +1311,20 @@ export function PaymentDeskClient({
     recordClassUsed(nextClassId);
     handleClassChange(nextClassId, "mobile");
     setMobileSheetView("student-picker");
+
+    // Background prefetch all students in this class (card-only, no breakdown)
+    // Throttled to avoid hammering the API — batch in groups of 3 with 150ms gaps
+    if (nextClassId) {
+      const classStudents = studentIndex
+        .filter((s) => s.classId === nextClassId)
+        .slice(0, 30); // cap at 30 to be safe
+
+      classStudents.forEach((student, i) => {
+        setTimeout(() => {
+          prefetchStudentSummary(student.id);
+        }, i * 60); // 60ms apart = 30 students in ~1.8s
+      });
+    }
   }
 
   function selectStudent(studentId: string) {
@@ -1430,6 +1435,15 @@ export function PaymentDeskClient({
 
 
   function handleCollectAnotherPayment() {
+    // Prefetch the next student in the filtered list
+    if (selectedClassId && selectedStudentId) {
+      const currentIndex = filteredStudents.findIndex((s) => s.id === selectedStudentId);
+      const nextStudent = filteredStudents[currentIndex + 1];
+      if (nextStudent) {
+        prefetchStudentSummary(nextStudent.id, true);
+      }
+    }
+
     const resetValues = resetPaymentDraftForNextPayment({
       keepPaymentMode: paymentMode,
       defaultReceivedBy,
@@ -1438,7 +1452,7 @@ export function PaymentDeskClient({
     setPaymentAmountInput(resetValues.amountInput);
     setQuickDiscountInput("");
     setWaiveFullLateFee(false);
-    setReferenceNumber(resetValues.referenceNumber);
+    setReferenceNumber("");
     setRemarks(resetValues.remarks);
     setPaymentMode(resetValues.paymentMode as typeof paymentMode);
     setReceivedBy(resetValues.receivedBy);
@@ -1521,8 +1535,9 @@ export function PaymentDeskClient({
         firstVisibleStudentIndex={firstVisibleStudentIndex}
         activeStudentOptionIndex={activeStudentOptionIndex}
         selectedStudentId={selectedStudentId}
+        selectedStudentIndexItem={selectedStudentIndexItem}
         onSelectStudent={(id) => selectStudent(id)}
-        onPrefetchStudent={(id) => prefetchStudentSummary(id)}
+        onPrefetchStudent={(id, full) => prefetchStudentSummary(id, full)}
         studentListRef={mobileStudentListRef}
         studentSearchInputRef={mobileStudentSearchInputRef}
         onStudentListScroll={(top) => setStudentListScrollTop(top)}
@@ -1539,7 +1554,6 @@ export function PaymentDeskClient({
         creditOrRefundAmount={creditOrRefundAmount}
         paymentAmountInput={paymentAmountInput}
         paymentMode={paymentMode}
-        referenceNumber={referenceNumber}
         paymentDate={paymentDate}
         paymentDateIsBackdated={paymentDateIsBackdated}
         waiveFullLateFee={waiveFullLateFee}
@@ -1569,10 +1583,6 @@ export function PaymentDeskClient({
           setPaymentMode(mode as typeof paymentMode);
           setFormError(null);
         }}
-        onSetReferenceNumber={(ref) => {
-          setReferenceNumber(ref);
-          setFormError(null);
-        }}
         onSetPaymentDate={(date) => {
           setPaymentDate(date);
           setFormError(null);
@@ -1591,7 +1601,6 @@ export function PaymentDeskClient({
           setMobileSheetView("student-picker");
         }}
         paymentModeOptions={paymentModeOptions}
-        showReferenceField={showReferenceField}
         previewLoading={previewLoading}
         getStudentPendingAmount={getStudentPendingAmount}
         getClassStats={getClassStats}
@@ -2053,23 +2062,7 @@ export function PaymentDeskClient({
                   </p>
                 ) : null}
 
-                {showReferenceField ? (
-                  <div className="border-b border-border px-3 py-2.5">
-                    <Input
-                      aria-label="Reference number"
-                      placeholder="UPI / bank / cheque ref — optional"
-                      inputMode={referenceInputMode}
-                      autoCapitalize="off"
-                      autoCorrect="off"
-                      value={referenceNumber}
-                      onChange={(event) => {
-                        setReferenceNumber(event.target.value);
-                        setFormError(null);
-                      }}
-                      className="h-9"
-                    />
-                  </div>
-                ) : null}
+
 
                 <div className="border-b border-border px-3 py-2">
                   <details className="group">
@@ -2193,6 +2186,7 @@ export function PaymentDeskClient({
         <SectionCard
           title="Choose a student to continue"
           description="Dues, installment breakup, and the payment form will appear after a student is selected."
+          className="hidden md:block"
         >
           <p className="rounded-lg border border-dashed border-border-strong bg-surface-2 px-4 py-3 text-sm text-muted-foreground">
             Search by SR no, student name, or receipt number, then continue with that student.
@@ -2204,6 +2198,7 @@ export function PaymentDeskClient({
             <SectionCard
               title={selectedStudentIssue.title}
               description={selectedStudentIssue.detail}
+              className="hidden md:block"
             >
               <div className="flex flex-wrap items-center gap-2">
                 {selectedStudentIssue.repairStudentId && selectedStudentIssue.actionLabel && canPost ? (
@@ -2224,13 +2219,13 @@ export function PaymentDeskClient({
             </SectionCard>
           ) : null}
 
-          <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm text-foreground">
+          <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm text-foreground hidden md:block">
             {data.policyNote}
           </div>
 
 
           {selectedStudent && (creditBalance > 0 || selectedStudent.rowsKeptForReview > 0) ? (
-            <div className="rounded-xl bg-warning-soft px-4 py-3 text-sm text-warning-soft-foreground">
+            <div className="rounded-xl bg-warning-soft px-4 py-3 text-sm text-warning-soft-foreground hidden md:block">
               {creditBalance > 0 ? (
                 <p className="font-semibold">
                   Amount to refund/adjust: {formatInr(refundableAmount || creditBalance)}
@@ -2254,6 +2249,7 @@ export function PaymentDeskClient({
             title="3. Fast Payment"
             description="Selected student, amount, mode, and confirm payment in one place."
             actions={<ValueStatePill tone="locked">Receipt saved after posting</ValueStatePill>}
+            className="hidden md:block"
           >
             {!canPost ? (
               <p className="rounded-lg border border-dashed border-border-strong bg-surface-2 px-4 py-3 text-sm text-muted-foreground">
@@ -2515,44 +2511,7 @@ export function PaymentDeskClient({
                       ))}
                     </select>
                   </div>
-                  {showReferenceField ? (
-                    <div>
-                      <Label htmlFor="payment-reference-number">
-                        Reference number
-                      </Label>
-                      <Input
-                        id="payment-reference-number"
-                        name="referenceNumber"
-                        className="mt-1 h-10"
-                        placeholder="Optional"
-                        ref={refInputRef}
-                        inputMode={referenceInputMode}
-                        enterKeyHint="done"
-                        autoCapitalize="off"
-                        autoCorrect="off"
-                        value={referenceNumber}
-                        onChange={(event) => {
-                          setReferenceNumber(event.target.value);
-                          setFormError(null);
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            if (isMobileView) {
-                              event.currentTarget.blur();
-                              return;
-                            }
-                            openConfirmationDialog();
-                          }
-                        }}
-                      />
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        UPI / bank / cheque ref — optional
-                      </p>
-                    </div>
-                  ) : (
-                    <input type="hidden" name="referenceNumber" value="" />
-                  )}
+                  <input type="hidden" name="referenceNumber" value="" />
                   <div>
                     <Label htmlFor="payment-received-by">Received by</Label>
                     <Input
