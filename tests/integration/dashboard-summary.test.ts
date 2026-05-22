@@ -410,5 +410,13 @@ describe("dashboard summary", () => {
     expect(aboveFoldFunction).toContain("installmentRows");
     expect(aboveFoldFunction).not.toContain("installmentRows: []");
     expect(aboveFoldFunction).not.toContain("overdueInstallments: []");
+    expect(aboveFoldFunction).not.toContain("overdueFallbackAmount");
+    expect(aboveFoldFunction).not.toContain('row.statusLabel === "OVERDUE"');
+  });
+
+  it("dashboard labels make overdue amount distinct from late fee", () => {
+    const dashboardPage = readRepoFile("app/protected/dashboard/page.tsx");
+
+    expect(dashboardPage).toContain("Overdue without late fee");
   });
 });

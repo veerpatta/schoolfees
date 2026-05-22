@@ -235,7 +235,7 @@ function MobileDashboardHero({
             label: "Overdue",
             value: overdueAmount,
             tone: "danger" as const,
-            subtext: "past due date",
+            subtext: "without late fee",
           },
           {
             label: "Receipts",
@@ -323,7 +323,7 @@ function HeroKpis({
             className="text-xl font-semibold tracking-tight md:text-2xl md:text-[28px] md:leading-[34px]"
           />
         }
-        hint={`${followUpCount} student${followUpCount === 1 ? "" : "s"} need follow-up`}
+        hint={`Full session due across ${followUpCount} student${followUpCount === 1 ? "" : "s"}`}
       />
 
       {/* Collection rate - arc gauge */}
@@ -349,7 +349,7 @@ function HeroKpis({
       {/* Overdue amount - destructive-soft tinted card */}
       <div className="snap-start shrink-0 w-[72vw] sm:w-auto rounded-lg border border-destructive/30 bg-destructive-soft px-4 py-3">
         <p className="text-[10px] font-medium uppercase tracking-widest text-destructive/70">
-          Overdue amount
+          Overdue without late fee
         </p>
         <div className="mt-1">
           <CountUp
@@ -523,7 +523,7 @@ function CollectionFunnelBar({
   return (
     <Section
       title="Collection Funnel"
-      description="Where fees stand this academic year"
+      description="Session due is the full pending amount; overdue excludes late fee."
       variant="card"
     >
       <div className="space-y-4">
@@ -570,14 +570,14 @@ function CollectionFunnelBar({
           <div className="flex flex-col gap-0.5">
             <div className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-amber-400" />
-              <span className="font-medium text-foreground">Pending</span>
+              <span className="font-medium text-foreground">Due not overdue</span>
             </div>
-            <Money value={pending} size="sm" tone="warning" className="pl-4" />
+            <Money value={normalPending} size="sm" tone="warning" className="pl-4" />
           </div>
           <div className="flex flex-col gap-0.5">
             <div className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" />
-              <span className="font-medium text-foreground">Overdue</span>
+              <span className="font-medium text-foreground">Overdue without late fee</span>
             </div>
             <Money value={overdue} size="sm" tone="danger" className="pl-4" />
           </div>
@@ -1368,8 +1368,8 @@ function ClassSummaryTable({
             <th className="px-4 py-2.5 font-medium">Students</th>
             <th className="px-4 py-2.5 font-medium">Expected</th>
             <th className="px-4 py-2.5 font-medium">Collected</th>
-            <th className="px-4 py-2.5 font-medium">Pending</th>
-            <th className="px-4 py-2.5 font-medium">Overdue</th>
+            <th className="px-4 py-2.5 font-medium">Session due</th>
+            <th className="px-4 py-2.5 font-medium">Overdue no late fee</th>
             <th className="px-4 py-2.5 font-medium">Collection %</th>
           </tr>
         </thead>

@@ -520,16 +520,6 @@ export async function getDashboardAboveFoldData(options: {
     todayTransactions,
     rawStudentCount: rawStudentCount || activeStudents.length,
   });
-  const overdueFallbackAmount =
-    overdueInstallments.length === 0 && installmentRows.length === 0
-      ? financialRows
-          .filter((row) => row.statusLabel === "OVERDUE")
-          .reduce((sum, row) => sum + row.outstandingAmount, 0)
-      : 0;
-  const kpis =
-    overdueFallbackAmount > summary.kpis.overdueAmount
-      ? { ...summary.kpis, overdueAmount: overdueFallbackAmount }
-      : summary.kpis;
   const totalRefundDue = refundStateRows.reduce(
     (sum, row) => sum + Math.max(Number(row.refundable_amount ?? 0), 0),
     0,
@@ -539,7 +529,7 @@ export async function getDashboardAboveFoldData(options: {
     currentSession: sessionLabel,
     currentInstallment: buildCurrentInstallment(policy, today),
     generatedAt: new Date().toISOString(),
-    kpis,
+    kpis: summary.kpis,
     todayPaymentModeBreakdown: summary.todayPaymentModeBreakdown,
     recentPayments: summary.recentPayments,
     followUpQueue: summary.followUpQueue,
