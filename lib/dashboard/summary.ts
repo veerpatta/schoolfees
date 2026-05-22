@@ -3,6 +3,7 @@ import type {
   WorkbookStudentFinancial,
   WorkbookTransaction,
 } from "@/lib/workbook/data";
+import { calculateInstallmentBasePending, calculateOverdueBaseAmount } from "@/lib/fees/due-amounts";
 
 export type DashboardKpis = {
   totalStudents: number;
@@ -171,10 +172,7 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
     (sum, row) => sum + row.outstandingAmount,
     0,
   );
-  const overdueAmount = input.overdueInstallments.reduce(
-    (sum, row) => sum + row.pendingAmount,
-    0,
-  );
+  const overdueAmount = calculateOverdueBaseAmount(input.overdueInstallments);
   const todaysCollection = input.todayTransactions.reduce(
     (sum, row) => sum + row.totalAmount,
     0,
@@ -198,7 +196,7 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
 
   const overdueByClass = input.overdueInstallments.reduce((acc, row) => {
     const key = `${row.sessionLabel}::${row.classId}`;
-    acc.set(key, (acc.get(key) ?? 0) + row.pendingAmount);
+    acc.set(key, (acc.get(key) ?? 0) + calculateInstallmentBasePending(row));
     return acc;
   }, new Map<string, number>());
 
@@ -312,7 +310,7 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
       existing.expectedAmount += row.totalCharge;
       existing.collectedAmount += getCollectedFromInstallment(row);
       existing.pendingAmount += row.pendingAmount;
-      existing.overdueAmount += row.balanceStatus === "overdue" ? row.pendingAmount : 0;
+      existing.overdueAmount += row.balanceStatus === "overdue" ? calculateInstallmentBasePending(row) : 0;
       acc.set(key, existing);
       return acc;
     },

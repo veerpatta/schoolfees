@@ -3,6 +3,7 @@ import "server-only";
 import { getRecentConfigChangeLog } from "@/lib/fees/change-log";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { getDashboardPageData } from "@/lib/dashboard/data";
+import { calculateInstallmentBasePending } from "@/lib/fees/due-amounts";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkbookInstallmentRows, getWorkbookTransactions } from "@/lib/workbook/data";
 
@@ -147,7 +148,7 @@ export async function getOfficeHomeData(): Promise<OfficeHomeData> {
       admissionNo: row.admissionNo,
       classLabel: row.classLabel,
       dueDate: row.dueDate,
-      outstandingAmount: row.pendingAmount,
+      outstandingAmount: calculateInstallmentBasePending(row),
     })),
     importAnomalies: importRows
       .filter((row) => row.invalid_rows + row.duplicate_rows + row.failed_rows > 0)

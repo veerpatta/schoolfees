@@ -1,9 +1,10 @@
 import "server-only";
 
 import { getFeePolicySummary } from "@/lib/fees/data";
+import { calculateOverdueBaseAmount } from "@/lib/fees/due-amounts";
 import { createClient } from "@/lib/supabase/server";
 import { cacheSafeUnstableCache, getCacheSafeClient } from "@/lib/supabase/cache-safe";
-import { getWorkbookClassOptions, getWorkbookStudentFinancials } from "@/lib/workbook/data";
+import { getWorkbookClassOptions, getWorkbookInstallmentRows, getWorkbookStudentFinancials } from "@/lib/workbook/data";
 import { getStudentFormOptions } from "@/lib/students/data";
 
 import type {
@@ -207,11 +208,17 @@ export async function getDefaultersPageData(
 ): Promise<DefaultersPageData> {
   const policy = await getFeePolicySummary();
   const resolvedSessionLabel = sessionLabel ?? policy.academicSessionLabel;
-  const [{ routeOptions }, classOptions, financialRows, activeStudents] = await Promise.all([
+  const [{ routeOptions }, classOptions, financialRows, overdueInstallmentRows, activeStudents] = await Promise.all([
     getStudentFormOptions({ sessionLabel: resolvedSessionLabel }),
     getWorkbookClassOptions(resolvedSessionLabel),
     getWorkbookStudentFinancials({
       classId: filters.classId || undefined,
+      sessionLabel: resolvedSessionLabel,
+    }),
+    getWorkbookInstallmentRows({
+      classId: filters.classId || undefined,
+      overdueOnly: true,
+      pendingOnly: true,
       sessionLabel: resolvedSessionLabel,
     }),
     getActiveSessionStudents(filters, resolvedSessionLabel),
@@ -220,6 +227,15 @@ export async function getDefaultersPageData(
   const minimumPendingAmount = parseMinimumPendingAmount(filters.minPendingAmount);
   const normalizedSearch = (filters.searchQuery ?? "").trim().toLowerCase();
   const today = toDateKey();
+  const overdueRowsByStudent = new Map<string, typeof overdueInstallmentRows>();
+  overdueInstallmentRows
+    .filter((row) => (filters.transportRouteId ? row.transportRouteId === filters.transportRouteId : true))
+    .forEach((row) => {
+      overdueRowsByStudent.set(row.studentId, [
+        ...(overdueRowsByStudent.get(row.studentId) ?? []),
+        row,
+      ]);
+    });
 
   const rows = financialRows
     .filter((row) =>
@@ -227,7 +243,11 @@ export async function getDefaultersPageData(
     )
     .filter((row) => row.outstandingAmount > 0)
     .filter((row) => row.outstandingAmount >= minimumPendingAmount)
-    .filter((row) => (filters.overdue === "overdue" ? row.statusLabel === "OVERDUE" : true))
+    .filter((row) =>
+      filters.overdue === "overdue"
+        ? calculateOverdueBaseAmount(overdueRowsByStudent.get(row.studentId) ?? []) > 0
+        : true,
+    )
     .filter((row) => {
       if (!normalizedSearch) {
         return true;
@@ -244,7 +264,8 @@ export async function getDefaultersPageData(
     .map(
       (row) => {
         const daysOverdue = calculateDaysOverdue(row.nextDueDate, today);
-        const defaulterScore = row.outstandingAmount + daysOverdue * 100;
+        const overdueAmount = calculateOverdueBaseAmount(overdueRowsByStudent.get(row.studentId) ?? []);
+        const defaulterScore = row.outstandingAmount + overdueAmount + daysOverdue * 100;
 
         return {
           studentId: row.studentId,
@@ -260,6 +281,7 @@ export async function getDefaultersPageData(
           totalDue: row.totalDue,
           totalPaid: row.totalPaid,
           totalPending: row.outstandingAmount,
+          overdueAmount,
           lateFee: row.lateFeeTotal,
           discountApplied: row.discountAmount,
           lateFeeWaived: row.lateFeeWaiverAmount,
@@ -273,7 +295,7 @@ export async function getDefaultersPageData(
           oldestDueDate: row.nextDueDate,
           nextDueDate: row.nextDueDate,
           lastPaymentDate: row.lastPaymentDate,
-          followUpStatus: row.statusLabel === "OVERDUE" ? "overdue" : "pending",
+          followUpStatus: overdueAmount > 0 ? "overdue" : "pending",
           daysOverdue,
           defaulterScore,
           rank: 0,

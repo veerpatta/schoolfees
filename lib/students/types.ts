@@ -50,6 +50,8 @@ export type StudentListItem = {
   totalPaid: number;
   lateFeeTotal: number;
   totalDue: number;
+  overdueAmount: number;
+  pendingLateFeeAmount: number;
   hasFeeProfile: boolean;
   feeProfileStatusLabel: string;
   fatherPhone: string | null;

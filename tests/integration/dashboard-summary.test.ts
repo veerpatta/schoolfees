@@ -277,6 +277,7 @@ describe("dashboard summary", () => {
           installmentId: "installment-2",
           studentId: "student-2",
           classLabel: "Class 2",
+          baseCharge: 2000,
           totalCharge: 2000,
           pendingAmount: 2000,
           balanceStatus: "overdue",
@@ -287,6 +288,7 @@ describe("dashboard summary", () => {
           installmentId: "installment-2",
           studentId: "student-2",
           classLabel: "Class 2",
+          baseCharge: 2000,
           totalCharge: 2000,
           pendingAmount: 2000,
           balanceStatus: "overdue",
@@ -311,6 +313,54 @@ describe("dashboard summary", () => {
     expect(summary.installmentSummary[0]?.pendingAmount).toBe(3000);
     expect(summary.collectionTrend).toHaveLength(2);
     expect(summary.followUpQueue[0]?.studentName).toBe("Second Student");
+  });
+
+  it("counts overdue amount without pending late fee while keeping total pending unchanged", () => {
+    const summary = buildDashboardSummary({
+      financialRows: [
+        student({
+          studentId: "student-1",
+          totalDue: 6000,
+          totalPaid: 0,
+          outstandingAmount: 6000,
+          statusLabel: "OVERDUE",
+        }),
+      ],
+      studentRows: [
+        {
+          studentId: "student-1",
+          classId: "class-1",
+          sessionLabel: "2026-27",
+          classLabel: "Class 1",
+        },
+      ],
+      installmentRows: [
+        installment({
+          totalCharge: 6000,
+          baseCharge: 5000,
+          finalLateFee: 1000,
+          pendingAmount: 6000,
+          balanceStatus: "overdue",
+        }),
+      ],
+      overdueInstallments: [
+        installment({
+          totalCharge: 6000,
+          baseCharge: 5000,
+          finalLateFee: 1000,
+          pendingAmount: 6000,
+          balanceStatus: "overdue",
+        }),
+      ],
+      transactions: [],
+      todayTransactions: [],
+    });
+
+    expect(summary.kpis.totalPending).toBe(6000);
+    expect(summary.kpis.overdueAmount).toBe(5000);
+    expect(summary.classSummary[0]?.overdueAmount).toBe(5000);
+    expect(summary.installmentSummary[0]?.pendingAmount).toBe(6000);
+    expect(summary.installmentSummary[0]?.overdueAmount).toBe(5000);
   });
 
   it("keeps class rows visible even when dues are missing", () => {

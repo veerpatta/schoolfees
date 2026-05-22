@@ -8,6 +8,7 @@ import {
   saveStudentConventionalDiscountAssignments,
 } from "@/lib/fees/conventional-discounts";
 import { getMasterDataOptions } from "@/lib/master-data/data";
+import { calculateOverdueBaseAmount, calculatePendingLateFeeAmount } from "@/lib/fees/due-amounts";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getCacheSafeClient } from "@/lib/supabase/cache-safe";
@@ -151,6 +152,16 @@ type StudentFeeOverrideRow = {
   transport_applies_override: boolean | null;
   reason: string;
   notes: string | null;
+};
+
+type StudentListInstallmentBalanceRow = {
+  student_id: string;
+  base_charge: number;
+  paid_amount: number;
+  adjustment_amount: number;
+  final_late_fee: number;
+  pending_amount: number;
+  balance_status: "paid" | "partial" | "overdue" | "pending" | "waived";
 };
 
 function buildClassLabel(value: {
@@ -792,6 +803,8 @@ async function getStudentsPageUncached(
 
   let financialMap = new Map<string, StudentWorkbookFinancialRow>();
   let overrideMap = new Map<string, StudentFeeOverrideRow>();
+  let overdueAmountMap = new Map<string, number>();
+  let pendingLateFeeMap = new Map<string, number>();
   let conventionalDiscountMap = new Map<string, string[]>();
   let siblingPillMap = new Map<string, StudentSiblingPill>();
 
@@ -800,6 +813,7 @@ async function getStudentsPageUncached(
     const [
       { data: financialsRaw, error: financialsError },
       { data: overridesRaw, error: overridesError },
+      { data: installmentBalancesRaw, error: installmentBalancesError },
       conventionalAssignments,
       loadedSiblingPills,
     ] = await Promise.all([
@@ -816,6 +830,11 @@ async function getStudentsPageUncached(
         )
         .eq("is_active", true)
         .in("student_id", studentIds),
+      supabase
+        .from("v_workbook_installment_balances")
+        .select("student_id, base_charge, paid_amount, adjustment_amount, final_late_fee, pending_amount, balance_status")
+        .in("student_id", studentIds)
+        .gt("pending_amount", 0),
       getStudentConventionalDiscountAssignments({
         academicSessionLabel: listSessionLabel,
         studentIds,
@@ -853,8 +872,54 @@ async function getStudentsPageUncached(
       }
     }
 
+    if (installmentBalancesError) {
+      if (isRecoverableWorkbookLoadError(installmentBalancesError)) {
+        console.warn(
+          "Student list installment balances could not be loaded; falling back to annual pending only.",
+          installmentBalancesError.message,
+        );
+      } else {
+        throw new Error(
+          `Unable to load student installment balance fields: ${installmentBalancesError.message}`,
+        );
+      }
+    }
+
     financialMap = new Map(
       ((financialsRaw ?? []) as StudentWorkbookFinancialRow[]).map((row) => [row.student_id, row]),
+    );
+    const installmentRowsByStudent = new Map<string, StudentListInstallmentBalanceRow[]>();
+    ((installmentBalancesRaw ?? []) as StudentListInstallmentBalanceRow[]).forEach((row) => {
+      installmentRowsByStudent.set(row.student_id, [
+        ...(installmentRowsByStudent.get(row.student_id) ?? []),
+        row,
+      ]);
+    });
+    overdueAmountMap = new Map(
+      [...installmentRowsByStudent.entries()].map(([studentId, rows]) => [
+        studentId,
+        calculateOverdueBaseAmount(
+          rows.map((row) => ({
+            baseCharge: row.base_charge,
+            paidAmount: row.paid_amount,
+            adjustmentAmount: row.adjustment_amount,
+            finalLateFee: row.final_late_fee,
+            pendingAmount: row.pending_amount,
+            balanceStatus: row.balance_status,
+          })),
+        ),
+      ]),
+    );
+    pendingLateFeeMap = new Map(
+      [...installmentRowsByStudent.entries()].map(([studentId, rows]) => [
+        studentId,
+        calculatePendingLateFeeAmount(
+          rows.map((row) => ({
+            finalLateFee: row.final_late_fee,
+            pendingAmount: row.pending_amount,
+          })),
+        ),
+      ]),
     );
     overrideMap = new Map(
       ((overridesRaw ?? []) as Array<StudentFeeOverrideRow & { student_id: string }>).map((row) => [
@@ -936,6 +1001,8 @@ async function getStudentsPageUncached(
       totalPaid: financial?.total_paid ?? 0,
       lateFeeTotal: financial?.late_fee_total ?? 0,
       totalDue: financial?.total_due ?? 0,
+      overdueAmount: overdueAmountMap.get(row.id) ?? 0,
+      pendingLateFeeAmount: pendingLateFeeMap.get(row.id) ?? 0,
       fatherPhone: row.primary_phone,
       motherPhone: row.secondary_phone,
       nextDueLabel: financial?.next_due_label ?? null,

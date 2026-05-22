@@ -65,7 +65,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
         "Class": row.classLabel,
         "Route": row.transportRouteLabel,
         "Phone": row.fatherPhone ?? "",
-        "Outstanding": row.outstandingAmount,
+        "Session due": row.outstandingAmount,
+        "Overdue without late fee": row.overdueAmount,
+        "Late fee": row.pendingLateFeeAmount,
         "Conventional discounts": row.conventionalDiscountLabels.join(", "),
       })),
     );
@@ -102,7 +104,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
           "Policies": (assignmentMap.get(student.id) ?? [])
             .map((assignment) => assignment.policy.displayName)
             .join(", "),
-          "Outstanding": student.outstandingAmount,
+          "Session due": student.outstandingAmount,
+          "Overdue without late fee": student.overdueAmount,
+          "Late fee": student.pendingLateFeeAmount,
         })),
     );
   }

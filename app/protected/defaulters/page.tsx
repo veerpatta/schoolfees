@@ -187,7 +187,7 @@ export default async function DefaultersPage({
             {data.metrics.overdueInstallments}
           </div>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Installments already past due date and still unpaid.
+            Installments already past due date and still unpaid. Amounts below show late fee separately.
           </p>
         </div>
 
@@ -316,6 +316,16 @@ export default async function DefaultersPage({
                       </div>
                       <div className="text-right shrink-0">
                         <Money value={row.totalPending} size="lg" tone="warning" />
+                        {row.overdueAmount > 0 ? (
+                          <p className="text-[11px] font-medium text-destructive">
+                            Overdue {formatInr(row.overdueAmount)}
+                          </p>
+                        ) : null}
+                        {row.lateFee > 0 ? (
+                          <p className="text-[11px] text-muted-foreground">
+                            Late fee {formatInr(row.lateFee)}
+                          </p>
+                        ) : null}
                         <div className="mt-1">
                           <StatusBadge label={row.followUpStatus === "overdue" ? "OVERDUE" : row.followUpStatus} tone="warning" />
                         </div>
@@ -367,6 +377,8 @@ export default async function DefaultersPage({
                 <th className="px-4 py-3">Father</th>
                 <th className="px-4 py-3">Phone</th>
                 <th className="px-4 py-3">Pending</th>
+                <th className="px-4 py-3">Overdue</th>
+                <th className="px-4 py-3">Late fee</th>
                 <th className="px-4 py-3">Oldest due</th>
                 <th className="px-4 py-3">Days overdue</th>
                 <th className="px-4 py-3">Last payment</th>
@@ -376,7 +388,7 @@ export default async function DefaultersPage({
             <tbody>
               {data.rows.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-6 text-center text-muted-foreground">
+                  <td colSpan={12} className="px-4 py-6 text-center text-muted-foreground">
                     No defaulters found for the selected filters.
                   </td>
                 </tr>
@@ -396,6 +408,12 @@ export default async function DefaultersPage({
                     <td className="px-4 py-3">{row.fatherPhone ?? "-"}</td>
                     <td className="px-4 py-3 font-medium text-foreground">
                       {formatInr(row.totalPending)}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-destructive">
+                      {row.overdueAmount > 0 ? formatInr(row.overdueAmount) : "-"}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {row.lateFee > 0 ? formatInr(row.lateFee) : "-"}
                     </td>
                     <td className="px-4 py-3">
                       {row.oldestDueDate ? formatShortDate(row.oldestDueDate) : "-"}

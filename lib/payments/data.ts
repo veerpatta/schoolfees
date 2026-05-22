@@ -6,6 +6,7 @@ import { getFeePolicyForSession, getFeePolicySummary } from "@/lib/fees/data";
 import { createClient } from "@/lib/supabase/server";
 import { cacheSafeUnstableCache, getCacheSafeClient } from "@/lib/supabase/cache-safe";
 import { getStudentDetail } from "@/lib/students/data";
+import { calculateOverdueBaseAmount } from "@/lib/fees/due-amounts";
 import {
   prepareDuesForStudentsAutomatically,
 } from "@/lib/system-sync/finance-sync";
@@ -596,9 +597,7 @@ function summarizeStudent(
     overpaidAmount: financialState?.overpaid_amount ?? 0,
     refundableAmount: financialState?.refundable_amount ?? 0,
     rowsKeptForReview: financialState?.rows_kept_for_review ?? 0,
-    overdueAmount: breakdown
-      .filter((item) => item.balanceStatus === "overdue")
-      .reduce((sum, item) => sum + item.outstandingAmount, 0),
+    overdueAmount: calculateOverdueBaseAmount(breakdown),
     nextDueInstallmentLabel: financial.nextDueLabel,
     nextDueDate: financial.nextDueDate,
     nextDueAmount: financial.nextDueAmount,

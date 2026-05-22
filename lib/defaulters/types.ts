@@ -25,6 +25,7 @@ export type DefaulterSummaryRow = {
   totalDue: number;
   totalPaid: number;
   totalPending: number;
+  overdueAmount: number;
   lateFee: number;
   discountApplied: number;
   lateFeeWaived: number;

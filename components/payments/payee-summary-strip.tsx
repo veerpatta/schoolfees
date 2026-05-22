@@ -99,7 +99,7 @@ export function PayeeSummaryStrip({
         {hasRiskPills ? (
           <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
             {student.overdueAmount > 0 ? (
-              <StatusBadge label={`Overdue ${formatInr(student.overdueAmount)}`} tone="warning" />
+              <StatusBadge label={`Overdue ${formatInr(student.overdueAmount)} without late fee`} tone="warning" />
             ) : null}
             {student.creditBalance > 0 ? (
               <StatusBadge label={`Credit ${formatInr(student.creditBalance)}`} tone="info" />

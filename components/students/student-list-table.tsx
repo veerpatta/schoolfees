@@ -34,10 +34,14 @@ function DuesChip({ student }: { student: StudentListItem }) {
     );
   }
 
-  if (student.statusLabel === "OVERDUE") {
+  if (student.overdueAmount > 0) {
     return (
-      <span className="inline-flex items-center rounded-full bg-destructive-soft px-2.5 py-0.5 text-xs font-semibold text-destructive-soft-foreground">
-        {formatInr(student.outstandingAmount)} overdue
+      <span className="inline-flex flex-col items-end gap-0.5 rounded-lg bg-destructive-soft px-2.5 py-1 text-xs font-semibold text-destructive-soft-foreground">
+        <span>{formatInr(student.outstandingAmount)} due</span>
+        <span>{formatInr(student.overdueAmount)} overdue</span>
+        {student.pendingLateFeeAmount > 0 ? (
+          <span className="font-medium">Late fee {formatInr(student.pendingLateFeeAmount)}</span>
+        ) : null}
       </span>
     );
   }
@@ -117,7 +121,12 @@ function MobileStudentListItem({
       {student.outstandingAmount > 0 ? (
         <div className="shrink-0 text-right">
           <Money value={student.outstandingAmount} size="sm" tone="warning" />
-          <p className="text-[10px] text-muted-foreground">pending</p>
+          <p className="text-[10px] text-muted-foreground">session due</p>
+          {student.overdueAmount > 0 ? (
+            <p className="text-[10px] font-medium text-destructive">
+              {formatInr(student.overdueAmount)} overdue
+            </p>
+          ) : null}
         </div>
       ) : (
         <div className="shrink-0 text-right">

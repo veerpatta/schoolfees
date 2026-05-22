@@ -14,6 +14,8 @@ import { Money } from "@/components/ui/money";
 import { Notice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
 import { buildFeeBreakupDisplayRows } from "@/lib/fees/display-breakdown";
+import { calculateInstallmentBasePending, calculateOverdueBaseAmount } from "@/lib/fees/due-amounts";
+import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { getStudentDeletionSafety, getStudentFamilyMembersDetail } from "@/lib/students/data";
 import { getStudentWorkspaceData } from "@/lib/students/workspace";
@@ -91,6 +93,11 @@ export default async function StudentDetailPage({
   const canViewLedger = hasStaffPermission(staff, "ledger:view");
   const canShowDangerZone = staff.appRole === "admin" && canEditStudent && deletionSafety;
   const outstandingAmount = installmentBalances.reduce((sum, row) => sum + row.pendingAmount, 0);
+  const overdueAmount = calculateOverdueBaseAmount(installmentBalances);
+  const pendingLateFeeAmount = installmentBalances.reduce(
+    (sum, row) => sum + Math.min(row.finalLateFee, row.pendingAmount),
+    0,
+  );
   const todayIso = getSchoolDateStamp();
   const feeBreakupRows = financialSnapshot
     ? buildFeeBreakupDisplayRows(financialSnapshot.resolvedBreakdown)
@@ -255,7 +262,10 @@ export default async function StudentDetailPage({
   };
 
   const duesContent = (
-    <Section title="Dues" description="Current dues position for the student.">
+    <Section
+      title="Dues"
+      description={`Session due is the full-year pending amount. Overdue is ${formatInr(overdueAmount)} without late fee${pendingLateFeeAmount > 0 ? `; pending late fee is ${formatInr(pendingLateFeeAmount)}.` : "."}`}
+    >
       {installmentBalances.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border bg-surface-2/40 px-4 py-8 text-center">
           <p className="font-semibold text-foreground">No dues prepared</p>
@@ -288,7 +298,14 @@ export default async function StudentDetailPage({
                   <td className="px-4 py-3 text-right font-mono tabular-nums text-success-soft-foreground"><Money value={item.paidAmount} size="sm" /></td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground"><Money value={item.adjustmentAmount} size="sm" /></td>
                   <td className="px-4 py-3 text-right font-semibold text-foreground font-mono tabular-nums"><Money value={item.pendingAmount} size="sm" /></td>
-                  <td className="px-4 py-3">{getInstallmentStatusPill(item.balanceStatus)}</td>
+                  <td className="px-4 py-3">
+                    {getInstallmentStatusPill(item.balanceStatus)}
+                    {item.balanceStatus === "overdue" ? (
+                      <div className="mt-1 text-[11px] font-medium text-destructive">
+                        <Money value={calculateInstallmentBasePending(item)} size="sm" /> without late fee
+                      </div>
+                    ) : null}
+                  </td>
                 </tr>
               ))}
             </tbody>

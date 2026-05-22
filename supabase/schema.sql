@@ -3770,8 +3770,8 @@ select
   case
     when coalesce(summary.total_due, greatest(profile.gross_base_before_discount - profile.discount_amount, 0)) <= 0 then ''
     when coalesce(summary.outstanding_amount, greatest(profile.gross_base_before_discount - profile.discount_amount, 0)) <= 0 then 'PAID'
-    when coalesce(summary.total_paid, 0) <= 0 then 'NOT STARTED'
     when next_due.next_due_date is not null and current_date > next_due.next_due_date then 'OVERDUE'
+    when coalesce(summary.total_paid, 0) <= 0 then 'NOT STARTED'
     else 'PARTLY PAID'
   end as status_label,
   profile.override_reason
@@ -4944,8 +4944,8 @@ select
   case
     when coalesce(summary.total_due, greatest(profile.gross_base_before_discount - profile.discount_amount, 0)) <= 0 then ''
     when coalesce(summary.outstanding_amount, greatest(profile.gross_base_before_discount - profile.discount_amount, 0)) <= 0 then 'PAID'
-    when coalesce(summary.total_paid, 0) <= 0 then 'NOT STARTED'
     when next_due.next_due_date is not null and current_date > next_due.next_due_date then 'OVERDUE'
+    when coalesce(summary.total_paid, 0) <= 0 then 'NOT STARTED'
     else 'PARTLY PAID'
   end as status_label,
   case when nullif(trim(profile.admission_no), '') is not null and profile.admission_no_count > 1 then true else false end as duplicate_sr_flag,

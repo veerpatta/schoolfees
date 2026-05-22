@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getStudentFormOptions } from "@/lib/students/data";
 import { formatPaymentModeLabel } from "@/lib/config/fee-rules";
 import { getFeePolicySummary } from "@/lib/fees/data";
+import { calculateInstallmentBasePending } from "@/lib/fees/due-amounts";
 
 import type {
   AdjustmentType,
@@ -108,6 +109,8 @@ type WorkbookInstallmentBalanceReportRow = {
   installment_no: number;
   installment_label: string;
   due_date: string;
+  base_charge: number;
+  final_late_fee: number;
   total_charge: number;
   paid_amount: number;
   adjustment_amount: number;
@@ -624,10 +627,12 @@ async function getActiveSessionBaseReportStudents(filters: ReportFilters) {
         installmentLabel: "Dues not prepared",
         dueDate: "",
         amountDue: 0,
+        lateFeeAmount: 0,
         paymentsTotal: 0,
         adjustmentsTotal: 0,
         collectedAmount: 0,
         outstandingAmount: 0,
+        overdueAmount: 0,
         balanceStatus: "missing_dues" as const,
       } satisfies OutstandingReportRow,
     ];
@@ -642,7 +647,7 @@ async function getOutstandingReportData(
   const { data, error } = await supabase
     .from("v_workbook_installment_balances")
     .select(
-      "installment_id, student_id, transport_route_id, transport_route_name, transport_route_code, admission_no, student_name, session_label, class_id, class_name, class_label, section, stream_name, installment_no, installment_label, due_date, total_charge, paid_amount, adjustment_amount, applied_amount, pending_amount, balance_status",
+      "installment_id, student_id, transport_route_id, transport_route_name, transport_route_code, admission_no, student_name, session_label, class_id, class_name, class_label, section, stream_name, installment_no, installment_label, due_date, base_charge, final_late_fee, total_charge, paid_amount, adjustment_amount, applied_amount, pending_amount, balance_status",
     )
     .gt("pending_amount", 0)
     .in("balance_status", ["partial", "overdue", "pending"]);
@@ -673,6 +678,18 @@ async function getOutstandingReportData(
           stream_name: row.stream_name || null,
         });
 
+      const overdueAmount =
+        row.balance_status === "overdue"
+          ? calculateInstallmentBasePending({
+              baseCharge: row.base_charge,
+              paidAmount: row.paid_amount,
+              adjustmentAmount: row.adjustment_amount,
+              pendingAmount: row.pending_amount,
+              finalLateFee: row.final_late_fee,
+              balanceStatus: row.balance_status,
+            })
+          : 0;
+
       return [
         {
           studentId: row.student_id,
@@ -692,10 +709,12 @@ async function getOutstandingReportData(
           installmentLabel: row.installment_label,
           dueDate: row.due_date,
           amountDue: row.total_charge,
+          lateFeeAmount: row.final_late_fee,
           paymentsTotal: row.paid_amount,
           adjustmentsTotal: row.adjustment_amount,
           collectedAmount: row.applied_amount,
           outstandingAmount: row.pending_amount,
+          overdueAmount,
           balanceStatus: row.balance_status,
         } satisfies OutstandingReportRow,
       ];
@@ -1432,10 +1451,12 @@ export async function getReportCsvData(
           "Installment",
           "Due date",
           "Amount due",
+          "Late fee",
           "Payments total",
           "Adjustments total",
           "Collected total",
           "Outstanding amount",
+          "Overdue without late fee",
           "Status",
         ],
         rows: data.report.rows.map((row) => [
@@ -1448,10 +1469,12 @@ export async function getReportCsvData(
           row.installmentLabel,
           row.dueDate,
           row.amountDue,
+          row.lateFeeAmount,
           row.paymentsTotal,
           row.adjustmentsTotal,
           row.collectedAmount,
           row.outstandingAmount,
+          row.overdueAmount,
           row.balanceStatus,
         ]),
       };

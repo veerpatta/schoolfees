@@ -136,10 +136,12 @@ export type OutstandingReportRow = {
   installmentLabel: string;
   dueDate: string;
   amountDue: number;
+  lateFeeAmount: number;
   paymentsTotal: number;
   adjustmentsTotal: number;
   collectedAmount: number;
   outstandingAmount: number;
+  overdueAmount: number;
   balanceStatus: "partial" | "overdue" | "pending" | "missing_dues";
 };
 

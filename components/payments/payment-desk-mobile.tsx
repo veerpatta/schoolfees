@@ -29,6 +29,11 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { useScrollIntoView } from "@/hooks/use-scroll-into-view";
 import { buildPaymentAllocation, buildReceiptPreviewAllocation } from "@/lib/payments/allocation";
 import { buildPaymentQuickAmounts } from "@/lib/payments/workflow";
+import {
+  calculateInstallmentBasePending,
+  calculateOverdueBaseAmount,
+  calculatePendingLateFeeAmount,
+} from "@/lib/fees/due-amounts";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import {
   buildPaymentConfirmationSummary,
@@ -363,18 +368,13 @@ export function PaymentDeskClient({
     (sum, item) => sum + item.outstandingAmount,
     0,
   );
-  const previewOverdueAmount = previewBreakdown
-    .filter((item) => item.balanceStatus === "overdue")
-    .reduce((sum, item) => sum + item.outstandingAmount, 0);
+  const previewOverdueAmount = calculateOverdueBaseAmount(previewBreakdown);
   const previewNextDue =
     previewBreakdown.find((item) => item.outstandingAmount > 0) ?? null;
   const paymentAmount = Number(paymentAmountInput) || 0;
   const clientPreviewAmount = paymentAmount > 0 ? paymentAmount : null;
   const quickDiscountAmount = Number(quickDiscountInput) || 0;
-  const pendingLateFeeAmount = previewBreakdown.reduce(
-    (sum, item) => sum + Math.min(item.finalLateFee, item.outstandingAmount),
-    0,
-  );
+  const pendingLateFeeAmount = calculatePendingLateFeeAmount(previewBreakdown);
   const quickLateFeeWaiverAmount = waiveFullLateFee ? pendingLateFeeAmount : 0;
   const quickLateFeeWaiverInput = quickLateFeeWaiverAmount > 0 ? String(quickLateFeeWaiverAmount) : "";
   const creditBalance = selectedStudent?.creditBalance ?? 0;
@@ -3181,7 +3181,7 @@ export function PaymentDeskClient({
                 <MetricCard
                   title="Overdue"
                   value={formatInr(previewOverdueAmount)}
-                  hint="Due installments past their date"
+                  hint="Past-due installment balance, late fee separate"
                 />
                 <MetricCard
                   title="Next due installment"
@@ -3237,6 +3237,11 @@ export function PaymentDeskClient({
                     <span>Adj: {formatInr(item.adjustmentsTotal)}</span>
                   </div>
                   <p className="mt-2 text-sm font-semibold text-foreground">Outstanding: {formatInr(item.outstandingAmount)}</p>
+                  {item.balanceStatus === "overdue" ? (
+                    <p className="mt-1 text-xs font-medium text-destructive">
+                      Overdue without late fee: {formatInr(calculateInstallmentBasePending(item))}
+                    </p>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -3265,6 +3270,11 @@ export function PaymentDeskClient({
                       <td className="px-4 py-3">{formatInr(item.adjustmentsTotal)}</td>
                       <td className="px-4 py-3 font-medium text-foreground">
                         {formatInr(item.outstandingAmount)}
+                        {item.balanceStatus === "overdue" ? (
+                          <div className="text-[11px] font-normal text-destructive">
+                            Overdue without late fee: {formatInr(calculateInstallmentBasePending(item))}
+                          </div>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3 capitalize">
                         <ValueStatePill

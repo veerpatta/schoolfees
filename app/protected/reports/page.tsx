@@ -708,16 +708,18 @@ function ReportTables({ report }: { report: ReportData }) {
                   <th className="px-4 py-3">Installment</th>
                   <th className="px-4 py-3">Due date</th>
                   <th className="px-4 py-3">Amount due</th>
+                  <th className="px-4 py-3">Late fee</th>
                   <th className="px-4 py-3">Payments</th>
                   <th className="px-4 py-3">Adjustments</th>
                   <th className="px-4 py-3">Outstanding</th>
+                  <th className="px-4 py-3">Overdue</th>
                   <th className="px-4 py-3">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {report.rows.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="px-4 py-6 text-center text-muted-foreground">
+                    <td colSpan={14} className="px-4 py-6 text-center text-muted-foreground">
                       No outstanding rows found for the selected filters.
                     </td>
                   </tr>
@@ -734,10 +736,14 @@ function ReportTables({ report }: { report: ReportData }) {
                       </td>
                       <td className="px-4 py-3">{formatShortDate(row.dueDate)}</td>
                       <td className="px-4 py-3">{formatInr(row.amountDue)}</td>
+                      <td className="px-4 py-3">{formatInr(row.lateFeeAmount)}</td>
                       <td className="px-4 py-3">{formatInr(row.paymentsTotal)}</td>
                       <td className="px-4 py-3">{formatInr(row.adjustmentsTotal)}</td>
                       <td className="px-4 py-3 font-medium text-foreground">
                         {formatInr(row.outstandingAmount)}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-destructive">
+                        {row.overdueAmount > 0 ? formatInr(row.overdueAmount) : "-"}
                       </td>
                       <td className="px-4 py-3 capitalize">{row.balanceStatus}</td>
                     </tr>
