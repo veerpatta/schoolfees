@@ -1,11 +1,11 @@
 import "server-only";
 
 import { cache } from "react";
-import { unstable_cache } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMasterDataOptions } from "@/lib/master-data/data";
 import { createClient } from "@/lib/supabase/server";
+import { cacheSafeUnstableCache, getCacheSafeClient } from "@/lib/supabase/cache-safe";
 import { getOptionalEnvVar, hasRequiredEnvVars } from "@/lib/env";
 import { getActiveSessionLabel } from "@/lib/session/active";
 import { setActiveSessionLabel } from "@/lib/session/set-active";
@@ -420,7 +420,7 @@ async function getReadClient(useAdmin = false): Promise<ReadClient | null> {
     return createAdminClient();
   }
 
-  return createClient();
+  return getCacheSafeClient();
 }
 
 function snapshotToSummary(snapshot: FeePolicySnapshot): FeePolicySummary {
@@ -693,7 +693,7 @@ function buildResolvedBreakdown(payload: {
   };
 }
 
-const getFeePolicySummaryCached = unstable_cache(
+const getFeePolicySummaryCached = cacheSafeUnstableCache(
   async () => loadGlobalPolicy(false),
   ["fee-policy-summary"],
   { tags: ["fee-policy"], revalidate: 300 },
@@ -1790,7 +1790,7 @@ async function getStudentFeeSetupData(payload: {
 async function getStudentFinancialSnapshotUncached(
   studentId: string,
 ): Promise<StudentFinancialSnapshot | null> {
-  const supabase = await createClient();
+  const supabase = await getCacheSafeClient();
   const { data: studentRaw, error: studentError } = await supabase
     .from("students")
     .select(
@@ -1954,7 +1954,7 @@ async function getStudentFinancialSnapshotUncached(
 export async function getStudentFinancialSnapshot(
   studentId: string,
 ): Promise<StudentFinancialSnapshot | null> {
-  return unstable_cache(
+  return cacheSafeUnstableCache(
     async () => getStudentFinancialSnapshotUncached(studentId),
     ["student-financial-snapshot", studentId],
     { tags: [`student:${studentId}`] },

@@ -1,9 +1,9 @@
 import "server-only";
 
-import { createClient } from "@/lib/supabase/server";
+import { getCacheSafeClient } from "@/lib/supabase/cache-safe";
 
 export async function getActiveSessionLabel(): Promise<string> {
-  const supabase = await createClient();
+  const supabase = await getCacheSafeClient();
   const { data } = await supabase
     .from("app_settings")
     .select("value")

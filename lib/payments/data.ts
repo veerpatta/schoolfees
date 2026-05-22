@@ -1,10 +1,10 @@
 import "server-only";
 
-import { unstable_cache } from "next/cache";
 
 import type { PaymentMode } from "@/lib/db/types";
 import { getFeePolicyForSession, getFeePolicySummary } from "@/lib/fees/data";
 import { createClient } from "@/lib/supabase/server";
+import { cacheSafeUnstableCache, getCacheSafeClient } from "@/lib/supabase/cache-safe";
 import { getStudentDetail } from "@/lib/students/data";
 import {
   prepareDuesForStudentsAutomatically,
@@ -287,8 +287,9 @@ export function toFriendlyPaymentPostingError(error: unknown) {
     return "Payment posting needs a database update. Ask an admin to open Admin Tools > System checks.";
   }
 
-  return "Unable to save payment right now. Please check the student, dues, amount, and payment mode.";
+  return `Unable to save payment right now. Please check the student, dues, amount, and payment mode. (Raw error: ${rawMessage})`;
 }
+
 
 export function getPaymentPostingDiagnostic(error: unknown) {
   if (
@@ -379,7 +380,7 @@ async function getPaymentDeskReadinessUncached(payload: {
   const [policy, hasActiveClass] = await Promise.all([
     getFeePolicyForSession(payload.sessionLabel),
     (async () => {
-      const supabase = await createClient();
+      const supabase = await getCacheSafeClient();
       const { data, error } = await supabase
         .from("classes")
         .select("id")
@@ -441,7 +442,7 @@ export async function getPaymentDeskReadiness(payload: {
   canWritePayments: boolean;
 }): Promise<PaymentDeskReadiness> {
   try {
-    return await unstable_cache(
+    return await cacheSafeUnstableCache(
       async () => getPaymentDeskReadinessUncached(payload),
       [
         "payment-desk-readiness",
@@ -490,7 +491,7 @@ async function getPaymentDeskStudentIndexUncached(payload: {
 } = {}) {
   const policy = await getFeePolicySummary();
   const sessionLabel = payload.sessionLabel ?? policy.academicSessionLabel;
-  const supabase = await createClient();
+  const supabase = await getCacheSafeClient();
   let query = supabase
     .from("students")
     .select(
@@ -523,7 +524,7 @@ export async function getPaymentDeskStudentIndex(payload: {
 } = {}) {
   const sessionLabel = payload.sessionLabel ?? (await getFeePolicySummary()).academicSessionLabel;
 
-  return unstable_cache(
+  return cacheSafeUnstableCache(
     async () => getPaymentDeskStudentIndexUncached({ ...payload, sessionLabel }),
     [
       "payment-desk-student-index",
@@ -538,7 +539,7 @@ export async function getPaymentDeskStudentIndex(payload: {
 async function getPaymentDeskClassOptionsUncached(sessionLabel?: string) {
   const policy = await getFeePolicySummary();
   const resolvedSessionLabel = sessionLabel ?? policy.academicSessionLabel;
-  const supabase = await createClient();
+  const supabase = await getCacheSafeClient();
   const { data, error } = await supabase
     .from("classes")
     .select("id, class_name, section, stream_name")
@@ -560,7 +561,7 @@ async function getPaymentDeskClassOptionsUncached(sessionLabel?: string) {
 export async function getPaymentDeskClassOptions(sessionLabel?: string) {
   const resolvedSessionLabel = sessionLabel ?? (await getFeePolicySummary()).academicSessionLabel;
 
-  return unstable_cache(
+  return cacheSafeUnstableCache(
     async () => getPaymentDeskClassOptionsUncached(resolvedSessionLabel),
     ["payment-desk-class-options", resolvedSessionLabel],
     { tags: [`session:${resolvedSessionLabel}`] },
@@ -670,7 +671,7 @@ function mapPaymentDeskReceipt(row: PaymentDeskReceiptRow) {
 async function getRecentPaymentDeskReceipts(limit = 6, sessionLabel?: string) {
   const resolvedSessionLabel = sessionLabel ?? (await getFeePolicySummary()).academicSessionLabel;
 
-  return unstable_cache(
+  return cacheSafeUnstableCache(
     async () => getRecentPaymentDeskReceiptsUncached(limit, resolvedSessionLabel),
     ["payment-desk-recent-receipts", resolvedSessionLabel, String(limit)],
     { tags: [`session:${resolvedSessionLabel}`] },
@@ -678,7 +679,7 @@ async function getRecentPaymentDeskReceipts(limit = 6, sessionLabel?: string) {
 }
 
 async function getRecentPaymentDeskReceiptsUncached(limit = 6, sessionLabel: string) {
-  const supabase = await createClient();
+  const supabase = await getCacheSafeClient();
   const { data, error } = await supabase
     .from("receipts")
     .select(
@@ -698,7 +699,7 @@ async function getRecentPaymentDeskReceiptsUncached(limit = 6, sessionLabel: str
 async function getTodayPaymentDeskCollection(sessionLabel?: string) {
   const resolvedSessionLabel = sessionLabel ?? (await getFeePolicySummary()).academicSessionLabel;
 
-  return unstable_cache(
+  return cacheSafeUnstableCache(
     async () => getTodayPaymentDeskCollectionUncached(resolvedSessionLabel),
     ["payment-desk-today-collection", resolvedSessionLabel, new Date().toISOString().slice(0, 10)],
     { tags: [`session:${resolvedSessionLabel}`] },
@@ -706,7 +707,7 @@ async function getTodayPaymentDeskCollection(sessionLabel?: string) {
 }
 
 async function getTodayPaymentDeskCollectionUncached(sessionLabel: string) {
-  const supabase = await createClient();
+  const supabase = await getCacheSafeClient();
   const today = new Date().toISOString().slice(0, 10);
   const { data, error } = await supabase
     .from("receipts")

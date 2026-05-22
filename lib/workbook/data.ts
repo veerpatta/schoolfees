@@ -169,6 +169,9 @@ export type WorkbookStudentFinancial = {
   inst4Pending: number;
   statusLabel: "" | "PAID" | "NOT STARTED" | "OVERDUE" | "PARTLY PAID";
   overrideReason: string | null;
+  paidInstallmentCount: number;
+  partlyPaidInstallmentCount: number;
+  overdueInstallmentCount: number;
 };
 
 export type WorkbookInstallmentBalance = {
@@ -339,6 +342,9 @@ function mapFinancialRow(row: WorkbookStudentFinancialRow): WorkbookStudentFinan
     inst4Pending: row.inst4_pending,
     statusLabel: row.status_label,
     overrideReason: row.override_reason,
+    paidInstallmentCount: row.paid_installment_count,
+    partlyPaidInstallmentCount: row.partly_paid_installment_count,
+    overdueInstallmentCount: row.overdue_installment_count,
   };
 }
 

@@ -1,10 +1,9 @@
 import "server-only";
 
-import { unstable_cache } from "next/cache";
-
 import { hasAnyRolePermission, type StaffRole } from "@/lib/auth/roles";
 import { getFeePolicySummary } from "@/lib/fees/data";
-import { createClient } from "@/lib/supabase/server";
+import { cacheSafeUnstableCache, getCacheSafeClient } from "@/lib/supabase/cache-safe";
+// unstable_cache
 import {
   getRawActiveSessionStudentCount,
   getRawClassStudentSummary,
@@ -133,7 +132,7 @@ function toSingleRecord<T>(value: T | T[] | null) {
 }
 
 function loadDashboardFinancialRows(sessionLabel: string) {
-  return unstable_cache(
+  return cacheSafeUnstableCache(
     async () => getWorkbookStudentFinancials({ sessionLabel, activeOnly: true }),
     ["dashboard-financials-active", sessionLabel],
     { tags: [sessionTag(sessionLabel)] },
@@ -141,7 +140,7 @@ function loadDashboardFinancialRows(sessionLabel: string) {
 }
 
 async function getDashboardSyncHealth(sessionLabel: string): Promise<DashboardSyncHealth> {
-  const supabase = await createClient();
+  const supabase = await getCacheSafeClient();
   const normalizedSession = sessionLabel.trim();
 
   if (!normalizedSession) {
@@ -247,7 +246,7 @@ function loadDashboardTransactions(payload: {
   limit?: number;
   todayOnly?: boolean;
 }) {
-  return unstable_cache(
+  return cacheSafeUnstableCache(
     async () =>
       getWorkbookTransactions({
         limit: payload.limit,
@@ -265,7 +264,7 @@ function loadDashboardTransactions(payload: {
 }
 
 function loadDashboardInstallmentRows(sessionLabel: string) {
-  return unstable_cache(
+  return cacheSafeUnstableCache(
     async () => getWorkbookInstallmentRows({ sessionLabel }),
     ["dashboard-installments", sessionLabel],
     { tags: [sessionTag(sessionLabel)] },
@@ -273,7 +272,7 @@ function loadDashboardInstallmentRows(sessionLabel: string) {
 }
 
 function loadDashboardSyncHealth(sessionLabel: string) {
-  return unstable_cache(
+  return cacheSafeUnstableCache(
     async () => getDashboardSyncHealth(sessionLabel),
     ["dashboard-sync-health", sessionLabel],
     {
@@ -284,9 +283,9 @@ function loadDashboardSyncHealth(sessionLabel: string) {
 }
 
 function loadDashboardRefundState() {
-  return unstable_cache(
+  return cacheSafeUnstableCache(
     async () => {
-      const supabase = await createClient();
+      const supabase = await getCacheSafeClient();
       const { data, error } = await supabase
         .from("v_student_financial_state")
         .select("refundable_amount")
@@ -306,7 +305,7 @@ function loadDashboardRefundState() {
 }
 
 function loadRawActiveSessionStudentCount(sessionLabel: string) {
-  return unstable_cache(
+  return cacheSafeUnstableCache(
     async () => getRawActiveSessionStudentCount(sessionLabel),
     ["dashboard-raw-student-count", sessionLabel],
     {

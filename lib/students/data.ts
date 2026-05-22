@@ -1,6 +1,5 @@
 import "server-only";
 
-import { unstable_cache } from "next/cache";
 
 import { getFeePolicySummary, getFeeSetupPageData, upsertStudentFeeOverride } from "@/lib/fees/data";
 import {
@@ -11,6 +10,7 @@ import {
 import { getMasterDataOptions } from "@/lib/master-data/data";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { cacheSafeUnstableCache, getCacheSafeClient } from "@/lib/supabase/cache-safe";
 import { getStudentDeletePolicy } from "@/lib/students/delete-policy";
 import type {
   StudentClassOption,
@@ -981,7 +981,7 @@ export async function getStudents(filters: StudentListFilters) {
 }
 
 async function getStudentDetailUncached(studentId: string): Promise<StudentDetail | null> {
-  const supabase = await createClient();
+  const supabase = await getCacheSafeClient();
   const policy = await getFeePolicySummary();
   const [studentResult, overrideRow, financialResult, conventionalAssignments] = await Promise.all([
     supabase
@@ -1076,7 +1076,7 @@ async function getStudentDetailUncached(studentId: string): Promise<StudentDetai
 }
 
 export async function getStudentDetail(studentId: string): Promise<StudentDetail | null> {
-  return unstable_cache(
+  return cacheSafeUnstableCache(
     async () => getStudentDetailUncached(studentId),
     ["student-detail", studentId],
     { tags: [`student:${studentId}`] },

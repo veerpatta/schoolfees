@@ -250,6 +250,9 @@ async function getBaseOfficeStudents(filters: OfficeWorkbookFilters) {
       inst4Pending: 0,
       statusLabel: "",
       overrideReason: null,
+      paidInstallmentCount: 0,
+      partlyPaidInstallmentCount: 0,
+      overdueInstallmentCount: 0,
     };
   });
 }

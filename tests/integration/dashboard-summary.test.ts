@@ -65,6 +65,9 @@ function student(
     inst4Pending: 0,
     statusLabel: "NOT STARTED",
     overrideReason: null,
+    paidInstallmentCount: 0,
+    partlyPaidInstallmentCount: 0,
+    overdueInstallmentCount: 0,
     ...overrides,
   };
 }

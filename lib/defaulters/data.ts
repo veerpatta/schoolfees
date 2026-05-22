@@ -1,9 +1,8 @@
 import "server-only";
 
-import { unstable_cache } from "next/cache";
-
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { createClient } from "@/lib/supabase/server";
+import { cacheSafeUnstableCache, getCacheSafeClient } from "@/lib/supabase/cache-safe";
 import { getWorkbookClassOptions, getWorkbookStudentFinancials } from "@/lib/workbook/data";
 import { getStudentFormOptions } from "@/lib/students/data";
 
@@ -110,7 +109,7 @@ function calculateDaysOverdue(dueDate: string | null, today: string) {
 }
 
 async function getActiveSessionStudentsUncached(filters: DefaulterFilters, sessionLabel: string) {
-  const supabase = await createClient();
+  const supabase = await getCacheSafeClient();
   let query = supabase
     .from("students")
     .select(
@@ -160,7 +159,7 @@ async function getActiveSessionStudentsUncached(filters: DefaulterFilters, sessi
 }
 
 async function getActiveSessionStudents(filters: DefaulterFilters, sessionLabel: string) {
-  return unstable_cache(
+  return cacheSafeUnstableCache(
     async () => getActiveSessionStudentsUncached(filters, sessionLabel),
     [
       "defaulters-active-students",
@@ -264,11 +263,7 @@ export async function getDefaultersPageData(
           lateFee: row.lateFeeTotal,
           discountApplied: row.discountAmount,
           lateFeeWaived: row.lateFeeWaiverAmount,
-          overdueInstallments:
-            Number(row.inst1Pending > 0 && row.statusLabel === "OVERDUE") +
-            Number(row.inst2Pending > 0 && row.statusLabel === "OVERDUE") +
-            Number(row.inst3Pending > 0 && row.statusLabel === "OVERDUE") +
-            Number(row.inst4Pending > 0 && row.statusLabel === "OVERDUE"),
+          overdueInstallments: row.overdueInstallmentCount,
           openInstallments:
             Number(row.inst1Pending > 0) +
             Number(row.inst2Pending > 0) +
