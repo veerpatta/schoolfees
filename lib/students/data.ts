@@ -10,7 +10,7 @@ import {
 import { getMasterDataOptions } from "@/lib/master-data/data";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { cacheSafeUnstableCache, getCacheSafeClient } from "@/lib/supabase/cache-safe";
+import { getCacheSafeClient } from "@/lib/supabase/cache-safe";
 import { getStudentDeletePolicy } from "@/lib/students/delete-policy";
 import type {
   StudentClassOption,
@@ -1076,11 +1076,7 @@ async function getStudentDetailUncached(studentId: string): Promise<StudentDetai
 }
 
 export async function getStudentDetail(studentId: string): Promise<StudentDetail | null> {
-  return cacheSafeUnstableCache(
-    async () => getStudentDetailUncached(studentId),
-    ["student-detail", studentId],
-    { tags: [`student:${studentId}`] },
-  )();
+  return getStudentDetailUncached(studentId);
 }
 
 export async function createStudent(payload: StudentValidatedInput) {

@@ -59,4 +59,13 @@ describe("unstable_cache cross-user safety audit", () => {
     expect(feePolicy).not.toMatch(/unstable_cache\(\s*loadFeeCollectionsUncached/);
     expect(feePolicy).toContain("loadFeeCollectionsUncached");
   });
+
+  it("keeps student detail loading outside unstable_cache because payment posting reads it with request cookies", () => {
+    const studentsData = readRepoFile("lib/students/data.ts");
+
+    expect(studentsData).not.toMatch(
+      /export async function getStudentDetail[\s\S]*?cacheSafeUnstableCache/,
+    );
+    expect(studentsData).toContain("async function getStudentDetailUncached");
+  });
 });
