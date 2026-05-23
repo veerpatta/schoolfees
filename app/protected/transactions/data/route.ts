@@ -27,6 +27,11 @@ function normalizePaymentMode(value: string | null) {
     : "";
 }
 
+function normalizePage(value: string | null) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1;
+}
+
 export async function GET(request: NextRequest) {
   const staff = await getAuthenticatedStaff();
 
@@ -52,6 +57,7 @@ export async function GET(request: NextRequest) {
   const fromDate = normalizeDate(params.get("fromDate"));
   const toDate = normalizeDate(params.get("toDate"));
   const paymentMode = normalizePaymentMode(params.get("paymentMode"));
+  const page = normalizePage(params.get("page"));
   const searchQuery = (params.get("query") ?? "").trim();
   const sessionParam = (
     params.get("session") ??
@@ -70,6 +76,7 @@ export async function GET(request: NextRequest) {
     classId,
     fromDate,
     paymentMode,
+    page,
     routeId,
     searchQuery,
     sessionLabel: viewSession.sessionLabel,

@@ -11,6 +11,16 @@ export type DefaulterFilters = {
   searchQuery?: string;
 };
 
+export type DefaultersPagination = {
+  page: number;
+  pageSize: number;
+  totalRows: number;
+  visibleStart: number;
+  visibleEnd: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+};
+
 export type DefaulterSummaryRow = {
   studentId: string;
   classId: string | null;
@@ -78,6 +88,7 @@ export type DefaultersPageData = {
   routeOptions: StudentRouteOption[];
   metrics: DefaultersMetrics;
   rows: DefaulterSummaryRow[];
+  pagination: DefaultersPagination;
   missingDuesRows: MissingDuesWarningRow[];
   routeSummaryRows: RouteOutstandingSummaryRow[];
 };

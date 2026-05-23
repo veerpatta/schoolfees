@@ -14,6 +14,18 @@ import {
   type WorkbookTransaction,
 } from "@/lib/workbook/data";
 
+const OFFICE_WORKBOOK_PAGE_SIZE = 100;
+
+export type OfficeWorkbookPagination = {
+  page: number;
+  pageSize: number;
+  totalRows: number | null;
+  visibleStart: number;
+  visibleEnd: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+};
+
 export type OfficeWorkbookFilters = {
   view: OfficeWorkbookView;
   classId: string;
@@ -24,6 +36,8 @@ export type OfficeWorkbookFilters = {
   sessionLabel: string;
   toDate?: string;
   exportAll?: boolean;
+  page?: number;
+  pageSize?: number;
   /** When true, skips the getWorkbookStudentFinancials enrichment pass (faster for display-only views). */
   skipFinancials?: boolean;
 };
@@ -115,12 +129,14 @@ export type OfficeWorkbookData =
       view: "transactions" | "receipts";
       classOptions: WorkbookClassOption[];
       rows: WorkbookTransaction[];
+      pagination: OfficeWorkbookPagination;
     }
   | {
       view: "installments" | "student_dues" | "class_register" | "defaulters";
       classOptions: WorkbookClassOption[];
       rows: OfficeWorkbookStudentRow[];
       summary: OfficeWorkbookSummary;
+      pagination: OfficeWorkbookPagination;
     }
   | {
       view: "collection_today";
@@ -373,30 +389,83 @@ function filterStudentRows(rows: WorkbookStudentFinancial[], filters: OfficeWork
     });
 }
 
+function normalizePagination(filters: OfficeWorkbookFilters) {
+  const page = filters.exportAll ? 1 : Math.max(1, Math.floor(filters.page ?? 1));
+  const pageSize = filters.exportAll
+    ? Number.MAX_SAFE_INTEGER
+    : Math.min(150, Math.max(25, Math.floor(filters.pageSize ?? OFFICE_WORKBOOK_PAGE_SIZE)));
+  const offset = (page - 1) * pageSize;
+
+  return { page, pageSize, offset };
+}
+
+function buildKnownTotalPagination(totalRows: number, page: number, pageSize: number, visibleCount: number): OfficeWorkbookPagination {
+  const visibleStart = totalRows === 0 ? 0 : (page - 1) * pageSize + 1;
+  const visibleEnd = totalRows === 0 ? 0 : visibleStart + visibleCount - 1;
+
+  return {
+    page,
+    pageSize,
+    totalRows,
+    visibleStart,
+    visibleEnd,
+    hasPreviousPage: page > 1,
+    hasNextPage: visibleEnd < totalRows,
+  };
+}
+
+function buildFetchedPage<T>(rows: T[], page: number, pageSize: number) {
+  const visibleRows = rows.slice(0, pageSize);
+  const visibleStart = visibleRows.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const visibleEnd = visibleRows.length === 0 ? 0 : visibleStart + visibleRows.length - 1;
+
+  return {
+    rows: visibleRows,
+    pagination: {
+      page,
+      pageSize,
+      totalRows: null,
+      visibleStart,
+      visibleEnd,
+      hasPreviousPage: page > 1,
+      hasNextPage: rows.length > pageSize,
+    } satisfies OfficeWorkbookPagination,
+  };
+}
+
 export async function getOfficeWorkbookData(
   filters: OfficeWorkbookFilters,
 ): Promise<OfficeWorkbookData> {
   const classOptions = await getWorkbookClassOptions(filters.sessionLabel || undefined);
+  const paginationInput = normalizePagination(filters);
   const sharedFilters = {
     classId: filters.classId || undefined,
     fromDate: filters.fromDate || undefined,
+    limit: filters.exportAll ? null : paginationInput.pageSize + 1,
+    offset: filters.exportAll ? undefined : paginationInput.offset,
     paymentMode: filters.paymentMode || undefined,
     query: filters.searchQuery || undefined,
     routeId: filters.routeId || undefined,
     sessionLabel: filters.sessionLabel || undefined,
     toDate: filters.toDate || undefined,
-    limit: filters.exportAll ? null : undefined,
     skipFinancials: filters.skipFinancials,
   };
 
   switch (filters.view) {
     case "transactions":
-    case "receipts":
+    case "receipts": {
+      const page = buildFetchedPage(
+        await getWorkbookTransactions(sharedFilters),
+        paginationInput.page,
+        paginationInput.pageSize,
+      );
       return {
         view: filters.view,
         classOptions,
-        rows: await getWorkbookTransactions(sharedFilters),
+        rows: page.rows,
+        pagination: page.pagination,
       };
+    }
     case "collection_today":
       return {
         view: filters.view,
@@ -433,12 +502,21 @@ export async function getOfficeWorkbookData(
           ? students.filter((row) => row.statusLabel === "OVERDUE")
           : sourceAwareStudents;
       const visibleRows = filterStudentRows(filteredRows, filters);
+      const pageRows = filters.exportAll
+        ? visibleRows
+        : visibleRows.slice(paginationInput.offset, paginationInput.offset + paginationInput.pageSize);
 
       return {
         view: filters.view,
         classOptions,
-        rows: toStudentRows(visibleRows, transactions, generatedStudentIds),
+        rows: toStudentRows(pageRows, transactions, generatedStudentIds),
         summary: buildSummary(visibleRows),
+        pagination: buildKnownTotalPagination(
+          visibleRows.length,
+          paginationInput.page,
+          paginationInput.pageSize,
+          pageRows.length,
+        ),
       };
     }
     case "import_issues": {
@@ -469,11 +547,18 @@ export async function getOfficeWorkbookData(
         view: filters.view,
         classOptions,
       };
-    default:
+    default: {
+      const page = buildFetchedPage(
+        await getWorkbookTransactions(sharedFilters),
+        paginationInput.page,
+        paginationInput.pageSize,
+      );
       return {
         view: "transactions",
         classOptions,
-        rows: await getWorkbookTransactions(sharedFilters),
+        rows: page.rows,
+        pagination: page.pagination,
       };
+    }
   }
 }

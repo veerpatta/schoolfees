@@ -477,6 +477,8 @@ export async function getWorkbookStudentFinancials(filters?: {
   onlyOverdue?: boolean;
   sessionLabel?: string;
   activeOnly?: boolean;
+  limit?: number | null;
+  offset?: number;
 }) {
   const supabase = await createClient();
   const studentIds = [...new Set(filters?.studentIds?.filter(Boolean) ?? [])];
@@ -513,6 +515,11 @@ export async function getWorkbookStudentFinancials(filters?: {
 
   if (filters?.activeOnly) {
     query = query.eq("record_status", "active");
+  }
+
+  if (typeof filters?.limit === "number") {
+    const offset = Math.max(0, Math.floor(filters.offset ?? 0));
+    query = query.range(offset, offset + Math.max(1, Math.floor(filters.limit)) - 1);
   }
 
   const { data, error } = await query;
@@ -582,6 +589,7 @@ export async function getWorkbookTransactions(filters?: {
   classId?: string;
   fromDate?: string;
   limit?: number | null;
+  offset?: number;
   paymentMode?: string;
   query?: string;
   routeId?: string;
@@ -663,7 +671,9 @@ export async function getWorkbookTransactions(filters?: {
   }
 
   if (typeof filters?.limit === "number") {
-    query = query.limit(filters.limit);
+    const limit = Math.max(1, Math.floor(filters.limit));
+    const offset = Math.max(0, Math.floor(filters.offset ?? 0));
+    query = query.range(offset, offset + limit - 1);
   } else if (filters?.limit !== null) {
     query = query.limit(250);
   }

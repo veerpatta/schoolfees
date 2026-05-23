@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { ChevronDown, Printer, SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Printer, SlidersHorizontal, X } from "lucide-react";
 
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -20,6 +20,7 @@ import {
 } from "@/lib/transactions/workbook";
 import type {
   OfficeWorkbookData,
+  OfficeWorkbookPagination,
   OfficeWorkbookStudentRow,
   OfficeWorkbookSummary,
 } from "@/lib/transactions/dues";
@@ -36,6 +37,7 @@ type FilterState = {
   fromDate: string;
   toDate: string;
   paymentMode: string;
+  page: number;
   routeId: string;
   sessionLabel: string;
 };
@@ -100,6 +102,7 @@ function buildApiUrl(view: OfficeWorkbookView, f: FilterState) {
   if (f.fromDate) p.set("fromDate", f.fromDate);
   if (f.toDate) p.set("toDate", f.toDate);
   if (f.paymentMode) p.set("paymentMode", f.paymentMode);
+  if (f.page > 1) p.set("page", String(f.page));
   if (f.routeId) p.set("routeId", f.routeId);
   if (f.sessionLabel) p.set("session", f.sessionLabel);
   return `/protected/transactions/data?${p}`;
@@ -112,6 +115,7 @@ function buildPageUrl(view: OfficeWorkbookView, f: FilterState) {
   if (f.fromDate) p.set("fromDate", f.fromDate);
   if (f.toDate) p.set("toDate", f.toDate);
   if (f.paymentMode) p.set("paymentMode", f.paymentMode);
+  if (f.page > 1) p.set("page", String(f.page));
   if (f.routeId) p.set("routeId", f.routeId);
   if (f.sessionLabel) p.set("session", f.sessionLabel);
   return `/protected/transactions?${p}`;
@@ -127,6 +131,7 @@ function filtersFromUrl(): { view: OfficeWorkbookView; filters: FilterState } {
       fromDate: p.get("fromDate") ?? "",
       toDate: p.get("toDate") ?? "",
       paymentMode: p.get("paymentMode") ?? "",
+      page: Math.max(1, Number(p.get("page") ?? 1) || 1),
       routeId: p.get("routeId") ?? "",
       sessionLabel: p.get("session") ?? p.get("sessionLabel") ?? "",
     },
@@ -336,6 +341,55 @@ function LoadingOverlay() {
   );
 }
 
+function PaginationControls({
+  pagination,
+  onPageChange,
+}: {
+  pagination: OfficeWorkbookPagination;
+  onPageChange: (page: number) => void;
+}) {
+  const totalLabel = pagination.totalRows === null
+    ? `${pagination.visibleStart}-${pagination.visibleEnd}`
+    : `${pagination.visibleStart}-${pagination.visibleEnd} of ${pagination.totalRows}`;
+
+  if (!pagination.hasPreviousPage && !pagination.hasNextPage && pagination.totalRows !== null && pagination.totalRows <= pagination.pageSize) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm">
+      <span className="text-muted-foreground">
+        Showing {totalLabel}
+      </span>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={!pagination.hasPreviousPage}
+          onClick={() => onPageChange(Math.max(1, pagination.page - 1))}
+        >
+          <ChevronLeft className="size-4" />
+          Previous
+        </Button>
+        <span className="min-w-16 text-center text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          Page {pagination.page}
+        </span>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={!pagination.hasNextPage}
+          onClick={() => onPageChange(pagination.page + 1)}
+        >
+          Next
+          <ChevronRight className="size-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Main shell
 // ---------------------------------------------------------------------------
@@ -403,7 +457,7 @@ export function TransactionsClientShell({
   }
 
   function handleFilterChange(key: keyof FilterState, value: string, debounce = false) {
-    const newFilters = { ...filters, [key]: value };
+    const newFilters = { ...filters, [key]: value, page: 1 };
     setFilters(newFilters);
     scheduleOrFetch(activeView, newFilters, debounce);
   }
@@ -413,17 +467,25 @@ export function TransactionsClientShell({
   }
 
   function handleViewChange(view: OfficeWorkbookView) {
+    const nextFilters = { ...filters, page: 1 };
     setActiveView(view);
-    window.history.pushState(null, "", buildPageUrl(view, filters));
-    fetchData(view, filters);
+    setFilters(nextFilters);
+    window.history.pushState(null, "", buildPageUrl(view, nextFilters));
+    fetchData(view, nextFilters);
   }
 
   function handleReset() {
-    const empty: FilterState = { classId: "", query: "", fromDate: "", toDate: "", paymentMode: "", routeId: "", sessionLabel: "" };
+    const empty: FilterState = { classId: "", query: "", fromDate: "", toDate: "", paymentMode: "", page: 1, routeId: "", sessionLabel: "" };
     setFilters(empty);
     setShowMoreFilters(false);
     window.history.replaceState(null, "", buildPageUrl(activeView, empty));
     fetchData(activeView, empty);
+  }
+
+  function handlePageChange(page: number) {
+    const nextFilters = { ...filters, page };
+    setFilters(nextFilters);
+    scheduleOrFetch(activeView, nextFilters, false);
   }
 
   // Badge counts only secondary-panel filters — primary-row filters (search, class, mode chips) are always visible
@@ -600,7 +662,7 @@ export function TransactionsClientShell({
                     type="date"
                     value={filters.fromDate}
                     onChange={(e) => {
-                      const newFilters = { ...filters, fromDate: e.target.value };
+    const newFilters = { ...filters, fromDate: e.target.value, page: 1 };
                       setFilters(newFilters);
                       if (!e.target.value || newFilters.toDate) scheduleOrFetch(activeView, newFilters, false);
                     }}
@@ -618,7 +680,7 @@ export function TransactionsClientShell({
                     type="date"
                     value={filters.toDate}
                     onChange={(e) => {
-                      const newFilters = { ...filters, toDate: e.target.value };
+                      const newFilters = { ...filters, toDate: e.target.value, page: 1 };
                       setFilters(newFilters);
                       if (!e.target.value || newFilters.fromDate) scheduleOrFetch(activeView, newFilters, false);
                     }}
@@ -726,6 +788,9 @@ export function TransactionsClientShell({
               Use the <strong className="text-foreground">Exports</strong> tab in the sidebar to download finance data as CSV.
             </p>
           </SectionCard>
+        )}
+        {"pagination" in workbook && (
+          <PaginationControls pagination={workbook.pagination} onPageChange={handlePageChange} />
         )}
       </div>
     </div>

@@ -9,11 +9,14 @@ import { getStudentFormOptions } from "@/lib/students/data";
 
 import type {
   DefaulterFilters,
+  DefaultersPagination,
   MissingDuesWarningRow,
   RouteOutstandingSummaryRow,
   DefaulterSummaryRow,
   DefaultersPageData,
 } from "./types";
+
+const DEFAULTERS_PAGE_SIZE = 100;
 
 type BaseDefaulterStudentRow = {
   id: string;
@@ -202,12 +205,38 @@ async function loadDefaulterFamilyMembers(studentIds: string[], sessionLabel: st
   );
 }
 
+function normalizePagination(pagination?: { page?: number; pageSize?: number }) {
+  const page = Math.max(1, Math.floor(pagination?.page ?? 1));
+  const pageSize = Math.min(150, Math.max(25, Math.floor(pagination?.pageSize ?? DEFAULTERS_PAGE_SIZE)));
+  const offset = (page - 1) * pageSize;
+
+  return { page, pageSize, offset };
+}
+
+function buildPagination(totalRows: number, page: number, pageSize: number, visibleCount: number): DefaultersPagination {
+  const visibleStart = totalRows === 0 ? 0 : (page - 1) * pageSize + 1;
+  const visibleEnd = totalRows === 0 ? 0 : visibleStart + visibleCount - 1;
+
+  return {
+    page,
+    pageSize,
+    totalRows,
+    visibleStart,
+    visibleEnd,
+    hasPreviousPage: page > 1,
+    hasNextPage: visibleEnd < totalRows,
+  };
+}
+
 export async function getDefaultersPageData(
   filters: DefaulterFilters,
   sessionLabel?: string,
+  pagination?: { page?: number; pageSize?: number },
 ): Promise<DefaultersPageData> {
+  const _t0 = Date.now();
   const policy = await getFeePolicySummary();
   const resolvedSessionLabel = sessionLabel ?? policy.academicSessionLabel;
+  const pageInput = normalizePagination(pagination);
   const [{ routeOptions }, classOptions, financialRows, overdueInstallmentRows, activeStudents] = await Promise.all([
     getStudentFormOptions({ sessionLabel: resolvedSessionLabel }),
     getWorkbookClassOptions(resolvedSessionLabel),
@@ -315,14 +344,15 @@ export async function getDefaultersPageData(
     })
     .map((row, index) => ({ ...row, rank: index + 1 }));
 
+  const pageRows = rows.slice(pageInput.offset, pageInput.offset + pageInput.pageSize);
   const familyMembership =
-    rows.length > 0
+    pageRows.length > 0
       ? await loadDefaulterFamilyMembers(
-          rows.map((row) => row.studentId),
+          pageRows.map((row) => row.studentId),
           resolvedSessionLabel,
         )
       : new Map<string, { familyGroupId: string; visibleSiblingCount: number }>();
-  const rowsWithFamilies = rows.map((row) => {
+  const rowsWithFamilies = pageRows.map((row) => {
     const family = familyMembership.get(row.studentId);
 
     return {
@@ -339,7 +369,7 @@ export async function getDefaultersPageData(
 
   const routeSummaryMap = new Map<string, RouteOutstandingSummaryRow>();
 
-  rowsWithFamilies.forEach((row) => {
+  rows.forEach((row) => {
     const routeKey = row.transportRouteId ?? `label::${row.transportRouteLabel}`;
     const existing = routeSummaryMap.get(routeKey);
 
@@ -375,7 +405,7 @@ export async function getDefaultersPageData(
     return left.routeLabel.localeCompare(right.routeLabel);
   });
 
-  const metrics = rowsWithFamilies.reduce(
+  const metrics = rows.reduce(
     (acc, row) => {
       acc.totalStudents += 1;
       acc.totalPending += row.totalPending;
@@ -392,12 +422,15 @@ export async function getDefaultersPageData(
     },
   );
 
-  return {
+  const result = {
     classOptions,
     routeOptions,
     metrics,
     rows: rowsWithFamilies,
+    pagination: buildPagination(rows.length, pageInput.page, pageInput.pageSize, rowsWithFamilies.length),
     missingDuesRows,
     routeSummaryRows,
   };
+  console.log(`[defaulters-page-data] loaded in ${Date.now() - _t0}ms`);
+  return result;
 }

@@ -4,6 +4,8 @@
 -- through separate adjustment rows instead of rewriting old receipts.
 
 create extension if not exists pgcrypto;
+create schema if not exists extensions;
+create extension if not exists pg_cron with schema extensions;
 
 create schema if not exists private;
 
@@ -4996,7 +4998,29 @@ left join blocked_rows
 grant select on public.v_student_financial_state to authenticated;
 grant select on public.v_student_financial_state to service_role;
 
+create unique index if not exists v_workbook_installment_balances_idx
+  on public.v_workbook_installment_balances (installment_id);
+create unique index if not exists v_workbook_student_financials_idx
+  on public.v_workbook_student_financials (student_id);
 create unique index v_student_financial_state_idx on public.v_student_financial_state (student_id);
+create index if not exists idx_v_workbook_financials_session_status
+  on public.v_workbook_student_financials (session_label, record_status);
+create index if not exists idx_v_workbook_installments_session
+  on public.v_workbook_installment_balances (session_label);
+
+create table if not exists public.workbook_materialized_view_refresh_queue (
+  queue_key text primary key default 'workbook',
+  pending boolean not null default true,
+  requested_at timestamptz not null default now(),
+  request_count bigint not null default 1,
+  last_refreshed_at timestamptz,
+  constraint workbook_materialized_view_refresh_queue_singleton
+    check (queue_key = 'workbook')
+);
+
+alter table public.workbook_materialized_view_refresh_queue enable row level security;
+revoke all on public.workbook_materialized_view_refresh_queue from anon, authenticated;
+grant select, insert, update, delete on public.workbook_materialized_view_refresh_queue to service_role;
 
 -- Conventional discount policy system.
 -- These tables configure reusable tuition concessions and assign them to
@@ -5542,6 +5566,30 @@ using (public.has_permission('fees:write'));
 
 grant select, insert, update on public.session_reconcile_log to authenticated;
 
+create or replace function public.queue_workbook_materialized_view_refresh()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.workbook_materialized_view_refresh_queue (queue_key, requested_at, request_count)
+  values ('workbook', now(), 1)
+  on conflict (queue_key) do update
+    set pending = true,
+        requested_at = excluded.requested_at,
+        request_count = public.workbook_materialized_view_refresh_queue.request_count + 1;
+
+  perform pg_notify(
+    'workbook_refresh',
+    json_build_object('requested_at', now())::text
+  );
+end;
+$$;
+
+revoke all on function public.queue_workbook_materialized_view_refresh() from public;
+grant execute on function public.queue_workbook_materialized_view_refresh() to service_role;
+
 -- Refresh helper function for materialized views
 create or replace function public.refresh_financial_materialized_views(p_concurrently boolean default false)
 returns void
@@ -5566,12 +5614,50 @@ create or replace function public.trigger_refresh_financial_views()
 returns trigger
 language plpgsql
 security definer
+set search_path = public
 as $$
 begin
-  perform public.refresh_financial_materialized_views(false);
+  perform public.queue_workbook_materialized_view_refresh();
   return null;
 end;
 $$;
+
+revoke all on function public.trigger_refresh_financial_views() from public;
+
+create or replace function public.refresh_workbook_materialized_views_if_requested()
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_requested_at timestamptz;
+begin
+  select requested_at
+    into v_requested_at
+  from public.workbook_materialized_view_refresh_queue
+  where queue_key = 'workbook'
+    and pending = true
+  for update skip locked;
+
+  if v_requested_at is null then
+    return false;
+  end if;
+
+  perform public.refresh_financial_materialized_views(true);
+
+  update public.workbook_materialized_view_refresh_queue
+  set pending = false,
+      last_refreshed_at = now(),
+      request_count = 0
+  where queue_key = 'workbook';
+
+  return true;
+end;
+$$;
+
+revoke all on function public.refresh_workbook_materialized_views_if_requested() from public;
+grant execute on function public.refresh_workbook_materialized_views_if_requested() to service_role;
 
 -- Triggers for automatic materialized view refresh on source table modifications
 drop trigger if exists refresh_financials_on_payment on public.payments;
@@ -5633,3 +5719,21 @@ drop trigger if exists refresh_financials_on_blocked_installments on public.conf
 create trigger refresh_financials_on_blocked_installments
   after insert or update or delete or truncate on public.config_change_blocked_installments
   for each statement execute function public.trigger_refresh_financial_views();
+
+do $$
+begin
+  if exists (
+    select 1
+    from cron.job
+    where jobname = 'refresh-workbook-materialized-views'
+  ) then
+    perform cron.unschedule('refresh-workbook-materialized-views');
+  end if;
+end;
+$$;
+
+select cron.schedule(
+  'refresh-workbook-materialized-views',
+  '*/2 * * * *',
+  $$select public.refresh_workbook_materialized_views_if_requested();$$
+);

@@ -41,10 +41,52 @@ describe("office performance guardrails", () => {
   it("keeps interactive Transactions limited while allowing full exports", () => {
     const officeDues = readRepoFile("lib/transactions/dues.ts");
     const exportRoute = readRepoFile("app/protected/transactions/export/route.ts");
+    const workbookData = readRepoFile("lib/workbook/data.ts");
+    const transactionsShell = readRepoFile("components/transactions/transactions-client-shell.tsx");
 
     expect(officeDues).toContain("exportAll?: boolean");
-    expect(officeDues).toContain("limit: filters.exportAll ? null : undefined");
+    expect(officeDues).toContain("const OFFICE_WORKBOOK_PAGE_SIZE = 100");
+    expect(officeDues).toContain("limit: filters.exportAll ? null : paginationInput.pageSize + 1");
+    expect(officeDues).toContain("offset: filters.exportAll ? undefined : paginationInput.offset");
+    expect(officeDues).toContain("pagination: page.pagination");
+    expect(workbookData).toContain("query = query.range(offset, offset + limit - 1)");
+    expect(transactionsShell).toContain("PaginationControls");
+    expect(transactionsShell).toContain("handlePageChange");
     expect(exportRoute).toContain("exportAll: true");
+  });
+
+  it("keeps Tier 3 database refreshes queued and indexed", () => {
+    const migration = readRepoFile("supabase/migrations/20260523213000_tier3_finance_performance.sql");
+    const schema = readRepoFile("supabase/schema.sql");
+
+    for (const source of [migration, schema]) {
+      expect(source).toContain("create extension if not exists pg_cron");
+      expect(source).toContain("idx_v_workbook_financials_session_status");
+      expect(source).toContain("idx_v_workbook_installments_session");
+      expect(source).toContain("workbook_materialized_view_refresh_queue");
+      expect(source).toContain("queue_workbook_materialized_view_refresh");
+      expect(source).toContain("perform public.queue_workbook_materialized_view_refresh()");
+      expect(source).toContain("refresh_workbook_materialized_views_if_requested");
+      expect(source).toContain("refresh_financial_materialized_views(true)");
+      expect(source).toContain("cron.schedule");
+      expect(source).toContain("'*/2 * * * *'");
+      expect(source).not.toContain("perform public.refresh_financial_materialized_views(false)");
+    }
+  });
+
+  it("keeps Defaulters paginated at the server boundary", () => {
+    const defaultersData = readRepoFile("lib/defaulters/data.ts");
+    const defaultersTypes = readRepoFile("lib/defaulters/types.ts");
+    const defaultersPage = readRepoFile("app/protected/defaulters/page.tsx");
+
+    expect(defaultersTypes).toContain("export type DefaultersPagination");
+    expect(defaultersData).toContain("const DEFAULTERS_PAGE_SIZE = 100");
+    expect(defaultersData).toContain("[defaulters-page-data] loaded in");
+    expect(defaultersData).toContain("const pageRows = rows.slice");
+    expect(defaultersData).toContain("pagination: buildPagination(");
+    expect(defaultersPage).toContain("normalizePage");
+    expect(defaultersPage).toContain("buildPageHref");
+    expect(defaultersPage).toContain("data.pagination.visibleStart");
   });
 
   it("scopes workbook reads to the active office session and visible receipts", () => {

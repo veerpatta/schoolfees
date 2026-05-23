@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Phone } from "lucide-react";
+import { ChevronLeft, ChevronRight, Phone } from "lucide-react";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
@@ -27,6 +27,7 @@ type DefaultersPageProps = {
     transportRouteId?: string | string[];
     overdue?: string | string[];
     minPendingAmount?: string | string[];
+    page?: string | string[];
     query?: string | string[];
     session?: string | string[];
   }>;
@@ -62,17 +63,23 @@ function normalizeFilters(
   };
 }
 
+function normalizePage(value: string | string[] | undefined) {
+  const parsed = Number(asString(value));
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1;
+}
+
 export default async function DefaultersPage({
   searchParams,
 }: DefaultersPageProps) {
   const staff = await requireStaffPermission("defaulters:view", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const filters = normalizeFilters(resolvedSearchParams);
+  const page = normalizePage(resolvedSearchParams?.page);
   const viewSession = await resolveViewSession({
     searchParamSession: asString(resolvedSearchParams?.session),
     cookieSession: await getViewSessionCookie(),
   });
-  const data = await getDefaultersPageData(filters, viewSession.sessionLabel);
+  const data = await getDefaultersPageData(filters, viewSession.sessionLabel, { page });
   const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
   const canPostPayments = hasStaffPermission(staff, "payments:write");
 
@@ -97,6 +104,34 @@ export default async function DefaultersPage({
       search.set("minPendingAmount", "5000");
     } else if (chip.value === "10000") {
       search.set("minPendingAmount", "10000");
+    }
+
+    const qs = search.toString();
+    return `/protected/defaulters${qs ? `?${qs}` : ""}`;
+  };
+
+  const buildPageHref = (nextPage: number) => {
+    const search = new URLSearchParams();
+    if (resolvedSearchParams?.session) {
+      search.set("session", asString(resolvedSearchParams.session));
+    }
+    if (resolvedSearchParams?.classId) {
+      search.set("classId", asString(resolvedSearchParams.classId));
+    }
+    if (resolvedSearchParams?.transportRouteId) {
+      search.set("transportRouteId", asString(resolvedSearchParams.transportRouteId));
+    }
+    if (resolvedSearchParams?.query) {
+      search.set("query", asString(resolvedSearchParams.query));
+    }
+    if (resolvedSearchParams?.overdue) {
+      search.set("overdue", asString(resolvedSearchParams.overdue));
+    }
+    if (resolvedSearchParams?.minPendingAmount) {
+      search.set("minPendingAmount", asString(resolvedSearchParams.minPendingAmount));
+    }
+    if (nextPage > 1) {
+      search.set("page", String(nextPage));
     }
 
     const qs = search.toString();
@@ -128,7 +163,7 @@ export default async function DefaultersPage({
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge
-              label={`${data.rows.length} row${data.rows.length === 1 ? "" : "s"} listed`}
+              label={`${data.pagination.visibleStart}-${data.pagination.visibleEnd} of ${data.pagination.totalRows} listed`}
               tone="accent"
             />
             <Button asChild size="sm" variant="outline">
@@ -446,6 +481,36 @@ export default async function DefaultersPage({
             </tbody>
           </table>
         </div>
+        {(data.pagination.hasPreviousPage || data.pagination.hasNextPage) ? (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm">
+            <span className="text-muted-foreground">
+              Showing {data.pagination.visibleStart}-{data.pagination.visibleEnd} of {data.pagination.totalRows}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button asChild size="sm" variant="outline" aria-disabled={!data.pagination.hasPreviousPage}>
+                <Link
+                  href={buildPageHref(Math.max(1, data.pagination.page - 1))}
+                  className={!data.pagination.hasPreviousPage ? "pointer-events-none opacity-50" : undefined}
+                >
+                  <ChevronLeft className="size-4" />
+                  Previous
+                </Link>
+              </Button>
+              <span className="min-w-16 text-center text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Page {data.pagination.page}
+              </span>
+              <Button asChild size="sm" variant="outline" aria-disabled={!data.pagination.hasNextPage}>
+                <Link
+                  href={buildPageHref(data.pagination.page + 1)}
+                  className={!data.pagination.hasNextPage ? "pointer-events-none opacity-50" : undefined}
+                >
+                  Next
+                  <ChevronRight className="size-4" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </SectionCard>
 
       <SectionCard

@@ -92,6 +92,15 @@ function setupPageData(sessionLabel: string) {
     view: "transactions",
     classOptions: [],
     rows: [],
+    pagination: {
+      page: 1,
+      pageSize: 100,
+      totalRows: null,
+      visibleStart: 0,
+      visibleEnd: 0,
+      hasPreviousPage: false,
+      hasNextPage: false,
+    },
   });
 }
 

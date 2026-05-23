@@ -17,6 +17,7 @@ type TransactionsPageProps = {
     classId?: string;
     fromDate?: string;
     paymentMode?: string;
+    page?: string;
     query?: string;
     routeId?: string;
     session?: string;
@@ -45,6 +46,11 @@ function normalizePaymentMode(value: string | undefined) {
     : "";
 }
 
+function normalizePage(value: string | undefined) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1;
+}
+
 export default async function TransactionsPage({ searchParams }: TransactionsPageProps) {
   const staff = await requireAnyStaffPermission(
     ["receipts:view", "defaulters:view", "reports:view", "finance:view"],
@@ -65,6 +71,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
   const fromDate = normalizeDate(resolvedSearchParams?.fromDate);
   const toDate = normalizeDate(resolvedSearchParams?.toDate);
   const paymentMode = normalizePaymentMode(resolvedSearchParams?.paymentMode);
+  const page = normalizePage(resolvedSearchParams?.page);
 
   const [workbook, setup, { routeOptions, sessionOptions }, policy] = await Promise.all([
     getOfficeWorkbookData({
@@ -72,6 +79,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
       classId,
       fromDate,
       paymentMode,
+      page,
       routeId,
       searchQuery,
       sessionLabel,
@@ -117,6 +125,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
           fromDate,
           toDate,
           paymentMode,
+          page,
           routeId,
           sessionLabel,
         }}
