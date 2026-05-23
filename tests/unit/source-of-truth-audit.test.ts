@@ -174,13 +174,26 @@ describe("source of truth audit fixes", () => {
     const migration = readRepoFile(
       "supabase/migrations/20260517075735_session_scoped_workbook_financials.sql",
     );
+    let balancesViewIdx = schema.lastIndexOf("create materialized view public.v_workbook_installment_balances");
+    if (balancesViewIdx === -1) {
+      balancesViewIdx = schema.lastIndexOf("create or replace view public.v_workbook_installment_balances");
+    }
     const snapshotFunction = schema.slice(
       schema.lastIndexOf("create or replace function private.workbook_installment_snapshot"),
-      schema.lastIndexOf("create or replace view public.v_workbook_installment_balances"),
+      balancesViewIdx,
     );
+
+    let financialsViewIdx = schema.lastIndexOf("create materialized view public.v_workbook_student_financials");
+    if (financialsViewIdx === -1) {
+      financialsViewIdx = schema.lastIndexOf("create or replace view public.v_workbook_student_financials");
+    }
+    let stateViewIdx = schema.lastIndexOf("create materialized view public.v_student_financial_state");
+    if (stateViewIdx === -1) {
+      stateViewIdx = schema.lastIndexOf("create or replace view public.v_student_financial_state");
+    }
     const studentFinancialView = schema.slice(
-      schema.lastIndexOf("create or replace view public.v_workbook_student_financials"),
-      schema.lastIndexOf("create or replace view public.v_student_financial_state"),
+      financialsViewIdx,
+      stateViewIdx,
     );
     const paymentFunction = schema.slice(
       schema.lastIndexOf("create or replace function public.post_student_payment"),

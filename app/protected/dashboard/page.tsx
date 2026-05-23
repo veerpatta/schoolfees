@@ -1543,6 +1543,10 @@ type DashboardAutoPrepareHealth = Pick<
   "studentsMissingInstallmentRows" | "studentsMissingInstallments"
 >;
 
+// Top-level cache to prevent repeated auto-preparation of student dues in a short timeframe
+const autoPrepareTimestamps = new Map<string, number>();
+const FIVE_MINUTES_MS = 5 * 60 * 1000;
+
 export function scheduleDashboardAutoPrepare({
   canAutoPrepareDues,
   sessionLabel,
@@ -1552,13 +1556,29 @@ export function scheduleDashboardAutoPrepare({
   sessionLabel: string;
   health: DashboardAutoPrepareHealth | null;
 }) {
-  const studentIds =
+  const allStudentIds =
     health?.studentsMissingInstallments
       .map((student) => student.studentId)
       .filter(Boolean) ?? [];
 
-  if (!canAutoPrepareDues || !health || health.studentsMissingInstallmentRows <= 0 || studentIds.length === 0) {
+  if (!canAutoPrepareDues || !health || health.studentsMissingInstallmentRows <= 0 || allStudentIds.length === 0) {
     return;
+  }
+
+  // Filter out students that were synchronized within the last 5 minutes
+  const now = Date.now();
+  const studentIds = allStudentIds.filter((studentId) => {
+    const lastSync = autoPrepareTimestamps.get(studentId);
+    return !lastSync || now - lastSync > FIVE_MINUTES_MS;
+  });
+
+  if (studentIds.length === 0) {
+    return;
+  }
+
+  // Record sync attempt timestamp immediately to prevent concurrent page loads from double-triggering
+  for (const studentId of studentIds) {
+    autoPrepareTimestamps.set(studentId, now);
   }
 
   after(async () => {

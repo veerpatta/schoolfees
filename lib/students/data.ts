@@ -699,8 +699,10 @@ async function generatePendingAdmissionNo() {
 export async function getStudentFormOptions(payload?: {
   sessionLabel?: string | null;
 }) {
-  const options = await getMasterDataOptions();
-  const policy = await getFeePolicySummary();
+  const [options, policy] = await Promise.all([
+    getMasterDataOptions(),
+    getFeePolicySummary(),
+  ]);
   const policySessionLabel = policy.academicSessionLabel || "";
   const currentSessionLabel = options.currentSessionLabel || "";
   const academicSessionsCurrentLabel = currentSessionLabel || policySessionLabel || null;

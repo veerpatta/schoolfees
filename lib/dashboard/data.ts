@@ -492,8 +492,16 @@ export async function getDashboardAboveFoldData(options: {
   const today = getSchoolDateStamp();
   const policy = await getFeePolicySummary();
   const sessionLabel = options.sessionLabel ?? policy.academicSessionLabel;
+
   const _t0 = Date.now();
-  const [financialRowsRaw, installmentRows, transactions, todayTransactions] = await Promise.all([
+  const [
+    financialRowsRaw,
+    installmentRows,
+    transactions,
+    todayTransactions,
+    rawStudentCount,
+    refundStateRows,
+  ] = await Promise.all([
     optionalLoad(
       "workbook student financials",
       () => loadDashboardFinancialRows(sessionLabel),
@@ -518,23 +526,18 @@ export async function getDashboardAboveFoldData(options: {
       [],
       warnings,
     ),
-  ]);
-  let rawStudentCount = 0;
-  let refundStateRows: Array<{ refundable_amount: number | null }> = [];
-
-  await Promise.all([
     (async () => {
       try {
-        rawStudentCount = await loadRawActiveSessionStudentCount(sessionLabel);
+        return await loadRawActiveSessionStudentCount(sessionLabel);
       } catch {
-        // Safe fallback: buildDashboardSummary uses activeStudents.length.
+        return 0;
       }
     })(),
     (async () => {
       try {
-        refundStateRows = await loadDashboardRefundState();
+        return await loadDashboardRefundState();
       } catch {
-        // Safe fallback: totalRefundDue remains 0.
+        return [];
       }
     })(),
   ]);
@@ -591,6 +594,7 @@ export async function getDashboardPageData(options: {
 
   const policy = await getFeePolicySummary();
   const sessionLabel = options.sessionLabel ?? policy.academicSessionLabel;
+
   const _tp0 = Date.now();
   const [
     rawStudentCount,
@@ -600,6 +604,8 @@ export async function getDashboardPageData(options: {
     transactions,
     todayTransactions,
     collectionHeatmap,
+    refundStateRows,
+    systemSyncHealth,
   ] = await Promise.all([
     optionalLoad(
       "raw active student count",
@@ -643,24 +649,20 @@ export async function getDashboardPageData(options: {
       [],
       warnings,
     ),
-  ]);
-  // "dashboard sync health" is advisory; a timeout here must not mark the
-  // financial numbers as incomplete.
-  let refundStateRows: Array<{ refundable_amount: number | null }> = [];
-  let systemSyncHealth: DashboardSyncHealth | null = null;
-  await Promise.all([
     (async () => {
       try {
-        refundStateRows = await loadDashboardRefundState();
+        return await loadDashboardRefundState();
       } catch {
-        refundStateRows = [];
+        return [];
       }
     })(),
     (async () => {
       try {
-        systemSyncHealth = await loadDashboardSyncHealth(sessionLabel);
+        // "dashboard sync health" is advisory; a timeout here must not mark the
+        // financial numbers as incomplete.
+        return await loadDashboardSyncHealth(sessionLabel);
       } catch {
-        systemSyncHealth = null;
+        return null;
       }
     })(),
   ]);

@@ -57,7 +57,8 @@ describe("student financial state", () => {
 
   it("exposes refund projection without mutating append-only payment history", () => {
     const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
-    const view = schema.slice(schema.lastIndexOf("create or replace view public.v_student_financial_state"));
+    const viewIndex = schema.lastIndexOf("create materialized view public.v_student_financial_state");
+    const view = schema.slice(viewIndex !== -1 ? viewIndex : schema.lastIndexOf("create or replace view public.v_student_financial_state"));
 
     expect(view).toContain("public.v_workbook_student_financials");
     expect(view).toContain("credit_balance");

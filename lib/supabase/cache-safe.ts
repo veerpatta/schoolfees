@@ -8,8 +8,8 @@ export function cacheSafeUnstableCache<Args extends unknown[], Return>(
   keyParts: string[],
   options?: { tags?: string[]; revalidate?: number }
 ): (...args: Args) => Promise<Return> {
-  const serviceRoleKey = getOptionalEnvVar("SUPABASE_SERVICE_ROLE_KEY");
-  if (!serviceRoleKey) {
+  const isTest = process.env.NODE_ENV === "test" || !!process.env.VITEST;
+  if (isTest) {
     return fn;
   }
   return unstable_cache(fn, keyParts, options);

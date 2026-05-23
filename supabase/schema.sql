@@ -4469,8 +4469,7 @@ as $$
   order by waiver_eval.student_id, waiver_eval.installment_no;
 $$;
 
-create or replace view public.v_workbook_installment_balances
-with (security_invoker = true)
+create materialized view public.v_workbook_installment_balances
 as
 with session_policy as (
   select distinct on (academic_session_label)
@@ -4615,8 +4614,8 @@ select
       waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied - waiver_eval.applied_amount,
       0
     ) <= 0 then 'paid'
-    when waiver_eval.applied_amount > 0 then 'partial'
     when current_date > waiver_eval.due_date then 'overdue'
+    when waiver_eval.applied_amount > 0 then 'partial'
     else 'pending'
   end as balance_status,
   waiver_eval.last_payment_date,
@@ -4681,11 +4680,9 @@ grant execute on function private.normalize_workbook_class_label(text, text) to 
 grant execute on function private.workbook_installment_snapshot(uuid, date, boolean) to service_role;
 grant execute on function public.preview_workbook_payment_allocation(uuid, date) to service_role;
 
-drop view if exists public.v_workbook_student_financials;
+drop materialized view if exists public.v_workbook_student_financials;
 
-create or replace view public.v_workbook_student_financials
-with (security_invoker = true)
-as
+create materialized view public.v_workbook_student_financials as
 with session_policy as (
   select
     academic_session_label,
@@ -4962,9 +4959,7 @@ create index if not exists idx_students_active_session_dashboard
   on students (status, class_id)
   where status = 'active';
 
-create or replace view public.v_student_financial_state
-with (security_invoker = true)
-as
+create materialized view public.v_student_financial_state as
 with blocked_rows as (
   select
     student_id,
@@ -4999,6 +4994,9 @@ left join blocked_rows
   on blocked_rows.student_id = financials.student_id;
 
 grant select on public.v_student_financial_state to authenticated;
+grant select on public.v_student_financial_state to service_role;
+
+create unique index v_student_financial_state_idx on public.v_student_financial_state (student_id);
 
 -- Conventional discount policy system.
 -- These tables configure reusable tuition concessions and assign them to
@@ -5543,3 +5541,95 @@ to authenticated
 using (public.has_permission('fees:write'));
 
 grant select, insert, update on public.session_reconcile_log to authenticated;
+
+-- Refresh helper function for materialized views
+create or replace function public.refresh_financial_materialized_views(p_concurrently boolean default false)
+returns void
+language plpgsql
+security definer
+as $$
+begin
+  if p_concurrently then
+    refresh materialized view concurrently public.v_workbook_installment_balances;
+    refresh materialized view concurrently public.v_workbook_student_financials;
+    refresh materialized view concurrently public.v_student_financial_state;
+  else
+    refresh materialized view public.v_workbook_installment_balances;
+    refresh materialized view public.v_workbook_student_financials;
+    refresh materialized view public.v_student_financial_state;
+  end if;
+end;
+$$;
+
+-- Trigger refresh function
+create or replace function public.trigger_refresh_financial_views()
+returns trigger
+language plpgsql
+security definer
+as $$
+begin
+  perform public.refresh_financial_materialized_views(false);
+  return null;
+end;
+$$;
+
+-- Triggers for automatic materialized view refresh on source table modifications
+drop trigger if exists refresh_financials_on_payment on public.payments;
+create trigger refresh_financials_on_payment
+  after insert or update or delete or truncate on public.payments
+  for each statement execute function public.trigger_refresh_financial_views();
+
+drop trigger if exists refresh_financials_on_receipt on public.receipts;
+create trigger refresh_financials_on_receipt
+  after insert or update or delete or truncate on public.receipts
+  for each statement execute function public.trigger_refresh_financial_views();
+
+drop trigger if exists refresh_financials_on_payment_adjustment on public.payment_adjustments;
+create trigger refresh_financials_on_payment_adjustment
+  after insert or update or delete or truncate on public.payment_adjustments
+  for each statement execute function public.trigger_refresh_financial_views();
+
+drop trigger if exists refresh_financials_on_receipt_adjustment on public.receipt_adjustments;
+create trigger refresh_financials_on_receipt_adjustment
+  after insert or update or delete or truncate on public.receipt_adjustments
+  for each statement execute function public.trigger_refresh_financial_views();
+
+drop trigger if exists refresh_financials_on_installment on public.installments;
+create trigger refresh_financials_on_installment
+  after insert or update or delete or truncate on public.installments
+  for each statement execute function public.trigger_refresh_financial_views();
+
+drop trigger if exists refresh_financials_on_student_override on public.student_fee_overrides;
+create trigger refresh_financials_on_student_override
+  after insert or update or delete or truncate on public.student_fee_overrides
+  for each statement execute function public.trigger_refresh_financial_views();
+
+drop trigger if exists refresh_financials_on_student on public.students;
+create trigger refresh_financials_on_student
+  after insert or update or delete or truncate on public.students
+  for each statement execute function public.trigger_refresh_financial_views();
+
+drop trigger if exists refresh_financials_on_class on public.classes;
+create trigger refresh_financials_on_class
+  after insert or update or delete or truncate on public.classes
+  for each statement execute function public.trigger_refresh_financial_views();
+
+drop trigger if exists refresh_financials_on_fee_setting on public.fee_settings;
+create trigger refresh_financials_on_fee_setting
+  after insert or update or delete or truncate on public.fee_settings
+  for each statement execute function public.trigger_refresh_financial_views();
+
+drop trigger if exists refresh_financials_on_fee_policy on public.fee_policy_configs;
+create trigger refresh_financials_on_fee_policy
+  after insert or update or delete or truncate on public.fee_policy_configs
+  for each statement execute function public.trigger_refresh_financial_views();
+
+drop trigger if exists refresh_financials_on_transport_route on public.transport_routes;
+create trigger refresh_financials_on_transport_route
+  after insert or update or delete or truncate on public.transport_routes
+  for each statement execute function public.trigger_refresh_financial_views();
+
+drop trigger if exists refresh_financials_on_blocked_installments on public.config_change_blocked_installments;
+create trigger refresh_financials_on_blocked_installments
+  after insert or update or delete or truncate on public.config_change_blocked_installments
+  for each statement execute function public.trigger_refresh_financial_views();
