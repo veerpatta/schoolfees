@@ -9,7 +9,7 @@ import { getSetupWizardData } from "@/lib/setup/data";
 import { getStudentFormOptions } from "@/lib/students/data";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
-import { hasStaffPermission, requireAnyStaffPermission } from "@/lib/supabase/session";
+import { requireAnyStaffPermission } from "@/lib/supabase/session";
 
 type TransactionsPageProps = {
   searchParams?: Promise<{
@@ -85,7 +85,6 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
   ]);
 
   const readiness = getOfficeWorkflowReadiness(setup, staff.appRole);
-  const canExport = hasStaffPermission(staff, "reports:view");
 
   return (
     <div className="space-y-6">
@@ -103,10 +102,6 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
           actionHref={readiness.reports.actionHref}
         />
       ) : null}
-
-      <OfficeNotice tone="info" title="Read-only finance centre">
-        Use Payment Desk to collect money. This page is for checking, filtering, printing, and exporting saved records.
-      </OfficeNotice>
 
       {!resolvedView.wasRecognized ? (
         <OfficeNotice tone="warning" title="Unknown view">
@@ -131,7 +126,6 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         routeOptions={routeOptions.map((r) => ({ id: r.id, label: r.label }))}
         paymentModeOptions={policy.acceptedPaymentModes.map((m) => ({ value: m.value, label: m.label }))}
         resolvedSessionLabel={sessionLabel}
-        canExport={canExport}
       />
     </div>
   );

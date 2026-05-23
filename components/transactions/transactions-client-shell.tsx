@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Printer, SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, Printer, SlidersHorizontal, X } from "lucide-react";
 
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -14,7 +14,6 @@ import { formatShortDate } from "@/lib/helpers/date";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { cn } from "@/lib/utils";
 import {
-  buildOfficeWorkbookExportHref,
   officeWorkbookMeta,
   officeWorkbookViews,
   resolveOfficeWorkbookView,
@@ -54,7 +53,6 @@ export type TransactionsClientShellProps = {
   routeOptions: RouteOption[];
   paymentModeOptions: PaymentModeOption[];
   resolvedSessionLabel: string;
-  canExport: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -132,19 +130,6 @@ function buildPageUrl(view: OfficeWorkbookView, f: FilterState) {
   return `/protected/transactions?${p}`;
 }
 
-function buildExportHref(view: OfficeWorkbookView, f: FilterState) {
-  return buildOfficeWorkbookExportHref({
-    view,
-    classId: f.classId,
-    fromDate: f.fromDate,
-    paymentMode: f.paymentMode,
-    query: f.query,
-    routeId: f.routeId,
-    sessionLabel: f.sessionLabel,
-    toDate: f.toDate,
-  });
-}
-
 function filtersFromUrl(): { view: OfficeWorkbookView; filters: FilterState } {
   const p = new URLSearchParams(window.location.search);
   return {
@@ -166,6 +151,7 @@ function filtersFromUrl(): { view: OfficeWorkbookView; filters: FilterState } {
 // ---------------------------------------------------------------------------
 
 function SummaryCards({ summary }: { summary: OfficeWorkbookSummary }) {
+  const [showMore, setShowMore] = useState(false);
   const top = [
     { label: "Students", value: summary.studentCount },
     { label: "Total due", value: formatInr(summary.totalDue) },
@@ -191,17 +177,26 @@ function SummaryCards({ summary }: { summary: OfficeWorkbookSummary }) {
           </div>
         ))}
       </div>
-      <details className="overflow-hidden rounded-xl border border-border bg-surface-2">
-        <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-foreground">More totals</summary>
-        <div className="grid gap-3 border-t border-border bg-card p-4 md:grid-cols-2 xl:grid-cols-4">
-          {more.map((c) => (
-            <div key={c.label} className="rounded-xl border border-border bg-surface-2 px-4 py-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{c.label}</p>
-              <p className="mt-1.5 text-base font-semibold text-foreground">{c.value}</p>
-            </div>
-          ))}
-        </div>
-      </details>
+      <div className="overflow-hidden rounded-xl border border-border bg-surface-2">
+        <button
+          type="button"
+          onClick={() => setShowMore((v) => !v)}
+          className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-foreground hover:bg-surface-3 transition-colors"
+        >
+          <span>More totals</span>
+          <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200", showMore && "rotate-180")} />
+        </button>
+        {showMore && (
+          <div className="grid gap-3 border-t border-border bg-card p-4 md:grid-cols-2 xl:grid-cols-4">
+            {more.map((c) => (
+              <div key={c.label} className="rounded-xl border border-border bg-surface-2 px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{c.label}</p>
+                <p className="mt-1.5 text-base font-semibold text-foreground">{c.value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -238,7 +233,7 @@ function TransactionsTable({
               <p className="mt-1 font-semibold text-foreground">{formatInr(row.totalAmount)}</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 <Button asChild size="sm" variant="outline">
-                  <Link href={withSession(`/protected/receipts/${row.receiptId}?returnTo=${encodeURIComponent(returnTo)}`)}>Open</Link>
+                  <Link href={withSession(`/protected/receipts/${row.receiptId}?returnTo=${encodeURIComponent(returnTo)}`)}>View</Link>
                 </Button>
                 <Button asChild size="sm" variant="ghost" aria-label={`Print receipt ${row.receiptNumber}`}>
                   <Link href={receiptPrintHref(row.receiptId, sessionLabel)} target="_blank" rel="noreferrer">
@@ -272,7 +267,7 @@ function TransactionsTable({
               <tr><td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">No transactions found for this view.</td></tr>
             ) : (
               rows.map((row) => (
-                <tr key={row.receiptId} className="border-t border-border">
+                <tr key={row.receiptId} className="border-t border-border hover:bg-surface-2/30 transition-colors">
                   <td className="px-4 py-3">{formatShortDate(row.paymentDate)}</td>
                   <td className="px-4 py-3 font-medium text-foreground">{row.receiptNumber}</td>
                   <td className="px-4 py-3">{row.studentName}</td>
@@ -282,7 +277,7 @@ function TransactionsTable({
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
                       <Button asChild size="sm" variant="outline">
-                        <Link href={withSession(`/protected/receipts/${row.receiptId}?returnTo=${encodeURIComponent(returnTo)}`)}>Print</Link>
+                        <Link href={withSession(`/protected/receipts/${row.receiptId}?returnTo=${encodeURIComponent(returnTo)}`)}>View</Link>
                       </Button>
                       <Button asChild size="sm" variant="ghost" aria-label={`Print receipt ${row.receiptNumber}`}>
                         <Link href={receiptPrintHref(row.receiptId, sessionLabel)} target="_blank" rel="noreferrer">
@@ -358,7 +353,7 @@ function InstallmentTrackerTable({ rows, sessionLabel }: { rows: OfficeWorkbookS
               <tr><td colSpan={18} className="px-4 py-6 text-center text-muted-foreground">No dues tracker rows found.</td></tr>
             ) : (
               rows.map((row) => (
-                <tr key={row.studentId} className="border-t border-border">
+                <tr key={row.studentId} className="border-t border-border hover:bg-surface-2/30 transition-colors">
                   <td className="px-4 py-3 font-medium text-foreground">{row.studentName}</td>
                   <td className="px-4 py-3">{row.classLabel}</td>
                   <td className="px-4 py-3">{row.admissionNo}</td>
@@ -443,7 +438,7 @@ function StudentDuesTable({ rows, sessionLabel }: { rows: OfficeWorkbookStudentR
               <tr><td colSpan={13} className="px-4 py-6 text-center text-muted-foreground">No students found for statement view.</td></tr>
             ) : (
               rows.map((row) => (
-                <tr key={row.studentId} className="border-t border-border">
+                <tr key={row.studentId} className="border-t border-border hover:bg-surface-2/30 transition-colors">
                   <td className="px-4 py-3"><div className="font-medium text-foreground">{row.studentName}</div><div className="text-xs text-muted-foreground">{row.admissionNo}</div></td>
                   <td className="px-4 py-3">{row.classLabel}</td>
                   <td className="px-4 py-3">{formatInr(row.tuitionFee)}</td>
@@ -525,7 +520,7 @@ function ClassRegisterTable({ rows, sessionLabel }: { rows: OfficeWorkbookStuden
               <tr><td colSpan={22} className="px-4 py-6 text-center text-muted-foreground">No class register rows found.</td></tr>
             ) : (
               rows.map((row) => (
-                <tr key={row.studentId} className="border-t border-border align-top">
+                <tr key={row.studentId} className="border-t border-border hover:bg-surface-2/30 transition-colors align-top">
                   <td className="px-4 py-3 font-medium text-foreground">{row.studentName}</td>
                   <td className="px-4 py-3">{row.admissionNo}</td>
                   <td className="px-4 py-3">{row.fatherName ?? "-"}</td>
@@ -626,7 +621,7 @@ function DefaultersTable({ rows, sessionLabel }: { rows: OfficeWorkbookStudentRo
               <tr><td colSpan={16} className="px-4 py-6 text-center text-muted-foreground">No overdue students found.</td></tr>
             ) : (
               rows.map((row) => (
-                <tr key={row.studentId} className="border-t border-border">
+                <tr key={row.studentId} className="border-t border-border hover:bg-surface-2/30 transition-colors">
                   <td className="px-4 py-3 font-medium text-foreground">{row.studentName}</td>
                   <td className="px-4 py-3">{row.classLabel}</td>
                   <td className="px-4 py-3">{row.admissionNo}</td>
@@ -694,7 +689,7 @@ function CollectionTable({ rows }: { rows: CollectionRow[] }) {
               <tr><td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">No collection rows found for today.</td></tr>
             ) : (
               rows.map((row) => (
-                <tr key={`${row.paymentDate}-${row.paymentMode}`} className="border-t border-border">
+                <tr key={`${row.paymentDate}-${row.paymentMode}`} className="border-t border-border hover:bg-surface-2/30 transition-colors">
                   <td className="px-4 py-3">{formatShortDate(row.paymentDate)}</td>
                   <td className="px-4 py-3">{row.paymentMode}</td>
                   <td className="px-4 py-3">{row.receiptCount}</td>
@@ -738,7 +733,6 @@ export function TransactionsClientShell({
   routeOptions,
   paymentModeOptions,
   resolvedSessionLabel,
-  canExport,
 }: TransactionsClientShellProps) {
   const [activeView, setActiveView] = useState(initialView);
   const [filters, setFilters] = useState<FilterState>(initialFilters);
@@ -747,8 +741,7 @@ export function TransactionsClientShell({
   const [showMoreFilters, setShowMoreFilters] = useState(
     () => Boolean(
       initialFilters.fromDate || initialFilters.toDate ||
-      initialFilters.paymentMode || initialFilters.routeId ||
-      initialFilters.sessionLabel
+      initialFilters.routeId || initialFilters.sessionLabel
     )
   );
 
@@ -817,7 +810,8 @@ export function TransactionsClientShell({
     fetchData(activeView, empty);
   }
 
-  const extraActiveCount = [filters.fromDate, filters.toDate, filters.paymentMode, filters.routeId, filters.sessionLabel].filter(Boolean).length;
+  // Badge counts only secondary-panel filters — primary-row filters (search, class, mode chips) are always visible
+  const extraActiveCount = [filters.fromDate, filters.toDate, filters.routeId, filters.sessionLabel].filter(Boolean).length;
   const effectiveSession = filters.sessionLabel || resolvedSessionLabel;
   const activeMeta = officeWorkbookMeta[activeView];
 
@@ -826,34 +820,23 @@ export function TransactionsClientShell({
 
   return (
     <div className="space-y-6">
-      {/* ── Action bar ── */}
-      <div className="flex flex-wrap gap-2">
-        {canExport && (
-          <Button asChild size="sm" variant="outline">
-            <Link href={buildExportHref(activeView, filters)}>Export current view</Link>
-          </Button>
-        )}
-        <Button asChild size="sm" variant="outline">
-          <Link href={appendSessionParam("/protected/payments", effectiveSession)}>Open Payment Desk</Link>
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => handleViewChange("collection_today")}>
-          Today&apos;s Collection
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => handleViewChange("receipts")}>
-          Receipt Register
-        </Button>
-      </div>
-
       {/* ── View + Filters ── */}
       <SectionCard
         title="View & Filter"
         description="Switch views instantly. Filters apply without reloading the page."
-        actions={<StatusBadge label="Read-only records" tone="accent" />}
+        actions={
+          <div className="flex items-center gap-2">
+            <StatusBadge label="Read-only" tone="accent" />
+            <Button asChild size="sm" variant="outline">
+              <Link href={appendSessionParam("/protected/payments", effectiveSession)}>Payment Desk</Link>
+            </Button>
+          </div>
+        }
       >
         <div className="space-y-4">
-          {/* View tabs */}
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1.5 no-scrollbar md:mx-0 md:px-0 md:grid md:grid-cols-4 xl:grid-cols-5 md:gap-2 md:overflow-visible">
-            {officeWorkbookViews.map((view) => (
+          {/* View tabs — exports tab excluded; use the Exports sidebar tab instead */}
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1.5 no-scrollbar md:mx-0 md:px-0 md:grid md:grid-cols-4 xl:grid-cols-4 md:gap-2 md:overflow-visible">
+            {officeWorkbookViews.filter((v) => v !== "exports").map((view) => (
               <button
                 key={view}
                 type="button"
@@ -874,7 +857,7 @@ export function TransactionsClientShell({
           <div className="space-y-2">
             {/* Primary row: always visible */}
             <div className="flex flex-wrap items-end gap-2">
-              {/* Search — takes most space */}
+              {/* Search */}
               <div className="min-w-[180px] flex-1">
                 <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="txn-query">
                   Search
@@ -905,6 +888,7 @@ export function TransactionsClientShell({
                 </select>
               </div>
 
+              {/* Payment mode chips */}
               <div className="flex flex-wrap items-end gap-1.5">
                 {paymentModeOptions.map((option) => {
                   const active = filters.paymentMode === option.value;
@@ -942,8 +926,8 @@ export function TransactionsClientShell({
                 )}
               </button>
 
-              {/* Reset */}
-              {(filters.query || filters.classId || extraActiveCount > 0) && (
+              {/* Reset — visible when any filter is active */}
+              {(filters.query || filters.classId || filters.paymentMode || extraActiveCount > 0) && (
                 <button
                   type="button"
                   onClick={handleReset}
@@ -955,9 +939,9 @@ export function TransactionsClientShell({
               )}
             </div>
 
-            {/* Secondary row: collapsible extra filters */}
+            {/* Secondary row: date range, route, academic year */}
             {showMoreFilters && (
-              <div className="grid gap-2 rounded-lg border border-border bg-surface-2/50 p-3 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="grid gap-2 rounded-lg border border-border bg-surface-2/50 p-3 sm:grid-cols-2 lg:grid-cols-4">
                 {/* Session */}
                 <div>
                   <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="txn-session">
@@ -990,22 +974,6 @@ export function TransactionsClientShell({
                   </select>
                 </div>
 
-                {/* Mode */}
-                <div>
-                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="txn-mode">
-                    Mode
-                  </label>
-                  <select
-                    id="txn-mode"
-                    value={filters.paymentMode}
-                    onChange={(e) => handleFilterChange("paymentMode", e.target.value)}
-                    className="mt-1.5 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-                  >
-                    <option value="">All modes</option>
-                    {paymentModeOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-
                 {/* From date */}
                 <div>
                   <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="txn-from">
@@ -1018,7 +986,6 @@ export function TransactionsClientShell({
                     onChange={(e) => {
                       const newFilters = { ...filters, fromDate: e.target.value };
                       setFilters(newFilters);
-                      // Only fetch when both dates are set OR from is cleared
                       if (!e.target.value || newFilters.toDate) scheduleOrFetch(activeView, newFilters, false);
                     }}
                     className="mt-1.5 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
@@ -1116,7 +1083,7 @@ export function TransactionsClientShell({
                     <tr><td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">No import issues found.</td></tr>
                   ) : (
                     workbook.rows.map((row) => (
-                      <tr key={row.rowId} className="border-t border-border align-top">
+                      <tr key={row.rowId} className="border-t border-border hover:bg-surface-2/30 transition-colors align-top">
                         <td className="px-4 py-3">{row.rowIndex}</td>
                         <td className="px-4 py-3">{row.fullName ?? "-"}</td>
                         <td className="px-4 py-3">{row.admissionNo ?? "-"}</td>
@@ -1138,22 +1105,10 @@ export function TransactionsClientShell({
           </SectionCard>
         )}
         {workbook.view === "exports" && (
-          <SectionCard title="Exports" description="Download the permanent finance views as CSV.">
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {officeWorkbookViews.filter((v) => v !== "exports").map((view) => (
-                <div key={view} className="rounded-xl border border-border bg-surface-2 px-4 py-4">
-                  <p className="font-medium text-foreground">{officeWorkbookMeta[view].title}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{officeWorkbookMeta[view].description}</p>
-                  {canExport ? (
-                    <Button asChild size="sm" variant="outline" className="mt-3">
-                      <Link href={buildExportHref(view, filters)}>Download CSV</Link>
-                    </Button>
-                  ) : (
-                    <p className="mt-3 text-sm text-muted-foreground">CSV export requires reports access.</p>
-                  )}
-                </div>
-              ))}
-            </div>
+          <SectionCard title="Exports" description="CSV downloads have moved.">
+            <p className="text-sm text-muted-foreground">
+              Use the <strong className="text-foreground">Exports</strong> tab in the sidebar to download finance data as CSV.
+            </p>
           </SectionCard>
         )}
       </div>
