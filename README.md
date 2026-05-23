@@ -256,18 +256,27 @@ Bootstrap script env (staff seeding):
 - `BOOTSTRAP_ACCOUNTS_PASSWORD`
 - `BOOTSTRAP_STAFF_PASSWORD`
 
-## 10) Supabase migrations
+## 10) Supabase
 
-Run schema changes through `supabase/migrations/*`.
+**Live project:** `vgqyilgstjvgohrsiwkb` — ap-south-1 (Mumbai)
+**URL:** `https://vgqyilgstjvgohrsiwkb.supabase.co`
 
-Recent notable migrations in this branch history include:
+Migrated from Sydney (ap-southeast-2) to Mumbai on 2026-05-23 for latency
+improvement (~150 ms → ~25 ms RTT for India-based users). Old Sydney project
+`lsdrvovwybzspcvbdcir` is paused. Full migration record:
+`docs/operations/region-migration.md`.
 
-- `20260425090000_payment_date_workbook_preview.sql`
-- `20260425100000_workbook_preview_function_grants.sql`
-- `20260425120000_student_financial_state_projection.sql`
-- `20260425170000_conventional_discount_policies.sql`
-- `20260425143000_payment_desk_idempotency_and_locking.sql`
-- `20260425072007_fix_post_student_payment_receipt_number_ambiguity.sql`
+Run schema changes through `supabase/migrations/*` — 65 migrations applied.
+See `supabase/README.md` and `supabase/migrations/README.md` for the full
+indexed migration history grouped by feature area.
+
+To add a new migration:
+
+```bash
+supabase migration new <short_snake_case_name>
+# edit the generated file
+supabase db push
+```
 
 ## 11) Common commands
 

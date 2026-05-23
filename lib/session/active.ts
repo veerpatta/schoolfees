@@ -1,8 +1,8 @@
 import "server-only";
 
-import { getCacheSafeClient } from "@/lib/supabase/cache-safe";
+import { cacheSafeUnstableCache, getCacheSafeClient } from "@/lib/supabase/cache-safe";
 
-export async function getActiveSessionLabel(): Promise<string> {
+async function fetchActiveSessionLabel(): Promise<string> {
   const supabase = await getCacheSafeClient();
   const { data } = await supabase
     .from("app_settings")
@@ -22,3 +22,9 @@ export async function getActiveSessionLabel(): Promise<string> {
 
   return policy?.academic_session_label ?? "";
 }
+
+export const getActiveSessionLabel = cacheSafeUnstableCache(
+  fetchActiveSessionLabel,
+  ["active-session-label"],
+  { tags: ["app-settings"], revalidate: 60 },
+);

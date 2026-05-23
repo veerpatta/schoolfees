@@ -1,5 +1,6 @@
 import "server-only";
 
+import { revalidateTag } from "next/cache";
 import { parseAcademicSessionLabel } from "@/lib/config/fee-rules";
 import { createClient } from "@/lib/supabase/server";
 
@@ -19,6 +20,8 @@ export async function setActiveSessionLabel(label: string) {
   if (settingsError) {
     throw new Error(settingsError.message);
   }
+
+  revalidateTag("app-settings", "max");
 
   const { error: clearSessionsError } = await supabase
     .from("academic_sessions")

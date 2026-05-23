@@ -45,3 +45,16 @@ UAT is complete. The app is live with real 2026-27 data.
 
 - Download XLSX exports periodically from Exports for office records.
 - Supabase automatic backups protect the database.
+
+## Infrastructure Reference
+
+| Item | Value |
+|---|---|
+| Supabase project | `vgqyilgstjvgohrsiwkb` — ap-south-1 (Mumbai) |
+| Project URL | `https://vgqyilgstjvgohrsiwkb.supabase.co` |
+| Vercel project | `veerpattas-projects/schoolfees` |
+| Production URL | `schoolfees-two.vercel.app` |
+| Old Sydney project | `lsdrvovwybzspcvbdcir` — PAUSED, delete after 2026-06-23 |
+
+If you ever need to check DB health, migrations, or logs: Supabase dashboard
+→ project `vgqyilgstjvgohrsiwkb` → Database / Logs / Advisors.

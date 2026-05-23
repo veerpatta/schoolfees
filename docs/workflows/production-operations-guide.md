@@ -31,3 +31,18 @@ Import (bulk add/update) -> validate dry-run first, commit valid rows only.
 - Rotate shared credentials when staff changes.
 - Service role key must never appear in browser code.
 - Public signup must remain disabled.
+
+## Infrastructure
+
+| Item | Value |
+|---|---|
+| Supabase project | `vgqyilgstjvgohrsiwkb` — ap-south-1 (Mumbai) |
+| Project URL | `https://vgqyilgstjvgohrsiwkb.supabase.co` |
+| Vercel project | `veerpattas-projects/schoolfees` |
+| Production URL | `schoolfees-two.vercel.app` |
+| MCP server name | `supabase` (in `.mcp.json`) |
+| Migrations | 65 applied — `supabase/migrations/` |
+| Schema objects | 35 tables, 4 views, 3 materialized views |
+
+Region migration from Sydney → Mumbai completed 2026-05-23.
+Full runbook and parity report: `docs/operations/region-migration.md`.
