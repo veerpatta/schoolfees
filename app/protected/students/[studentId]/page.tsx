@@ -580,9 +580,12 @@ export default async function StudentDetailPage({
       <StudentIdentityStrip
         student={student}
         outstandingAmount={outstandingAmount}
+        overdueAmount={overdueAmount}
+        pendingLateFeeAmount={pendingLateFeeAmount}
         creditBalance={financialSnapshot?.creditBalance ?? 0}
         nextDueDate={financialSnapshot?.nextDueDate ?? null}
         nextDueLabel={financialSnapshot?.nextDueLabel ?? null}
+        nextDueAmount={financialSnapshot?.nextDueAmount ?? null}
         todayIso={todayIso}
         canPostPayments={canPostPayments}
         canEditStudent={canEditStudent}
