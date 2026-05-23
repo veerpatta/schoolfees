@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Source_Serif_4 } from "next/font/google";
 
 import { ServiceWorkerRegistration } from "@/components/system/service-worker-registration";
+import { ToastViewport } from "@/components/ui/toast";
 import { schoolProfile } from "@/lib/config/school";
 import { getSiteUrl } from "@/lib/env";
 
@@ -63,6 +64,7 @@ export default function RootLayout({
     <html lang="en" className={`${fontSans.variable} ${fontDisplay.variable}`}>
       <body className="antialiased">
         {children}
+        <ToastViewport />
         <ServiceWorkerRegistration />
       </body>
     </html>

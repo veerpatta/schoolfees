@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/admin/page-header";
+import { ClassCollectionProgress } from "@/components/dashboard/class-collection-progress";
+import { CollectionHeatmap } from "@/components/dashboard/collection-heatmap";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1631,6 +1633,23 @@ async function DashboardBelowFold({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
         <TodayBreakdown kpis={kpis} paymentModeBreakdown={data.todayPaymentModeBreakdown} />
         <StudentStatusRing classSummary={data.classSummary} totalStudents={kpis.totalStudents} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
+        <Section
+          title="Collection heatmap"
+          description="Current month day-wise receipt activity."
+          variant="card"
+        >
+          <CollectionHeatmap collections={data.collectionHeatmap} />
+        </Section>
+        <Section
+          title="Class-wise collection progress"
+          description="Most behind classes appear first."
+          variant="card"
+        >
+          <ClassCollectionProgress rows={data.classSummary} />
+        </Section>
       </div>
 
       <InstallmentTrack installments={data.installmentSummary} />

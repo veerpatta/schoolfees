@@ -176,10 +176,6 @@ export function StudentQuickLoad({
     return () => document.removeEventListener("keydown", handleSlash);
   }, []);
 
-  useEffect(() => {
-    setSrBannerDismissed(false);
-  }, [students]);
-
   const pendingSrCount = useMemo(
     () => students.filter((student) => isPendingAdmissionNo(student.admissionNo)).length,
     [students],

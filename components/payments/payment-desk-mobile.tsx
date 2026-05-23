@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingBlock } from "@/components/ui/loading-skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/components/ui/toast";
 import { Banknote, Building2, FileText, Smartphone } from "lucide-react";
 import { PayeeSummaryStrip } from "@/components/payments/payee-summary-strip";
 import { DeskTotalsSection } from "@/components/payments/desk-totals-section";
@@ -67,7 +68,7 @@ import type {
 import { formatInr } from "@/lib/helpers/currency";
 import { cn } from "@/lib/utils";
 import { clearDraft, loadDraft, saveDraft } from "@/lib/payments/draft-store";
-import { sanitizeDecimalInput } from "@/lib/payments/payment-desk-client-helpers";
+import { normalizeAmountInputShorthand, sanitizeDecimalInput } from "@/lib/payments/payment-desk-client-helpers";
 
 const ConfirmReceiptSheet = dynamic(
   () => import("@/components/payments/confirm-receipt-sheet").then((mod) => mod.ConfirmReceiptSheet),
@@ -115,7 +116,7 @@ const studentComboboxPanelHeight = 312;
 const studentComboboxOverscan = 4;
 const paymentDeskLastClassStorageKey = "vpps.paymentDesk.lastClassId";
 const paymentDeskLastModeStorageKey = "vpps.paymentDesk.lastPaymentMode";
-const paymentDeskRecentStudentsStorageKey = "vpps.paymentDesk.recentStudents";
+const paymentDeskRecentStudentsStorageKey = "vpps_recent_students";
 const paymentDeskClassStreakStorageKey = "vpps.paymentDesk.classStreak";
 const CASH_FAST_POST_THRESHOLD = 15000;
 const paymentModeOptions = [
@@ -161,6 +162,16 @@ function markPaymentDeskStudentTiming(
   if (name === "summary_fetch_start") performance.mark("vpps:payment-desk:summary_fetch_start");
   if (name === "summary_fetch_end") performance.mark("vpps:payment-desk:summary_fetch_end");
   if (name === "summary_paint") performance.mark("vpps:payment-desk:summary_paint");
+}
+
+function triggerHaptic(pattern: VibratePattern) {
+  try {
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      navigator.vibrate(pattern);
+    }
+  } catch {
+    // Haptics are best-effort only.
+  }
 }
 
 function ActionNotice({
@@ -281,6 +292,7 @@ export function PaymentDeskClient({
   const [dismissedActionStateKey, setDismissedActionStateKey] = useState<string | null>(null);
   const [dismissedTodayReceiptId, setDismissedTodayReceiptId] = useState<string | null>(null);
   const [optimisticCollectionAdd, setOptimisticCollectionAdd] = useState(0);
+  const [optimisticReceiptAdd, setOptimisticReceiptAdd] = useState(0);
   const [lastAddedAmount, setLastAddedAmount] = useState<number | null>(null);
   const [lastPostedAmount, setLastPostedAmount] = useState<number | null>(null);
   const [isLastAmountArmed, setIsLastAmountArmed] = useState(false);
@@ -330,15 +342,34 @@ export function PaymentDeskClient({
         .filter((s) => !selectedClassId || s.classId === selectedClassId),
     [recentStudentIds, studentIndex, selectedClassId],
   );
+  const getFrecencyScore = useCallback(
+    (studentId: string) => {
+      const recentIdx = recentStudentIds.indexOf(studentId);
+      return recentIdx === -1 ? 0 : 5 - recentIdx;
+    },
+    [recentStudentIds],
+  );
   const filteredStudents = useMemo(
-    () =>
-      filterPaymentDeskStudents({
+    () => {
+      const filtered = filterPaymentDeskStudents({
         students: studentIndex,
         searchIndex: studentSearchIndex,
         selectedClassId,
         query: deferredStudentSearchQuery,
-      }),
-    [studentIndex, deferredStudentSearchQuery, selectedClassId, studentSearchIndex],
+      });
+
+      return filtered.slice().sort((left, right) => {
+        const leftScore = getFrecencyScore(left.id);
+        const rightScore = getFrecencyScore(right.id);
+
+        if (leftScore !== rightScore) {
+          return rightScore - leftScore;
+        }
+
+        return 0;
+      });
+    },
+    [studentIndex, deferredStudentSearchQuery, selectedClassId, studentSearchIndex, getFrecencyScore],
   );
   const selectedStudentIndexItem = useMemo(
     () => studentIndex.find((student) => student.id === selectedStudentId) ?? null,
@@ -383,6 +414,8 @@ export function PaymentDeskClient({
   const refundableAmount = selectedStudent?.refundableAmount ?? 0;
   const creditOrRefundAmount = Math.max(creditBalance, refundableAmount);
   const studentSelectedFromIndex = Boolean(selectedStudentId && selectedStudentIndexItem);
+  const todayCollectionAmount = (data.todayCollection?.totalAmount ?? 0) + optimisticCollectionAdd;
+  const todayReceiptCount = (data.todayCollection?.receiptCount ?? 0) + optimisticReceiptAdd;
 
 
   const buildStudentSummaryCacheKey = useCallback((studentId: string, requestedPaymentDate: string) => {
@@ -820,6 +853,13 @@ export function PaymentDeskClient({
     previewTotalPending,
     selectedStudent,
   ]);
+  const primaryQuickAmounts = quickAmounts
+    .filter((quickAmount) => quickAmount.key !== "lastAmount" && quickAmount.key !== "clear")
+    .slice(0, 3);
+  const primaryQuickAmountKeys: string[] = primaryQuickAmounts.map((quickAmount) => quickAmount.key);
+  const secondaryQuickAmounts = quickAmounts.filter(
+    (quickAmount) => !primaryQuickAmountKeys.includes(quickAmount.key),
+  );
   function getQuickAmountChipVariant(quickAmount: (typeof quickAmounts)[number]) {
     if (quickAmount.key === "full") return "accent";
     if (quickAmount.key === "next") return "soft";
@@ -1022,16 +1062,27 @@ export function PaymentDeskClient({
         optimisticReceiptKeyRef.current = actionStateKey;
         if (state.amountReceived && state.amountReceived > 0) {
           setOptimisticCollectionAdd((prev) => prev + state.amountReceived!);
+          setOptimisticReceiptAdd((prev) => prev + 1);
           setLastAddedAmount(state.amountReceived);
           setLastPostedAmount(state.amountReceived);
         }
       }
-      try {
-        if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-          navigator.vibrate(80);
-        }
-      } catch { /* ignore */ }
+      triggerHaptic(80);
+      if (state.receiptNumber && state.amountReceived && selectedStudent && printReceiptHref) {
+        toast({
+          title: `Receipt ${state.receiptNumber} posted`,
+          description: `${formatInr(state.amountReceived)} for ${selectedStudent.fullName}`,
+          action: (
+            <Button asChild size="sm" variant="outline">
+              <Link href={printReceiptHref} target="_blank" rel="noreferrer">
+                Print
+              </Link>
+            </Button>
+          ),
+        });
+      }
       if (state.studentId) {
+        rememberRecentStudent(state.studentId);
         void clearDraft({
           sessionLabel: paymentSessionLabel,
           studentId: state.studentId,
@@ -1075,6 +1126,7 @@ export function PaymentDeskClient({
       setIsConfirmOpen(false);
       setIsSuccessOpen(false);
       setIsDuplicateOpen(true);
+      triggerHaptic([20, 40, 20, 40, 20]);
       setFormError(null);
       return;
     }
@@ -1090,12 +1142,15 @@ export function PaymentDeskClient({
       setDismissedActionStateKey(null);
       setIsConfirmOpen(false);
       setFormError(state.message);
+      triggerHaptic([40, 60, 40]);
     }
   }, [
     actionStateKey,
     buildStudentSummaryCacheKey,
+    printReceiptHref,
     paymentDate,
     paymentSessionLabel,
+    selectedStudent,
     state,
     clientRequestId,
     dismissedActionStateKey,
@@ -1135,6 +1190,38 @@ export function PaymentDeskClient({
   useEffect(() => {
     window.localStorage.setItem(paymentDeskLastModeStorageKey, paymentMode);
   }, [paymentMode]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(paymentDeskRecentStudentsStorageKey, JSON.stringify(recentStudentIds.slice(0, 5)));
+    } catch {
+      // Storage may be unavailable.
+    }
+  }, [recentStudentIds]);
+
+  function rememberRecentStudent(studentId: string) {
+    setRecentStudentIds((prev) => [studentId, ...prev.filter((id) => id !== studentId)].slice(0, 5));
+  }
+
+  function getPrimaryQuickAmountClassName(quickAmount: (typeof quickAmounts)[number]) {
+    if (quickAmount.key === "overdue") {
+      return "h-9 border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/15";
+    }
+
+    if (quickAmount.key === "next") {
+      return "h-9 border-accent/20 bg-accent/10 text-accent hover:bg-accent/15";
+    }
+
+    if (quickAmount.key === "full") {
+      return "h-9 border-success-soft-foreground/20 bg-success-soft text-success-soft-foreground hover:bg-success-soft/80";
+    }
+
+    return "h-9";
+  }
+
+  function onAmountInputBlur() {
+    setPaymentAmountInput(normalizeAmountInputShorthand(paymentAmountInput));
+  }
 
   useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
@@ -1408,15 +1495,6 @@ export function PaymentDeskClient({
       }
     }
 
-    setRecentStudentIds((prev) => {
-      const next = [studentId, ...prev.filter((id) => id !== studentId)].slice(0, 5);
-      try {
-        window.localStorage.setItem(paymentDeskRecentStudentsStorageKey, JSON.stringify(next));
-      } catch {
-        // storage quota — ignore
-      }
-      return next;
-    });
   }
 
   function openConfirmationDialog() {
@@ -1614,6 +1692,9 @@ export function PaymentDeskClient({
         }}
         onSetPaymentMode={(mode) => {
           setPaymentMode(mode as typeof paymentMode);
+          if (isMobileView) {
+            triggerHaptic(10);
+          }
           setFormError(null);
         }}
         onSetPaymentDate={(date) => {
@@ -1671,18 +1752,14 @@ export function PaymentDeskClient({
             ) : null}
           </div>
           <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Today</p>
-              <div className="flex items-center justify-end gap-1.5">
-                <p className="text-sm font-semibold tabular-nums text-foreground">
-                  {formatInr((data.todayCollection?.totalAmount ?? 0) + optimisticCollectionAdd)}
-                </p>
-                {lastAddedAmount !== null ? (
-                  <span className="anim-fade-in text-[11px] font-medium text-success-soft-foreground">
-                    +{formatInr(lastAddedAmount)}
-                  </span>
-                ) : null}
-              </div>
+            <div className="rounded-full bg-surface-2 px-3 py-1 text-xs text-muted-foreground">
+              <span className="tabular-nums">{formatInr(todayCollectionAmount)}</span>
+              <span> · {todayReceiptCount} receipt{todayReceiptCount !== 1 ? "s" : ""} today</span>
+              {lastAddedAmount !== null ? (
+                <span className="anim-fade-in ml-1.5 font-medium text-success-soft-foreground">
+                  +{formatInr(lastAddedAmount)}
+                </span>
+              ) : null}
             </div>
             <span className="text-xs text-muted-foreground">{defaultReceivedBy}</span>
           </div>
@@ -1703,6 +1780,22 @@ export function PaymentDeskClient({
                 <option key={opt.id} value={opt.id}>{opt.label}</option>
               ))}
             </select>
+
+            {recentStudents.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {recentStudents.map((student) => (
+                  <button
+                    key={student.id}
+                    type="button"
+                    className="max-w-[120px] truncate rounded-full border border-border bg-card px-2.5 py-1 text-xs hover:bg-surface-2"
+                    title={`${student.fullName} · ${student.classLabel}`}
+                    onClick={() => selectStudent(student.id)}
+                  >
+                    {(student.fullName.length > 14 ? `${student.fullName.slice(0, 14)}...` : student.fullName)} · {student.classLabel}
+                  </button>
+                ))}
+              </div>
+            ) : null}
 
             <div ref={desktopStudentPickerRef} className="relative">
               <Input
@@ -1853,24 +1946,21 @@ export function PaymentDeskClient({
 
             {selectedStudentIndexItem && studentSummaryLoading && !selectedStudent ? (
               <div
-                className="rounded-xl border border-border bg-card px-4 py-4"
+                className="animate-pulse rounded-xl border border-border bg-card px-4 py-4"
                 aria-live="polite"
                 aria-busy={studentSummaryLoading}
               >
-                <p className="text-sm font-semibold text-foreground">
-                  Loading dues for {selectedStudentIndexItem.fullName}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {selectedStudentIndexItem.classLabel} · SR {selectedStudentIndexItem.admissionNo}
-                </p>
+                <LoadingBlock className="h-4 w-full rounded-md border-0 bg-surface-2 p-0" lines={0} />
+                <LoadingBlock className="mt-2 h-3 w-3/5 rounded-md border-0 bg-surface-2 p-0" lines={0} />
                 {studentSummaryNotice ? (
                   <p className="mt-1 text-xs text-muted-foreground">{studentSummaryNotice}</p>
                 ) : null}
-                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <div className="mt-3 grid grid-cols-3 gap-2">
                   <LoadingBlock className="h-16 rounded-xl border-0 bg-surface-2 p-3" lines={1} />
                   <LoadingBlock className="h-16 rounded-xl border-0 bg-surface-2 p-3" lines={1} />
                   <LoadingBlock className="h-16 rounded-xl border-0 bg-surface-2 p-3" lines={1} />
                 </div>
+                <LoadingBlock className="mt-3 h-8 w-full rounded-lg border-0 bg-surface-2 p-0" lines={0} />
               </div>
             ) : selectedStudent ? (
               <div className="rounded-xl border border-border bg-card px-4 py-3">
@@ -1954,9 +2044,10 @@ export function PaymentDeskClient({
                     className="h-12 flex-1 rounded-none border-0 text-xl font-semibold shadow-none focus-visible:ring-0"
                     value={paymentAmountInput}
                     onChange={(event) => {
-                      setPaymentAmountInput(sanitizeDecimalInput(event.target.value));
+                      setPaymentAmountInput(event.target.value);
                       setFormError(null);
                     }}
+                    onBlur={onAmountInputBlur}
                     onKeyDown={(event) => {
                       if (!selectedStudentId || isLockedAfterSuccess) {
                         return;
@@ -2009,7 +2100,29 @@ export function PaymentDeskClient({
                 ) : null}
 
                 <div className="flex flex-wrap gap-1.5 border-b border-border px-3 py-2">
-                  {quickAmounts.map((qa) => (
+                  {primaryQuickAmounts.map((qa) => (
+                    <Button
+                      key={qa.key}
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={qa.disabled}
+                      className={cn(
+                        "flex h-9 flex-col items-start justify-center gap-0 px-3 text-left leading-tight",
+                        getPrimaryQuickAmountClassName(qa),
+                      )}
+                      onClick={() => {
+                        setFormError(null);
+                        setPaymentAmountInput(qa.amount === null ? "" : String(qa.amount));
+                      }}
+                    >
+                      <span className="text-[11px] font-semibold">{qa.label}</span>
+                      <span className="text-[10px] font-normal opacity-80">
+                        {qa.amount === null ? "Clear amount" : formatInr(qa.amount)}
+                      </span>
+                    </Button>
+                  ))}
+                  {secondaryQuickAmounts.map((qa) => (
                       <Button
                         key={qa.key}
                         type="button"
@@ -2409,9 +2522,10 @@ export function PaymentDeskClient({
                       ref={amountInputRef}
                       value={paymentAmountInput}
                       onChange={(event) => {
-                        setPaymentAmountInput(sanitizeDecimalInput(event.target.value));
+                        setPaymentAmountInput(event.target.value);
                         setFormError(null);
                       }}
+                      onBlur={onAmountInputBlur}
                       onKeyDown={(event) => {
                         if (event.key === "Enter") {
                           event.preventDefault();
@@ -2532,6 +2646,7 @@ export function PaymentDeskClient({
                             disabled={!selectedStudent}
                             onClick={() => {
                               setPaymentMode(value as typeof paymentMode);
+                              triggerHaptic(10);
                               setFormError(null);
                             }}
                             className={cn(

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { SlidersHorizontal, X } from "lucide-react";
+import { Printer, SlidersHorizontal, X } from "lucide-react";
 
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -80,6 +80,32 @@ function getStatusTone(status: OfficeWorkbookStudentRow["statusLabel"]) {
     case "NOT STARTED": return "policy";
     default: return "calculated";
   }
+}
+
+function getPaymentModeChipClassName(mode: string, active: boolean) {
+  const base = "rounded-full border px-3 py-1 text-xs font-medium transition-colors";
+
+  if (!active) {
+    return cn(base, "border-border bg-card text-muted-foreground hover:bg-surface-2 hover:text-foreground");
+  }
+
+  if (mode === "cash") {
+    return cn(base, "border-success-soft-foreground/20 bg-success-soft text-success-soft-foreground");
+  }
+
+  if (mode === "upi") {
+    return cn(base, "border-info-soft-foreground/20 bg-info-soft text-info-soft-foreground");
+  }
+
+  if (mode === "bank_transfer") {
+    return cn(base, "border-accent/20 bg-accent/10 text-accent");
+  }
+
+  if (mode === "cheque") {
+    return cn(base, "border-warning-soft-foreground/20 bg-warning-soft text-warning-soft-foreground");
+  }
+
+  return cn(base, "border-accent/20 bg-accent/10 text-accent");
 }
 
 function buildApiUrl(view: OfficeWorkbookView, f: FilterState) {
@@ -194,6 +220,8 @@ function TransactionsTable({
   sessionLabel: string;
 }) {
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+  const receiptPrintHref = (receiptId: string, label: string) =>
+    `/protected/receipts/${receiptId}?session=${encodeURIComponent(label)}`;
   return (
     <>
       <div className="space-y-3 md:hidden">
@@ -211,6 +239,12 @@ function TransactionsTable({
               <div className="mt-2 flex flex-wrap gap-2">
                 <Button asChild size="sm" variant="outline">
                   <Link href={withSession(`/protected/receipts/${row.receiptId}?returnTo=${encodeURIComponent(returnTo)}`)}>Open</Link>
+                </Button>
+                <Button asChild size="sm" variant="ghost" aria-label={`Print receipt ${row.receiptNumber}`}>
+                  <Link href={receiptPrintHref(row.receiptId, sessionLabel)} target="_blank" rel="noreferrer">
+                    <Printer className="size-4" />
+                    <span className="sr-only">Print</span>
+                  </Link>
                 </Button>
                 <Button asChild size="sm" variant="outline">
                   <Link href={withSession(`/protected/payments?studentId=${row.studentId}`)}>Payment</Link>
@@ -249,6 +283,12 @@ function TransactionsTable({
                     <div className="flex flex-wrap gap-2">
                       <Button asChild size="sm" variant="outline">
                         <Link href={withSession(`/protected/receipts/${row.receiptId}?returnTo=${encodeURIComponent(returnTo)}`)}>Print</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="ghost" aria-label={`Print receipt ${row.receiptNumber}`}>
+                        <Link href={receiptPrintHref(row.receiptId, sessionLabel)} target="_blank" rel="noreferrer">
+                          <Printer className="size-4" />
+                          <span className="sr-only">Print</span>
+                        </Link>
                       </Button>
                       <Button asChild size="sm" variant="outline">
                         <Link href={withSession(`/protected/students/${row.studentId}?returnTo=${encodeURIComponent(returnTo)}`)}>Student</Link>
@@ -759,6 +799,10 @@ export function TransactionsClientShell({
     scheduleOrFetch(activeView, newFilters, debounce);
   }
 
+  function handlePaymentModeToggle(mode: string) {
+    handleFilterChange("paymentMode", filters.paymentMode === mode ? "" : mode);
+  }
+
   function handleViewChange(view: OfficeWorkbookView) {
     setActiveView(view);
     window.history.pushState(null, "", buildPageUrl(view, filters));
@@ -859,6 +903,23 @@ export function TransactionsClientShell({
                   <option value="">All classes</option>
                   {classOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
                 </select>
+              </div>
+
+              <div className="flex flex-wrap items-end gap-1.5">
+                {paymentModeOptions.map((option) => {
+                  const active = filters.paymentMode === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={getPaymentModeChipClassName(option.value, active)}
+                      aria-pressed={active}
+                      onClick={() => handlePaymentModeToggle(option.value)}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
               </div>
 
               {/* More filters toggle */}

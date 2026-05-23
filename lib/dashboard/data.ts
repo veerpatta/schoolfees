@@ -49,6 +49,7 @@ export type DashboardPageData = {
   generatedAt: string;
   kpis: DashboardKpis;
   collectionTrend: DashboardTrendPoint[];
+  collectionHeatmap: Array<{ date: string; amount: number }>;
   classSummary: DashboardClassSummaryRow[];
   installmentSummary: DashboardInstallmentSummaryRow[];
   classInstallmentMatrix: DashboardClassInstallmentPendingRow[];
@@ -259,6 +260,44 @@ function loadDashboardTransactions(payload: {
       String(payload.limit ?? ""),
       payload.todayOnly ? "today" : "all",
     ],
+    { tags: [sessionTag(payload.sessionLabel)] },
+  )();
+}
+
+function getSchoolMonthRange(today: string) {
+  const [yearRaw, monthRaw] = today.split("-");
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const fromDate = `${yearRaw}-${monthRaw}-01`;
+  const toDate = `${yearRaw}-${monthRaw}-${String(new Date(year, month, 0).getDate()).padStart(2, "0")}`;
+
+  return { fromDate, toDate };
+}
+
+function loadDashboardMonthlyCollections(payload: {
+  sessionLabel: string;
+  today: string;
+}) {
+  const { fromDate, toDate } = getSchoolMonthRange(payload.today);
+
+  return cacheSafeUnstableCache(
+    async () => {
+      const transactions = await getWorkbookTransactions({
+        fromDate,
+        limit: null,
+        sessionLabel: payload.sessionLabel,
+        toDate,
+      });
+      const amountByDate = transactions.reduce((acc, row) => {
+        acc.set(row.paymentDate, (acc.get(row.paymentDate) ?? 0) + row.totalAmount);
+        return acc;
+      }, new Map<string, number>());
+
+      return Array.from(amountByDate.entries())
+        .map(([date, amount]) => ({ date, amount }))
+        .sort((left, right) => left.date.localeCompare(right.date));
+    },
+    ["dashboard-monthly-collections", payload.sessionLabel, fromDate, toDate],
     { tags: [sessionTag(payload.sessionLabel)] },
   )();
 }
@@ -560,6 +599,7 @@ export async function getDashboardPageData(options: {
     installmentRows,
     transactions,
     todayTransactions,
+    collectionHeatmap,
   ] = await Promise.all([
     optionalLoad(
       "raw active student count",
@@ -594,6 +634,12 @@ export async function getDashboardPageData(options: {
     optionalLoad(
       "today receipt activity",
       () => loadDashboardTransactions({ todayOnly: true, sessionLabel }),
+      [],
+      warnings,
+    ),
+    optionalLoad(
+      "monthly receipt activity",
+      () => loadDashboardMonthlyCollections({ sessionLabel, today }),
       [],
       warnings,
     ),
@@ -664,6 +710,7 @@ export async function getDashboardPageData(options: {
     generatedAt: new Date().toISOString(),
     kpis: summary.kpis,
     collectionTrend: summary.collectionTrend,
+    collectionHeatmap,
     classSummary: summary.classSummary,
     installmentSummary: summary.installmentSummary,
     classInstallmentMatrix: summary.classInstallmentMatrix,

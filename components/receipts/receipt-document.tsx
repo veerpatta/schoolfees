@@ -208,12 +208,12 @@ export function ReceiptDocument({ receipt, className, mode = "print" }: ReceiptD
 
   return (
     <article
-      className={`receipt-print-page anim-slide-up relative mx-auto w-full max-w-5xl overflow-hidden rounded-lg border border-border bg-card p-3 text-foreground shadow-sm sm:p-5 print:max-w-none print:rounded-none print:border-border-strong print:p-0 print:shadow-none ${className ?? ""}`.trim()}
+      className={`receipt-body receipt-print-page anim-slide-up relative mx-auto w-full max-w-5xl overflow-hidden rounded-lg border border-border bg-card p-3 text-foreground shadow-sm sm:p-5 print:max-w-none print:rounded-none print:border-border-strong print:p-0 print:shadow-none ${className ?? ""}`.trim()}
     >
       <style>{`
         @page {
-          size: A4;
-          margin: 10mm;
+          size: 80mm auto;
+          margin: 4mm;
         }
 
         .receipt-print-page {
@@ -226,15 +226,28 @@ export function ReceiptDocument({ receipt, className, mode = "print" }: ReceiptD
         }
 
         @media print {
+          nav, aside, .no-print {
+            display: none !important;
+          }
+
+          * {
+            box-shadow: none !important;
+            border-color: #000 !important;
+          }
+
+          .receipt-body {
+            max-width: 80mm;
+            margin: 0 auto;
+            font-size: 11px;
+            line-height: 1.4;
+          }
+
           .receipt-print-page {
             break-inside: avoid;
             page-break-inside: avoid;
-            width: 190mm;
-            height: 277mm;
-            max-height: 277mm;
-            overflow: hidden;
-            font-size: 10px;
-            line-height: 1.16;
+            width: 80mm;
+            max-width: 80mm;
+            overflow: visible;
             margin: 0 auto;
           }
 

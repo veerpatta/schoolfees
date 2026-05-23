@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -64,5 +67,19 @@ describe("office workbook helpers", () => {
     ).toBe(
       "/protected/transactions/export?view=receipts&classId=class-123&query=SVP-1&routeId=route-123&paymentMode=upi",
     );
+  });
+
+  it("transactions UI exposes payment-mode chips and one-click receipt reprint links", () => {
+    const source = readFileSync(
+      join(process.cwd(), "components/transactions/transactions-client-shell.tsx"),
+      "utf8",
+    );
+    const workbookData = readFileSync(join(process.cwd(), "lib/workbook/data.ts"), "utf8");
+
+    expect(source).toContain("handlePaymentModeToggle");
+    expect(source).toContain("getPaymentModeChipClassName");
+    expect(source).toContain('target="_blank"');
+    expect(source).toContain("receiptPrintHref(row.receiptId, sessionLabel)");
+    expect(workbookData).toContain('.eq("payment_mode", filters.paymentMode)');
   });
 });

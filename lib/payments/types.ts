@@ -75,6 +75,7 @@ export type PaymentStudentIndexItem = {
   admissionNo: string;
   classId: string;
   classLabel: string;
+  fatherPhone?: string | null;
   studentStatus: string;
 };
 

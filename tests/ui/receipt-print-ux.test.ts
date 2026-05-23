@@ -10,14 +10,15 @@ function readRepoFile(path: string) {
 }
 
 describe("receipt print and loading UX", () => {
-  it("keeps the receipt print document constrained to a single A4 sheet", () => {
+  it("keeps the receipt print document constrained for thermal reprints", () => {
     const receiptDocument = readRepoFile("components/receipts/receipt-document.tsx");
 
     expect(receiptDocument).toContain("receipt-print-page");
+    expect(receiptDocument).toContain("receipt-body");
     expect(receiptDocument).toContain("@page");
-    expect(receiptDocument).toContain("size: A4");
-    expect(receiptDocument).toContain("height: 277mm");
-    expect(receiptDocument).toContain("overflow: hidden");
+    expect(receiptDocument).toContain("max-width: 80mm");
+    expect(receiptDocument).toContain("font-size: 11px");
+    expect(receiptDocument).toContain("nav, aside, .no-print");
     expect(receiptDocument).toContain("print-color-adjust: exact");
     expect(receiptDocument).toContain("receipt-watermark");
     expect(receiptDocument).toContain("security-strip");

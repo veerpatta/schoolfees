@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef, useState, type TouchEvent } from "react";
+
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
 
@@ -61,16 +63,43 @@ export function ConfirmReceiptSheet({
   confirmationSummary,
   receiptPreviewAllocation,
 }: ConfirmReceiptSheetProps) {
+  const [dragY, setDragY] = useState(0);
+  const startY = useRef(0);
+
   if (!open) {
     return null;
   }
 
   const clearsDues = confirmationSummary.remainingBalance === 0;
   const hasCredit = confirmationSummary.remainingBalance < 0;
+  const isMobileSwipe = () => typeof window !== "undefined" && window.innerWidth < 768;
+  const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    if (!isMobileSwipe()) return;
+    startY.current = event.touches[0]?.clientY ?? 0;
+  };
+  const handleTouchMove = (event: TouchEvent<HTMLDivElement>) => {
+    if (!isMobileSwipe()) return;
+    setDragY(Math.max(0, (event.touches[0]?.clientY ?? 0) - startY.current));
+  };
+  const handleTouchEnd = () => {
+    if (isMobileSwipe() && dragY > 120) {
+      onBack();
+    }
+    setDragY(0);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 px-2 md:items-center md:px-4">
-      <div className="max-h-[92vh] w-full anim-slide-up overflow-y-auto rounded-t-2xl border border-border bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-3xl md:rounded-xl md:p-5">
+      <div
+        className="max-h-[92vh] w-full anim-slide-up overflow-y-auto rounded-t-2xl border border-border bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-3xl md:rounded-xl md:p-5"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{
+          transform: `translateY(${dragY}px)`,
+          transition: dragY === 0 ? "transform 0.3s ease" : "none",
+        }}
+      >
 
         {/* A. Header row */}
         <div className="flex flex-wrap items-start justify-between gap-3">

@@ -419,4 +419,15 @@ describe("dashboard summary", () => {
 
     expect(dashboardPage).toContain("Overdue without late fee");
   });
+
+  it("dashboard wires collection heatmap and class collection progress data", () => {
+    const dashboardData = readRepoFile("lib/dashboard/data.ts");
+    const dashboardPage = readRepoFile("app/protected/dashboard/page.tsx");
+
+    expect(dashboardData).toContain("collectionHeatmap");
+    expect(dashboardData).toContain("loadDashboardMonthlyCollections");
+    expect(dashboardData).toContain("getWorkbookTransactions");
+    expect(dashboardPage).toContain("CollectionHeatmap");
+    expect(dashboardPage).toContain("ClassCollectionProgress");
+  });
 });

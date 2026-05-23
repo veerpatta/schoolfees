@@ -57,6 +57,7 @@ type PaymentStudentBaseRow = {
   id: string;
   full_name: string;
   admission_no: string;
+  primary_phone: string | null;
   class_ref:
     | {
         id: string;
@@ -478,6 +479,7 @@ function toStudentIndexItem(row: PaymentStudentBaseRow): PaymentStudentIndexItem
     admissionNo: row.admission_no,
     classId: classRef.id,
     classLabel: buildClassLabel(classRef),
+    fatherPhone: row.primary_phone,
     studentStatus: "active",
   };
 }
@@ -493,7 +495,7 @@ async function getPaymentDeskStudentIndexUncached(payload: {
   let query = supabase
     .from("students")
     .select(
-      "id, full_name, admission_no, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name)",
+      "id, full_name, admission_no, primary_phone, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name)",
     )
     .eq("status", "active")
     .eq("class_ref.session_label", sessionLabel)

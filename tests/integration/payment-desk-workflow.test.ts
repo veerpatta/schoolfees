@@ -14,6 +14,7 @@ import {
   shouldShowPaymentActionState,
   validatePaymentDraft,
 } from "@/lib/payments/payment-desk-workflow";
+import { normalizeAmountInputShorthand } from "@/lib/payments/payment-desk-client-helpers";
 import type { SelectedStudentSummary } from "@/lib/payments/types";
 import { buildReceiptPreviewAllocation } from "@/lib/payments/allocation";
 
@@ -472,6 +473,48 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("optimisticCollectionAdd");
     expect(successEffect).toContain("setOptimisticCollectionAdd");
     expect(component).toContain("(data.todayCollection?.totalAmount ?? 0) + optimisticCollectionAdd");
+    expect(component).toContain("todayReceiptCount");
+    expect(component).toContain('receipt{todayReceiptCount !== 1 ? "s" : ""} today');
+  });
+
+  it("normalizes cashier shorthand amounts only on blur", () => {
+    expect(normalizeAmountInputShorthand("5k")).toBe("5000");
+    expect(normalizeAmountInputShorthand("1.5k")).toBe("1500");
+    expect(normalizeAmountInputShorthand("38K")).toBe("38000");
+    expect(normalizeAmountInputShorthand("2l")).toBe("200000");
+    expect(normalizeAmountInputShorthand("1250")).toBe("1250");
+
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+
+    expect(component).toContain("onAmountInputBlur");
+    expect(component).toContain("normalizeAmountInputShorthand(paymentAmountInput)");
+  });
+
+  it("recent student shortcuts use the requested storage key and are posted-payment driven", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+
+    expect(component).toContain('paymentDeskRecentStudentsStorageKey = "vpps_recent_students"');
+    expect(component).toContain("function rememberRecentStudent(studentId: string)");
+    expect(component).toContain("rememberRecentStudent(state.studentId)");
+    expect(component).toContain("recentStudents.map((student)");
+    expect(component).toContain("max-w-[120px]");
+  });
+
+  it("filtered student list boosts recently posted students after search and class filters", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+
+    expect(component).toContain("const getFrecencyScore");
+    expect(component).toContain("return recentIdx === -1 ? 0 : 5 - recentIdx");
+    expect(component).toContain("rightScore - leftScore");
   });
 
   it("success handling stores the last amount and triggers mobile haptics once per receipt", () => {
@@ -480,15 +523,37 @@ describe("payment desk cashier workflow", () => {
       "utf8",
     );
     const successEffect = component.match(
-      /if \(state\.status === "success"\) \{[\s\S]*?navigator\.vibrate/,
+      /if \(state\.status === "success"\) \{[\s\S]*?triggerHaptic\(80\)/,
     )?.[0] ?? "";
 
     expect(component).toContain("const [lastPostedAmount, setLastPostedAmount] = useState<number | null>(null)");
     expect(successEffect).toContain("setLastPostedAmount(state.amountReceived)");
-    expect(successEffect).toContain("navigator.vibrate");
+    expect(component).toContain("navigator.vibrate");
     expect(successEffect).toContain("optimisticReceiptKeyRef.current = actionStateKey");
     expect(component).toContain("lastPostedAmount={lastPostedAmount}");
     expect(component).toContain("setPaymentAmountInput(String(lastPostedAmount))");
+  });
+
+  it("payment feedback includes toast, distinct haptics, and improved skeleton markers", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+    const confirmSheet = readFileSync(
+      join(process.cwd(), "components/payments/confirm-receipt-sheet.tsx"),
+      "utf8",
+    );
+
+    expect(component).toContain("toast({");
+    expect(component).toContain("Receipt ${state.receiptNumber} posted");
+    expect(component).toContain("triggerHaptic([40, 60, 40])");
+    expect(component).toContain("triggerHaptic([20, 40, 20, 40, 20])");
+    expect(component).toContain("triggerHaptic(10)");
+    expect(component).toContain("animate-pulse");
+    expect(component).toContain("grid-cols-3");
+    expect(confirmSheet).toContain("onTouchStart");
+    expect(confirmSheet).toContain("dragY > 120");
+    expect(confirmSheet).toContain("window.innerWidth < 768");
   });
 
   it("payment date backdated warning is visible and non-dismissable", () => {
@@ -551,6 +616,7 @@ describe("payment desk cashier workflow", () => {
         admissionNo: "SR-001",
         classId: "c1",
         classLabel: "Class 1",
+        fatherPhone: "9999888877",
         studentStatus: "active",
       },
       {
@@ -559,6 +625,7 @@ describe("payment desk cashier workflow", () => {
         admissionNo: "SR-099",
         classId: "c1",
         classLabel: "Class 1",
+        fatherPhone: null,
         studentStatus: "active",
       },
     ];
@@ -567,7 +634,7 @@ describe("payment desk cashier workflow", () => {
     expect(filterPaymentDeskStudents({ students, searchIndex, selectedClassId: "c1", query: "SR-099" })).toHaveLength(1);
     expect(filterPaymentDeskStudents({ students, searchIndex, selectedClassId: "c1", query: "Asha" })).toHaveLength(1);
     expect(filterPaymentDeskStudents({ students, searchIndex, selectedClassId: "c1", query: "Ramesh" })).toHaveLength(0);
-    expect(filterPaymentDeskStudents({ students, searchIndex, selectedClassId: "c1", query: "8888" })).toHaveLength(0);
+    expect(filterPaymentDeskStudents({ students, searchIndex, selectedClassId: "c1", query: "8888" })).toHaveLength(1);
     expect(filterPaymentDeskStudents({ students, searchIndex, selectedClassId: "c1", query: "class 1" })).toHaveLength(2);
   });
 
@@ -1005,7 +1072,8 @@ describe("payment desk cashier workflow", () => {
     );
 
     expect(component).toContain("selectedStudentIndexItem && studentSummaryLoading");
-    expect(component).toContain("Loading dues for");
+    expect(component).toContain("aria-busy={studentSummaryLoading}");
+    expect(component).toContain("animate-pulse");
   });
 
   it("student selection retries when a prefetch summary was empty", () => {

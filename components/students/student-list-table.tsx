@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { Users, GraduationCap, Bus, ShieldAlert, ChevronRight } from "lucide-react";
+import { Users, GraduationCap, ShieldAlert, ChevronRight, Phone, AlertTriangle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
+import { formatShortDate } from "@/lib/helpers/date";
 import type { StudentListItem } from "@/lib/students/types";
 import { cn } from "@/lib/utils";
 import { appendSessionParam } from "@/lib/navigation/session-href";
@@ -96,14 +97,52 @@ function SiblingPill({ student, session }: { student: StudentListItem; session?:
   );
 }
 
+function DataQualityFlags({ student }: { student: StudentListItem }) {
+  const flags = [];
+  if (student.duplicateSrFlag) {
+    flags.push(
+      <span key="dup-sr" title="Duplicate SR number">
+        <AlertTriangle className="h-3 w-3 text-warning inline-block" />
+      </span>
+    );
+  }
+  if (student.missingDobFlag) {
+    flags.push(
+      <span key="miss-dob" title="Date of birth missing">
+        <AlertTriangle className="h-3 w-3 text-warning inline-block" />
+      </span>
+    );
+  }
+  if (student.missingClassFlag) {
+    flags.push(
+      <span key="miss-class" title="Class not assigned">
+        <AlertTriangle className="h-3 w-3 text-warning inline-block" />
+      </span>
+    );
+  }
+  if (student.missingStatusFlag) {
+    flags.push(
+      <span key="miss-status" title="Status not set">
+        <AlertTriangle className="h-3 w-3 text-warning inline-block" />
+      </span>
+    );
+  }
+
+  if (flags.length === 0) return null;
+
+  return <span className="flex items-center gap-1 mt-0.5">{flags}</span>;
+}
+
 function MobileStudentListItem({
   student,
   returnTo,
   session,
+  canWrite,
 }: {
   student: StudentListItem;
   returnTo: string;
   session?: string;
+  canWrite: boolean;
 }) {
   const withSession = (href: string) => appendSessionParam(href, session);
   const srNoMissing = student.status === "active" && !student.admissionNo.trim();
@@ -140,6 +179,7 @@ function MobileStudentListItem({
             </span>
           ) : null}
           <SiblingPill student={student} session={session} />
+          <DataQualityFlags student={student} />
           {student.status !== "active" && (
             <StudentStatusBadge status={student.status} />
           )}
@@ -147,11 +187,33 @@ function MobileStudentListItem({
         <p className="text-xs text-muted-foreground mt-1">
           {student.classLabel} · SR {student.admissionNo || "Pending"}
         </p>
+        {(student.fatherPhone || student.motherPhone) && (
+          <p className="text-xs text-muted-foreground mt-1">
+            <a
+              href={`tel:${student.fatherPhone || student.motherPhone}`}
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1 hover:underline"
+            >
+              <Phone className="h-3 w-3" />
+              <span>{student.fatherPhone || student.motherPhone}</span>
+            </a>
+          </p>
+        )}
       </div>
 
       <div className="shrink-0 text-right">
         <OutstandingCell student={student} />
       </div>
+
+      {canWrite && (
+        <Link
+          href={withSession(`/protected/payments?studentId=${student.id}`)}
+          className={cn(buttonVariants({ variant: "accent", size: "sm" }), "h-7 text-xs px-2.5 font-semibold shrink-0")}
+          onClick={(e) => e.stopPropagation()}
+        >
+          Collect
+        </Link>
+      )}
 
       <Link
         href={studentHref}
@@ -199,6 +261,7 @@ export function StudentListTable({
             student={student}
             returnTo={returnTo}
             session={session}
+            canWrite={canWrite}
           />
         ))}
       </ul>
@@ -215,7 +278,7 @@ export function StudentListTable({
               Class
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Transport
+              Next Due
             </th>
             <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground pr-6">
               Outstanding
@@ -265,6 +328,7 @@ export function StudentListTable({
                     ) : null}
                     <SiblingPill student={student} session={session} />
                   </div>
+                  <DataQualityFlags student={student} />
                   {student.conventionalDiscountLabels.length > 0 ? (
                     <div className="mt-1.5 flex flex-wrap gap-1">
                       {student.conventionalDiscountLabels.map((label) => (
@@ -285,27 +349,45 @@ export function StudentListTable({
                   </div>
                 </td>
                 <td className="px-4 py-3.5 text-sm text-foreground">
-                  <div className="flex items-center gap-1.5">
-                    <Bus className="h-4 w-4 text-muted-foreground" />
-                    <span>{student.transportRouteLabel}</span>
-                  </div>
+                  {!student.nextDueLabel ? (
+                    <span className="text-sm text-muted-foreground">—</span>
+                  ) : (
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">{student.nextDueLabel}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {student.nextDueDate ? formatShortDate(student.nextDueDate) : ""}
+                      </span>
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-3.5 text-right pr-6">
-                  <OutstandingCell student={student} />
+                  {student.outstandingAmount > 0 && student.duesStatus === "generated" ? (
+                    <Link
+                      href={withSession(`/protected/students/${student.id}/ledger?returnTo=${encodeURIComponent(returnTo)}`)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="block hover:opacity-80 transition-opacity"
+                    >
+                      <OutstandingCell student={student} />
+                    </Link>
+                  ) : (
+                    <OutstandingCell student={student} />
+                  )}
                 </td>
                 <td className="px-4 py-3.5 text-right">
-                  <div className="flex justify-end gap-1.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                    {canWrite ? (
-                      <Link
-                        href={withSession(`/protected/students/${student.id}/edit?returnTo=${encodeURIComponent(returnTo)}`)}
-                        className={cn(buttonVariants({ size: "sm", variant: "outline" }), "h-7 text-xs px-2.5")}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                        }}
-                      >
-                        Edit
-                      </Link>
-                    ) : null}
+                  <div className="flex justify-end gap-1.5">
+                    {canWrite && (
+                      <div className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                        <Link
+                          href={withSession(`/protected/students/${student.id}/edit?returnTo=${encodeURIComponent(returnTo)}`)}
+                          className={cn(buttonVariants({ size: "sm", variant: "outline" }), "h-7 text-xs px-2.5")}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                          }}
+                        >
+                          Edit
+                        </Link>
+                      </div>
+                    )}
                     <Link
                       href={withSession(`/protected/payments?studentId=${student.id}`)}
                       className={cn(buttonVariants({ variant: "accent", size: "sm" }), "h-7 text-xs px-2.5 font-semibold")}
