@@ -15,7 +15,7 @@ This is an **internal office/accounts/admin** system for daily fee work:
 - exports for office reporting
 
 It is built to gradually replace workbook/Excel operations with safer, faster,
-audit-ready workflows.
+audit-ready workflows only.
 
 ## Read First Before Product Decisions
 
