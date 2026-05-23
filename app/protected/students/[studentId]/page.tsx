@@ -146,6 +146,8 @@ export default async function StudentDetailPage({
         isOverdue: firstPendingInstallment.balanceStatus === "overdue",
       }
     : null;
+  const paymentLinesDescription =
+    "Each row is one installment allocation. A single receipt can appear as multiple rows here. Newest first.";
 
   const feePlanContent = (
     <Section
@@ -362,8 +364,11 @@ export default async function StudentDetailPage({
   const paymentsContent = (
     <Section
       title="Payments"
-      description="Each row is one installment allocation. A single receipt can appear as multiple rows here. Newest first."
+      description={paymentLinesDescription}
     >
+      <p className="mb-4 text-sm leading-6 text-muted-foreground sm:hidden">
+        {paymentLinesDescription}
+      </p>
       <div className="mb-4 flex flex-wrap gap-2">
         <ValueStatePill tone="locked">Locked payment history</ValueStatePill>
       </div>
