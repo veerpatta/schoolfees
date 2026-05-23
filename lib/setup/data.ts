@@ -4,7 +4,7 @@ import { cache } from "react";
 
 import type { ClassStatus } from "@/lib/db/types";
 import { parseAcademicSessionLabel } from "@/lib/config/fee-rules";
-import { previewLedgerGeneration } from "@/lib/fees/generator";
+import { previewLedgerGeneration, type LedgerGenerationPreview } from "@/lib/fees/generator";
 import { getFeeSetupPageData } from "@/lib/fees/data";
 import {
   upsertClassFeeDefault,
@@ -369,7 +369,23 @@ function buildFlowItems(payload: {
   ];
 }
 
-async function loadSetupWizardData(): Promise<SetupWizardData> {
+const LEDGER_PREVIEW_SKIPPED: LedgerGenerationPreview = {
+  academicSessionLabel: "",
+  totalActiveStudents: 0,
+  studentsInAcademicSession: 0,
+  scopedStudents: 0,
+  studentsWithResolvedSettings: 0,
+  studentsMissingSettings: 0,
+  existingInstallments: 0,
+  installmentsToInsert: 0,
+  installmentsToUpdate: 0,
+  installmentsToCancel: 0,
+  lockedInstallments: 0,
+  expectedScheduledInstallments: 0,
+  affectedStudents: 0,
+};
+
+async function loadSetupWizardData(options: { skipLedgerPreview?: boolean } = {}): Promise<SetupWizardData> {
   const supabase = await createClient();
   const setupData = await getFeeSetupPageData();
   const activeSessionLabel = setupData.globalPolicy.academicSessionLabel;
@@ -401,7 +417,9 @@ async function loadSetupWizardData(): Promise<SetupWizardData> {
       .select("id, setup_completed_at, completion_notes")
       .eq("is_active", true)
       .maybeSingle(),
-    previewLedgerGeneration({ setupData }),
+    options.skipLedgerPreview
+      ? Promise.resolve(LEDGER_PREVIEW_SKIPPED)
+      : previewLedgerGeneration({ setupData }),
   ]);
 
   if (classRowsError) {
@@ -547,9 +565,14 @@ async function loadSetupWizardData(): Promise<SetupWizardData> {
 }
 
 const getSetupWizardDataForRequest = cache(loadSetupWizardData);
+const getSetupWizardDataLightForRequest = cache(() => loadSetupWizardData({ skipLedgerPreview: true }));
 
 export async function getSetupWizardData(): Promise<SetupWizardData> {
   return getSetupWizardDataForRequest();
+}
+
+export async function getSetupWizardDataLight(): Promise<SetupWizardData> {
+  return getSetupWizardDataLightForRequest();
 }
 
 export async function saveSetupPolicy(input: SaveSetupPolicyInput) {

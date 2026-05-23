@@ -5,7 +5,7 @@ import { getOfficeWorkbookData } from "@/lib/transactions/dues";
 import { resolveOfficeWorkbookView } from "@/lib/transactions/workbook";
 import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
 import { getFeePolicySummary } from "@/lib/fees/data";
-import { getSetupWizardData } from "@/lib/setup/data";
+import { getSetupWizardDataLight } from "@/lib/setup/data";
 import { getStudentFormOptions } from "@/lib/students/data";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
@@ -79,7 +79,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
       // Skip financial enrichment for the initial display render — exports still use the full route
       skipFinancials: true,
     }),
-    getSetupWizardData(),
+    getSetupWizardDataLight(),
     getStudentFormOptions({ sessionLabel }),
     getFeePolicySummary(),
   ]);
