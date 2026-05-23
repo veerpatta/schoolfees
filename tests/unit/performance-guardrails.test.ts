@@ -165,6 +165,40 @@ describe("office performance guardrails", () => {
     expect(paymentsData).toContain("[payment-entry-page-data] loaded in");
   });
 
+  it("keeps Tier 2 architecture wins in place", () => {
+    const dashboardData = readRepoFile("lib/dashboard/data.ts");
+    const dashboardPage = readRepoFile("app/protected/dashboard/page.tsx");
+    const dashboardPrefetcher = readRepoFile("components/dashboard/dashboard-prefetcher.tsx");
+    const transactionsShell = readRepoFile("components/transactions/transactions-client-shell.tsx");
+    const transactionsLazyTables = readRepoFile("components/transactions/transactions-lazy-tables.tsx");
+    const paymentClient = readRepoFile("components/payments/payment-desk-mobile.tsx");
+    const feePolicy = readRepoFile("lib/fees/policy.ts");
+    const staffSession = readRepoFile("lib/supabase/session.ts");
+
+    expect(dashboardData).toContain('supabase.rpc("get_dashboard_summary"');
+    expect(feePolicy).toContain('import { cache } from "react"');
+    expect(feePolicy).toContain("getFeePolicySummaryForRequest = cache(");
+    expect(feePolicy).toContain("getFeePolicyForSessionForRequest = cache(");
+    expect(staffSession).toContain('import { cache } from "react"');
+    expect(staffSession).toContain("const _getAuthenticatedStaffOnce = cache(");
+
+    expect(transactionsShell).toContain('import dynamic from "next/dynamic"');
+    expect(transactionsShell).toContain('import("./transactions-lazy-tables")');
+    expect(transactionsShell).not.toContain("function InstallmentTrackerTable");
+    expect(transactionsShell).not.toContain("function DefaultersTable");
+    expect(transactionsLazyTables).toContain("export function InstallmentTrackerTable");
+    expect(transactionsLazyTables).toContain("export function DefaultersTable");
+
+    expect(paymentClient).toContain("window.history.replaceState");
+    expect(paymentClient).toContain('url.searchParams.set("studentId", studentId)');
+    expect(paymentClient).toContain("/protected/payments/student-summary");
+
+    expect(dashboardPage).toContain("<DashboardPrefetcher");
+    expect(dashboardPrefetcher).toContain("router.prefetch");
+    expect(dashboardPrefetcher).toContain('"/protected/payments"');
+    expect(dashboardPrefetcher).toContain('"/protected/defaulters"');
+  });
+
   it("keeps payment desk student index privately cacheable within the staff session", () => {
     const route = readRepoFile("app/protected/students/index/route.ts");
 

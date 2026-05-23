@@ -1387,6 +1387,14 @@ export function PaymentDeskClient({
   function clearSelectedStudent() {
     summaryAbortRef.current?.abort();
     summaryRequestRef.current += 1;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("studentId");
+    url.searchParams.delete("repairNotice");
+    if (selectedClassId) {
+      url.searchParams.set("classId", selectedClassId);
+    }
+    url.searchParams.set("session", data.sessionLabel);
+    window.history.replaceState({}, "", `${url.pathname}?${url.searchParams.toString()}${url.hash}`);
     setSelectedStudentId("");
     setSelectedStudent(null);
     setSelectedStudentIssue(null);
@@ -1455,6 +1463,14 @@ export function PaymentDeskClient({
     const cachedSummary = summaryCache.current.get(cacheKey);
 
     setSelectedStudentId(studentId);
+    const url = new URL(window.location.href);
+    url.searchParams.set("studentId", studentId);
+    url.searchParams.delete("repairNotice");
+    if (selectedClassId) {
+      url.searchParams.set("classId", selectedClassId);
+    }
+    url.searchParams.set("session", data.sessionLabel);
+    window.history.replaceState({}, "", `${url.pathname}?${url.searchParams.toString()}${url.hash}`);
     setClientRequestId(createClientRequestId());
     setIsLockedAfterSuccess(false);
     if (isLastAmountArmed && lastPostedAmount !== null) {

@@ -165,6 +165,7 @@ describe("read-only UX audit implementation", () => {
   it("daily tables expose compact default columns", () => {
     const studentsTable = readRepoFile("components/students/student-list-table.tsx");
     const transactions = readRepoFile("components/transactions/transactions-client-shell.tsx");
+    const transactionLazyTables = readRepoFile("components/transactions/transactions-lazy-tables.tsx");
     const defaulters = readRepoFile("app/protected/defaulters/page.tsx");
     const dashboard = readRepoFile("app/protected/dashboard/page.tsx");
 
@@ -172,7 +173,7 @@ describe("read-only UX audit implementation", () => {
     expect(studentsTable).toContain("Student name");
     expect(studentsTable).toContain("md:hidden");
     expect(transactions).toContain("Receipt no");
-    expect(transactions).toContain("tracker-mobile-");
+    expect(transactionLazyTables).toContain("tracker-mobile-");
     expect(transactions).not.toContain("Receipt / Ref");
     expect(defaulters).toContain("Oldest due");
     expect(defaulters).toContain("missing-mobile-");

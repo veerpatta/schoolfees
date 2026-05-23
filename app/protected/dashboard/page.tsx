@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/admin/page-header";
+import { DashboardPrefetcher } from "@/components/dashboard/dashboard-prefetcher";
 import { ClassCollectionProgress } from "@/components/dashboard/class-collection-progress";
 import { CollectionHeatmap } from "@/components/dashboard/collection-heatmap";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -1670,6 +1671,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   return (
     <div className="space-y-4 sm:space-y-7">
+      <DashboardPrefetcher
+        sessionLabel={viewSession.sessionLabel}
+        canPostPayments={canPostPayments}
+      />
       <PageHeader
         eyebrow="Workspace"
         title="Dashboard"
