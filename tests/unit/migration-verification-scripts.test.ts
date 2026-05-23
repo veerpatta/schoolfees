@@ -55,6 +55,27 @@ describe("phase 1 migration verification scripts", () => {
     expect(migration).toContain("drop policy if exists \"fees:write can update reconcile log\"");
   });
 
+  it("keeps the dashboard summary RPC sync-health array jsonb-compatible", () => {
+    const migration = readRepoFile(
+      "supabase/migrations/20260523163721_fix_dashboard_summary_jsonb_sync_health.sql",
+    );
+
+    expect(migration).toContain("pg_get_functiondef('public.get_dashboard_summary(text,text)'::regprocedure)");
+    expect(migration).toContain("'v_students_missing_installments json;'");
+    expect(migration).toContain("'v_students_missing_installments jsonb;'");
+  });
+
+  it("keeps the dashboard summary RPC private to authenticated staff calls", () => {
+    const migration = readRepoFile(
+      "supabase/migrations/20260523164039_harden_dashboard_summary_rpc_execute_grants.sql",
+    );
+
+    expect(migration).toContain("set search_path = public, private, pg_temp");
+    expect(migration).toContain("revoke all on function public.get_dashboard_summary(text, text) from public");
+    expect(migration).toContain("revoke execute on function public.get_dashboard_summary(text, text) from anon");
+    expect(migration).toContain("grant execute on function public.get_dashboard_summary(text, text) to authenticated");
+  });
+
   it("checks the live sync verifier against the app's actual payment RPC and count API", () => {
     const script = readRepoFile("scripts/verify-live-sync-health.mjs");
 
