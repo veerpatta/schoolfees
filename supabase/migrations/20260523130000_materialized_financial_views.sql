@@ -1,9 +1,27 @@
 -- Migration to convert workbook views into Materialized Views with automatic statement-level triggers.
 
--- Drop dependent views in correct order
-drop view if exists public.v_student_financial_state;
-drop view if exists public.v_workbook_student_financials;
-drop view if exists public.v_workbook_installment_balances;
+-- Drop dependent objects in correct order, handling both regular views and materialized views.
+do $$
+begin
+  if exists (select 1 from pg_matviews where schemaname = 'public' and matviewname = 'v_student_financial_state') then
+    drop materialized view public.v_student_financial_state;
+  elsif exists (select 1 from pg_views where schemaname = 'public' and viewname = 'v_student_financial_state') then
+    drop view public.v_student_financial_state;
+  end if;
+
+  if exists (select 1 from pg_matviews where schemaname = 'public' and matviewname = 'v_workbook_student_financials') then
+    drop materialized view public.v_workbook_student_financials;
+  elsif exists (select 1 from pg_views where schemaname = 'public' and viewname = 'v_workbook_student_financials') then
+    drop view public.v_workbook_student_financials;
+  end if;
+
+  if exists (select 1 from pg_matviews where schemaname = 'public' and matviewname = 'v_workbook_installment_balances') then
+    drop materialized view public.v_workbook_installment_balances;
+  elsif exists (select 1 from pg_views where schemaname = 'public' and viewname = 'v_workbook_installment_balances') then
+    drop view public.v_workbook_installment_balances;
+  end if;
+end;
+$$;
 
 -- 1. Create public.v_workbook_installment_balances as a Materialized View
 create materialized view public.v_workbook_installment_balances as
@@ -477,9 +495,9 @@ grant select on public.v_student_financial_state to authenticated;
 grant select on public.v_student_financial_state to service_role;
 
 -- Unique indexes to enable concurrent materialized view refreshes
-create unique index v_workbook_installment_balances_idx on public.v_workbook_installment_balances (installment_id);
-create unique index v_workbook_student_financials_idx on public.v_workbook_student_financials (student_id);
-create unique index v_student_financial_state_idx on public.v_student_financial_state (student_id);
+create unique index if not exists v_workbook_installment_balances_idx on public.v_workbook_installment_balances (installment_id);
+create unique index if not exists v_workbook_student_financials_idx on public.v_workbook_student_financials (student_id);
+create unique index if not exists v_student_financial_state_idx on public.v_student_financial_state (student_id);
 
 -- 4. Create the refresh helper function
 create or replace function public.refresh_financial_materialized_views(p_concurrently boolean default false)
