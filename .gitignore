@@ -49,3 +49,9 @@ next-env.d.ts
 /docs/import-previews/*/apply-reports/
 /docs/import-previews/*/backups/
 .playwright-mcp/
+
+# DB dumps and migration scratch (contain real student/auth data — never commit)
+/.region-migration/
+/scratch/
+.codex-*.txt
+.codex-*.log
