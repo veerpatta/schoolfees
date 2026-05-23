@@ -853,6 +853,14 @@ export function PaymentDeskClient({
     );
   }
 
+  function getDesktopModeActiveClass(mode: string) {
+    if (mode === "cash") return "bg-success-soft text-success-soft-foreground border-success-soft-foreground/20";
+    if (mode === "upi") return "bg-info-soft text-info-soft-foreground border-info-soft-foreground/20";
+    if (mode === "bank_transfer") return "bg-accent/10 text-accent border-accent/20";
+    if (mode === "cheque") return "bg-warning-soft text-warning-soft-foreground border-warning-soft-foreground/20";
+    return "bg-accent-soft text-accent border-accent/20";
+  }
+
   const allocatedPreviewTotal = allocationPreview.reduce(
     (sum, item) => sum + item.allocatedAmount,
     0,
@@ -1800,7 +1808,21 @@ export function PaymentDeskClient({
                           height: `${studentComboboxRowHeight}px`,
                         }}
                       >
-                        <span className="text-sm font-medium text-foreground">{student.fullName}</span>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate text-sm font-medium text-foreground">{student.fullName}</span>
+                          {(() => {
+                            const pendingAmt = getStudentPendingAmount(student.id);
+                            if (pendingAmt === null) return null;
+                            return (
+                              <span className={cn(
+                                "shrink-0 text-xs font-semibold tabular-nums",
+                                pendingAmt === 0 ? "text-success-soft-foreground" : "text-destructive",
+                              )}>
+                                {pendingAmt === 0 ? "✓ Paid" : formatInr(pendingAmt)}
+                              </span>
+                            );
+                          })()}
+                        </div>
                         <span className="text-xs text-muted-foreground">
                           {student.classLabel} · SR {student.admissionNo}
                         </span>
@@ -1814,6 +1836,7 @@ export function PaymentDeskClient({
 
           {/* RIGHT PANEL — Payment form */}
           <DesktopPaymentDeskMainPanel>
+            <ActionNotice state={visibleActionState} canViewDiagnostics={canViewDiagnostics} />
             {formError ? (
               <div
                 role="alert"
@@ -1904,8 +1927,13 @@ export function PaymentDeskClient({
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-center rounded-xl border border-dashed border-border bg-surface px-4 py-8 text-sm text-muted-foreground">
-                Select a student from the left panel to begin
+              <div className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border bg-surface px-4 py-10 text-center">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/50" aria-hidden="true">
+                  <circle cx="11" cy="11" r="8"/>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <p className="text-sm font-medium text-foreground">No student selected</p>
+                <p className="text-xs text-muted-foreground">Search or click a student on the left to load their dues</p>
               </div>
             )}
 
@@ -2037,7 +2065,7 @@ export function PaymentDeskClient({
                       className={cn(
                         "flex flex-col items-center gap-1 py-2.5 text-xs font-medium transition-colors",
                         paymentMode === opt.value
-                          ? "bg-accent-soft text-accent"
+                          ? getDesktopModeActiveClass(opt.value)
                           : "bg-surface text-muted-foreground hover:bg-surface-2 hover:text-foreground",
                       )}
                       onClick={() => {

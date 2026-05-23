@@ -255,10 +255,6 @@ export function toFriendlyPaymentPostingError(error: unknown) {
     return "Payment amount exceeds pending amount for the selected payment date.";
   }
 
-  if (normalized.includes("reference number is required")) {
-    return "Reference number is required for UPI, bank transfer, and cheque payments.";
-  }
-
   if (normalized.includes("no pending dues") || normalized.includes("total_outstanding")) {
     return "No payable dues found for selected payment date.";
   }

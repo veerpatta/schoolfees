@@ -1282,10 +1282,6 @@ begin
     raise exception 'You do not have permission to post payments.';
   end if;
 
-  if p_payment_mode in ('upi', 'bank_transfer', 'cheque') and nullif(trim(coalesce(p_reference_number, '')), '') is null then
-    raise exception 'Reference number is required for UPI, bank transfer, and cheque payments.';
-  end if;
-
   if p_total_amount is null or p_total_amount <= 0 then
     raise exception 'Payment amount must be greater than 0.';
   end if;
