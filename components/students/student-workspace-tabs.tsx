@@ -44,7 +44,7 @@ export function StudentWorkspaceTabs(props: StudentWorkspaceTabsProps) {
 
   return (
     <Tabs defaultValue={props.defaultTab} onValueChange={handleChange} className="w-full">
-      <div className="no-scrollbar -mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+      <div className="no-scrollbar -mx-4 overflow-x-auto px-4 md:mx-0 md:px-0 sticky top-0 z-10 bg-background/95 backdrop-blur-sm md:static md:z-auto md:bg-transparent md:backdrop-blur-none pb-0 md:pb-0">
         <TabsList className="flex h-auto w-full justify-start gap-1.5 bg-transparent p-0 border-b border-border rounded-none min-w-max md:min-w-0 pb-1.5 md:pb-0">
           <TabsTrigger
             value="dues"
@@ -62,7 +62,7 @@ export function StudentWorkspaceTabs(props: StudentWorkspaceTabsProps) {
             value="payments"
             className="shrink-0 whitespace-nowrap rounded-full bg-transparent border-transparent px-4 py-2 hover:text-foreground text-muted-foreground data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:shadow-none transition-all font-semibold text-sm md:rounded-none md:border-b-2 md:border-transparent md:data-[state=active]:bg-transparent md:data-[state=active]:border-accent md:data-[state=active]:text-foreground"
           >
-            Payments{tabBadge(props.counts.payments)}
+            Payment Lines{tabBadge(props.counts.payments)}
           </TabsTrigger>
           <TabsTrigger
             value="fee-plan"

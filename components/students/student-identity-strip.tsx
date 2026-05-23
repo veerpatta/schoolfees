@@ -5,6 +5,7 @@ import { StudentStatusBadge } from "@/components/students/student-status-badge";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
 import type { StudentStatus } from "@/lib/db/types";
+import { cn } from "@/lib/utils";
 
 type StudentIdentityStripProps = {
   student: {
@@ -85,6 +86,13 @@ export function StudentIdentityStrip({
   encodedReturnTo,
 }: StudentIdentityStripProps) {
   const hint = computeTemporalHint(nextDueDate, outstandingAmount, creditBalance, todayIso);
+  const outstandingBlockClasses = {
+    danger: "bg-destructive/10 text-destructive border-destructive/20",
+    warning: "bg-warning-soft text-warning-soft-foreground border-warning/20",
+    success: "bg-success-soft text-success-soft-foreground border-success/20",
+    info: "bg-info-soft text-info-soft-foreground border-info/20",
+    neutral: "bg-surface-2 text-foreground border-border",
+  } as const;
   const initials =
     student.fullName
       .split(/\s+/)
@@ -139,11 +147,16 @@ export function StudentIdentityStrip({
         </div>
 
         {/* Outstanding Dues Block */}
-        <div className="bg-info-soft text-info-soft-foreground p-6 min-w-[260px] flex flex-col justify-center border-t md:border-t-0 md:border-l border-info/10">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-info-soft-foreground/70">
+        <div
+          className={cn(
+            outstandingBlockClasses[hint.tone],
+            "p-6 min-w-[260px] flex flex-col justify-center border-t md:border-t-0 md:border-l",
+          )}
+        >
+          <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">
             Total Outstanding
           </p>
-          <h3 className="font-display text-2xl md:text-3xl font-bold mt-1 text-info-soft-foreground leading-none tabular-nums">
+          <h3 className="font-display text-2xl md:text-3xl font-bold mt-1 leading-none tabular-nums">
             {formatInr(outstandingAmount)}
           </h3>
           <div className="mt-2.5 inline-flex items-center gap-1 text-xs font-semibold">
@@ -151,7 +164,7 @@ export function StudentIdentityStrip({
             <span>{hint.label}</span>
           </div>
           {nextDueLabel && outstandingAmount > 0 ? (
-            <p className="text-[10px] text-info-soft-foreground/60 mt-0.5">
+            <p className="text-[10px] opacity-60 mt-0.5">
               Next: {nextDueLabel}
             </p>
           ) : null}
@@ -179,7 +192,7 @@ export function StudentIdentityStrip({
         </div>
 
         {/* Right Actions */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 justify-end">
           {canPostPayments && student.status === "active" ? (
             <Button asChild variant="accent" size="sm" className="h-9 gap-1.5 font-semibold">
               <Link href={`/protected/payments?studentId=${student.id}&returnTo=${encodedReturnTo}`}>
@@ -204,7 +217,15 @@ export function StudentIdentityStrip({
               </Link>
             </Button>
           ) : null}
-          <Button asChild variant="ghost" size="sm" className="h-9 gap-1.5 border-l border-border pl-3">
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className={cn(
+              "h-9 gap-1.5",
+              (canViewLedger || canEditStudent) && "border-l border-border pl-3",
+            )}
+          >
             <Link href={returnTo}>
               <ArrowLeft className="h-4 w-4" />
               <span>Back</span>

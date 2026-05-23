@@ -14,7 +14,11 @@ import { Money } from "@/components/ui/money";
 import { Notice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
 import { buildFeeBreakupDisplayRows } from "@/lib/fees/display-breakdown";
-import { calculateInstallmentBasePending, calculateOverdueBaseAmount } from "@/lib/fees/due-amounts";
+import {
+  calculateInstallmentBasePending,
+  calculateOverdueBaseAmount,
+  calculatePendingLateFeeAmount,
+} from "@/lib/fees/due-amounts";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { getStudentDeletionSafety, getStudentFamilyMembersDetail } from "@/lib/students/data";
@@ -57,6 +61,7 @@ function getSchoolDateStamp(referenceDate = new Date()) {
 
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
@@ -94,10 +99,7 @@ export default async function StudentDetailPage({
   const canShowDangerZone = staff.appRole === "admin" && canEditStudent && deletionSafety;
   const outstandingAmount = installmentBalances.reduce((sum, row) => sum + row.pendingAmount, 0);
   const overdueAmount = calculateOverdueBaseAmount(installmentBalances);
-  const pendingLateFeeAmount = installmentBalances.reduce(
-    (sum, row) => sum + Math.min(row.finalLateFee, row.pendingAmount),
-    0,
-  );
+  const pendingLateFeeAmount = calculatePendingLateFeeAmount(installmentBalances);
   const todayIso = getSchoolDateStamp();
   const feeBreakupRows = financialSnapshot
     ? buildFeeBreakupDisplayRows(financialSnapshot.resolvedBreakdown)
@@ -115,6 +117,7 @@ export default async function StudentDetailPage({
     bank_transfer: "Bank transfer",
     cheque: "Cheque",
   };
+  const receiptIdByNumber = new Map(receipts.map((r) => [r.receiptNumber, r.id]));
   const lastPaymentRow = allPayments[0] ?? null;
   const lastPaymentInfo = lastPaymentRow
     ? {
@@ -264,7 +267,15 @@ export default async function StudentDetailPage({
   const duesContent = (
     <Section
       title="Dues"
-      description={`Session due is the full-year pending amount. Overdue is ${formatInr(overdueAmount)} without late fee${pendingLateFeeAmount > 0 ? `; pending late fee is ${formatInr(pendingLateFeeAmount)}.` : "."}`}
+      description={
+        overdueAmount > 0
+          ? `Overdue: ${formatInr(overdueAmount)} base${
+              pendingLateFeeAmount > 0 ? ` + ${formatInr(pendingLateFeeAmount)} pending late fee` : ""
+            }.`
+          : installmentBalances.length > 0 && installmentBalances.every((b) => b.pendingAmount <= 0)
+            ? "All installments settled for this session."
+            : "Session dues breakdown below."
+      }
     >
       {installmentBalances.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border bg-surface-2/40 px-4 py-8 text-center">
@@ -274,7 +285,32 @@ export default async function StudentDetailPage({
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+        <>
+        <div className="md:hidden space-y-2">
+          {installmentBalances.map((item) => (
+            <div key={item.installmentId} className="rounded-lg border border-border bg-card px-4 py-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-sm text-foreground">
+                  {item.installmentLabel}
+                </span>
+                {getInstallmentStatusPill(item.balanceStatus)}
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Due {formatShortDate(item.dueDate)}</span>
+                <span className="font-mono font-semibold text-foreground">
+                  <Money value={item.pendingAmount} size="sm" />
+                </span>
+              </div>
+              {item.finalLateFee > 0 ? (
+                <div className="text-xs text-destructive font-medium">
+                  Includes {formatInr(item.finalLateFee)} late fee
+                  {item.waiverApplied > 0 ? ` (−${formatInr(item.waiverApplied)} waived)` : ""}
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+        <div className="hidden md:block overflow-x-auto rounded-lg border border-border bg-card">
           <table className="w-full min-w-[820px] text-left text-sm">
             <thead className="bg-surface-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-border">
               <tr>
@@ -294,7 +330,14 @@ export default async function StudentDetailPage({
                   <td className="px-4 py-3 font-medium text-foreground">{item.installmentLabel}</td>
                   <td className="px-4 py-3 font-mono tabular-nums text-muted-foreground">{formatShortDate(item.dueDate)}</td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums"><Money value={item.baseCharge} size="sm" /></td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums"><Money value={item.finalLateFee} size="sm" /></td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums">
+                    <Money value={item.finalLateFee} size="sm" />
+                    {item.waiverApplied > 0 ? (
+                      <div className="text-[10px] text-success-soft-foreground font-medium mt-0.5">
+                        −{formatInr(item.waiverApplied)} waived
+                      </div>
+                    ) : null}
+                  </td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums text-success-soft-foreground"><Money value={item.paidAmount} size="sm" /></td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground"><Money value={item.adjustmentAmount} size="sm" /></td>
                   <td className="px-4 py-3 text-right font-semibold text-foreground font-mono tabular-nums"><Money value={item.pendingAmount} size="sm" /></td>
@@ -311,12 +354,16 @@ export default async function StudentDetailPage({
             </tbody>
           </table>
         </div>
+        </>
       )}
     </Section>
   );
 
   const paymentsContent = (
-    <Section title="Payments" description="Posted payment history in newest-first order.">
+    <Section
+      title="Payments"
+      description="Each row is one installment allocation. A single receipt can appear as multiple rows here. Newest first."
+    >
       <div className="mb-4 flex flex-wrap gap-2">
         <ValueStatePill tone="locked">Locked payment history</ValueStatePill>
       </div>
@@ -328,7 +375,43 @@ export default async function StudentDetailPage({
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+        <>
+        <div className="md:hidden space-y-2">
+          {ledger.payments.map((payment) => (
+            <div key={payment.id} className="rounded-lg border border-border bg-card px-4 py-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-sm text-foreground">
+                  {payment.installmentLabel}
+                </span>
+                <Money value={payment.paymentAmount} size="sm" />
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Due {formatShortDate(payment.dueDate)}
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                {(() => {
+                  const rid = receiptIdByNumber.get(payment.receiptNumber);
+                  return rid ? (
+                    <Link
+                      href={`/protected/receipts/${rid}?returnTo=${encodedReturnTo}`}
+                      className="font-semibold text-foreground underline-offset-2 hover:underline"
+                    >
+                      {payment.receiptNumber}
+                    </Link>
+                  ) : (
+                    <span className="font-semibold text-foreground">
+                      {payment.receiptNumber}
+                    </span>
+                  );
+                })()}
+                <span className="inline-flex items-center rounded-md bg-surface-3/50 px-2 py-0.5 font-medium text-muted-foreground">
+                  {modeLabels[payment.paymentMode] ?? payment.paymentMode}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="hidden md:block overflow-x-auto rounded-lg border border-border bg-card">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="bg-surface-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-border">
               <tr>
@@ -344,14 +427,30 @@ export default async function StudentDetailPage({
               {ledger.payments.map((payment) => (
                 <tr key={payment.id} className="even:bg-surface-2/30 hover:bg-surface-2/10 transition-colors">
                   <td className="px-4 py-3 font-mono text-muted-foreground text-xs">{formatDateTime(payment.createdAt)}</td>
-                  <td className="px-4 py-3 font-semibold text-foreground">{payment.receiptNumber}</td>
+                  <td className="px-4 py-3">
+                    {(() => {
+                      const rid = receiptIdByNumber.get(payment.receiptNumber);
+                      return rid ? (
+                        <Link
+                          href={`/protected/receipts/${rid}?returnTo=${encodedReturnTo}`}
+                          className="font-semibold text-foreground underline-offset-2 hover:underline"
+                        >
+                          {payment.receiptNumber}
+                        </Link>
+                      ) : (
+                        <span className="font-semibold text-foreground">
+                          {payment.receiptNumber}
+                        </span>
+                      );
+                    })()}
+                  </td>
                   <td className="px-4 py-3">
                     <span className="font-medium text-foreground">{payment.installmentLabel}</span>
                     <div className="text-[11px] text-muted-foreground font-mono tabular-nums">Due {formatShortDate(payment.dueDate)}</div>
                   </td>
                   <td className="px-4 py-3 text-xs">
                     <span className="inline-flex items-center rounded-md bg-surface-3/50 px-2 py-0.5 font-medium text-muted-foreground">
-                      {payment.paymentMode}
+                      {modeLabels[payment.paymentMode] ?? payment.paymentMode}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums font-semibold text-foreground">
@@ -365,6 +464,7 @@ export default async function StudentDetailPage({
             </tbody>
           </table>
         </div>
+        </>
       )}
     </Section>
   );
@@ -379,7 +479,36 @@ export default async function StudentDetailPage({
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+        <>
+        <div className="md:hidden space-y-2">
+          {receipts.map((receipt) => (
+            <div key={receipt.id} className="rounded-lg border border-border bg-card px-4 py-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-sm">{receipt.receiptNumber}</span>
+                <Money value={receipt.totalAmount} size="sm" />
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{formatShortDate(receipt.paymentDate)}</span>
+                <span className="inline-flex items-center rounded-md bg-surface-3/50 px-2 py-0.5 font-medium">
+                  {receipt.paymentModeLabel}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                {receipt.referenceNumber ? (
+                  <span className="text-xs text-muted-foreground font-mono">
+                    Ref: {receipt.referenceNumber}
+                  </span>
+                ) : <span />}
+                <Button asChild size="sm" variant="outline" className="h-7 text-xs px-2">
+                  <Link href={`/protected/receipts/${receipt.id}?returnTo=${encodedReturnTo}`}>
+                    {canPrintReceipts ? "Print" : "Open"}
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="hidden md:block overflow-x-auto rounded-lg border border-border bg-card">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="bg-surface-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-border">
               <tr>
@@ -419,6 +548,7 @@ export default async function StudentDetailPage({
             </tbody>
           </table>
         </div>
+        </>
       )}
     </Section>
   );

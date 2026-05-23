@@ -52,7 +52,7 @@ export async function getStudentWorkspaceData(studentId: string) {
         )
         .eq("student_id", studentId)
         .order("created_at", { ascending: false })
-        .limit(20),
+        .limit(100),
       getWorkbookInstallmentBalances(studentId),
     ]);
 
