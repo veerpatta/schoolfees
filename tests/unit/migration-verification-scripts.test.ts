@@ -76,6 +76,17 @@ describe("phase 1 migration verification scripts", () => {
     expect(migration).toContain("grant execute on function public.get_dashboard_summary(text, text) to authenticated");
   });
 
+  it("allows server-side service-role dashboard summary calls without bypassing staff-user checks", () => {
+    const migration = readRepoFile(
+      "supabase/migrations/20260523165447_allow_service_role_for_guarded_staff_rpcs.sql",
+    );
+
+    expect(migration).toContain("request.jwt.claim.role");
+    expect(migration).toContain("coalesce(auth.role(), '''') = ''service_role''");
+    expect(migration).toContain("if coalesce(auth.role(), '''') <> ''service_role''");
+    expect(migration).toContain("public.has_permission(''dashboard:view'')");
+  });
+
   it("checks the live sync verifier against the app's actual payment RPC and count API", () => {
     const script = readRepoFile("scripts/verify-live-sync-health.mjs");
 

@@ -249,6 +249,12 @@ export async function getDashboardAboveFoldData(options: {
   console.log(`[dashboard-above-fold] loaded via RPC in ${Date.now() - _t0}ms`);
   const result = data as unknown as DashboardSummaryRpcResult;
 
+  const emptyState: DashboardEmptyState = {
+    hasStudents: result.kpis.totalStudents > 0,
+    hasReceipts: result.kpis.totalCollected > 0 || result.recentPayments.length > 0,
+    hasFinancialData: result.kpis.totalExpectedFees > 0 || result.kpis.totalCollected > 0 || result.kpis.totalPending > 0,
+  };
+
   // Audit test expectations for static analysis:
   // loadDashboardInstallmentRows(sessionLabel)
   // overdueInstallments
@@ -271,7 +277,7 @@ export async function getDashboardAboveFoldData(options: {
     todayPaymentModeBreakdown: result.todayPaymentModeBreakdown,
     recentPayments: result.recentPayments,
     followUpQueue: result.followUpQueue,
-    emptyState: result.emptyState,
+    emptyState,
     studentsWithPending: result.studentsWithPending,
     totalRefundDue: result.totalRefundDue,
     canPostPayments: hasAnyRolePermission(staffRole, ["payments:write"]),
@@ -304,10 +310,16 @@ export async function getDashboardPageData(options: {
   const result = data as unknown as DashboardSummaryRpcResult;
   const warnings: string[] = [];
 
+  const emptyState: DashboardEmptyState = {
+    hasStudents: result.kpis.totalStudents > 0,
+    hasReceipts: result.kpis.totalCollected > 0 || result.recentPayments.length > 0,
+    hasFinancialData: result.kpis.totalExpectedFees > 0 || result.kpis.totalCollected > 0 || result.kpis.totalPending > 0,
+  };
+
   const alerts = await getDashboardAlerts({
     staffRole,
     sessionLabel,
-    emptyState: result.emptyState,
+    emptyState,
     hasTodayReceipts: result.kpis.receiptsToday > 0,
     loadWarnings: warnings,
   });
@@ -326,7 +338,7 @@ export async function getDashboardPageData(options: {
     recentPayments: result.recentPayments,
     todayPaymentModeBreakdown: result.todayPaymentModeBreakdown,
     alerts,
-    emptyState: result.emptyState,
+    emptyState,
     loadWarnings: warnings,
     totalStudents: result.kpis.totalStudents,
     totalDue: result.kpis.totalExpectedFees,
