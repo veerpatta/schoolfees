@@ -14,6 +14,14 @@ export type SessionSwitcherData = {
 };
 
 const SESSION_SWITCHER_TIMEOUT_MS = 1200;
+const SESSION_SWITCHER_CACHE_TTL_MS = 5 * 60 * 1000;
+
+let cachedSessionSwitcherData:
+  | {
+      expiresAt: number;
+      data: SessionSwitcherData;
+    }
+  | null = null;
 
 function timeoutAfter<T>(fallback: T, timeoutMs = SESSION_SWITCHER_TIMEOUT_MS): Promise<T> {
   return new Promise((resolve) => {
@@ -22,6 +30,12 @@ function timeoutAfter<T>(fallback: T, timeoutMs = SESSION_SWITCHER_TIMEOUT_MS): 
 }
 
 export async function getSessionSwitcherData(): Promise<SessionSwitcherData> {
+  const now = Date.now();
+
+  if (cachedSessionSwitcherData && cachedSessionSwitcherData.expiresAt > now) {
+    return cachedSessionSwitcherData.data;
+  }
+
   const fallbackActiveSessionLabel = REQUIRED_OFFICE_SESSION_LABELS[1];
   const activeSessionLabel = await Promise.race([
     getActiveSessionLabel().catch(() => fallbackActiveSessionLabel),
@@ -49,15 +63,21 @@ export async function getSessionSwitcherData(): Promise<SessionSwitcherData> {
     rows = [];
   }
 
-  if (rows.length === 0) {
-    return {
-      activeSessionLabel,
-      availableSessions: mergeRequiredOfficeSessions([], activeSessionLabel),
-    };
-  }
+  const data =
+    rows.length === 0
+      ? {
+          activeSessionLabel,
+          availableSessions: mergeRequiredOfficeSessions([], activeSessionLabel),
+        }
+      : {
+          activeSessionLabel,
+          availableSessions: mergeRequiredOfficeSessions(rows, activeSessionLabel),
+        };
 
-  return {
-    activeSessionLabel,
-    availableSessions: mergeRequiredOfficeSessions(rows, activeSessionLabel),
+  cachedSessionSwitcherData = {
+    expiresAt: now + SESSION_SWITCHER_CACHE_TTL_MS,
+    data,
   };
+
+  return data;
 }

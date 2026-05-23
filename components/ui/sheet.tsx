@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
 
@@ -137,13 +138,14 @@ export function Sheet({
   }, [dragY, onClose]);
 
   if (!open) return null;
+  if (typeof document === "undefined") return null;
 
   const isBottom = side === "bottom";
   const panelStyle: React.CSSProperties = isBottom && dragY > 0
     ? { transform: `translate3d(0, ${dragY}px, 0)`, transition: "none" }
     : {};
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -210,6 +212,7 @@ export function Sheet({
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

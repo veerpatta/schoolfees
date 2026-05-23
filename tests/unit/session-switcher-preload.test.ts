@@ -14,12 +14,15 @@ describe("session switcher preload", () => {
     const shell = readRepoFile("components/admin/dashboard-shell.tsx");
     const desktopPill = readRepoFile("components/admin/session-pill.tsx");
     const mobilePill = readRepoFile("components/admin/mobile-session-pill.tsx");
+    const switcher = readRepoFile("lib/session/switcher.ts");
 
     expect(shell).toContain("getSessionSwitcherData");
     expect(shell).toContain("initialSessions={sessionSwitcher.availableSessions}");
     expect(shell.match(/initialSessions=\{sessionSwitcher\.availableSessions\}/g)).toHaveLength(2);
     expect(desktopPill).toContain("if (initialSessions.length > 0)");
     expect(mobilePill).toContain("if (initialSessions.length > 0)");
+    expect(switcher).toContain("SESSION_SWITCHER_CACHE_TTL_MS");
+    expect(switcher).toContain("cachedSessionSwitcherData");
   });
 
   it("session switching keeps the user on the same page with visible transition state", () => {
@@ -30,7 +33,16 @@ describe("session switcher preload", () => {
     expect(combined).toContain("optimisticLabel");
     expect(combined).toContain("router.prefetch(targetHref)");
     expect(combined).toContain("router.replace(targetHref, { scroll: false })");
+    expect(combined).not.toContain("router.refresh()");
     expect(combined).toContain("Changing to");
+  });
+
+  it("desktop session switching uses the shared Radix menu instead of native details", () => {
+    const desktopPill = readRepoFile("components/admin/session-pill.tsx");
+
+    expect(desktopPill).toContain("DropdownMenu");
+    expect(desktopPill).not.toContain("<details");
+    expect(desktopPill).not.toContain("<summary");
   });
 
   it("mobile session switching closes the sheet and always clears scroll locks", () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -14,6 +14,7 @@ import { useSessionSwitching } from "@/lib/session/switching-context";
 import { cn } from "@/lib/utils";
 
 import {
+  buildSessionSwitchHref,
   groupSessions,
   isTestSession,
   normalizeSessionLabel,
@@ -33,6 +34,7 @@ export function MobileSessionPill({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const prefetchTimerRef = useRef<number | null>(null);
   const [open, setOpen] = useState(false);
   const [sessions, setSessions] = useState<AvailableSessionRow[]>(initialSessions);
   const [isSwitching, setIsSwitching] = useState(false);
@@ -83,16 +85,52 @@ export function MobileSessionPill({
     };
   }, [isTransitioning, setGlobalSessionSwitching]);
 
+  useEffect(() => {
+    return () => {
+      if (prefetchTimerRef.current !== null) {
+        window.clearTimeout(prefetchTimerRef.current);
+      }
+    };
+  }, []);
+
+  function clearPrefetchTimer() {
+    if (prefetchTimerRef.current !== null) {
+      window.clearTimeout(prefetchTimerRef.current);
+      prefetchTimerRef.current = null;
+    }
+  }
+
+  function buildCurrentHref() {
+    const query = searchParams.toString();
+
+    return query ? `${pathname}?${query}` : pathname;
+  }
+
+  function prefetchSession(label: string) {
+    clearPrefetchTimer();
+    const targetHref = buildSessionSwitchHref(pathname, searchParams, label);
+
+    prefetchTimerRef.current = window.setTimeout(() => {
+      router.prefetch(targetHref);
+      prefetchTimerRef.current = null;
+    }, 100);
+  }
+
   function selectSession(label: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("session", label);
-    let targetHref = `${pathname}?${params.toString()}`;
+    clearPrefetchTimer();
+    const previousHref = buildCurrentHref();
+    const targetHref = buildSessionSwitchHref(pathname, searchParams, label);
 
     setOptimisticLabel(label);
     setIsSwitching(true);
     setOpen(false);
     releaseAllSheetScrollLocks();
     router.prefetch(targetHref);
+
+    startNavTransition(() => {
+      router.replace(targetHref, { scroll: false });
+    });
+    setIsSwitching(false);
 
     void (async () => {
       try {
@@ -103,20 +141,25 @@ export function MobileSessionPill({
             setSessions(result.availableSessions);
           }
 
-          params.set("session", result.sessionLabel);
-          targetHref = `${pathname}?${params.toString()}`;
+          const confirmedHref = buildSessionSwitchHref(pathname, searchParams, result.sessionLabel);
 
-          startNavTransition(() => {
-            router.replace(targetHref, { scroll: false });
-            router.refresh();
-          });
+          if (confirmedHref !== targetHref) {
+            startNavTransition(() => {
+              router.replace(confirmedHref, { scroll: false });
+            });
+          }
         } else {
           setOptimisticLabel(null);
+          startNavTransition(() => {
+            router.replace(previousHref, { scroll: false });
+          });
         }
       } catch {
         setOptimisticLabel(null);
+        startNavTransition(() => {
+          router.replace(previousHref, { scroll: false });
+        });
       } finally {
-        setIsSwitching(false);
         setGlobalSessionSwitching(false);
         releaseAllSheetScrollLocks();
       }
@@ -178,6 +221,8 @@ export function MobileSessionPill({
                         type="button"
                         disabled={isTransitioning || selected}
                         onClick={() => selectSession(session.session_label)}
+                        onFocus={() => prefetchSession(session.session_label)}
+                        onMouseEnter={() => prefetchSession(session.session_label)}
                         className={cn(
                           "flex min-h-12 w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-surface-2 disabled:opacity-60",
                           selected && "bg-accent-soft font-semibold",

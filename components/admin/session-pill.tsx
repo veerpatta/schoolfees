@@ -5,6 +5,12 @@ import { Check, ChevronDown, Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   isTestAcademicSessionLabel,
   parseAcademicSessionLabel,
 } from "@/lib/config/fee-rules";
@@ -21,6 +27,30 @@ type SessionPillProps = {
   isTest: boolean;
   initialSessions?: AvailableSessionRow[];
 };
+
+export const SESSION_SWITCHER_STALE_PARAM_NAMES = [
+  "classId",
+  "routeId",
+  "studentId",
+  "status",
+  "fromDate",
+  "toDate",
+  "q",
+  "search",
+  "page",
+];
+
+const SESSION_SWITCHER_PREFETCH_DELAY_MS = 100;
+
+type SearchParamSource = {
+  toString: () => string;
+};
+
+function buildHrefFromSearchParams(pathname: string, searchParams: SearchParamSource) {
+  const query = searchParams.toString();
+
+  return query ? `${pathname}?${query}` : pathname;
+}
 
 export function normalizeSessionLabel(label: string | null | undefined) {
   const value = (label ?? "").trim();
@@ -42,6 +72,27 @@ export function isTestSession(label: string) {
   } catch {
     return false;
   }
+}
+
+export function buildSessionSwitchHref(
+  pathname: string,
+  searchParams: SearchParamSource,
+  label: string,
+) {
+  const params = new URLSearchParams(searchParams.toString());
+
+  for (const name of SESSION_SWITCHER_STALE_PARAM_NAMES) {
+    params.delete(name);
+  }
+  for (const name of Array.from(params.keys())) {
+    if (name !== "session") {
+      params.delete(name);
+    }
+  }
+
+  params.set("session", normalizeSessionLabel(label) ?? label.trim());
+
+  return `${pathname}?${params.toString()}`;
 }
 
 export function groupSessions(sessions: AvailableSessionRow[]) {
@@ -91,7 +142,8 @@ export function SessionPill({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const detailsRef = useRef<HTMLDetailsElement>(null);
+  const prefetchTimerRef = useRef<number | null>(null);
+  const [open, setOpen] = useState(false);
   const [sessions, setSessions] = useState<AvailableSessionRow[]>(initialSessions);
   const [isSwitching, setIsSwitching] = useState(false);
   const [isRefreshing, startNavTransition] = useTransition();
@@ -150,19 +202,45 @@ export function SessionPill({
     [displayIsTest, displayLabel],
   );
 
+  useEffect(() => {
+    return () => {
+      if (prefetchTimerRef.current !== null) {
+        window.clearTimeout(prefetchTimerRef.current);
+      }
+    };
+  }, []);
+
+  function clearPrefetchTimer() {
+    if (prefetchTimerRef.current !== null) {
+      window.clearTimeout(prefetchTimerRef.current);
+      prefetchTimerRef.current = null;
+    }
+  }
+
+  function prefetchSession(label: string) {
+    clearPrefetchTimer();
+    const targetHref = buildSessionSwitchHref(pathname, searchParams, label);
+
+    prefetchTimerRef.current = window.setTimeout(() => {
+      router.prefetch(targetHref);
+      prefetchTimerRef.current = null;
+    }, SESSION_SWITCHER_PREFETCH_DELAY_MS);
+  }
+
   function selectSession(label: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("session", label);
-    let targetHref = `${pathname}?${params.toString()}`;
+    clearPrefetchTimer();
+    const previousHref = buildHrefFromSearchParams(pathname, searchParams);
+    const targetHref = buildSessionSwitchHref(pathname, searchParams, label);
 
     setOptimisticLabel(label);
     setIsSwitching(true);
-
-    if (detailsRef.current) {
-      detailsRef.current.open = false;
-    }
-
+    setOpen(false);
     router.prefetch(targetHref);
+
+    startNavTransition(() => {
+      router.replace(targetHref, { scroll: false });
+    });
+    setIsSwitching(false);
 
     void (async () => {
       try {
@@ -173,29 +251,32 @@ export function SessionPill({
             setSessions(result.availableSessions);
           }
 
-          params.set("session", result.sessionLabel);
-          targetHref = `${pathname}?${params.toString()}`;
+          const confirmedHref = buildSessionSwitchHref(pathname, searchParams, result.sessionLabel);
 
-          setIsSwitching(false);
-
-          startNavTransition(() => {
-            router.replace(targetHref, { scroll: false });
-            router.refresh();
-          });
+          if (confirmedHref !== targetHref) {
+            startNavTransition(() => {
+              router.replace(confirmedHref, { scroll: false });
+            });
+          }
         } else {
-          setIsSwitching(false);
           setOptimisticLabel(null);
+          startNavTransition(() => {
+            router.replace(previousHref, { scroll: false });
+          });
         }
       } catch {
-        setIsSwitching(false);
         setOptimisticLabel(null);
+        startNavTransition(() => {
+          router.replace(previousHref, { scroll: false });
+        });
       }
     })();
   }
 
   return (
-    <details ref={detailsRef} className="group relative">
-      <summary
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger
+        type="button"
         className={cn(
           "inline-flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-surface-2 focus-ring",
           displayIsTest && "border-fuchsia-500 text-fuchsia-700",
@@ -216,8 +297,8 @@ export function SessionPill({
         ) : (
           <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden="true" />
         )}
-      </summary>
-      <div className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-lg">
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64 p-2">
         {isTransitioning ? (
           <p className="px-2 py-1 text-xs font-medium text-muted-foreground">
             Changing to {displayLabel}...
@@ -238,13 +319,17 @@ export function SessionPill({
                 const rowIsTest = isTestSession(session.session_label);
 
                 return (
-                  <button
+                  <DropdownMenuItem
                     key={session.id}
-                    type="button"
                     disabled={isTransitioning || selected}
-                    onClick={() => selectSession(session.session_label)}
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      selectSession(session.session_label);
+                    }}
+                    onFocus={() => prefetchSession(session.session_label)}
+                    onMouseEnter={() => prefetchSession(session.session_label)}
                     className={cn(
-                      "flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent disabled:opacity-60",
+                      "flex w-full cursor-pointer items-center justify-between rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent data-[disabled]:cursor-not-allowed",
                       selected && "bg-accent font-semibold",
                     )}
                   >
@@ -257,13 +342,13 @@ export function SessionPill({
                       ) : null}
                     </span>
                     {selected ? <Check className="size-3.5" aria-hidden="true" /> : null}
-                  </button>
+                  </DropdownMenuItem>
                 );
               })}
             </div>
           ))
         )}
-      </div>
-    </details>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
