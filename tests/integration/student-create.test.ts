@@ -27,6 +27,12 @@ vi.mock("@/lib/master-data/data", () => ({
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
     from(table: string) {
+      if (table === "office_sync_events") {
+        return {
+          insert: vi.fn(async () => ({ error: null })),
+        };
+      }
+
       if (table !== "students") {
         throw new Error(`Unexpected table ${table}`);
       }

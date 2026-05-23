@@ -110,7 +110,7 @@ export function SuccessReceiptSheet({
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Receipt No
           </p>
-          <p className="mt-1 break-all text-3xl font-semibold text-foreground">
+          <p className="mt-1 break-words text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
             {receiptNumber}
           </p>
           {receiptId ? (

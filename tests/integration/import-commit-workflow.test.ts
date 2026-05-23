@@ -173,6 +173,14 @@ vi.mock("@/lib/supabase/server", () => ({
         };
       }
 
+      if (table === "office_sync_events") {
+        return {
+          insert() {
+            return makeQueryBuilder({ data: null, error: null });
+          },
+        };
+      }
+
       throw new Error(`Unexpected table ${table}`);
     },
   })),

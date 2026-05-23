@@ -11,9 +11,14 @@ vi.mock("@/lib/supabase/session", () => ({
   requireStaffPermission,
 }));
 
+const from = vi.fn(() => ({
+  insert: vi.fn().mockResolvedValue({ error: null }),
+}));
+
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
     rpc,
+    from,
   })),
 }));
 
