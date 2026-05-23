@@ -157,7 +157,7 @@ export async function GET(request: Request) {
           .filter((item) => item.isActive)
           .map((item) => ({ label: item.displayName }))
       : [];
-    const workbook = buildUpdateStudentsTemplateWorkbook(
+    const workbook = await buildUpdateStudentsTemplateWorkbook(
       await buildUpdateRows(normalizedSessionLabel),
       {
         classes: classesForTemplate.map((item) => ({ label: item.label })),
@@ -165,16 +165,16 @@ export async function GET(request: Request) {
         conventionalPolicies,
       },
     );
-    return xlsxResponse(workbookToXlsxBuffer(workbook), "student-update-template.xlsx");
+    return xlsxResponse(await workbookToXlsxBuffer(workbook), "student-update-template.xlsx");
   }
 
   const { buildAddStudentsTemplateWorkbook, workbookToXlsxBuffer } = await import(
     "@/lib/import/templates"
   );
-  const workbook = buildAddStudentsTemplateWorkbook(
+  const workbook = await buildAddStudentsTemplateWorkbook(
     classesForTemplate.map((item) => ({ label: item.label })),
     routesForTemplate,
   );
 
-  return xlsxResponse(workbookToXlsxBuffer(workbook), "student-add-template.xlsx");
+  return xlsxResponse(await workbookToXlsxBuffer(workbook), "student-add-template.xlsx");
 }

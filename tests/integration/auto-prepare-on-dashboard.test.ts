@@ -28,7 +28,7 @@ describe("dashboard auto-prepare", () => {
   });
 
   it("schedules background dues prep for write staff when installment rows are missing", async () => {
-    const { scheduleDashboardAutoPrepare } = await import("@/app/protected/dashboard/page");
+    const { scheduleDashboardAutoPrepare } = await import("@/lib/dashboard/data");
 
     scheduleDashboardAutoPrepare({
       canAutoPrepareDues: true,
@@ -66,7 +66,7 @@ describe("dashboard auto-prepare", () => {
   });
 
   it("does not schedule auto-prepare without fee write access", async () => {
-    const { scheduleDashboardAutoPrepare } = await import("@/app/protected/dashboard/page");
+    const { scheduleDashboardAutoPrepare } = await import("@/lib/dashboard/data");
 
     scheduleDashboardAutoPrepare({
       canAutoPrepareDues: false,

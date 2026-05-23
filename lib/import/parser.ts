@@ -1,7 +1,5 @@
 import "server-only";
 
-import * as XLSX from "xlsx";
-
 import { stringifyImportCell } from "@/lib/import/validation";
 import type {
   RawImportRowPayload,
@@ -98,6 +96,7 @@ export async function parseStudentImportFile(file: File): Promise<ParsedStudentI
 
   const sourceFormat = resolveImportFormat(file.name);
   const fileBuffer = await file.arrayBuffer();
+  const XLSX = await import("xlsx");
   const workbook = XLSX.read(fileBuffer, {
     type: "array",
     raw: true,

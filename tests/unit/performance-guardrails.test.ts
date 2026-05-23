@@ -13,11 +13,11 @@ describe("office performance guardrails", () => {
 
     expect(dashboardData).not.toContain("overdue workbook installments");
     expect(dashboardData).not.toContain('"active students"');
-    expect(dashboardData).toContain("financialRows.map((row) => ({");
     expect(dashboardData).toContain("getDashboardAboveFoldData");
-    expect(dashboardData).toContain('row.balanceStatus === "overdue"');
-    expect(dashboardData).toContain("row.pendingAmount > 0");
-    expect(dashboardData).toContain('.gt("refundable_amount", 0)');
+    expect(dashboardData).toContain('supabase.rpc("get_dashboard_summary"');
+    expect(dashboardData).toContain("p_session_label: sessionLabel");
+    expect(dashboardData).toContain("overdueInstallmentCount: result.overdueInstallmentCount");
+    expect(dashboardData).not.toContain("buildDashboardSummary({");
   });
 
   it("keeps dashboard health checks scoped to the dashboard path", () => {
@@ -127,6 +127,44 @@ describe("office performance guardrails", () => {
     expect(paymentClient).toContain("clearPaymentDeskStudentIndexCache");
   });
 
+  it("keeps Tier 1 performance quick wins in place", () => {
+    const revalidation = readRepoFile("lib/system-sync/finance-revalidation.ts");
+    const parser = readRepoFile("lib/import/parser.ts");
+    const templates = readRepoFile("lib/import/templates.ts");
+    const dashboardData = readRepoFile("lib/dashboard/data.ts");
+    const sidebarNav = readRepoFile("components/admin/sidebar-nav.tsx");
+    const paymentsData = readRepoFile("lib/payments/data.ts");
+
+    expect(revalidation).toContain("const PAYMENT_AFFECTED_PATHS = [");
+    expect(revalidation).toContain("const FULL_FINANCE_PATHS = [");
+    expect(revalidation).not.toContain("CORE_FINANCE_PATHS");
+    expect(revalidation).toContain('"/protected/dashboard"');
+    expect(revalidation).toContain('"/protected/transactions"');
+    expect(revalidation).toContain('"/protected/receipts"');
+    expect(revalidation).toContain('"/protected/defaulters"');
+    expect(revalidation).not.toContain('"/protected/imports",');
+    expect(revalidation).not.toContain('"/protected/fee-setup/generate",');
+
+    expect(parser).not.toContain('import * as XLSX from "xlsx"');
+    expect(parser).toContain('const XLSX = await import("xlsx")');
+    expect(templates).not.toContain('import * as XLSX from "xlsx"');
+    expect(templates).toContain('const XLSX = await import("xlsx")');
+
+    expect(dashboardData).toContain('supabase.rpc("get_dashboard_summary"');
+    expect(dashboardData).not.toContain('["dashboard-financials-active", sessionLabel]');
+    expect(dashboardData).not.toContain('["dashboard-installments", sessionLabel]');
+    expect(dashboardData).not.toContain("cacheSafeUnstableCache(");
+
+    expect(sidebarNav).toContain("const eagerPrefetchHrefs = new Set");
+    expect(sidebarNav).toContain('"/protected/payments"');
+    expect(sidebarNav).toContain('"/protected/dashboard"');
+    expect(sidebarNav).toContain('"/protected/students"');
+    expect(sidebarNav).toContain("prefetch={eagerPrefetchHrefs.has(item.href)}");
+
+    expect(paymentsData).toContain("const [policy, hasActiveClass] = await Promise.all");
+    expect(paymentsData).toContain("[payment-entry-page-data] loaded in");
+  });
+
   it("keeps payment desk student index privately cacheable within the staff session", () => {
     const route = readRepoFile("app/protected/students/index/route.ts");
 
@@ -144,7 +182,7 @@ describe("office performance guardrails", () => {
     expect(revalidation).toContain("export function revalidateSessionFinance");
     expect(revalidation).toContain("revalidateTag(`session:${sessionLabel}`");
     expect(revalidation).toContain("export function revalidateAfterPaymentPosting");
-    expect(dashboardData).toContain("unstable_cache");
+    expect(dashboardData).toContain('supabase.rpc("get_dashboard_summary"');
     expect(syncFacade).toContain("revalidateAfterPaymentPosting");
   });
 });

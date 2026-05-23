@@ -398,16 +398,16 @@ describe("dashboard summary", () => {
     expect(formatPaymentModeLabel("cash")).toBe("Cash");
   });
 
-  it("above-fold dashboard data loads installment balances before calculating overdue KPI", () => {
+  it("above-fold dashboard data reads overdue KPI from the summary RPC", () => {
     const dashboardData = readRepoFile("lib/dashboard/data.ts");
     const aboveFoldFunction = dashboardData.slice(
       dashboardData.indexOf("export async function getDashboardAboveFoldData"),
       dashboardData.indexOf("export async function getDashboardPageData"),
     );
 
-    expect(aboveFoldFunction).toContain("loadDashboardInstallmentRows(sessionLabel)");
-    expect(aboveFoldFunction).toContain("overdueInstallments");
-    expect(aboveFoldFunction).toContain("installmentRows");
+    expect(aboveFoldFunction).toContain('supabase.rpc("get_dashboard_summary"');
+    expect(aboveFoldFunction).toContain("p_session_label: sessionLabel");
+    expect(aboveFoldFunction).toContain("result.kpis");
     expect(aboveFoldFunction).not.toContain("installmentRows: []");
     expect(aboveFoldFunction).not.toContain("overdueInstallments: []");
     expect(aboveFoldFunction).not.toContain("overdueFallbackAmount");
@@ -425,8 +425,10 @@ describe("dashboard summary", () => {
     const dashboardPage = readRepoFile("app/protected/dashboard/page.tsx");
 
     expect(dashboardData).toContain("collectionHeatmap");
-    expect(dashboardData).toContain("loadDashboardMonthlyCollections");
-    expect(dashboardData).toContain("getWorkbookTransactions");
+    expect(dashboardData).toContain('supabase.rpc("get_dashboard_summary"');
+    expect(dashboardData).toContain("result.collectionHeatmap");
+    expect(dashboardData).not.toContain("loadDashboardMonthlyCollections");
+    expect(dashboardData).not.toContain("getWorkbookTransactions");
     expect(dashboardPage).toContain("CollectionHeatmap");
     expect(dashboardPage).toContain("ClassCollectionProgress");
   });

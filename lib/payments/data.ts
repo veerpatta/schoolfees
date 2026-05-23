@@ -375,9 +375,10 @@ async function getPaymentDeskReadinessUncached(payload: {
   staffAppRole: "admin" | "accountant" | "read_only_staff";
   canWritePayments: boolean;
   policy: Awaited<ReturnType<typeof getFeePolicyForSession>>;
+  hasActiveClass: boolean;
 }): Promise<PaymentDeskReadiness> {
-  const hasActiveClass = await getPaymentDeskHasActiveClass(payload.sessionLabel);
   const { policy } = payload;
+  const { hasActiveClass } = payload;
   const policyExists =
     Boolean(policy.id) &&
     policy.academicSessionLabel.trim().toLowerCase() ===
@@ -449,8 +450,11 @@ export async function getPaymentDeskReadiness(payload: {
   canWritePayments: boolean;
 }): Promise<PaymentDeskReadiness> {
   try {
-    const policy = await getFeePolicyForSession(payload.sessionLabel);
-    return await getPaymentDeskReadinessUncached({ ...payload, policy });
+    const [policy, hasActiveClass] = await Promise.all([
+      getFeePolicyForSession(payload.sessionLabel),
+      getPaymentDeskHasActiveClass(payload.sessionLabel),
+    ]);
+    return await getPaymentDeskReadinessUncached({ ...payload, policy, hasActiveClass });
   } catch (error) {
     console.warn("Payment Desk readiness check failed.", {
       sessionLabel: payload.sessionLabel,
@@ -1084,6 +1088,7 @@ export async function getPaymentEntryPageData(payload: {
   autoPrepareMissingDues?: boolean;
   initialSelectedSummary?: PaymentDeskStudentSummary | null;
 }): Promise<PaymentEntryPageData> {
+  const _t0 = Date.now();
   const policy = payload.sessionLabel
     ? await getFeePolicyForSession(payload.sessionLabel)
     : await getFeePolicySummary();
@@ -1104,6 +1109,8 @@ export async function getPaymentEntryPageData(payload: {
         })
       : Promise.resolve(null),
   ]);
+
+  console.log(`[payment-entry-page-data] loaded in ${Date.now() - _t0}ms`);
 
   return {
     studentIndex,

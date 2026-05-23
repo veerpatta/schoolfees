@@ -18,6 +18,12 @@ type SidebarNavProps = {
   className?: string;
 };
 
+const eagerPrefetchHrefs = new Set([
+  "/protected/payments",
+  "/protected/dashboard",
+  "/protected/students",
+]);
+
 export function SidebarNav({
   staffRole,
   mode = "sidebar",
@@ -49,6 +55,7 @@ export function SidebarNav({
             <Link
               key={item.href}
               href={href}
+              prefetch={eagerPrefetchHrefs.has(item.href)}
               aria-current={active ? "page" : undefined}
               className={cn(
                 "flex w-full items-center justify-center gap-1.5 rounded-md border px-2 py-2 text-[11px] font-medium leading-4 transition-colors duration-150",
@@ -67,6 +74,7 @@ export function SidebarNav({
           <Link
             key={item.href}
             href={href}
+            prefetch={eagerPrefetchHrefs.has(item.href)}
             aria-current={active ? "page" : undefined}
             className={cn(
               "group relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors duration-150",

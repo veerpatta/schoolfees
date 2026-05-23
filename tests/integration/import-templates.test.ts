@@ -15,8 +15,8 @@ function readSheet(workbook: XLSX.WorkBook, sheetName: string) {
 }
 
 describe("student import templates", () => {
-  it("keeps add template columns simple with student name and class required", () => {
-    const workbook = buildAddStudentsTemplateWorkbook(
+  it("keeps add template columns simple with student name and class required", async () => {
+    const workbook = await buildAddStudentsTemplateWorkbook(
       [{ label: "Class 1" }],
       [{ label: "Main Route (MR)" }],
     );
@@ -39,12 +39,12 @@ describe("student import templates", () => {
     );
   });
 
-  it("uses real class and route labels in the add template examples", () => {
-    const workbook = buildAddStudentsTemplateWorkbook(
+  it("uses real class and route labels in the add template examples", async () => {
+    const workbook = await buildAddStudentsTemplateWorkbook(
       [{ label: "Class 1" }],
       [{ label: "Main Route (MR)" }],
     );
-    const roundTrip = XLSX.read(workbookToXlsxBuffer(workbook), { type: "buffer" });
+    const roundTrip = XLSX.read(await workbookToXlsxBuffer(workbook), { type: "buffer" });
     const examples = readSheet(roundTrip, "Examples").flat();
 
     expect(examples).toContain("Class 1");
@@ -52,8 +52,8 @@ describe("student import templates", () => {
     expect(examples).not.toContain("TEST CLASS 1");
   });
 
-  it("exports existing student identity columns for update mode", () => {
-    const workbook = buildUpdateStudentsTemplateWorkbook([
+  it("exports existing student identity columns for update mode", async () => {
+    const workbook = await buildUpdateStudentsTemplateWorkbook([
       {
         studentId: "student-1",
         admissionNo: "SR001",
@@ -80,8 +80,8 @@ describe("student import templates", () => {
     expect(rows[1]).toEqual(expect.arrayContaining(["student-1", "SR001", "Asha Sharma"]));
   });
 
-  it("adds office instructions, examples, and current route lists to update mode", () => {
-    const workbook = buildUpdateStudentsTemplateWorkbook(
+  it("adds office instructions, examples, and current route lists to update mode", async () => {
+    const workbook = await buildUpdateStudentsTemplateWorkbook(
       [
         {
           studentId: "student-1",

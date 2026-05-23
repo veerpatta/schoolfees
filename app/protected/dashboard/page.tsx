@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { after } from "next/server";
 import {
   AlertTriangle,
   ArrowRight,
@@ -29,6 +28,7 @@ import { Section } from "@/components/ui/section";
 import {
   getDashboardAboveFoldData,
   getDashboardPageData,
+  scheduleDashboardAutoPrepare,
   type DashboardAlert,
   type DashboardCurrentInstallment,
 } from "@/lib/dashboard/data";
@@ -47,8 +47,6 @@ import {
   hasStaffPermission,
   requireStaffPermission,
 } from "@/lib/supabase/session";
-import { revalidateSessionFinance } from "@/lib/system-sync/finance-revalidation";
-import { prepareDuesForStudentsAutomatically } from "@/lib/system-sync/finance-sync";
 import { cn } from "@/lib/utils";
 
 function formatPercent(value: number) {
@@ -1538,57 +1536,7 @@ function FeeDataAttentionBanner({
   );
 }
 
-type DashboardAutoPrepareHealth = Pick<
-  NonNullable<Awaited<ReturnType<typeof getDashboardPageData>>["systemSyncHealth"]>,
-  "studentsMissingInstallmentRows" | "studentsMissingInstallments"
->;
 
-// Top-level cache to prevent repeated auto-preparation of student dues in a short timeframe
-const autoPrepareTimestamps = new Map<string, number>();
-const FIVE_MINUTES_MS = 5 * 60 * 1000;
-
-export function scheduleDashboardAutoPrepare({
-  canAutoPrepareDues,
-  sessionLabel,
-  health,
-}: {
-  canAutoPrepareDues: boolean;
-  sessionLabel: string;
-  health: DashboardAutoPrepareHealth | null;
-}) {
-  const allStudentIds =
-    health?.studentsMissingInstallments
-      .map((student) => student.studentId)
-      .filter(Boolean) ?? [];
-
-  if (!canAutoPrepareDues || !health || health.studentsMissingInstallmentRows <= 0 || allStudentIds.length === 0) {
-    return;
-  }
-
-  // Filter out students that were synchronized within the last 5 minutes
-  const now = Date.now();
-  const studentIds = allStudentIds.filter((studentId) => {
-    const lastSync = autoPrepareTimestamps.get(studentId);
-    return !lastSync || now - lastSync > FIVE_MINUTES_MS;
-  });
-
-  if (studentIds.length === 0) {
-    return;
-  }
-
-  // Record sync attempt timestamp immediately to prevent concurrent page loads from double-triggering
-  for (const studentId of studentIds) {
-    autoPrepareTimestamps.set(studentId, now);
-  }
-
-  after(async () => {
-    await prepareDuesForStudentsAutomatically({
-      studentIds,
-      reason: "Dashboard auto-prepare",
-    });
-    revalidateSessionFinance(sessionLabel, studentIds);
-  });
-}
 
 function DashboardBelowFoldSkeleton() {
   return (

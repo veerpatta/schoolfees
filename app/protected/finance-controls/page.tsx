@@ -24,7 +24,7 @@ type FinanceControlsPageProps = {
   }>;
 };
 
-export const INITIAL_FINANCE_CONTROLS_ACTION_STATE: FinanceControlsActionState = {
+const INITIAL_FINANCE_CONTROLS_ACTION_STATE: FinanceControlsActionState = {
   status: "idle",
   message: "",
 };

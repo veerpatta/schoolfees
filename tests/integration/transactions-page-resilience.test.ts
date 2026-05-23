@@ -12,6 +12,8 @@ const resolveViewSession = vi.fn();
 const requireAnyStaffPermission = vi.fn();
 const hasStaffPermission = vi.fn();
 
+const getSetupWizardDataLight = vi.fn();
+
 vi.mock("server-only", () => ({}));
 
 vi.mock("@/lib/transactions/dues", async () => {
@@ -27,6 +29,7 @@ vi.mock("@/lib/transactions/dues", async () => {
 
 vi.mock("@/lib/setup/data", () => ({
   getSetupWizardData,
+  getSetupWizardDataLight,
 }));
 
 vi.mock("@/lib/students/data", () => ({
@@ -64,6 +67,7 @@ function setupPageData(sessionLabel: string) {
     isTest: sessionLabel.startsWith("TEST"),
   });
   getSetupWizardData.mockResolvedValue({});
+  getSetupWizardDataLight.mockResolvedValue({});
   getOfficeWorkflowReadiness.mockReturnValue({
     reports: {
       isReady: true,

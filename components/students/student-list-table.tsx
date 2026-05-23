@@ -1,3 +1,4 @@
+import React from "react";
 import Link from "next/link";
 import { Users, GraduationCap, ShieldAlert, ChevronRight, Phone, AlertTriangle } from "lucide-react";
 
@@ -137,7 +138,7 @@ function DataQualityFlags({ student }: { student: StudentListItem }) {
   return <span className="flex items-center gap-1 mt-0.5">{flags}</span>;
 }
 
-function MobileStudentListItem({
+const MobileStudentListItem = React.memo(function MobileStudentListItem({
   student,
   returnTo,
   session,
@@ -155,7 +156,10 @@ function MobileStudentListItem({
   );
 
   return (
-    <li className="group relative flex items-center gap-3 pl-6 pr-4 py-4 transition-all hover:bg-surface-2/50 active:bg-surface-2 border-b border-border/40">
+    <li 
+      className="group relative flex items-center gap-3 pl-6 pr-4 py-4 transition-all hover:bg-surface-2/50 active:bg-surface-2 border-b border-border/40"
+      style={{ contentVisibility: "auto", containIntrinsicSize: "0 80px" } as React.CSSProperties}
+    >
       {/* Visual Dues Indicator Strip */}
       <div className={cn(
         "absolute left-0 top-0 bottom-0 w-1",
@@ -228,9 +232,9 @@ function MobileStudentListItem({
       </Link>
     </li>
   );
-}
+});
 
-export function StudentListTable({
+export const StudentListTable = React.memo(function StudentListTable({
   students,
   hasFilters,
   canWrite,
@@ -300,6 +304,7 @@ export function StudentListTable({
               <tr
                 key={student.id}
                 className="group cursor-pointer align-top even:bg-surface-2/30 hover:bg-surface-2 transition-colors border-b border-border/40"
+                style={{ contentVisibility: "auto", containIntrinsicSize: "0 56px" } as React.CSSProperties}
                 onClick={() => {
                   window.location.href = withSession(`/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`);
                 }}
@@ -410,4 +415,4 @@ export function StudentListTable({
       </table>
     </div>
   );
-}
+});

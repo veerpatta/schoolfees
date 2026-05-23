@@ -1,8 +1,10 @@
-import * as XLSX from "xlsx";
-
 export type ImportTemplateOption = {
   label: string;
 };
+
+type XlsxModule = typeof import("xlsx");
+type XlsxWorkBook = import("xlsx").WorkBook;
+type XlsxWorkSheet = import("xlsx").WorkSheet;
 
 export type UpdateTemplateWorkbookOptions = {
   classes?: readonly ImportTemplateOption[];
@@ -105,7 +107,7 @@ function buildExampleRows(classes: readonly ImportTemplateOption[], routes: read
 }
 
 function setSheetLayout(
-  sheet: XLSX.WorkSheet,
+  sheet: XlsxWorkSheet,
   columnWidths: readonly number[],
 ) {
   sheet["!cols"] = columnWidths.map((wch) => ({ wch }));
@@ -113,7 +115,8 @@ function setSheetLayout(
 }
 
 function appendListsSheet(
-  workbook: XLSX.WorkBook,
+  XLSX: XlsxModule,
+  workbook: XlsxWorkBook,
   classes: readonly ImportTemplateOption[],
   routes: readonly ImportTemplateOption[],
   conventionalPolicies: readonly ImportTemplateOption[] = [],
@@ -251,10 +254,11 @@ function buildUpdateExampleRows(options: Required<UpdateTemplateWorkbookOptions>
   ];
 }
 
-export function buildAddStudentsTemplateWorkbook(
+export async function buildAddStudentsTemplateWorkbook(
   classes: readonly ImportTemplateOption[],
   routes: readonly ImportTemplateOption[],
 ) {
+  const XLSX = await import("xlsx");
   const workbook = XLSX.utils.book_new();
   const fillSheet = XLSX.utils.aoa_to_sheet([[...ADD_TEMPLATE_HEADERS]]);
   const exampleSheet = XLSX.utils.aoa_to_sheet(buildExampleRows(classes, routes));
@@ -263,15 +267,16 @@ export function buildAddStudentsTemplateWorkbook(
 
   XLSX.utils.book_append_sheet(workbook, fillSheet, "Fill Students Here");
   XLSX.utils.book_append_sheet(workbook, exampleSheet, "Examples");
-  appendListsSheet(workbook, classes, routes);
+  appendListsSheet(XLSX, workbook, classes, routes);
 
   return workbook;
 }
 
-export function buildUpdateStudentsTemplateWorkbook(
+export async function buildUpdateStudentsTemplateWorkbook(
   rows: readonly UpdateTemplateStudent[],
   options: UpdateTemplateWorkbookOptions = {},
 ) {
+  const XLSX = await import("xlsx");
   const workbook = XLSX.utils.book_new();
   const resolvedOptions: Required<UpdateTemplateWorkbookOptions> = {
     classes: options.classes ?? [],
@@ -358,6 +363,7 @@ export function buildUpdateStudentsTemplateWorkbook(
   XLSX.utils.book_append_sheet(workbook, readMeSheet, "Read Me");
   XLSX.utils.book_append_sheet(workbook, exampleSheet, "Examples");
   appendListsSheet(
+    XLSX,
     workbook,
     resolvedOptions.classes,
     resolvedOptions.routes,
@@ -367,7 +373,9 @@ export function buildUpdateStudentsTemplateWorkbook(
   return workbook;
 }
 
-export function workbookToXlsxBuffer(workbook: XLSX.WorkBook) {
+export async function workbookToXlsxBuffer(workbook: XlsxWorkBook) {
+  const XLSX = await import("xlsx");
+
   return XLSX.write(workbook, {
     bookType: "xlsx",
     type: "buffer",

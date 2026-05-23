@@ -2,55 +2,45 @@ import "server-only";
 
 import { revalidatePath, revalidateTag } from "next/cache";
 
-const CORE_FINANCE_PATHS = [
-  "/protected",
+const PAYMENT_AFFECTED_PATHS = [
   "/protected/dashboard",
-  "/protected/students",
-  "/protected/payments",
-  "/protected/collections",
   "/protected/transactions",
   "/protected/receipts",
   "/protected/defaulters",
-  "/protected/reports",
-  "/protected/ledger",
-  "/protected/fee-setup",
-  "/protected/fee-setup/generate",
-  "/protected/imports",
-  "/protected/dues",
 ] as const;
 
-export function revalidateCoreFinancePaths(studentIds: readonly string[] = []) {
-  for (const path of CORE_FINANCE_PATHS) {
-    revalidatePath(path);
-  }
+const FULL_FINANCE_PATHS = [
+  "/protected/dashboard",
+  "/protected/students",
+  "/protected/transactions",
+  "/protected/receipts",
+  "/protected/defaulters",
+  "/protected/dues",
+  "/protected/ledger",
+] as const;
 
+function revalidateStudentFinance(studentIds: readonly string[] = []) {
   for (const studentId of new Set(studentIds.filter(Boolean))) {
     revalidatePath(`/protected/students/${studentId}`);
     revalidatePath(`/protected/students/${studentId}/statement`);
-    revalidatePath(`/protected/payments?studentId=${studentId}`);
     revalidateTag(`student:${studentId}`, "max");
   }
 }
 
 export function revalidateAfterPaymentPosting(studentIds: readonly string[] = []) {
-  const paymentPaths = [
-    "/protected/dashboard",
-    "/protected/payments",
-    "/protected/transactions",
-    "/protected/receipts",
-    "/protected/defaulters",
-  ] as const;
-
-  for (const path of paymentPaths) {
+  for (const path of PAYMENT_AFFECTED_PATHS) {
     revalidatePath(path);
   }
 
-  for (const studentId of new Set(studentIds.filter(Boolean))) {
-    revalidatePath(`/protected/students/${studentId}`);
-    revalidatePath(`/protected/students/${studentId}/statement`);
-    revalidatePath(`/protected/payments?studentId=${studentId}`);
-    revalidateTag(`student:${studentId}`, "max");
+  revalidateStudentFinance(studentIds);
+}
+
+export function revalidateCoreFinancePaths(studentIds: readonly string[] = []) {
+  for (const path of FULL_FINANCE_PATHS) {
+    revalidatePath(path);
   }
+
+  revalidateStudentFinance(studentIds);
 }
 
 export function revalidateSessionFinance(

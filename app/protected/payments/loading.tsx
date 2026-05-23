@@ -1,12 +1,15 @@
-import { RouteLoading } from "@/components/admin/route-loading";
+import { PageHeader } from "@/components/admin/page-header";
+import { PaymentDeskSkeleton } from "@/components/payments/payment-desk-skeleton";
 
 export default function Loading() {
   return (
-    <RouteLoading
-      badgeLabel="Payment Desk"
-      title="Opening payment entry"
-      description="Loading student lookup and today's receipt activity. Selected-student dues load after a student is chosen."
-      cards={4}
-    />
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Payments"
+        title="Payment Desk"
+        description="Select a student, review dues, collect payment, and print the receipt."
+      />
+      <PaymentDeskSkeleton />
+    </div>
   );
 }
