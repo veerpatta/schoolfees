@@ -31,6 +31,7 @@ function student(overrides: Partial<StudentListItem> = {}): StudentListItem {
     totalDue: 1000,
     overdueAmount: 0,
     pendingLateFeeAmount: 0,
+    hasLateFeeWaiver: false,
     hasFeeProfile: true,
     feeProfileStatusLabel: "Standard profile",
     fatherPhone: "8123456789",

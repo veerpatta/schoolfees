@@ -1003,6 +1003,7 @@ async function getStudentsPageUncached(
       totalDue: financial?.total_due ?? 0,
       overdueAmount: overdueAmountMap.get(row.id) ?? 0,
       pendingLateFeeAmount: pendingLateFeeMap.get(row.id) ?? 0,
+      hasLateFeeWaiver: Boolean(override?.late_fee_waiver_amount && override.late_fee_waiver_amount > 0),
       fatherPhone: row.primary_phone,
       motherPhone: row.secondary_phone,
       nextDueLabel: financial?.next_due_label ?? null,

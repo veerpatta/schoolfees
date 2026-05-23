@@ -65,6 +65,10 @@ function OutstandingCell({ student }: { student: StudentListItem }) {
               <span className="text-[9px] font-semibold text-destructive/80 mt-0.5">
                 + {formatInr(student.pendingLateFeeAmount)} late fee
               </span>
+            ) : student.hasLateFeeWaiver ? (
+              <span className="text-[9px] font-semibold text-success-soft-foreground mt-0.5">
+                Late fee waived
+              </span>
             ) : null}
           </>
         ) : (

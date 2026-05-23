@@ -52,6 +52,7 @@ export type StudentListItem = {
   totalDue: number;
   overdueAmount: number;
   pendingLateFeeAmount: number;
+  hasLateFeeWaiver: boolean;
   hasFeeProfile: boolean;
   feeProfileStatusLabel: string;
   fatherPhone: string | null;
