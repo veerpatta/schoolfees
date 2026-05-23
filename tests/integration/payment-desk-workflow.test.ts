@@ -523,7 +523,7 @@ describe("payment desk cashier workflow", () => {
       "utf8",
     );
     const successEffect = component.match(
-      /if \(state\.status === "success"\) \{[\s\S]*?triggerHaptic\(80\)/,
+      /if \(state\.status === "success"\) \{[\s\S]*?triggerHaptic\(\[50, 30, 80\]\)/,
     )?.[0] ?? "";
 
     expect(component).toContain("const [lastPostedAmount, setLastPostedAmount] = useState<number | null>(null)");

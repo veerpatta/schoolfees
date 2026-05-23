@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     title: `${schoolProfile.shortName} Fee Admin`,
     statusBarStyle: "default",
   },
-  manifest: "/manifest.webmanifest",
+  manifest: "/api/manifest",
 };
 
 export const viewport: Viewport = {

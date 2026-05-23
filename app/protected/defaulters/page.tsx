@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Phone } from "lucide-react";
+import { ChevronLeft, ChevronRight, MessageSquare, Phone } from "lucide-react";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
@@ -66,6 +66,33 @@ function normalizeFilters(
 function normalizePage(value: string | string[] | undefined) {
   const parsed = Number(asString(value));
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1;
+}
+
+function buildWhatsAppHref(phone: string | null, message: string) {
+  const rawPhone = (phone ?? "").replace(/\D/g, "");
+  if (!rawPhone) return null;
+
+  if (rawPhone.length === 10) {
+    return `https://wa.me/91${rawPhone}?text=${encodeURIComponent(message)}`;
+  }
+
+  return `https://wa.me/${rawPhone}?text=${encodeURIComponent(message)}`;
+}
+
+function buildFollowUpMessage(row: {
+  fullName: string;
+  admissionNo: string;
+  classLabel: string;
+  totalPending: number;
+  overdueAmount: number;
+}) {
+  return [
+    "Dear Parent,",
+    `This is a fee follow-up from Veer Patta School for ${row.fullName} (${row.classLabel}, SR ${row.admissionNo}).`,
+    `Pending amount: ${formatInr(row.totalPending)}.`,
+    row.overdueAmount > 0 ? `Overdue amount without late fee: ${formatInr(row.overdueAmount)}.` : null,
+    "Please contact the school office for payment or clarification.",
+  ].filter(Boolean).join("\n");
 }
 
 export default async function DefaultersPage({
@@ -385,6 +412,20 @@ export default async function DefaultersPage({
                           {row.fatherPhone}
                         </a>
                       )}
+                      {(() => {
+                        const whatsappHref = buildWhatsAppHref(row.fatherPhone, buildFollowUpMessage(row));
+                        return whatsappHref ? (
+                          <a
+                            href={whatsappHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-success/30 bg-success-soft px-3 py-2 text-sm font-medium text-success-soft-foreground transition-colors hover:bg-success-soft/80"
+                          >
+                            <MessageSquare className="size-4" aria-hidden="true" />
+                            WhatsApp
+                          </a>
+                        ) : null;
+                      })()}
                       <div className="ml-auto flex gap-1.5">
                         <Button asChild size="sm" variant="ghost">
                           <Link href={withSession(`/protected/students/${row.studentId}`)}>View</Link>
@@ -465,6 +506,19 @@ export default async function DefaultersPage({
                         >
                           View
                         </Link>
+                        {(() => {
+                          const whatsappHref = buildWhatsAppHref(row.fatherPhone, buildFollowUpMessage(row));
+                          return whatsappHref ? (
+                            <Link
+                              href={whatsappHref}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm font-semibold text-success-soft-foreground hover:text-success-soft-foreground"
+                            >
+                              WhatsApp
+                            </Link>
+                          ) : null;
+                        })()}
                         {canPostPayments && (
                           <Link
                             href={withSession(`/protected/payments?studentId=${row.studentId}`)}
@@ -661,6 +715,16 @@ export default async function DefaultersPage({
                             <Link href={`tel:${row.fatherPhone}`}>Call</Link>
                           </Button>
                         ) : null}
+                        {(() => {
+                          const whatsappHref = buildWhatsAppHref(row.fatherPhone, buildFollowUpMessage(row));
+                          return whatsappHref ? (
+                            <Button asChild size="sm" variant="outline">
+                              <Link href={whatsappHref} target="_blank" rel="noopener noreferrer">
+                                WhatsApp
+                              </Link>
+                            </Button>
+                          ) : null;
+                        })()}
                         <span
                           className={`ml-auto rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
                             row.followUpStatus === "overdue"

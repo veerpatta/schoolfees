@@ -40,6 +40,7 @@ import type {
   DashboardPaymentModeBreakdown,
   DashboardTrendPoint,
 } from "@/lib/dashboard/summary";
+import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { getViewSessionCookie } from "@/lib/session/cookie";
@@ -362,6 +363,45 @@ function HeroKpis({
           Past installment due date
         </p>
       </div>
+    </div>
+  );
+}
+
+function MobileSecondaryKpis({ kpis }: { kpis: DashboardKpis }) {
+  const cards = [
+    {
+      label: "Total expected",
+      value: <Money value={kpis.totalExpectedFees} size="sm" />,
+      hint: "Session target",
+    },
+    {
+      label: "Total collected",
+      value: <Money value={kpis.totalCollected} size="sm" tone="success" />,
+      hint: "All receipts",
+    },
+    {
+      label: "Active students",
+      value: <span className="text-lg font-semibold tabular-nums text-foreground">{kpis.totalStudents}</span>,
+      hint: "Current session",
+    },
+    {
+      label: "This month",
+      value: <Money value={kpis.thisMonthCollection} size="sm" tone="success" />,
+      hint: "Monthly receipts",
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:hidden">
+      {cards.map((card) => (
+        <div key={card.label} className="rounded-lg border border-border bg-card px-3 py-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            {card.label}
+          </p>
+          <div className="mt-1">{card.value}</div>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">{card.hint}</p>
+        </div>
+      ))}
     </div>
   );
 }
@@ -720,7 +760,14 @@ function PaymentModeDonut({
   const circumference = 2 * Math.PI * radius;
   const size = 96;
   const center = size / 2;
-  const palette = ["#f97316", "#0ea5e9", "#8b5cf6", "#10b981", "#f59e0b", "#64748b"];
+  const palette = [
+    "hsl(var(--accent))",
+    "hsl(var(--info))",
+    "hsl(var(--primary))",
+    "hsl(var(--success))",
+    "hsl(var(--warning))",
+    "hsl(var(--muted-foreground))",
+  ];
 
   let offset = 0;
   const segments = modes.map((mode, index) => {
@@ -839,7 +886,13 @@ function TodayBreakdown({
   );
 }
 
-function SVGTrendBarChart({ trendData }: { trendData: DashboardTrendPoint[] }) {
+function SVGTrendBarChart({
+  trendData,
+  sessionLabel,
+}: {
+  trendData: DashboardTrendPoint[];
+  sessionLabel: string;
+}) {
   if (!trendData.length) return null;
 
   const chartHeight = 120;
@@ -863,6 +916,7 @@ function SVGTrendBarChart({ trendData }: { trendData: DashboardTrendPoint[] }) {
       : value >= 1_000
         ? `Rs ${(value / 1_000).toFixed(0)}K`
         : `Rs ${value}`;
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
   return (
     <Section title="Collection Trend" description="Daily fee receipts" variant="card">
@@ -941,6 +995,23 @@ function SVGTrendBarChart({ trendData }: { trendData: DashboardTrendPoint[] }) {
             );
           })}
         </svg>
+      </div>
+      <div className="mt-3 grid gap-2 md:hidden">
+        {trendData.map((point) => (
+          <Link
+            key={`mobile-trend-${point.date}`}
+            href={withSession(`/protected/transactions?fromDate=${point.date}&toDate=${point.date}`)}
+            className="flex min-h-11 items-center justify-between rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm"
+          >
+            <span className="font-medium text-foreground">{formatLabel(point.date)}</span>
+            <span className="text-right">
+              <span className="block font-semibold text-foreground">{formatInr(point.amount)}</span>
+              <span className="block text-[10px] text-muted-foreground">
+                {point.receiptCount} receipt{point.receiptCount === 1 ? "" : "s"}
+              </span>
+            </span>
+          </Link>
+        ))}
       </div>
     </Section>
   );
@@ -1422,17 +1493,42 @@ function ClassSummaryTable({
 
   return (
     <>
-      <div className="md:hidden grid grid-cols-2 gap-2">
-        {[...rows]
-          .sort((a, b) => b.pendingAmount - a.pendingAmount)
-          .slice(0, 4)
-          .map((row) => (
-            <div key={row.classLabel} className="rounded-lg border border-border bg-card p-3">
-              <p className="text-xs font-semibold text-foreground">{row.classLabel}</p>
-              <Money value={row.pendingAmount} size="sm" className="mt-1" />
-              <p className="text-[10px] text-muted-foreground mt-1">{row.collectionRate}% collected</p>
-            </div>
-          ))}
+      <div className="space-y-2 md:hidden">
+        {rows.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-border bg-card px-4 py-5 text-center text-sm text-muted-foreground">
+            No class-wise fee position is available yet.
+          </p>
+        ) : (
+          [...rows]
+            .sort((a, b) => b.pendingAmount - a.pendingAmount)
+            .map((row) => (
+              <div key={row.classLabel} className="rounded-md border border-border bg-card px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="min-w-0 truncate font-semibold text-foreground">{row.classLabel}</p>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums text-muted-foreground">
+                    {formatPercent(row.collectionRate)}
+                  </span>
+                </div>
+                <div className="mt-2 h-1.5 rounded-full bg-surface-2">
+                  <div
+                    className="h-full rounded-full bg-accent"
+                    style={{ width: `${Math.min(100, row.collectionRate)}%` }}
+                  />
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                  <span>
+                    Pending <Money value={row.pendingAmount} size="xs" tone="warning" />
+                  </span>
+                  <span>{row.totalStudents} student{row.totalStudents === 1 ? "" : "s"}</span>
+                </div>
+                {row.missingDuesStudents > 0 ? (
+                  <Badge variant="warning" dot className="mt-2">
+                    {row.missingDuesStudents} dues missing
+                  </Badge>
+                ) : null}
+              </div>
+            ))
+        )}
       </div>
       <div className="hidden space-y-3 md:block">
         {renderTable(visibleRows, "No class-wise fee position is available yet.")}
@@ -1624,7 +1720,7 @@ async function DashboardBelowFold({
       <InstallmentTrack installments={data.installmentSummary} />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
-        <SVGTrendBarChart trendData={data.collectionTrend} />
+        <SVGTrendBarChart trendData={data.collectionTrend} sessionLabel={sessionLabel} />
         <ClassLeaderboard classSummary={data.classSummary} />
       </div>
 
@@ -1763,6 +1859,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           followUpCount={aboveFold.studentsWithPending}
           overdueAmount={aboveFold.kpis.overdueAmount}
         />
+        <MobileSecondaryKpis kpis={aboveFold.kpis} />
         <InstallmentPulse
           installment={aboveFold.currentInstallment}
           pending={aboveFold.kpis.totalPending}
@@ -1809,6 +1906,15 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         />
       </Suspense>
 
+      {canPostPayments ? (
+        <Link
+          href={withSession("/protected/payments")}
+          className="fixed bottom-[calc(var(--mobile-bottom-nav-offset)+12px)] right-4 z-30 inline-flex min-h-11 items-center gap-2 rounded-full bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground shadow-md md:hidden"
+        >
+          <BadgeIndianRupee className="size-4" aria-hidden="true" />
+          Open Desk
+        </Link>
+      ) : null}
     </div>
   );
 }

@@ -174,7 +174,7 @@ export function SuccessReceiptSheet({
                 target="_blank"
                 rel="noopener noreferrer"
                 className={cn(
-                  "flex items-center justify-center gap-2 rounded-md border border-border bg-[#25D366]/10 px-3.5 h-9 text-sm font-semibold text-[#128C7E] hover:bg-[#25D366]/20 transition-colors max-md:h-11 max-md:px-4",
+                  "flex h-9 items-center justify-center gap-2 rounded-md border border-success/30 bg-success-soft px-3.5 text-sm font-semibold text-success-soft-foreground transition-colors hover:bg-success-soft/80 max-md:h-11 max-md:px-4",
                   !printReceiptHref && "col-span-2"
                 )}
               >

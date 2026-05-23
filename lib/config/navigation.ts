@@ -307,6 +307,10 @@ export function getVisibleProtectedNavigation(staffRole: StaffRole) {
 }
 
 export function getMobileBottomNavigation(staffRole: StaffRole) {
+  return getMobilePrimaryNavigation(staffRole);
+}
+
+export function getMobilePrimaryNavigation(staffRole: StaffRole) {
   const items: MobileBottomNavigationItem[] = [
     {
       href: "/protected/dashboard",

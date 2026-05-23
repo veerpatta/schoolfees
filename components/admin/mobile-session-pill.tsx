@@ -172,7 +172,7 @@ export function MobileSessionPill({
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          "inline-flex h-8 max-w-[42vw] items-center gap-1 rounded-full border bg-surface px-2 text-xs font-semibold text-foreground",
+          "inline-flex h-11 max-w-[42vw] items-center gap-1 rounded-full border bg-surface px-3 text-xs font-semibold text-foreground",
           displayIsTest ? "border-fuchsia-500 text-fuchsia-700" : "border-border",
           isTransitioning && "opacity-75",
         )}

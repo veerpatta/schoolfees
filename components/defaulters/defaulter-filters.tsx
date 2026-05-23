@@ -26,13 +26,24 @@ export function DefaulterFilters({
   routeOptions,
   sessionLabel,
 }: DefaulterFiltersProps) {
+  const activeFilterCount = [
+    filters.searchQuery,
+    filters.classId,
+    filters.transportRouteId,
+    filters.overdue,
+    filters.minPendingAmount,
+  ].filter(Boolean).length;
+
   return (
     <div className="space-y-3">
     <AutoSubmitForm method="get" className="space-y-3 md:hidden">
       <input type="hidden" name="session" value={sessionLabel} />
-      <details className="md:hidden">
-        <summary className="cursor-pointer rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-foreground">
-          Open filters
+      <details open={activeFilterCount > 0} className="md:hidden">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-foreground">
+          <span>
+            Filters {activeFilterCount > 0 ? `(${activeFilterCount})` : ""}
+          </span>
+          <span className="text-xs text-muted-foreground">Tap to change</span>
         </summary>
         <div className="mt-3 grid gap-4">
           <div>

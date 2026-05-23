@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { LoadingBlock } from "@/components/ui/loading-skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
-import { Banknote, Building2, FileText, Smartphone } from "lucide-react";
+import { AlertTriangle, Banknote, Building2, CheckCircle2, CircleAlert, FileText, Smartphone } from "lucide-react";
 import { PayeeSummaryStrip } from "@/components/payments/payee-summary-strip";
 import { DeskTotalsSection } from "@/components/payments/desk-totals-section";
 import { MobilePaymentFlowSheet } from "@/components/payments/mobile-payment-flow-sheet";
@@ -184,6 +184,12 @@ function ActionNotice({
   if (!state.message) {
     return null;
   }
+  const Icon =
+    state.status === "error"
+      ? AlertTriangle
+      : state.status === "duplicate"
+        ? CircleAlert
+        : CheckCircle2;
 
   return (
     <div
@@ -196,7 +202,10 @@ function ActionNotice({
           : "rounded-md bg-success-soft px-3 py-2 text-sm text-success-soft-foreground"
       }
     >
-      {state.message}
+      <p className="flex items-start gap-2">
+        <Icon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+        <span>{state.message}</span>
+      </p>
       {state.status === "error" && state.diagnostic && canViewDiagnostics ? (
         <details className="mt-2 rounded border border-destructive/30 bg-card/70 px-2 py-2 text-xs text-destructive-soft-foreground">
           <summary className="cursor-pointer font-medium">Technical details</summary>
@@ -1067,7 +1076,7 @@ export function PaymentDeskClient({
           setLastPostedAmount(state.amountReceived);
         }
       }
-      triggerHaptic(80);
+      triggerHaptic([50, 30, 80]);
       if (state.receiptNumber && state.amountReceived && selectedStudent && printReceiptHref) {
         toast({
           title: `Receipt ${state.receiptNumber} posted`,
@@ -1350,7 +1359,7 @@ export function PaymentDeskClient({
       return;
     }
 
-    const timer = window.setTimeout(() => {
+    const flushDraft = () => {
       saveDraft({
         sessionLabel: paymentSessionLabel,
         studentId: selectedStudentId,
@@ -1361,9 +1370,26 @@ export function PaymentDeskClient({
           referenceNumber: "",
         },
       });
+    };
+
+    const timer = window.setTimeout(() => {
+      flushDraft();
     }, 350);
 
-    return () => window.clearTimeout(timer);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        flushDraft();
+      }
+    };
+
+    window.addEventListener("beforeunload", flushDraft);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("beforeunload", flushDraft);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [
     isLockedAfterSuccess,
     paymentAmountInput,

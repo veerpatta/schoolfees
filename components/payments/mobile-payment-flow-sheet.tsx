@@ -579,6 +579,7 @@ export function MobilePaymentFlowSheet({
                       ref={amountInputRef}
                       type="text"
                       inputMode="decimal"
+                      pattern="[0-9]*"
                       enterKeyHint="done"
                       autoComplete="off"
                       autoCapitalize="off"
@@ -603,7 +604,7 @@ export function MobilePaymentFlowSheet({
                     ) : null}
                   </div>
                   {paymentAmountInput && Number(paymentAmountInput) > 0 ? (
-                    <p className="text-center text-xs text-muted-foreground pb-2">
+                    <p className="text-center text-3xl font-bold text-accent pb-2">
                       {formatInr(Number(paymentAmountInput))}
                     </p>
                   ) : null}
@@ -615,7 +616,7 @@ export function MobilePaymentFlowSheet({
                       key={`mobile-sheet-${qa.key}`}
                       type="button"
                       disabled={qa.disabled || disablePaymentActions}
-                      className="shrink-0 rounded-full border border-border bg-surface-2 px-3 py-1.5 text-xs font-semibold text-foreground disabled:pointer-events-none disabled:opacity-40"
+                      className="min-h-11 min-w-[4rem] shrink-0 rounded-full border border-border bg-surface-2 px-4 py-1.5 text-sm font-semibold text-foreground disabled:pointer-events-none disabled:opacity-40"
                       onClick={() => onQuickAmount(qa.amount)}
                     >
                       {qa.key === "clear" ? qa.label ?? "Clear" : `${qa.label ?? qa.key} ${qa.amount ? formatInr(qa.amount) : ""}`}

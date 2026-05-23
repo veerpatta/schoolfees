@@ -3,8 +3,8 @@
   "short_name": "VPPS Fee",
   "start_url": "/protected",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#0ea5e9",
+  "background_color": "#faf9f6",
+  "theme_color": "#c0521a",
   "description": "Internal fee management workspace for VPPS office/accounts staff.",
   "icons": [
     {
@@ -28,7 +28,7 @@
   ],
   "shortcuts": [
     {
-      "name": "Collect Payment",
+      "name": "Payment Desk",
       "url": "/protected/payments"
     },
     {
