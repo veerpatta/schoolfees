@@ -2,18 +2,35 @@
 
 /**
  * Reusable "Collect" button. Any row, header, or empty-state can drop one
- * in to open the Collect drawer with a pre-filled student.
+ * in to navigate to the Payment Desk with a pre-filled student.
  *
- * Uses <Link> so Next.js App Router intercepts the /protected/payments
- * navigation and renders Payment Desk inside the @drawer Sheet. Also
- * renders safely as a plain anchor in SSR test environments.
+ * Uses <Link> for normal full-page client navigation — clicking lands on
+ * the Payment Desk page with ?studentId=… in the URL so the desk can
+ * preselect the student. Renders safely as a plain anchor in SSR test
+ * environments.
+ *
+ * Historical note: this button used to open Payment Desk in an
+ * intercepting-route Sheet (@drawer/(.)payments). That pattern was
+ * removed because the Payment Desk is a two-column posting workflow
+ * that needs the full viewport — a 440px sheet is unusable for daily
+ * collection. CollectTrigger now does a regular full-page navigation.
  */
 
 import Link from "next/link";
 import { BadgeIndianRupee } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import type { CollectIntent } from "@/lib/payments/collect-context";
+
+export type CollectIntent = {
+  /** UUID of the student to pre-fill. */
+  studentId: string;
+  /** Optional display label so the button can render an informative title attr. */
+  studentLabel?: string;
+  /** Optional class label (currently informational; kept for back-compat with callers). */
+  classLabel?: string;
+  /** Where to return after the user posts a payment or cancels. */
+  returnTo?: string;
+};
 
 type CollectTriggerProps = {
   intent: CollectIntent;
