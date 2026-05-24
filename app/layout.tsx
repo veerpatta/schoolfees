@@ -2,7 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Source_Serif_4 } from "next/font/google";
 
 import { ServiceWorkerRegistration } from "@/components/system/service-worker-registration";
+import { ThemeProvider } from "@/components/system/theme-provider";
 import { ToastViewport } from "@/components/ui/toast";
+import { DensityProvider } from "@/lib/design/density-context";
 import { schoolProfile } from "@/lib/config/school";
 import { getSiteUrl } from "@/lib/env";
 
@@ -50,7 +52,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#FAFAF7",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FAFAF7" },
+    { media: "(prefers-color-scheme: dark)", color: "#11131A" },
+  ],
 };
 
 export const dynamic = "force-dynamic";
@@ -61,10 +66,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${fontSans.variable} ${fontDisplay.variable}`}>
+    <html
+      lang="en"
+      className={`${fontSans.variable} ${fontDisplay.variable}`}
+      suppressHydrationWarning
+    >
       <body className="antialiased">
-        {children}
-        <ToastViewport />
+        <ThemeProvider>
+          <DensityProvider>
+            {children}
+            <ToastViewport />
+          </DensityProvider>
+        </ThemeProvider>
         <ServiceWorkerRegistration />
       </body>
     </html>

@@ -98,6 +98,95 @@
     --mobile-payment-cta-height: 4.5rem;
     --mobile-payment-cta-offset: calc(var(--mobile-payment-cta-height) + var(--mobile-safe-area-bottom));
     --mobile-payment-with-nav-offset: calc(var(--mobile-payment-cta-height) + var(--mobile-bottom-nav-offset));
+
+    /* Scrim — used by drawers, sheets, command palette --------------- */
+    --scrim: 222 25% 11%;
+  }
+
+  /* ===================================================================
+     Dark mode — "Ledger Calm at night"
+     Keep the same semantic role for every token; only swap values.
+     Currency numbers must remain legible against a paper-on-slate vibe.
+     =================================================================== */
+  .dark {
+    /* Surfaces */
+    --background: 222 24% 8%;
+    --foreground: 44 22% 96%;
+    --card: 222 22% 11%;
+    --card-foreground: 44 22% 96%;
+    --popover: 222 22% 11%;
+    --popover-foreground: 44 22% 96%;
+
+    --surface: 222 22% 11%;
+    --surface-2: 222 20% 14%;
+    --surface-3: 222 18% 18%;
+
+    /* Text */
+    --muted: 222 18% 16%;
+    --muted-foreground: 44 12% 70%;
+    --subtle-foreground: 44 8% 56%;
+
+    /* Lines */
+    --border: 222 16% 20%;
+    --border-strong: 222 14% 28%;
+    --input: 222 14% 22%;
+
+    /* Brand & action — lift the ink to paper, keep saffron warm */
+    --primary: 44 22% 96%;
+    --primary-foreground: 222 25% 11%;
+    --secondary: 222 18% 16%;
+    --secondary-foreground: 44 22% 96%;
+    --accent: 22 88% 52%;
+    --accent-foreground: 222 25% 11%;
+    --accent-soft: 22 50% 18%;
+    --accent-soft-foreground: 22 88% 78%;
+    --ring: 22 88% 58%;
+
+    /* Semantic — bump softs to readable dark tones */
+    --success: 151 50% 40%;
+    --success-foreground: 222 25% 8%;
+    --success-soft: 151 32% 16%;
+    --success-soft-foreground: 151 64% 78%;
+
+    --warning: 30 80% 52%;
+    --warning-foreground: 222 25% 8%;
+    --warning-soft: 30 36% 18%;
+    --warning-soft-foreground: 30 90% 78%;
+
+    --destructive: 0 72% 56%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-soft: 0 36% 20%;
+    --destructive-soft-foreground: 0 80% 84%;
+
+    --info: 221 70% 60%;
+    --info-foreground: 222 25% 8%;
+    --info-soft: 221 36% 20%;
+    --info-soft-foreground: 221 90% 84%;
+
+    /* Charts — keep the role mapping consistent */
+    --chart-1: 44 22% 88%;
+    --chart-2: 22 88% 58%;
+    --chart-3: 151 50% 56%;
+    --chart-4: 30 80% 60%;
+    --chart-5: 221 70% 64%;
+
+    /* Shadows — softer in dark mode to avoid black holes */
+    --shadow-xs: 0 1px 2px hsl(0 0% 0% / 0.4);
+    --shadow-sm: 0 2px 4px -1px hsl(0 0% 0% / 0.45);
+    --shadow-md: 0 6px 18px -8px hsl(0 0% 0% / 0.55), 0 2px 4px -2px hsl(0 0% 0% / 0.35);
+    --shadow-lg: 0 24px 48px -16px hsl(0 0% 0% / 0.6);
+
+    /* Scrim — heavier in dark mode */
+    --scrim: 0 0% 0%;
+  }
+
+  /* Smooth tone swap when switching themes (but never on first paint). */
+  html.theme-ready,
+  html.theme-ready body {
+    transition:
+      background-color 200ms ease,
+      color 200ms ease,
+      border-color 200ms ease;
   }
 }
 
@@ -334,6 +423,35 @@
     .page-section-gap {
       @apply space-y-4;
     }
+  }
+
+  /* Density utilities — driven by [data-density] on <html> via DensityProvider.
+     Tables and forms can opt in with `density-row` / `density-cell` /
+     `density-input` so a single context flips the whole app between
+     cozy (default) and compact. */
+  [data-density="compact"] .density-row {
+    @apply h-9;
+  }
+  [data-density="cozy"] .density-row {
+    @apply h-12;
+  }
+  [data-density="compact"] .density-cell {
+    @apply px-2.5 py-1.5 text-xs;
+  }
+  [data-density="cozy"] .density-cell {
+    @apply px-3 py-2.5 text-sm;
+  }
+  [data-density="compact"] .density-input {
+    @apply h-8 px-2 text-sm;
+  }
+  [data-density="cozy"] .density-input {
+    @apply h-10 px-3 text-sm;
+  }
+
+  /* Scrim utility used by drawers, sheets, the command palette overlay. */
+  .scrim {
+    background-color: hsl(var(--scrim) / 0.45);
+    backdrop-filter: blur(2px);
   }
 }
 

@@ -256,7 +256,7 @@ describe("office performance guardrails", () => {
     expect(paymentActions).toContain("revalidateSessionFinance(");
     expect(paymentActions).not.toContain("revalidateCoreFinancePaths([studentId])");
     expect(revalidation).toContain("export function revalidateSessionFinance");
-    expect(revalidation).toContain("revalidateTag(`session:${sessionLabel}`");
+    expect(revalidation).toContain("safeRevalidateTag(`session:${sessionLabel}`");
     expect(revalidation).toContain("export function revalidateAfterPaymentPosting");
     expect(dashboardData).toContain('supabase.rpc("get_dashboard_summary"');
     expect(syncFacade).toContain("revalidateAfterPaymentPosting");

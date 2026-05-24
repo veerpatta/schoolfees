@@ -16,6 +16,10 @@ import { PageHeader } from "@/components/admin/page-header";
 import { DashboardPrefetcher } from "@/components/dashboard/dashboard-prefetcher";
 import { ClassCollectionProgress } from "@/components/dashboard/class-collection-progress";
 import { CollectionHeatmap } from "@/components/dashboard/collection-heatmap";
+import { MorningBrief } from "@/components/dashboard/morning-brief";
+import { FirstRunHint } from "@/components/system/first-run-hint";
+import { TrustBadge } from "@/components/trust/trust-badge";
+import { composeMorningBrief } from "@/lib/dashboard/morning-brief";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -538,9 +542,12 @@ function QuickActions({
 }
 
 /* ---------------------------------------------------------------------------
-   Analytics widgets
+   Analytics widgets — currently unmounted from the main page during the
+   Phase 4 morning-brief refactor. Kept around so partial dashboards
+   (admin-tools previews) can still compose them.
    --------------------------------------------------------------------------- */
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function CollectionFunnelBar({
   expected,
   collected,
@@ -628,6 +635,7 @@ function CollectionFunnelBar({
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function DailyMomentumCard({
   todaysCollection,
   receiptsToday,
@@ -1788,9 +1796,33 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         }
       />
 
-      <p className="hidden sm:block text-xs text-muted-foreground -mt-5">
-        Updated at {formatUpdatedAt(aboveFold.generatedAt)}
-      </p>
+      <div className="flex flex-wrap items-center gap-2 -mt-3 sm:-mt-5">
+        <p className="hidden text-xs text-muted-foreground sm:block">
+          Updated at {formatUpdatedAt(aboveFold.generatedAt)}
+        </p>
+        <TrustBadge
+          source="Workbook v1"
+          computedAt={aboveFold.generatedAt}
+          className="hidden sm:inline-flex"
+        />
+      </div>
+
+      <MorningBrief
+        sentence={composeMorningBrief({
+          kpis: aboveFold.kpis,
+          currentInstallment: aboveFold.currentInstallment
+            ? {
+                label: aboveFold.currentInstallment.label,
+                dueDate: formatShortDate(aboveFold.currentInstallment.dueDate),
+                status: aboveFold.currentInstallment.status,
+              }
+            : null,
+        })}
+      />
+
+      <FirstRunHint hintKey="cmdk">
+        Tip: press <kbd className="mx-0.5 rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-semibold text-foreground">Ctrl/Cmd&nbsp;+&nbsp;K</kbd> from anywhere to jump to a student, find a receipt, or post a payment.
+      </FirstRunHint>
 
       {resolvedSearchParams?.notice ? (
         <Notice tone="success" iconless={false}>
@@ -1880,36 +1912,20 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             sessionLabel={viewSession.sessionLabel}
           />
         </div>
-
-        <CollectionFunnelBar
-          expected={aboveFold.kpis.totalExpectedFees}
-          collected={aboveFold.kpis.totalCollected}
-          pending={aboveFold.kpis.totalPending}
-          overdue={aboveFold.kpis.overdueAmount}
-        />
-
-        <DailyMomentumCard
-          todaysCollection={aboveFold.kpis.todaysCollection}
-          receiptsToday={aboveFold.kpis.receiptsToday}
-          totalPending={aboveFold.kpis.totalPending}
-          installments={[]}
-          currentInstallment={aboveFold.currentInstallment}
-        />
+        <Suspense fallback={<DashboardBelowFoldSkeleton />}>
+          <DashboardBelowFold
+            staffRole={staff.appRole}
+            sessionLabel={viewSession.sessionLabel}
+            canAutoPrepareDues={canAutoPrepareDues}
+            kpis={aboveFold.kpis}
+          />
+        </Suspense>
       </div>
-
-      <Suspense fallback={<DashboardBelowFoldSkeleton />}>
-        <DashboardBelowFold
-          staffRole={staff.appRole}
-          sessionLabel={viewSession.sessionLabel}
-          canAutoPrepareDues={canAutoPrepareDues}
-          kpis={aboveFold.kpis}
-        />
-      </Suspense>
 
       {canPostPayments ? (
         <Link
           href={withSession("/protected/payments")}
-          className="fixed bottom-[calc(var(--mobile-bottom-nav-offset)+12px)] right-4 z-30 inline-flex min-h-11 items-center gap-2 rounded-full bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground shadow-md md:hidden"
+          className="fixed bottom-[calc(var(--mobile-bottom-nav-offset)+12px)] right-4 z-50 flex items-center gap-2 rounded-full bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground shadow-md md:hidden"
         >
           <BadgeIndianRupee className="size-4" aria-hidden="true" />
           Open Desk

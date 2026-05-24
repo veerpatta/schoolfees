@@ -17,6 +17,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { DensityToggle } from "@/components/ui/density-toggle";
+import { CommandTrigger } from "@/components/command/command-trigger";
 import { SchoolBrand } from "@/components/branding/school-brand";
 
 import { SidebarNav } from "./sidebar-nav";
@@ -45,15 +48,18 @@ export function AppTopBar({ staffEmail, staffRole, sessionPill }: AppTopBarProps
   return (
     <header className="z-20 hidden border-b border-border bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70 print:hidden md:sticky md:top-0 md:flex md:flex-col">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-        <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-3">
           <h1 className="truncate text-base font-semibold tracking-tight text-foreground sm:text-lg">
             {routeMeta.label}
           </h1>
+          <CommandTrigger />
         </div>
 
         <div className="flex items-center gap-2">
           {sessionPill}
           <StatusBadge label={roleLabels[staffRole]} tone="neutral" iconless />
+          <DensityToggle />
+          <ThemeToggle />
 
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -134,8 +140,9 @@ export function MobileHeader({
       <p className="absolute left-1/2 -translate-x-1/2 text-sm font-semibold text-foreground truncate max-w-[40vw]">
         {routeTitle}
       </p>
-      <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-w-0 items-center gap-1.5">
         {sessionPill}
+        <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger
             className="grid size-9 place-items-center rounded-full border border-border bg-surface-2 text-[11px] font-semibold uppercase text-foreground focus-ring"

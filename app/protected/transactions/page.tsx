@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/admin/page-header";
 import { OfficeNotice, WorkflowGuard } from "@/components/office/office-ui";
 import { TransactionsClientShell } from "@/components/transactions/transactions-client-shell";
+import { TrustBadge } from "@/components/trust/trust-badge";
 import { getOfficeWorkbookData } from "@/lib/transactions/dues";
 import { resolveOfficeWorkbookView } from "@/lib/transactions/workbook";
 import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
@@ -100,6 +101,11 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         eyebrow="Finance records"
         title="Transactions"
         description="Read-only receipts, dues, class register, and payment history."
+        actions={
+          <TrustBadge source="Append-only ledger">
+            Append-only · click any receipt for the audit trail
+          </TrustBadge>
+        }
       />
 
       {!readiness.reports.isReady ? (
