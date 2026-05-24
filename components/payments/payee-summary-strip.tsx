@@ -1,6 +1,7 @@
 "use client";
 
 import { StatusBadge } from "@/components/admin/status-badge";
+import { TrustBadge } from "@/components/trust/trust-badge";
 import { formatInr } from "@/lib/helpers/currency";
 import { cn } from "@/lib/utils";
 
@@ -79,7 +80,10 @@ export function PayeeSummaryStrip({
                 >
                   {formatInr(student.totalPending)}
                 </p>
-                <p className="text-xs font-medium text-muted-foreground">Pending</p>
+                <p className="mt-0.5 flex items-center justify-end gap-1.5 text-xs font-medium text-muted-foreground">
+                  Pending
+                  <TrustBadge source="Workbook v1" />
+                </p>
               </div>
             </div>
             <div className="mt-2 text-sm text-muted-foreground">

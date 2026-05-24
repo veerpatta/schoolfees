@@ -10,10 +10,11 @@ import {
   Phone,
   Printer,
   User,
-  Wallet,
 } from "lucide-react";
 
 import { StudentStatusBadge } from "@/components/students/student-status-badge";
+import { StudentRowCollectButton } from "@/components/students/student-row-collect-button";
+import { TrustBadge } from "@/components/trust/trust-badge";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
 import type { StudentStatus } from "@/lib/db/types";
@@ -171,6 +172,9 @@ export function StudentIdentityStrip({
                 <p className="mt-2 font-display text-3xl font-bold leading-none tabular-nums text-foreground">
                   {formatInr(outstandingAmount)}
                 </p>
+                <div className="mt-2">
+                  <TrustBadge source="Workbook v1" />
+                </div>
               </div>
               <div className="inline-flex w-fit items-center gap-1 rounded-full border border-current/20 bg-card/55 px-2.5 py-1 text-xs font-semibold">
                 <AlertCircle className="h-3.5 w-3.5" />
@@ -254,12 +258,16 @@ export function StudentIdentityStrip({
       <div className="flex flex-col gap-2 bg-card rounded-lg border border-border p-3 shadow-xs">
         {/* Primary CTA — full-width on mobile, inline on larger screens */}
         {canPostPayments && student.status === "active" ? (
-          <Button asChild variant="accent" size="sm" className="h-10 gap-1.5 font-semibold w-full sm:hidden">
-            <Link href={`/protected/payments?studentId=${student.id}&returnTo=${encodedReturnTo}`}>
-              <Wallet className="h-4 w-4" />
-              <span>Collect at Payment Desk</span>
-            </Link>
-          </Button>
+          <StudentRowCollectButton
+            studentId={student.id}
+            studentLabel={student.fullName}
+            classLabel={student.classLabel}
+            variant="primary"
+            size="md"
+            label="Collect at Payment Desk"
+            returnTo={returnTo}
+            className="h-10 w-full sm:hidden font-semibold"
+          />
         ) : null}
 
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -306,12 +314,16 @@ export function StudentIdentityStrip({
 
           {/* Desktop inline Collect CTA */}
           {canPostPayments && student.status === "active" ? (
-            <Button asChild variant="accent" size="sm" className="hidden sm:inline-flex h-9 gap-1.5 font-semibold">
-              <Link href={`/protected/payments?studentId=${student.id}&returnTo=${encodedReturnTo}`}>
-                <Wallet className="h-4 w-4" />
-                <span>Collect at Payment Desk</span>
-              </Link>
-            </Button>
+            <StudentRowCollectButton
+              studentId={student.id}
+              studentLabel={student.fullName}
+              classLabel={student.classLabel}
+              variant="primary"
+              size="md"
+              label="Collect at Payment Desk"
+              returnTo={returnTo}
+              className="hidden sm:inline-flex font-semibold"
+            />
           ) : null}
         </div>
       </div>

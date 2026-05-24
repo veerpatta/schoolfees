@@ -10,6 +10,7 @@ import type { StudentListItem } from "@/lib/students/types";
 import { cn } from "@/lib/utils";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { StudentStatusBadge } from "@/components/students/student-status-badge";
+import { StudentRowCollectButton } from "@/components/students/student-row-collect-button";
 
 type StudentListTableProps = {
   students: StudentListItem[];
@@ -223,13 +224,13 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
       </div>
 
       {canWrite && (
-        <Link
-          href={withSession(`/protected/payments?studentId=${student.id}`)}
-          className={cn(buttonVariants({ variant: "accent", size: "sm" }), "h-7 text-xs px-2.5 font-semibold shrink-0")}
-          onClick={(e) => e.stopPropagation()}
-        >
-          Collect
-        </Link>
+        <StudentRowCollectButton
+          studentId={student.id}
+          studentLabel={student.fullName}
+          classLabel={student.classLabel}
+          variant="primary"
+          className="shrink-0"
+        />
       )}
 
       <Link
@@ -406,15 +407,16 @@ export const StudentListTable = React.memo(function StudentListTable({
                         </Link>
                       </div>
                     )}
-                    <Link
-                      href={withSession(`/protected/payments?studentId=${student.id}`)}
-                      className={cn(buttonVariants({ variant: "accent", size: "sm" }), "h-7 text-xs px-2.5 font-semibold")}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                      }}
-                    >
-                      Collect
-                    </Link>
+                    {canWrite && (
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <StudentRowCollectButton
+                          studentId={student.id}
+                          studentLabel={student.fullName}
+                          classLabel={student.classLabel}
+                          variant="primary"
+                        />
+                      </div>
+                    )}
                   </div>
                 </td>
               </tr>
