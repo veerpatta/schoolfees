@@ -1,7 +1,7 @@
 -- =============================================================================
 -- SVP SCHOOL — SCRIPT 2 (CORRECTED): TEST STUDENTS SEED
 -- Schema-accurate version. Matches supabase/schema.sql exactly.
--- Tested against project lsdrvovwybzspcvbdcir.
+-- Tested against the active Mumbai project vgqyilgstjvgohrsiwkb.
 --
 -- Corrections from original:
 --   1. conventional_discount_assignments

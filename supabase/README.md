@@ -6,14 +6,12 @@
 |---|---|
 | **Active project** | `vgqyilgstjvgohrsiwkb` — Supabase ap-south-1 (Mumbai) |
 | **Project URL** | `https://vgqyilgstjvgohrsiwkb.supabase.co` |
-| **Old project** | `lsdrvovwybzspcvbdcir` — ap-southeast-2 (Sydney) — **PAUSED** |
 | **Migrations applied** | 65/65 |
 | **Schema objects** | 35 tables, 4 views, 3 materialized views |
-| **Region moved** | 2026-05-23 — see `docs/operations/region-migration.md` |
+| **Backend status** | Mumbai-only; legacy regional project deleted after migration |
 
 The MCP server `supabase` in `.mcp.json` points to the Mumbai project.
-`supabase-sydney` in `.mcp.json` is the paused project kept as reference.
-
+No legacy Supabase MCP server is kept in this repo.
 Everything in this folder is the source of truth for the database. The web app
 (Next.js, in `app/` and `lib/`) only reads schema *through* what these files
 produce — it never edits the database structure directly.

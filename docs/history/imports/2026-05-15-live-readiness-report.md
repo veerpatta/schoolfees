@@ -1,7 +1,7 @@
 # VPPS Import — Live-Readiness Report
 
 **Generated:** 2026-05-15  
-**Project:** `lsdrvovwybzspcvbdcir`  
+**Project:** active Mumbai Supabase project `vgqyilgstjvgohrsiwkb`  
 **Import name:** `vpps-latest-2026-05-15-fullbook`  
 **Based on:** `docs/history/imports/2026-05-15-final-apply-report.md`
 
@@ -139,7 +139,7 @@ end of the import. Any call to the function will fail with a "function does not 
 error.
 
 **To delete it manually:**
-1. Open Supabase Dashboard → Project `lsdrvovwybzspcvbdcir` → Edge Functions.
+1. Historical note only: the legacy import Edge Function belonged to the deleted legacy project.
 2. Click `vpps-import-applier` → Settings → Delete function.
 
 No MCP tool exists for deleting Edge Functions; this is a one-click dashboard step.

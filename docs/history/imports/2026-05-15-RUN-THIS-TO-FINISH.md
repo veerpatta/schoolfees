@@ -46,7 +46,7 @@ Total remaining: **40 statements**. Each completes in well under a second.
 
 ## Option A — Supabase Studio SQL editor (recommended)
 
-1. Open https://supabase.com/dashboard/project/lsdrvovwybzspcvbdcir/sql
+1. Open the SQL editor for the active Mumbai Supabase project `vgqyilgstjvgohrsiwkb`.
 2. Create a new query
 3. For each file in this order, **paste the entire file contents and run**:
 

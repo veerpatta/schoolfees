@@ -54,7 +54,7 @@ UAT is complete. The app is live with real 2026-27 data.
 | Project URL | `https://vgqyilgstjvgohrsiwkb.supabase.co` |
 | Vercel project | `veerpattas-projects/schoolfees` |
 | Production URL | `schoolfees-two.vercel.app` |
-| Old Sydney project | `lsdrvovwybzspcvbdcir` — PAUSED, delete after 2026-06-23 |
+| Backend policy | Mumbai-only; no legacy rollback project is kept |
 
 If you ever need to check DB health, migrations, or logs: Supabase dashboard
 → project `vgqyilgstjvgohrsiwkb` → Database / Logs / Advisors.

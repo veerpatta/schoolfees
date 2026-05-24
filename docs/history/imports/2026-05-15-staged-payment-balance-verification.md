@@ -1,7 +1,7 @@
 # Staged Payment Balance Verification Report
 
 **Generated:** 2026-05-15  
-**Project:** `lsdrvovwybzspcvbdcir`  
+**Project:** active Mumbai Supabase project `vgqyilgstjvgohrsiwkb`  
 **Import name:** `vpps-latest-2026-05-15-fullbook`  
 **Constraint:** Read-only investigation — no financial data was mutated.  
 **Purpose:** Confirm whether the 363 rows in `private.vpps_direct_import_stage_dues`

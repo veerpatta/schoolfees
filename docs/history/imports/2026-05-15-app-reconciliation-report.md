@@ -1,7 +1,7 @@
 # VPPS Latest-Excel Import — App Reconciliation Report
 
 **Generated:** 2026-05-15 (post-apply)
-**Project:** `lsdrvovwybzspcvbdcir`
+**Project:** active Mumbai Supabase project `vgqyilgstjvgohrsiwkb`
 **Scope:** App-level verification, no destructive changes. One additive cleanup applied (stale fee_setting deactivated).
 
 This complements `2026-05-15-final-apply-report.md`. It checks how the app

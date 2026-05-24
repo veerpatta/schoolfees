@@ -44,5 +44,6 @@ Import (bulk add/update) -> validate dry-run first, commit valid rows only.
 | Migrations | 65 applied — `supabase/migrations/` |
 | Schema objects | 35 tables, 4 views, 3 materialized views |
 
-Region migration from Sydney → Mumbai completed 2026-05-23.
-Full runbook and parity report: `docs/operations/region-migration.md`.
+The app uses only the Mumbai Supabase project. Legacy regional backend access
+and local restore artifacts are intentionally removed to avoid operator
+confusion.

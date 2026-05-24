@@ -261,10 +261,9 @@ Bootstrap script env (staff seeding):
 **Live project:** `vgqyilgstjvgohrsiwkb` — ap-south-1 (Mumbai)
 **URL:** `https://vgqyilgstjvgohrsiwkb.supabase.co`
 
-Migrated from Sydney (ap-southeast-2) to Mumbai on 2026-05-23 for latency
-improvement (~150 ms → ~25 ms RTT for India-based users). Old Sydney project
-`lsdrvovwybzspcvbdcir` is paused. Full migration record:
-`docs/operations/region-migration.md`.
+Mumbai is the only active Supabase backend for this app. The legacy regional
+backend was deleted after migration, and no rollback target is kept in this
+repo or MCP configuration.
 
 Run schema changes through `supabase/migrations/*` — 65 migrations applied.
 See `supabase/README.md` and `supabase/migrations/README.md` for the full
