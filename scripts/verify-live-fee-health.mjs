@@ -52,6 +52,7 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
 
 const zeroUuid = "00000000-0000-0000-0000-000000000000";
 const today = new Date().toISOString().slice(0, 10);
+const IN_FILTER_BATCH_SIZE = 100;
 
 function printHeader(title) {
   console.log(`\n## ${title}`);
@@ -79,6 +80,33 @@ async function checked(label, loader, fallback) {
     console.log(`- ${label}: ERROR - ${errorMessage(error)}`);
     return fallback;
   }
+}
+
+function chunkValues(values, size = IN_FILTER_BATCH_SIZE) {
+  const chunks = [];
+
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+
+  return chunks;
+}
+
+async function fetchRowsByInBatches({ table, column, values, select, configure = (query) => query }) {
+  const rows = [];
+
+  for (const batch of chunkValues(values)) {
+    const query = configure(supabase.from(table).select(select).in(column, batch));
+    const { data, error } = await query;
+
+    if (error) {
+      return { data: rows, error };
+    }
+
+    rows.push(...(data ?? []));
+  }
+
+  return { data: rows, error: null };
 }
 
 function toSingleRecord(value) {
@@ -194,28 +222,30 @@ printRows(
   "No workbook financial rows found",
 );
 
-const installmentRows = activeStudentIds.length > 0
-  ? await checked("installment rows", async () => {
-      const { data, error } = await supabase
-        .from("installments")
-        .select("student_id")
-        .in("student_id", activeStudentIds)
-        .neq("status", "cancelled");
-
-      if (error) throw error;
-      return data ?? [];
-    }, [])
-  : [];
+const installmentResult = activeStudentIds.length > 0
+  ? await fetchRowsByInBatches({
+      table: "installments",
+      column: "student_id",
+      values: activeStudentIds,
+      select: "student_id",
+      configure: (query) => query.neq("status", "cancelled"),
+    })
+  : { data: [], error: null };
+const installmentRows = installmentResult.data;
 const installmentStudentIds = new Set(installmentRows.map((row) => row.student_id));
-const missingInstallmentStudents = activeSessionStudents.filter(
-  (row) => !installmentStudentIds.has(row.id),
-);
+const missingInstallmentStudents = installmentResult.error
+  ? null
+  : activeSessionStudents.filter((row) => !installmentStudentIds.has(row.id));
 
 printHeader("Students Missing Installments");
-printRows(
-  missingInstallmentStudents.map((row) => `${row.fullName} (${row.admissionNo || "No SR"}) - ${row.classLabel}`),
-  "No active-session students missing installments",
-);
+if (installmentResult.error) {
+  console.log(`- Check unavailable: ${installmentResult.error.message}`);
+} else {
+  printRows(
+    missingInstallmentStudents.map((row) => `${row.fullName} (${row.admissionNo || "No SR"}) - ${row.classLabel}`),
+    "No active-session students missing installments",
+  );
+}
 
 const feeSettings = activeClassIds.length > 0
   ? await checked("fee settings", async () => {
