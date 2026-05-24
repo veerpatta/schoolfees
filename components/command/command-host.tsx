@@ -2,27 +2,36 @@
 
 /**
  * Host that mounts the command palette + shortcuts sheet for the protected
- * workspace. Takes role-filtered navigation items as a server-rendered
- * prop so the palette doesn't need to know about auth.
+ * workspace.
+ *
+ * IMPORTANT: takes a JSON-SERIALIZABLE navigation shape.
+ *
+ * Why this matters: `ProtectedNavigationItem.icon` is a `LucideIcon`
+ * (a React component reference). Next.js App Router cannot serialize
+ * function/component values across the server→client boundary. Passing
+ * the raw nav array crashes at render with a generic deployment-env
+ * error fallback. We strip the icon in the server layout, pass plain
+ * data here, and the nav provider re-attaches a generic icon on the
+ * client side.
  */
 
 import { useMemo } from "react";
 
-import type { ProtectedNavigationItem } from "@/lib/config/navigation";
 import type { CommandProvider } from "@/lib/command/types";
 
 import { CommandPalette } from "./command-palette";
 import { KeyboardShortcutsSheet } from "./keyboard-shortcuts-sheet";
 import { actionsProvider } from "./providers/actions";
-import { createNavProvider } from "./providers/nav";
+import { createNavProvider, type CommandNavItem } from "./providers/nav";
 import { receiptsProvider } from "./providers/receipts";
 import { studentsProvider } from "./providers/students";
 
-type SerializableNavItem = Omit<ProtectedNavigationItem, "icon">;
-
 type CommandHostProps = {
-  /** Role-visible navigation items (serializable — icons are looked up here). */
-  navigation: readonly ProtectedNavigationItem[];
+  /**
+   * Role-visible navigation items, already stripped of LucideIcon refs
+   * by the server layout so they cross the boundary cleanly.
+   */
+  navigation: readonly CommandNavItem[];
   /** Permissions to gate provider inclusion. */
   canViewStudents: boolean;
   canViewReceipts: boolean;
@@ -50,5 +59,4 @@ export function CommandHost({
   );
 }
 
-// Re-export the prop type so server callers can adapt nav shapes as needed.
-export type { SerializableNavItem };
+export type { CommandNavItem };

@@ -21,7 +21,19 @@ export default async function ProtectedLayout({
     ),
   ]);
   const isTestDatabase = getAppMode() === "test";
-  const navigation = getVisibleProtectedNavigation(staff.appRole);
+  // CommandHost is a client component. ProtectedNavigationItem.icon is a
+  // LucideIcon (React component) which can't cross the server→client
+  // boundary in Next.js App Router. We strip icons here and pass plain
+  // JSON-serializable data; the nav provider on the client re-attaches
+  // a generic icon. (Bug repro: leaving the icon in causes the protected
+  // layout to render the generic "Check the deployment environment values"
+  // error fallback in prod.)
+  const navigation = getVisibleProtectedNavigation(staff.appRole).map((item) => ({
+    href: item.href,
+    label: item.label,
+    description: item.description,
+    aliases: item.aliases,
+  }));
   const canViewStudents = hasRolePermission(staff.appRole, "students:view");
   const canViewReceipts = hasRolePermission(staff.appRole, "receipts:view");
 

@@ -3,13 +3,24 @@
 /**
  * Navigation provider — every workspace item the role can see.
  *
- * Receives the visible navigation set as a factory parameter so the
- * palette host can pass role-filtered items without this provider
- * needing to know about auth.
+ * Takes a JSON-SERIALIZABLE shape (no React component refs). Icons are
+ * intentionally not part of `CommandNavItem` because server-rendered
+ * data can't carry function references across the boundary. The
+ * provider re-attaches a generic Compass icon on the client side so
+ * every nav row has consistent chrome.
  */
 
+import { Compass } from "lucide-react";
+
 import type { CommandItem, CommandProvider } from "@/lib/command/types";
-import type { ProtectedNavigationItem } from "@/lib/config/navigation";
+
+export type CommandNavItem = {
+  href: string;
+  label: string;
+  description: string;
+  /** Optional alias paths the search should match. */
+  aliases?: readonly string[];
+};
 
 function matchesQuery(item: CommandItem, query: string): boolean {
   if (!query) return true;
@@ -20,7 +31,7 @@ function matchesQuery(item: CommandItem, query: string): boolean {
 }
 
 export function createNavProvider(
-  items: readonly ProtectedNavigationItem[],
+  items: readonly CommandNavItem[],
 ): CommandProvider {
   const baseItems: CommandItem[] = items.map((nav) => ({
     id: `nav:${nav.href}`,
@@ -28,7 +39,7 @@ export function createNavProvider(
     label: nav.label,
     hint: "Go to page",
     description: nav.description,
-    icon: nav.icon,
+    icon: Compass,
     keywords: nav.aliases?.map((alias) => alias.replace("/protected/", "")) ?? [],
     kind: "route",
     onSelect: ({ push, close }) => {

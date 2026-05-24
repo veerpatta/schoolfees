@@ -300,3 +300,53 @@ Windows pipeline reported: `npm install` ✅, `npm run check` ✅, `npm run buil
   regenerate clean on the next Windows `npm run build`).
 - Tests must be re-run on Windows to confirm the 4 fixes pass and only
   the pre-existing `performance-guardrails.test.ts` remains failing.
+
+---
+
+## Post-deploy hotfix (after first production deploy)
+
+After commit + deploy, two issues surfaced:
+
+### 1. App fails to load after login — "Check the deployment environment values…"
+
+**Root cause:** `app/protected/layout.tsx` was passing `getVisibleProtectedNavigation()`
+output directly to the client `<CommandHost>`. Each
+`ProtectedNavigationItem` carries an `icon: LucideIcon` field — a React
+component reference. Next.js App Router cannot serialize component
+references across the server→client boundary, so render crashed at the
+protected layout and the generic deployment-env error fallback rendered.
+
+Local typecheck/build/lint never caught it because the type system sees
+`LucideIcon` as a valid prop type — the failure is purely a serialization
+runtime guarantee.
+
+**Fix:**
+- `components/command/command-host.tsx`: prop type changed from
+  `ProtectedNavigationItem[]` to `CommandNavItem[]` (icon-free).
+- `components/command/providers/nav.ts`: defined `CommandNavItem` as
+  `{ href, label, description, aliases? }`. Attaches a generic `Compass`
+  icon on the client side so palette rows still have consistent chrome.
+- `app/protected/layout.tsx`: strips icons before passing —
+  `.map((item) => ({ href, label, description, aliases }))`.
+
+Other `getVisibleProtectedNavigation` consumers (`SidebarNav`,
+`MobileBottomNav`) are already client components that call the function
+locally — icons stay in-process and never cross the boundary. They're
+unaffected by this fix.
+
+### 2. Dark mode applied automatically by default
+
+The previous `ThemeProvider` config was `defaultTheme="system"`. On
+machines where the OS preferred dark, the app went dark on first load
+without explicit staff opt-in.
+
+**Fix:** `components/system/theme-provider.tsx` — `defaultTheme="light"`.
+`enableSystem` stays true so the topbar "System" option still works for
+staff who explicitly choose it via the toggle. Their preference still
+persists under `vpps.theme` in localStorage.
+
+### Validation
+
+- `npx tsc --noEmit` → exit 0 (source clean; ignore the `.next/types/*`
+  stale-artifact noise — those regenerate on the next Windows build)
+- `npx eslint .` → exit 0

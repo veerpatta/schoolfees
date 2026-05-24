@@ -4,6 +4,12 @@
  * Wraps `next-themes` so the whole app shares a single tri-state theme
  * (light / dark / system).
  *
+ * Defaults to LIGHT — not "system" — because the office uses these
+ * machines under fluorescent light and the staff explicitly asked for
+ * the warm "Ledger Calm" palette by default. Users can still switch to
+ * dark or follow their OS via the topbar toggle (enableSystem stays on
+ * so the toggle's "System" option remains meaningful).
+ *
  * Why a thin wrapper:
  * 1. The root layout is a server component — `next-themes`' provider is
  *    client-only, so we isolate the "use client" boundary here.
@@ -38,7 +44,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   return (
     <NextThemesProvider
       attribute="class"
-      defaultTheme="system"
+      defaultTheme="light"
       enableSystem
       storageKey="vpps.theme"
       disableTransitionOnChange={false}
