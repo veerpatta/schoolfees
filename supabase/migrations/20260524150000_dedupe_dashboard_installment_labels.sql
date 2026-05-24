@@ -53,7 +53,7 @@ declare
   v_class_installment_matrix json;
 
   -- Sync health variables
-  v_students_missing_installments json;
+  v_students_missing_installments jsonb;
   v_students_missing_installment_rows integer;
   v_students_with_no_fee_setting integer;
   v_payment_desk_ready boolean;
