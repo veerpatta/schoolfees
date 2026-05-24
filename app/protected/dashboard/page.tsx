@@ -1711,7 +1711,7 @@ async function DashboardBelowFold({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
         <Section
           title="Collection heatmap"
-          description="Current month day-wise receipt activity."
+          description="Day-wise receipt activity. Use the arrows to step through past months."
           variant="card"
         >
           <CollectionHeatmap collections={data.collectionHeatmap} />

@@ -102,6 +102,109 @@ interface DashboardSummaryRpcResult {
   systemSyncHealth: DashboardSyncHealth | null;
 }
 
+// P0-2 defensive guard: until the dashboard RPC migration that dedupes
+// installment_label variants lands, the JSON payload may still contain
+// duplicate entries for the same installment_no (e.g. "Installment 1" and
+// "Installment 1 (20-04-2026)"). Collapse those here so the UI never
+// renders 8 cards / 8 columns for what is really 4 installments.
+function dedupeInstallmentDuplicates(result: DashboardSummaryRpcResult) {
+  if (Array.isArray(result.installmentSummary)) {
+    const collapsed = new Map<number, DashboardInstallmentSummaryRow>();
+    for (const row of result.installmentSummary) {
+      const existing = collapsed.get(row.installmentNo);
+      if (!existing) {
+        collapsed.set(row.installmentNo, { ...row });
+        continue;
+      }
+      // Keep the longer/more-descriptive label.
+      if ((row.installmentLabel?.length ?? 0) > (existing.installmentLabel?.length ?? 0)) {
+        existing.installmentLabel = row.installmentLabel;
+      }
+      existing.studentCount = Math.max(existing.studentCount, row.studentCount);
+      existing.expectedAmount += row.expectedAmount;
+      existing.collectedAmount += row.collectedAmount;
+      existing.pendingAmount += row.pendingAmount;
+      existing.overdueAmount += row.overdueAmount;
+      existing.collectionRate =
+        existing.expectedAmount > 0
+          ? Math.round((existing.collectedAmount / existing.expectedAmount) * 100)
+          : 0;
+    }
+    result.installmentSummary = Array.from(collapsed.values()).sort(
+      (a, b) => a.installmentNo - b.installmentNo,
+    );
+  }
+
+  if (Array.isArray(result.classInstallmentMatrix)) {
+    result.classInstallmentMatrix = result.classInstallmentMatrix.map((row) => {
+      const installments = Array.isArray(row.installments) ? row.installments : [];
+      const collapsed = new Map<
+        number,
+        { installmentNo: number; installmentLabel: string; pendingAmount: number }
+      >();
+      for (const inst of installments) {
+        const existing = collapsed.get(inst.installmentNo);
+        if (!existing) {
+          collapsed.set(inst.installmentNo, { ...inst });
+          continue;
+        }
+        if ((inst.installmentLabel?.length ?? 0) > (existing.installmentLabel?.length ?? 0)) {
+          existing.installmentLabel = inst.installmentLabel;
+        }
+        existing.pendingAmount += inst.pendingAmount;
+      }
+      const dedupedInstallments = Array.from(collapsed.values()).sort(
+        (a, b) => a.installmentNo - b.installmentNo,
+      );
+      return {
+        ...row,
+        installments: dedupedInstallments,
+        totalPendingAmount: dedupedInstallments.reduce((sum, inst) => sum + inst.pendingAmount, 0),
+      };
+    });
+  }
+}
+
+// P1-1: fetch a wider window of daily receipt totals so the heatmap
+// component can let the user step backwards through prior months without a
+// network round-trip. The RPC only returns the current-month slice, so we
+// supplement it with a single direct query across the active session.
+type DateAmountPoint = { date: string; amount: number };
+
+async function loadExtendedCollectionHeatmap(options: {
+  supabase: Awaited<ReturnType<typeof getCacheSafeClient>>;
+  sessionLabel: string;
+  fallback: DateAmountPoint[];
+}): Promise<DateAmountPoint[]> {
+  try {
+    const { data, error } = await options.supabase
+      .from("receipts")
+      .select("payment_date, total_amount, students!inner(status, classes!inner(session_label, status))")
+      .eq("students.status", "active")
+      .eq("students.classes.session_label", options.sessionLabel)
+      .eq("students.classes.status", "active")
+      .order("payment_date", { ascending: true });
+
+    if (error || !Array.isArray(data)) {
+      return options.fallback ?? [];
+    }
+
+    const totals = new Map<string, number>();
+    for (const row of data as Array<{ payment_date: string | null; total_amount: number | null }>) {
+      if (!row.payment_date) continue;
+      const amount = Number(row.total_amount ?? 0);
+      totals.set(row.payment_date, (totals.get(row.payment_date) ?? 0) + amount);
+    }
+
+    return Array.from(totals.entries())
+      .map(([date, amount]) => ({ date, amount }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  } catch (err) {
+    console.warn("[collection-heatmap] extended fetch failed, falling back to RPC slice:", err);
+    return options.fallback ?? [];
+  }
+}
+
 function getSchoolDateStamp(referenceDate = new Date()) {
   return new Intl.DateTimeFormat("sv-SE", {
     timeZone: "Asia/Kolkata",
@@ -248,6 +351,7 @@ export async function getDashboardAboveFoldData(options: {
 
   console.log(`[dashboard-above-fold] loaded via RPC in ${Date.now() - _t0}ms`);
   const result = data as unknown as DashboardSummaryRpcResult;
+  dedupeInstallmentDuplicates(result);
 
   const emptyState: DashboardEmptyState = {
     hasStudents: result.kpis.totalStudents > 0,
@@ -308,6 +412,7 @@ export async function getDashboardPageData(options: {
 
   console.log(`[dashboard-page-data] loaded via RPC in ${Date.now() - _tp0}ms`);
   const result = data as unknown as DashboardSummaryRpcResult;
+  dedupeInstallmentDuplicates(result);
   const warnings: string[] = [];
 
   const emptyState: DashboardEmptyState = {
@@ -324,13 +429,19 @@ export async function getDashboardPageData(options: {
     loadWarnings: warnings,
   });
 
+  const collectionHeatmap = await loadExtendedCollectionHeatmap({
+    supabase,
+    sessionLabel,
+    fallback: result.collectionHeatmap,
+  });
+
   return {
     currentSession: sessionLabel,
     currentInstallment: buildCurrentInstallment(policy, today),
     generatedAt: new Date().toISOString(),
     kpis: result.kpis,
     collectionTrend: result.collectionTrend,
-    collectionHeatmap: result.collectionHeatmap,
+    collectionHeatmap,
     classSummary: result.classSummary,
     installmentSummary: result.installmentSummary,
     classInstallmentMatrix: result.classInstallmentMatrix,

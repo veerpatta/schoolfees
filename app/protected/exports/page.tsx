@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { UsersRound, BadgePercent, Layers, CircleAlert, Receipt, Download } from "lucide-react";
+import { UsersRound, BadgePercent, Layers, CircleAlert, Receipt, Download, Sparkles } from "lucide-react";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
@@ -59,6 +59,19 @@ const exportGroups = [
         detail: "Saved receipt records for office accounts.",
         icon: Receipt,
         tone: "success" as const,
+      },
+    ],
+  },
+  {
+    title: "For analysis",
+    items: [
+      {
+        key: "ai-context-bundle",
+        label: "Full AI context",
+        detail:
+          "Multi-sheet workbook with students, installments, payments, classes, routes, discounts, defaulters and a README. Large file — may take 10–20 seconds to generate.",
+        icon: Sparkles,
+        tone: "info" as const,
       },
     ],
   },
