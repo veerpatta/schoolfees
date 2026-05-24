@@ -215,4 +215,4 @@ console.log(`[tier7] DONE. receipts=${receiptCount} payments=${paymentCount} fai
 const leftSum = log.reduce((s, l) => s + l.leftover, 0);
 const overpaid = log.filter((l) => l.leftover > 0);
 console.log(`[tier7] overpayments: ${overpaid.length} students, total leftover = Rs ${leftSum}`);
-fs.writeFileSync("scripts/_revamp/out/tier7-allocation-lo
+fs.writeFileSync("scripts/_revamp/out/tier7-allocation-log.json", JSON.stringify(log, null, 2));

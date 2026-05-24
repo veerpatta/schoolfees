@@ -55,3 +55,13 @@ next-env.d.ts
 /scratch/
 .codex-*.txt
 .codex-*.log
+
+# 2026-05-24 revamp artefacts — contain real student/parent PII; never commit
+/backups/
+/scripts/_revamp/out/
+
+# Claude Code local/personal settings (project settings.json is committed)
+/.claude/settings.local.json
+
+# Claude Code Superpowers plugin plans (ephemeral agent artefacts)
+/docs/superpowers/
