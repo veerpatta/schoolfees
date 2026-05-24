@@ -11,8 +11,10 @@ import { requireAuthenticatedStaff } from "@/lib/supabase/session";
 
 export default async function ProtectedLayout({
   children,
+  drawer,
 }: {
   children: React.ReactNode;
+  drawer?: React.ReactNode;
 }) {
   const [staff, resolvedSession] = await Promise.all([
     requireAuthenticatedStaff(),
@@ -56,6 +58,7 @@ export default async function ProtectedLayout({
           canViewStudents={canViewStudents}
           canViewReceipts={canViewReceipts}
         />
+        {drawer}
         <CollectDrawer />
       </DashboardShell>
     </CollectProvider>
