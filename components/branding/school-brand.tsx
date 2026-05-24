@@ -33,7 +33,7 @@ const variantStyles = {
   },
   icon: {
     root: "gap-0",
-    frame: "size-9 rounded-md p-0.5 shadow-xs",
+    frame: "size-11 rounded-lg p-0.5 shadow-sm",
     eyebrow: "",
     title: "",
     subtitle: "",

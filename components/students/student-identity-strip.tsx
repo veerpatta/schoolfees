@@ -179,18 +179,32 @@ export function StudentIdentityStrip({
             </div>
 
             <dl className="mt-5 grid gap-2 text-sm">
-              <div className="flex items-center justify-between gap-3 rounded-lg bg-card/60 px-3 py-2">
-                <dt className="text-muted-foreground">Overdue without late fee</dt>
-                <dd className={cn("font-semibold tabular-nums", overdueAmount > 0 ? "text-destructive" : "text-foreground")}>
-                  {formatInr(overdueAmount)}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-3 rounded-lg bg-card/60 px-3 py-2">
-                <dt className="text-muted-foreground">Pending late fee</dt>
-                <dd className={cn("font-semibold tabular-nums", pendingLateFeeAmount > 0 ? "text-warning" : "text-foreground")}>
-                  {formatInr(pendingLateFeeAmount)}
-                </dd>
-              </div>
+              {overdueAmount > 0 ? (
+                <div className="flex items-center justify-between gap-3 rounded-lg bg-card/60 px-3 py-2">
+                  <dt className="text-muted-foreground">Overdue base amount</dt>
+                  <dd className="font-semibold tabular-nums text-destructive">
+                    {formatInr(overdueAmount)}
+                  </dd>
+                </div>
+              ) : null}
+              {pendingLateFeeAmount > 0 ? (
+                <div className="flex items-center justify-between gap-3 rounded-lg bg-card/60 px-3 py-2">
+                  <dt className="text-muted-foreground">
+                    {overdueAmount > 0 ? "Late fee accruing" : "Late fee"}
+                  </dt>
+                  <dd className="font-semibold tabular-nums text-destructive">
+                    + {formatInr(pendingLateFeeAmount)}
+                  </dd>
+                </div>
+              ) : null}
+              {overdueAmount <= 0 && pendingLateFeeAmount <= 0 && outstandingAmount > 0 ? (
+                <div className="flex items-center justify-between gap-3 rounded-lg bg-card/60 px-3 py-2">
+                  <dt className="text-muted-foreground">Status</dt>
+                  <dd className="font-semibold tabular-nums text-success-soft-foreground text-xs">
+                    On track · no late fee
+                  </dd>
+                </div>
+              ) : null}
               <div className="rounded-lg bg-card/60 px-3 py-2">
                 <dt className="flex items-center gap-1.5 text-muted-foreground">
                   <CalendarDays className="h-3.5 w-3.5" />
@@ -237,63 +251,68 @@ export function StudentIdentityStrip({
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 justify-between items-stretch sm:items-center bg-card rounded-lg border border-border p-3 shadow-xs">
-        <div className="flex flex-wrap items-center gap-2">
-          <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
-            <Link href={`/protected/students/${student.id}/statement?returnTo=${encodedReturnTo}`}>
-              <Printer className="h-4 w-4" />
-              <span>Print statement</span>
+      <div className="flex flex-col gap-2 bg-card rounded-lg border border-border p-3 shadow-xs">
+        {/* Primary CTA — full-width on mobile, inline on larger screens */}
+        {canPostPayments && student.status === "active" ? (
+          <Button asChild variant="accent" size="sm" className="h-10 gap-1.5 font-semibold w-full sm:hidden">
+            <Link href={`/protected/payments?studentId=${student.id}&returnTo=${encodedReturnTo}`}>
+              <Wallet className="h-4 w-4" />
+              <span>Collect at Payment Desk</span>
             </Link>
           </Button>
-          {latestReceiptId ? (
-            <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
-              <Link href={`/protected/receipts/${latestReceiptId}?returnTo=${encodedReturnTo}`}>
-                <Printer className="h-4 w-4" />
-                <span>{canPrintReceipts ? "Print latest receipt" : "Open latest receipt"}</span>
+        ) : null}
+
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="ghost" size="sm" className="h-9 gap-1.5">
+              <Link href={returnTo}>
+                <ArrowLeft className="h-4 w-4" />
+                <span>Back</span>
               </Link>
             </Button>
-          ) : null}
-        </div>
+            <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
+              <Link href={`/protected/students/${student.id}/statement?returnTo=${encodedReturnTo}`}>
+                <Printer className="h-4 w-4" />
+                <span className="hidden xs:inline">Print statement</span>
+                <span className="xs:hidden">Statement</span>
+              </Link>
+            </Button>
+            {latestReceiptId ? (
+              <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
+                <Link href={`/protected/receipts/${latestReceiptId}?returnTo=${encodedReturnTo}`}>
+                  <Printer className="h-4 w-4" />
+                  <span className="hidden xs:inline">{canPrintReceipts ? "Print receipt" : "Open receipt"}</span>
+                  <span className="xs:hidden">Receipt</span>
+                </Link>
+              </Button>
+            ) : null}
+            {canViewLedger ? (
+              <Button asChild variant="ghost" size="sm" className="h-9 gap-1.5">
+                <Link href={`/protected/ledger?studentId=${student.id}&returnTo=${encodedReturnTo}`}>
+                  <BookOpen className="h-4 w-4" />
+                  <span>Ledger</span>
+                </Link>
+              </Button>
+            ) : null}
+            {canEditStudent ? (
+              <Button asChild variant="ghost" size="sm" className="h-9 gap-1.5">
+                <Link href={`/protected/students/${student.id}/edit?returnTo=${encodedReturnTo}`}>
+                  <Edit2 className="h-4 w-4" />
+                  <span>Edit</span>
+                </Link>
+              </Button>
+            ) : null}
+          </div>
 
-        <div className="flex flex-wrap items-center gap-2 justify-end">
+          {/* Desktop inline Collect CTA */}
           {canPostPayments && student.status === "active" ? (
-            <Button asChild variant="accent" size="sm" className="h-9 gap-1.5 font-semibold">
+            <Button asChild variant="accent" size="sm" className="hidden sm:inline-flex h-9 gap-1.5 font-semibold">
               <Link href={`/protected/payments?studentId=${student.id}&returnTo=${encodedReturnTo}`}>
                 <Wallet className="h-4 w-4" />
                 <span>Collect at Payment Desk</span>
               </Link>
             </Button>
           ) : null}
-          {canViewLedger ? (
-            <Button asChild variant="ghost" size="sm" className="h-9 gap-1.5">
-              <Link href={`/protected/ledger?studentId=${student.id}&returnTo=${encodedReturnTo}`}>
-                <BookOpen className="h-4 w-4" />
-                <span>Ledger</span>
-              </Link>
-            </Button>
-          ) : null}
-          {canEditStudent ? (
-            <Button asChild variant="ghost" size="sm" className="h-9 gap-1.5">
-              <Link href={`/protected/students/${student.id}/edit?returnTo=${encodedReturnTo}`}>
-                <Edit2 className="h-4 w-4" />
-                <span>Edit</span>
-              </Link>
-            </Button>
-          ) : null}
-          <Button
-            asChild
-            variant="ghost"
-            size="sm"
-            className={cn(
-              "h-9 gap-1.5",
-              (canViewLedger || canEditStudent) && "border-l border-border pl-3",
-            )}
-          >
-            <Link href={returnTo}>
-              <ArrowLeft className="h-4 w-4" />
-              <span>Back</span>
-            </Link>
-          </Button>
         </div>
       </div>
     </div>

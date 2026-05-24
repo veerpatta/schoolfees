@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { Users, GraduationCap, ShieldAlert, ChevronRight, Phone, AlertTriangle } from "lucide-react";
+import { Users, GraduationCap, ShieldAlert, ChevronRight, Phone, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -34,17 +34,20 @@ function OutstandingCell({ student }: { student: StudentListItem }) {
   if (student.outstandingAmount <= 0) {
     return (
       <div className="flex flex-col items-end gap-1">
-        <span className="text-sm font-bold text-success-soft-foreground font-mono">
-          {formatInr(0)}
-        </span>
-        <Badge variant="success" dot className="rounded-full text-[10px] py-0 px-2 font-semibold">
-          Paid
+        <CheckCircle2 className="h-5 w-5 text-success" />
+        <Badge variant="success" dot className="rounded-full text-[10px] py-0 px-2 font-semibold whitespace-nowrap">
+          Year Clear ✓
         </Badge>
       </div>
     );
   }
 
   const isOverdue = student.overdueAmount > 0;
+  // Candidate late fee: if overdue and pendingLateFeeAmount is 0 (not yet materialised in view),
+  // show lateFeeTotal from the workbook view as an indicator.
+  const effectiveLateFee = student.pendingLateFeeAmount > 0
+    ? student.pendingLateFeeAmount
+    : (isOverdue && student.lateFeeTotal > 0 ? student.lateFeeTotal : 0);
 
   return (
     <div className="flex flex-col items-end gap-1">
@@ -59,23 +62,29 @@ function OutstandingCell({ student }: { student: StudentListItem }) {
       <div className="flex flex-col items-end gap-0.5">
         {isOverdue ? (
           <>
-            <Badge variant="danger" dot className="rounded-full text-[10px] py-0 px-2 font-semibold">
+            <Badge variant="danger" dot className="rounded-full text-[10px] py-0 px-2 font-semibold whitespace-nowrap">
               {formatInr(student.overdueAmount)} overdue
             </Badge>
-            {student.pendingLateFeeAmount > 0 ? (
-              <span className="text-[9px] font-semibold text-destructive/80 mt-0.5">
-                + {formatInr(student.pendingLateFeeAmount)} late fee
+            {effectiveLateFee > 0 ? (
+              <span className="text-[9px] font-semibold text-destructive/80 mt-0.5 whitespace-nowrap">
+                + {formatInr(effectiveLateFee)} late fee
               </span>
             ) : student.hasLateFeeWaiver ? (
-              <span className="text-[9px] font-semibold text-success-soft-foreground mt-0.5">
+              <span className="text-[9px] font-semibold text-success-soft-foreground mt-0.5 whitespace-nowrap">
                 Late fee waived
               </span>
             ) : null}
           </>
         ) : (
-          <Badge variant="warning" dot className="rounded-full text-[10px] py-0 px-2 font-semibold">
-            Pending
-          </Badge>
+          <div className="flex flex-col items-end gap-0.5">
+            <Badge variant="warning" dot className="rounded-full text-[10px] py-0 px-2 font-semibold whitespace-nowrap">
+              Pending
+            </Badge>
+            <span className="inline-flex items-center gap-0.5 text-[9px] font-medium text-success-soft-foreground mt-0.5 whitespace-nowrap">
+              <Clock className="h-2.5 w-2.5" />
+              On track
+            </span>
+          </div>
         )}
       </div>
     </div>
@@ -176,7 +185,7 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
         <div className="flex flex-wrap items-center gap-1.5">
           <Link
             href={studentHref}
-            className="truncate text-sm font-semibold text-foreground underline-offset-4 hover:underline"
+            className="text-sm font-semibold text-foreground underline-offset-4 hover:underline break-words"
           >
             {student.fullName}
           </Link>

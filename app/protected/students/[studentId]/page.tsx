@@ -100,6 +100,20 @@ export default async function StudentDetailPage({
   const outstandingAmount = installmentBalances.reduce((sum, row) => sum + row.pendingAmount, 0);
   const overdueAmount = calculateOverdueBaseAmount(installmentBalances);
   const pendingLateFeeAmount = calculatePendingLateFeeAmount(installmentBalances);
+
+  // Candidate late fee: for overdue installments where finalLateFee hasn't materialized yet
+  // (only materializes in the view when a payment is made after the due date). If the installment
+  // is overdue but has never received any payment, the view shows finalLateFee=0. We compute the
+  // candidate amount using the policy flat rate minus any student-level waiver.
+  const lateFeeFlatAmount = financialSnapshot?.policy.lateFeeFlatAmount ?? 0;
+  const lateFeeWaiverPerInstallment = student.lateFeeWaiverAmount ?? 0;
+  const perInstallmentCandidateLateFee = Math.max(0, lateFeeFlatAmount - lateFeeWaiverPerInstallment);
+  const overdueUnmaterializedCount = installmentBalances.filter(
+    (b) => b.balanceStatus === "overdue" && b.finalLateFee === 0,
+  ).length;
+  const candidateLateFeeAmount = overdueUnmaterializedCount * perInstallmentCandidateLateFee;
+  const effectivePendingLateFeeAmount = pendingLateFeeAmount + candidateLateFeeAmount;
+
   const todayIso = getSchoolDateStamp();
   const feeBreakupRows = financialSnapshot
     ? buildFeeBreakupDisplayRows(financialSnapshot.resolvedBreakdown)
@@ -272,7 +286,7 @@ export default async function StudentDetailPage({
       description={
         overdueAmount > 0
           ? `Overdue: ${formatInr(overdueAmount)} base${
-              pendingLateFeeAmount > 0 ? ` + ${formatInr(pendingLateFeeAmount)} pending late fee` : ""
+              effectivePendingLateFeeAmount > 0 ? ` + ${formatInr(effectivePendingLateFeeAmount)} pending late fee` : ""
             }.`
           : installmentBalances.length > 0 && installmentBalances.every((b) => b.pendingAmount <= 0)
             ? "All installments settled for this session."
@@ -308,6 +322,10 @@ export default async function StudentDetailPage({
                   Includes {formatInr(item.finalLateFee)} late fee
                   {item.waiverApplied > 0 ? ` (−${formatInr(item.waiverApplied)} waived)` : ""}
                 </div>
+              ) : item.balanceStatus === "overdue" && perInstallmentCandidateLateFee > 0 ? (
+                <div className="text-xs text-destructive/80 font-medium">
+                  + {formatInr(perInstallmentCandidateLateFee)} late fee pending
+                </div>
               ) : null}
             </div>
           ))}
@@ -333,12 +351,22 @@ export default async function StudentDetailPage({
                   <td className="px-4 py-3 font-mono tabular-nums text-muted-foreground">{formatShortDate(item.dueDate)}</td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums"><Money value={item.baseCharge} size="sm" /></td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums">
-                    <Money value={item.finalLateFee} size="sm" />
-                    {item.waiverApplied > 0 ? (
-                      <div className="text-[10px] text-success-soft-foreground font-medium mt-0.5">
-                        −{formatInr(item.waiverApplied)} waived
-                      </div>
-                    ) : null}
+                    {item.finalLateFee > 0 ? (
+                      <>
+                        <Money value={item.finalLateFee} size="sm" />
+                        {item.waiverApplied > 0 ? (
+                          <div className="text-[10px] text-success-soft-foreground font-medium mt-0.5">
+                            −{formatInr(item.waiverApplied)} waived
+                          </div>
+                        ) : null}
+                      </>
+                    ) : item.balanceStatus === "overdue" && perInstallmentCandidateLateFee > 0 ? (
+                      <span className="text-[11px] font-semibold text-destructive/80">
+                        {formatInr(perInstallmentCandidateLateFee)} pending
+                      </span>
+                    ) : (
+                      <Money value={0} size="sm" />
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums text-success-soft-foreground"><Money value={item.paidAmount} size="sm" /></td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground"><Money value={item.adjustmentAmount} size="sm" /></td>
@@ -581,11 +609,11 @@ export default async function StudentDetailPage({
         student={student}
         outstandingAmount={outstandingAmount}
         overdueAmount={overdueAmount}
-        pendingLateFeeAmount={pendingLateFeeAmount}
+        pendingLateFeeAmount={effectivePendingLateFeeAmount}
         creditBalance={financialSnapshot?.creditBalance ?? 0}
-        nextDueDate={financialSnapshot?.nextDueDate ?? null}
-        nextDueLabel={financialSnapshot?.nextDueLabel ?? null}
-        nextDueAmount={financialSnapshot?.nextDueAmount ?? null}
+        nextDueDate={firstPendingInstallment?.dueDate ?? null}
+        nextDueLabel={firstPendingInstallment?.installmentLabel ?? null}
+        nextDueAmount={firstPendingInstallment?.pendingAmount ?? null}
         todayIso={todayIso}
         canPostPayments={canPostPayments}
         canEditStudent={canEditStudent}
