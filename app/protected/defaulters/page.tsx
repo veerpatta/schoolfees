@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, MessageSquare, Phone } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
@@ -10,7 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Money } from "@/components/ui/money";
 import { cn } from "@/lib/utils";
 import { DefaulterFilters } from "@/components/defaulters/defaulter-filters";
+import {
+  DefaulterContactActions,
+  DefaulterContactActionsCompact,
+} from "@/components/defaulters/defaulter-contact-actions";
+import { TriageTabs } from "@/components/defaulters/triage-tabs";
 import { getDefaultersPageData } from "@/lib/defaulters/data";
+import { deriveCadence, tallyCadence } from "@/lib/defaulters/cadence";
+import { getContactSummariesForStudents } from "@/lib/defaulters/contacts";
 import {
   EMPTY_DEFAULTER_FILTERS,
   type DefaulterFilters as DefaulterFiltersType,
@@ -31,6 +38,7 @@ type DefaultersPageProps = {
     page?: string | string[];
     query?: string | string[];
     session?: string | string[];
+    cadence?: string | string[];
   }>;
 };
 
@@ -69,32 +77,6 @@ function normalizePage(value: string | string[] | undefined) {
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1;
 }
 
-function buildWhatsAppHref(phone: string | null, message: string) {
-  const rawPhone = (phone ?? "").replace(/\D/g, "");
-  if (!rawPhone) return null;
-
-  if (rawPhone.length === 10) {
-    return `https://wa.me/91${rawPhone}?text=${encodeURIComponent(message)}`;
-  }
-
-  return `https://wa.me/${rawPhone}?text=${encodeURIComponent(message)}`;
-}
-
-function buildFollowUpMessage(row: {
-  fullName: string;
-  admissionNo: string;
-  classLabel: string;
-  totalPending: number;
-  overdueAmount: number;
-}) {
-  return [
-    "Dear Parent,",
-    `This is a fee follow-up from Veer Patta School for ${row.fullName} (${row.classLabel}, SR ${row.admissionNo}).`,
-    `Pending amount: ${formatInr(row.totalPending)}.`,
-    row.overdueAmount > 0 ? `Overdue amount without late fee: ${formatInr(row.overdueAmount)}.` : null,
-    "Please contact the school office for payment or clarification.",
-  ].filter(Boolean).join("\n");
-}
 
 export default async function DefaultersPage({
   searchParams,
@@ -110,6 +92,58 @@ export default async function DefaultersPage({
   const data = await getDefaultersPageData(filters, viewSession.sessionLabel, { page });
   const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
   const canPostPayments = hasStaffPermission(staff, "payments:write");
+
+  // Contact summaries & cadence (gracefully degrades when table is not yet applied)
+  const studentIds = data.rows.map((r) => r.studentId);
+  const contactSummaries = await getContactSummariesForStudents(
+    studentIds,
+    viewSession.sessionLabel,
+  );
+  const todayDate = new Date();
+  const rowsWithCadence = data.rows.map((row) => ({
+    ...row,
+    cadence: deriveCadence(
+      contactSummaries.get(row.studentId) ?? {
+        snoozeUntil: null,
+        lastContactedAt: null,
+      },
+      todayDate,
+    ),
+  }));
+  const cadenceCounts = tallyCadence(
+    rowsWithCadence.map((r) => ({
+      snoozeUntil:
+        contactSummaries.get(r.studentId)?.snoozeUntil ?? null,
+      lastContactedAt:
+        contactSummaries.get(r.studentId)?.lastContactedAt ?? null,
+    })),
+    todayDate,
+  );
+
+  const activeCadence = asString(resolvedSearchParams?.cadence) || "all";
+  const visibleRows =
+    activeCadence === "all"
+      ? rowsWithCadence
+      : rowsWithCadence.filter((r) => r.cadence === activeCadence);
+
+  // Base params to preserve when triage tabs build hrefs
+  const triageBaseParams: Record<string, string> = {};
+  if (resolvedSearchParams?.session)
+    triageBaseParams.session = asString(resolvedSearchParams.session);
+  if (resolvedSearchParams?.classId)
+    triageBaseParams.classId = asString(resolvedSearchParams.classId);
+  if (resolvedSearchParams?.transportRouteId)
+    triageBaseParams.transportRouteId = asString(
+      resolvedSearchParams.transportRouteId,
+    );
+  if (resolvedSearchParams?.overdue)
+    triageBaseParams.overdue = asString(resolvedSearchParams.overdue);
+  if (resolvedSearchParams?.minPendingAmount)
+    triageBaseParams.minPendingAmount = asString(
+      resolvedSearchParams.minPendingAmount,
+    );
+  if (resolvedSearchParams?.query)
+    triageBaseParams.query = asString(resolvedSearchParams.query);
 
   const buildFilterHref = (chip: { label: string; value: string }) => {
     const search = new URLSearchParams();
@@ -339,6 +373,13 @@ export default async function DefaultersPage({
         description="Ranked by pending amount and overdue days so the highest-risk follow-ups appear first."
       >
         <div className="space-y-4">
+          {/* Triage cadence tabs */}
+          <TriageTabs
+            counts={cadenceCounts}
+            activeCadence={activeCadence}
+            baseParams={triageBaseParams}
+          />
+
           {/* Quick filter chips - horizontal scroll */}
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar md:mx-0 md:px-0">
             {[
@@ -363,13 +404,13 @@ export default async function DefaultersPage({
           </div>
 
           <div className="md:hidden">
-            {data.rows.length === 0 ? (
+            {visibleRows.length === 0 ? (
               <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
                 No defaulters found for the selected filters.
               </p>
             ) : (
               <ul className="divide-y divide-border/60 rounded-xl border border-border bg-card overflow-hidden">
-                {data.rows.map((row) => (
+                {visibleRows.map((row) => (
                   <li key={row.studentId} className="px-4 py-3.5 hover:bg-surface-2/40">
                     {/* Name + class + outstanding */}
                     <div className="flex items-start justify-between gap-2">
@@ -404,29 +445,11 @@ export default async function DefaultersPage({
                     </div>
 
                     {/* Action row */}
-                    <div className="mt-3 flex items-center gap-2">
-                      {row.fatherPhone && (
-                        <a href={`tel:${row.fatherPhone}`}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-foreground min-h-10 hover:bg-surface-3 transition-colors"
-                        >
-                          <Phone className="size-4 text-success" />
-                          {row.fatherPhone}
-                        </a>
-                      )}
-                      {(() => {
-                        const whatsappHref = buildWhatsAppHref(row.fatherPhone, buildFollowUpMessage(row));
-                        return whatsappHref ? (
-                          <a
-                            href={whatsappHref}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-success/30 bg-success-soft px-3 py-2 text-sm font-medium text-success-soft-foreground transition-colors hover:bg-success-soft/80"
-                          >
-                            <MessageSquare className="size-4" aria-hidden="true" />
-                            WhatsApp
-                          </a>
-                        ) : null;
-                      })()}
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <DefaulterContactActions
+                        row={row}
+                        sessionLabel={viewSession.sessionLabel}
+                      />
                       <div className="ml-auto flex gap-1.5">
                         <Button asChild size="sm" variant="ghost">
                           <Link href={withSession(`/protected/students/${row.studentId}`)}>View</Link>
@@ -463,14 +486,14 @@ export default async function DefaultersPage({
               </tr>
             </thead>
             <tbody>
-              {data.rows.length === 0 ? (
+              {visibleRows.length === 0 ? (
                 <tr>
                   <td colSpan={12} className="px-4 py-6 text-center text-muted-foreground">
                     No defaulters found for the selected filters.
                   </td>
                 </tr>
               ) : (
-                data.rows.map((row) => (
+                visibleRows.map((row) => (
                   <tr
                     key={row.studentId}
                     className="border-t border-border text-foreground"
@@ -507,19 +530,10 @@ export default async function DefaultersPage({
                         >
                           View
                         </Link>
-                        {(() => {
-                          const whatsappHref = buildWhatsAppHref(row.fatherPhone, buildFollowUpMessage(row));
-                          return whatsappHref ? (
-                            <Link
-                              href={whatsappHref}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm font-semibold text-success-soft-foreground hover:text-success-soft-foreground"
-                            >
-                              WhatsApp
-                            </Link>
-                          ) : null;
-                        })()}
+                        <DefaulterContactActionsCompact
+                          row={row}
+                          sessionLabel={viewSession.sessionLabel}
+                        />
                         {canPostPayments && (
                           <Link
                             href={withSession(`/protected/payments?studentId=${row.studentId}`)}
@@ -714,22 +728,11 @@ export default async function DefaultersPage({
                         <p>Next due: {row.nextDueDate ? formatShortDate(row.nextDueDate) : "-"}</p>
                       </div>
                       {/* Row 4: Actions */}
-                      <div className="mt-3 flex items-center gap-2">
-                        {row.fatherPhone ? (
-                          <Button asChild size="sm" variant="outline">
-                            <Link href={`tel:${row.fatherPhone}`}>Call</Link>
-                          </Button>
-                        ) : null}
-                        {(() => {
-                          const whatsappHref = buildWhatsAppHref(row.fatherPhone, buildFollowUpMessage(row));
-                          return whatsappHref ? (
-                            <Button asChild size="sm" variant="outline">
-                              <Link href={whatsappHref} target="_blank" rel="noopener noreferrer">
-                                WhatsApp
-                              </Link>
-                            </Button>
-                          ) : null;
-                        })()}
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <DefaulterContactActions
+                          row={row}
+                          sessionLabel={viewSession.sessionLabel}
+                        />
                         <span
                           className={`ml-auto rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
                             row.followUpStatus === "overdue"

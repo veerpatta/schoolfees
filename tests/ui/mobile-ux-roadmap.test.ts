@@ -67,9 +67,8 @@ describe("mobile UX roadmap implementation", () => {
     expect(filters).toContain("activeFilterCount");
     expect(filters).toContain("Filters {activeFilterCount > 0");
     expect(filters).toContain("open={activeFilterCount > 0}");
-    expect(defaulters).toContain("buildWhatsAppHref");
-    expect(defaulters).toContain("https://wa.me/91");
-    expect(defaulters).toContain("WhatsApp");
+    expect(defaulters).toContain("DefaulterContactActions");
+    expect(defaulters).toContain("defaulter-contact-actions");
   });
 
   it("uses a More overflow tab for the eight-module mobile workspace", () => {
