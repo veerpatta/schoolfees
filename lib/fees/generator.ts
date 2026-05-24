@@ -459,33 +459,44 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
     const installmentIds = existingInstallments.map((row) => row.id);
 
     if (installmentIds.length > 0) {
-      const [
-        { data: paymentsRaw, error: paymentsError },
-        { data: adjustmentsRaw, error: adjustmentsError },
-      ] = await Promise.all([
-        supabase
-          .from("payments")
-          .select("installment_id, amount")
-          .in("installment_id", installmentIds),
-        supabase
-          .from("payment_adjustments")
-          .select("installment_id, amount_delta")
-          .in("installment_id", installmentIds),
-      ]);
+      // Chunk into batches of 200 to stay under PostgREST URL length limit.
+      // 200 UUIDs (~37 chars each + commas) ≈ 7.4 KB url; safely under typical 8 KB limits.
+      const CHUNK = 200;
+      const paymentsRawAll: InstallmentAmountRow[] = [];
+      const adjustmentsRawAll: InstallmentAdjustmentRow[] = [];
+      for (let i = 0; i < installmentIds.length; i += CHUNK) {
+        const slice = installmentIds.slice(i, i + CHUNK);
+        const [
+          { data: paymentsRaw, error: paymentsError },
+          { data: adjustmentsRaw, error: adjustmentsError },
+        ] = await Promise.all([
+          supabase
+            .from("payments")
+            .select("installment_id, amount")
+            .in("installment_id", slice),
+          supabase
+            .from("payment_adjustments")
+            .select("installment_id, amount_delta")
+            .in("installment_id", slice),
+        ]);
 
-      if (paymentsError) {
-        throw new Error(paymentsError.message);
+        if (paymentsError) {
+          throw new Error(paymentsError.message);
+        }
+
+        if (adjustmentsError) {
+          throw new Error(adjustmentsError.message);
+        }
+
+        paymentsRawAll.push(...((paymentsRaw ?? []) as InstallmentAmountRow[]));
+        adjustmentsRawAll.push(...((adjustmentsRaw ?? []) as InstallmentAdjustmentRow[]));
       }
 
-      if (adjustmentsError) {
-        throw new Error(adjustmentsError.message);
-      }
-
-      ((paymentsRaw ?? []) as InstallmentAmountRow[]).forEach((row) => {
+      paymentsRawAll.forEach((row) => {
         addToAmountMap(paymentTotalsByInstallment, row.installment_id, row.amount);
       });
 
-      ((adjustmentsRaw ?? []) as InstallmentAdjustmentRow[]).forEach((row) => {
+      adjustmentsRawAll.forEach((row) => {
         addToAmountMap(adjustmentTotalsByInstallment, row.installment_id, row.amount_delta);
       });
     }

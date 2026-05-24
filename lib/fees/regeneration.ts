@@ -346,36 +346,46 @@ async function loadPlan(): Promise<RegenerationPlan> {
     const installmentIds = existingInstallments.map((row) => row.id);
 
     if (installmentIds.length > 0) {
-      const [
-        { data: paymentsRaw, error: paymentsError },
-        { data: adjustmentsRaw, error: adjustmentsError },
-      ] = await Promise.all([
-        supabase
-          .from("payments")
-          .select("installment_id, amount")
-          .in("installment_id", installmentIds),
-        supabase
-          .from("payment_adjustments")
-          .select("installment_id, amount_delta")
-          .in("installment_id", installmentIds),
-      ]);
+      // Chunk to stay under PostgREST URL length limit. 200 UUIDs ≈ 7.4 KB url.
+      const CHUNK = 200;
+      const paymentsRawAll: InstallmentAmountRow[] = [];
+      const adjustmentsRawAll: InstallmentAdjustmentRow[] = [];
+      for (let i = 0; i < installmentIds.length; i += CHUNK) {
+        const slice = installmentIds.slice(i, i + CHUNK);
+        const [
+          { data: paymentsRaw, error: paymentsError },
+          { data: adjustmentsRaw, error: adjustmentsError },
+        ] = await Promise.all([
+          supabase
+            .from("payments")
+            .select("installment_id, amount")
+            .in("installment_id", slice),
+          supabase
+            .from("payment_adjustments")
+            .select("installment_id, amount_delta")
+            .in("installment_id", slice),
+        ]);
 
-      if (paymentsError) {
-        throw new Error(paymentsError.message);
+        if (paymentsError) {
+          throw new Error(paymentsError.message);
+        }
+
+        if (adjustmentsError) {
+          throw new Error(adjustmentsError.message);
+        }
+
+        paymentsRawAll.push(...((paymentsRaw ?? []) as InstallmentAmountRow[]));
+        adjustmentsRawAll.push(...((adjustmentsRaw ?? []) as InstallmentAdjustmentRow[]));
       }
 
-      if (adjustmentsError) {
-        throw new Error(adjustmentsError.message);
-      }
-
-      ((paymentsRaw ?? []) as InstallmentAmountRow[]).forEach((row) => {
+      paymentsRawAll.forEach((row) => {
         paymentTotalsByInstallment.set(
           row.installment_id,
           (paymentTotalsByInstallment.get(row.installment_id) ?? 0) + row.amount,
         );
       });
 
-      ((adjustmentsRaw ?? []) as InstallmentAdjustmentRow[]).forEach((row) => {
+      adjustmentsRawAll.forEach((row) => {
         adjustmentTotalsByInstallment.set(
           row.installment_id,
           (adjustmentTotalsByInstallment.get(row.installment_id) ?? 0) + row.amount_delta,
