@@ -1005,17 +1005,27 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
 
   try {
     if (activeSessionStudentIds.length > 0) {
-      const { data, error } = await supabase
-        .from("installments")
-        .select("student_id")
-        .in("student_id", activeSessionStudentIds)
-        .neq("status", "cancelled");
-
-      if (error) {
-        throw new Error(error.message);
+      // Chunk student_ids to stay under URL limit AND paginate result to
+      // bypass PostgREST's default 1000-row cap (1924 installments overflows).
+      const STUDENT_CHUNK = 200;
+      const PAGE = 1000;
+      for (let i = 0; i < activeSessionStudentIds.length; i += STUDENT_CHUNK) {
+        const slice = activeSessionStudentIds.slice(i, i + STUDENT_CHUNK);
+        let from = 0;
+        for (;;) {
+          const { data, error } = await supabase
+            .from("installments")
+            .select("student_id")
+            .in("student_id", slice)
+            .neq("status", "cancelled")
+            .range(from, from + PAGE - 1);
+          if (error) throw new Error(error.message);
+          const rows = (data ?? []) as Array<{ student_id: string }>;
+          installmentRowsData.push(...rows);
+          if (rows.length < PAGE) break;
+          from += PAGE;
+        }
       }
-
-      installmentRowsData.push(...((data ?? []) as Array<{ student_id: string }>));
     }
   } catch (error) {
     warnings.push(
