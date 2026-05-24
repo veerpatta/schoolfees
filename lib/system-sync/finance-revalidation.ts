@@ -2,6 +2,27 @@ import "server-only";
 
 import { revalidatePath, revalidateTag } from "next/cache";
 
+// Next.js 16 forbids revalidatePath / revalidateTag during render. The
+// admin-tools page calls autoReconcileSessionIfSafe → generateMissingSessionDues
+// → revalidateCoreFinancePaths during its render path. We can't restructure
+// every call site here, so we swallow render-time invalidation errors and let
+// the background cron / explicit Server Actions pick up the revalidation.
+function safeRevalidatePath(path: string) {
+  try {
+    revalidatePath(path);
+  } catch {
+    // no-op: called during render in Next 16
+  }
+}
+
+function safeRevalidateTag(tag: string, lifetime: Parameters<typeof revalidateTag>[1] = "max") {
+  try {
+    revalidateTag(tag, lifetime);
+  } catch {
+    // no-op: called during render in Next 16
+  }
+}
+
 const PAYMENT_AFFECTED_PATHS = [
   "/protected/dashboard",
   "/protected/transactions",
@@ -21,15 +42,15 @@ const FULL_FINANCE_PATHS = [
 
 function revalidateStudentFinance(studentIds: readonly string[] = []) {
   for (const studentId of new Set(studentIds.filter(Boolean))) {
-    revalidatePath(`/protected/students/${studentId}`);
-    revalidatePath(`/protected/students/${studentId}/statement`);
-    revalidateTag(`student:${studentId}`, "max");
+    safeRevalidatePath(`/protected/students/${studentId}`);
+    safeRevalidatePath(`/protected/students/${studentId}/statement`);
+    safeRevalidateTag(`student:${studentId}`, "max");
   }
 }
 
 export function revalidateAfterPaymentPosting(studentIds: readonly string[] = []) {
   for (const path of PAYMENT_AFFECTED_PATHS) {
-    revalidatePath(path);
+    safeRevalidatePath(path);
   }
 
   revalidateStudentFinance(studentIds);
@@ -37,7 +58,7 @@ export function revalidateAfterPaymentPosting(studentIds: readonly string[] = []
 
 export function revalidateCoreFinancePaths(studentIds: readonly string[] = []) {
   for (const path of FULL_FINANCE_PATHS) {
-    revalidatePath(path);
+    safeRevalidatePath(path);
   }
 
   revalidateStudentFinance(studentIds);
@@ -50,10 +71,10 @@ export function revalidateSessionFinance(
   const normalizedSessionLabel = sessionLabel.trim();
 
   if (normalizedSessionLabel) {
-    revalidateTag(`session:${sessionLabel}`, "max");
+    safeRevalidateTag(`session:${sessionLabel}`, "max");
   }
 
   for (const studentId of new Set(studentIds.filter(Boolean))) {
-    revalidateTag(`student:${studentId}`, "max");
+    safeRevalidateTag(`student:${studentId}`, "max");
   }
 }
