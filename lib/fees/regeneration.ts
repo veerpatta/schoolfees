@@ -1046,6 +1046,3 @@ export async function applyLedgerRegenerationBatch(batchId: string) {
     message: `Applied ${batch.policy_revision_label}: ${ledgerResult.installmentsToInsert} inserts, ${ledgerResult.installmentsToUpdate} updates, ${ledgerResult.installmentsToCancel} cancellations. Rows with prior payments were preserved.`,
   };
 }
-cy_revision_label}: ${ledgerResult.installmentsToInsert} inserts, ${ledgerResult.installmentsToUpdate} updates, ${ledgerResult.installmentsToCancel} cancellations. Rows with prior payments were preserved.`,
-  };
-}
