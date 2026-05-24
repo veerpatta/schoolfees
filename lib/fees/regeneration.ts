@@ -444,7 +444,9 @@ async function loadPlan(): Promise<RegenerationPlan> {
       continue;
     }
 
-    if (baseAmount + transportAmount < discountAmount) {
+    const grossBaseBeforeDiscount = resolved.breakdown.grossBaseBeforeDiscount ??
+      (tuitionAmount + transportAmount + (resolved.breakdown.academicFeeAmount ?? 0) + (resolved.breakdown.otherAdjustmentAmount ?? 0));
+    if (grossBaseBeforeDiscount < discountAmount) {
       throw new Error(
         `Discount for student ${studentLabel} exceeds the configured annual total.`,
       );
@@ -1042,5 +1044,8 @@ export async function applyLedgerRegenerationBatch(batchId: string) {
     preview: previewSummary,
     applied: applySummary,
     message: `Applied ${batch.policy_revision_label}: ${ledgerResult.installmentsToInsert} inserts, ${ledgerResult.installmentsToUpdate} updates, ${ledgerResult.installmentsToCancel} cancellations. Rows with prior payments were preserved.`,
+  };
+}
+cy_revision_label}: ${ledgerResult.installmentsToInsert} inserts, ${ledgerResult.installmentsToUpdate} updates, ${ledgerResult.installmentsToCancel} cancellations. Rows with prior payments were preserved.`,
   };
 }

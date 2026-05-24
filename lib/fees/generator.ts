@@ -656,7 +656,9 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
       continue;
     }
 
-    if (baseAmount + transportAmount < discountAmount) {
+    const grossBaseBeforeDiscount = resolved.breakdown.grossBaseBeforeDiscount ??
+      (tuitionAmount + transportAmount + (resolved.breakdown.academicFeeAmount ?? 0) + (resolved.breakdown.otherAdjustmentAmount ?? 0));
+    if (grossBaseBeforeDiscount < discountAmount) {
       throw new Error(
         `Discount for a student in class ${student.class_id} exceeds the configured annual total.`,
       );
@@ -888,7 +890,6 @@ export async function generateSessionLedgersAction(
       throw new Error(error.message);
     }
   });
-
   return {
     ...summarizePlan(plan),
     blockedInstallmentsForReview: plan.blockedInstallmentsForReview,
