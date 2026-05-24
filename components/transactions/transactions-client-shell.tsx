@@ -7,7 +7,10 @@ import { ChevronDown, ChevronLeft, ChevronRight, Printer, SlidersHorizontal, X }
 
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { SavedViewsTabs } from "@/components/data-table/saved-views-tabs";
+import { SummaryRow, SummaryCell } from "@/components/data-table/summary-row";
 import { Button } from "@/components/ui/button";
+import type { SavedView } from "@/lib/data-table/saved-views";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { appendSessionParam } from "@/lib/navigation/session-href";
@@ -30,6 +33,15 @@ import type { CollectionRow } from "./transactions-lazy-tables";
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+type TxnSavedState = {
+  view: OfficeWorkbookView;
+  classId: string;
+  paymentMode: string;
+  fromDate: string;
+  toDate: string;
+  routeId: string;
+};
 
 type FilterState = {
   classId: string;
@@ -488,6 +500,31 @@ export function TransactionsClientShell({
     scheduleOrFetch(activeView, nextFilters, false);
   }
 
+  function applyTxnView(view: SavedView<TxnSavedState>) {
+    const nextFilters = {
+      ...filters,
+      classId: view.state.classId,
+      paymentMode: view.state.paymentMode,
+      fromDate: view.state.fromDate,
+      toDate: view.state.toDate,
+      routeId: view.state.routeId,
+      page: 1,
+    };
+    setFilters(nextFilters);
+    setActiveView(view.state.view);
+    window.history.pushState(null, "", buildPageUrl(view.state.view, nextFilters));
+    fetchData(view.state.view, nextFilters);
+  }
+
+  const txnCurrentState: TxnSavedState = {
+    view: activeView,
+    classId: filters.classId,
+    paymentMode: filters.paymentMode,
+    fromDate: filters.fromDate,
+    toDate: filters.toDate,
+    routeId: filters.routeId,
+  };
+
   // Badge counts only secondary-panel filters — primary-row filters (search, class, mode chips) are always visible
   const extraActiveCount = [filters.fromDate, filters.toDate, filters.routeId, filters.sessionLabel].filter(Boolean).length;
   const effectiveSession = filters.sessionLabel || resolvedSessionLabel;
@@ -512,6 +549,13 @@ export function TransactionsClientShell({
         }
       >
         <div className="space-y-4">
+          <SavedViewsTabs
+            tableKey="vpps.transactions.views"
+            activeId={null}
+            onApply={applyTxnView}
+            currentState={txnCurrentState}
+            className="-mt-1 mb-2"
+          />
           {/* View tabs — exports tab excluded; use the Exports sidebar tab instead */}
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1.5 no-scrollbar md:mx-0 md:px-0 md:grid md:grid-cols-4 xl:grid-cols-4 md:gap-2 md:overflow-visible">
             {officeWorkbookViews.filter((v) => v !== "exports").map((view) => (
@@ -789,6 +833,11 @@ export function TransactionsClientShell({
             </p>
           </SectionCard>
         )}
+        {"rows" in workbook && workbook.rows.length > 0 ? (
+          <SummaryRow sticky={false}>
+            <SummaryCell label="Records" value={String(workbook.rows.length)} />
+          </SummaryRow>
+        ) : null}
         {"pagination" in workbook && (
           <PaginationControls pagination={workbook.pagination} onPageChange={handlePageChange} />
         )}

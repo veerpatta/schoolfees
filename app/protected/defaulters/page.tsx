@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, MessageSquare, Phone } from "lucide-react";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
+import { SummaryRow, SummaryCell } from "@/components/data-table/summary-row";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { OfficeNotice } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
@@ -535,6 +536,10 @@ export default async function DefaultersPage({
             </tbody>
           </table>
         </div>
+        <SummaryRow sticky={false} hint={`Page ${data.pagination.page}`}>
+          <SummaryCell label="Defaulters" value={String(data.pagination.totalRows)} />
+          <SummaryCell label="Total pending" value={formatInr(data.metrics.totalPending)} />
+        </SummaryRow>
         {(data.pagination.hasPreviousPage || data.pagination.hasNextPage) ? (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm">
             <span className="text-muted-foreground">

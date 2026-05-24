@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 import { SectionCard } from "@/components/admin/section-card";
+import { SavedViewsTabs } from "@/components/data-table/saved-views-tabs";
+import { SummaryRow, SummaryCell } from "@/components/data-table/summary-row";
 import { StudentListTable } from "@/components/students/student-list-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +14,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { isPendingAdmissionNo } from "@/lib/students/constants";
 import { cn } from "@/lib/utils";
+import type { SavedView } from "@/lib/data-table/saved-views";
 import type {
   StudentClassOption,
   StudentListFilters,
@@ -25,6 +28,11 @@ const selectClassName =
   "appearance-none flex w-full rounded-md border border-input bg-card px-3 py-1 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus:ring-ring focus:border-ring cursor-pointer hover:border-border-strong";
 
 const PAGE_SIZE = 40;
+
+const STUDENT_BUILTIN_VIEWS: readonly SavedView<StudentQuickLoadFilters>[] = [
+  { id: "active", label: "All active", builtIn: true, createdAt: 0, state: { query: "", classId: "", transportRouteId: "", status: "active" } },
+  { id: "all", label: "All students", builtIn: true, createdAt: 0, state: { query: "", classId: "", transportRouteId: "", status: "" } },
+];
 
 type StudentQuickLoadFilters = Omit<StudentListFilters, "sessionLabel">;
 
@@ -88,6 +96,25 @@ export function StudentQuickLoad({
       (filters.status && filters.status !== "active" ? 1 : 0)
     );
   }, [filters]);
+
+  const activeSavedViewId = useMemo<string | null>(() => {
+    for (const view of STUDENT_BUILTIN_VIEWS) {
+      if (
+        filters.query === view.state.query &&
+        filters.classId === view.state.classId &&
+        filters.transportRouteId === view.state.transportRouteId &&
+        filters.status === view.state.status
+      ) {
+        return view.id;
+      }
+    }
+    return null;
+  }, [filters]);
+
+  function applyStudentView(view: SavedView<StudentQuickLoadFilters>) {
+    setPage(1);
+    setFilters(view.state);
+  }
 
   const withSession = (href: string) => {
     return appendSessionParam(href, initialFilters.sessionLabel);
@@ -494,6 +521,14 @@ export function StudentQuickLoad({
         title="Student list"
         description={`${totalCount} student${totalCount === 1 ? "" : "s"} found.${isLoading ? " Refreshing…" : ""}`}
       >
+        <SavedViewsTabs
+          tableKey="vpps.students.views"
+          builtIns={STUDENT_BUILTIN_VIEWS}
+          activeId={activeSavedViewId}
+          onApply={applyStudentView}
+          currentState={filters}
+          className="mb-4 -mt-1"
+        />
         <div className="space-y-4">
           {pendingSrCount > 0 && !srBannerDismissed ? (
             <div className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground">
@@ -518,24 +553,15 @@ export function StudentQuickLoad({
             </div>
           ) : null}
 
-          <div className="flex items-center justify-between py-1">
-            <p className="text-sm text-muted-foreground">
-              {isLoading ? (
-                "Loading..."
-              ) : filters.classId ? (
-                <>
-                  Showing <span className="font-medium text-foreground">{totalCount}</span> students in{" "}
-                  <span className="font-medium text-foreground">
-                    {classOptions.find((classOption) => classOption.id === filters.classId)?.label ?? "selected class"}
-                  </span>
-                </>
-              ) : (
-                <>
-                  Showing <span className="font-medium text-foreground">{totalCount}</span> students
-                </>
-              )}
-            </p>
-          </div>
+          <SummaryRow sticky={false} hint={`Page ${page} of ${pageCount}`}>
+            <SummaryCell label="Students" value={isLoading ? "…" : String(totalCount)} />
+            {filters.classId ? (
+              <SummaryCell
+                label="Class"
+                value={classOptions.find((c) => c.id === filters.classId)?.label ?? ""}
+              />
+            ) : null}
+          </SummaryRow>
 
           {isLoading ? (
             <div className="overflow-hidden rounded-xl border border-border divide-y divide-border">
