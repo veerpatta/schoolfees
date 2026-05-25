@@ -148,10 +148,16 @@ describe("read-only UX audit implementation", () => {
       "components/fees/fee-setup-client.tsx",
     ];
     const combined = dailyFiles.map(readRepoFile).join("\n");
+    // Fee Setup wording now lives in the next-intl FeeSetup namespace.
+    const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
+      FeeSetup: Record<string, string>;
+    };
 
     expect(combined).toContain("Dues not prepared");
-    expect(combined).toContain("Save Fee Setup");
-    expect(combined).toContain("Saving updates future or unpaid dues automatically.");
+    expect(englishMessages.FeeSetup.topbarSave).toBe("Save Fee Setup");
+    expect(englishMessages.FeeSetup.savingInfoNotice).toContain(
+      "Saving updates future or unpaid dues automatically.",
+    );
     expect(combined).not.toContain("Publish Fee Setup");
     expect(combined).not.toContain("Publish & Sync All");
     expect(combined).not.toContain("Computed Fee Snapshot");

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import { FeeSetupClient } from "@/components/fees/fee-setup-client";
 import { PageHeader } from "@/components/admin/page-header";
@@ -37,6 +38,7 @@ type FeeSetupPageProps = {
 };
 
 export default async function FeeSetupPage({ searchParams }: FeeSetupPageProps) {
+  const t = await getTranslations("FeeSetup");
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const viewSession = await resolveViewSession({
     searchParamSession: resolvedSearchParams?.session,
@@ -53,12 +55,12 @@ export default async function FeeSetupPage({ searchParams }: FeeSetupPageProps) 
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Fee Setup"
-        title="Academic Year Fee Setup"
-        description="Set yearly fees, due dates, class fees, and transport fees. Saving syncs dues automatically."
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
         actions={
           <Button asChild variant="outline">
-            <Link href="/protected/fee-setup/time-travel">Time travel</Link>
+            <Link href="/protected/fee-setup/time-travel">{t("timeTravelAction")}</Link>
           </Button>
         }
       />

@@ -1,5 +1,8 @@
 import React from "react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
+import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
 import { FeeSetupClient } from "@/components/fees/fee-setup-client";
@@ -8,6 +11,10 @@ import type { FeeSetupActionState, FeeSetupPageData } from "@/lib/fees/types";
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn() }),
 }));
+
+const messages = JSON.parse(
+  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+);
 
 const noopFeeSetupAction = async (): Promise<FeeSetupActionState> => ({
   status: "idle",
@@ -104,47 +111,49 @@ function pageData(): FeeSetupPageData {
 describe("FeeSetupClient", () => {
   it("opens the default Basic Fee Rules section so the panel is not blank", () => {
     const html = renderToStaticMarkup(
-      <FeeSetupClient
-        data={pageData()}
-        masterData={{
-          sessions: [
-            {
-              id: "session-1",
-              session_label: "TEST-2026-27",
-              status: "active",
-              is_current: false,
-              notes: null,
-              created_at: "2026-05-21T00:00:00.000Z",
-              updated_at: "2026-05-21T00:00:00.000Z",
-            },
-          ],
-          classes: [],
-          routes: [],
-        }}
-        canEdit={true}
-        saveWorkbookFeeSetupAction={noopFeeSetupAction}
-        initialState={{
-          status: "idle",
-          message: null,
-          changeBatchId: null,
-          preview: null,
-          syncOutcome: null,
-        }}
-        initialMasterDataState={{ status: "idle", message: "" }}
-        initialSelectedSessionLabel="TEST-2026-27"
-        actions={{
-          createSessionAction: noopMasterDataAction,
-          updateSessionAction: noopMasterDataAction,
-          deleteSessionAction: noopMasterDataAction,
-          copySessionAction: noopMasterDataAction,
-          createClassAction: noopMasterDataAction,
-          updateClassAction: noopMasterDataAction,
-          deleteClassAction: noopMasterDataAction,
-          createRouteAction: noopMasterDataAction,
-          updateRouteAction: noopMasterDataAction,
-          deleteRouteAction: noopMasterDataAction,
-        }}
-      />,
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <FeeSetupClient
+          data={pageData()}
+          masterData={{
+            sessions: [
+              {
+                id: "session-1",
+                session_label: "TEST-2026-27",
+                status: "active",
+                is_current: false,
+                notes: null,
+                created_at: "2026-05-21T00:00:00.000Z",
+                updated_at: "2026-05-21T00:00:00.000Z",
+              },
+            ],
+            classes: [],
+            routes: [],
+          }}
+          canEdit={true}
+          saveWorkbookFeeSetupAction={noopFeeSetupAction}
+          initialState={{
+            status: "idle",
+            message: null,
+            changeBatchId: null,
+            preview: null,
+            syncOutcome: null,
+          }}
+          initialMasterDataState={{ status: "idle", message: "" }}
+          initialSelectedSessionLabel="TEST-2026-27"
+          actions={{
+            createSessionAction: noopMasterDataAction,
+            updateSessionAction: noopMasterDataAction,
+            deleteSessionAction: noopMasterDataAction,
+            copySessionAction: noopMasterDataAction,
+            createClassAction: noopMasterDataAction,
+            updateClassAction: noopMasterDataAction,
+            deleteClassAction: noopMasterDataAction,
+            createRouteAction: noopMasterDataAction,
+            updateRouteAction: noopMasterDataAction,
+            deleteRouteAction: noopMasterDataAction,
+          }}
+        />
+      </NextIntlClientProvider>,
     );
 
     expect(html).toMatch(/<details class="group md:contents ?" open="">[\s\S]*2\. Basic Fee Rules/);

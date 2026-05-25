@@ -4,6 +4,7 @@ import { useEffect, useActionState } from "react";
 import { AlertCircle, ArrowLeft, Loader2, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -51,6 +52,7 @@ function AlertBox({
 }
 
 export function GenerateLedgerClient({ initialState, action }: GenerateLedgerClientProps) {
+  const t = useTranslations("FeeSetup");
   const router = useRouter();
   const [state, formAction, pending] = useActionState(action, initialState);
 
@@ -66,7 +68,7 @@ export function GenerateLedgerClient({ initialState, action }: GenerateLedgerCli
         <Button variant="outline" size="sm" asChild>
           <Link href="/protected/fee-setup">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Fee Setup
+            {t("generateBack")}
           </Link>
         </Button>
       </div>
@@ -75,50 +77,43 @@ export function GenerateLedgerClient({ initialState, action }: GenerateLedgerCli
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
             <RotateCcw className="h-5 w-5 text-info" />
-            <span>Apply dues update</span>
+            <span>{t("generateCardTitle")}</span>
           </CardTitle>
-          <CardDescription>
-            Apply the current Fee Setup to all unpaid and future dues. Rows with existing payments are preserved.
-          </CardDescription>
+          <CardDescription>{t("generateDescription")}</CardDescription>
         </CardHeader>
 
         <form action={formAction}>
           <CardContent className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="reason">Reason for dues update</Label>
+              <Label htmlFor="reason">{t("generateReasonLabel")}</Label>
               <textarea
                 id="reason"
                 name="reason"
                 required
                 rows={4}
                 className="flex min-h-[96px] w-full rounded-md border border-border-strong bg-card px-3 py-2 text-sm shadow-sm transition-colors focus-visible:border-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/40"
-                placeholder="Describe why dues are being updated, such as a fee change or revised installment dates."
+                placeholder={t("generateReasonPlaceholder")}
               />
-              <p className="text-xs text-muted-foreground">
-                This reason is saved with the audit record.
-              </p>
+              <p className="text-xs text-muted-foreground">{t("generateReasonHelp")}</p>
             </div>
 
             {state.message && state.status === "error" ? (
-              <AlertBox tone="error" title="Update failed" message={state.message} />
+              <AlertBox tone="error" title={t("generateUpdateFailed")} message={state.message} />
             ) : null}
 
             {state.message && state.status === "success" ? (
-              <AlertBox tone="success" title="Dues updated successfully" message={state.message} />
+              <AlertBox tone="success" title={t("generateUpdateSuccess")} message={state.message} />
             ) : null}
 
             {!state.message ? (
               <div className="rounded-2xl border border-dashed border-border-strong bg-surface-2 p-5 text-sm text-muted-foreground">
-                Enter a reason and update dues to apply the current Fee Setup to all unpaid and future dues.
+                {t("generateIdlePrompt")}
               </div>
             ) : null}
           </CardContent>
 
           <CardFooter className="flex flex-col gap-3 border-t border-border bg-surface-2 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs leading-5 text-muted-foreground">
-              Payments, receipts, and payment adjustments remain append-only. This workflow only
-              recalculates future or unpaid rows and leaves paid history intact.
-            </p>
+            <p className="text-xs leading-5 text-muted-foreground">{t("generateFootnote")}</p>
 
             <Button
               type="submit"
@@ -127,10 +122,10 @@ export function GenerateLedgerClient({ initialState, action }: GenerateLedgerCli
               {pending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
+                  {t("generateSubmitPending")}
                 </>
               ) : (
-                "Update dues now"
+                t("generateSubmit")
               )}
             </Button>
           </CardFooter>

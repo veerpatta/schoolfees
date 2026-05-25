@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Plus, X, Calendar, BadgeIndianRupee, School, Bus, ClipboardList, Tag, ChevronDown } from "lucide-react";
 
 import type { MasterDataActionState } from "@/app/protected/master-data/actions";
@@ -135,19 +136,19 @@ type SessionFormState = {
 type SyncStatus = "synced" | "dirty" | "saving" | "error";
 
 const FEE_SETUP_SECTIONS = [
-  { id: "session", label: "Session", icon: "📅" },
-  { id: "basic", label: "Basic rules", icon: "₹" },
-  { id: "classes", label: "Class fees", icon: "🏫" },
-  { id: "transport", label: "Transport", icon: "🚌" },
-  { id: "fee-heads", label: "Fee heads", icon: "📋" },
-  { id: "discounts", label: "Discounts", icon: "🏷" },
+  { id: "session", i18nKey: "sectionSession", icon: "📅" },
+  { id: "basic", i18nKey: "sectionBasic", icon: "₹" },
+  { id: "classes", i18nKey: "sectionClasses", icon: "🏫" },
+  { id: "transport", i18nKey: "sectionTransport", icon: "🚌" },
+  { id: "fee-heads", i18nKey: "sectionFeeHeads", icon: "📋" },
+  { id: "discounts", i18nKey: "sectionDiscounts", icon: "🏷" },
 ] as const;
 
 type FeeSetupSectionId = (typeof FEE_SETUP_SECTIONS)[number]["id"];
 
-function formatDateTime(value: string | null) {
+function formatDateTime(value: string | null, notSavedLabel: string) {
   if (!value) {
-    return "Not saved yet";
+    return notSavedLabel;
   }
 
   const parsed = new Date(value);
@@ -302,21 +303,21 @@ function createWorkbookFormData(
   return formData;
 }
 
-function getFeeHeadApplicationLabel(value: FeeHeadApplicationType) {
+function getFeeHeadApplicationLabel(value: FeeHeadApplicationType, t: (key: string) => string) {
   switch (value) {
     case "installment_1_only":
-      return "Installment 1 only";
+      return t("applicationInstallmentOne");
     case "split_across_installments":
-      return "Evenly split";
+      return t("applicationSplit");
     case "optional_per_student":
-      return "Optional / per-student";
+      return t("applicationOptional");
     default:
-      return "Annual fixed";
+      return t("applicationAnnualFixed");
   }
 }
 
-function getFeeHeadChargeFrequencyLabel(value: FeeHeadChargeFrequency) {
-  return value === "recurring" ? "Recurring" : "One-time";
+function getFeeHeadChargeFrequencyLabel(value: FeeHeadChargeFrequency, t: (key: string) => string) {
+  return value === "recurring" ? t("frequencyRecurring") : t("frequencyOneTime");
 }
 
 function AdvancedDetails({
@@ -353,19 +354,22 @@ function ReviewMetric({ label, value }: { label: string; value: React.ReactNode 
 }
 
 function SyncPill({ status, lastSavedAt }: { status: SyncStatus; lastSavedAt: string | null }) {
+  const t = useTranslations("FeeSetup");
   const label =
     status === "saving"
-      ? "Saving & syncing..."
+      ? t("syncStatusSaving")
       : status === "error"
-        ? "Save failed"
+        ? t("syncStatusError")
         : status === "dirty"
-          ? "Unsaved changes"
+          ? t("syncStatusDirty")
           : lastSavedAt
-            ? `Synced - ${new Intl.DateTimeFormat("en-IN", {
-                dateStyle: "medium",
-                timeZone: "Asia/Kolkata",
-              }).format(new Date(lastSavedAt))}`
-            : "Not saved yet";
+            ? t("syncStatusSynced", {
+                when: new Intl.DateTimeFormat("en-IN", {
+                  dateStyle: "medium",
+                  timeZone: "Asia/Kolkata",
+                }).format(new Date(lastSavedAt)),
+              })
+            : t("syncStatusNotSaved");
 
   const toneClass =
     status === "saving"
@@ -408,9 +412,10 @@ function SectionNavRail({
   lastSavedAt: string | null;
   onSelect: (id: FeeSetupSectionId) => void;
 }) {
+  const t = useTranslations("FeeSetup");
   return (
     <nav
-      aria-label="Fee setup sections"
+      aria-label={t("navAriaLabel")}
       className="hidden w-48 shrink-0 flex-col gap-0.5 border-r border-border bg-surface-2 py-3 md:flex"
     >
       {FEE_SETUP_SECTIONS.map((section) => {
@@ -439,14 +444,14 @@ function SectionNavRail({
                     : "bg-border-strong"
               }`}
             />
-            <span className="truncate">{section.label}</span>
+            <span className="truncate">{t(section.i18nKey)}</span>
           </button>
         );
       })}
 
       <div className="mt-auto border-t border-border px-4 py-3">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-          Last saved
+          {t("lastSavedLabel")}
         </p>
         <p className="mt-1 text-xs text-foreground">
           {lastSavedAt
@@ -454,7 +459,7 @@ function SectionNavRail({
                 dateStyle: "medium",
                 timeZone: "Asia/Kolkata",
               }).format(new Date(lastSavedAt))
-            : "Never"}
+            : t("lastSavedNever")}
         </p>
         {lastSavedAt ? (
           <p className="text-[10px] text-muted-foreground">
@@ -479,6 +484,7 @@ export function FeeSetupClient({
   initialSelectedSessionLabel,
   actions,
 }: FeeSetupClientProps) {
+  const t = useTranslations("FeeSetup");
   const router = useRouter();
   const startingSessionLabel = initialSelectedSessionLabel || data.globalPolicy.academicSessionLabel;
   const [selectedSessionLabel, setSelectedSessionLabel] = useState(
@@ -610,9 +616,9 @@ export function FeeSetupClient({
           : "dirty";
 
   function formatLastSaved(value: string | null): string {
-    if (!value) return "Never saved";
+    if (!value) return t("neverSaved");
     const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return "Unknown";
+    if (Number.isNaN(d.getTime())) return t("unknown");
     return new Intl.DateTimeFormat("en-IN", {
       dateStyle: "medium",
       timeStyle: "short",
@@ -745,12 +751,12 @@ export function FeeSetupClient({
     <div className="space-y-0">
       <div className="sticky top-0 z-30 flex flex-wrap items-center gap-3 border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur md:px-6">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-muted-foreground">Session</span>
+          <span className="text-xs font-medium text-muted-foreground">{t("topbarSessionLabel")}</span>
           <select
             value={selectedSessionLabel}
             onChange={(event) => switchSession(event.target.value)}
             disabled={isSaving}
-            aria-label="Select academic session"
+            aria-label={t("topbarSelectSession")}
             className="rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 disabled:opacity-50"
           >
             {masterData.sessions.map((session) => (
@@ -777,9 +783,9 @@ export function FeeSetupClient({
             size="sm"
             onClick={() => submitFeeSetup("save")}
             disabled={!isDirty || isSaving}
-            aria-label="Save fee setup and sync dues"
+            aria-label={t("topbarSaveAria")}
           >
-            {isSaving ? "Saving..." : "Save Fee Setup"}
+            {isSaving ? t("topbarSaving") : t("topbarSave")}
           </Button>
         ) : null}
       </div>
@@ -789,21 +795,18 @@ export function FeeSetupClient({
 
         {!canEdit ? (
           <div className="rounded-2xl border bg-warning-soft px-4 py-3 text-sm leading-6 text-warning-soft-foreground">
-            Only admins can change Fee Setup. Accountant and read-only staff can review
-            the current and saved setup here.
+            {t("permissionNotice")}
           </div>
         ) : null}
 
         {isDirty ? (
           <div className="rounded-2xl border bg-warning-soft px-4 py-3 text-sm leading-6 text-warning-soft-foreground">
-            You have unsaved changes. Click <strong>Save Fee Setup</strong> in the top
-            bar to apply and sync dues.
+            {t("unsavedNoticePrefix")} <strong>{t("unsavedNoticeAction")}</strong> {t("unsavedNoticeSuffix")}
           </div>
         ) : null}
 
         <div className="rounded-2xl border border-border bg-surface-2 px-4 py-3 text-sm leading-6 text-muted-foreground">
-          Saving updates future or unpaid dues automatically. Paid or adjusted rows stay
-          protected for review.
+          {t("savingInfoNotice")}
         </div>
 
         {/* Mobile section dropdown is hidden because we use the accordion layout below on mobile */}
@@ -827,17 +830,17 @@ export function FeeSetupClient({
         <summary className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5 font-medium text-foreground md:hidden" onClick={() => setActiveSection("session")}>
           <span className="flex items-center gap-2">
             <Calendar className="size-4 text-accent" />
-            1. Academic Year
+            {t("mobileSection1")}
           </span>
           <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
         </summary>
         <div className="md:contents">
           <SectionCard
-            title="1. Academic Year"
-            description="Choose the year for this fee setup."
+            title={t("academicYearTitle")}
+            description={t("academicYearDescription")}
             actions={
               <div className="min-w-[240px]">
-                <Label htmlFor="selected-session">Academic year</Label>
+                <Label htmlFor="selected-session">{t("academicYearLabel")}</Label>
                 <select
                   id="selected-session"
                   value={selectedSessionLabel}
@@ -845,7 +848,7 @@ export function FeeSetupClient({
                   className={`${selectClassName} mt-2`}
                 >
                   {sessionRows.length === 0 ? (
-                    <option value="">Create Academic Year</option>
+                    <option value="">{t("createAcademicYearOption")}</option>
                   ) : (
                     sessionRows.map((item) => (
                       <option key={item.id} value={item.session_label}>
@@ -860,19 +863,18 @@ export function FeeSetupClient({
             <div className="space-y-4">
               <ActionNotice state={sessionState} />
               <div className="flex flex-wrap items-center gap-2">
-                <StatusBadge label={`Live session: ${currentSessionLabel}`} tone="good" />
+                <StatusBadge label={t("liveSessionBadge", { label: currentSessionLabel })} tone="good" />
                 {selectedSessionLabel && selectedSessionLabel !== currentSessionLabel ? (
-                  <StatusBadge label={`Editing: ${selectedSessionLabel}`} tone="accent" />
+                  <StatusBadge label={t("editingBadge", { label: selectedSessionLabel })} tone="accent" />
                 ) : null}
                 {selectedSessionIsTest ? (
-                  <StatusBadge label="Test session" tone="warning" />
+                  <StatusBadge label={t("testSessionBadge")} tone="warning" />
                 ) : null}
               </div>
 
               {selectedSessionIsTest ? (
                 <div className="rounded-xl border bg-warning-soft px-4 py-3 text-sm leading-6 text-warning-soft-foreground">
-                  This is a test academic year. Do not mix real students or real payments into test
-                  records.
+                  {t("testSessionNotice")}
                 </div>
               ) : null}
 
@@ -888,10 +890,10 @@ export function FeeSetupClient({
                       });
                     }}
                   >
-                    <p className="text-sm font-semibold text-foreground">Copy Previous Year</p>
+                    <p className="text-sm font-semibold text-foreground">{t("copyPreviousYearTitle")}</p>
                     <div className="mt-3 grid gap-3 md:grid-cols-2">
                       <div>
-                        <Label htmlFor="source-session-label">Copy from</Label>
+                        <Label htmlFor="source-session-label">{t("copyFromLabel")}</Label>
                         <select
                           id="source-session-label"
                           name="sourceSessionLabel"
@@ -906,7 +908,7 @@ export function FeeSetupClient({
                         </select>
                       </div>
                       <div>
-                        <Label htmlFor="target-session-label">New academic year</Label>
+                        <Label htmlFor="target-session-label">{t("newAcademicYearLabel")}</Label>
                         <Input
                           id="target-session-label"
                           name="targetSessionLabel"
@@ -919,7 +921,7 @@ export function FeeSetupClient({
                       </div>
                     </div>
                     <Button type="submit" className="mt-4" variant="outline" disabled={isSupportingPending}>
-                      Copy Previous Year
+                      {t("copyPreviousYearButton")}
                     </Button>
                   </form>
 
@@ -933,9 +935,9 @@ export function FeeSetupClient({
                       });
                     }}
                   >
-                    <p className="text-sm font-semibold text-foreground">Create New Year</p>
+                    <p className="text-sm font-semibold text-foreground">{t("createNewYearTitle")}</p>
                     <div className="mt-3">
-                      <Label htmlFor="new-session-label">Academic year</Label>
+                      <Label htmlFor="new-session-label">{t("academicYearLabel")}</Label>
                       <Input
                         id="new-session-label"
                         name="sessionLabel"
@@ -950,32 +952,32 @@ export function FeeSetupClient({
                     <input type="hidden" name="isCurrentSession" value="no" />
                     <input type="hidden" name="sessionNotes" value="" />
                     <Button type="submit" className="mt-4" disabled={isSupportingPending}>
-                      Create New Year
+                      {t("createNewYearButton")}
                     </Button>
                   </form>
                 </div>
               ) : null}
 
               <AdvancedDetails
-                title="Advanced academic-year options"
-                description="Old-year maintenance and saved setup details."
+                title={t("advancedYearTitle")}
+                description={t("advancedYearDescription")}
               >
                 <div className="overflow-auto rounded-xl border border-border bg-card">
                   <table className="w-full min-w-full text-left text-sm">
                     <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                       <tr>
-                        <th className="px-4 py-3">Session</th>
-                        <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3">Saved setup</th>
-                        <th className="px-4 py-3">Updated</th>
-                        <th className="px-4 py-3">Actions</th>
+                        <th className="px-4 py-3">{t("tableSession")}</th>
+                        <th className="px-4 py-3">{t("tableStatus")}</th>
+                        <th className="px-4 py-3">{t("tableSavedSetup")}</th>
+                        <th className="px-4 py-3">{t("tableUpdated")}</th>
+                        <th className="px-4 py-3">{t("tableActions")}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {sessionRows.length === 0 ? (
                         <tr>
                           <td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">
-                            Create Academic Year
+                            {t("createAcademicYearOption")}
                           </td>
                         </tr>
                       ) : (
@@ -1011,10 +1013,10 @@ export function FeeSetupClient({
                                 </form>
                                 <div className="mt-2 flex flex-wrap gap-2">
                                   {item.session_label === currentSessionLabel ? (
-                                    <StatusBadge label="Live" tone="good" />
+                                    <StatusBadge label={t("badgeLive")} tone="good" />
                                   ) : null}
                                   {item.session_label === selectedSessionLabel ? (
-                                    <StatusBadge label="Selected" tone="accent" />
+                                    <StatusBadge label={t("badgeSelected")} tone="accent" />
                                   ) : null}
                                 </div>
                               </td>
@@ -1026,25 +1028,29 @@ export function FeeSetupClient({
                                   className={selectClassName}
                                   disabled={!canEdit}
                                 >
-                                  <option value="active">Active</option>
-                                  <option value="inactive">Inactive</option>
-                                  <option value="archived">Archived</option>
+                                  <option value="active">{t("statusActive")}</option>
+                                  <option value="inactive">{t("statusInactive")}</option>
+                                  <option value="archived">{t("statusArchived")}</option>
                                 </select>
                               </td>
                               <td className="px-4 py-3 text-muted-foreground">
                                 {snapshot ? (
                                   <div className="space-y-1">
                                     <p className="font-medium text-foreground">
-                                      {snapshot.installmentCount} installments
+                                      {t("savedSetupInstallments", { count: snapshot.installmentCount })}
                                     </p>
-                                    <p>{snapshot.customFeeHeads.filter((head) => head.isActive).length} fee heads</p>
+                                    <p>
+                                      {t("savedSetupFeeHeads", {
+                                        count: snapshot.customFeeHeads.filter((head) => head.isActive).length,
+                                      })}
+                                    </p>
                                   </div>
                                 ) : (
-                                  <span>No saved setup yet</span>
+                                  <span>{t("noSavedSetupYet")}</span>
                                 )}
                               </td>
                               <td className="px-4 py-3 text-muted-foreground">
-                                {formatDateTime(snapshot?.updatedAt ?? item.updated_at)}
+                                {formatDateTime(snapshot?.updatedAt ?? item.updated_at, t("notSavedYet"))}
                               </td>
                               <td className="px-4 py-3">
                                 <div className="flex flex-wrap gap-2">
@@ -1053,12 +1059,12 @@ export function FeeSetupClient({
                                     variant={item.session_label === selectedSessionLabel ? "default" : "outline"}
                                     onClick={() => switchSession(item.session_label)}
                                   >
-                                    Work on this year
+                                    {t("workOnThisYear")}
                                   </Button>
                                   {canEdit ? (
                                     <>
                                       <Button type="submit" form={formId} variant="outline" disabled={isSupportingPending}>
-                                        Save session row
+                                        {t("saveSessionRow")}
                                       </Button>
                                       <Button
                                         type="button"
@@ -1079,7 +1085,7 @@ export function FeeSetupClient({
                                           );
                                         }}
                                       >
-                                        Archive old session
+                                        {t("archiveOldSession")}
                                       </Button>
                                       <Button
                                         type="button"
@@ -1096,7 +1102,7 @@ export function FeeSetupClient({
                                           );
                                         }}
                                       >
-                                        Delete unused session only
+                                        {t("deleteUnusedSession")}
                                       </Button>
                                     </>
                                   ) : null}
@@ -1124,14 +1130,14 @@ export function FeeSetupClient({
         <summary className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5 font-medium text-foreground md:hidden" onClick={() => setActiveSection("basic")}>
           <span className="flex items-center gap-2">
             <BadgeIndianRupee className="size-4 text-accent" />
-            2. Basic Fee Rules
+            {t("mobileSection2")}
           </span>
           <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
         </summary>
         <div className="md:contents">
           <SectionCard
-            title="2. Basic Fee Rules"
-            description="Set installment dates, late fee, and the annual academic fee for new and existing students."
+            title={t("basicTitle")}
+            description={t("basicDescription")}
             actions={
               activeSection === "basic" && canEdit ? (
                 <Button
@@ -1141,7 +1147,7 @@ export function FeeSetupClient({
                   onClick={addInstallmentDate}
                   leadingIcon={<Plus className="size-3.5" />}
                 >
-                  Add installment
+                  {t("addInstallment")}
                 </Button>
               ) : null
             }
@@ -1151,13 +1157,13 @@ export function FeeSetupClient({
                 <div className="rounded-xl border border-border bg-surface-2 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-foreground">Installment Dates</p>
+                      <p className="text-sm font-semibold text-foreground">{t("installmentDatesTitle")}</p>
                       <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                        These dates define this academic year&apos;s fee schedule.
+                        {t("installmentDatesDescription")}
                       </p>
                     </div>
                     <span className="shrink-0 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                      {form.installmentDates.length} dates
+                      {t("datesCount", { count: form.installmentDates.length })}
                     </span>
                   </div>
 
@@ -1175,7 +1181,7 @@ export function FeeSetupClient({
                             htmlFor={`installment-date-${index}`}
                             className="min-w-0 flex-1 text-sm font-medium text-foreground"
                           >
-                            Due date
+                            {t("dueDateLabel")}
                           </Label>
                           {canEdit && form.installmentDates.length > 1 ? (
                             <Button
@@ -1183,8 +1189,8 @@ export function FeeSetupClient({
                               variant="ghost"
                               size="icon-sm"
                               onClick={() => removeInstallmentDate(index)}
-                              aria-label={`Remove installment ${index + 1}`}
-                              title={`Remove installment ${index + 1}`}
+                              aria-label={t("removeInstallmentAria", { index: index + 1 })}
+                              title={t("removeInstallmentAria", { index: index + 1 })}
                               className="shrink-0 rounded-full border border-border bg-surface text-muted-foreground hover:border-destructive/40 hover:bg-destructive-soft hover:text-destructive-soft-foreground"
                             >
                               <X className="size-3.5" />
@@ -1206,15 +1212,15 @@ export function FeeSetupClient({
 
                 <div className="rounded-xl border border-border bg-surface-2 p-4">
                   <div>
-                    <p className="text-sm font-semibold text-foreground">Annual Rules</p>
+                    <p className="text-sm font-semibold text-foreground">{t("annualRulesTitle")}</p>
                     <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                      Default yearly amounts used when dues are prepared.
+                      {t("annualRulesDescription")}
                     </p>
                   </div>
 
                   <div className="mt-4 space-y-3">
                     <div className="rounded-lg border border-border bg-card p-3">
-                      <Label htmlFor="late-fee-amount">Late Fee</Label>
+                      <Label htmlFor="late-fee-amount">{t("lateFeeLabel")}</Label>
                       <Input
                         id="late-fee-amount"
                         type="number"
@@ -1232,7 +1238,7 @@ export function FeeSetupClient({
                       />
                     </div>
                     <div className="rounded-lg border border-border bg-card p-3">
-                      <Label htmlFor="new-academic-fee">New student academic fee</Label>
+                      <Label htmlFor="new-academic-fee">{t("newAcademicFeeLabel")}</Label>
                       <Input
                         id="new-academic-fee"
                         type="number"
@@ -1250,7 +1256,7 @@ export function FeeSetupClient({
                       />
                     </div>
                     <div className="rounded-lg border border-border bg-card p-3">
-                      <Label htmlFor="old-academic-fee">Existing student academic fee</Label>
+                      <Label htmlFor="old-academic-fee">{t("oldAcademicFeeLabel")}</Label>
                       <Input
                         id="old-academic-fee"
                         type="number"
@@ -1270,12 +1276,10 @@ export function FeeSetupClient({
                   </div>
                   <div className="mt-3 rounded-lg border border-border bg-card p-3">
                     <Label className="text-sm font-semibold text-foreground">
-                      Academic fee distribution
+                      {t("academicFeeDistributionLabel")}
                     </Label>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Choose how the annual academic fee is spread across installments. Existing
-                      installment rows are not changed by this setting — it applies to new
-                      regenerations and any future fee setup.
+                      {t("academicFeeDistributionDescription")}
                     </p>
                     <div className="mt-3 grid gap-2 sm:grid-cols-2">
                       <label
@@ -1302,12 +1306,10 @@ export function FeeSetupClient({
                         />
                         <span className="text-sm">
                           <span className="block font-medium text-foreground">
-                            First installment only
+                            {t("firstOnlyOptionTitle")}
                           </span>
                           <span className="block text-xs text-muted-foreground">
-                            Add the full academic fee to installment 1. Installments 2–N carry
-                            only the tuition / transport share. Recommended — matches current
-                            school practice.
+                            {t("firstOnlyOptionDescription")}
                           </span>
                         </span>
                       </label>
@@ -1335,11 +1337,10 @@ export function FeeSetupClient({
                         />
                         <span className="text-sm">
                           <span className="block font-medium text-foreground">
-                            Split equally across all installments
+                            {t("equalOptionTitle")}
                           </span>
                           <span className="block text-xs text-muted-foreground">
-                            Divide the annual academic fee evenly into each installment. Use this
-                            when parents prefer a flatter payment schedule.
+                            {t("equalOptionDescription")}
                           </span>
                         </span>
                       </label>
@@ -1361,31 +1362,31 @@ export function FeeSetupClient({
         <summary className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5 font-medium text-foreground md:hidden" onClick={() => setActiveSection("discounts")}>
           <span className="flex items-center gap-2">
             <Tag className="size-4 text-accent" />
-            Conventional Discounts
+            {t("mobileSectionDiscounts")}
           </span>
           <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
         </summary>
         <div className="md:contents">
           <SectionCard
-            title="Conventional Discounts"
-            description="Configure standard school discount policies. Student assignment stays in Students."
+            title={t("discountsTitle")}
+            description={t("discountsDescription")}
           >
             <div className="space-y-4 rounded-xl border border-border bg-surface-2 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-semibold text-foreground">Conventional Discounts</h3>
+                  <h3 className="text-sm font-semibold text-foreground">{t("discountsInnerHeading")}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Configure standard school policies. Student-specific approval is done from Students.
+                    {t("discountsInnerDescription")}
                   </p>
                 </div>
-                <StatusBadge label="Max 2 per student" tone="accent" />
+                <StatusBadge label={t("maxTwoPerStudent")} tone="accent" />
               </div>
               <div className="grid gap-3 lg:grid-cols-3">
                 {form.conventionalDiscountPolicies.map((policy) => (
                   <div key={policy.code} className="rounded-xl border border-border bg-card p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <Label htmlFor={`policy-name-${policy.code}`}>Policy name</Label>
+                        <Label htmlFor={`policy-name-${policy.code}`}>{t("policyNameLabel")}</Label>
                         <Input
                           id={`policy-name-${policy.code}`}
                           value={policy.displayName}
@@ -1409,12 +1410,12 @@ export function FeeSetupClient({
                           }
                           disabled={!canEdit}
                         />
-                        Active
+                        {t("policyActiveLabel")}
                       </label>
                     </div>
                     <div className="mt-4 grid gap-3">
                       <div>
-                        <Label htmlFor={`policy-type-${policy.code}`}>Calculation</Label>
+                        <Label htmlFor={`policy-type-${policy.code}`}>{t("policyCalculationLabel")}</Label>
                         <select
                           id={`policy-type-${policy.code}`}
                           value={policy.calculationType}
@@ -1426,14 +1427,14 @@ export function FeeSetupClient({
                           className={`${selectClassName} mt-2`}
                           disabled={!canEdit}
                         >
-                          <option value="tuition_zero">Tuition becomes Rs 0</option>
-                          <option value="tuition_percentage">Tuition percentage</option>
-                          <option value="tuition_fixed_amount">Fixed tuition amount</option>
+                          <option value="tuition_zero">{t("policyCalcTuitionZero")}</option>
+                          <option value="tuition_percentage">{t("policyCalcTuitionPercentage")}</option>
+                          <option value="tuition_fixed_amount">{t("policyCalcTuitionFixed")}</option>
                         </select>
                       </div>
                       {policy.calculationType === "tuition_percentage" ? (
                         <div>
-                          <Label htmlFor={`policy-percent-${policy.code}`}>Tuition percentage</Label>
+                          <Label htmlFor={`policy-percent-${policy.code}`}>{t("policyPercentageLabel")}</Label>
                           <Input
                             id={`policy-percent-${policy.code}`}
                             type="number"
@@ -1452,7 +1453,7 @@ export function FeeSetupClient({
                       ) : null}
                       {policy.calculationType === "tuition_fixed_amount" ? (
                         <div>
-                          <Label htmlFor={`policy-fixed-${policy.code}`}>Fixed tuition</Label>
+                          <Label htmlFor={`policy-fixed-${policy.code}`}>{t("policyFixedLabel")}</Label>
                           <Input
                             id={`policy-fixed-${policy.code}`}
                             type="number"
@@ -1486,44 +1487,43 @@ export function FeeSetupClient({
         <summary className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5 font-medium text-foreground md:hidden" onClick={() => setActiveSection("fee-heads")}>
           <span className="flex items-center gap-2">
             <ClipboardList className="size-4 text-accent" />
-            Fee Heads
+            {t("mobileSectionFeeHeads")}
           </span>
           <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
         </summary>
         <div className="md:contents">
           <SectionCard
-            title="Fee Heads"
-            description="Review extra fee heads saved with the selected academic year."
+            title={t("feeHeadsTitle")}
+            description={t("feeHeadsDescription")}
           >
             <div className="space-y-4">
               <div className="rounded-xl border bg-warning-soft px-4 py-3 text-sm leading-6 text-warning-soft-foreground">
-                Most schools do not need this during normal yearly fee setup. AY 2026-27 fee
-                calculation still uses tuition, transport, academic fee, and signed other adjustment.
+                {t("feeHeadsAdvisory")}
               </div>
               {canEdit ? (
                 <Button type="button" variant="outline" onClick={addFeeHeadRow}>
-                  Add fee head
+                  {t("addFeeHead")}
                 </Button>
               ) : null}
               {form.customFeeHeads.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border-strong bg-surface-2 px-4 py-6 text-sm text-muted-foreground">
-                  No extra fee heads are configured for this session yet.
+                  {t("noFeeHeads")}
                 </div>
               ) : (
                 <div className="overflow-auto rounded-xl border border-border bg-card">
                   <table className="w-full min-w-full text-left text-sm">
                     <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                       <tr>
-                        <th className="px-4 py-3">Fee Head Name</th>
-                        <th className="px-4 py-3">Amount</th>
-                        <th className="px-4 py-3">Application Type</th>
-                        <th className="px-4 py-3">Frequency</th>
-                        <th className="px-4 py-3">Mandatory</th>
-                        <th className="px-4 py-3">Refundable</th>
-                        <th className="px-4 py-3">Fee calculation</th>
-                        <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3">Notes</th>
-                        <th className="px-4 py-3">Actions</th>
+                        <th className="px-4 py-3">{t("feeHeadName")}</th>
+                        <th className="px-4 py-3">{t("feeHeadAmount")}</th>
+                        <th className="px-4 py-3">{t("feeHeadApplicationType")}</th>
+                        <th className="px-4 py-3">{t("feeHeadFrequency")}</th>
+                        <th className="px-4 py-3">{t("feeHeadMandatory")}</th>
+                        <th className="px-4 py-3">{t("feeHeadRefundable")}</th>
+                        <th className="px-4 py-3">{t("feeHeadCalculation")}</th>
+                        <th className="px-4 py-3">{t("feeHeadStatusCol")}</th>
+                        <th className="px-4 py-3">{t("feeHeadNotes")}</th>
+                        <th className="px-4 py-3">{t("feeHeadActions")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1570,16 +1570,16 @@ export function FeeSetupClient({
                               disabled={!canEdit}
                             >
                               <option value="annual_fixed">
-                                {getFeeHeadApplicationLabel("annual_fixed")}
+                                {getFeeHeadApplicationLabel("annual_fixed", t)}
                               </option>
                               <option value="installment_1_only">
-                                {getFeeHeadApplicationLabel("installment_1_only")}
+                                {getFeeHeadApplicationLabel("installment_1_only", t)}
                               </option>
                               <option value="split_across_installments">
-                                {getFeeHeadApplicationLabel("split_across_installments")}
+                                {getFeeHeadApplicationLabel("split_across_installments", t)}
                               </option>
                               <option value="optional_per_student">
-                                {getFeeHeadApplicationLabel("optional_per_student")}
+                                {getFeeHeadApplicationLabel("optional_per_student", t)}
                               </option>
                             </select>
                           </td>
@@ -1595,10 +1595,10 @@ export function FeeSetupClient({
                               disabled={!canEdit}
                             >
                               <option value="one_time">
-                                {getFeeHeadChargeFrequencyLabel("one_time")}
+                                {getFeeHeadChargeFrequencyLabel("one_time", t)}
                               </option>
                               <option value="recurring">
-                                {getFeeHeadChargeFrequencyLabel("recurring")}
+                                {getFeeHeadChargeFrequencyLabel("recurring", t)}
                               </option>
                             </select>
                           </td>
@@ -1613,8 +1613,8 @@ export function FeeSetupClient({
                               className={selectClassName}
                               disabled={!canEdit}
                             >
-                              <option value="yes">Mandatory</option>
-                              <option value="no">Optional</option>
+                              <option value="yes">{t("yesMandatory")}</option>
+                              <option value="no">{t("noOptional")}</option>
                             </select>
                           </td>
                           <td className="px-4 py-3">
@@ -1628,8 +1628,8 @@ export function FeeSetupClient({
                               className={selectClassName}
                               disabled={!canEdit}
                             >
-                              <option value="no">No</option>
-                              <option value="yes">Yes</option>
+                              <option value="no">{t("no")}</option>
+                              <option value="yes">{t("yes")}</option>
                             </select>
                           </td>
                           <td className="px-4 py-3">
@@ -1643,8 +1643,8 @@ export function FeeSetupClient({
                               className={selectClassName}
                               disabled={!canEdit}
                             >
-                              <option value="no">Excluded</option>
-                              <option value="yes">Included later</option>
+                              <option value="no">{t("calcExcluded")}</option>
+                              <option value="yes">{t("calcIncludedLater")}</option>
                             </select>
                           </td>
                           <td className="px-4 py-3">
@@ -1658,8 +1658,8 @@ export function FeeSetupClient({
                               className={selectClassName}
                               disabled={!canEdit}
                             >
-                              <option value="yes">Active</option>
-                              <option value="no">Inactive</option>
+                              <option value="yes">{t("statusActive")}</option>
+                              <option value="no">{t("statusInactive")}</option>
                             </select>
                           </td>
                           <td className="px-4 py-3">
@@ -1680,11 +1680,11 @@ export function FeeSetupClient({
                                 variant="outline"
                                 onClick={() => removeFeeHeadRow(item.rowId)}
                               >
-                                Remove
+                                {t("remove")}
                               </Button>
                             ) : (
                               <StatusBadge
-                                label={item.isActive ? "Active" : "Inactive"}
+                                label={item.isActive ? t("statusActive") : t("statusInactive")}
                                 tone={item.isActive ? "good" : "warning"}
                               />
                             )}
@@ -1709,23 +1709,23 @@ export function FeeSetupClient({
         <summary className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5 font-medium text-foreground md:hidden" onClick={() => setActiveSection("classes")}>
           <span className="flex items-center gap-2">
             <School className="size-4 text-accent" />
-            3. Class Fees
+            {t("mobileSection3")}
           </span>
           <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
         </summary>
         <div className="md:contents">
           <SectionCard
-            title="3. Class Fees"
-            description="Enter the annual tuition fee for each class."
+            title={t("classesTitle")}
+            description={t("classesDescription")}
             actions={
               <div className="flex flex-wrap items-end gap-2">
                 <div className="min-w-[220px]">
-                  <Label htmlFor="class-search">Search</Label>
+                  <Label htmlFor="class-search">{t("search")}</Label>
                   <Input
                     id="class-search"
                     value={classSearch}
                     onChange={(event) => setClassSearch(event.target.value)}
-                    placeholder="Class name"
+                    placeholder={t("classSearchPlaceholder")}
                     className="mt-2"
                   />
                 </div>
@@ -1738,7 +1738,7 @@ export function FeeSetupClient({
                 {visibleClassRows.map((row) => (
                   <div key={`mobile-${selectedSessionLabel}-${row.label}`} className="rounded-xl border border-border bg-card p-3">
                     <p className="font-semibold text-foreground">{row.label}</p>
-                    <Label className="mt-2 block" htmlFor={`class-fee-${row.label}`}>Annual tuition</Label>
+                    <Label className="mt-2 block" htmlFor={`class-fee-${row.label}`}>{t("annualTuitionMobileLabel")}</Label>
                     <Input
                       id={`class-fee-${row.label}`}
                       type="number"
@@ -1758,15 +1758,15 @@ export function FeeSetupClient({
                 <table className="w-full min-w-full text-left text-sm">
                   <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
-                      <th className="px-4 py-3">Class</th>
-                      <th className="px-4 py-3">Annual Tuition Fee</th>
+                      <th className="px-4 py-3">{t("tableClass")}</th>
+                      <th className="px-4 py-3">{t("tableAnnualTuition")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {visibleClassRows.length === 0 ? (
                       <tr>
                         <td colSpan={2} className="px-4 py-6 text-center text-sm text-muted-foreground">
-                          No classes found. Add classes from School Lists or First-time Setup.
+                          {t("noClassesFound")}
                         </td>
                       </tr>
                     ) : (
@@ -1792,8 +1792,8 @@ export function FeeSetupClient({
               </div>
 
               <AdvancedDetails
-                title="Advanced class-list options"
-                description="Manage class list, status, and unused rows."
+                title={t("advancedClassTitle")}
+                description={t("advancedClassDescription")}
               >
                 <div className="space-y-4">
                   {canEdit ? (
@@ -1816,19 +1816,19 @@ export function FeeSetupClient({
                     >
                       <div className="grid gap-3 md:grid-cols-[1fr_auto]">
                         <div>
-                          <Label htmlFor="new-class-name">Manage class list</Label>
+                          <Label htmlFor="new-class-name">{t("manageClassList")}</Label>
                           <Input
                             id="new-class-name"
                             value={newClassName}
                             onChange={(event) => setNewClassName(event.target.value)}
-                            placeholder="Class 11 Humanities"
+                            placeholder={t("newClassPlaceholder")}
                             className="mt-2"
                             required
                           />
                         </div>
                         <div className="flex items-end">
                           <Button type="submit" disabled={isSupportingPending}>
-                            Add class
+                            {t("addClass")}
                           </Button>
                         </div>
                       </div>
@@ -1839,12 +1839,12 @@ export function FeeSetupClient({
                     <table className="w-full min-w-full text-left text-sm">
                       <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                         <tr>
-                          <th className="px-4 py-3">Class Name</th>
-                          <th className="px-4 py-3">Annual Tuition Fee</th>
-                          <th className="px-4 py-3">Class Record</th>
-                          <th className="px-4 py-3">Saved Default</th>
-                          <th className="px-4 py-3">Status</th>
-                          <th className="px-4 py-3">Actions</th>
+                          <th className="px-4 py-3">{t("tableClassName")}</th>
+                          <th className="px-4 py-3">{t("tableAnnualTuition")}</th>
+                          <th className="px-4 py-3">{t("tableClassRecord")}</th>
+                          <th className="px-4 py-3">{t("tableSavedDefault")}</th>
+                          <th className="px-4 py-3">{t("tableStatus")}</th>
+                          <th className="px-4 py-3">{t("tableActions")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1882,20 +1882,20 @@ export function FeeSetupClient({
                                 ) : (
                                   <div>
                                     <p className="font-medium text-foreground">{row.label}</p>
-                                    <p className="mt-1 text-xs text-muted-foreground">Will be created on apply</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">{t("willBeCreatedOnApply")}</p>
                                   </div>
                                 )}
                               </td>
                               <td className="px-4 py-3">{formatInr(row.annualTuition)}</td>
                               <td className="px-4 py-3">
                                 <StatusBadge
-                                  label={row.hasClassRecord ? "Exists" : "Will be created"}
+                                  label={row.hasClassRecord ? t("classExists") : t("classWillBeCreated")}
                                   tone={row.hasClassRecord ? "good" : "warning"}
                                 />
                               </td>
                               <td className="px-4 py-3">
                                 <StatusBadge
-                                  label={row.hasSavedDefault ? "Saved" : "Pending default"}
+                                  label={row.hasSavedDefault ? t("savedDefaultYes") : t("savedDefaultPending")}
                                   tone={row.hasSavedDefault ? "good" : "warning"}
                                 />
                               </td>
@@ -1908,12 +1908,12 @@ export function FeeSetupClient({
                                     className={selectClassName}
                                     disabled={!canEdit}
                                   >
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
-                                    <option value="archived">Archived</option>
+                                    <option value="active">{t("statusActive")}</option>
+                                    <option value="inactive">{t("statusInactive")}</option>
+                                    <option value="archived">{t("statusArchived")}</option>
                                   </select>
                                 ) : (
-                                  <StatusBadge label="Pending create" tone="warning" />
+                                  <StatusBadge label={t("pendingCreate")} tone="warning" />
                                 )}
                               </td>
                               <td className="px-4 py-3">
@@ -1921,7 +1921,7 @@ export function FeeSetupClient({
                                   {row.classRecord && formId ? (
                                     <>
                                       <Button type="submit" form={formId} variant="outline" disabled={!canEdit || isSupportingPending}>
-                                        Save
+                                        {t("save")}
                                       </Button>
                                       <Button
                                         type="button"
@@ -1938,12 +1938,12 @@ export function FeeSetupClient({
                                           );
                                         }}
                                       >
-                                        Remove
+                                        {t("remove")}
                                       </Button>
                                     </>
                                   ) : (
                                     <span className="text-xs text-muted-foreground">
-                                      Tuition will save and sync automatically.
+                                      {t("tuitionWillSync")}
                                     </span>
                                   )}
                                 </div>
@@ -1970,22 +1970,22 @@ export function FeeSetupClient({
         <summary className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5 font-medium text-foreground md:hidden" onClick={() => setActiveSection("transport")}>
           <span className="flex items-center gap-2">
             <Bus className="size-4 text-accent" />
-            4. Transport Fees
+            {t("mobileSection4")}
           </span>
           <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
         </summary>
         <div className="md:contents">
           <SectionCard
-            title="4. Transport Fees"
-            description="Enter the annual transport fee for each route. Leave transport blank if the school is not using route fees."
+            title={t("transportTitle")}
+            description={t("transportDescription")}
             actions={
               <div className="min-w-[220px]">
-                <Label htmlFor="route-search">Search</Label>
+                <Label htmlFor="route-search">{t("search")}</Label>
                 <Input
                   id="route-search"
                   value={routeSearch}
                   onChange={(event) => setRouteSearch(event.target.value)}
-                  placeholder="Route name"
+                  placeholder={t("routeSearchPlaceholder")}
                   className="mt-2"
                 />
               </div>
@@ -1997,7 +1997,7 @@ export function FeeSetupClient({
                 {visibleRouteRows.map((row) => (
                   <div key={`mobile-route-${row.routeName}`} className="rounded-xl border border-border bg-card p-3">
                     <p className="font-semibold text-foreground">{row.routeName}</p>
-                    <Label className="mt-2 block" htmlFor={`route-fee-${row.routeName}`}>Annual transport fee</Label>
+                    <Label className="mt-2 block" htmlFor={`route-fee-${row.routeName}`}>{t("annualTransportMobileLabel")}</Label>
                     <Input
                       id={`route-fee-${row.routeName}`}
                       type="number"
@@ -2011,7 +2011,9 @@ export function FeeSetupClient({
                       className="mt-2"
                     />
                     <p className="mt-2 text-xs text-muted-foreground">
-                      Per installment {formatInr(Math.floor(row.annualFee / Math.max(form.installmentDates.length, 1)))}
+                      {t("perInstallmentMobile", {
+                        amount: formatInr(Math.floor(row.annualFee / Math.max(form.installmentDates.length, 1))),
+                      })}
                     </p>
                   </div>
                 ))}
@@ -2020,17 +2022,16 @@ export function FeeSetupClient({
                 <table className="w-full min-w-full text-left text-sm">
                   <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
-                      <th className="px-4 py-3">Route</th>
-                      <th className="px-4 py-3">Annual Transport Fee</th>
-                      <th className="px-4 py-3">Per installment</th>
+                      <th className="px-4 py-3">{t("tableRoute")}</th>
+                      <th className="px-4 py-3">{t("tableAnnualTransport")}</th>
+                      <th className="px-4 py-3">{t("tablePerInstallment")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {visibleRouteRows.length === 0 ? (
                       <tr>
                         <td colSpan={3} className="px-4 py-6 text-center text-sm text-muted-foreground">
-                          No transport routes found. Add routes from School Lists, or leave transport
-                          blank if not used.
+                          {t("noRoutesFound")}
                         </td>
                       </tr>
                     ) : (
@@ -2059,8 +2060,8 @@ export function FeeSetupClient({
               </div>
 
               <AdvancedDetails
-                title="Advanced route-list options"
-                description="Manage route names, route codes, status, and unused routes."
+                title={t("advancedRouteTitle")}
+                description={t("advancedRouteDescription")}
               >
                 <div className="space-y-4">
                   {canEdit ? (
@@ -2087,7 +2088,7 @@ export function FeeSetupClient({
                     >
                       <div className="grid gap-3 md:grid-cols-[180px_1fr_auto]">
                         <div>
-                          <Label htmlFor="new-route-code">Route code</Label>
+                          <Label htmlFor="new-route-code">{t("routeCodeLabel")}</Label>
                           <Input
                             id="new-route-code"
                             value={newRouteCode}
@@ -2096,19 +2097,19 @@ export function FeeSetupClient({
                           />
                         </div>
                         <div>
-                          <Label htmlFor="new-route-name">Manage route list</Label>
+                          <Label htmlFor="new-route-name">{t("manageRouteList")}</Label>
                           <Input
                             id="new-route-name"
                             value={newRouteName}
                             onChange={(event) => setNewRouteName(event.target.value)}
-                            placeholder="Amet Bus"
+                            placeholder={t("newRoutePlaceholder")}
                             className="mt-2"
                             required
                           />
                         </div>
                         <div className="flex items-end">
                           <Button type="submit" disabled={isSupportingPending}>
-                            Add route
+                            {t("addRoute")}
                           </Button>
                         </div>
                       </div>
@@ -2119,11 +2120,11 @@ export function FeeSetupClient({
                     <table className="w-full min-w-full text-left text-sm">
                       <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                         <tr>
-                          <th className="px-4 py-3">Route Name</th>
-                          <th className="px-4 py-3">Code</th>
-                          <th className="px-4 py-3">Annual Fee</th>
-                          <th className="px-4 py-3">Status</th>
-                          <th className="px-4 py-3">Actions</th>
+                          <th className="px-4 py-3">{t("tableRouteName")}</th>
+                          <th className="px-4 py-3">{t("tableRouteCode")}</th>
+                          <th className="px-4 py-3">{t("tableAnnualFee")}</th>
+                          <th className="px-4 py-3">{t("tableStatus")}</th>
+                          <th className="px-4 py-3">{t("tableActions")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2164,7 +2165,7 @@ export function FeeSetupClient({
                                 ) : (
                                   <div>
                                     <p className="font-medium text-foreground">{row.routeName}</p>
-                                    <p className="mt-1 text-xs text-muted-foreground">Will be created on apply</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">{t("willBeCreatedOnApply")}</p>
                                   </div>
                                 )}
                               </td>
@@ -2181,11 +2182,11 @@ export function FeeSetupClient({
                                     className={selectClassName}
                                     disabled={!canEdit}
                                   >
-                                    <option value="yes">Active</option>
-                                    <option value="no">Inactive</option>
+                                    <option value="yes">{t("statusActive")}</option>
+                                    <option value="no">{t("statusInactive")}</option>
                                   </select>
                                 ) : (
-                                  <StatusBadge label="Pending create" tone="warning" />
+                                  <StatusBadge label={t("pendingCreate")} tone="warning" />
                                 )}
                               </td>
                               <td className="px-4 py-3">
@@ -2193,7 +2194,7 @@ export function FeeSetupClient({
                                   {routeRecord && formId ? (
                                     <>
                                       <Button type="submit" form={formId} variant="outline" disabled={!canEdit || isSupportingPending}>
-                                        Save
+                                        {t("save")}
                                       </Button>
                                       <Button
                                         type="button"
@@ -2210,12 +2211,12 @@ export function FeeSetupClient({
                                           );
                                         }}
                                       >
-                                        Remove
+                                        {t("remove")}
                                       </Button>
                                     </>
                                   ) : (
                                     <span className="text-xs text-muted-foreground">
-                                      Route fee will save and sync automatically.
+                                      {t("routeFeeWillSync")}
                                     </span>
                                   )}
                                 </div>
@@ -2236,15 +2237,15 @@ export function FeeSetupClient({
             {(isSaving || saveState.status === "preview") && saveState.preview ? (
               <div className="mt-5 rounded-xl border bg-info-soft p-4 text-sm text-info-soft-foreground">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-widest">
-                  Impact preview
+                  {t("impactPreviewHeading")}
                 </p>
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                   <ReviewMetric
-                    label="Students affected"
+                    label={t("previewStudentsAffected")}
                     value={saveState.preview.studentsAffected}
                   />
                   <ReviewMetric
-                    label="Dues rows changing"
+                    label={t("previewDuesChanging")}
                     value={
                       saveState.preview.installmentsToInsert +
                       saveState.preview.installmentsToUpdate +
@@ -2252,11 +2253,11 @@ export function FeeSetupClient({
                     }
                   />
                   <ReviewMetric
-                    label="Rows kept for review"
+                    label={t("previewRowsKept")}
                     value={saveState.preview.blockedInstallments}
                   />
                   <ReviewMetric
-                    label="Students in scope"
+                    label={t("previewStudentsInScope")}
                     value={saveState.preview.studentsInScope}
                   />
                 </div>
@@ -2276,9 +2277,9 @@ export function FeeSetupClient({
             size="sm"
             onClick={() => submitFeeSetup("save")}
             disabled={!isDirty || isSaving}
-            aria-label="Save fee setup and sync dues"
+            aria-label={t("topbarSaveAria")}
           >
-            {isSaving ? "Saving..." : "Save"}
+            {isSaving ? t("topbarSaving") : t("mobileSave")}
           </Button>
         </div>
       ) : null}
