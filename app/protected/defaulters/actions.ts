@@ -46,6 +46,7 @@ export async function logContactAction(
   const snoozeStr = formData.get("snoozeDays") as string | null;
   const note = (formData.get("note") as string | null)?.trim() || null;
   const sessionLabel = formData.get("sessionLabel") as string | null;
+  const voiceNotePath = (formData.get("voiceNotePath") as string | null)?.trim() || null;
 
   if (!studentId || !channel || !outcome || !sessionLabel) {
     return { status: "error", message: "Missing required fields." };
@@ -71,6 +72,7 @@ export async function logContactAction(
       outcome: outcome as ContactOutcome,
       snoozeUntil,
       note,
+      voiceNotePath,
     });
   } catch (e) {
     return {

@@ -4,6 +4,7 @@ import { useActionState, useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
+import { VoiceNoteRecorder } from "@/components/defaulters/voice-note-recorder";
 import {
   logContactAction,
   type LogContactState,
@@ -157,6 +158,8 @@ export function ContactPopover({
             className="w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
           />
         </div>
+
+        <VoiceNoteRecorder studentId={studentId} inputName="voiceNotePath" />
 
         {state.status === "error" ? (
           <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">

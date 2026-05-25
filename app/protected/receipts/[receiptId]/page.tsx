@@ -4,7 +4,9 @@ import Link from "next/link";
 import { PageHeader } from "@/components/admin/page-header";
 import { ReceiptDocument } from "@/components/receipts/receipt-document";
 import { ReceiptPrintActions } from "@/components/receipts/receipt-print-actions";
+import { ReceiptShareActions } from "@/components/receipts/receipt-share-actions";
 import { getReceiptDetail } from "@/lib/receipts/data";
+import { listWhatsappTemplates } from "@/lib/whatsapp-templates/data";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 type ReceiptDetailPageProps = {
@@ -39,7 +41,10 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
     notFound();
   }
 
-  const receipt = await getReceiptDetail(receiptId);
+  const [receipt, whatsappTemplates] = await Promise.all([
+    getReceiptDetail(receiptId),
+    listWhatsappTemplates({ onlyActive: true }),
+  ]);
 
   if (!receipt) {
     notFound();
@@ -58,7 +63,12 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
             <Link className="text-sm font-medium text-foreground underline-offset-4 hover:underline" href={returnTo}>
               Back to Transactions
             </Link>
-            {canPrintReceipts ? <ReceiptPrintActions autoPrint={shouldAutoPrint} /> : null}
+            {canPrintReceipts ? (
+              <>
+                <ReceiptShareActions receipt={receipt} templates={whatsappTemplates} />
+                <ReceiptPrintActions autoPrint={shouldAutoPrint} />
+              </>
+            ) : null}
           </div>
         }
         className="no-print"

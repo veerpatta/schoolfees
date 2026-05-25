@@ -54,6 +54,7 @@ export type ReceiptDetail = {
   admissionNo: string;
   fatherName: string | null;
   fatherPhone: string | null;
+  parentEmail: string | null;
   classLabel: string;
   sessionLabel: string;
   transportRouteLabel: string;

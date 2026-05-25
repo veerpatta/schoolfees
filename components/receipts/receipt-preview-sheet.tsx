@@ -7,8 +7,10 @@ import { Printer, ExternalLink, AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { ReceiptDocument } from "@/components/receipts/receipt-document";
+import { ReceiptShareActions } from "@/components/receipts/receipt-share-actions";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import type { ReceiptDetail } from "@/lib/receipts/types";
+import type { WhatsappTemplate } from "@/lib/whatsapp-templates/types";
 
 type ReceiptPreviewSheetProps = {
   open: boolean;
@@ -18,6 +20,8 @@ type ReceiptPreviewSheetProps = {
   initialReceipt?: ReceiptDetail | null;
   sessionLabel?: string;
   canPrint?: boolean;
+  /** Optional list of active WhatsApp templates for the Share action. */
+  whatsappTemplates?: WhatsappTemplate[];
 };
 
 type FetchState =
@@ -33,6 +37,7 @@ export function ReceiptPreviewSheet({
   initialReceipt,
   sessionLabel,
   canPrint = true,
+  whatsappTemplates = [],
 }: ReceiptPreviewSheetProps) {
   const [state, setState] = useState<FetchState>(
     initialReceipt ? { status: "ready", receipt: initialReceipt } : { status: "idle" },
@@ -119,6 +124,9 @@ export function ReceiptPreviewSheet({
           <Button variant="ghost" type="button" onClick={onClose}>
             Close
           </Button>
+          {state.status === "ready" ? (
+            <ReceiptShareActions receipt={state.receipt} templates={whatsappTemplates} />
+          ) : null}
           {fullPageHref ? (
             <Button asChild variant="outline" size="sm">
               <Link href={fullPageHref} target="_blank" rel="noopener">

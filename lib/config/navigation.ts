@@ -8,6 +8,7 @@ import {
   FileSpreadsheet,
   FolderCog,
   ListChecks,
+  MessageCircle,
   ScrollText,
   Settings2,
   ShieldCheck,
@@ -174,6 +175,12 @@ const routeMetaItems: Array<
     href: "/protected/admin-tools",
     label: "Session Health",
     description: "Review every academic session and reconcile missing dues.",
+  },
+  {
+    match: "/protected/admin-tools/whatsapp-templates",
+    href: "/protected/admin-tools",
+    label: "WhatsApp templates",
+    description: "Pre-canned message templates with placeholder variables for parent outreach.",
   },
   {
     match: "/protected/admin-tools",
@@ -460,6 +467,19 @@ export const advancedHubSections: readonly AdvancedHubSection[] = [
         description: "Prepare the school for go-live, confirm readiness, and complete setup once.",
         icon: ListChecks,
         requiredPermission: "settings:write",
+      },
+    ],
+  },
+  {
+    title: "Parent Outreach",
+    description: "Pre-canned WhatsApp message templates for defaulters and receipts.",
+    items: [
+      {
+        href: "/protected/admin-tools/whatsapp-templates",
+        label: "WhatsApp templates",
+        description: "Manage message templates with placeholders used in bulk WhatsApp drafts.",
+        icon: MessageCircle,
+        requiredPermission: "settings:view",
       },
     ],
   },

@@ -15,10 +15,16 @@ import {
   DefaulterContactActionsCompact,
 } from "@/components/defaulters/defaulter-contact-actions";
 import { ContactStatusChip } from "@/components/defaulters/contact-status-chip";
+import { ContactLogTimelineButton } from "@/components/defaulters/contact-log-timeline";
 import { TriageTabs } from "@/components/defaulters/triage-tabs";
+import {
+  BulkRowCheckbox,
+  BulkWhatsappProvider,
+} from "@/components/defaulters/bulk-whatsapp-provider";
 import { getDefaultersPageData } from "@/lib/defaulters/data";
 import { deriveCadence, tallyCadence } from "@/lib/defaulters/cadence";
 import { getContactSummariesForStudents } from "@/lib/defaulters/contacts";
+import { listWhatsappTemplates } from "@/lib/whatsapp-templates/data";
 import {
   EMPTY_DEFAULTER_FILTERS,
   type DefaulterFilters as DefaulterFiltersType,
@@ -93,6 +99,7 @@ export default async function DefaultersPage({
   const data = await getDefaultersPageData(filters, viewSession.sessionLabel, { page });
   const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
   const canPostPayments = hasStaffPermission(staff, "payments:write");
+  const whatsappTemplates = await listWhatsappTemplates({ onlyActive: true });
 
   // Contact summaries & cadence (gracefully degrades when table is not yet applied)
   const studentIds = data.rows.map((r) => r.studentId);
@@ -373,6 +380,18 @@ export default async function DefaultersPage({
         title="Defaulter list"
         description="Ranked by pending amount and overdue days so the highest-risk follow-ups appear first."
       >
+        <BulkWhatsappProvider
+          rows={visibleRows.map((row) => ({
+            studentId: row.studentId,
+            fullName: row.fullName,
+            fatherName: row.fatherName,
+            fatherPhone: row.fatherPhone,
+            classLabel: row.classLabel,
+            totalPending: row.totalPending,
+            oldestDueDate: row.oldestDueDate,
+          }))}
+          templates={whatsappTemplates}
+        >
         <div className="space-y-4">
           {/* Triage cadence tabs */}
           <TriageTabs
@@ -415,9 +434,17 @@ export default async function DefaultersPage({
                   <li key={row.studentId} className="px-4 py-3.5 hover:bg-surface-2/40">
                     {/* Name + class + outstanding */}
                     <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-foreground">{row.fullName}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{row.classLabel} · SR {row.admissionNo}</p>
+                      <div className="flex min-w-0 items-start gap-2">
+                        <span className="mt-1">
+                          <BulkRowCheckbox
+                            studentId={row.studentId}
+                            ariaLabel={`Select ${row.fullName} for WhatsApp`}
+                          />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-foreground">{row.fullName}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{row.classLabel} · SR {row.admissionNo}</p>
+                        </div>
                       </div>
                       <div className="text-right shrink-0">
                         <Money value={row.totalPending} size="lg" tone="warning" />
@@ -446,8 +473,13 @@ export default async function DefaultersPage({
                     </div>
 
                     {/* Contact status chip */}
-                    <div className="mt-2">
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
                       <ContactStatusChip summary={contactSummaries.get(row.studentId) ?? null} />
+                      <ContactLogTimelineButton
+                        studentId={row.studentId}
+                        studentName={row.fullName}
+                        sessionLabel={viewSession.sessionLabel}
+                      />
                     </div>
 
                     {/* Action row */}
@@ -477,6 +509,7 @@ export default async function DefaultersPage({
           <table className="w-full min-w-full text-left text-sm">
             <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
+                <th className="px-3 py-3 w-10"><span className="sr-only">Select</span></th>
                 <th className="px-4 py-3">Rank</th>
                 <th className="px-4 py-3">Student</th>
                 <th className="px-4 py-3">Class</th>
@@ -494,7 +527,7 @@ export default async function DefaultersPage({
             <tbody>
               {visibleRows.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="px-4 py-6 text-center text-muted-foreground">
+                  <td colSpan={13} className="px-4 py-6 text-center text-muted-foreground">
                     No defaulters found for the selected filters.
                   </td>
                 </tr>
@@ -504,12 +537,23 @@ export default async function DefaultersPage({
                     key={row.studentId}
                     className="border-t border-border text-foreground"
                   >
+                    <td className="px-3 py-3">
+                      <BulkRowCheckbox
+                        studentId={row.studentId}
+                        ariaLabel={`Select ${row.fullName} for WhatsApp`}
+                      />
+                    </td>
                     <td className="px-4 py-3 font-semibold text-foreground">#{row.rank}</td>
                     <td className="px-4 py-3">
                       <div className="font-medium text-foreground">{row.fullName}</div>
                       <div className="text-xs text-muted-foreground">SR no {row.admissionNo}</div>
-                      <div className="mt-1">
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
                         <ContactStatusChip summary={contactSummaries.get(row.studentId) ?? null} />
+                        <ContactLogTimelineButton
+                          studentId={row.studentId}
+                          studentName={row.fullName}
+                          sessionLabel={viewSession.sessionLabel}
+                        />
                       </div>
                     </td>
                     <td className="px-4 py-3">{row.classLabel}</td>
@@ -593,6 +637,7 @@ export default async function DefaultersPage({
             </div>
           </div>
         ) : null}
+        </BulkWhatsappProvider>
       </SectionCard>
 
       <SectionCard

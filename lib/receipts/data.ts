@@ -29,6 +29,7 @@ type StudentRow = {
   admission_no: string;
   father_name: string | null;
   primary_phone: string | null;
+  email: string | null;
   class_ref: StudentClassRow | StudentClassRow[] | null;
   route_ref: StudentRouteRow | StudentRouteRow[] | null;
 };
@@ -262,7 +263,7 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
   const { data: receiptRaw, error: receiptError } = await supabase
     .from("receipts")
     .select(
-      "id, student_id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, created_by, student_ref:students(id, full_name, admission_no, father_name, primary_phone, class_ref:classes(session_label, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code))",
+      "id, student_id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, created_by, student_ref:students(id, full_name, admission_no, father_name, primary_phone, email, class_ref:classes(session_label, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code))",
     )
     .eq("id", receiptId)
     .maybeSingle();
@@ -427,6 +428,7 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     admissionNo: student?.admission_no ?? "N/A",
     fatherName: student?.father_name ?? null,
     fatherPhone: student?.primary_phone ?? null,
+    parentEmail: student?.email ?? null,
     classLabel: buildClassLabel(student?.class_ref ?? null),
     sessionLabel,
     transportRouteLabel: buildRouteLabel(student?.route_ref ?? null),
