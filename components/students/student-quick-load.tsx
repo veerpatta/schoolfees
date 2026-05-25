@@ -131,6 +131,18 @@ export function StudentQuickLoad({
     return searchParams;
   }, [filters, initialFilters.sessionLabel, page]);
 
+  // Client-side instant filter on top of whatever the server has loaded so
+  // typing in the search box never blocks on a network round-trip. The server
+  // fetch (60 ms debounce above) replaces the underlying list shortly after.
+  const displayedStudents = useMemo(() => {
+    const q = filters.query.trim().toLowerCase();
+    if (!q) return students;
+    return students.filter((student) => {
+      const haystack = `${student.fullName} ${student.admissionNo} ${student.classLabel} ${student.fatherPhone ?? ""} ${student.motherPhone ?? ""}`.toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [students, filters.query]);
+
   useEffect(() => {
     const nextUrl = `/protected/students${params.toString() ? `?${params.toString()}` : ""}`;
     window.history.replaceState(null, "", nextUrl);
@@ -142,6 +154,9 @@ export function StudentQuickLoad({
       return;
     }
     const controller = new AbortController();
+    // Tight debounce so the list keeps up with typing without blocking each
+    // keystroke on a network roundtrip. The previous 300 ms was perceptibly
+    // laggy compared to the Payment Desk search.
     const timeout = setTimeout(async () => {
       setIsLoading(true);
       setLoadError(null);
@@ -174,7 +189,7 @@ export function StudentQuickLoad({
       } finally {
         setIsLoading(false);
       }
-    }, 300);
+    }, 60);
 
     return () => {
       clearTimeout(timeout);
@@ -576,7 +591,7 @@ export function StudentQuickLoad({
             </div>
           ) : (
             <StudentListTable
-              students={students}
+              students={displayedStudents}
               hasFilters={hasVisibleFilters}
               canWrite={canWrite}
               returnTo={returnTo}

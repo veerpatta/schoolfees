@@ -557,7 +557,10 @@ export function MobilePaymentFlowSheet({
               const discountReasonSuffix = dist && dist.conventionalDiscountLabels.length > 0
                 ? ` (${dist.conventionalDiscountLabels.join(" + ")})`
                 : "";
-              const totalDiscount = (dist?.discountAmount ?? 0) + (dist?.conventionalDiscountAmount ?? 0);
+              // discountAmount from the workbook view is the total discount applied
+              // (it already includes any conventional discount). Use it directly —
+              // do NOT add conventionalDiscountAmount on top or it double-counts.
+              const totalDiscount = dist?.discountAmount ?? 0;
 
               // Annual whole — Pending dropdown.
               const pendingHeads = dist
@@ -658,6 +661,44 @@ export function MobilePaymentFlowSheet({
                       {breakdownExpanded ? "Hide ↑" : "Details ↓"}
                     </button>
                   </div>
+
+                  {previewBreakdown.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {previewBreakdown.map((item) => {
+                        const isPaid = item.outstandingAmount <= 0 && item.paymentsTotal > 0;
+                        const isOverdue = item.balanceStatus === "overdue";
+                        const isPartial = item.paymentsTotal > 0 && item.outstandingAmount > 0;
+                        const cls = isPaid
+                          ? "bg-success-soft text-success-soft-foreground border-success-soft-foreground/30"
+                          : isOverdue
+                            ? "bg-destructive/10 text-destructive border-destructive/30"
+                            : isPartial
+                              ? "bg-warning-soft text-warning-soft-foreground border-warning-soft-foreground/30"
+                              : "bg-card text-muted-foreground border-border";
+                        const symbol = isPaid ? "✓" : isOverdue ? "‼" : isPartial ? "½" : "";
+                        return (
+                          <span
+                            key={`pill-${item.installmentId}`}
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                              cls,
+                            )}
+                            title={`Inst ${item.installmentNo}: ${
+                              isPaid
+                                ? `paid ${formatInr(item.paymentsTotal)}`
+                                : isOverdue
+                                  ? `overdue ${formatInr(item.outstandingAmount)}`
+                                  : isPartial
+                                    ? `partial — ${formatInr(item.outstandingAmount)} left`
+                                    : `pending ${formatInr(item.outstandingAmount)}`
+                            }`}
+                          >
+                            Inst {item.installmentNo} {symbol}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  ) : null}
 
                   {pendingHeadsExpanded ? (
                     <div className="mt-2 rounded-md border border-border bg-surface-2/40 px-3 py-2 text-xs">
@@ -773,19 +814,37 @@ export function MobilePaymentFlowSheet({
                       ) : previewBreakdown.length === 0 ? (
                         <p className="text-xs text-muted-foreground">No installment dues found.</p>
                       ) : (
-                        previewBreakdown.map((item) => (
-                          <div key={item.installmentId} className="flex items-center justify-between text-xs py-0.5 border-b border-border/40 last:border-0">
-                            <span className="text-muted-foreground">{item.installmentLabel} · {item.dueDate}</span>
-                            <span className={cn(
-                              "font-semibold tabular-nums",
-                              item.outstandingAmount <= 0 ? "text-success-soft-foreground"
-                                : item.balanceStatus === "overdue" ? "text-destructive"
-                                : "text-foreground"
-                            )}>
-                              {item.outstandingAmount <= 0 ? "Paid" : formatInr(item.outstandingAmount)}
-                            </span>
-                          </div>
-                        ))
+                        previewBreakdown.map((item) => {
+                          const isPaid = item.outstandingAmount <= 0 && item.paymentsTotal > 0;
+                          const isOverdue = item.balanceStatus === "overdue";
+                          const isPartial = item.paymentsTotal > 0 && item.outstandingAmount > 0;
+                          const statusChip = isPaid
+                            ? { label: "✓ Paid", cls: "bg-success-soft text-success-soft-foreground border-success-soft-foreground/30" }
+                            : isOverdue
+                              ? { label: "Overdue", cls: "bg-destructive/10 text-destructive border-destructive/30" }
+                              : isPartial
+                                ? { label: "Partial", cls: "bg-warning-soft text-warning-soft-foreground border-warning-soft-foreground/30" }
+                                : { label: "Pending", cls: "bg-surface-2 text-muted-foreground border-border" };
+                          return (
+                            <div key={item.installmentId} className="flex items-center justify-between gap-2 text-xs py-1 border-b border-border/40 last:border-0">
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-foreground">{item.installmentLabel}</p>
+                                <p className="text-[10px] text-muted-foreground">Due {item.dueDate}</p>
+                              </div>
+                              <span className={cn("shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold", statusChip.cls)}>
+                                {statusChip.label}
+                              </span>
+                              <span className={cn(
+                                "shrink-0 min-w-[60px] text-right font-semibold tabular-nums",
+                                isPaid ? "text-success-soft-foreground"
+                                  : isOverdue ? "text-destructive"
+                                  : "text-foreground"
+                              )}>
+                                {isPaid ? formatInr(item.paymentsTotal) : formatInr(item.outstandingAmount)}
+                              </span>
+                            </div>
+                          );
+                        })
                       )}
                     </div>
                   ) : null}

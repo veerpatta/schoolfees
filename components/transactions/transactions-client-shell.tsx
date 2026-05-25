@@ -495,7 +495,9 @@ export function TransactionsClientShell({
     window.history.replaceState(null, "", buildPageUrl(view, newFilters));
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (debounce) {
-      debounceRef.current = setTimeout(() => fetchData(view, newFilters), 320);
+      // 60 ms feels instant while still batching rapid keystrokes — matches
+      // the Payment Desk search responsiveness instead of the previous 320 ms.
+      debounceRef.current = setTimeout(() => fetchData(view, newFilters), 60);
     } else {
       fetchData(view, newFilters);
     }

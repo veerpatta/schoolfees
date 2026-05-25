@@ -9,6 +9,7 @@ import { StudentQuickReference } from "@/components/students/student-quick-refer
 import { StudentStatCards } from "@/components/students/student-stat-cards";
 import { StudentWorkspaceTabs } from "@/components/students/student-workspace-tabs";
 import { StudentFamilyPanel } from "@/components/students/family-panel";
+import { StudentFinanceGlance } from "@/components/students/student-finance-glance";
 import { Button } from "@/components/ui/button";
 import { Money } from "@/components/ui/money";
 import { Notice } from "@/components/ui/notice";
@@ -281,6 +282,32 @@ export default async function StudentDetailPage({
         );
     }
   };
+
+  const totalPaidAllInstallments = installmentBalances.reduce(
+    (sum, b) => sum + b.paidAmount,
+    0,
+  );
+  const totalAnnualForGlance = installmentBalances.reduce(
+    (sum, b) => sum + b.baseCharge,
+    0,
+  );
+  const lateFeeWaivedTotal = installmentBalances.reduce(
+    (sum, b) => sum + b.waiverApplied,
+    0,
+  );
+  const glanceAnnualHeads = financialSnapshot?.resolvedBreakdown
+    ? [
+        ...financialSnapshot.resolvedBreakdown.coreHeads,
+        ...financialSnapshot.resolvedBreakdown.customHeads,
+      ]
+        .filter((head) => head.amount > 0)
+        .map((head) => ({ label: head.label, amount: head.amount }))
+    : [];
+  const glanceDiscountAmount =
+    (financialSnapshot?.resolvedBreakdown.discountApplied ?? 0) +
+    (financialSnapshot?.resolvedBreakdown.conventionalDiscountApplied ?? 0);
+  const glanceDiscountLabels =
+    financialSnapshot?.resolvedBreakdown.conventionalDiscountLabels ?? [];
 
   const installmentCount = financialSnapshot?.policy.installmentCount ?? installmentBalances.length ?? 4;
   const resolvedHeads = financialSnapshot?.resolvedBreakdown
@@ -750,6 +777,33 @@ export default async function StudentDetailPage({
         latestReceiptId={receipts[0]?.id ?? null}
         returnTo={returnTo}
         encodedReturnTo={encodedReturnTo}
+      />
+
+      <StudentFinanceGlance
+        annualHeads={glanceAnnualHeads}
+        discountAmount={glanceDiscountAmount}
+        discountLabels={glanceDiscountLabels}
+        totalAnnual={totalAnnualForGlance + lateFeeWaivedTotal}
+        totalPaid={totalPaidAllInstallments}
+        totalPending={outstandingAmount}
+        overdueAmount={overdueAmount}
+        pendingLateFeeAmount={effectivePendingLateFeeAmount}
+        lateFeeWaivedTotal={lateFeeWaivedTotal}
+        creditBalance={financialSnapshot?.creditBalance ?? 0}
+        installments={installmentBalances.map((b) => ({
+          installmentId: b.installmentId,
+          installmentNo: b.installmentNo,
+          installmentLabel: b.installmentLabel,
+          dueDate: b.dueDate,
+          pendingAmount: b.pendingAmount,
+          paidAmount: b.paidAmount,
+          finalLateFee: b.finalLateFee,
+          waiverApplied: b.waiverApplied,
+          balanceStatus: b.balanceStatus,
+        }))}
+        nextDueDate={firstPendingInstallment?.dueDate ?? null}
+        nextDueLabel={firstPendingInstallment?.installmentLabel ?? null}
+        nextDueAmount={firstPendingInstallment?.pendingAmount ?? null}
       />
 
       <StudentStatCards
