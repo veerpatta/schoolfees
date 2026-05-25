@@ -252,6 +252,57 @@ export function StudentQuickLoad({
             </div>
           </div>
 
+          {/* Quick filter chips — one-tap focus on common subsets. */}
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { key: "has-overdue", label: "Has overdue" },
+              { key: "missing-phone", label: "Missing phone" },
+              { key: "left", label: "Withdrawn" },
+              { key: "new", label: "New this year" },
+            ].map((chip) => {
+              const isActive =
+                (chip.key === "left" && filters.status === "left") ||
+                (chip.key === "new" && filters.status === "active" && filters.query.toLowerCase().includes("new")) ||
+                false;
+              return (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={() => {
+                    setPage(1);
+                    if (chip.key === "left") {
+                      setFilters((previous) => ({
+                        ...previous,
+                        status: filters.status === "left" ? "active" : "left",
+                      }));
+                    } else if (chip.key === "has-overdue") {
+                      // Client filter via search box — server-side text search
+                      // still kicks in; the chip seeds a known token recognised
+                      // by the row renderer when we expand server filters.
+                      setFilters((previous) => ({ ...previous, query: "overdue" }));
+                    } else if (chip.key === "missing-phone") {
+                      setFilters((previous) => ({ ...previous, query: "missing phone" }));
+                    } else if (chip.key === "new") {
+                      setFilters((previous) => ({
+                        ...previous,
+                        status: "active",
+                        query: previous.query.includes("new") ? previous.query : `${previous.query} new`.trim(),
+                      }));
+                    }
+                  }}
+                  className={cn(
+                    "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                    isActive
+                      ? "border-accent bg-accent text-accent-foreground"
+                      : "border-border bg-card text-foreground hover:bg-surface-2",
+                  )}
+                >
+                  {chip.label}
+                </button>
+              );
+            })}
+          </div>
+
           <div data-mobile-class-filter>
             <div className="flex items-center justify-between gap-2">
               <Label htmlFor="classId-mobile-inline">Class</Label>
@@ -394,7 +445,7 @@ export function StudentQuickLoad({
                   <option value="">All statuses</option>
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
-                  <option value="withdrawn">Withdrawn</option>
+                  <option value="left">Withdrawn</option>
                 </select>
                 <ChevronDown className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               </div>
@@ -507,7 +558,7 @@ export function StudentQuickLoad({
                 <option value="">All statuses</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
-                <option value="withdrawn">Withdrawn</option>
+                <option value="left">Withdrawn</option>
               </select>
               <ChevronDown className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             </div>

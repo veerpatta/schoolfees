@@ -696,6 +696,80 @@ export function TransactionsClientShell({
               )}
             </div>
 
+            {/* Date-range quick chips — visible above the secondary filter row so
+                staff can jump to common windows without opening More filters. */}
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { label: "Today", days: 0 },
+                { label: "Yesterday", days: -1 },
+                { label: "This week", days: -7, weekToDate: true },
+                { label: "This month", days: 0, monthToDate: true },
+              ].map((chip) => {
+                const isActive = (() => {
+                  if (!filters.fromDate || !filters.toDate) return false;
+                  const today = new Date();
+                  const todayIso = today.toISOString().slice(0, 10);
+                  if (chip.label === "Today") return filters.fromDate === todayIso && filters.toDate === todayIso;
+                  if (chip.label === "Yesterday") {
+                    const y = new Date(today);
+                    y.setDate(y.getDate() - 1);
+                    const yIso = y.toISOString().slice(0, 10);
+                    return filters.fromDate === yIso && filters.toDate === yIso;
+                  }
+                  return false;
+                })();
+                return (
+                  <button
+                    key={chip.label}
+                    type="button"
+                    onClick={() => {
+                      const today = new Date();
+                      const todayIso = today.toISOString().slice(0, 10);
+                      let fromIso = todayIso;
+                      let toIso = todayIso;
+                      if (chip.label === "Yesterday") {
+                        const y = new Date(today);
+                        y.setDate(y.getDate() - 1);
+                        fromIso = y.toISOString().slice(0, 10);
+                        toIso = fromIso;
+                      } else if (chip.label === "This week") {
+                        const start = new Date(today);
+                        start.setDate(today.getDate() - today.getDay());
+                        fromIso = start.toISOString().slice(0, 10);
+                      } else if (chip.label === "This month") {
+                        const start = new Date(today.getFullYear(), today.getMonth(), 1);
+                        fromIso = start.toISOString().slice(0, 10);
+                      }
+                      const newFilters = { ...filters, fromDate: fromIso, toDate: toIso, page: 1 };
+                      setFilters(newFilters);
+                      scheduleOrFetch(activeView, newFilters, false);
+                    }}
+                    className={cn(
+                      "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                      isActive
+                        ? "border-accent bg-accent text-accent-foreground"
+                        : "border-border bg-card text-foreground hover:bg-surface-2",
+                    )}
+                  >
+                    {chip.label}
+                  </button>
+                );
+              })}
+              {(filters.fromDate || filters.toDate) ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newFilters = { ...filters, fromDate: "", toDate: "", page: 1 };
+                    setFilters(newFilters);
+                    scheduleOrFetch(activeView, newFilters, false);
+                  }}
+                  className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-surface-2"
+                >
+                  Clear dates
+                </button>
+              ) : null}
+            </div>
+
             {/* Secondary row: date range, route, academic year */}
             {showMoreFilters && (
               <div className="grid gap-2 rounded-lg border border-border bg-surface-2/50 p-3 sm:grid-cols-2 lg:grid-cols-4">

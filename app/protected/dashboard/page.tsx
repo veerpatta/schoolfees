@@ -308,6 +308,7 @@ function HeroKpis({
       <KpiCard
         accent="accent"
         label="Today collection"
+        href="/protected/transactions?view=collection_today"
         className="snap-start shrink-0 w-[72vw] sm:w-auto"
         value={
           <CountUp
@@ -322,6 +323,7 @@ function HeroKpis({
       <KpiCard
         accent="warning"
         label="Pending dues"
+        href="/protected/defaulters"
         className="snap-start shrink-0 w-[72vw] sm:w-auto"
         value={
           <CountUp

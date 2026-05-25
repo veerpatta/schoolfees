@@ -39,6 +39,27 @@ export function ReceiptPrintActions({
     void printWhenReady();
   }, [autoPrint]);
 
+  // Auto-close the print tab on mobile after the user dismisses the print
+  // dialog so they're not left juggling an extra tab. Desktop browsers
+  // routinely block window.close() on the parent tab; this only no-ops there.
+  useEffect(() => {
+    if (!autoPrint) return;
+    if (typeof window === "undefined") return;
+    function handleAfterPrint() {
+      // Small delay so the print dialog has fully closed before window.close.
+      window.setTimeout(() => {
+        try {
+          window.close();
+        } catch {
+          // window.close() is best-effort: most browsers block it on tabs
+          // that weren't opened by script. The user can close the tab manually.
+        }
+      }, 250);
+    }
+    window.addEventListener("afterprint", handleAfterPrint);
+    return () => window.removeEventListener("afterprint", handleAfterPrint);
+  }, [autoPrint]);
+
   return (
     <div className="no-print flex flex-wrap items-center justify-end gap-2">
       <Button type="button" variant="outline" onClick={() => window.print()}>

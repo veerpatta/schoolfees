@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
@@ -12,6 +13,8 @@ type KpiCardProps = {
   accent?: "neutral" | "accent" | "success" | "warning" | "danger" | "info";
   /** Layout style. `strip` is a compact horizontal row for dense mobile lists. */
   variant?: "card" | "strip";
+  /** Optional drill-down href — wraps the card in a Link. */
+  href?: string;
   className?: string;
 };
 
@@ -31,16 +34,22 @@ export function KpiCard({
   trailing,
   accent = "neutral",
   variant = "card",
+  href,
   className,
 }: KpiCardProps) {
   const showAccentRule = accent !== "neutral";
+  const isInteractive = Boolean(href);
+  const Wrapper: React.ElementType = isInteractive ? Link : "div";
+  const wrapperProps = isInteractive ? { href: href as string } : {};
 
   if (variant === "strip") {
     return (
-      <div
+      <Wrapper
+        {...wrapperProps}
         className={cn(
           "relative flex items-center justify-between gap-3 overflow-hidden rounded-lg border border-border bg-card px-4 py-3",
           "transition-[border-color,box-shadow] duration-150 hover:border-border-strong",
+          isInteractive && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           showAccentRule &&
             "before:absolute before:left-0 before:top-0 before:h-full before:w-[3px] before:content-['']",
           accentBorder[accent],
@@ -63,16 +72,18 @@ export function KpiCard({
           </div>
           {trailing ? <div className="shrink-0">{trailing}</div> : null}
         </div>
-      </div>
+      </Wrapper>
     );
   }
 
   return (
-    <div
+    <Wrapper
+      {...wrapperProps}
       className={cn(
-        "relative overflow-hidden rounded-lg border border-border bg-card p-3.5 md:p-5",
+        "relative block overflow-hidden rounded-lg border border-border bg-card p-3.5 md:p-5",
         "transition-[border-color,box-shadow] duration-150",
         "hover:border-border-strong",
+        isInteractive && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         showAccentRule &&
           "before:absolute before:left-0 before:top-0 before:h-full before:w-[3px] before:content-['']",
         accentBorder[accent],
@@ -91,6 +102,6 @@ export function KpiCard({
       {hint ? (
         <p className="mt-2 text-sm leading-6 text-muted-foreground">{hint}</p>
       ) : null}
-    </div>
+    </Wrapper>
   );
 }

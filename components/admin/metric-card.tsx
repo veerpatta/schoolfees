@@ -9,11 +9,13 @@ type MetricCardProps = {
   /** Optional accent rule on the left edge. */
   accent?: "neutral" | "accent" | "success" | "warning" | "danger" | "info";
   trailing?: ReactNode;
+  /** Optional drill-down href — turns the card into a clickable link. */
+  href?: string;
   className?: string;
 };
 
 /** Backwards-compatible wrapper. New code should use `KpiCard` directly. */
-export function MetricCard({ title, value, hint, accent, trailing, className }: MetricCardProps) {
+export function MetricCard({ title, value, hint, accent, trailing, href, className }: MetricCardProps) {
   return (
     <KpiCard
       label={title}
@@ -21,6 +23,7 @@ export function MetricCard({ title, value, hint, accent, trailing, className }: 
       hint={hint}
       accent={accent}
       trailing={trailing}
+      href={href}
       className={className}
     />
   );
