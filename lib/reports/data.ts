@@ -1,5 +1,6 @@
 import "server-only";
 
+import { formatExportName } from "@/lib/helpers/export";
 import { createClient } from "@/lib/supabase/server";
 import { getStudentFormOptions } from "@/lib/students/data";
 import { formatPaymentModeLabel } from "@/lib/config/fee-rules";
@@ -1428,8 +1429,7 @@ export async function getReportsPageData(
 }
 
 function buildCsvFilename(report: ReportKey) {
-  const dateStamp = new Date().toISOString().slice(0, 10);
-  return `${report}-report-${dateStamp}.csv`;
+  return formatExportName(`${report}-report`, "csv");
 }
 
 export async function getReportCsvData(

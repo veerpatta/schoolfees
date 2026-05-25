@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { LoadingBlock } from "@/components/ui/loading-skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
+import { pushOptimisticPayment } from "@/lib/dashboard/optimistic-counters";
 import { AlertTriangle, Banknote, Building2, CheckCircle2, CircleAlert, FileText, Smartphone } from "lucide-react";
 import { PayeeSummaryStrip } from "@/components/payments/payee-summary-strip";
 import { DeskTotalsSection } from "@/components/payments/desk-totals-section";
@@ -1074,6 +1075,10 @@ export function PaymentDeskClient({
           setOptimisticReceiptAdd((prev) => prev + 1);
           setLastAddedAmount(state.amountReceived);
           setLastPostedAmount(state.amountReceived);
+          pushOptimisticPayment({
+            amount: state.amountReceived,
+            receiptNumber: state.receiptNumber ?? null,
+          });
         }
       }
       triggerHaptic([50, 30, 80]);

@@ -17,6 +17,9 @@ import { DashboardPrefetcher } from "@/components/dashboard/dashboard-prefetcher
 import { ClassCollectionProgress } from "@/components/dashboard/class-collection-progress";
 import { CollectionHeatmap } from "@/components/dashboard/collection-heatmap";
 import { MorningBrief } from "@/components/dashboard/morning-brief";
+import { RouteCollectionHeatmap } from "@/components/dashboard/route-collection-heatmap";
+import { OptimisticBanner } from "@/components/dashboard/optimistic-banner";
+import { AnomalyToaster } from "@/components/dashboard/anomaly-toaster";
 import { FirstRunHint } from "@/components/system/first-run-hint";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { composeMorningBrief } from "@/lib/dashboard/morning-brief";
@@ -33,10 +36,12 @@ import { Section } from "@/components/ui/section";
 import {
   getDashboardAboveFoldData,
   getDashboardPageData,
+  getRouteCollectionSummary,
   scheduleDashboardAutoPrepare,
   type DashboardAlert,
   type DashboardCurrentInstallment,
 } from "@/lib/dashboard/data";
+import { computeTodayCollectionDelta, type KpiDelta } from "@/lib/dashboard/kpi-delta";
 import type {
   DashboardClassSummaryRow,
   DashboardInstallmentSummaryRow,
@@ -163,6 +168,22 @@ function getCollectionRateHealth(rate: number) {
  * MobileDashboardHero replaces the horizontal KPI rail on phones with a single
  * first-screen summary: today, collection rate, and the three office stats.
  */
+function KpiDeltaLine({ delta }: { delta: KpiDelta | null }) {
+  if (!delta) return null;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
+        delta.tone === "success" && "bg-success-soft text-success-soft-foreground",
+        delta.tone === "danger" && "bg-destructive-soft text-destructive-soft-foreground",
+        delta.tone === "neutral" && "bg-surface-2 text-muted-foreground",
+      )}
+    >
+      {delta.label}
+    </span>
+  );
+}
+
 function MobileDashboardHero({
   collected,
   pending,
@@ -172,6 +193,7 @@ function MobileDashboardHero({
   overdueAmount,
   updatedAt,
   currentInstallmentLabel,
+  todayDelta,
 }: {
   collected: number;
   pending: number;
@@ -181,6 +203,7 @@ function MobileDashboardHero({
   overdueAmount: number;
   updatedAt: string;
   currentInstallmentLabel?: string;
+  todayDelta: KpiDelta | null;
 }) {
   const todayLabel = new Intl.DateTimeFormat("en-IN", {
     timeZone: "Asia/Kolkata",
@@ -217,8 +240,9 @@ function MobileDashboardHero({
               className="text-[2.25rem] leading-none font-bold tracking-tight text-accent"
             />
           </div>
-          <p className="mt-1.5 text-xs text-muted-foreground">
-            {receiptsToday} receipt{receiptsToday === 1 ? "" : "s"} posted today
+          <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+            <span>{receiptsToday} receipt{receiptsToday === 1 ? "" : "s"} posted today</span>
+            <KpiDeltaLine delta={todayDelta} />
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-center gap-1">
@@ -292,6 +316,7 @@ function HeroKpis({
   receiptsToday,
   followUpCount,
   overdueAmount,
+  todayDelta,
 }: {
   collected: number;
   pending: number;
@@ -299,6 +324,7 @@ function HeroKpis({
   receiptsToday: number;
   followUpCount: number;
   overdueAmount: number;
+  todayDelta: KpiDelta | null;
 }) {
   const rateSignal = getCollectionRateHealth(collectionRate);
 
@@ -316,7 +342,12 @@ function HeroKpis({
             className="text-xl font-semibold tracking-tight text-accent md:text-2xl md:text-[28px] md:leading-[34px]"
           />
         }
-        hint={`${receiptsToday} receipt${receiptsToday === 1 ? "" : "s"} posted today`}
+        hint={
+          <span className="flex flex-wrap items-center gap-1.5">
+            <span>{receiptsToday} receipt{receiptsToday === 1 ? "" : "s"} posted today</span>
+            <KpiDeltaLine delta={todayDelta} />
+          </span>
+        }
       />
 
       {/* Pending dues */}
@@ -1673,7 +1704,10 @@ async function DashboardBelowFold({
   canAutoPrepareDues: boolean;
   kpis: DashboardKpis;
 }) {
-  const data = await getDashboardPageData({ staffRole, sessionLabel });
+  const [data, routeSummary] = await Promise.all([
+    getDashboardPageData({ staffRole, sessionLabel }),
+    getRouteCollectionSummary(sessionLabel),
+  ]);
   scheduleDashboardAutoPrepare({
     canAutoPrepareDues,
     sessionLabel,
@@ -1727,6 +1761,16 @@ async function DashboardBelowFold({
         </Section>
       </div>
 
+      {routeSummary.length > 0 ? (
+        <Section
+          title="Route-wise collection"
+          description="Transport routes ordered by highest pending balance."
+          variant="card"
+        >
+          <RouteCollectionHeatmap rows={routeSummary} />
+        </Section>
+      ) : null}
+
       <InstallmentTrack installments={data.installmentSummary} />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
@@ -1746,6 +1790,19 @@ async function DashboardBelowFold({
         classSummary={data.classSummary}
         sessionLabel={sessionLabel}
       />
+
+      {staffRole === "admin" ? (
+        <AnomalyToaster
+          recentPayments={data.recentPayments}
+          classSummary={data.classSummary}
+          todayIso={new Intl.DateTimeFormat("sv-SE", {
+            timeZone: "Asia/Kolkata",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          }).format(new Date())}
+        />
+      ) : null}
     </div>
   );
 }
@@ -1774,6 +1831,17 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const canAutoPrepareDues = hasStaffPermission(staff, "fees:write");
   const preparedCount = Number.parseInt(resolvedSearchParams?.prepared ?? "", 10);
   const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
+  const todayIsoForDelta = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const todayDelta = computeTodayCollectionDelta(
+    aboveFold.collectionTrend ?? [],
+    todayIsoForDelta,
+    aboveFold.kpis.todaysCollection,
+  );
 
   return (
     <div className="space-y-4 sm:space-y-7">
@@ -1874,6 +1942,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       ) : null}
 
       <div className="space-y-4 anim-fade-in">
+        <OptimisticBanner />
         <MobileDashboardHero
           collected={aboveFold.kpis.todaysCollection}
           pending={aboveFold.kpis.totalPending}
@@ -1883,6 +1952,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           overdueAmount={aboveFold.kpis.overdueAmount}
           updatedAt={aboveFold.generatedAt}
           currentInstallmentLabel={aboveFold.currentInstallment?.label}
+          todayDelta={todayDelta}
         />
 
         <HeroKpis
@@ -1892,6 +1962,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           receiptsToday={aboveFold.kpis.receiptsToday}
           followUpCount={aboveFold.studentsWithPending}
           overdueAmount={aboveFold.kpis.overdueAmount}
+          todayDelta={todayDelta}
         />
         <MobileSecondaryKpis kpis={aboveFold.kpis} />
         <InstallmentPulse

@@ -15,16 +15,13 @@ import {
   getWorkbookTransactions,
 } from "@/lib/workbook/data";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/lib/supabase/session";
+import { formatExportName } from "@/lib/helpers/export";
 
 type RouteContext = {
   params: Promise<{
     exportType: string;
   }>;
 };
-
-function todayStamp() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 async function workbookResponse(filename: string, rows: Array<Record<string, string | number>>) {
   const XLSX = await import("xlsx");
@@ -343,7 +340,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const { resolvedSessionLabel } = await getStudentFormOptions({
     sessionLabel: requestedSessionLabel || null,
   });
-  const filename = `VPPS-${exportType}-${resolvedSessionLabel || "current"}-${todayStamp()}.xlsx`;
+  const filename = formatExportName(
+    `VPPS-${exportType}-${resolvedSessionLabel || "current"}`,
+    "xlsx",
+  );
 
   if (exportType === "ai-context-bundle") {
     return aiContextBundleResponse(filename, resolvedSessionLabel);

@@ -4,6 +4,7 @@ import { getOfficeWorkbookData } from "@/lib/transactions/dues";
 import { normalizeOfficeWorkbookView } from "@/lib/transactions/workbook";
 import { serializeCsv } from "@/lib/reports/data";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/lib/supabase/session";
+import { formatExportName } from "@/lib/helpers/export";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -46,8 +47,7 @@ function formatPaymentModeLabel(value: string) {
 }
 
 function buildFilename(view: string) {
-  const dateStamp = new Date().toISOString().slice(0, 10);
-  return `transactions-${view}-${dateStamp}.csv`;
+  return formatExportName(`transactions-${view}`, "csv");
 }
 
 export async function GET(request: NextRequest) {

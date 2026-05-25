@@ -32,6 +32,74 @@ export type DashboardCurrentInstallment = {
   status: "due_today" | "upcoming" | "overdue";
 };
 
+export type DashboardRouteSummaryRow = {
+  routeId: string | null;
+  routeLabel: string;
+  studentCount: number;
+  expectedAmount: number;
+  collectedAmount: number;
+  pendingAmount: number;
+  collectionRate: number;
+};
+
+export async function getRouteCollectionSummary(
+  sessionLabel: string,
+): Promise<DashboardRouteSummaryRow[]> {
+  const supabase = await getCacheSafeClient();
+  const { data, error } = await supabase
+    .from("v_workbook_student_financials")
+    .select(
+      "transport_route_id, transport_route_name, transport_route_code, total_due, total_paid, outstanding_amount",
+    )
+    .eq("session_label", sessionLabel)
+    .eq("record_status", "active");
+
+  if (error) {
+    console.warn("[route-collection-summary] query failed:", error.message);
+    return [];
+  }
+
+  const map = new Map<string, DashboardRouteSummaryRow>();
+  for (const row of (data ?? []) as Array<{
+    transport_route_id: string | null;
+    transport_route_name: string | null;
+    transport_route_code: string | null;
+    total_due: number | null;
+    total_paid: number | null;
+    outstanding_amount: number | null;
+  }>) {
+    if (!row.transport_route_id) continue;
+    const key = row.transport_route_id;
+    const label = row.transport_route_code
+      ? `${row.transport_route_name ?? "Route"} (${row.transport_route_code})`
+      : row.transport_route_name ?? "Route";
+    const existing = map.get(key) ?? {
+      routeId: key,
+      routeLabel: label,
+      studentCount: 0,
+      expectedAmount: 0,
+      collectedAmount: 0,
+      pendingAmount: 0,
+      collectionRate: 0,
+    };
+    existing.studentCount += 1;
+    existing.expectedAmount += Number(row.total_due ?? 0);
+    existing.collectedAmount += Number(row.total_paid ?? 0);
+    existing.pendingAmount += Number(row.outstanding_amount ?? 0);
+    map.set(key, existing);
+  }
+
+  return Array.from(map.values())
+    .map((row) => ({
+      ...row,
+      collectionRate:
+        row.expectedAmount > 0
+          ? Math.round((row.collectedAmount / row.expectedAmount) * 100)
+          : 0,
+    }))
+    .sort((a, b) => b.pendingAmount - a.pendingAmount);
+}
+
 export type DashboardSyncHealth = {
   sessionMismatch: boolean;
   studentsMissingInstallmentRows: number;
@@ -385,6 +453,7 @@ export async function getDashboardAboveFoldData(options: {
     studentsWithPending: result.studentsWithPending,
     totalRefundDue: result.totalRefundDue,
     canPostPayments: hasAnyRolePermission(staffRole, ["payments:write"]),
+    collectionTrend: result.collectionTrend,
     loadWarnings: [],
     syncError: false,
   };

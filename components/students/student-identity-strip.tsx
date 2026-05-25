@@ -7,6 +7,7 @@ import {
   Edit2,
   Fingerprint,
   GraduationCap,
+  MessageCircle,
   Phone,
   Printer,
   User,
@@ -19,6 +20,17 @@ import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
 import type { StudentStatus } from "@/lib/db/types";
 import { cn } from "@/lib/utils";
+
+function buildWhatsAppLink(phone: string, message: string): string | null {
+  const digits = phone.replace(/\D+/g, "");
+  if (digits.length < 10) return null;
+  const withCountry = digits.length === 10 ? `91${digits}` : digits;
+  return `https://wa.me/${withCountry}?text=${encodeURIComponent(message)}`;
+}
+
+function buildTelLink(phone: string): string {
+  return `tel:${phone.replace(/[^\d+]/g, "")}`;
+}
 
 type StudentIdentityStripProps = {
   student: {
@@ -96,6 +108,114 @@ function formatReadableDate(value: string | null) {
   return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(new Date(value));
 }
 
+type NextActionStripProps = {
+  student: StudentIdentityStripProps["student"];
+  outstandingAmount: number;
+  latestReceiptId: string | null;
+  canPostPayments: boolean;
+  canPrintReceipts: boolean;
+  returnTo: string;
+  encodedReturnTo: string;
+};
+
+function NextActionStrip({
+  student,
+  outstandingAmount,
+  latestReceiptId,
+  canPostPayments,
+  canPrintReceipts,
+  returnTo,
+  encodedReturnTo,
+}: NextActionStripProps) {
+  const callTarget = student.fatherPhone || student.motherPhone;
+  const callLabel = student.fatherPhone
+    ? student.fatherName
+      ? `Call ${student.fatherName.split(/\s+/)[0]}`
+      : "Call Father"
+    : student.motherPhone
+      ? "Call Mother"
+      : null;
+  const dueMessage = outstandingAmount > 0
+    ? `Namaste${student.fatherName ? ` ${student.fatherName}` : ""}, this is a fee reminder for ${student.fullName} (${student.classLabel}, SR ${student.admissionNo}). Pending dues are ₹${outstandingAmount.toLocaleString("en-IN")}. Please contact the school office.`
+    : `Namaste${student.fatherName ? ` ${student.fatherName}` : ""}, all fees are settled for ${student.fullName} (${student.classLabel}). Thank you.`;
+  const whatsappHref = callTarget ? buildWhatsAppLink(callTarget, dueMessage) : null;
+
+  const isActive = student.status === "active";
+  const chips: Array<{ key: string; node: React.ReactNode }> = [];
+
+  if (canPostPayments && isActive && outstandingAmount > 0) {
+    chips.push({
+      key: "collect",
+      node: (
+        <StudentRowCollectButton
+          studentId={student.id}
+          studentLabel={student.fullName}
+          classLabel={student.classLabel}
+          variant="primary"
+          size="sm"
+          label={`Collect ${formatInr(outstandingAmount)}`}
+          returnTo={returnTo}
+          className="h-8 px-3 text-xs font-semibold"
+        />
+      ),
+    });
+  }
+
+  if (callTarget && callLabel) {
+    chips.push({
+      key: "call",
+      node: (
+        <Button asChild size="sm" variant="outline" className="h-8 gap-1.5 px-3 text-xs">
+          <a href={buildTelLink(callTarget)}>
+            <Phone className="h-3.5 w-3.5" />
+            <span>{callLabel}</span>
+          </a>
+        </Button>
+      ),
+    });
+  }
+
+  if (latestReceiptId) {
+    chips.push({
+      key: "print",
+      node: (
+        <Button asChild size="sm" variant="outline" className="h-8 gap-1.5 px-3 text-xs">
+          <Link href={`/protected/receipts/${latestReceiptId}?returnTo=${encodedReturnTo}`}>
+            <Printer className="h-3.5 w-3.5" />
+            <span>{canPrintReceipts ? "Print latest receipt" : "Open latest receipt"}</span>
+          </Link>
+        </Button>
+      ),
+    });
+  }
+
+  if (whatsappHref) {
+    chips.push({
+      key: "whatsapp",
+      node: (
+        <Button asChild size="sm" variant="outline" className="h-8 gap-1.5 px-3 text-xs">
+          <a href={whatsappHref} target="_blank" rel="noreferrer">
+            <MessageCircle className="h-3.5 w-3.5" />
+            <span>WhatsApp dues</span>
+          </a>
+        </Button>
+      ),
+    });
+  }
+
+  if (chips.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2 no-print">
+      {chips.map((chip) => (
+        <div key={chip.key}>{chip.node}</div>
+      ))}
+    </div>
+  );
+}
+
 export function StudentIdentityStrip({
   student,
   outstandingAmount,
@@ -161,6 +281,16 @@ export function StudentIdentityStrip({
                 <p className="mt-1 text-sm text-muted-foreground">
                   Office ledger, dues, receipts, and student master summary.
                 </p>
+
+                <NextActionStrip
+                  student={student}
+                  outstandingAmount={outstandingAmount}
+                  latestReceiptId={latestReceiptId}
+                  canPostPayments={canPostPayments}
+                  canPrintReceipts={canPrintReceipts}
+                  returnTo={returnTo}
+                  encodedReturnTo={encodedReturnTo}
+                />
               </div>
             </div>
           </div>

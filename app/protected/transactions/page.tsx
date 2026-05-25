@@ -11,6 +11,7 @@ import { getStudentFormOptions } from "@/lib/students/data";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
 import { requireAnyStaffPermission } from "@/lib/supabase/session";
+import { getWorkbookTransactions } from "@/lib/workbook/data";
 
 type TransactionsPageProps = {
   searchParams?: Promise<{
@@ -74,7 +75,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
   const paymentMode = normalizePaymentMode(resolvedSearchParams?.paymentMode);
   const page = normalizePage(resolvedSearchParams?.page);
 
-  const [workbook, setup, { routeOptions, sessionOptions }, policy] = await Promise.all([
+  const [workbook, setup, { routeOptions, sessionOptions }, policy, todayTransactions] = await Promise.all([
     getOfficeWorkbookData({
       view: activeView,
       classId,
@@ -91,7 +92,27 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     getSetupWizardDataLight(),
     getStudentFormOptions({ sessionLabel }),
     getFeePolicySummary(),
+    getWorkbookTransactions({ sessionLabel, todayOnly: true, skipFinancials: true }),
   ]);
+
+  const todaySnapshot = (() => {
+    const modeTotals = { cash: 0, upi: 0, bank_transfer: 0, cheque: 0 } as Record<string, number>;
+    let total = 0;
+    for (const txn of todayTransactions) {
+      total += txn.totalAmount;
+      if (txn.paymentMode in modeTotals) {
+        modeTotals[txn.paymentMode] += txn.totalAmount;
+      }
+    }
+    return {
+      receiptCount: todayTransactions.length,
+      total,
+      cashTotal: modeTotals.cash,
+      upiTotal: modeTotals.upi,
+      bankTotal: modeTotals.bank_transfer,
+      chequeTotal: modeTotals.cheque,
+    };
+  })();
 
   const readiness = getOfficeWorkflowReadiness(setup, staff.appRole);
 
@@ -141,6 +162,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         routeOptions={routeOptions.map((r) => ({ id: r.id, label: r.label }))}
         paymentModeOptions={policy.acceptedPaymentModes.map((m) => ({ value: m.value, label: m.label }))}
         resolvedSessionLabel={sessionLabel}
+        todaySnapshot={todaySnapshot}
       />
     </div>
   );

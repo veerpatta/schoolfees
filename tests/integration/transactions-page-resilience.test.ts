@@ -13,8 +13,13 @@ const requireAnyStaffPermission = vi.fn();
 const hasStaffPermission = vi.fn();
 
 const getSetupWizardDataLight = vi.fn();
+const getWorkbookTransactions = vi.fn();
 
 vi.mock("server-only", () => ({}));
+
+vi.mock("@/lib/workbook/data", () => ({
+  getWorkbookTransactions,
+}));
 
 vi.mock("@/lib/transactions/dues", async () => {
   const actual = await vi.importActual<typeof import("@/lib/transactions/dues")>(
@@ -102,6 +107,7 @@ function setupPageData(sessionLabel: string) {
       hasNextPage: false,
     },
   });
+  getWorkbookTransactions.mockResolvedValue([]);
 }
 
 describe("transactions page session resilience", () => {

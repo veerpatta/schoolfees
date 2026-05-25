@@ -59,6 +59,15 @@ type PaymentModeOption = { value: string; label: string };
 type SessionOption = { value: string; label: string };
 type RouteOption = { id: string; label: string };
 
+export type TodaySnapshot = {
+  receiptCount: number;
+  total: number;
+  cashTotal: number;
+  upiTotal: number;
+  bankTotal: number;
+  chequeTotal: number;
+};
+
 export type TransactionsClientShellProps = {
   activeView: OfficeWorkbookView;
   initialFilters: FilterState;
@@ -68,6 +77,7 @@ export type TransactionsClientShellProps = {
   routeOptions: RouteOption[];
   paymentModeOptions: PaymentModeOption[];
   resolvedSessionLabel: string;
+  todaySnapshot: TodaySnapshot;
 };
 
 // ---------------------------------------------------------------------------
@@ -438,6 +448,43 @@ function PaginationControls({
 // Main shell
 // ---------------------------------------------------------------------------
 
+function TodayStrip({ snapshot }: { snapshot: TodaySnapshot }) {
+  const today = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric",
+    month: "short",
+    weekday: "short",
+  }).format(new Date());
+  const modes: Array<{ key: string; label: string; value: number }> = [
+    { key: "cash", label: "Cash", value: snapshot.cashTotal },
+    { key: "upi", label: "UPI", value: snapshot.upiTotal },
+    { key: "bank", label: "Bank", value: snapshot.bankTotal },
+    { key: "cheque", label: "Cheque", value: snapshot.chequeTotal },
+  ];
+  return (
+    <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-xs">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          Today · {today}
+        </span>
+        <span className="font-semibold text-foreground">
+          {snapshot.receiptCount} receipt{snapshot.receiptCount === 1 ? "" : "s"}
+        </span>
+        <span className="font-semibold tabular-nums text-accent">{formatInr(snapshot.total)}</span>
+        <span className="hidden md:inline text-muted-foreground">·</span>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          {modes.map((mode) => (
+            <span key={mode.key} className="tabular-nums">
+              <span className="font-medium text-foreground">{mode.label}</span>{" "}
+              {formatInr(mode.value)}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function TransactionsClientShell({
   activeView: initialView,
   initialFilters,
@@ -447,12 +494,14 @@ export function TransactionsClientShell({
   routeOptions,
   paymentModeOptions,
   resolvedSessionLabel,
+  todaySnapshot,
 }: TransactionsClientShellProps) {
   const [activeView, setActiveView] = useState(initialView);
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [workbook, setWorkbook] = useState<OfficeWorkbookData>(initialWorkbook);
   const [isLoading, setIsLoading] = useState(false);
   const [previewReceiptId, setPreviewReceiptId] = useState<string | null>(null);
+  const [activeSavedViewId, setActiveSavedViewId] = useState<string | null>(null);
   const [showMoreFilters, setShowMoreFilters] = useState(
     () => Boolean(
       initialFilters.fromDate || initialFilters.toDate ||
@@ -506,6 +555,7 @@ export function TransactionsClientShell({
   function handleFilterChange(key: keyof FilterState, value: string, debounce = false) {
     const newFilters = { ...filters, [key]: value, page: 1 };
     setFilters(newFilters);
+    setActiveSavedViewId(null);
     scheduleOrFetch(activeView, newFilters, debounce);
   }
 
@@ -517,6 +567,7 @@ export function TransactionsClientShell({
     const nextFilters = { ...filters, page: 1 };
     setActiveView(view);
     setFilters(nextFilters);
+    setActiveSavedViewId(null);
     window.history.pushState(null, "", buildPageUrl(view, nextFilters));
     fetchData(view, nextFilters);
   }
@@ -525,6 +576,7 @@ export function TransactionsClientShell({
     const empty: FilterState = { classId: "", query: "", fromDate: "", toDate: "", paymentMode: "", page: 1, routeId: "", sessionLabel: "" };
     setFilters(empty);
     setShowMoreFilters(false);
+    setActiveSavedViewId(null);
     window.history.replaceState(null, "", buildPageUrl(activeView, empty));
     fetchData(activeView, empty);
   }
@@ -547,6 +599,7 @@ export function TransactionsClientShell({
     };
     setFilters(nextFilters);
     setActiveView(view.state.view);
+    setActiveSavedViewId(view.id);
     window.history.pushState(null, "", buildPageUrl(view.state.view, nextFilters));
     fetchData(view.state.view, nextFilters);
   }
@@ -570,6 +623,8 @@ export function TransactionsClientShell({
 
   return (
     <div className="space-y-6">
+      <TodayStrip snapshot={todaySnapshot} />
+
       {/* ── View + Filters ── */}
       <SectionCard
         title="View & Filter"
@@ -586,7 +641,7 @@ export function TransactionsClientShell({
         <div className="space-y-4">
           <SavedViewsTabs
             tableKey="vpps.transactions.views"
-            activeId={null}
+            activeId={activeSavedViewId}
             onApply={applyTxnView}
             currentState={txnCurrentState}
             className="-mt-1 mb-2"
@@ -950,6 +1005,29 @@ export function TransactionsClientShell({
         {"rows" in workbook && workbook.rows.length > 0 ? (
           <SummaryRow sticky={false}>
             <SummaryCell label="Records" value={String(workbook.rows.length)} />
+            {(() => {
+              const rows = workbook.rows as unknown as Array<Record<string, unknown>>;
+              if (workbook.view === "transactions" || workbook.view === "receipts" || workbook.view === "collection_today") {
+                const sum = rows.reduce((acc, row) => acc + Number(row.totalAmount ?? 0), 0);
+                return <SummaryCell label="Σ Amount" value={formatInr(sum)} />;
+              }
+              if (
+                workbook.view === "student_dues" ||
+                workbook.view === "installments" ||
+                workbook.view === "defaulters" ||
+                workbook.view === "class_register"
+              ) {
+                const pending = rows.reduce((acc, row) => acc + Number(row.outstandingAmount ?? 0), 0);
+                const paid = rows.reduce((acc, row) => acc + Number(row.totalPaid ?? 0), 0);
+                return (
+                  <>
+                    <SummaryCell label="Σ Pending" value={formatInr(pending)} />
+                    <SummaryCell label="Σ Paid" value={formatInr(paid)} />
+                  </>
+                );
+              }
+              return null;
+            })()}
           </SummaryRow>
         ) : null}
         {"pagination" in workbook && (

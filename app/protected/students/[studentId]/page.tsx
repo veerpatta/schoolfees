@@ -8,6 +8,7 @@ import { StudentIdentityStrip } from "@/components/students/student-identity-str
 import { StudentQuickReference } from "@/components/students/student-quick-reference";
 import { StudentReceiptsPanel } from "@/components/students/student-receipts-panel";
 import { StudentStatCards } from "@/components/students/student-stat-cards";
+import { StudentStickyHeader } from "@/components/students/student-sticky-header";
 import { StudentWorkspaceTabs } from "@/components/students/student-workspace-tabs";
 import { StudentFamilyPanel } from "@/components/students/family-panel";
 import { StudentFinanceGlance } from "@/components/students/student-finance-glance";
@@ -667,6 +668,13 @@ export default async function StudentDetailPage({
           fullName: student.fullName,
           admissionNo: student.admissionNo,
         }}
+      />
+
+      <StudentStickyHeader
+        fullName={student.fullName}
+        classLabel={student.classLabel}
+        admissionNo={student.admissionNo}
+        outstandingAmount={outstandingAmount}
       />
 
       {student.status !== "active" ? (

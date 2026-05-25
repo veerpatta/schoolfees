@@ -1,6 +1,7 @@
 import "server-only";
 
 import { formatPaymentModeLabel } from "@/lib/config/fee-rules";
+import { formatExportName } from "@/lib/helpers/export";
 import { createClient } from "@/lib/supabase/server";
 
 import type { AdjustmentType, PaymentMode, RefundRequestStatus } from "@/lib/db/types";
@@ -557,7 +558,7 @@ export function normalizeFinanceDateFilter(value: string | undefined | null) {
 }
 
 export function buildFinanceDayBookFilename(paymentDate: string) {
-  return `day-book-${paymentDate}.csv`;
+  return formatExportName(`day-book-${paymentDate}`, "csv");
 }
 
 export async function getFinanceControlsPageData(
