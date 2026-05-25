@@ -6,6 +6,7 @@ import Link from "next/link";
 import { SectionCard } from "@/components/admin/section-card";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
+import { ReceiptPreviewSheet } from "@/components/receipts/receipt-preview-sheet";
 import type { ReceiptListItem } from "@/lib/receipts/types";
 
 function paymentModeLabel(mode: "cash" | "upi" | "bank_transfer" | "cheque") {
@@ -35,6 +36,7 @@ export function ReceiptsQuickLoad({
   const [receipts, setReceipts] = useState(initialReceipts);
   const [totalCount, setTotalCount] = useState(initialTotalCount);
   const [isLoading, setIsLoading] = useState(false);
+  const [previewReceiptId, setPreviewReceiptId] = useState<string | null>(null);
   const isFirstRender = useRef(true);
   const params = useMemo(() => {
     const value = new URLSearchParams();
@@ -130,18 +132,28 @@ export function ReceiptsQuickLoad({
               receipts.map((receipt) => {
                 const returnTo = `/protected/receipts${params.toString() ? `?${params.toString()}` : ""}`;
                 return (
-                  <div key={receipt.id} className="rounded-xl border border-border bg-card p-3 text-sm">
+                  <button
+                    key={receipt.id}
+                    type="button"
+                    onClick={() => setPreviewReceiptId(receipt.id)}
+                    className="block w-full rounded-xl border border-border bg-card p-3 text-left text-sm transition-colors hover:bg-surface-2/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
                     <p className="font-semibold text-foreground">{receipt.receiptNumber}</p>
                     <p className="text-xs text-muted-foreground">{receipt.paymentDate}</p>
                     <p className="mt-1">{receipt.studentFullName} ({receipt.admissionNo})</p>
                     <p className="text-xs text-muted-foreground">{receipt.classLabel} • {paymentModeLabel(receipt.paymentMode)}</p>
                     <p className="mt-1 font-semibold text-foreground">{formatInr(receipt.totalAmount)}</p>
-                    <Button className="mt-2" asChild variant="outline" size="sm">
-                      <Link href={`/protected/receipts/${receipt.id}?returnTo=${encodeURIComponent(returnTo)}`}>
-                        {canPrintReceipts ? "Open / Print" : "Open"}
-                      </Link>
-                    </Button>
-                  </div>
+                    <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-accent">
+                      Tap to preview
+                    </span>
+                    <Link
+                      onClick={(event) => event.stopPropagation()}
+                      href={`/protected/receipts/${receipt.id}?returnTo=${encodeURIComponent(returnTo)}`}
+                      className="sr-only"
+                    >
+                      Open {receipt.receiptNumber} full page
+                    </Link>
+                  </button>
                 );
               })
             )}
@@ -170,7 +182,15 @@ export function ReceiptsQuickLoad({
                   receipts.map((receipt) => {
                     const returnTo = `/protected/receipts${params.toString() ? `?${params.toString()}` : ""}`;
                     return (
-                      <tr key={receipt.id} className="border-t border-border text-foreground">
+                      <tr
+                        key={receipt.id}
+                        className="border-t border-border text-foreground cursor-pointer hover:bg-surface-2/40 transition-colors"
+                        onClick={(event) => {
+                          const target = event.target as HTMLElement | null;
+                          if (target && target.closest('[data-row-action="true"]')) return;
+                          setPreviewReceiptId(receipt.id);
+                        }}
+                      >
                         <td className="px-4 py-3 font-medium text-foreground">{receipt.receiptNumber}</td>
                         <td className="px-4 py-3">{receipt.paymentDate}</td>
                         <td className="px-4 py-3">
@@ -179,7 +199,7 @@ export function ReceiptsQuickLoad({
                         <td className="px-4 py-3">{receipt.classLabel}</td>
                         <td className="px-4 py-3">{paymentModeLabel(receipt.paymentMode)}</td>
                         <td className="px-4 py-3">{formatInr(receipt.totalAmount)}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3" data-row-action="true" onClick={(event) => event.stopPropagation()}>
                           <Button asChild variant="outline" size="sm">
                             <Link href={`/protected/receipts/${receipt.id}?returnTo=${encodeURIComponent(returnTo)}`}>
                               {canPrintReceipts ? "Open / Print" : "Open"}
@@ -209,6 +229,13 @@ export function ReceiptsQuickLoad({
           </div>
         </div>
       </SectionCard>
+
+      <ReceiptPreviewSheet
+        open={previewReceiptId !== null}
+        onClose={() => setPreviewReceiptId(null)}
+        receiptId={previewReceiptId}
+        canPrint={canPrintReceipts}
+      />
     </>
   );
 }

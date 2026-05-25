@@ -2,6 +2,7 @@ import Link from "next/link";
 import { formatInr } from "@/lib/helpers/currency";
 import { Section } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
+import { LinkSiblingTrigger } from "@/components/students/link-sibling-trigger";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import type { StudentFamilyMemberDetail } from "@/lib/students/data";
 
@@ -11,6 +12,14 @@ type StudentFamilyPanelProps = {
   confidence: "confirmed" | "suspected" | null;
   members: StudentFamilyMemberDetail[];
   sessionLabel: string;
+  canLinkSibling?: boolean;
+  currentStudent?: {
+    fullName: string;
+    admissionNo: string;
+    classLabel: string;
+    fatherName: string | null;
+    primaryPhone: string | null;
+  };
 };
 
 export function StudentFamilyPanel({
@@ -19,14 +28,35 @@ export function StudentFamilyPanel({
   confidence,
   members,
   sessionLabel,
+  canLinkSibling = false,
+  currentStudent,
 }: StudentFamilyPanelProps) {
-  // If there are no siblings detected, show nothing or a subtle message
   const siblings = members.filter((m) => !m.isSelf);
+  const linkSiblingTrigger =
+    canLinkSibling && currentStudent ? (
+      <LinkSiblingTrigger
+        studentId={studentId}
+        studentLabel={currentStudent.fullName}
+        studentAdmissionNo={currentStudent.admissionNo}
+        studentClassLabel={currentStudent.classLabel}
+        studentFatherName={currentStudent.fatherName}
+        studentPhone={currentStudent.primaryPhone}
+        sessionLabel={sessionLabel}
+        excludeStudentIds={members.map((m) => m.id)}
+      />
+    ) : null;
+
   if (siblings.length === 0) {
     return (
       <Section title="Family & Siblings" description="Sibling grouping details." variant="card" padding="tight">
-        <div className="text-center py-4 text-xs text-muted-foreground">
-          No active siblings detected with matching phone numbers in this session.
+        <div className="space-y-3">
+          <div className="text-center py-4 text-xs text-muted-foreground">
+            No siblings linked yet for this session. Use the button below to link an existing student
+            as a sibling.
+          </div>
+          {linkSiblingTrigger ? (
+            <div className="flex justify-center">{linkSiblingTrigger}</div>
+          ) : null}
         </div>
       </Section>
     );
@@ -141,6 +171,7 @@ export function StudentFamilyPanel({
               </Link>
             </Button>
           )}
+          {linkSiblingTrigger}
         </div>
       </div>
     </Section>

@@ -28,6 +28,7 @@ import type {
   OfficeWorkbookSummary,
 } from "@/lib/transactions/dues";
 import type { WorkbookClassOption, WorkbookTransaction } from "@/lib/workbook/data";
+import { ReceiptPreviewSheet } from "@/components/receipts/receipt-preview-sheet";
 import type { CollectionRow } from "./transactions-lazy-tables";
 
 // ---------------------------------------------------------------------------
@@ -213,10 +214,12 @@ function TransactionsTable({
   rows,
   returnTo,
   sessionLabel,
+  onPreviewReceipt,
 }: {
   rows: WorkbookTransaction[];
   returnTo: string;
   sessionLabel: string;
+  onPreviewReceipt: (receiptId: string) => void;
 }) {
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
   const receiptPrintHref = (receiptId: string, label: string) =>
@@ -230,15 +233,29 @@ function TransactionsTable({
           </p>
         ) : (
           rows.map((row) => (
-            <div key={row.receiptId} className="rounded-xl border border-border bg-card p-3 text-sm">
+            <div
+              key={row.receiptId}
+              role="button"
+              tabIndex={0}
+              onClick={(event) => {
+                const target = event.target as HTMLElement | null;
+                if (target && target.closest('[data-row-action="true"]')) return;
+                onPreviewReceipt(row.receiptId);
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                const target = event.target as HTMLElement | null;
+                if (target && target.closest('[data-row-action="true"]')) return;
+                event.preventDefault();
+                onPreviewReceipt(row.receiptId);
+              }}
+              className="cursor-pointer rounded-xl border border-border bg-card p-3 text-sm transition-colors hover:bg-surface-2/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               <p className="font-semibold text-foreground">{row.receiptNumber}</p>
               <p className="text-xs text-muted-foreground">{formatShortDate(row.paymentDate)} · {row.studentName}</p>
               <p className="mt-1 text-xs text-muted-foreground">{row.classLabel} · {formatPaymentModeLabel(row.paymentMode)}</p>
               <p className="mt-1 font-semibold text-foreground">{formatInr(row.totalAmount)}</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <Button asChild size="sm" variant="outline">
-                  <Link href={withSession(`/protected/receipts/${row.receiptId}?returnTo=${encodeURIComponent(returnTo)}`)}>View</Link>
-                </Button>
+              <div className="mt-2 flex flex-wrap gap-2" data-row-action="true" onClick={(event) => event.stopPropagation()}>
                 <Button asChild size="sm" variant="ghost" aria-label={`Print receipt ${row.receiptNumber}`}>
                   <Link href={receiptPrintHref(row.receiptId, sessionLabel)} target="_blank" rel="noreferrer">
                     <Printer className="size-4" />
@@ -271,18 +288,23 @@ function TransactionsTable({
               <tr><td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">No transactions found for this view.</td></tr>
             ) : (
               rows.map((row) => (
-                <tr key={row.receiptId} className="border-t border-border hover:bg-surface-2/30 transition-colors">
+                <tr
+                  key={row.receiptId}
+                  className="cursor-pointer border-t border-border hover:bg-surface-2/30 transition-colors"
+                  onClick={(event) => {
+                    const target = event.target as HTMLElement | null;
+                    if (target && target.closest('[data-row-action="true"]')) return;
+                    onPreviewReceipt(row.receiptId);
+                  }}
+                >
                   <td className="px-4 py-3">{formatShortDate(row.paymentDate)}</td>
                   <td className="px-4 py-3 font-medium text-foreground">{row.receiptNumber}</td>
                   <td className="px-4 py-3">{row.studentName}</td>
                   <td className="px-4 py-3">{row.classLabel}</td>
                   <td className="px-4 py-3">{formatPaymentModeLabel(row.paymentMode)}</td>
                   <td className="px-4 py-3 font-medium text-foreground">{formatInr(row.totalAmount)}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" data-row-action="true" onClick={(event) => event.stopPropagation()}>
                     <div className="flex flex-wrap gap-2">
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={withSession(`/protected/receipts/${row.receiptId}?returnTo=${encodeURIComponent(returnTo)}`)}>View</Link>
-                      </Button>
                       <Button asChild size="sm" variant="ghost" aria-label={`Print receipt ${row.receiptNumber}`}>
                         <Link href={receiptPrintHref(row.receiptId, sessionLabel)} target="_blank" rel="noreferrer">
                           <Printer className="size-4" />
@@ -420,10 +442,11 @@ export function TransactionsClientShell({
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [workbook, setWorkbook] = useState<OfficeWorkbookData>(initialWorkbook);
   const [isLoading, setIsLoading] = useState(false);
+  const [previewReceiptId, setPreviewReceiptId] = useState<string | null>(null);
   const [showMoreFilters, setShowMoreFilters] = useState(
     () => Boolean(
       initialFilters.fromDate || initialFilters.toDate ||
-      initialFilters.routeId || initialFilters.sessionLabel
+      initialFilters.routeId
     )
   );
 
@@ -763,7 +786,12 @@ export function TransactionsClientShell({
                 : "Receipt register with print, student, and payment desk shortcuts."
             }
           >
-            <TransactionsTable rows={workbook.rows} returnTo={returnTo} sessionLabel={effectiveSession} />
+            <TransactionsTable
+              rows={workbook.rows}
+              returnTo={returnTo}
+              sessionLabel={effectiveSession}
+              onPreviewReceipt={(receiptId) => setPreviewReceiptId(receiptId)}
+            />
           </SectionCard>
         )}
         {workbook.view === "installments" && (
@@ -842,6 +870,13 @@ export function TransactionsClientShell({
           <PaginationControls pagination={workbook.pagination} onPageChange={handlePageChange} />
         )}
       </div>
+
+      <ReceiptPreviewSheet
+        open={previewReceiptId !== null}
+        onClose={() => setPreviewReceiptId(null)}
+        receiptId={previewReceiptId}
+        sessionLabel={effectiveSession}
+      />
     </div>
   );
 }

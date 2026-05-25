@@ -131,16 +131,19 @@ export function MobileHeader({
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/90 px-3 backdrop-blur print:hidden md:hidden">
-      <Link href={sessionAwareHomeHref} aria-label="Open home" className="inline-flex min-w-0 items-center gap-2 rounded-md px-1 py-1 transition-colors hover:bg-surface-2">
-        <SchoolBrand variant="icon" priority />
-        <span className="hidden xs:block text-[11px] font-bold uppercase tracking-wide text-accent leading-tight">
-          VPPS
-        </span>
-      </Link>
-      <p className="absolute left-1/2 -translate-x-1/2 text-sm font-semibold text-foreground truncate max-w-[40vw]">
-        {routeTitle}
-      </p>
-      <div className="flex min-w-0 items-center gap-1.5">
+      <div className="flex items-center gap-1.5 min-w-0 flex-1 mr-2">
+        <Link href={sessionAwareHomeHref} aria-label="Open home" className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-1 py-1 transition-colors hover:bg-surface-2">
+          <SchoolBrand variant="icon" priority />
+          <span className="hidden xs:block text-[11px] font-bold uppercase tracking-wide text-accent leading-tight">
+            VPPS
+          </span>
+        </Link>
+        <span className="text-muted-foreground text-xs font-semibold shrink-0">/</span>
+        <h1 className="text-sm font-semibold text-foreground truncate">
+          {routeTitle}
+        </h1>
+      </div>
+      <div className="flex shrink-0 items-center gap-1.5">
         {sessionPill}
         <ThemeToggle />
         <DropdownMenu>

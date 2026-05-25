@@ -2056,6 +2056,33 @@ export function PaymentDeskClient({
                     <span className="text-muted-foreground">Total pending</span>
                     <span className="tabular-nums text-accent">{formatInr(previewTotalPending)}</span>
                   </div>
+                  {pendingLateFeeAmount > 0 ? (
+                    <div className="border-t border-border bg-surface px-3 py-2 text-xs">
+                      <p className="font-medium text-foreground">
+                        {formatInr(previewTotalPending)}
+                        <span className="mx-1 text-muted-foreground">=</span>
+                        {formatInr(Math.max(previewTotalPending - pendingLateFeeAmount, 0))}
+                        <span className="ml-1 text-muted-foreground">base</span>
+                        <span className="mx-1 text-muted-foreground">+</span>
+                        <span className="text-destructive">{formatInr(pendingLateFeeAmount)} late fee</span>
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setWaiveFullLateFee((value) => !value)}
+                        className={cn(
+                          "mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors",
+                          waiveFullLateFee
+                            ? "border-success-soft-foreground/30 bg-success-soft text-success-soft-foreground"
+                            : "border-border bg-card text-muted-foreground hover:bg-surface-2",
+                        )}
+                        aria-pressed={waiveFullLateFee}
+                      >
+                        {waiveFullLateFee
+                          ? `✓ Late fee waived (−${formatInr(pendingLateFeeAmount)})`
+                          : `Waive late fee (−${formatInr(pendingLateFeeAmount)})`}
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             ) : (

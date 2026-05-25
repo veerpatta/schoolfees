@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Ellipsis, X } from "lucide-react";
@@ -21,13 +21,7 @@ export function MobileBottomNav({ staffRole }: MobileBottomNavProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [overflowOpen, setOverflowOpen] = useState(false);
-  const primaryItems = getMobileBottomNavigation(staffRole)
-    .slice(0, 4)
-    .map((item) => {
-      if (item.label === "Dues") return { ...item, label: "Defaulters" };
-      if (item.label === "Receipts") return { ...item, label: "History" };
-      return item;
-    });
+  const primaryItems = getMobileBottomNavigation(staffRole).slice(0, 4);
   const moduleItems = useMemo(
     () => getVisibleProtectedNavigation(staffRole),
     [staffRole],
@@ -46,6 +40,22 @@ export function MobileBottomNav({ staffRole }: MobileBottomNavProps) {
       isOverflow: true,
     },
   ];
+
+  useEffect(() => {
+    if (!overflowOpen) return;
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOverflowOpen(false);
+      }
+    }
+    window.addEventListener("keydown", handleKey);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", handleKey);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [overflowOpen]);
 
   return (
     <>

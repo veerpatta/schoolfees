@@ -269,17 +269,17 @@ export function ConfirmReceiptSheet({
           ⚠ Posted receipts stay in history. This action cannot be undone.
         </p>
 
-        {/* G. Action buttons */}
+        {/* G. Action buttons — Save Only is the primary action; Save & Print is secondary. */}
         <div className="sticky bottom-0 z-10 mt-4 grid grid-cols-2 gap-2 border-t border-border bg-card pt-3 pb-2 mobile-safe-bottom-padding sm:grid-cols-[1fr_1fr_1.4fr] sm:pb-3">
           <Button variant="ghost" type="button" onClick={onBack} disabled={isSubmitting} className="w-full">
             ← Back / Edit
           </Button>
           <Button
-            variant="secondary"
+            variant="outline"
             type="submit"
             form={form}
             name="printMode"
-            value="no"
+            value="yes"
             disabled={isSubmitting || isDisabled}
             className="w-full"
           >
@@ -289,14 +289,14 @@ export function ConfirmReceiptSheet({
                 Posting...
               </span>
             ) : (
-              "Save Only"
+              "Save & Print"
             )}
           </Button>
           <Button
             type="submit"
             form={form}
             name="printMode"
-            value="yes"
+            value="no"
             disabled={isSubmitting || isDisabled}
             className="col-span-2 w-full sm:col-span-1"
           >
@@ -306,7 +306,7 @@ export function ConfirmReceiptSheet({
                 Posting...
               </span>
             ) : (
-              "Save & Print Receipt"
+              "Save Payment"
             )}
           </Button>
         </div>

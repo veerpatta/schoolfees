@@ -1,5 +1,8 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Users, GraduationCap, ShieldAlert, ChevronRight, Phone, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -92,6 +95,15 @@ function OutstandingCell({ student }: { student: StudentListItem }) {
   );
 }
 
+function discountLabelHint(label: string) {
+  const normalized = label.toLowerCase();
+  if (normalized.includes("rte")) return "RTE — tuition waived to ₹0 for this session.";
+  if (normalized.includes("staff")) return "Staff Child — 50% tuition discount.";
+  if (normalized.includes("3rd") || normalized.includes("third"))
+    return "3rd Child Policy — tuition capped at ₹6,000.";
+  return `${label} — conventional discount applied.`;
+}
+
 function SiblingPill({ student, session }: { student: StudentListItem; session?: string }) {
   if (!student.siblingPill || student.siblingPill.siblingCount < 1) {
     return null;
@@ -165,9 +177,29 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
     `/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`,
   );
 
+  const router = useRouter();
+  const handleRowOpen = (event: React.MouseEvent<HTMLElement>) => {
+    if (event.defaultPrevented) return;
+    const target = event.target as HTMLElement | null;
+    if (target && target.closest('[data-row-action="true"]')) return;
+    router.push(studentHref);
+  };
+  const handleRowKey = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const target = event.target as HTMLElement | null;
+    if (target && target.closest('[data-row-action="true"]')) return;
+    event.preventDefault();
+    router.push(studentHref);
+  };
+
   return (
-    <li 
-      className="group relative flex items-center gap-3 pl-6 pr-4 py-4 transition-all hover:bg-surface-2/50 active:bg-surface-2 border-b border-border/40"
+    <li
+      role="link"
+      tabIndex={0}
+      aria-label={`Open ${student.fullName}`}
+      onClick={handleRowOpen}
+      onKeyDown={handleRowKey}
+      className="group relative flex cursor-pointer items-center gap-3 pl-6 pr-3 py-4 transition-all hover:bg-surface-2/50 active:bg-surface-2 border-b border-border/40 focus-visible:outline-none focus-visible:bg-surface-2"
       style={{ contentVisibility: "auto", containIntrinsicSize: "0 80px" } as React.CSSProperties}
     >
       {/* Visual Dues Indicator Strip */}
@@ -184,19 +216,18 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          <Link
-            href={studentHref}
-            className="text-sm font-semibold text-foreground underline-offset-4 hover:underline break-words"
-          >
+          <span className="text-sm font-semibold text-foreground break-words">
             {student.fullName}
-          </Link>
+          </span>
           {srNoMissing ? (
             <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[9px] font-medium text-warning-soft-foreground flex items-center gap-0.5">
               <ShieldAlert className="h-2.5 w-2.5" />
               SR missing
             </span>
           ) : null}
-          <SiblingPill student={student} session={session} />
+          <span data-row-action="true" className="inline-flex">
+            <SiblingPill student={student} session={session} />
+          </span>
           <DataQualityFlags student={student} />
           {student.status !== "active" && (
             <StudentStatusBadge status={student.status} />
@@ -209,6 +240,7 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
           <p className="text-xs text-muted-foreground mt-1">
             <a
               href={`tel:${student.fatherPhone || student.motherPhone}`}
+              data-row-action="true"
               onClick={(e) => e.stopPropagation()}
               className="inline-flex items-center gap-1 hover:underline"
             >
@@ -224,22 +256,21 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
       </div>
 
       {canWrite && (
-        <StudentRowCollectButton
-          studentId={student.id}
-          studentLabel={student.fullName}
-          classLabel={student.classLabel}
-          variant="primary"
+        <span
+          data-row-action="true"
+          onClick={(event) => event.stopPropagation()}
           className="shrink-0"
-        />
+        >
+          <StudentRowCollectButton
+            studentId={student.id}
+            studentLabel={student.fullName}
+            classLabel={student.classLabel}
+            variant="primary"
+          />
+        </span>
       )}
 
-      <Link
-        href={studentHref}
-        aria-label={`Open ${student.fullName}`}
-        className="shrink-0 rounded-full p-1 text-muted-foreground/40 transition hover:bg-surface-2 hover:text-foreground"
-      >
-        <ChevronRight className="size-4" />
-      </Link>
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground/40 transition group-hover:text-muted-foreground" aria-hidden="true" />
     </li>
   );
 });
@@ -251,6 +282,7 @@ export const StudentListTable = React.memo(function StudentListTable({
   returnTo,
   session,
 }: StudentListTableProps) {
+  const router = useRouter();
   const withSession = (href: string) => appendSessionParam(href, session);
 
   if (students.length === 0) {
@@ -315,8 +347,10 @@ export const StudentListTable = React.memo(function StudentListTable({
                 key={student.id}
                 className="group cursor-pointer align-top even:bg-surface-2/30 hover:bg-surface-2 transition-colors border-b border-border/40"
                 style={{ contentVisibility: "auto", containIntrinsicSize: "0 56px" } as React.CSSProperties}
-                onClick={() => {
-                  window.location.href = withSession(`/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`);
+                onClick={(event) => {
+                  const target = event.target as HTMLElement | null;
+                  if (target && target.closest('[data-row-action="true"]')) return;
+                  router.push(withSession(`/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`));
                 }}
               >
                 <td className="relative px-4 py-3.5 text-sm font-mono text-foreground pl-6">
@@ -353,6 +387,7 @@ export const StudentListTable = React.memo(function StudentListTable({
                       {student.conventionalDiscountLabels.map((label) => (
                         <span
                           key={label}
+                          title={discountLabelHint(label)}
                           className="rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-semibold text-success-soft-foreground"
                         >
                           {label}

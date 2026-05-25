@@ -332,18 +332,13 @@ export function getMobilePrimaryNavigation(staffRole: StaffRole) {
     });
   }
 
-  items.push(
-    {
-      href: "/protected/defaulters",
-      label: "Dues",
-      icon: ClipboardList,
-    },
-    {
-      href: "/protected/receipts",
-      label: "Receipts",
+  if (hasRolePermission(staffRole, "receipts:view")) {
+    items.push({
+      href: "/protected/transactions",
+      label: "Transactions",
       icon: BookOpenCheck,
-    },
-  );
+    });
+  }
 
   return items;
 }

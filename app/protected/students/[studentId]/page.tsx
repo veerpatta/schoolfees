@@ -14,6 +14,7 @@ import { Money } from "@/components/ui/money";
 import { Notice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
 import { buildFeeBreakupDisplayRows } from "@/lib/fees/display-breakdown";
+import { getDefaultAcademicSessionLabel } from "@/lib/config/fee-rules";
 import {
   calculateInstallmentBasePending,
   calculateOverdueBaseAmount,
@@ -502,8 +503,30 @@ export default async function StudentDetailPage({
     </Section>
   );
 
+  const receiptsBySession = (() => {
+    const groups = new Map<string, typeof receipts>();
+    for (const receipt of receipts) {
+      let label = "Unknown";
+      try {
+        label = getDefaultAcademicSessionLabel(new Date(receipt.paymentDate));
+      } catch {
+        label = "Unknown";
+      }
+      const existing = groups.get(label) ?? [];
+      existing.push(receipt);
+      groups.set(label, existing);
+    }
+    return Array.from(groups.entries()).sort(([a], [b]) => {
+      if (a === "Unknown") return 1;
+      if (b === "Unknown") return -1;
+      return b.localeCompare(a);
+    });
+  })();
+
+  const activeSessionLabel = financialSnapshot?.policy.academicSessionLabel ?? null;
+
   const receiptsContent = (
-    <Section title="Receipts" description="Latest receipts and quick print/open actions for this student.">
+    <Section title="Receipts" description="Receipts across every academic session for this student.">
       {receipts.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border bg-surface-2/40 px-4 py-8 text-center">
           <p className="font-semibold text-foreground">No receipts found</p>
@@ -512,76 +535,105 @@ export default async function StudentDetailPage({
           </p>
         </div>
       ) : (
-        <>
-        <div className="md:hidden space-y-2">
-          {receipts.map((receipt) => (
-            <div key={receipt.id} className="rounded-lg border border-border bg-card px-4 py-3 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-sm">{receipt.receiptNumber}</span>
-                <Money value={receipt.totalAmount} size="sm" />
-              </div>
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{formatShortDate(receipt.paymentDate)}</span>
-                <span className="inline-flex items-center rounded-md bg-surface-3/50 px-2 py-0.5 font-medium">
-                  {receipt.paymentModeLabel}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                {receipt.referenceNumber ? (
-                  <span className="text-xs text-muted-foreground font-mono">
-                    Ref: {receipt.referenceNumber}
+        <div className="space-y-3">
+          {receiptsBySession.map(([sessionGroupLabel, sessionReceipts], groupIndex) => {
+            const totalAmount = sessionReceipts.reduce((sum, r) => sum + r.totalAmount, 0);
+            const isActive = sessionGroupLabel === activeSessionLabel;
+            const defaultOpen = isActive || groupIndex === 0;
+            return (
+              <details
+                key={sessionGroupLabel}
+                open={defaultOpen}
+                className="overflow-hidden rounded-lg border border-border bg-card"
+              >
+                <summary className="flex cursor-pointer items-center justify-between gap-3 bg-surface-2 px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-surface-2/80">
+                  <span className="flex items-center gap-2">
+                    Session {sessionGroupLabel}
+                    {isActive ? (
+                      <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent-soft-foreground">
+                        Current
+                      </span>
+                    ) : null}
                   </span>
-                ) : <span />}
-                <Button asChild size="sm" variant="outline" className="h-7 text-xs px-2">
-                  <Link href={`/protected/receipts/${receipt.id}?returnTo=${encodedReturnTo}`}>
-                    {canPrintReceipts ? "Print" : "Open"}
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          ))}
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {sessionReceipts.length} receipt{sessionReceipts.length === 1 ? "" : "s"} ·{" "}
+                    <Money value={totalAmount} size="xs" />
+                  </span>
+                </summary>
+
+                <div className="md:hidden divide-y divide-border/60">
+                  {sessionReceipts.map((receipt) => (
+                    <div key={receipt.id} className="px-4 py-3 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-sm">{receipt.receiptNumber}</span>
+                        <Money value={receipt.totalAmount} size="sm" />
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{formatShortDate(receipt.paymentDate)}</span>
+                        <span className="inline-flex items-center rounded-md bg-surface-3/50 px-2 py-0.5 font-medium">
+                          {receipt.paymentModeLabel}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        {receipt.referenceNumber ? (
+                          <span className="text-xs text-muted-foreground font-mono">
+                            Ref: {receipt.referenceNumber}
+                          </span>
+                        ) : <span />}
+                        <Button asChild size="sm" variant="outline" className="h-7 text-xs px-2">
+                          <Link href={`/protected/receipts/${receipt.id}?returnTo=${encodedReturnTo}`}>
+                            {canPrintReceipts ? "Print" : "Open"}
+                          </Link>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full min-w-[760px] text-left text-sm">
+                    <thead className="bg-surface-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-border">
+                      <tr>
+                        <th className="px-4 py-3">Receipt</th>
+                        <th className="px-4 py-3">Date</th>
+                        <th className="px-4 py-3">Mode</th>
+                        <th className="px-4 py-3 text-right">Amount</th>
+                        <th className="px-4 py-3">Reference</th>
+                        <th className="px-4 py-3">Received by</th>
+                        <th className="px-4 py-3 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      {sessionReceipts.map((receipt) => (
+                        <tr key={receipt.id} className="even:bg-surface-2/30 hover:bg-surface-2/10 transition-colors">
+                          <td className="px-4 py-3 font-semibold text-foreground">{receipt.receiptNumber}</td>
+                          <td className="px-4 py-3 font-mono tabular-nums text-muted-foreground">{formatShortDate(receipt.paymentDate)}</td>
+                          <td className="px-4 py-3 text-xs">
+                            <span className="inline-flex items-center rounded-md bg-surface-3/50 px-2 py-0.5 font-medium text-muted-foreground">
+                              {receipt.paymentModeLabel}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono tabular-nums font-semibold text-foreground">
+                            <Money value={receipt.totalAmount} size="sm" />
+                          </td>
+                          <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{receipt.referenceNumber ?? "—"}</td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground">{receipt.receivedBy || "—"}</td>
+                          <td className="px-4 py-3 text-right">
+                            <Button asChild size="sm" variant="outline" className="h-8">
+                              <Link href={`/protected/receipts/${receipt.id}?returnTo=${encodedReturnTo}`}>
+                                {canPrintReceipts ? "Print" : "Open"}
+                              </Link>
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            );
+          })}
         </div>
-        <div className="hidden md:block overflow-x-auto rounded-lg border border-border bg-card">
-          <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="bg-surface-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-border">
-              <tr>
-                <th className="px-4 py-3">Receipt</th>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Mode</th>
-                <th className="px-4 py-3 text-right">Amount</th>
-                <th className="px-4 py-3">Reference</th>
-                <th className="px-4 py-3">Received by</th>
-                <th className="px-4 py-3 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60">
-              {receipts.map((receipt) => (
-                <tr key={receipt.id} className="even:bg-surface-2/30 hover:bg-surface-2/10 transition-colors">
-                  <td className="px-4 py-3 font-semibold text-foreground">{receipt.receiptNumber}</td>
-                  <td className="px-4 py-3 font-mono tabular-nums text-muted-foreground">{formatShortDate(receipt.paymentDate)}</td>
-                  <td className="px-4 py-3 text-xs">
-                    <span className="inline-flex items-center rounded-md bg-surface-3/50 px-2 py-0.5 font-medium text-muted-foreground">
-                      {receipt.paymentModeLabel}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums font-semibold text-foreground">
-                    <Money value={receipt.totalAmount} size="sm" />
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{receipt.referenceNumber ?? "—"}</td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">{receipt.receivedBy || "—"}</td>
-                  <td className="px-4 py-3 text-right">
-                    <Button asChild size="sm" variant="outline" className="h-8">
-                      <Link href={`/protected/receipts/${receipt.id}?returnTo=${encodedReturnTo}`}>
-                        {canPrintReceipts ? "Print" : "Open"}
-                      </Link>
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        </>
       )}
     </Section>
   );
@@ -663,6 +715,14 @@ export default async function StudentDetailPage({
             confidence={familyMembersDetail.confidence}
             members={familyMembersDetail.members}
             sessionLabel={financialSnapshot?.policy.academicSessionLabel || "2026-27"}
+            canLinkSibling={canEditStudent}
+            currentStudent={{
+              fullName: student.fullName,
+              admissionNo: student.admissionNo,
+              classLabel: student.classLabel,
+              fatherName: student.fatherName ?? null,
+              primaryPhone: student.fatherPhone ?? student.motherPhone ?? null,
+            }}
           />
         </aside>
       </div>

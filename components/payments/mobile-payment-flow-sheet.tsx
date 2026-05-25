@@ -220,39 +220,111 @@ export function MobilePaymentFlowSheet({
       ) : null}
 
       {view === "class-picker" ? (
-        <div className="absolute bottom-0 left-0 right-0 max-h-[70svh] rounded-t-2xl border-t border-border bg-card flex flex-col overflow-y-auto">
+        <div className="absolute bottom-0 left-0 right-0 max-h-[88svh] rounded-t-2xl border-t border-border bg-card flex flex-col overflow-hidden">
           <SheetHandle swipeHandlers={classPickerSwipe} />
-          <h2 className="px-4 pb-2 text-base font-semibold text-foreground">Select Class</h2>
-          <div className="grid grid-cols-2 gap-2 p-4" style={{ paddingBottom: 'calc(var(--mobile-bottom-nav-offset, 4.25rem) + 0.5rem)' }}>
-            {classOptions.map((classOption) => {
-              const selected = classOption.id === selectedClassId;
-              const stats = getClassStats(classOption.id);
-
-              return (
-                <button
-                  key={classOption.id}
-                  type="button"
-                  className={cn(
-                    "relative flex flex-col items-start gap-0.5 min-h-[56px] w-full rounded-xl border px-3 py-2 text-sm transition-colors",
-                    selected
-                      ? "border-accent bg-accent-soft text-accent-soft-foreground"
-                      : "border-border bg-card hover:bg-surface-2 text-foreground",
-                  )}
-                  onClick={() => onSelectClass(classOption.id)}
-                >
-                  <span className="font-semibold">{classOption.label}</span>
-                  <span className="text-[11px] text-muted-foreground leading-none">
-                    {stats.total > 0
-                      ? stats.pendingTotal !== null
-                        ? `${stats.pendingCount} pending · ${formatInr(stats.pendingTotal)}`
-                        : `${stats.total} students`
-                      : null}
-                  </span>
-                  {selected ? <span className="absolute top-2 right-2 text-xs text-accent">✓</span> : null}
-                </button>
-              );
-            })}
+          <h2 className="px-4 pb-2 text-base font-semibold text-foreground">Collect Payment</h2>
+          <div className="flex-none px-3 pb-2">
+            <Input
+              placeholder="Search any student by name or SR no…"
+              value={studentSearchQuery}
+              onChange={(event) => onStudentSearchChange(event.target.value)}
+              autoComplete="off"
+              aria-label="Search students directly"
+            />
           </div>
+
+          {studentSearchQuery.trim().length > 0 ? (
+            <div
+              className="flex-1 overflow-y-auto px-3 pb-4"
+              style={{ paddingBottom: "calc(var(--mobile-bottom-nav-offset, 4.25rem) + 0.5rem)" }}
+            >
+              <p className="mb-1.5 text-[10px] uppercase text-muted-foreground">
+                {filteredStudents.length} match{filteredStudents.length === 1 ? "" : "es"}
+              </p>
+              {filteredStudents.length === 0 ? (
+                <p className="rounded-md border border-dashed border-border bg-surface-2 px-3 py-4 text-center text-xs text-muted-foreground">
+                  No students match this search. Try a different name or SR no.
+                </p>
+              ) : (
+                <ul className="divide-y divide-border overflow-hidden rounded-md border border-border bg-card">
+                  {filteredStudents.slice(0, 20).map((student) => {
+                    const pendingAmt = getStudentPendingAmount(student.id);
+                    return (
+                      <li key={student.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onSelectStudent(student.id);
+                          }}
+                          onMouseEnter={() => onPrefetchStudent(student.id, true)}
+                          onFocus={() => onPrefetchStudent(student.id, true)}
+                          className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left text-sm hover:bg-surface-2"
+                        >
+                          <div className="min-w-0">
+                            <p className="font-medium text-foreground truncate">{student.fullName}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {student.classLabel} · SR {student.admissionNo}
+                            </p>
+                          </div>
+                          {pendingAmt !== null ? (
+                            <span
+                              className={cn(
+                                "shrink-0 text-xs font-semibold tabular-nums",
+                                pendingAmt > 0 ? "text-destructive" : "text-success",
+                              )}
+                            >
+                              {pendingAmt > 0 ? formatInr(pendingAmt) : "Clear"}
+                            </span>
+                          ) : (
+                            <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">tap</span>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-y-auto">
+              <p className="px-4 pb-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+                Browse by class
+              </p>
+              <div
+                className="grid grid-cols-2 gap-2 px-3 pb-4"
+                style={{ paddingBottom: "calc(var(--mobile-bottom-nav-offset, 4.25rem) + 0.5rem)" }}
+              >
+                {classOptions.map((classOption) => {
+                  const selected = classOption.id === selectedClassId;
+                  const stats = getClassStats(classOption.id);
+
+                  return (
+                    <button
+                      key={classOption.id}
+                      type="button"
+                      className={cn(
+                        "relative flex flex-col items-start gap-0.5 min-h-[56px] w-full rounded-xl border px-3 py-2 text-sm transition-colors",
+                        selected
+                          ? "border-accent bg-accent-soft text-accent-soft-foreground"
+                          : "border-border bg-card hover:bg-surface-2 text-foreground",
+                      )}
+                      onClick={() => onSelectClass(classOption.id)}
+                    >
+                      <span className="font-semibold">{classOption.label}</span>
+                      <span className="text-[11px] text-muted-foreground leading-none">
+                        {stats.total > 0
+                          ? stats.pendingTotal !== null
+                            ? `${stats.pendingCount} pending · ${formatInr(stats.pendingTotal)}`
+                            : `${stats.total} students`
+                          : null}
+                      </span>
+                      {selected ? <span className="absolute top-2 right-2 text-xs text-accent">✓</span> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       ) : null}
 
