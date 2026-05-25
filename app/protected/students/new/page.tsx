@@ -85,6 +85,7 @@ export default async function NewStudentPage({ searchParams }: NewStudentPagePro
               conventionalDiscountFamilyGroup: "",
               conventionalDiscountManualOverrideReason: "",
               notes: "",
+              photoPath: "",
             }}
             action={createStudentAction}
           />

@@ -42,6 +42,7 @@ const initialValues = {
   conventionalDiscountFamilyGroup: "",
   conventionalDiscountManualOverrideReason: "",
   notes: "",
+  photoPath: "",
 };
 
 describe("student form accessibility", () => {

@@ -7,6 +7,7 @@ import { ValueStatePill } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { StudentPhotoUpload } from "@/components/students/student-photo-upload";
 import type { ConventionalDiscountPolicy } from "@/lib/fees/types";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { STUDENT_STATUSES } from "@/lib/students/constants";
@@ -44,6 +45,7 @@ type StudentFormValues = {
   conventionalDiscountFamilyGroup: string;
   conventionalDiscountManualOverrideReason: string;
   notes: string;
+  photoPath: string;
 };
 
 type StudentFormProps = {
@@ -371,6 +373,12 @@ export function StudentForm({
               defaultValue={values.address}
               className={`${textAreaClassName} mt-2`}
             />
+          </div>
+          <div className="md:col-span-2">
+            <Label>Student photo (optional)</Label>
+            <div className="mt-2">
+              <StudentPhotoUpload inputName="photoPath" initialPath={values.photoPath || null} />
+            </div>
           </div>
         </div>
       </details>

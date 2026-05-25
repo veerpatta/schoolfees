@@ -50,6 +50,7 @@ type StudentListRow = {
   primary_phone: string | null;
   secondary_phone: string | null;
   updated_at: string;
+  photo_path: string | null;
   class_ref: StudentJoinClass | StudentJoinClass[] | null;
   route_ref: StudentJoinRoute | StudentJoinRoute[] | null;
 };
@@ -68,6 +69,7 @@ type StudentDetailRow = {
   transport_route_id: string | null;
   status: StudentDetail["status"];
   notes: string | null;
+  photo_path: string | null;
   created_at: string;
   updated_at: string;
   class_ref: StudentJoinClass | StudentJoinClass[] | null;
@@ -768,7 +770,7 @@ async function getStudentsPageUncached(
   let query = supabase
     .from("students")
     .select(
-      "id, admission_no, full_name, date_of_birth, status, primary_phone, secondary_phone, updated_at, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code)",
+      "id, admission_no, full_name, date_of_birth, status, primary_phone, secondary_phone, updated_at, photo_path, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code)",
       { count: "exact" },
     )
     .eq("class_ref.status", "active")
@@ -1024,6 +1026,7 @@ async function getStudentsPageUncached(
       conventionalDiscountLabels: conventionalDiscountMap.get(row.id) ?? [],
       siblingPill: siblingPillMap.get(row.id) ?? null,
       updatedAt: row.updated_at,
+      photoPath: row.photo_path,
     } satisfies StudentListItem;
   });
 
@@ -1057,7 +1060,7 @@ async function getStudentDetailUncached(studentId: string): Promise<StudentDetai
     supabase
       .from("students")
       .select(
-        "id, admission_no, full_name, date_of_birth, father_name, mother_name, primary_phone, secondary_phone, address, class_id, transport_route_id, status, notes, created_at, updated_at, class_ref:classes(id, session_label, class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code)",
+        "id, admission_no, full_name, date_of_birth, father_name, mother_name, primary_phone, secondary_phone, address, class_id, transport_route_id, status, notes, photo_path, created_at, updated_at, class_ref:classes(id, session_label, class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code)",
       )
       .eq("id", studentId)
       .maybeSingle(),
@@ -1140,6 +1143,7 @@ async function getStudentDetailUncached(studentId: string): Promise<StudentDetai
     tuitionBeforeConventionalDiscount,
     tuitionAfterConventionalDiscount,
     notes: row.notes,
+    photoPath: row.photo_path,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   } satisfies StudentDetail;
@@ -1174,6 +1178,7 @@ export async function createStudent(payload: StudentValidatedInput) {
         transport_route_id: payload.transportRouteId,
         status: payload.status,
         notes: payload.notes,
+        photo_path: payload.photoPath,
       })
       .select("id")
       .single();
@@ -1227,6 +1232,7 @@ export async function updateStudent(studentId: string, payload: StudentValidated
       transport_route_id: payload.transportRouteId,
       status: payload.status,
       notes: payload.notes,
+      photo_path: payload.photoPath,
     })
     .eq("id", studentId)
     .select("id")
@@ -1340,6 +1346,54 @@ export async function getStudentDeletionSafety(studentId: string): Promise<Stude
     admissionNo: student.admissionNo,
     fullName: student.fullName,
   };
+}
+
+export type BulkStudentUpdatePatch = {
+  classId?: string | null;
+  transportRouteId?: string | null;
+  status?: import("@/lib/db/types").StudentStatus | null;
+};
+
+export async function bulkUpdateStudentFields(
+  studentIds: readonly string[],
+  patch: BulkStudentUpdatePatch,
+) {
+  const trimmedIds = studentIds.map((id) => id.trim()).filter(Boolean);
+
+  if (trimmedIds.length === 0) {
+    return { updatedCount: 0 };
+  }
+
+  const updates: Record<string, unknown> = {};
+
+  if (patch.classId !== undefined) {
+    updates.class_id = patch.classId;
+  }
+
+  if (patch.transportRouteId !== undefined) {
+    updates.transport_route_id = patch.transportRouteId;
+  }
+
+  if (patch.status !== undefined && patch.status !== null) {
+    updates.status = patch.status;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return { updatedCount: 0 };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("students")
+    .update(updates)
+    .in("id", trimmedIds)
+    .select("id");
+
+  if (error) {
+    throw new Error(`Unable to bulk-update students: ${error.message}`);
+  }
+
+  return { updatedCount: (data ?? []).length };
 }
 
 export async function archiveStudent(studentId: string) {

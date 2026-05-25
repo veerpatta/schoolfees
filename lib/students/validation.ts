@@ -88,6 +88,7 @@ export function getStudentFormInput(formData: FormData): StudentFormInput {
       formData.get("conventionalDiscountManualOverrideReason"),
     ),
     notes: asTrimmedString(formData.get("notes")),
+    photoPath: asTrimmedString(formData.get("photoPath")),
   };
 }
 
@@ -253,6 +254,7 @@ export function validateStudentInput(
         500,
       ),
       notes: normalizeNullableText(input.notes, 1000),
+      photoPath: normalizeNullableText(input.photoPath, 500),
     },
   };
 }

@@ -522,6 +522,7 @@ export function executeStudentImportDryRun({
         conventionalDiscountFamilyGroup: conventionalFamilyGroup,
         conventionalDiscountManualOverrideReason: "",
         notes,
+        photoPath: "",
       },
       {
         classIds,

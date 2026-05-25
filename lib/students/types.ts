@@ -73,6 +73,7 @@ export type StudentListItem = {
   conventionalDiscountLabels: string[];
   siblingPill?: StudentSiblingPill | null;
   updatedAt: string;
+  photoPath?: string | null;
 };
 
 export type StudentSiblingPill = {
@@ -138,6 +139,7 @@ export type StudentDetail = {
   tuitionBeforeConventionalDiscount: number;
   tuitionAfterConventionalDiscount: number;
   notes: string | null;
+  photoPath: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -191,6 +193,7 @@ export type StudentFormInput = {
   conventionalDiscountFamilyGroup: string;
   conventionalDiscountManualOverrideReason: string;
   notes: string;
+  photoPath: string;
 };
 
 export type StudentValidatedInput = {
@@ -220,6 +223,7 @@ export type StudentValidatedInput = {
   conventionalDiscountFamilyGroup: string | null;
   conventionalDiscountManualOverrideReason: string | null;
   notes: string | null;
+  photoPath: string | null;
 };
 
 export type StudentFormFieldErrors = Partial<Record<keyof StudentFormInput, string>>;

@@ -97,6 +97,7 @@ describe("createStudent", () => {
       conventionalDiscountFamilyGroup: null,
       conventionalDiscountManualOverrideReason: null,
       notes: null,
+      photoPath: null,
     });
 
     expect(studentId).toBe("student-1");
@@ -140,6 +141,7 @@ describe("createStudent", () => {
       conventionalDiscountFamilyGroup: null,
       conventionalDiscountManualOverrideReason: null,
       notes: null,
+      photoPath: null,
     });
 
     expect(upsertStudentFeeOverride).toHaveBeenLastCalledWith(

@@ -33,6 +33,7 @@ function baseInput(overrides: Record<string, string> = {}) {
     conventionalDiscountFamilyGroup: "",
     conventionalDiscountManualOverrideReason: "",
     notes: "",
+    photoPath: "",
     ...overrides,
   };
 }

@@ -1,5 +1,8 @@
+import Link from "next/link";
+
 import { FeeSetupClient } from "@/components/fees/fee-setup-client";
 import { PageHeader } from "@/components/admin/page-header";
+import { Button } from "@/components/ui/button";
 import { getFeeSetupPageData } from "@/lib/fees/data";
 import { INITIAL_FEE_SETUP_ACTION_STATE } from "@/lib/fees/types";
 import { getMasterDataPageData } from "@/lib/master-data/data";
@@ -53,6 +56,11 @@ export default async function FeeSetupPage({ searchParams }: FeeSetupPageProps) 
         eyebrow="Fee Setup"
         title="Academic Year Fee Setup"
         description="Set yearly fees, due dates, class fees, and transport fees. Saving syncs dues automatically."
+        actions={
+          <Button asChild variant="outline">
+            <Link href="/protected/fee-setup/time-travel">Time travel</Link>
+          </Button>
+        }
       />
 
       <FeeSetupClient

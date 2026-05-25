@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 import { SectionCard } from "@/components/admin/section-card";
 import { SavedViewsTabs } from "@/components/data-table/saved-views-tabs";
 import { SummaryRow, SummaryCell } from "@/components/data-table/summary-row";
+import { BulkStudentEditBar } from "@/components/students/bulk-student-edit-bar";
 import { StudentListTable } from "@/components/students/student-list-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +71,30 @@ export function StudentQuickLoad({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [srBannerDismissed, setSrBannerDismissed] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const toggleSelection = useCallback((studentId: string) => {
+    setSelectedIds((previous) =>
+      previous.includes(studentId)
+        ? previous.filter((id) => id !== studentId)
+        : [...previous, studentId],
+    );
+  }, []);
+  const toggleAllSelection = useCallback(
+    (studentIds: ReadonlyArray<string>, shouldSelect: boolean) => {
+      setSelectedIds((previous) => {
+        if (shouldSelect) {
+          const merged = new Set(previous);
+          for (const id of studentIds) merged.add(id);
+          return [...merged];
+        }
+
+        const toRemove = new Set(studentIds);
+        return previous.filter((id) => !toRemove.has(id));
+      });
+    },
+    [],
+  );
+  const clearSelection = useCallback(() => setSelectedIds([]), []);
   const searchRef = useRef<HTMLInputElement>(null);
   const isFirstRender = useRef(true);
   const defaultStatusIsActive = filters.status === "active";
@@ -650,6 +675,11 @@ export function StudentQuickLoad({
               returnTo={returnTo}
               session={initialFilters.sessionLabel}
               lastViewedByUser={lastViewedByUser}
+              selection={canWrite ? {
+                selectedIds,
+                onToggle: toggleSelection,
+                onToggleAll: toggleAllSelection,
+              } : undefined}
             />
           )}
 
@@ -669,7 +699,7 @@ export function StudentQuickLoad({
         </div>
       </SectionCard>
 
-      {canWrite && (
+      {canWrite && selectedIds.length === 0 && (
         <Link
           href={withSession(`/protected/students/new?sessionLabel=${encodeURIComponent(initialFilters.sessionLabel || "")}`)}
           className="fixed bottom-24 right-4 z-30 flex size-14 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg hover:bg-accent/90 active:scale-95 transition-all md:hidden"
@@ -678,6 +708,15 @@ export function StudentQuickLoad({
           <Plus className="size-6" />
         </Link>
       )}
+
+      {canWrite ? (
+        <BulkStudentEditBar
+          selectedIds={selectedIds}
+          classOptions={classOptions}
+          routeOptions={routeOptions}
+          onClearSelection={clearSelection}
+        />
+      ) : null}
     </>
   );
 }

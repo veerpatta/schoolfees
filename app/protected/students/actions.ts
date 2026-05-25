@@ -2,6 +2,7 @@
 
 import { recordActivity } from "@/lib/activity/events";
 import {
+  bulkUpdateStudentFields,
   createStudent,
   archiveStudent,
   hardDeleteStudent,
@@ -10,6 +11,7 @@ import {
   getStudentDeletionSafety,
   updateStudent,
 } from "@/lib/students/data";
+import type { StudentStatus } from "@/lib/db/types";
 import { parseAcademicSessionLabel } from "@/lib/config/fee-rules";
 import { applyThirdChildPolicyForStudentFamilies } from "@/lib/fees/conventional-discounts";
 import {
@@ -446,6 +448,227 @@ export async function hardDeleteStudentAction(formData: FormData) {
     action: "deleted",
     affectedStudentIds: [studentId],
   });
+}
+
+export type BulkStudentEditResult = {
+  status: "success" | "error";
+  message: string;
+  updatedCount: number;
+  attemptedCount: number;
+};
+
+const STUDENT_STATUS_OPTIONS: ReadonlySet<StudentStatus> = new Set<StudentStatus>([
+  "active",
+  "inactive",
+  "left",
+  "graduated",
+]);
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export async function bulkUpdateStudentsAction(
+  formData: FormData,
+): Promise<BulkStudentEditResult> {
+  const staffSession = await requireStaffPermission("students:write");
+
+  const studentIds = Array.from(
+    new Set(
+      formData
+        .getAll("studentIds")
+        .map((value) => (typeof value === "string" ? value.trim() : ""))
+        .filter((value) => UUID_REGEX.test(value)),
+    ),
+  );
+
+  if (studentIds.length === 0) {
+    return {
+      status: "error",
+      message: "Select at least one student to update.",
+      updatedCount: 0,
+      attemptedCount: 0,
+    };
+  }
+
+  const rawClassId = (formData.get("classId") ?? "").toString().trim();
+  const rawRouteId = (formData.get("transportRouteId") ?? "").toString().trim();
+  const rawRouteClear = (formData.get("transportRouteClear") ?? "").toString().trim() === "yes";
+  const rawStatus = (formData.get("status") ?? "").toString().trim();
+
+  const patch: Parameters<typeof bulkUpdateStudentFields>[1] = {};
+
+  if (rawClassId) {
+    if (!UUID_REGEX.test(rawClassId)) {
+      return {
+        status: "error",
+        message: "Selected class is invalid.",
+        updatedCount: 0,
+        attemptedCount: studentIds.length,
+      };
+    }
+
+    const supabase = await createClient();
+    const { data: classRow, error: classLookupError } = await supabase
+      .from("classes")
+      .select("id, session_label, is_active")
+      .eq("id", rawClassId)
+      .maybeSingle();
+
+    if (classLookupError) {
+      return {
+        status: "error",
+        message: `Class lookup failed: ${classLookupError.message}`,
+        updatedCount: 0,
+        attemptedCount: studentIds.length,
+      };
+    }
+
+    if (!classRow || classRow.is_active === false) {
+      return {
+        status: "error",
+        message: "Selected class is not active in the current session.",
+        updatedCount: 0,
+        attemptedCount: studentIds.length,
+      };
+    }
+
+    const { data: feeSettingRow, error: feeSettingError } = await supabase
+      .from("fee_settings")
+      .select("id")
+      .eq("class_id", rawClassId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (feeSettingError) {
+      return {
+        status: "error",
+        message: `Fee setup lookup failed: ${feeSettingError.message}`,
+        updatedCount: 0,
+        attemptedCount: studentIds.length,
+      };
+    }
+
+    if (!feeSettingRow) {
+      return {
+        status: "error",
+        message:
+          "Selected class has no active fee settings. Open Fee Setup for this class before bulk-assigning students.",
+        updatedCount: 0,
+        attemptedCount: studentIds.length,
+      };
+    }
+
+    patch.classId = rawClassId;
+  }
+
+  if (rawRouteClear) {
+    patch.transportRouteId = null;
+  } else if (rawRouteId) {
+    if (!UUID_REGEX.test(rawRouteId)) {
+      return {
+        status: "error",
+        message: "Selected transport route is invalid.",
+        updatedCount: 0,
+        attemptedCount: studentIds.length,
+      };
+    }
+    patch.transportRouteId = rawRouteId;
+  }
+
+  if (rawStatus) {
+    if (!STUDENT_STATUS_OPTIONS.has(rawStatus as StudentStatus)) {
+      return {
+        status: "error",
+        message: "Selected status is not allowed.",
+        updatedCount: 0,
+        attemptedCount: studentIds.length,
+      };
+    }
+    patch.status = rawStatus as StudentStatus;
+  }
+
+  if (Object.keys(patch).length === 0) {
+    return {
+      status: "error",
+      message: "Choose at least one field to update.",
+      updatedCount: 0,
+      attemptedCount: studentIds.length,
+    };
+  }
+
+  let updatedCount = 0;
+
+  try {
+    const result = await bulkUpdateStudentFields(studentIds, patch);
+    updatedCount = result.updatedCount;
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Bulk update failed unexpectedly.";
+    return {
+      status: "error",
+      message,
+      updatedCount: 0,
+      attemptedCount: studentIds.length,
+    };
+  }
+
+  let syncOutcome: OfficeSyncOutcome | null = null;
+  try {
+    const duesResult = await prepareDuesForStudentsAutomatically({
+      studentIds,
+      reason: "Bulk student edit",
+    });
+    syncOutcome = buildStudentDuesSyncOutcome({
+      sessionLabel: duesResult.raw?.academicSessionLabel || "unknown",
+      studentIds,
+      duesResult,
+    });
+  } catch (error) {
+    syncOutcome = buildFailedOfficeSyncOutcome({
+      sessionLabel: "unknown",
+      affectedStudentIds: studentIds,
+      error,
+    });
+  }
+
+  revalidateFinanceSurfaces({ studentIds });
+
+  await publishOfficeSyncEvent({
+    sessionLabel: syncOutcome?.sessionLabel ?? "unknown",
+    entityType: "student",
+    entityId: null,
+    action: "bulk_updated",
+    affectedStudentIds: studentIds,
+    metadata: {
+      patch,
+      status: syncOutcome?.status ?? "unknown",
+      updatedCount,
+    },
+  });
+
+  await Promise.all(
+    studentIds.map((studentId) =>
+      recordActivity({
+        userId: (staffSession?.id as string | undefined) ?? null,
+        kind: "student_edited",
+        refId: studentId,
+        payload: {
+          source: "bulk_edit",
+          patch,
+        },
+      }),
+    ),
+  );
+
+  return {
+    status: "success",
+    message:
+      updatedCount === studentIds.length
+        ? `Updated ${updatedCount} student${updatedCount === 1 ? "" : "s"}.`
+        : `Updated ${updatedCount} of ${studentIds.length} selected students.`,
+    updatedCount,
+    attemptedCount: studentIds.length,
+  };
 }
 
 export async function realignRecentImportsToActiveSessionAction(): Promise<{

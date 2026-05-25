@@ -98,6 +98,7 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
             conventionalDiscountManualOverrideReason:
               student.conventionalDiscountManualOverrideReason ?? "",
             notes: student.notes ?? "",
+            photoPath: student.photoPath ?? "",
           }}
           returnTo={sessionAwareReturnTo}
           action={updateStudentAction.bind(null, student.id)}

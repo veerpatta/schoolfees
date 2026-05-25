@@ -1347,6 +1347,7 @@ function buildImportStudentInput(
       useExisting && !hasMappedValue(row, mapping, "notes")
         ? existing?.notes ?? null
         : payload.notes,
+    photoPath: useExisting ? existing?.photoPath ?? null : null,
   };
 }
 

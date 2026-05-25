@@ -7,6 +7,7 @@ import { Users, GraduationCap, ShieldAlert, ChevronRight, Phone, AlertTriangle, 
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { StudentAvatar } from "@/components/students/student-avatar";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { timeAgoShort } from "@/lib/helpers/time-ago";
@@ -24,6 +25,12 @@ type StudentListTableProps = {
   session?: string;
   /** Map of studentId → last student_view event ISO timestamp by current user. */
   lastViewedByUser?: Record<string, string>;
+  /** When provided, the table renders a multi-select checkbox column. */
+  selection?: {
+    selectedIds: ReadonlyArray<string>;
+    onToggle: (studentId: string) => void;
+    onToggleAll: (studentIds: ReadonlyArray<string>, shouldSelect: boolean) => void;
+  };
 };
 
 function OutstandingCell({ student }: { student: StudentListItem }) {
@@ -169,12 +176,16 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
   session,
   canWrite,
   lastViewedAt,
+  isSelected,
+  onToggleSelection,
 }: {
   student: StudentListItem;
   returnTo: string;
   session?: string;
   canWrite: boolean;
   lastViewedAt?: string | null;
+  isSelected?: boolean;
+  onToggleSelection?: (studentId: string) => void;
 }) {
   const withSession = (href: string) => appendSessionParam(href, session);
   const srNoMissing = student.status === "active" && !student.admissionNo.trim();
@@ -218,6 +229,20 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
           ? "bg-destructive"
           : "bg-warning"
       )} />
+
+      {onToggleSelection && canWrite ? (
+        <span data-row-action="true" className="shrink-0" onClick={(event) => event.stopPropagation()}>
+          <input
+            type="checkbox"
+            aria-label={`Select ${student.fullName}`}
+            checked={isSelected ?? false}
+            onChange={() => onToggleSelection(student.id)}
+            className="size-5 accent-primary"
+          />
+        </span>
+      ) : null}
+
+      <StudentAvatar photoPath={student.photoPath} fullName={student.fullName} size="sm" />
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -292,9 +317,24 @@ export const StudentListTable = React.memo(function StudentListTable({
   returnTo,
   session,
   lastViewedByUser,
+  selection,
 }: StudentListTableProps) {
   const router = useRouter();
   const withSession = (href: string) => appendSessionParam(href, session);
+  const selectedIdSet = React.useMemo(
+    () => new Set(selection?.selectedIds ?? []),
+    [selection?.selectedIds],
+  );
+  const visibleStudentIds = React.useMemo(
+    () => students.map((student) => student.id),
+    [students],
+  );
+  const allVisibleSelected =
+    selection !== undefined &&
+    visibleStudentIds.length > 0 &&
+    visibleStudentIds.every((id) => selectedIdSet.has(id));
+  const someVisibleSelected =
+    selection !== undefined && visibleStudentIds.some((id) => selectedIdSet.has(id));
 
   if (students.length === 0) {
     return (
@@ -324,12 +364,28 @@ export const StudentListTable = React.memo(function StudentListTable({
             session={session}
             canWrite={canWrite}
             lastViewedAt={lastViewedByUser?.[student.id] ?? null}
+            isSelected={selectedIdSet.has(student.id)}
+            onToggleSelection={selection ? selection.onToggle : undefined}
           />
         ))}
       </ul>
       <table className="hidden min-w-full divide-y divide-border/60 md:table">
         <thead className="bg-surface-2">
           <tr>
+            {selection && canWrite ? (
+              <th className="w-10 px-3 py-3 text-left">
+                <input
+                  type="checkbox"
+                  aria-label={allVisibleSelected ? "Deselect all visible students" : "Select all visible students"}
+                  checked={allVisibleSelected}
+                  ref={(node) => {
+                    if (node) node.indeterminate = !allVisibleSelected && someVisibleSelected;
+                  }}
+                  onChange={() => selection.onToggleAll(visibleStudentIds, !allVisibleSelected)}
+                  className="size-4 accent-primary"
+                />
+              </th>
+            ) : null}
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground pl-6">
               SR no
             </th>
@@ -365,6 +421,17 @@ export const StudentListTable = React.memo(function StudentListTable({
                   router.push(withSession(`/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`));
                 }}
               >
+                {selection && canWrite ? (
+                  <td className="w-10 px-3 py-3.5" data-row-action="true" onClick={(event) => event.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${student.fullName}`}
+                      checked={selectedIdSet.has(student.id)}
+                      onChange={() => selection.onToggle(student.id)}
+                      className="size-4 accent-primary"
+                    />
+                  </td>
+                ) : null}
                 <td className="relative px-4 py-3.5 text-sm font-mono text-foreground pl-6">
                   {/* Visual Dues Indicator Strip */}
                   <div className={cn(
@@ -381,6 +448,7 @@ export const StudentListTable = React.memo(function StudentListTable({
                 </td>
                 <td className="px-4 py-3.5">
                   <div className="flex flex-wrap items-center gap-2">
+                    <StudentAvatar photoPath={student.photoPath} fullName={student.fullName} size="sm" />
                     <p className="text-sm font-semibold text-foreground">{student.fullName}</p>
                     {student.status !== "active" && (
                       <StudentStatusBadge status={student.status} />

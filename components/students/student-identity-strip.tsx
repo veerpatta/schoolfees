@@ -15,6 +15,7 @@ import {
 
 import { StudentStatusBadge } from "@/components/students/student-status-badge";
 import { StudentRowCollectButton } from "@/components/students/student-row-collect-button";
+import { StudentAvatar } from "@/components/students/student-avatar";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
@@ -42,6 +43,7 @@ type StudentIdentityStripProps = {
     fatherName: string | null;
     fatherPhone: string | null;
     motherPhone: string | null;
+    photoPath?: string | null;
   };
   outstandingAmount: number;
   overdueAmount: number;
@@ -261,12 +263,21 @@ export function StudentIdentityStrip({
         <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
           <div className="p-5 sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-              <div
-                aria-hidden="true"
-                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-border bg-primary text-xl font-bold tracking-wider text-primary-foreground shadow-xs"
-              >
-                {initials}
-              </div>
+              {student.photoPath ? (
+                <StudentAvatar
+                  photoPath={student.photoPath}
+                  fullName={student.fullName}
+                  size="lg"
+                  className="rounded-xl shadow-xs"
+                />
+              ) : (
+                <div
+                  aria-hidden="true"
+                  className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-border bg-primary text-xl font-bold tracking-wider text-primary-foreground shadow-xs"
+                >
+                  {initials}
+                </div>
+              )}
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
