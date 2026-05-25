@@ -6,12 +6,12 @@ import { StudentAboutPanel } from "@/components/students/student-about-panel";
 import { StudentDangerZone } from "@/components/students/student-danger-zone";
 import { StudentIdentityStrip } from "@/components/students/student-identity-strip";
 import { StudentQuickReference } from "@/components/students/student-quick-reference";
+import { StudentReceiptsPanel } from "@/components/students/student-receipts-panel";
 import { StudentStatCards } from "@/components/students/student-stat-cards";
 import { StudentWorkspaceTabs } from "@/components/students/student-workspace-tabs";
 import { StudentFamilyPanel } from "@/components/students/family-panel";
 import { StudentFinanceGlance } from "@/components/students/student-finance-glance";
 import { CloseDueTrigger } from "@/components/students/close-due-trigger";
-import { Button } from "@/components/ui/button";
 import { Money } from "@/components/ui/money";
 import { Notice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
@@ -631,116 +631,32 @@ export default async function StudentDetailPage({
   const activeSessionLabel = financialSnapshot?.policy.academicSessionLabel ?? null;
 
   const receiptsContent = (
-    <Section title="Receipts" description="Receipts across every academic session for this student.">
-      {receipts.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-surface-2/40 px-4 py-8 text-center">
-          <p className="font-semibold text-foreground">No receipts found</p>
-          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-            No receipt records exist for this student yet.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {receiptsBySession.map(([sessionGroupLabel, sessionReceipts], groupIndex) => {
-            const totalAmount = sessionReceipts.reduce((sum, r) => sum + r.totalAmount, 0);
-            const isActive = sessionGroupLabel === activeSessionLabel;
-            const defaultOpen = isActive || groupIndex === 0;
-            return (
-              <details
-                key={sessionGroupLabel}
-                open={defaultOpen}
-                className="overflow-hidden rounded-lg border border-border bg-card"
-              >
-                <summary className="flex cursor-pointer items-center justify-between gap-3 bg-surface-2 px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-surface-2/80">
-                  <span className="flex items-center gap-2">
-                    Session {sessionGroupLabel}
-                    {isActive ? (
-                      <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent-soft-foreground">
-                        Current
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="text-xs font-medium text-muted-foreground">
-                    {sessionReceipts.length} receipt{sessionReceipts.length === 1 ? "" : "s"} ·{" "}
-                    <Money value={totalAmount} size="xs" />
-                  </span>
-                </summary>
-
-                <div className="md:hidden divide-y divide-border/60">
-                  {sessionReceipts.map((receipt) => (
-                    <div key={receipt.id} className="px-4 py-3 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-sm">{receipt.receiptNumber}</span>
-                        <Money value={receipt.totalAmount} size="sm" />
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{formatShortDate(receipt.paymentDate)}</span>
-                        <span className="inline-flex items-center rounded-md bg-surface-3/50 px-2 py-0.5 font-medium">
-                          {receipt.paymentModeLabel}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        {receipt.referenceNumber ? (
-                          <span className="text-xs text-muted-foreground font-mono">
-                            Ref: {receipt.referenceNumber}
-                          </span>
-                        ) : <span />}
-                        <Button asChild size="sm" variant="outline" className="h-7 text-xs px-2">
-                          <Link href={`/protected/receipts/${receipt.id}?returnTo=${encodedReturnTo}`}>
-                            {canPrintReceipts ? "Print" : "Open"}
-                          </Link>
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full min-w-[760px] text-left text-sm">
-                    <thead className="bg-surface-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-border">
-                      <tr>
-                        <th className="px-4 py-3">Receipt</th>
-                        <th className="px-4 py-3">Date</th>
-                        <th className="px-4 py-3">Mode</th>
-                        <th className="px-4 py-3 text-right">Amount</th>
-                        <th className="px-4 py-3">Reference</th>
-                        <th className="px-4 py-3">Received by</th>
-                        <th className="px-4 py-3 text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/60">
-                      {sessionReceipts.map((receipt) => (
-                        <tr key={receipt.id} className="even:bg-surface-2/30 hover:bg-surface-2/10 transition-colors">
-                          <td className="px-4 py-3 font-semibold text-foreground">{receipt.receiptNumber}</td>
-                          <td className="px-4 py-3 font-mono tabular-nums text-muted-foreground">{formatShortDate(receipt.paymentDate)}</td>
-                          <td className="px-4 py-3 text-xs">
-                            <span className="inline-flex items-center rounded-md bg-surface-3/50 px-2 py-0.5 font-medium text-muted-foreground">
-                              {receipt.paymentModeLabel}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right font-mono tabular-nums font-semibold text-foreground">
-                            <Money value={receipt.totalAmount} size="sm" />
-                          </td>
-                          <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{receipt.referenceNumber ?? "—"}</td>
-                          <td className="px-4 py-3 text-xs text-muted-foreground">{receipt.receivedBy || "—"}</td>
-                          <td className="px-4 py-3 text-right">
-                            <Button asChild size="sm" variant="outline" className="h-8">
-                              <Link href={`/protected/receipts/${receipt.id}?returnTo=${encodedReturnTo}`}>
-                                {canPrintReceipts ? "Print" : "Open"}
-                              </Link>
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </details>
-            );
-          })}
-        </div>
-      )}
-    </Section>
+    <StudentReceiptsPanel
+      receipts={receipts.map((r) => ({
+        id: r.id,
+        receiptNumber: r.receiptNumber,
+        paymentDate: r.paymentDate,
+        totalAmount: r.totalAmount,
+        paymentModeLabel: r.paymentModeLabel,
+        referenceNumber: r.referenceNumber,
+        receivedBy: r.receivedBy,
+      }))}
+      receiptsBySession={receiptsBySession.map(([sessionLabel, list]) => ({
+        sessionLabel,
+        receipts: list.map((r) => ({
+          id: r.id,
+          receiptNumber: r.receiptNumber,
+          paymentDate: r.paymentDate,
+          totalAmount: r.totalAmount,
+          paymentModeLabel: r.paymentModeLabel,
+          referenceNumber: r.referenceNumber,
+          receivedBy: r.receivedBy,
+        })),
+      }))}
+      activeSessionLabel={activeSessionLabel}
+      canPrintReceipts={canPrintReceipts}
+      encodedReturnTo={encodedReturnTo}
+    />
   );
 
   return (

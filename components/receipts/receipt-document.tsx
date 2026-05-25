@@ -134,6 +134,12 @@ type ReceiptDocumentProps = {
   mode?: ReceiptDocumentMode;
   /** Density. Compact collapses the heavier audit sections behind summary toggles. */
   density?: "full" | "compact";
+  /**
+   * When false, the per-receipt `@page` size rule is omitted so the surrounding
+   * page can control pagination (e.g. batch reprint of family receipts on A4
+   * with one receipt per page).
+   */
+  embedPageStyles?: boolean;
 };
 
 type ReceiptDocumentMode = "print" | "draft" | "saved";
@@ -208,6 +214,7 @@ export function ReceiptDocument({
   className,
   mode = "print",
   density = "full",
+  embedPageStyles = true,
 }: ReceiptDocumentProps) {
   const breakdownTotal = receipt.breakdown.reduce((sum, item) => sum + item.amount, 0);
   const isDraft = mode === "draft";
@@ -219,10 +226,10 @@ export function ReceiptDocument({
       className={`receipt-body receipt-print-page anim-slide-up relative mx-auto w-full max-w-5xl overflow-hidden rounded-lg border border-border bg-card p-3 text-foreground shadow-sm sm:p-5 print:max-w-none print:rounded-none print:border-border-strong print:p-0 print:shadow-none ${className ?? ""}`.trim()}
     >
       <style>{`
-        @page {
+        ${embedPageStyles ? `@page {
           size: 80mm auto;
           margin: 4mm;
-        }
+        }` : ""}
 
         .receipt-print-page {
           print-color-adjust: exact;

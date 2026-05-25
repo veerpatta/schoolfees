@@ -156,14 +156,26 @@ export function StudentFamilyPanel({
         {/* Action Buttons */}
         <div className="grid gap-2">
           {confidence === "confirmed" && familyGroupId ? (
-            <Button asChild size="sm" variant="outline" className="w-full">
-              <Link
-                href={withSession(`/protected/students/family/${encodeURIComponent(familyGroupId)}/statement`)}
-                target="_blank"
-              >
-                Print Family Statement
-              </Link>
-            </Button>
+            <>
+              <Button asChild size="sm" variant="outline" className="w-full">
+                <Link
+                  href={withSession(`/protected/students/family/${encodeURIComponent(familyGroupId)}/statement`)}
+                  target="_blank"
+                >
+                  Print Family Statement
+                </Link>
+              </Button>
+              <Button asChild size="sm" variant="outline" className="w-full">
+                <Link
+                  href={withSession(
+                    `/protected/students/family/${encodeURIComponent(familyGroupId)}/receipts?print=1`,
+                  )}
+                  target="_blank"
+                >
+                  Reprint all family receipts
+                </Link>
+              </Button>
+            </>
           ) : (
             <Button asChild size="sm" variant="outline" className="w-full">
               <Link href={withSession(`/protected/students/families?search=${encodeURIComponent(studentId)}`)}>

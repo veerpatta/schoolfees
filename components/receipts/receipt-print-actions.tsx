@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -14,6 +14,18 @@ export function ReceiptPrintActions({
   backHref = "/protected/receipts",
   autoPrint = false,
 }: ReceiptPrintActionsProps) {
+  const [showPdfHint, setShowPdfHint] = useState(false);
+
+  // Hide the PDF hint after the print dialog closes (afterprint).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    function handleAfterPrint() {
+      setShowPdfHint(false);
+    }
+    window.addEventListener("afterprint", handleAfterPrint);
+    return () => window.removeEventListener("afterprint", handleAfterPrint);
+  }, []);
+
   useEffect(() => {
     if (!autoPrint) {
       return;
@@ -61,13 +73,30 @@ export function ReceiptPrintActions({
   }, [autoPrint]);
 
   return (
-    <div className="no-print flex flex-wrap items-center justify-end gap-2">
-      <Button type="button" variant="outline" onClick={() => window.print()}>
-        Print receipt
-      </Button>
-      <Button asChild variant="secondary">
-        <Link href={backHref}>Back to receipts</Link>
-      </Button>
+    <div className="no-print flex flex-col items-end gap-1.5">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button type="button" variant="outline" onClick={() => window.print()}>
+          Print receipt
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            setShowPdfHint(true);
+            window.print();
+          }}
+        >
+          Save as PDF
+        </Button>
+        <Button asChild variant="secondary">
+          <Link href={backHref}>Back to receipts</Link>
+        </Button>
+      </div>
+      {showPdfHint ? (
+        <p className="text-[11px] text-muted-foreground">
+          In the print dialog, choose <strong>Save as PDF</strong> as the destination.
+        </p>
+      ) : null}
     </div>
   );
 }
