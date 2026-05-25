@@ -30,6 +30,10 @@ Supabase, and is in production for AY 2026-27 with 479 students. Use
     signed-URL playback. New routes: `/protected/defaulters/voice-note`
     and `/protected/defaulters/contact-log`.
 
+- **Item 38 — Scheduled exports via email: DROPPED** per user
+  decision. The school doesn't want this. Remove from any future
+  resume file; do not implement.
+
 - **Phase 6 partial** — commit `d2ece1e` — items 42, 54, 35, 39:
   - Item 42: `user_activity_events` append-only table +
     `lib/activity/events.ts` helper (`recordActivity`,
@@ -60,7 +64,7 @@ Supabase, and is in production for AY 2026-27 with 479 students. Use
 
 # Phase plan (remaining)
 
-- Phase 6 (still TODO) — items **34**, **36**, **38**.
+- Phase 6 (still TODO) — items **34**, **36**. (Item 38 dropped by user.)
 - Phase 7 — items 50, 52, 53.
 - Phase 8 — items 18, 19 (year-end, high-stakes — dry-run on
   TEST-2026-27 before applying to prod).
@@ -100,24 +104,6 @@ Supabase, and is in production for AY 2026-27 with 479 students. Use
     notes/issues — extend it with a `duplicateDecision` field.
   - Place the panel in `components/imports/student-import-workflow.tsx`
     between the column-mapping step and the row review.
-
-- **Item 38 — Scheduled exports via email**
-  **HOLD AND FLAG.** No email provider is currently installed
-  (no `resend`, `sendgrid`, `mailgun`, `nodemailer`, or `@aws-sdk/client-ses`
-  in `package.json`). Per the original spec: "find it; if none, hold
-  this item and flag." When picking this up:
-  1. Confirm with the user which provider they want (Resend is the
-     cheapest + simplest with Vercel; Postmark is the alternative).
-  2. Install + add env vars (`RESEND_API_KEY` etc.).
-  3. Then build:
-     - New table `export_schedules` keyed by `id, owner, schedule
-       (cron text), export_type, recipients[], saved_view_id?,
-       last_run_at, is_active`.
-     - Vercel cron at `/api/cron/scheduled-exports` daily.
-     - Match schedules by cron + last_run_at, run the matching
-       export, send the XLSX via email.
-     - Admin UI under `/protected/admin-tools/scheduled-exports` to
-       CRUD schedules.
 
 # Phase 7 item definitions (student management)
 
@@ -311,9 +297,10 @@ git log --oneline -8
 ```
 
 Confirm `d2ece1e` (Phase 6 partial) is the latest on main. Then start
-Phase 6 remaining (items 34 and 36 — item 38 is held pending an email
-provider decision). Continue into Phase 7 (items 50, 52, 53) if
-context allows.
+Phase 6 remaining (items 34 and 36 only — item 38 was dropped by user
+decision; do not implement it and remove any mention from future
+resume files). Continue into Phase 7 (items 50, 52, 53) if context
+allows.
 
 Before starting Phase 8 or 9, stop and write a fresh
 `.claude/resume-phase-N.md` file in this same format. The remaining
