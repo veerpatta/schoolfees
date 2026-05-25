@@ -1,5 +1,6 @@
 import { CommandHost } from "@/components/command/command-host";
 import { DashboardShell } from "@/components/admin/dashboard-shell";
+import { PwaInstallPrompt } from "@/components/pwa/install-prompt";
 import { getVisibleProtectedNavigation } from "@/lib/config/navigation";
 import { hasRolePermission } from "@/lib/auth/roles";
 import { getAppMode } from "@/lib/env";
@@ -53,6 +54,7 @@ export default async function ProtectedLayout({
         canViewStudents={canViewStudents}
         canViewReceipts={canViewReceipts}
       />
+      <PwaInstallPrompt />
     </DashboardShell>
   );
 }

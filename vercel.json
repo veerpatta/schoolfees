@@ -3,5 +3,11 @@
   "framework": "nextjs",
   "github": {
     "silent": true
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/nightly-backup",
+      "schedule": "0 18 * * *"
+    }
+  ]
 }

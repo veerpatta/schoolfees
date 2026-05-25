@@ -6,6 +6,7 @@ import { StudentAboutPanel } from "@/components/students/student-about-panel";
 import { StudentDangerZone } from "@/components/students/student-danger-zone";
 import { StudentIdentityStrip } from "@/components/students/student-identity-strip";
 import { StudentQuickReference } from "@/components/students/student-quick-reference";
+import { ParentShareLinkCard } from "@/components/students/parent-share-link-card";
 import { StudentReceiptsPanel } from "@/components/students/student-receipts-panel";
 import { StudentStatCards } from "@/components/students/student-stat-cards";
 import { StudentStickyHeader } from "@/components/students/student-sticky-header";
@@ -27,6 +28,8 @@ import {
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { recordActivity } from "@/lib/activity/events";
+import { getPublicSiteUrl } from "@/lib/env";
+import { listStudentShareLinks } from "@/lib/share-links/data";
 import { getStudentDeletionSafety, getStudentFamilyMembersDetail } from "@/lib/students/data";
 import { getStudentWorkspaceData } from "@/lib/students/workspace";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
@@ -93,6 +96,8 @@ export default async function StudentDetailPage({
     resolvedParams.studentId,
     financialSnapshot?.policy.academicSessionLabel || "2026-27"
   );
+  const shareLinks = await listStudentShareLinks(resolvedParams.studentId).catch(() => []);
+  const publicSiteUrl = getPublicSiteUrl();
 
   if (!student) {
     notFound();
@@ -813,6 +818,21 @@ export default async function StudentDetailPage({
               primaryPhone: student.fatherPhone ?? student.motherPhone ?? null,
             }}
           />
+          {canEditStudent ? (
+            <ParentShareLinkCard
+              studentId={student.id}
+              baseUrl={publicSiteUrl}
+              initialLinks={shareLinks.map((link) => ({
+                id: link.id,
+                token: link.token,
+                expiresAt: link.expiresAt,
+                revokedAt: link.revokedAt,
+                createdAt: link.createdAt,
+                viewCount: link.viewCount,
+                lastViewedAt: link.lastViewedAt,
+              }))}
+            />
+          ) : null}
         </aside>
       </div>
 
