@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import type { PaymentMode } from "@/lib/db/types";
+import { recordActivity } from "@/lib/activity/events";
 import { getFeePolicyForSession } from "@/lib/fees/data";
 import { parseAcademicSessionLabel } from "@/lib/config/fee-rules";
 import {
@@ -158,7 +159,7 @@ export async function submitPaymentEntryAction(
         // ignore parsing error here, will be caught by the main validator
       }
     }
-    await requireStaffPermission("payments:write");
+    const staffSession = await requireStaffPermission("payments:write");
     const studentId = parseUuid(formData.get("studentId"), "Student");
     const sessionLabel = parseSessionLabel(formData.get("sessionLabel"));
     const paymentDate = parsePaymentDate(formData.get("paymentDate"));
@@ -217,6 +218,19 @@ export async function submitPaymentEntryAction(
       metadata: {
         receiptNumber: receipt.receiptNumber,
         status: syncOutcome.status,
+      },
+    });
+
+    await recordActivity({
+      userId: (staffSession?.id as string | undefined) ?? null,
+      kind: "payment_posted",
+      refId: receipt.receiptId,
+      payload: {
+        studentId,
+        receiptNumber: receipt.receiptNumber,
+        amount: paymentAmount,
+        paymentMode,
+        sessionLabel: resolvedSessionLabel,
       },
     });
 

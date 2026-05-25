@@ -16,6 +16,7 @@ import {
 } from "@/lib/workbook/data";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/lib/supabase/session";
 import { formatExportName } from "@/lib/helpers/export";
+import { recordActivity } from "@/lib/activity/events";
 
 type RouteContext = {
   params: Promise<{
@@ -37,6 +38,96 @@ async function workbookResponse(filename: string, rows: Array<Record<string, str
       "cache-control": "no-store",
     },
   });
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
+ * Renders the same rows as a printable HTML page. The browser's Save-as-PDF
+ * destination produces a PDF that mirrors the XLSX export.
+ */
+function printableHtmlResponse(
+  title: string,
+  rows: Array<Record<string, string | number>>,
+): Response {
+  const headers = rows.length > 0 ? Object.keys(rows[0]) : ["Export"];
+  const html = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>${escapeHtml(title)}</title>
+<style>
+  @page { size: A4 landscape; margin: 12mm; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 11px; color: #111; margin: 0; }
+  header { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 8px; border-bottom: 1px solid #999; margin-bottom: 12px; }
+  h1 { font-size: 16px; margin: 0; }
+  .meta { font-size: 10px; color: #555; }
+  table { width: 100%; border-collapse: collapse; }
+  thead { background: #f3f3f3; }
+  th, td { border: 1px solid #d8d8d8; padding: 4px 6px; text-align: left; vertical-align: top; }
+  th { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+  tr:nth-child(even) td { background: #fafafa; }
+  .print-hint { padding: 8px 12px; background: #fff8d6; border: 1px solid #e5d97a; font-size: 11px; margin-bottom: 12px; }
+  @media print { .print-hint { display: none; } }
+</style>
+</head>
+<body>
+  <div class="print-hint">Use your browser's Print dialog (Ctrl+P / Cmd+P) and choose <strong>Save as PDF</strong>.</div>
+  <header>
+    <h1>${escapeHtml(title)}</h1>
+    <div class="meta">Generated ${escapeHtml(new Date().toLocaleString("en-IN"))} · ${rows.length} row${rows.length === 1 ? "" : "s"}</div>
+  </header>
+  <table>
+    <thead>
+      <tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr>
+    </thead>
+    <tbody>
+      ${rows
+        .map(
+          (row) =>
+            `<tr>${headers
+              .map((header) => {
+                const value = row[header];
+                const display =
+                  value === undefined || value === null ? "" : typeof value === "number" ? value.toLocaleString("en-IN") : String(value);
+                return `<td>${escapeHtml(display)}</td>`;
+              })
+              .join("")}</tr>`,
+        )
+        .join("\n")}
+    </tbody>
+  </table>
+  <script>
+    window.addEventListener("load", () => { setTimeout(() => window.print(), 200); });
+  </script>
+</body>
+</html>`;
+
+  return new Response(html, {
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+    },
+  });
+}
+
+async function rowsResponse(
+  format: "xlsx" | "pdf",
+  filenameBase: string,
+  title: string,
+  rows: Array<Record<string, string | number>>,
+): Promise<Response> {
+  if (format === "pdf") {
+    return printableHtmlResponse(title, rows);
+  }
+  return workbookResponse(`${filenameBase}.xlsx`, rows);
 }
 
 async function aiContextBundleResponse(filename: string, sessionLabel: string) {
@@ -337,13 +428,21 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
   const { exportType } = await context.params;
   const requestedSessionLabel = (request.nextUrl.searchParams.get("session") ?? "").trim();
+  const requestedFormat = (request.nextUrl.searchParams.get("format") ?? "").trim().toLowerCase();
+  const format: "xlsx" | "pdf" = requestedFormat === "pdf" ? "pdf" : "xlsx";
   const { resolvedSessionLabel } = await getStudentFormOptions({
     sessionLabel: requestedSessionLabel || null,
   });
-  const filename = formatExportName(
-    `VPPS-${exportType}-${resolvedSessionLabel || "current"}`,
-    "xlsx",
-  );
+  const filenameBase = `VPPS-${exportType}-${resolvedSessionLabel || "current"}`;
+  const filename = formatExportName(filenameBase, "xlsx");
+  const exportTitle = `${exportType.replace(/-/g, " ")} · ${resolvedSessionLabel || "current"}`;
+
+  // Fire-and-forget activity log for the dashboard recent-activity strip.
+  void recordActivity({
+    userId: (staff?.id as string | undefined) ?? null,
+    kind: "export_downloaded",
+    payload: { exportType, sessionLabel: resolvedSessionLabel, filename, format },
+  });
 
   if (exportType === "ai-context-bundle") {
     return aiContextBundleResponse(filename, resolvedSessionLabel);
@@ -358,8 +457,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
       status: "active",
     });
 
-    return workbookResponse(
-      filename,
+    return rowsResponse(
+      format,
+      filenameBase,
+      exportTitle,
       rows.map((row) => ({
         "SR no": row.admissionNo,
         "Student": row.fullName,
@@ -393,8 +494,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
       ]),
     );
 
-    return workbookResponse(
-      filename,
+    return rowsResponse(
+      format,
+      filenameBase,
+      exportTitle,
       students
         .filter((student) => (assignmentMap.get(student.id) ?? []).length > 0)
         .map((student) => ({
@@ -425,8 +528,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
   });
 
   if (workbook.view === "receipts" || workbook.view === "transactions") {
-    return workbookResponse(
-      filename,
+    return rowsResponse(
+      format,
+      filenameBase,
+      exportTitle,
       workbook.rows.map((row) => ({
         "Date": row.paymentDate,
         "Receipt number": row.receiptNumber,
@@ -442,8 +547,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
   }
 
   if (workbook.view === "student_dues" || workbook.view === "defaulters") {
-    return workbookResponse(
-      filename,
+    return rowsResponse(
+      format,
+      filenameBase,
+      exportTitle,
       workbook.rows.map((row) => ({
         "Student": row.studentName,
         "SR no": row.admissionNo,
@@ -461,5 +568,5 @@ export async function GET(request: NextRequest, context: RouteContext) {
     );
   }
 
-  return workbookResponse(filename, [{ "Export": "No rows found" }]);
+  return rowsResponse(format, filenameBase, exportTitle, [{ "Export": "No rows found" }]);
 }

@@ -28,6 +28,7 @@ import {
   type StudentSessionOption,
 } from "@/lib/students/types";
 import { countRecentImportStudentsOutsideSession } from "@/lib/students/session-reanchor";
+import { getLastEventByRef } from "@/lib/activity/events";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
@@ -145,6 +146,20 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
     (value): value is string => Boolean(value),
   );
 
+  let lastViewedByUser: Record<string, string> = {};
+  if (staff?.id && students.length > 0) {
+    try {
+      const map = await getLastEventByRef(
+        staff.id as string,
+        "student_view",
+        students.map((row) => row.id),
+      );
+      lastViewedByUser = Object.fromEntries(map);
+    } catch {
+      lastViewedByUser = {};
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -235,6 +250,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
         classOptions={classOptions}
         routeOptions={routeOptions}
         canWrite={canWriteStudents}
+        lastViewedByUser={lastViewedByUser}
       />
 
     </div>

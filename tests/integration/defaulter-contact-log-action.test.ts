@@ -15,6 +15,9 @@ vi.mock("@/lib/supabase/session", () => ({
 vi.mock("@/lib/defaulters/contacts", () => ({
   insertDefaulterContact: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock("@/lib/activity/events", () => ({
+  recordActivity: vi.fn().mockResolvedValue(undefined),
+}));
 
 import { logContactAction } from "@/app/protected/defaulters/actions";
 import { requireStaffPermission } from "@/lib/supabase/session";

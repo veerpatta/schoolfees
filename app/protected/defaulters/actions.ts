@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { recordActivity } from "@/lib/activity/events";
 import { snoozeIso } from "@/lib/defaulters/cadence";
 import {
   insertDefaulterContact,
@@ -34,8 +35,10 @@ export async function logContactAction(
   _prevState: LogContactState,
   formData: FormData,
 ): Promise<LogContactState> {
+  let staffId: string | null = null;
   try {
-    await requireStaffPermission("defaulters:view");
+    const staff = await requireStaffPermission("defaulters:view");
+    staffId = (staff?.id as string | undefined) ?? null;
   } catch {
     return { status: "error", message: "Permission denied." };
   }
@@ -80,6 +83,18 @@ export async function logContactAction(
       message: e instanceof Error ? e.message : "Unknown error.",
     };
   }
+
+  await recordActivity({
+    userId: staffId,
+    kind: "defaulter_contacted",
+    refId: studentId,
+    payload: {
+      channel,
+      outcome,
+      hasVoiceNote: Boolean(voiceNotePath),
+      sessionLabel,
+    },
+  });
 
   revalidatePath("/protected/defaulters");
   return { status: "success", message: "Contact logged." };

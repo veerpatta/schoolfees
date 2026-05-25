@@ -1,5 +1,6 @@
 import {
   Activity,
+  ActivitySquare,
   BadgeIndianRupee,
   BarChart3,
   BookOpenCheck,
@@ -181,6 +182,12 @@ const routeMetaItems: Array<
     href: "/protected/admin-tools",
     label: "WhatsApp templates",
     description: "Pre-canned message templates with placeholder variables for parent outreach.",
+  },
+  {
+    match: "/protected/admin-tools/activity",
+    href: "/protected/admin-tools",
+    label: "Activity feed",
+    description: "Recent staff actions across the workspace.",
   },
   {
     match: "/protected/admin-tools",
@@ -479,6 +486,19 @@ export const advancedHubSections: readonly AdvancedHubSection[] = [
         label: "WhatsApp templates",
         description: "Manage message templates with placeholders used in bulk WhatsApp drafts.",
         icon: MessageCircle,
+        requiredPermission: "settings:view",
+      },
+    ],
+  },
+  {
+    title: "Activity Audit",
+    description: "Read-only feed of recent staff actions across the workspace.",
+    items: [
+      {
+        href: "/protected/admin-tools/activity",
+        label: "Activity feed",
+        description: "Recent payments, edits, follow-ups, and exports — for audit and review.",
+        icon: ActivitySquare,
         requiredPermission: "settings:view",
       },
     ],

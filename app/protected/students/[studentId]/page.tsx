@@ -26,6 +26,7 @@ import {
 } from "@/lib/fees/due-amounts";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
+import { recordActivity } from "@/lib/activity/events";
 import { getStudentDeletionSafety, getStudentFamilyMembersDetail } from "@/lib/students/data";
 import { getStudentWorkspaceData } from "@/lib/students/workspace";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
@@ -96,6 +97,16 @@ export default async function StudentDetailPage({
   if (!student) {
     notFound();
   }
+
+  // Fire-and-forget student view event for the activity feed and last-viewed hints.
+  void recordActivity({
+    userId: (staff?.id as string | undefined) ?? null,
+    kind: "student_view",
+    refId: student.id,
+    payload: {
+      sessionLabel: financialSnapshot?.policy.academicSessionLabel ?? null,
+    },
+  });
 
   const canEditStudent = hasStaffPermission(staff, "students:write");
   const canPrintReceipts = hasStaffPermission(staff, "receipts:print");

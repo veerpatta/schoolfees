@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
+import { timeAgoShort } from "@/lib/helpers/time-ago";
 import type { StudentListItem } from "@/lib/students/types";
 import { cn } from "@/lib/utils";
 import { appendSessionParam } from "@/lib/navigation/session-href";
@@ -21,6 +22,8 @@ type StudentListTableProps = {
   canWrite: boolean;
   returnTo: string;
   session?: string;
+  /** Map of studentId → last student_view event ISO timestamp by current user. */
+  lastViewedByUser?: Record<string, string>;
 };
 
 function OutstandingCell({ student }: { student: StudentListItem }) {
@@ -165,11 +168,13 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
   returnTo,
   session,
   canWrite,
+  lastViewedAt,
 }: {
   student: StudentListItem;
   returnTo: string;
   session?: string;
   canWrite: boolean;
+  lastViewedAt?: string | null;
 }) {
   const withSession = (href: string) => appendSessionParam(href, session);
   const srNoMissing = student.status === "active" && !student.admissionNo.trim();
@@ -236,6 +241,11 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
         <p className="text-xs text-muted-foreground mt-1">
           {student.classLabel} · SR {student.admissionNo || "Pending"}
         </p>
+        {lastViewedAt ? (
+          <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+            Last viewed by you {timeAgoShort(lastViewedAt) ?? "recently"}
+          </p>
+        ) : null}
         {(student.fatherPhone || student.motherPhone) && (
           <p className="text-xs text-muted-foreground mt-1">
             <a
@@ -281,6 +291,7 @@ export const StudentListTable = React.memo(function StudentListTable({
   canWrite,
   returnTo,
   session,
+  lastViewedByUser,
 }: StudentListTableProps) {
   const router = useRouter();
   const withSession = (href: string) => appendSessionParam(href, session);
@@ -312,6 +323,7 @@ export const StudentListTable = React.memo(function StudentListTable({
             returnTo={returnTo}
             session={session}
             canWrite={canWrite}
+            lastViewedAt={lastViewedByUser?.[student.id] ?? null}
           />
         ))}
       </ul>
@@ -394,6 +406,11 @@ export const StudentListTable = React.memo(function StudentListTable({
                         </span>
                       ))}
                     </div>
+                  ) : null}
+                  {lastViewedByUser?.[student.id] ? (
+                    <p className="mt-1 text-[10px] text-muted-foreground/70">
+                      Last viewed by you {timeAgoShort(lastViewedByUser[student.id]) ?? "recently"}
+                    </p>
                   ) : null}
                 </td>
                 <td className="px-4 py-3.5 text-sm text-foreground">

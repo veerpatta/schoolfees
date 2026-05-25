@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { UsersRound, BadgePercent, Layers, CircleAlert, Receipt, Download, Sparkles } from "lucide-react";
+import { UsersRound, BadgePercent, Layers, CircleAlert, Receipt, Download, Sparkles, FileText } from "lucide-react";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
@@ -137,11 +137,13 @@ export default async function ExportsPage({ searchParams }: ExportsPageProps) {
               {group.items.map((item) => {
                 const styles = getIconStyles(item.tone);
                 const IconComponent = item.icon;
+                const xlsxHref = `/protected/exports/${item.key}?session=${encodeURIComponent(viewSession.sessionLabel)}`;
+                const pdfHref = `/protected/exports/${item.key}?session=${encodeURIComponent(viewSession.sessionLabel)}&format=pdf`;
+                const supportsPdf = item.key !== "ai-context-bundle";
                 return (
-                  <Link
+                  <div
                     key={item.key}
-                    href={`/protected/exports/${item.key}?session=${encodeURIComponent(viewSession.sessionLabel)}`}
-                    className="group flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-4 hover:border-border-strong hover:bg-surface-2 active:scale-[0.99] transition-all"
+                    className="group flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-4 hover:border-border-strong transition-all"
                   >
                     <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl", styles.bg)}>
                       <IconComponent className={cn("size-5", styles.icon)} />
@@ -150,8 +152,27 @@ export default async function ExportsPage({ searchParams }: ExportsPageProps) {
                       <p className="font-semibold text-foreground text-sm">{item.label}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{item.detail}</p>
                     </div>
-                    <Download className="size-4 text-muted-foreground shrink-0 group-hover:text-foreground transition-colors" />
-                  </Link>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Link
+                        href={xlsxHref}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-3"
+                      >
+                        <Download className="size-3.5" aria-hidden="true" />
+                        XLSX
+                      </Link>
+                      {supportsPdf ? (
+                        <Link
+                          href={pdfHref}
+                          target="_blank"
+                          rel="noopener"
+                          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-3"
+                        >
+                          <FileText className="size-3.5" aria-hidden="true" />
+                          PDF
+                        </Link>
+                      ) : null}
+                    </div>
+                  </div>
                 );
               })}
             </div>

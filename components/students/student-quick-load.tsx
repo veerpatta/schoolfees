@@ -44,6 +44,7 @@ type StudentQuickLoadProps = {
   classOptions: StudentClassOption[];
   routeOptions: StudentRouteOption[];
   canWrite: boolean;
+  lastViewedByUser?: Record<string, string>;
 };
 
 export function StudentQuickLoad({
@@ -54,6 +55,7 @@ export function StudentQuickLoad({
   classOptions,
   routeOptions,
   canWrite,
+  lastViewedByUser,
 }: StudentQuickLoadProps) {
   const [filters, setFilters] = useState<StudentQuickLoadFilters>({
     query: initialFilters.query,
@@ -647,6 +649,7 @@ export function StudentQuickLoad({
               canWrite={canWrite}
               returnTo={returnTo}
               session={initialFilters.sessionLabel}
+              lastViewedByUser={lastViewedByUser}
             />
           )}
 

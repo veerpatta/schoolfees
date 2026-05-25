@@ -1,5 +1,6 @@
 "use server";
 
+import { recordActivity } from "@/lib/activity/events";
 import {
   createStudent,
   archiveStudent,
@@ -258,7 +259,7 @@ export async function updateStudentAction(
   _previous: StudentFormActionState,
   formData: FormData,
 ): Promise<StudentFormActionState> {
-  await requireStaffPermission("students:write");
+  const staffSession = await requireStaffPermission("students:write");
   const input = getStudentFormInput(formData);
   const submittedSessionLabel = getSubmittedSessionLabel(formData);
   const { classOptions, routeOptions, resolvedSessionLabel } = await getStudentFormOptions({
@@ -345,6 +346,16 @@ export async function updateStudentAction(
       action: "updated",
       affectedStudentIds,
       metadata: { status: syncOutcome.status },
+    });
+
+    await recordActivity({
+      userId: (staffSession?.id as string | undefined) ?? null,
+      kind: "student_edited",
+      refId: updatedStudentId,
+      payload: {
+        sessionLabel: resolvedSessionLabel,
+        affectedStudentIds,
+      },
     });
 
     return {

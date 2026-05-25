@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/admin/page-header";
+import { ActivityStrip } from "@/components/dashboard/activity-strip";
 import { DashboardPrefetcher } from "@/components/dashboard/dashboard-prefetcher";
 import { ClassCollectionProgress } from "@/components/dashboard/class-collection-progress";
 import { CollectionHeatmap } from "@/components/dashboard/collection-heatmap";
@@ -41,6 +42,7 @@ import {
   type DashboardAlert,
   type DashboardCurrentInstallment,
 } from "@/lib/dashboard/data";
+import { getTodayActivityCounts } from "@/lib/activity/events";
 import { computeTodayCollectionDelta, type KpiDelta } from "@/lib/dashboard/kpi-delta";
 import type {
   DashboardClassSummaryRow,
@@ -1843,6 +1845,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     aboveFold.kpis.todaysCollection,
   );
 
+  const todayActivityCounts =
+    typeof staff?.id === "string"
+      ? await getTodayActivityCounts(staff.id)
+      : {};
+
   return (
     <div className="space-y-4 sm:space-y-7">
       <DashboardPrefetcher
@@ -1888,6 +1895,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               }
             : null,
         })}
+      />
+
+      <ActivityStrip
+        counts={todayActivityCounts}
+        sessionLabel={viewSession.sessionLabel}
       />
 
       <FirstRunHint hintKey="cmdk">
