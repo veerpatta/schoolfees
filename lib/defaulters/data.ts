@@ -232,8 +232,10 @@ export async function getDefaultersPageData(
   filters: DefaulterFilters,
   sessionLabel?: string,
   pagination?: { page?: number; pageSize?: number },
+  options?: { redactPaymentHistory?: boolean },
 ): Promise<DefaultersPageData> {
   const _t0 = Date.now();
+  const redactPaymentHistory = options?.redactPaymentHistory === true;
   const policy = await getFeePolicySummary();
   const resolvedSessionLabel = sessionLabel ?? policy.academicSessionLabel;
   const pageInput = normalizePagination(pagination);
@@ -323,7 +325,7 @@ export async function getDefaultersPageData(
           nextDueAmount: row.nextDueAmount,
           oldestDueDate: row.nextDueDate,
           nextDueDate: row.nextDueDate,
-          lastPaymentDate: row.lastPaymentDate,
+          lastPaymentDate: redactPaymentHistory ? null : row.lastPaymentDate,
           followUpStatus: overdueAmount > 0 ? "overdue" : "pending",
           daysOverdue,
           defaulterScore,

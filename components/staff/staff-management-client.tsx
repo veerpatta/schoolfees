@@ -16,6 +16,13 @@ import type {
 type StaffManagementClientProps = {
   currentStaffId: string;
   accounts: StaffAccountRecord[];
+  /**
+   * Roles offered in the create / update dropdowns. Pass a subset to hide
+   * roles still behind a rollout flag (e.g. teacher / defaulter_followup).
+   * Existing accounts on hidden roles still show their assigned label via the
+   * status badge — only the assignment dropdown is gated.
+   */
+  assignableRoles?: readonly StaffRole[];
   initialState: StaffFormActionState;
   createStaffAccountAction: (
     previous: StaffFormActionState,
@@ -82,9 +89,11 @@ function ActionNotice({ state }: { state: StaffFormActionState }) {
 
 function CreateStaffForm({
   initialState,
+  assignableRoles,
   action,
 }: {
   initialState: StaffFormActionState;
+  assignableRoles: readonly StaffRole[];
   action: (
     previous: StaffFormActionState,
     formData: FormData,
@@ -123,11 +132,11 @@ function CreateStaffForm({
           <select
             id="newStaffRole"
             name="role"
-            defaultValue="read_only_staff"
+            defaultValue="view_only"
             className={`${selectClassName} mt-2`}
             required
           >
-            {staffRoles.map((role) => (
+            {assignableRoles.map((role) => (
               <option key={role} value={role}>
                 {roleLabels[role]}
               </option>
@@ -168,11 +177,13 @@ function StaffAccessForm({
   account,
   currentStaffId,
   initialState,
+  assignableRoles,
   action,
 }: {
   account: StaffAccountRecord;
   currentStaffId: string;
   initialState: StaffFormActionState;
+  assignableRoles: readonly StaffRole[];
   action: (
     userId: string,
     previous: StaffFormActionState,
@@ -208,7 +219,13 @@ function StaffAccessForm({
             className={`${selectClassName} mt-2`}
             required
           >
-            {staffRoles.map((role) => (
+            {/* If this account already has a role outside the assignable list
+                (e.g. it was set before a rollout flag flipped), include it so
+                admins can still see and re-save the existing assignment. */}
+            {(assignableRoles.includes(account.role)
+              ? assignableRoles
+              : [account.role, ...assignableRoles]
+            ).map((role) => (
               <option key={role} value={role}>
                 {roleLabels[role]}
               </option>
@@ -322,6 +339,7 @@ function roleTone(role: StaffRole) {
 export function StaffManagementClient({
   currentStaffId,
   accounts,
+  assignableRoles = staffRoles,
   initialState,
   createStaffAccountAction,
   updateStaffAccountAction,
@@ -335,6 +353,7 @@ export function StaffManagementClient({
       >
         <CreateStaffForm
           initialState={initialState}
+          assignableRoles={assignableRoles}
           action={createStaffAccountAction}
         />
       </SectionCard>
@@ -393,6 +412,7 @@ export function StaffManagementClient({
                       account={account}
                       currentStaffId={currentStaffId}
                       initialState={initialState}
+                      assignableRoles={assignableRoles}
                       action={updateStaffAccountAction}
                     />
                   </div>

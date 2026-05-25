@@ -33,6 +33,7 @@ migration *does*. Filenames are listed without the `.sql` extension.
 
 - `20260421103000_align_rbac_roles_and_policies` — admin / accountant / read_only_staff roles + RLS policies.
 - `20260421203000_staff_auth_sync` — staff ↔ Supabase auth user sync trigger.
+- `20260525170125_expand_staff_roles` — expand staff_role enum to 5 (admin, accountant, teacher, defaulter_followup, view_only); rename read_only_staff → view_only and add students:edit_basic / contacts:write / payments:waive_late_fee permissions.
 
 ### Fee Setup module
 

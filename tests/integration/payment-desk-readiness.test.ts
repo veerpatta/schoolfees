@@ -129,7 +129,7 @@ describe("payment desk readiness", () => {
 
     const readiness = await getPaymentDeskReadiness({
       sessionLabel: "TEST-2026-27",
-      staffAppRole: "read_only_staff",
+      staffAppRole: "view_only",
       canWritePayments: false,
     });
 

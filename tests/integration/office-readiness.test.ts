@@ -51,7 +51,7 @@ describe("office workflow readiness", () => {
         setupReadyForCompletion: true,
         missingBlockingItemKeys: ["ledgers_generated"],
       },
-      "read_only_staff",
+      "view_only",
     );
 
     expect(readiness.postPayments.isReady).toBe(true);

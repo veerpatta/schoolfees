@@ -1,6 +1,7 @@
 import "server-only";
 
 
+import type { StaffRole } from "@/lib/auth/roles";
 import type { PaymentMode } from "@/lib/db/types";
 import { getFeePolicyForSession, getFeePolicySummary } from "@/lib/fees/data";
 import { createClient } from "@/lib/supabase/server";
@@ -372,7 +373,7 @@ function getErrorMessage(error: unknown) {
 
 async function getPaymentDeskReadinessUncached(payload: {
   sessionLabel: string;
-  staffAppRole: "admin" | "accountant" | "read_only_staff";
+  staffAppRole: StaffRole;
   canWritePayments: boolean;
   policy: Awaited<ReturnType<typeof getFeePolicyForSession>>;
   hasActiveClass: boolean;
@@ -446,7 +447,7 @@ async function getPaymentDeskHasActiveClass(sessionLabel: string) {
 
 export async function getPaymentDeskReadiness(payload: {
   sessionLabel: string;
-  staffAppRole: "admin" | "accountant" | "read_only_staff";
+  staffAppRole: StaffRole;
   canWritePayments: boolean;
 }): Promise<PaymentDeskReadiness> {
   try {

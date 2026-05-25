@@ -284,6 +284,14 @@ export function getDefaultProtectedHref(role: StaffRole) {
     return "/protected/payments";
   }
 
+  if (role === "teacher") {
+    return "/protected/students";
+  }
+
+  if (role === "defaulter_followup") {
+    return "/protected/defaulters";
+  }
+
   return "/protected/dashboard";
 }
 
@@ -294,6 +302,24 @@ export function getVisibleProtectedNavigation(staffRole: StaffRole) {
     }
 
     if (item.visibleTo && !item.visibleTo.includes(staffRole)) {
+      return false;
+    }
+
+    // Defaulter follow-up lands on the defaulters list and stays there.
+    if (
+      staffRole === "defaulter_followup" &&
+      item.href !== "/protected/defaulters"
+    ) {
+      return false;
+    }
+
+    // Teacher's primary nav is Students + Defaulters. Hide Dashboard from the
+    // top bar so the workflow points at the lists they actually act on.
+    if (
+      staffRole === "teacher" &&
+      item.href !== "/protected/students" &&
+      item.href !== "/protected/defaulters"
+    ) {
       return false;
     }
 
@@ -325,6 +351,21 @@ export function getMobileBottomNavigation(staffRole: StaffRole) {
 }
 
 export function getMobilePrimaryNavigation(staffRole: StaffRole) {
+  if (staffRole === "defaulter_followup") {
+    return [
+      {
+        href: "/protected/defaulters",
+        label: "Defaulters",
+        icon: ClipboardList,
+      },
+      {
+        href: "/protected/students",
+        label: "Students",
+        icon: UsersRound,
+      },
+    ] satisfies MobileBottomNavigationItem[];
+  }
+
   const items: MobileBottomNavigationItem[] = [
     {
       href: "/protected/dashboard",
@@ -351,6 +392,14 @@ export function getMobilePrimaryNavigation(staffRole: StaffRole) {
       href: "/protected/transactions",
       label: "Transactions",
       icon: BookOpenCheck,
+    });
+  }
+
+  if (staffRole === "teacher") {
+    items.push({
+      href: "/protected/defaulters",
+      label: "Defaulters",
+      icon: ClipboardList,
     });
   }
 

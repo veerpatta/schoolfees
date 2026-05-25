@@ -7,6 +7,8 @@ import {
   resetStaffPasswordAction,
   updateStaffAccountAction,
 } from "@/app/protected/staff/actions";
+import { staffRoles, type StaffRole } from "@/lib/auth/roles";
+import { isStaffRolesV2Enabled } from "@/lib/env";
 import {
   INITIAL_STAFF_FORM_ACTION_STATE,
   isStaffManagementConfigured,
@@ -20,6 +22,12 @@ export default async function StaffPage() {
   });
   const staffManagementConfigured = isStaffManagementConfigured();
   const accounts = staffManagementConfigured ? await listStaffAccounts() : [];
+  const v2RolesEnabled = isStaffRolesV2Enabled();
+  const assignableRoles: readonly StaffRole[] = v2RolesEnabled
+    ? staffRoles
+    : staffRoles.filter(
+        (role) => role !== "teacher" && role !== "defaulter_followup",
+      );
 
   return (
     <div className="space-y-6">
@@ -45,6 +53,7 @@ export default async function StaffPage() {
         <StaffManagementClient
           currentStaffId={staff.id ?? staff.sub ?? ""}
           accounts={accounts}
+          assignableRoles={assignableRoles}
           initialState={INITIAL_STAFF_FORM_ACTION_STATE}
           createStaffAccountAction={createStaffAccountAction}
           updateStaffAccountAction={updateStaffAccountAction}

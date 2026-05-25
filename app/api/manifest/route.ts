@@ -42,7 +42,7 @@ function shortcutsForRole(role: StaffRole): ManifestShortcut[] {
 
 export async function GET() {
   const staff = await getAuthenticatedStaff();
-  const role = staff?.appRole ?? "read_only_staff";
+  const role = staff?.appRole ?? "view_only";
 
   return NextResponse.json(
     {

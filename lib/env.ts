@@ -105,6 +105,19 @@ export function isBootstrapSignupEnabled() {
   return truthyEnvValues.has(value.toLowerCase());
 }
 
+// Gates exposure of the new `teacher` and `defaulter_followup` roles in the
+// Staff Management dropdown. Keep off in production until office staff have
+// been briefed on the new personas, then flip on.
+export function isStaffRolesV2Enabled() {
+  const value = getOptionalEnvVar("STAFF_ROLES_V2");
+
+  if (!value) {
+    return false;
+  }
+
+  return truthyEnvValues.has(value.toLowerCase());
+}
+
 export function isVercelProductionEnvironment() {
   return getOptionalEnvVar("VERCEL_ENV") === "production";
 }

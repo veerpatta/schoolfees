@@ -6,7 +6,10 @@ import { SectionCard } from "@/components/admin/section-card";
 import { StudentForm } from "@/components/students/student-form";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { getStudentDetail, getStudentFormOptions } from "@/lib/students/data";
-import { requireStaffPermission } from "@/lib/supabase/session";
+import {
+  hasStaffPermission,
+  requireAnyStaffPermission,
+} from "@/lib/supabase/session";
 
 import { updateStudentAction } from "../../actions";
 
@@ -20,7 +23,12 @@ type EditStudentPageProps = {
 };
 
 export default async function EditStudentPage({ params, searchParams }: EditStudentPageProps) {
-  await requireStaffPermission("students:write", { onDenied: "redirect" });
+  const staff = await requireAnyStaffPermission(
+    ["students:write", "students:edit_basic"],
+    { onDenied: "redirect" },
+  );
+  const canEditAdmissionNo = hasStaffPermission(staff, "students:edit_sr_no");
+  const canEditFinance = hasStaffPermission(staff, "students:write");
   const resolvedParams = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const returnTo = resolvedSearchParams?.returnTo?.startsWith("/protected/students")
@@ -66,6 +74,8 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
         ) : null}
         <StudentForm
           mode="edit"
+          canEditAdmissionNo={canEditAdmissionNo}
+          canEditFinance={canEditFinance}
           classOptions={classOptions}
           routeOptions={routeOptions}
           sessionLabel={resolvedSessionLabel}

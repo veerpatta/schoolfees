@@ -21,7 +21,7 @@ begin
     where typnamespace = 'public'::regnamespace
       and typname = 'staff_role'
   ) then
-    create type public.staff_role as enum ('admin', 'accountant', 'read_only_staff');
+    create type public.staff_role as enum ('admin', 'accountant', 'teacher', 'defaulter_followup', 'view_only');
   end if;
 
   if not exists (
@@ -191,8 +191,11 @@ as $$
   select case trim(coalesce(p_role, ''))
     when 'admin' then 'admin'::public.staff_role
     when 'accountant' then 'accountant'::public.staff_role
-    when 'read_only_staff' then 'read_only_staff'::public.staff_role
-    else 'read_only_staff'::public.staff_role
+    when 'teacher' then 'teacher'::public.staff_role
+    when 'defaulter_followup' then 'defaulter_followup'::public.staff_role
+    when 'view_only' then 'view_only'::public.staff_role
+    when 'read_only_staff' then 'view_only'::public.staff_role
+    else 'view_only'::public.staff_role
   end;
 $$;
 
@@ -252,7 +255,7 @@ $$;
 create table if not exists public.users (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text not null,
-  role public.staff_role not null default 'read_only_staff',
+  role public.staff_role not null default 'view_only',
   phone text,
   is_active boolean not null default true,
   last_login_at timestamptz,
@@ -985,7 +988,7 @@ as $$
         and u.is_active = true
       limit 1
     ),
-    'read_only_staff'::public.staff_role
+    'view_only'::public.staff_role
   );
 $$;
 
@@ -1010,16 +1013,33 @@ as $$
           'fees:view',
           'payments:view',
           'payments:write',
+          'payments:waive_late_fee',
           'finance:view',
           'finance:write',
           'ledger:view',
           'receipts:view',
           'receipts:print',
           'defaulters:view',
+          'contacts:write',
           'reports:view'
         ]
       )
-      when 'read_only_staff'::public.staff_role then p_permission = any (
+      when 'teacher'::public.staff_role then p_permission = any (
+        array[
+          'dashboard:view',
+          'students:view',
+          'students:edit_basic',
+          'defaulters:view'
+        ]
+      )
+      when 'defaulter_followup'::public.staff_role then p_permission = any (
+        array[
+          'students:view',
+          'defaulters:view',
+          'contacts:write'
+        ]
+      )
+      when 'view_only'::public.staff_role then p_permission = any (
         array[
           'dashboard:view',
           'students:view',

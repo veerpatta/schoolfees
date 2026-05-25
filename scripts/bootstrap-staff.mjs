@@ -42,7 +42,7 @@ const staffSpecs = [
   {
     email: "staff@vpps.co.in",
     password: process.env.BOOTSTRAP_STAFF_PASSWORD,
-    role: "read_only_staff",
+    role: "view_only",
     fullName: "Staff",
   },
 ];

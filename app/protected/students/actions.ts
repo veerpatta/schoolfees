@@ -24,7 +24,11 @@ import {
 } from "@/lib/students/dues-sync";
 import { getStudentFormInput, validateStudentInput } from "@/lib/students/validation";
 import { createClient } from "@/lib/supabase/server";
-import { requireStaffPermission } from "@/lib/supabase/session";
+import {
+  hasStaffPermission,
+  requireAnyStaffPermission,
+  requireStaffPermission,
+} from "@/lib/supabase/session";
 import {
   prepareDuesForStudentsAutomatically,
   revalidateFinanceSurfaces,
@@ -261,7 +265,64 @@ export async function updateStudentAction(
   _previous: StudentFormActionState,
   formData: FormData,
 ): Promise<StudentFormActionState> {
-  const staffSession = await requireStaffPermission("students:write");
+  const staffSession = await requireAnyStaffPermission([
+    "students:write",
+    "students:edit_basic",
+  ]);
+
+  // Teachers (students:edit_basic only) can edit identity / contact fields but
+  // not the SR No, the new-vs-existing toggle, fee overrides, or conventional
+  // discount assignments. Restore those fields from the saved record before
+  // validation so a tampered client form cannot rewrite them.
+  const canEditAdmissionNo = hasStaffPermission(staffSession, "students:edit_sr_no");
+  const canEditFinance = hasStaffPermission(staffSession, "students:write");
+
+  if (!canEditAdmissionNo || !canEditFinance) {
+    const existing = await getStudentDetail(studentId);
+
+    if (!canEditAdmissionNo) {
+      formData.set("admissionNo", existing?.admissionNo ?? "");
+    }
+
+    if (!canEditFinance && existing) {
+      formData.set("studentTypeOverride", existing.studentTypeOverride ?? "existing");
+      formData.set("tuitionOverride", existing.tuitionOverride?.toString() ?? "");
+      formData.set("transportOverride", existing.transportOverride?.toString() ?? "");
+      formData.set("discountAmount", existing.discountAmount.toString());
+      formData.set("lateFeeWaiverAmount", existing.lateFeeWaiverAmount.toString());
+      formData.set("otherAdjustmentHead", existing.otherAdjustmentHead ?? "");
+      formData.set(
+        "otherAdjustmentAmount",
+        existing.otherAdjustmentAmount?.toString() ?? "",
+      );
+      formData.set(
+        "feeProfileReason",
+        existing.overrideReason ?? "Student Master workbook profile",
+      );
+      formData.set("feeProfileNotes", existing.overrideNotes ?? "");
+      formData.delete("conventionalPolicyIds");
+      for (const policyId of existing.conventionalDiscountPolicyIds) {
+        formData.append("conventionalPolicyIds", policyId);
+      }
+      formData.set(
+        "conventionalDiscountReason",
+        existing.conventionalDiscountReason ?? "",
+      );
+      formData.set(
+        "conventionalDiscountNotes",
+        existing.conventionalDiscountNotes ?? "",
+      );
+      formData.set(
+        "conventionalDiscountFamilyGroup",
+        existing.conventionalDiscountFamilyGroupLabel ?? "",
+      );
+      formData.set(
+        "conventionalDiscountManualOverrideReason",
+        existing.conventionalDiscountManualOverrideReason ?? "",
+      );
+    }
+  }
+
   const input = getStudentFormInput(formData);
   const submittedSessionLabel = getSubmittedSessionLabel(formData);
   const { classOptions, routeOptions, resolvedSessionLabel } = await getStudentFormOptions({

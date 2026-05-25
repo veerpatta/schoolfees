@@ -56,6 +56,16 @@ type StudentFormProps = {
   conventionalDiscountPolicies?: ConventionalDiscountPolicy[];
   initialValues: StudentFormValues;
   returnTo?: string;
+  /** Whether the caller's role can edit the SR No. Defaults to true (admin). */
+  canEditAdmissionNo?: boolean;
+  /**
+   * Whether the caller's role can edit fee overrides, conventional discount
+   * assignments, and the new-vs-existing student toggle. Defaults to true
+   * (admin / accountant). Teachers receive `false` and the form hides the
+   * Conventional Discounts and Fee exceptions sections + locks the new/existing
+   * dropdown.
+   */
+  canEditFinance?: boolean;
   action: (
     previous: StudentFormActionState,
     formData: FormData,
@@ -128,6 +138,8 @@ export function StudentForm({
   conventionalDiscountPolicies = [],
   initialValues,
   returnTo = "/protected/students",
+  canEditAdmissionNo = true,
+  canEditFinance = true,
   action,
 }: StudentFormProps) {
   const [state, formAction, isPending] = useActionState(
@@ -258,9 +270,16 @@ export function StudentForm({
               defaultValue={values.admissionNo}
               className="mt-2"
               placeholder={mode === "add" ? "Leave blank for temporary SR no" : undefined}
-              required={mode === "edit"}
+              required={mode === "edit" && canEditAdmissionNo}
+              readOnly={!canEditAdmissionNo}
+              disabled={!canEditAdmissionNo}
               {...getFieldAccessibility(state, "admissionNo")}
             />
+            {!canEditAdmissionNo ? (
+              <p id="admissionNo-locked" className="mt-1 text-xs text-muted-foreground">
+                SR no can only be changed by an admin.
+              </p>
+            ) : null}
             <FieldError fieldName="admissionNo" message={getFieldError(state, "admissionNo")} />
           </div>
 
@@ -311,11 +330,20 @@ export function StudentForm({
               defaultValue={values.studentTypeOverride}
               className={`${selectClassName} mt-2`}
               required
+              disabled={!canEditFinance}
               {...getFieldAccessibility(state, "studentTypeOverride")}
             >
               <option value="existing">Existing</option>
               <option value="new">New</option>
             </select>
+            {!canEditFinance ? (
+              <p
+                id="studentTypeOverride-locked"
+                className="mt-1 text-xs text-muted-foreground"
+              >
+                New / Existing affects academic fee and can only be changed by admin.
+              </p>
+            ) : null}
             <FieldError fieldName="studentTypeOverride" message={getFieldError(state, "studentTypeOverride")} />
           </div>
 
@@ -383,6 +411,7 @@ export function StudentForm({
         </div>
       </details>
 
+      {canEditFinance ? (
       <details className="rounded-xl border border-border bg-card">
         <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">
           Conventional Discounts
@@ -477,7 +506,9 @@ export function StudentForm({
           </div>
         </div>
       </details>
+      ) : null}
 
+      {canEditFinance ? (
       <details className="rounded-xl border border-border bg-card">
         <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">
           Fee exceptions
@@ -590,6 +621,7 @@ export function StudentForm({
           </div>
         </div>
       </details>
+      ) : null}
 
       <details className="rounded-xl border border-border bg-card">
         <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">

@@ -97,10 +97,16 @@ export default async function DefaultersPage({
     searchParamSession: asString(resolvedSearchParams?.session),
     cookieSession: await getViewSessionCookie(),
   });
-  const data = await getDefaultersPageData(filters, viewSession.sessionLabel, { page });
-  const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
   const canPostPayments = hasStaffPermission(staff, "payments:write");
   const canCloseBalance = hasStaffPermission(staff, "finance:write");
+  const canViewPaymentHistory = hasStaffPermission(staff, "payments:view");
+  const data = await getDefaultersPageData(
+    filters,
+    viewSession.sessionLabel,
+    { page },
+    { redactPaymentHistory: !canViewPaymentHistory },
+  );
+  const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
   const whatsappTemplates = await listWhatsappTemplates({ onlyActive: true });
 
   // Contact summaries & cadence (gracefully degrades when table is not yet applied)
@@ -471,7 +477,9 @@ export default async function DefaultersPage({
                       <p>Days overdue: {row.daysOverdue}</p>
                       <p>Oldest due: {row.oldestDueDate ? formatShortDate(row.oldestDueDate) : "-"}</p>
                       <p>Father: {row.fatherName ?? "-"}</p>
-                      <p>Last payment: {row.lastPaymentDate ? formatShortDate(row.lastPaymentDate) : "-"}</p>
+                      {canViewPaymentHistory ? (
+                        <p>Last payment: {row.lastPaymentDate ? formatShortDate(row.lastPaymentDate) : "-"}</p>
+                      ) : null}
                     </div>
 
                     {/* Contact status chip */}
@@ -534,14 +542,19 @@ export default async function DefaultersPage({
                 <th className="px-4 py-3">Late fee</th>
                 <th className="px-4 py-3">Oldest due</th>
                 <th className="px-4 py-3">Days overdue</th>
-                <th className="px-4 py-3">Last payment</th>
+                {canViewPaymentHistory ? (
+                  <th className="px-4 py-3">Last payment</th>
+                ) : null}
                 <th className="px-4 py-3">Action</th>
               </tr>
             </thead>
             <tbody>
               {visibleRows.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="px-4 py-6 text-center text-muted-foreground">
+                  <td
+                    colSpan={canViewPaymentHistory ? 13 : 12}
+                    className="px-4 py-6 text-center text-muted-foreground"
+                  >
                     No defaulters found for the selected filters.
                   </td>
                 </tr>
@@ -586,9 +599,11 @@ export default async function DefaultersPage({
                       {row.oldestDueDate ? formatShortDate(row.oldestDueDate) : "-"}
                     </td>
                     <td className="px-4 py-3">{row.daysOverdue}</td>
-                    <td className="px-4 py-3">
-                      {row.lastPaymentDate ? formatShortDate(row.lastPaymentDate) : "-"}
-                    </td>
+                    {canViewPaymentHistory ? (
+                      <td className="px-4 py-3">
+                        {row.lastPaymentDate ? formatShortDate(row.lastPaymentDate) : "-"}
+                      </td>
+                    ) : null}
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2">
                         <Link
