@@ -16,7 +16,6 @@ import {
   Moon,
   Settings2,
   Sun,
-  Sparkles,
 } from "lucide-react";
 
 import type { CommandItem, CommandProvider } from "@/lib/command/types";
@@ -93,25 +92,6 @@ const ACTIONS: CommandItem[] = [
         // best-effort
       }
       html.classList.toggle("dark");
-      close();
-    },
-  },
-  {
-    id: "action:toggle-density",
-    providerId: "actions",
-    label: "Toggle density (cozy/compact)",
-    icon: Sparkles,
-    keywords: ["spacing", "compact", "cozy"],
-    kind: "action",
-    onSelect: ({ close }) => {
-      const html = document.documentElement;
-      const next = html.dataset.density === "compact" ? "cozy" : "compact";
-      html.dataset.density = next;
-      try {
-        window.localStorage.setItem("vpps.density", next);
-      } catch {
-        // best-effort
-      }
       close();
     },
   },

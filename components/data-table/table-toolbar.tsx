@@ -1,19 +1,17 @@
 "use client";
 
 /**
- * Generic toolbar for list pages — search input + filter chips + density toggle +
- * an actions slot. Owns nothing; the page wires everything.
+ * Generic toolbar for list pages — search input + filter chips + actions slot.
+ * Owns nothing; the page wires everything.
  *
  * Designed to slot above any existing table on Students, Transactions,
- * Defaulters, Exports — without forcing a TanStack rewrite. Density-aware
- * via the global density context (Phase 0).
+ * Defaulters, Exports — without forcing a TanStack rewrite.
  */
 
 import { type ReactNode, useId } from "react";
 import { Search } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { DensityToggle } from "@/components/ui/density-toggle";
 
 type TableToolbarProps = {
   /** Search input value (controlled). */
@@ -24,7 +22,10 @@ type TableToolbarProps = {
   filters?: ReactNode;
   /** Right-aligned action slot (e.g. "Export", "Add student"). */
   actions?: ReactNode;
-  /** Hide density toggle on pages where density doesn't help (rare). */
+  /**
+   * Accepted for backwards compatibility with call sites that haven't been
+   * scrubbed yet. Has no effect — the density toggle was removed.
+   */
   showDensity?: boolean;
   className?: string;
 };
@@ -35,7 +36,6 @@ export function TableToolbar({
   searchPlaceholder = "Search…",
   filters,
   actions,
-  showDensity = true,
   className,
 }: TableToolbarProps) {
   const inputId = useId();
@@ -66,7 +66,6 @@ export function TableToolbar({
         <div className="flex flex-wrap items-center gap-2">{filters}</div>
       ) : null}
       <div className="ml-auto flex items-center gap-2">
-        {showDensity ? <DensityToggle /> : null}
         {actions}
       </div>
     </div>

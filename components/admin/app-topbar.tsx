@@ -18,7 +18,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { DensityToggle } from "@/components/ui/density-toggle";
 import { CommandTrigger } from "@/components/command/command-trigger";
 import { SchoolBrand } from "@/components/branding/school-brand";
 
@@ -58,7 +57,6 @@ export function AppTopBar({ staffEmail, staffRole, sessionPill }: AppTopBarProps
         <div className="flex items-center gap-2">
           {sessionPill}
           <StatusBadge label={roleLabels[staffRole]} tone="neutral" iconless />
-          <DensityToggle />
           <ThemeToggle />
 
           <DropdownMenu>

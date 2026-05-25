@@ -132,7 +132,11 @@ type ReceiptDocumentProps = {
   receipt: ReceiptDetail;
   className?: string;
   mode?: ReceiptDocumentMode;
-  /** Density. Compact collapses the heavier audit sections behind summary toggles. */
+  /**
+   * Accepted for backwards compatibility with call sites that haven't been
+   * scrubbed yet. Has no effect — the receipt always renders the full
+   * (formerly "full") layout.
+   */
   density?: "full" | "compact";
   /**
    * When false, the per-receipt `@page` size rule is omitted so the surrounding
@@ -234,13 +238,11 @@ export function ReceiptDocument({
   receipt,
   className,
   mode = "print",
-  density = "full",
   embedPageStyles = true,
 }: ReceiptDocumentProps) {
   const breakdownTotal = receipt.breakdown.reduce((sum, item) => sum + item.amount, 0);
   const isDraft = mode === "draft";
   const isSaved = mode === "saved";
-  const isCompact = density === "compact";
 
   return (
     <article
@@ -460,9 +462,7 @@ export function ReceiptDocument({
           </div>
         </section>
 
-        {isCompact ? null : (
-          <ConventionalDiscountBlock assignments={receipt.conventionalDiscountAssignments} />
-        )}
+        <ConventionalDiscountBlock assignments={receipt.conventionalDiscountAssignments} />
 
         <section className="rounded-lg border border-border bg-card/95 p-4 print-compact">
           <div className="mb-2 flex items-center justify-between gap-3">
@@ -522,7 +522,6 @@ export function ReceiptDocument({
           </div>
         </section>
 
-        {isCompact ? null : (
         <section className="grid gap-3 md:grid-cols-[0.95fr_1.05fr]">
           <div className="rounded-lg border border-border bg-card/95 p-4 print-compact">
             <h2 className="text-sm font-semibold text-foreground">Fee Breakup / शुल्क विवरण</h2>
@@ -560,13 +559,6 @@ export function ReceiptDocument({
             ) : null}
           </div>
         </section>
-        )}
-
-        {isCompact ? (
-          <p className="rounded-md border border-dashed border-border bg-surface-2 px-3 py-2 text-center text-xs text-muted-foreground">
-            Compact preview · Open the full page for audit detail, fee breakup, and notes.
-          </p>
-        ) : null}
 
         <footer className="flex items-end justify-between gap-4 pt-2 text-xs text-muted-foreground">
           <div>
