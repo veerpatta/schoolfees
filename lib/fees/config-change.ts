@@ -37,6 +37,7 @@ type GlobalPolicyChangePayload = {
   lateFeeFlatAmount: number;
   newStudentAcademicFeeAmount: number;
   oldStudentAcademicFeeAmount: number;
+  academicFeeDistribution: FeePolicySummary["academicFeeDistribution"];
   acceptedPaymentModes: PaymentMode[];
   receiptPrefix: string;
   customFeeHeads: FeeHeadDefinition[];
@@ -260,6 +261,7 @@ function buildGlobalPolicyPayloadFromSummary(payload: {
   lateFeeFlatAmount: number;
   newStudentAcademicFeeAmount: number;
   oldStudentAcademicFeeAmount: number;
+  academicFeeDistribution: FeePolicySummary["academicFeeDistribution"];
   acceptedPaymentModes: Array<{ value: PaymentMode }>;
   receiptPrefix: string;
   customFeeHeads: FeeHeadDefinition[];
@@ -275,6 +277,7 @@ function buildGlobalPolicyPayloadFromSummary(payload: {
     lateFeeFlatAmount: payload.lateFeeFlatAmount,
     newStudentAcademicFeeAmount: payload.newStudentAcademicFeeAmount,
     oldStudentAcademicFeeAmount: payload.oldStudentAcademicFeeAmount,
+    academicFeeDistribution: payload.academicFeeDistribution,
     acceptedPaymentModes: payload.acceptedPaymentModes.map((item) => item.value),
     receiptPrefix: payload.receiptPrefix,
     customFeeHeads: payload.customFeeHeads,
@@ -1168,6 +1171,7 @@ async function applyPayload(
       lateFeeFlatAmount: globalPayload.lateFeeFlatAmount,
       newStudentAcademicFeeAmount: globalPayload.newStudentAcademicFeeAmount,
       oldStudentAcademicFeeAmount: globalPayload.oldStudentAcademicFeeAmount,
+      academicFeeDistribution: globalPayload.academicFeeDistribution,
       acceptedPaymentModes: globalPayload.acceptedPaymentModes,
       receiptPrefix: globalPayload.receiptPrefix,
       customFeeHeads: globalPayload.customFeeHeads,

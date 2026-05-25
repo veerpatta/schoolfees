@@ -163,6 +163,13 @@ export type ResolvedFeeBreakdown = {
   booksExcludedFromWorkbook: boolean;
 };
 
+/**
+ * Where the academic fee component lands in a student's installment schedule.
+ * - first_only: the full academic fee is added only to installment 1 (default).
+ * - equal:      the academic fee is split equally across all installments.
+ */
+export type AcademicFeeDistribution = "first_only" | "equal";
+
 export type FeePolicySummary = {
   id: string | null;
   academicSessionLabel: string;
@@ -173,6 +180,7 @@ export type FeePolicySummary = {
   lateFeeLabel: string;
   newStudentAcademicFeeAmount: number;
   oldStudentAcademicFeeAmount: number;
+  academicFeeDistribution: AcademicFeeDistribution;
   acceptedPaymentModes: Array<{
     value: PaymentMode;
     label: string;

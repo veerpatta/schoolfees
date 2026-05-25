@@ -81,6 +81,7 @@ type GlobalPolicyRow = {
   late_fee_flat_amount: number;
   new_student_academic_fee_amount: number;
   old_student_academic_fee_amount: number;
+  academic_fee_distribution: "first_only" | "equal" | null;
   custom_fee_heads: unknown;
   accepted_payment_modes: PaymentMode[];
   receipt_prefix: string;
@@ -270,6 +271,8 @@ function toFeePolicySummary(
     oldStudentAcademicFeeAmount:
       toWholeNumber(row.old_student_academic_fee_amount) ||
       defaults.oldStudentAcademicFeeAmount,
+    academicFeeDistribution:
+      row.academic_fee_distribution === "equal" ? "equal" : "first_only",
     acceptedPaymentModes: (
       row.accepted_payment_modes ?? defaults.acceptedPaymentModes.map((item) => item.value)
     ).map((value) => ({
@@ -306,7 +309,7 @@ async function loadFeePolicySnapshots(useAdmin = false): Promise<FeePolicySnapsh
   const { data, error } = await supabase
     .from("fee_policy_configs")
     .select(
-      "id, academic_session_label, calculation_model, installment_schedule, late_fee_flat_amount, new_student_academic_fee_amount, old_student_academic_fee_amount, custom_fee_heads, accepted_payment_modes, receipt_prefix, notes, is_active, updated_at",
+      "id, academic_session_label, calculation_model, installment_schedule, late_fee_flat_amount, new_student_academic_fee_amount, old_student_academic_fee_amount, academic_fee_distribution, custom_fee_heads, accepted_payment_modes, receipt_prefix, notes, is_active, updated_at",
     )
     .order("academic_session_label", { ascending: false })
     .order("updated_at", { ascending: false });
@@ -434,6 +437,7 @@ function snapshotToSummary(snapshot: FeePolicySnapshot): FeePolicySummary {
     lateFeeLabel: snapshot.lateFeeLabel,
     newStudentAcademicFeeAmount: snapshot.newStudentAcademicFeeAmount,
     oldStudentAcademicFeeAmount: snapshot.oldStudentAcademicFeeAmount,
+    academicFeeDistribution: snapshot.academicFeeDistribution,
     acceptedPaymentModes: snapshot.acceptedPaymentModes,
     receiptPrefix: snapshot.receiptPrefix,
     customFeeHeads: snapshot.customFeeHeads,
@@ -928,6 +932,7 @@ function buildPolicyPayload(payload: {
   lateFeeFlatAmount: number;
   newStudentAcademicFeeAmount: number;
   oldStudentAcademicFeeAmount: number;
+  academicFeeDistribution: FeePolicySummary["academicFeeDistribution"];
   acceptedPaymentModes: PaymentMode[];
   receiptPrefix: string;
   customFeeHeads: FeeHeadDefinition[];
@@ -974,6 +979,7 @@ function buildPolicyPayload(payload: {
     late_fee_flat_amount: payload.lateFeeFlatAmount,
     new_student_academic_fee_amount: payload.newStudentAcademicFeeAmount,
     old_student_academic_fee_amount: payload.oldStudentAcademicFeeAmount,
+    academic_fee_distribution: payload.academicFeeDistribution,
     custom_fee_heads: dedupedCatalog,
     accepted_payment_modes: dedupedModes,
     receipt_prefix: payload.receiptPrefix.trim(),
@@ -989,6 +995,7 @@ export async function upsertGlobalFeePolicy(payload: {
   lateFeeFlatAmount: number;
   newStudentAcademicFeeAmount: number;
   oldStudentAcademicFeeAmount: number;
+  academicFeeDistribution: FeePolicySummary["academicFeeDistribution"];
   acceptedPaymentModes: PaymentMode[];
   receiptPrefix: string;
   customFeeHeads: FeeHeadDefinition[];
@@ -1518,6 +1525,7 @@ export function resolveStudentPolicyBreakdown(payload: {
       academicFee: academicFeeAmount,
       otherAdjustmentAmount,
       discountAmount: payload.studentOverride?.discountAmount ?? 0,
+      academicFeeDistribution: payload.policy.academicFeeDistribution,
     });
 
     return {

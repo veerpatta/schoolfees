@@ -252,6 +252,10 @@ function parseWorkbookFeeSetupForm(formData: FormData): WorkbookFeeSetupFormPayl
       formData.get("oldStudentAcademicFeeAmount"),
       "Old student academic fee",
     ),
+    academicFeeDistribution:
+      (formData.get("academicFeeDistribution") ?? "first_only").toString() === "equal"
+        ? ("equal" as const)
+        : ("first_only" as const),
     customFeeHeads: parseFeeHeadRows(formData),
     classRows: classRows.map((item) => ({
       label: item.label,

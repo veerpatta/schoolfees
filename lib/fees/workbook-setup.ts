@@ -19,6 +19,7 @@ export type WorkbookFeeSetupFormPayload = {
   lateFeeFlatAmount: number;
   newStudentAcademicFeeAmount: number;
   oldStudentAcademicFeeAmount: number;
+  academicFeeDistribution: "first_only" | "equal";
   customFeeHeads: FeeHeadDefinition[];
   classRows: Array<{
     label: string;
@@ -180,6 +181,7 @@ export function buildWorkbookSetupSnapshot(
     lateFeeFlatAmount: policy.lateFeeFlatAmount,
     newStudentAcademicFeeAmount: policy.newStudentAcademicFeeAmount,
     oldStudentAcademicFeeAmount: policy.oldStudentAcademicFeeAmount,
+    academicFeeDistribution: policy.academicFeeDistribution,
     customFeeHeads: policy.customFeeHeads,
     targetSessionLabel: academicSessionLabel,
     classRows: buildWorkbookClassSetupRows(data, academicSessionLabel).map((item) => ({

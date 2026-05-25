@@ -111,6 +111,7 @@ export type SaveSetupPolicyInput = {
   lateFeeFlatAmount: number;
   newStudentAcademicFeeAmount: number;
   oldStudentAcademicFeeAmount: number;
+  academicFeeDistribution: FeePolicySummary["academicFeeDistribution"];
   acceptedPaymentModes: PaymentMode[];
   receiptPrefix: string | null;
 };

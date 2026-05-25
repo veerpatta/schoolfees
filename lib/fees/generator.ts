@@ -677,6 +677,7 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
           academicFee: resolved.breakdown.academicFeeAmount,
           otherAdjustmentAmount: resolved.breakdown.otherAdjustmentAmount,
           discountAmount: resolved.breakdown.discountApplied,
+          academicFeeDistribution: setupData.globalPolicy.academicFeeDistribution,
         })
       : null;
     const baseAmounts = isWorkbook

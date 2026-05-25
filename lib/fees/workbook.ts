@@ -216,6 +216,12 @@ export function buildWorkbookInstallmentCharges(payload: {
   academicFee: number;
   otherAdjustmentAmount: number;
   discountAmount: number;
+  /**
+   * Where the academic fee lands across installments.
+   * - first_only (default): full academic fee added only to installment 1.
+   * - equal:                academic fee split equally across all installments.
+   */
+  academicFeeDistribution?: "first_only" | "equal";
 }) {
   const installmentCount = Math.max(1, Math.trunc(payload.installmentCount));
   const tuitionFee = Math.max(0, Math.trunc(payload.tuitionFee));
@@ -223,6 +229,7 @@ export function buildWorkbookInstallmentCharges(payload: {
   const academicFee = Math.max(0, Math.trunc(payload.academicFee));
   const otherAdjustmentAmount = Math.trunc(payload.otherAdjustmentAmount);
   const discountAmount = Math.max(0, Math.trunc(payload.discountAmount));
+  const academicFeeDistribution = payload.academicFeeDistribution ?? "first_only";
   const grossBaseBeforeDiscount = Math.max(
     0,
     tuitionFee + transportFee + academicFee + otherAdjustmentAmount,
@@ -230,12 +237,20 @@ export function buildWorkbookInstallmentCharges(payload: {
   const discountApplied = Math.min(discountAmount, grossBaseBeforeDiscount);
   const baseTotalDue = Math.max(0, grossBaseBeforeDiscount - discountApplied);
   const academicCharge = Math.min(academicFee, baseTotalDue);
-  const remainderBase = Math.max(0, baseTotalDue - academicCharge);
-  const sharedCharges = splitAmountWithRemainderLast(remainderBase, installmentCount);
 
-  const installmentCharges = sharedCharges.map((amount, index) =>
-    index === 0 ? amount + academicCharge : amount,
-  );
+  let installmentCharges: number[];
+  if (academicFeeDistribution === "equal") {
+    // Distribute the entire baseTotalDue (academic included) evenly. The
+    // remainder lands in the last installment so the sum still matches.
+    installmentCharges = splitAmountWithRemainderLast(baseTotalDue, installmentCount);
+  } else {
+    // first_only: academic in installment 1, the rest split equally.
+    const remainderBase = Math.max(0, baseTotalDue - academicCharge);
+    const sharedCharges = splitAmountWithRemainderLast(remainderBase, installmentCount);
+    installmentCharges = sharedCharges.map((amount, index) =>
+      index === 0 ? amount + academicCharge : amount,
+    );
+  }
 
   return {
     grossBaseBeforeDiscount,
@@ -319,6 +334,7 @@ export type WorkbookStudentMasterCalculationInput = {
   otherAdjustmentAmount?: number;
   discountAmount?: number;
   lateFeeWaiverAmount?: number;
+  academicFeeDistribution?: "first_only" | "equal";
   payments?: WorkbookPaymentInput[];
   today?: string;
 };
@@ -397,6 +413,7 @@ export function buildWorkbookStudentMasterCalculation(
     academicFee: payload.academicFee,
     otherAdjustmentAmount: payload.otherAdjustmentAmount ?? 0,
     discountAmount: payload.discountAmount ?? 0,
+    academicFeeDistribution: payload.academicFeeDistribution,
   });
   const payments = normalizeWorkbookPayments(payload.payments);
   const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);

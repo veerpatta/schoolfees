@@ -591,6 +591,7 @@ export async function saveSetupPolicy(input: SaveSetupPolicyInput) {
     lateFeeFlatAmount: input.lateFeeFlatAmount,
     newStudentAcademicFeeAmount: input.newStudentAcademicFeeAmount,
     oldStudentAcademicFeeAmount: input.oldStudentAcademicFeeAmount,
+    academicFeeDistribution: input.academicFeeDistribution,
     acceptedPaymentModes: input.acceptedPaymentModes,
     receiptPrefix:
       input.receiptPrefix?.trim().toUpperCase() ||

@@ -119,6 +119,7 @@ type SessionFormState = {
   lateFeeFlatAmount: number;
   newStudentAcademicFeeAmount: number;
   oldStudentAcademicFeeAmount: number;
+  academicFeeDistribution: "first_only" | "equal";
   customFeeHeads: FeeHeadRow[];
   conventionalDiscountPolicies: ConventionalDiscountRow[];
   classRows: Array<{
@@ -199,6 +200,7 @@ function buildSessionFormState(data: FeeSetupPageData, sessionLabel: string): Se
     lateFeeFlatAmount: snapshot.lateFeeFlatAmount,
     newStudentAcademicFeeAmount: snapshot.newStudentAcademicFeeAmount,
     oldStudentAcademicFeeAmount: snapshot.oldStudentAcademicFeeAmount,
+    academicFeeDistribution: snapshot.academicFeeDistribution,
     customFeeHeads: snapshot.customFeeHeads.map((item, index) => buildFeeHeadRow(item, index)),
     conventionalDiscountPolicies: data.conventionalDiscountPolicies.map((policy) => ({
       id: policy.id,
@@ -256,6 +258,7 @@ function createWorkbookFormData(
   formData.set("lateFeeFlatAmount", String(form.lateFeeFlatAmount));
   formData.set("newStudentAcademicFeeAmount", String(form.newStudentAcademicFeeAmount));
   formData.set("oldStudentAcademicFeeAmount", String(form.oldStudentAcademicFeeAmount));
+  formData.set("academicFeeDistribution", form.academicFeeDistribution);
   formData.set("_intent", intent);
 
   if (changeBatchId) {
@@ -1263,6 +1266,83 @@ export function FeeSetupClient({
                         className="mt-2 h-10 rounded-lg"
                         disabled={!canEdit}
                       />
+                    </div>
+                  </div>
+                  <div className="mt-3 rounded-lg border border-border bg-card p-3">
+                    <Label className="text-sm font-semibold text-foreground">
+                      Academic fee distribution
+                    </Label>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Choose how the annual academic fee is spread across installments. Existing
+                      installment rows are not changed by this setting — it applies to new
+                      regenerations and any future fee setup.
+                    </p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <label
+                        className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors ${
+                          form.academicFeeDistribution === "first_only"
+                            ? "border-accent bg-accent-soft"
+                            : "border-border bg-surface hover:bg-surface-2"
+                        } ${!canEdit ? "cursor-not-allowed opacity-60" : ""}`}
+                      >
+                        <input
+                          type="radio"
+                          name="academicFeeDistribution"
+                          value="first_only"
+                          checked={form.academicFeeDistribution === "first_only"}
+                          onChange={() => {
+                            setForm((current) => ({
+                              ...current,
+                              academicFeeDistribution: "first_only",
+                            }));
+                            markDirty("basic");
+                          }}
+                          className="mt-0.5"
+                          disabled={!canEdit}
+                        />
+                        <span className="text-sm">
+                          <span className="block font-medium text-foreground">
+                            First installment only
+                          </span>
+                          <span className="block text-xs text-muted-foreground">
+                            Add the full academic fee to installment 1. Installments 2–N carry
+                            only the tuition / transport share. Recommended — matches current
+                            school practice.
+                          </span>
+                        </span>
+                      </label>
+                      <label
+                        className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors ${
+                          form.academicFeeDistribution === "equal"
+                            ? "border-accent bg-accent-soft"
+                            : "border-border bg-surface hover:bg-surface-2"
+                        } ${!canEdit ? "cursor-not-allowed opacity-60" : ""}`}
+                      >
+                        <input
+                          type="radio"
+                          name="academicFeeDistribution"
+                          value="equal"
+                          checked={form.academicFeeDistribution === "equal"}
+                          onChange={() => {
+                            setForm((current) => ({
+                              ...current,
+                              academicFeeDistribution: "equal",
+                            }));
+                            markDirty("basic");
+                          }}
+                          className="mt-0.5"
+                          disabled={!canEdit}
+                        />
+                        <span className="text-sm">
+                          <span className="block font-medium text-foreground">
+                            Split equally across all installments
+                          </span>
+                          <span className="block text-xs text-muted-foreground">
+                            Divide the annual academic fee evenly into each installment. Use this
+                            when parents prefer a flatter payment schedule.
+                          </span>
+                        </span>
+                      </label>
                     </div>
                   </div>
                 </div>

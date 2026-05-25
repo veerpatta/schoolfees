@@ -226,6 +226,7 @@ export function buildDefaultFeePolicySummary(referenceDate = new Date()) {
     lateFeeLabel: "Flat Rs 1000",
     newStudentAcademicFeeAmount: 1100,
     oldStudentAcademicFeeAmount: 500,
+    academicFeeDistribution: "first_only" as const,
     acceptedPaymentModes: DEFAULT_ACCEPTED_PAYMENT_MODES.map((value) => ({
       value,
       label: formatPaymentModeLabel(value),

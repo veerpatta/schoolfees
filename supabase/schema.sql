@@ -2185,6 +2185,8 @@ create table if not exists public.fee_policy_configs (
   academic_session_label text not null,
   installment_schedule jsonb not null default '[]'::jsonb,
   late_fee_flat_amount integer not null default 1000 check (late_fee_flat_amount >= 0),
+  academic_fee_distribution text not null default 'first_only'
+    check (academic_fee_distribution in ('first_only', 'equal')),
   custom_fee_heads jsonb not null default '[]'::jsonb,
   accepted_payment_modes public.payment_mode[] not null default array['cash', 'upi', 'bank_transfer', 'cheque']::public.payment_mode[],
   receipt_prefix text not null default 'SVP',

@@ -301,6 +301,10 @@ export async function saveSetupPolicyAction(
         formData.get("oldStudentAcademicFeeAmount"),
         "Old student academic fee",
       ),
+      academicFeeDistribution:
+        (formData.get("academicFeeDistribution") ?? "first_only").toString() === "equal"
+          ? "equal"
+          : "first_only",
       acceptedPaymentModes: parseAcceptedPaymentModes(formData),
       receiptPrefix: (formData.get("receiptPrefix") ?? "").toString().trim() || null,
     });

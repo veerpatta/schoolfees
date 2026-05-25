@@ -275,6 +275,14 @@ function buildWorkbookSetupPlan(
       formatter: (value) => formatAmount(Number(value ?? 0)),
     }),
     buildFieldDiff({
+      field: "academicFeeDistribution",
+      label: "Academic fee distribution",
+      beforeValue: basePolicy.academicFeeDistribution,
+      afterValue: payload.academicFeeDistribution,
+      formatter: (value) =>
+        value === "equal" ? "Split equally across all installments" : "First installment only",
+    }),
+    buildFieldDiff({
       field: "customFeeHeads",
       label: "Fee heads",
       beforeValue: basePolicy.customFeeHeads,
@@ -396,6 +404,7 @@ function applyWorkbookPlanToSetupData(
       lateFeeLabel: `Flat Rs ${payload.lateFeeFlatAmount}`,
       newStudentAcademicFeeAmount: payload.newStudentAcademicFeeAmount,
       oldStudentAcademicFeeAmount: payload.oldStudentAcademicFeeAmount,
+      academicFeeDistribution: payload.academicFeeDistribution,
       customFeeHeads: payload.customFeeHeads,
     },
     policySnapshots: setupData.policySnapshots.map((item) =>
@@ -409,6 +418,7 @@ function applyWorkbookPlanToSetupData(
             lateFeeLabel: `Flat Rs ${payload.lateFeeFlatAmount}`,
             newStudentAcademicFeeAmount: payload.newStudentAcademicFeeAmount,
             oldStudentAcademicFeeAmount: payload.oldStudentAcademicFeeAmount,
+            academicFeeDistribution: payload.academicFeeDistribution,
             customFeeHeads: payload.customFeeHeads,
           }
         : item,
@@ -631,6 +641,7 @@ async function applyWorkbookSetupPayload(
       lateFeeFlatAmount: payload.lateFeeFlatAmount,
       newStudentAcademicFeeAmount: payload.newStudentAcademicFeeAmount,
       oldStudentAcademicFeeAmount: payload.oldStudentAcademicFeeAmount,
+      academicFeeDistribution: payload.academicFeeDistribution,
       acceptedPaymentModes: basePolicy.acceptedPaymentModes.map((item) => item.value),
       receiptPrefix: basePolicy.receiptPrefix,
       customFeeHeads: payload.customFeeHeads,
