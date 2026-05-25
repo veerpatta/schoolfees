@@ -2039,31 +2039,96 @@ export function PaymentDeskClient({
                   </button>
                 </div>
 
+                {previewTotalPending <= 0 && (selectedStudent.totalPaid ?? 0) > 0 ? (
+                  <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-success-soft px-3 py-2 text-sm font-semibold text-success-soft-foreground">
+                    <span>✓ Year Clear · all dues settled</span>
+                    <span className="text-xs opacity-80">
+                      Paid {formatInr(selectedStudent.totalPaid)}
+                    </span>
+                  </div>
+                ) : null}
+
+                {previewBreakdown.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {previewBreakdown.map((item) => {
+                      const isPaid = item.outstandingAmount <= 0 && item.paymentsTotal > 0;
+                      const isOverdue = item.balanceStatus === "overdue";
+                      const isPartial = item.paymentsTotal > 0 && item.outstandingAmount > 0;
+                      const pillCls = isPaid
+                        ? "bg-success-soft text-success-soft-foreground border-success-soft-foreground/30"
+                        : isOverdue
+                          ? "bg-destructive/10 text-destructive border-destructive/30"
+                          : isPartial
+                            ? "bg-warning-soft text-warning-soft-foreground border-warning-soft-foreground/30"
+                            : "bg-card text-muted-foreground border-border";
+                      const symbol = isPaid ? "✓" : isOverdue ? "‼" : isPartial ? "½" : "";
+                      return (
+                        <span
+                          key={`desk-pill-${item.installmentId}`}
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                            pillCls,
+                          )}
+                          title={`Inst ${item.installmentNo}: ${
+                            isPaid
+                              ? `paid ${formatInr(item.paymentsTotal)}`
+                              : isOverdue
+                                ? `overdue ${formatInr(item.outstandingAmount)}`
+                                : isPartial
+                                  ? `partial — ${formatInr(item.outstandingAmount)} left`
+                                  : `pending ${formatInr(item.outstandingAmount)}`
+                          }`}
+                        >
+                          Inst {item.installmentNo} {symbol}
+                        </span>
+                      );
+                    })}
+                  </div>
+                ) : null}
+
                 <div className="mt-3 divide-y divide-border overflow-hidden rounded-lg border border-border text-xs">
-                  {previewBreakdown.map((row) => (
-                    <div key={row.installmentId} className="flex items-center justify-between px-3 py-2">
-                      <span className="text-muted-foreground">
-                        {row.installmentLabel}
-                        {row.finalLateFee > 0 ? (
-                          <span className="ml-1.5 text-info-soft-foreground">
-                            +{formatInr(row.finalLateFee)} late fee
-                          </span>
-                        ) : null}
-                      </span>
-                      <span
-                        className={cn(
-                          "font-medium tabular-nums",
-                          row.outstandingAmount <= 0
-                            ? "text-success-soft-foreground"
-                            : row.balanceStatus === "overdue"
-                              ? "text-destructive"
-                              : "text-foreground",
-                        )}
-                      >
-                        {row.outstandingAmount <= 0 ? "Paid" : formatInr(row.outstandingAmount)}
-                      </span>
-                    </div>
-                  ))}
+                  {previewBreakdown.map((row) => {
+                    const isPaid = row.outstandingAmount <= 0 && row.paymentsTotal > 0;
+                    const isOverdue = row.balanceStatus === "overdue";
+                    const isPartial = row.paymentsTotal > 0 && row.outstandingAmount > 0;
+                    const statusChip = isPaid
+                      ? { label: "✓ Paid", cls: "bg-success-soft text-success-soft-foreground border-success-soft-foreground/30" }
+                      : isOverdue
+                        ? { label: "Overdue", cls: "bg-destructive/10 text-destructive border-destructive/30" }
+                        : isPartial
+                          ? { label: "Partial", cls: "bg-warning-soft text-warning-soft-foreground border-warning-soft-foreground/30" }
+                          : { label: "Pending", cls: "bg-surface-2 text-muted-foreground border-border" };
+                    return (
+                      <div key={row.installmentId} className="flex items-center justify-between gap-2 px-3 py-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-foreground">{row.installmentLabel}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            Due {row.dueDate}
+                            {row.finalLateFee > 0 ? (
+                              <span className="ml-1.5 text-destructive">
+                                +{formatInr(row.finalLateFee)} late fee
+                              </span>
+                            ) : null}
+                          </p>
+                        </div>
+                        <span className={cn("shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold", statusChip.cls)}>
+                          {statusChip.label}
+                        </span>
+                        <span
+                          className={cn(
+                            "shrink-0 min-w-[60px] text-right font-medium tabular-nums",
+                            isPaid
+                              ? "text-success-soft-foreground"
+                              : isOverdue
+                                ? "text-destructive"
+                                : "text-foreground",
+                          )}
+                        >
+                          {isPaid ? formatInr(row.paymentsTotal) : formatInr(row.outstandingAmount)}
+                        </span>
+                      </div>
+                    );
+                  })}
                   <div className="flex items-center justify-between bg-surface-2 px-3 py-2 font-medium">
                     <span className="text-muted-foreground">Total pending</span>
                     <span className="tabular-nums text-accent">{formatInr(previewTotalPending)}</span>
@@ -2113,6 +2178,78 @@ export function PaymentDeskClient({
                     </div>
                   ) : null}
                 </div>
+
+                {(() => {
+                  const dist = selectedStudent.feeHeadDistribution;
+                  if (!dist) return null;
+                  const totalDiscountAmt = dist.discountAmount;
+                  const labelSuffix = dist.conventionalDiscountLabels.length > 0
+                    ? ` (${dist.conventionalDiscountLabels.join(" + ")})`
+                    : "";
+                  const heads = ([
+                    { label: "Tuition", amount: dist.tuitionFee },
+                    { label: "Academic", amount: dist.academicFee },
+                    { label: "Transport", amount: dist.transportFee },
+                    dist.otherAdjustmentHead && dist.otherAdjustmentAmount > 0
+                      ? { label: dist.otherAdjustmentHead, amount: dist.otherAdjustmentAmount }
+                      : null,
+                    totalDiscountAmt > 0
+                      ? { label: `Discount${labelSuffix}`, amount: -totalDiscountAmt }
+                      : null,
+                  ].filter(Boolean) as Array<{ label: string; amount: number }>).filter((h) => h.amount !== 0);
+                  if (heads.length === 0) return null;
+                  return (
+                    <details className="mt-3 rounded-lg border border-border bg-surface-2/40 text-xs">
+                      <summary className="cursor-pointer select-none px-3 py-2 font-medium text-foreground">
+                        Annual fee heads & paid summary
+                      </summary>
+                      <div className="border-t border-border bg-card px-3 py-2">
+                        <ul className="space-y-0.5">
+                          {heads.map((head) => (
+                            <li key={head.label} className="flex justify-between">
+                              <span className="text-muted-foreground">{head.label}</span>
+                              <span
+                                className={cn(
+                                  "font-mono font-medium",
+                                  head.amount < 0 ? "text-success-soft-foreground" : "text-foreground",
+                                )}
+                              >
+                                {head.amount < 0 ? `−${formatInr(Math.abs(head.amount))}` : formatInr(head.amount)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                        <div className="mt-1.5 border-t border-border pt-1.5 space-y-0.5">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Total annual</span>
+                            <span className="font-mono font-medium text-foreground">
+                              {formatInr(selectedStudent.totalDue)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Paid till now</span>
+                            <span className="font-mono font-semibold text-success-soft-foreground">
+                              {formatInr(selectedStudent.totalPaid)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between font-semibold">
+                            <span>Balance</span>
+                            <span
+                              className={cn(
+                                "font-mono tabular-nums",
+                                previewTotalPending <= 0
+                                  ? "text-success-soft-foreground"
+                                  : "text-foreground",
+                              )}
+                            >
+                              {previewTotalPending <= 0 ? "₹0 ✓" : formatInr(previewTotalPending)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </details>
+                  );
+                })()}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border bg-surface px-4 py-10 text-center">
