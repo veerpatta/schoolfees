@@ -292,16 +292,26 @@ export default async function StudentDetailPage({
   const annualDiscount =
     (financialSnapshot?.resolvedBreakdown.discountApplied ?? 0) +
     (financialSnapshot?.resolvedBreakdown.conventionalDiscountApplied ?? 0);
+  const conventionalDiscountLabels = financialSnapshot?.resolvedBreakdown.conventionalDiscountLabels ?? [];
+  const discountSuffix = conventionalDiscountLabels.length > 0 ? ` (${conventionalDiscountLabels.join(" + ")})` : "";
 
   function buildPerInstallmentHeads(item: typeof installmentBalances[number]) {
     if (resolvedHeads.length === 0 || installmentCount <= 0) return [] as Array<{ label: string; amount: number }>;
-    const headRows = resolvedHeads.map((head) => ({
-      label: head.label,
-      amount: Math.round(head.amount / installmentCount),
-    }));
+    const isFirstInstallment = item.installmentNo === 1;
+    const headRows: Array<{ label: string; amount: number }> = [];
+    for (const head of resolvedHeads) {
+      // Academic fee is bundled into installment 1 only (workbook model).
+      if (head.id === "academic_fee") {
+        if (isFirstInstallment) {
+          headRows.push({ label: head.label, amount: head.amount });
+        }
+      } else {
+        headRows.push({ label: head.label, amount: Math.round(head.amount / installmentCount) });
+      }
+    }
     if (annualDiscount > 0) {
       headRows.push({
-        label: "Discount",
+        label: `Discount${discountSuffix}`,
         amount: -Math.round(annualDiscount / installmentCount),
       });
     }
@@ -374,7 +384,7 @@ export default async function StudentDetailPage({
                 {headRows.length > 0 ? (
                   <div className="border-t border-border bg-surface-2/40 px-4 py-2 text-xs">
                     <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                      Fee heads (approx · annual ÷ {installmentCount})
+                      Fee heads for this installment
                     </p>
                     <ul className="space-y-1">
                       {headRows.map((head) => (

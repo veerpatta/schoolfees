@@ -110,7 +110,12 @@ export type FeeHeadDistribution = {
   academicFee: number;
   otherAdjustmentHead: string | null;
   otherAdjustmentAmount: number;
+  /** Manual / flat discount amount applied at the student level. */
   discountAmount: number;
+  /** Total reduction from conventional discount policies (e.g. RTE / Staff Child / 3rd Child). */
+  conventionalDiscountAmount: number;
+  /** Human-readable conventional discount labels (e.g. ["RTE"]). */
+  conventionalDiscountLabels: string[];
   installmentCount: number;
 };
 

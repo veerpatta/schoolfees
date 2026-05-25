@@ -225,10 +225,14 @@ export function MobilePaymentFlowSheet({
 
       {view === "class-picker" ? (
         <div
-          className="absolute bottom-0 left-0 right-0 rounded-t-2xl border-t border-border bg-card flex flex-col overflow-hidden"
+          className="absolute left-0 right-0 rounded-t-2xl border-t border-border bg-card flex flex-col overflow-hidden"
           style={{
-            maxHeight: "calc(88svh - var(--keyboard-offset, 0px))",
-            paddingBottom: "var(--keyboard-offset, 0px)",
+            // Stretch the sheet from a small top gap to the keyboard edge so
+            // typing leaves the maximum vertical space for results. When the
+            // keyboard is closed --keyboard-offset is 0 and the sheet behaves
+            // like a normal bottom sheet pinned to the bottom.
+            top: "max(56px, calc(100svh - var(--keyboard-offset, 0px) - 88svh))",
+            bottom: "var(--keyboard-offset, 0px)",
           }}
         >
           <SheetHandle swipeHandlers={classPickerSwipe} />
@@ -550,28 +554,62 @@ export function MobilePaymentFlowSheet({
               const overdueInstallments = previewBreakdown.filter(
                 (item) => item.balanceStatus === "overdue" && item.outstandingAmount > 0,
               );
-              const overdueShareCount = Math.max(overdueInstallments.length, 1);
-              const buildHeads = (share: number) =>
-                dist
-                  ? ([
-                      { label: "Tuition", amount: Math.round(dist.tuitionFee * share) },
-                      { label: "Academic", amount: Math.round(dist.academicFee * share) },
-                      { label: "Transport", amount: Math.round(dist.transportFee * share) },
-                      dist.otherAdjustmentHead && dist.otherAdjustmentAmount > 0
-                        ? { label: dist.otherAdjustmentHead, amount: Math.round(dist.otherAdjustmentAmount * share) }
-                        : null,
-                      dist.discountAmount > 0
-                        ? { label: "Discount", amount: -Math.round(dist.discountAmount * share) }
-                        : null,
-                    ].filter(Boolean) as Array<{ label: string; amount: number }>)
-                  : [];
+              const discountReasonSuffix = dist && dist.conventionalDiscountLabels.length > 0
+                ? ` (${dist.conventionalDiscountLabels.join(" + ")})`
+                : "";
+              const totalDiscount = (dist?.discountAmount ?? 0) + (dist?.conventionalDiscountAmount ?? 0);
 
-              const pendingHeads = buildHeads(1).filter((h) => h.amount !== 0);
-              const overdueHeads = buildHeads(overdueShareCount / installmentCount).filter((h) => h.amount !== 0);
+              // Annual whole — Pending dropdown.
+              const pendingHeads = dist
+                ? ([
+                    { label: "Tuition", amount: dist.tuitionFee },
+                    { label: "Academic", amount: dist.academicFee },
+                    { label: "Transport", amount: dist.transportFee },
+                    dist.otherAdjustmentHead && dist.otherAdjustmentAmount > 0
+                      ? { label: dist.otherAdjustmentHead, amount: dist.otherAdjustmentAmount }
+                      : null,
+                    totalDiscount > 0
+                      ? { label: `Discount${discountReasonSuffix}`, amount: -totalDiscount }
+                      : null,
+                  ].filter(Boolean) as Array<{ label: string; amount: number }>).filter((h) => h.amount !== 0)
+                : [];
+
+              // Per-installment math: academic is added only to installment 1 in the workbook
+              // model. So for the overdue dropdown, scale tuition/transport/other/discount by
+              // (overdueCount / installmentCount) and include academic ONLY if installment 1
+              // is among the overdue list.
+              const overdueIncludesFirst = overdueInstallments.some(
+                (item) => item.installmentNo === 1,
+              );
+              const proratedShare = overdueInstallments.length / installmentCount;
+              const overdueHeads = dist
+                ? ([
+                    { label: "Tuition", amount: Math.round(dist.tuitionFee * proratedShare) },
+                    overdueIncludesFirst
+                      ? { label: "Academic", amount: dist.academicFee }
+                      : null,
+                    { label: "Transport", amount: Math.round(dist.transportFee * proratedShare) },
+                    dist.otherAdjustmentHead && dist.otherAdjustmentAmount > 0
+                      ? { label: dist.otherAdjustmentHead, amount: Math.round(dist.otherAdjustmentAmount * proratedShare) }
+                      : null,
+                    totalDiscount > 0
+                      ? { label: `Discount${discountReasonSuffix}`, amount: -Math.round(totalDiscount * proratedShare) }
+                      : null,
+                  ].filter(Boolean) as Array<{ label: string; amount: number }>).filter((h) => h.amount !== 0)
+                : [];
               const overdueWithLateFee = previewOverdueAmount + pendingLateFeeAmount;
+              const isYearClear = previewTotalPending <= 0 && (selectedStudent?.totalPaid ?? 0) > 0;
 
               return (
                 <>
+                  {isYearClear ? (
+                    <div className="mb-2 flex items-center justify-between gap-3 rounded-md bg-success-soft px-3 py-2 text-sm font-semibold text-success-soft-foreground">
+                      <span>✓ Year Clear · all dues settled</span>
+                      <span className="text-xs font-medium opacity-80">
+                        Paid {formatInr(selectedStudent?.totalPaid ?? 0)}
+                      </span>
+                    </div>
+                  ) : null}
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
                       <button
@@ -581,7 +619,10 @@ export function MobilePaymentFlowSheet({
                         aria-expanded={pendingHeadsExpanded}
                       >
                         <span className="text-muted-foreground font-medium">Pending</span>
-                        <span className="font-bold tabular-nums text-foreground">{formatInr(previewTotalPending)}</span>
+                        <span className={cn(
+                          "font-bold tabular-nums",
+                          previewTotalPending <= 0 ? "text-success-soft-foreground" : "text-foreground",
+                        )}>{formatInr(previewTotalPending)}</span>
                         <span className="text-[10px] text-muted-foreground">{pendingHeadsExpanded ? "▲" : "▼"}</span>
                       </button>
                       {previewOverdueAmount > 0 ? (
@@ -621,26 +662,57 @@ export function MobilePaymentFlowSheet({
                   {pendingHeadsExpanded ? (
                     <div className="mt-2 rounded-md border border-border bg-surface-2/40 px-3 py-2 text-xs">
                       <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                        Pending fee heads (annual whole)
+                        Annual fee heads
                       </p>
                       {pendingHeads.length === 0 ? (
                         <p className="text-muted-foreground">Fee head distribution unavailable.</p>
                       ) : (
-                        <ul className="space-y-0.5">
-                          {pendingHeads.map((head) => (
-                            <li key={head.label} className="flex justify-between">
-                              <span className="text-muted-foreground">{head.label}</span>
+                        <>
+                          <ul className="space-y-0.5">
+                            {pendingHeads.map((head) => (
+                              <li key={head.label} className="flex justify-between">
+                                <span className="text-muted-foreground">{head.label}</span>
+                                <span
+                                  className={cn(
+                                    "font-mono font-medium",
+                                    head.amount < 0 ? "text-success-soft-foreground" : "text-foreground",
+                                  )}
+                                >
+                                  {head.amount < 0 ? `−${formatInr(Math.abs(head.amount))}` : formatInr(head.amount)}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                          <div className="mt-1.5 border-t border-border pt-1.5 space-y-0.5">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Total annual</span>
+                              <span className="font-mono font-medium text-foreground">
+                                {formatInr(selectedStudent?.totalDue ?? 0)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Paid till now</span>
+                              <span className="font-mono font-semibold text-success-soft-foreground">
+                                {formatInr(selectedStudent?.totalPaid ?? 0)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between font-semibold">
+                              <span>Balance</span>
                               <span
                                 className={cn(
-                                  "font-mono font-medium",
-                                  head.amount < 0 ? "text-success-soft-foreground" : "text-foreground",
+                                  "font-mono tabular-nums",
+                                  previewTotalPending <= 0
+                                    ? "text-success-soft-foreground"
+                                    : "text-foreground",
                                 )}
                               >
-                                {head.amount < 0 ? `−${formatInr(Math.abs(head.amount))}` : formatInr(head.amount)}
+                                {previewTotalPending <= 0
+                                  ? "₹0 ✓"
+                                  : formatInr(previewTotalPending)}
                               </span>
-                            </li>
-                          ))}
-                        </ul>
+                            </div>
+                          </div>
+                        </>
                       )}
                     </div>
                   ) : null}

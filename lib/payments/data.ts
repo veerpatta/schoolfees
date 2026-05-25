@@ -577,6 +577,7 @@ function summarizeStudent(
   breakdown: InstallmentBalanceItem[],
   financialState: StudentFinancialStateRow | null,
   installmentCount: number,
+  conventionalDiscount: { amount: number; labels: string[] },
 ): SelectedStudentSummary {
   const pendingAmount = financialState?.pending_amount ?? financial.outstandingAmount;
   const totalDue = financialState?.total_due ?? financial.totalDue;
@@ -611,9 +612,53 @@ function summarizeStudent(
       otherAdjustmentHead: financial.otherAdjustmentHead,
       otherAdjustmentAmount: financial.otherAdjustmentAmount,
       discountAmount: financial.discountAmount,
+      conventionalDiscountAmount: conventionalDiscount.amount,
+      conventionalDiscountLabels: conventionalDiscount.labels,
       installmentCount: Math.max(installmentCount, 1),
     },
   };
+}
+
+async function getConventionalDiscountForStudent(
+  studentId: string,
+  sessionLabel: string,
+): Promise<{ amount: number; labels: string[] }> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("student_conventional_discount_assignments")
+      .select(
+        "before_tuition_amount, resulting_tuition_amount, policy:conventional_discount_policies (display_name, code)",
+      )
+      .eq("student_id", studentId)
+      .eq("academic_session_label", sessionLabel)
+      .eq("is_active", true);
+
+    if (error || !data) {
+      return { amount: 0, labels: [] };
+    }
+
+    type AssignmentRow = {
+      before_tuition_amount: number;
+      resulting_tuition_amount: number;
+      policy: { display_name: string | null; code: string | null } | Array<{
+        display_name: string | null;
+        code: string | null;
+      }> | null;
+    };
+
+    let amount = 0;
+    const labels: string[] = [];
+    for (const row of data as AssignmentRow[]) {
+      amount += Math.max(0, (row.before_tuition_amount ?? 0) - (row.resulting_tuition_amount ?? 0));
+      const policyRow = Array.isArray(row.policy) ? row.policy[0] : row.policy;
+      const label = policyRow?.display_name ?? policyRow?.code ?? null;
+      if (label) labels.push(label);
+    }
+    return { amount, labels };
+  } catch {
+    return { amount: 0, labels: [] };
+  }
 }
 
 async function getStudentFinancialState(studentId: string) {
@@ -1272,8 +1317,18 @@ export async function getPaymentDeskStudentSummary(payload: {
       };
     }
 
+    const conventionalDiscount = await getConventionalDiscountForStudent(
+      selectedFinancial.studentId,
+      sessionLabel,
+    );
     const selectedStudent = {
-      ...summarizeStudent(selectedFinancial, breakdown, financialState, policy.installmentCount),
+      ...summarizeStudent(
+        selectedFinancial,
+        breakdown,
+        financialState,
+        policy.installmentCount,
+        conventionalDiscount,
+      ),
       confirmedFamilyGroupId: familyMembership.familyGroupId,
       confirmedSiblingCount: familyMembership.siblingCount,
     };
