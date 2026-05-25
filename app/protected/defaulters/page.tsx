@@ -14,6 +14,7 @@ import {
   DefaulterContactActions,
   DefaulterContactActionsCompact,
 } from "@/components/defaulters/defaulter-contact-actions";
+import { ContactStatusChip } from "@/components/defaulters/contact-status-chip";
 import { TriageTabs } from "@/components/defaulters/triage-tabs";
 import { getDefaultersPageData } from "@/lib/defaulters/data";
 import { deriveCadence, tallyCadence } from "@/lib/defaulters/cadence";
@@ -444,6 +445,11 @@ export default async function DefaultersPage({
                       <p>Last payment: {row.lastPaymentDate ? formatShortDate(row.lastPaymentDate) : "-"}</p>
                     </div>
 
+                    {/* Contact status chip */}
+                    <div className="mt-2">
+                      <ContactStatusChip summary={contactSummaries.get(row.studentId) ?? null} />
+                    </div>
+
                     {/* Action row */}
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <DefaulterContactActions
@@ -502,6 +508,9 @@ export default async function DefaultersPage({
                     <td className="px-4 py-3">
                       <div className="font-medium text-foreground">{row.fullName}</div>
                       <div className="text-xs text-muted-foreground">SR no {row.admissionNo}</div>
+                      <div className="mt-1">
+                        <ContactStatusChip summary={contactSummaries.get(row.studentId) ?? null} />
+                      </div>
                     </td>
                     <td className="px-4 py-3">{row.classLabel}</td>
                     <td className="px-4 py-3">{row.fatherName ?? "-"}</td>

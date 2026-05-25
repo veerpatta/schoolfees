@@ -15,6 +15,26 @@ export type DefaulterContactSummary = {
   snoozeUntil: string | null;
   /** ISO timestamp of last contact, or null if never contacted. */
   lastContactedAt: string | null;
+  /** Last recorded outcome — drives the inline status chip. */
+  lastOutcome?:
+    | "reached"
+    | "no_answer"
+    | "promised_pay"
+    | "dispute"
+    | "other"
+    | null;
+  /** Channel of the last contact attempt, for the inline icon. */
+  lastChannel?:
+    | "call"
+    | "whatsapp"
+    | "sms"
+    | "in_person"
+    | "email"
+    | null;
+  /** Number of consecutive no_answer outcomes ending at the most recent row. */
+  noAnswerStreak?: number;
+  /** Total contact attempts recorded for this student in the session. */
+  totalAttempts?: number;
 };
 
 /**

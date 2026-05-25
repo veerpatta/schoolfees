@@ -19,6 +19,20 @@ type RawContactRow = {
   student_id: string;
   contacted_at: string;
   snooze_until: string | null;
+  outcome:
+    | "reached"
+    | "no_answer"
+    | "promised_pay"
+    | "dispute"
+    | "other"
+    | null;
+  channel:
+    | "call"
+    | "whatsapp"
+    | "sms"
+    | "in_person"
+    | "email"
+    | null;
 };
 
 export async function insertDefaulterContact(args: InsertContactArgs): Promise<void> {
@@ -51,7 +65,7 @@ export async function getContactSummariesForStudents(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("defaulter_contacts")
-    .select("student_id, contacted_at, snooze_until")
+    .select("student_id, contacted_at, snooze_until, outcome, channel")
     .eq("session_label", sessionLabel)
     .in("student_id", studentIds)
     .order("contacted_at", { ascending: false });
@@ -63,13 +77,39 @@ export async function getContactSummariesForStudents(
   }
 
   const result = new Map<string, DefaulterContactSummary>();
+  const counts = new Map<string, number>();
+  const streaks = new Map<string, number>();
+  const streakBroken = new Set<string>();
+
   for (const row of (data ?? []) as RawContactRow[]) {
+    counts.set(row.student_id, (counts.get(row.student_id) ?? 0) + 1);
+    if (!streakBroken.has(row.student_id)) {
+      if (row.outcome === "no_answer") {
+        streaks.set(row.student_id, (streaks.get(row.student_id) ?? 0) + 1);
+      } else if (row.outcome) {
+        streakBroken.add(row.student_id);
+      }
+    }
     if (!result.has(row.student_id)) {
       result.set(row.student_id, {
         snoozeUntil: row.snooze_until ?? null,
         lastContactedAt: row.contacted_at ?? null,
+        lastOutcome: row.outcome ?? null,
+        lastChannel: row.channel ?? null,
+        noAnswerStreak: 0,
+        totalAttempts: 0,
       });
     }
   }
+
+  // Backfill streak / total now that we've scanned every row.
+  for (const [studentId, summary] of result.entries()) {
+    result.set(studentId, {
+      ...summary,
+      noAnswerStreak: streaks.get(studentId) ?? 0,
+      totalAttempts: counts.get(studentId) ?? 0,
+    });
+  }
+
   return result;
 }
