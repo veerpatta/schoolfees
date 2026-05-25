@@ -1,6 +1,7 @@
 import { WorkflowGuard } from "@/components/office/office-ui";
 import { StudentImportWorkflow } from "@/components/imports/student-import-workflow";
 import { createEmptyImportPageData, getStudentImportPageData } from "@/lib/import/data";
+import { getDuplicateAuditSummary } from "@/lib/import/duplicate-audit";
 import { getStudentImportWorkflowReadiness } from "@/lib/import/readiness";
 import { getStudentFormOptions } from "@/lib/students/data";
 import { getViewSessionCookie } from "@/lib/session/cookie";
@@ -54,6 +55,15 @@ export default async function ImportsPage({ searchParams }: ImportsPageProps) {
 
   const canManageImports = hasStaffPermission(staff, "students:write") && Boolean(readiness?.isReady);
 
+  let duplicateAuditSummary = null;
+  if (data.selectedBatch && data.selectedBatch.importMode === "add") {
+    try {
+      duplicateAuditSummary = await getDuplicateAuditSummary(data.selectedBatch.id);
+    } catch (error) {
+      console.error("Duplicate audit summary failed", error);
+    }
+  }
+
   return (
     <div className="space-y-6">
       {importDataError ? (
@@ -82,6 +92,7 @@ export default async function ImportsPage({ searchParams }: ImportsPageProps) {
         sessionOptions={studentFormOptions.sessionOptions}
         notice={resolvedSearchParams?.notice?.trim() || null}
         error={resolvedSearchParams?.error?.trim() || null}
+        duplicateAuditSummary={duplicateAuditSummary}
       />
     </div>
   );

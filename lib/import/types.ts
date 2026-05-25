@@ -37,6 +37,13 @@ export type ImportRowReviewStatus = (typeof importRowReviewStatuses)[number];
 export const importRowOperations = ["create", "update"] as const;
 export type ImportRowOperation = (typeof importRowOperations)[number];
 
+export const duplicateAuditDecisions = [
+  "proceed_new",
+  "mark_duplicate",
+  "mark_update",
+] as const;
+export type DuplicateAuditDecision = (typeof duplicateAuditDecisions)[number];
+
 export const importAnomalyCategories = [
   "missing-admission-no",
   "invalid-dob",
@@ -201,6 +208,41 @@ export type ImportRowDetail = {
   changedFields: string[];
   importedStudentId: string | null;
   importedOverrideId: string | null;
+  duplicateAuditDecision: DuplicateAuditDecision | null;
+  duplicateAuditTargetStudentId: string | null;
+};
+
+export type DuplicateAuditMatchKind = "name_father" | "phone";
+
+export type DuplicateAuditCandidate = {
+  studentId: string;
+  fullName: string;
+  fatherName: string | null;
+  classLabel: string;
+  admissionNo: string;
+  primaryPhone: string | null;
+  secondaryPhone: string | null;
+  matchKinds: DuplicateAuditMatchKind[];
+};
+
+export type DuplicateAuditRow = {
+  rowId: string;
+  rowIndex: number;
+  fullName: string;
+  fatherName: string | null;
+  classLabel: string;
+  admissionNo: string;
+  primaryPhone: string | null;
+  secondaryPhone: string | null;
+  decision: DuplicateAuditDecision | null;
+  decisionTargetStudentId: string | null;
+  candidates: DuplicateAuditCandidate[];
+};
+
+export type DuplicateAuditSummary = {
+  pendingCount: number;
+  decidedCount: number;
+  rows: DuplicateAuditRow[];
 };
 
 export type ImportReviewSummary = {

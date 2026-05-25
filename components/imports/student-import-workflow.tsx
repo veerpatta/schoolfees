@@ -5,9 +5,10 @@ import { BatchUploadCard } from "@/components/imports/batch-upload-card";
 import { ColumnMappingCard } from "@/components/imports/column-mapping-card";
 import { BatchSummaryCard } from "@/components/imports/batch-summary-card";
 import { AnomalyQueue } from "@/components/imports/anomaly-queue";
+import { DuplicateAuditPanel } from "@/components/imports/duplicate-audit-panel";
 import { ImportCommitCard } from "@/components/imports/import-commit-card";
 import { isCorrectionQueueRow } from "@/lib/import/review";
-import type { ImportPageData } from "@/lib/import/types";
+import type { DuplicateAuditSummary, ImportPageData } from "@/lib/import/types";
 
 type StudentImportWorkflowProps = {
   data: ImportPageData;
@@ -16,6 +17,7 @@ type StudentImportWorkflowProps = {
   sessionOptions: Array<{ value: string; label: string }>;
   notice: string | null;
   error: string | null;
+  duplicateAuditSummary?: DuplicateAuditSummary | null;
 };
 
 function NoticeBlock({
@@ -45,6 +47,7 @@ export function StudentImportWorkflow({
   sessionOptions,
   notice,
   error,
+  duplicateAuditSummary = null,
 }: StudentImportWorkflowProps) {
   const selectedBatch = data.selectedBatch;
   const mode = selectedBatch?.importMode ?? data.mode;
@@ -103,6 +106,15 @@ export function StudentImportWorkflow({
             canManage={canManage}
             mode={mode}
           />
+
+          {duplicateAuditSummary && duplicateAuditSummary.rows.length > 0 ? (
+            <DuplicateAuditPanel
+              batchId={selectedBatch.id}
+              mode={mode}
+              summary={duplicateAuditSummary}
+              canManage={canManage}
+            />
+          ) : null}
 
           <BatchSummaryCard batch={selectedBatch} />
 

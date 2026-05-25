@@ -18,6 +18,7 @@ import {
   studentImportFieldDefinitions,
 } from "@/lib/import/mapping";
 import type {
+  DuplicateAuditDecision,
   ImportAnomalyCategory,
   ImportBatchDetail,
   ImportBatchDialogSummary,
@@ -81,6 +82,8 @@ type ImportRowRecord = {
   changed_fields: unknown;
   imported_student_id: string | null;
   imported_override_id: string | null;
+  duplicate_audit_decision: string | null;
+  duplicate_audit_target_student_id: string | null;
 };
 
 type ExistingStudentRow = {
@@ -451,6 +454,18 @@ function toImportBatchListItem(row: ImportBatchRow): ImportBatchListItem {
   };
 }
 
+function toDuplicateAuditDecision(value: unknown): DuplicateAuditDecision | null {
+  if (
+    value === "proceed_new" ||
+    value === "mark_duplicate" ||
+    value === "mark_update"
+  ) {
+    return value;
+  }
+
+  return null;
+}
+
 function toImportRowDetail(row: ImportRowRecord): ImportRowDetail {
   return {
     id: row.id,
@@ -470,6 +485,8 @@ function toImportRowDetail(row: ImportRowRecord): ImportRowDetail {
     changedFields: toChangedFields(row.changed_fields),
     importedStudentId: row.imported_student_id,
     importedOverrideId: row.imported_override_id,
+    duplicateAuditDecision: toDuplicateAuditDecision(row.duplicate_audit_decision),
+    duplicateAuditTargetStudentId: row.duplicate_audit_target_student_id,
   };
 }
 
@@ -618,7 +635,7 @@ async function getImportRowsByBatchId(
       supabase
         .from("import_rows")
         .select(
-          "id, batch_id, row_index, raw_payload, normalized_payload, status, review_status, review_note, reviewed_at, anomaly_categories, errors, warnings, duplicate_student_id, target_student_id, import_operation, changed_fields, imported_student_id, imported_override_id",
+          "id, batch_id, row_index, raw_payload, normalized_payload, status, review_status, review_note, reviewed_at, anomaly_categories, errors, warnings, duplicate_student_id, target_student_id, import_operation, changed_fields, imported_student_id, imported_override_id, duplicate_audit_decision, duplicate_audit_target_student_id",
         )
         .eq("batch_id", batchId)
         .in("status", ["invalid", "duplicate"])
@@ -627,7 +644,7 @@ async function getImportRowsByBatchId(
       supabase
         .from("import_rows")
         .select(
-          "id, batch_id, row_index, raw_payload, normalized_payload, status, review_status, review_note, reviewed_at, anomaly_categories, errors, warnings, duplicate_student_id, target_student_id, import_operation, changed_fields, imported_student_id, imported_override_id",
+          "id, batch_id, row_index, raw_payload, normalized_payload, status, review_status, review_note, reviewed_at, anomaly_categories, errors, warnings, duplicate_student_id, target_student_id, import_operation, changed_fields, imported_student_id, imported_override_id, duplicate_audit_decision, duplicate_audit_target_student_id",
         )
         .eq("batch_id", batchId)
         .eq("status", "valid")
@@ -637,7 +654,7 @@ async function getImportRowsByBatchId(
       supabase
         .from("import_rows")
         .select(
-          "id, batch_id, row_index, raw_payload, normalized_payload, status, review_status, review_note, reviewed_at, anomaly_categories, errors, warnings, duplicate_student_id, target_student_id, import_operation, changed_fields, imported_student_id, imported_override_id",
+          "id, batch_id, row_index, raw_payload, normalized_payload, status, review_status, review_note, reviewed_at, anomaly_categories, errors, warnings, duplicate_student_id, target_student_id, import_operation, changed_fields, imported_student_id, imported_override_id, duplicate_audit_decision, duplicate_audit_target_student_id",
         )
         .eq("batch_id", batchId)
         .eq("status", "valid")
@@ -672,7 +689,7 @@ async function getImportRowsByBatchId(
   let query = supabase
     .from("import_rows")
     .select(
-      "id, batch_id, row_index, raw_payload, normalized_payload, status, review_status, review_note, reviewed_at, anomaly_categories, errors, warnings, duplicate_student_id, target_student_id, import_operation, changed_fields, imported_student_id, imported_override_id",
+      "id, batch_id, row_index, raw_payload, normalized_payload, status, review_status, review_note, reviewed_at, anomaly_categories, errors, warnings, duplicate_student_id, target_student_id, import_operation, changed_fields, imported_student_id, imported_override_id, duplicate_audit_decision, duplicate_audit_target_student_id",
     )
     .eq("batch_id", batchId)
     .order("row_index", { ascending: true });
@@ -757,6 +774,8 @@ export async function insertRawImportRows(
       changed_fields: [],
       imported_student_id: null,
       imported_override_id: null,
+      duplicate_audit_decision: null,
+      duplicate_audit_target_student_id: null,
     }));
 
     const { error } = await supabase.from("import_rows").insert(payload);
@@ -889,7 +908,7 @@ export async function getStudentImportBatchSummary(batchId: string) {
       const { data, error } = await supabase
         .from("import_rows")
         .select(
-          "id, batch_id, row_index, raw_payload, normalized_payload, status, review_status, review_note, reviewed_at, anomaly_categories, errors, warnings, duplicate_student_id, target_student_id, import_operation, changed_fields, imported_student_id, imported_override_id",
+          "id, batch_id, row_index, raw_payload, normalized_payload, status, review_status, review_note, reviewed_at, anomaly_categories, errors, warnings, duplicate_student_id, target_student_id, import_operation, changed_fields, imported_student_id, imported_override_id, duplicate_audit_decision, duplicate_audit_target_student_id",
         )
         .eq("batch_id", batchId)
         .eq("status", "valid")
@@ -1516,6 +1535,12 @@ async function updateImportRowAfterCommit(
   }
 }
 
+const IMPORT_SAVE_ERROR_CODE_PREFIX = "ERR_IMPORT_";
+
+function isImportSaveError(issue: ImportIssue) {
+  return issue.code.startsWith(IMPORT_SAVE_ERROR_CODE_PREFIX);
+}
+
 function mapImportSaveError(error: unknown): ImportIssue {
   const rawMessage =
     error instanceof Error ? error.message : "Unexpected error while importing this row.";
@@ -1561,6 +1586,82 @@ function mapImportSaveError(error: unknown): ImportIssue {
     field: "row",
     message: `Import save failed: ${rawMessage}`,
   };
+}
+
+export async function getResumableFailedRowCount(batchId: string) {
+  const rowRecords = await getImportRowsByBatchId(batchId);
+
+  return rowRecords
+    .map(toImportRowDetail)
+    .filter(
+      (row) =>
+        row.status === "invalid" &&
+        row.errors.some(isImportSaveError),
+    ).length;
+}
+
+export async function resumeStudentImportBatch(batchId: string) {
+  const batchRow = await getImportBatchById(batchId);
+
+  if (!batchRow) {
+    throw new Error("Import batch not found.");
+  }
+
+  if (batchRow.status === "completed") {
+    throw new Error("This batch is already completed.");
+  }
+
+  if (batchRow.status === "importing") {
+    throw new Error("Import is already running. Please wait for it to finish.");
+  }
+
+  const rowRecords = await getImportRowsByBatchId(batchId);
+  const rows = rowRecords.map(toImportRowDetail);
+  const resumableRows = rows.filter(
+    (row) => row.status === "invalid" && row.errors.some(isImportSaveError),
+  );
+
+  if (resumableRows.length === 0 && batchRow.status !== "failed") {
+    throw new Error("Nothing to resume. Approve clean rows and import again.");
+  }
+
+  if (resumableRows.length > 0) {
+    const supabase = await createClient();
+
+    for (const chunk of chunkArray(resumableRows, IMPORT_ROW_WRITE_CHUNK_SIZE)) {
+      await Promise.all(
+        chunk.map(async (row) => {
+          const remainingErrors = row.errors.filter((issue) => !isImportSaveError(issue));
+
+          const { error } = await supabase
+            .from("import_rows")
+            .update({
+              status: "valid",
+              review_status: "approved",
+              errors: remainingErrors,
+              anomaly_categories: deriveAnomalyCategoriesForRow({
+                mode: row.operation === "update" ? "update" : "add",
+                status: "valid",
+                errors: remainingErrors,
+              }),
+            })
+            .eq("id", row.id)
+            .eq("batch_id", batchId);
+
+          if (error) {
+            throw new Error(`Unable to reset failed row ${row.rowIndex}: ${error.message}`);
+          }
+        }),
+      );
+    }
+  }
+
+  await updateImportBatch(batchId, {
+    status: "validated",
+    error_message: null,
+  });
+
+  return commitStudentImportBatch(batchId);
 }
 
 export async function commitStudentImportBatch(batchId: string) {
@@ -1614,7 +1715,46 @@ export async function commitStudentImportBatch(batchId: string) {
   let duesReasonSummary: string | null = null;
   const activePolicy = await getFeePolicySummary();
 
-  for (const row of rows) {
+  for (const sourceRow of rows) {
+    if (sourceRow.duplicateAuditDecision === "mark_duplicate") {
+      const supabase = await createClient();
+      const { error: skipError } = await supabase
+        .from("import_rows")
+        .update({
+          status: "skipped",
+          review_status: "skipped",
+          review_note: sourceRow.reviewNote ?? "Marked as duplicate during pre-import audit",
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq("id", sourceRow.id)
+        .eq("batch_id", batchId);
+
+      if (skipError) {
+        throw new Error(`Unable to skip duplicate row ${sourceRow.rowIndex}: ${skipError.message}`);
+      }
+
+      updatedRows.push({
+        ...sourceRow,
+        status: "skipped",
+        reviewStatus: "skipped",
+      });
+      continue;
+    }
+
+    const auditUpdateTargetId =
+      sourceRow.duplicateAuditDecision === "mark_update"
+        ? sourceRow.duplicateAuditTargetStudentId
+        : null;
+
+    const row: ImportRowDetail =
+      auditUpdateTargetId !== null
+        ? {
+            ...sourceRow,
+            operation: "update",
+            targetStudentId: auditUpdateTargetId,
+          }
+        : sourceRow;
+
     if (row.status !== "valid" || !row.normalizedPayload || row.reviewStatus !== "approved") {
       updatedRows.push(row);
       continue;

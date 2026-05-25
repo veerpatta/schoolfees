@@ -6,6 +6,7 @@ import { SectionCard } from "@/components/admin/section-card";
 import { Button } from "@/components/ui/button";
 import { approveAllSafeRowsAction } from "@/app/protected/imports/actions";
 import { commitStudentImportBatchAction } from "@/app/protected/imports/actions";
+import { resumeStudentImportBatchAction } from "@/app/protected/imports/actions";
 import type { ImportBatchDetail, ImportMode } from "@/lib/import/types";
 
 type ImportCommitCardProps = {
@@ -16,12 +17,21 @@ type ImportCommitCardProps = {
 
 export function ImportCommitCard({ batch, canManage, mode }: ImportCommitCardProps) {
   const [submitting, setSubmitting] = useState(false);
+  const [resuming, setResuming] = useState(false);
   const [approvingSafeRows, setApprovingSafeRows] = useState(false);
   const hasApprovedRows = batch.reviewSummary.readyToImportRows > 0;
   const isLocked = batch.status === "completed" || batch.status === "importing";
   const approvedCreates = batch.reviewSummary.readyCreateRows;
   const approvedUpdates = batch.reviewSummary.readyUpdateRows;
   const safePendingRows = Math.max(0, batch.reviewSummary.pendingSafeRows);
+  const failedRowCount = Math.max(0, batch.failedRows);
+  const canResume =
+    batch.status === "failed" && failedRowCount > 0 && batch.importedRows > 0;
+  const firstFailedRowIndex = canResume
+    ? batch.rows.find(
+        (row) => row.status === "invalid" && row.reviewStatus === "pending",
+      )?.rowIndex ?? null
+    : null;
 
   async function handleSubmit(formData: FormData) {
     setSubmitting(true);
@@ -40,6 +50,16 @@ export function ImportCommitCard({ batch, canManage, mode }: ImportCommitCardPro
       await approveAllSafeRowsAction(formData);
     } finally {
       setApprovingSafeRows(false);
+    }
+  }
+
+  async function handleResume(formData: FormData) {
+    setResuming(true);
+
+    try {
+      await resumeStudentImportBatchAction(formData);
+    } finally {
+      setResuming(false);
     }
   }
 
@@ -76,6 +96,32 @@ export function ImportCommitCard({ batch, canManage, mode }: ImportCommitCardPro
               </p>
               <Button type="submit" size="sm" variant="outline" disabled={!canManage || approvingSafeRows}>
                 {approvingSafeRows ? "Approving..." : "Approve all safe rows"}
+              </Button>
+            </div>
+          </form>
+        ) : null}
+
+        {canResume ? (
+          <form action={handleResume} className="rounded-xl border bg-warning-soft px-4 py-3">
+            <input type="hidden" name="batchId" value={batch.id} />
+            <input type="hidden" name="importMode" value={mode} />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="space-y-1 text-sm text-warning-soft-foreground">
+                <p className="font-semibold">
+                  Last import stopped after {batch.importedRows} of {batch.totalRows} row{batch.totalRows === 1 ? "" : "s"}.
+                </p>
+                <p>
+                  {failedRowCount} row{failedRowCount === 1 ? "" : "s"} failed at the save step
+                  {firstFailedRowIndex !== null ? ` (starting at row ${firstFailedRowIndex})` : ""}.
+                  Resume retries them; already-imported rows are skipped.
+                </p>
+              </div>
+              <Button type="submit" size="sm" variant="outline" disabled={!canManage || resuming}>
+                {resuming
+                  ? "Resuming..."
+                  : firstFailedRowIndex !== null
+                    ? `Resume from row ${firstFailedRowIndex}`
+                    : "Resume failed import"}
               </Button>
             </div>
           </form>

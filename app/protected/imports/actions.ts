@@ -9,9 +9,15 @@ import {
   bulkUpdateImportRowReview,
   commitStudentImportBatch,
   createStudentImportBatch,
+  resumeStudentImportBatch,
   runStudentImportDryRun,
   updateStudentImportRowReview,
 } from "@/lib/import/data";
+import {
+  clearDuplicateAuditDecision,
+  recordDuplicateAuditDecision,
+} from "@/lib/import/duplicate-audit";
+import type { DuplicateAuditDecision } from "@/lib/import/types";
 import { getStudentImportColumnMapping } from "@/lib/import/mapping";
 import type { ImportAnomalyCategory } from "@/lib/import/types";
 import type { ImportMode } from "@/lib/import/types";
@@ -296,6 +302,133 @@ export async function commitStudentImportBatchAction(formData: FormData) {
     buildImportsUrl(
       batchId,
       "Import finished. Valid rows were saved to Student Master. Rows needing correction remain available for follow-up.",
+      undefined,
+      mode,
+    ),
+  );
+}
+
+export async function recordDuplicateAuditDecisionAction(formData: FormData) {
+  await requireStaffPermission("students:write");
+
+  const batchId =
+    typeof formData.get("batchId") === "string" ? String(formData.get("batchId")) : "";
+  const rowId =
+    typeof formData.get("rowId") === "string" ? String(formData.get("rowId")) : "";
+  const decisionValue =
+    typeof formData.get("decision") === "string" ? String(formData.get("decision")) : "";
+  const targetStudentId =
+    typeof formData.get("targetStudentId") === "string"
+      ? String(formData.get("targetStudentId")).trim() || null
+      : null;
+  const mode = normalizeImportMode(formData.get("importMode"));
+
+  try {
+    if (!batchId || !rowId) {
+      throw new Error("Batch and row are required to record an audit decision.");
+    }
+
+    if (decisionValue === "clear") {
+      await clearDuplicateAuditDecision({ batchId, rowId });
+    } else if (
+      decisionValue === "proceed_new" ||
+      decisionValue === "mark_duplicate" ||
+      decisionValue === "mark_update"
+    ) {
+      await recordDuplicateAuditDecision({
+        batchId,
+        rowId,
+        decision: decisionValue as DuplicateAuditDecision,
+        targetStudentId,
+      });
+    } else {
+      throw new Error("Invalid duplicate audit decision.");
+    }
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unable to record duplicate audit decision.";
+
+    redirect(buildImportsUrl(batchId || null, undefined, message, mode));
+  }
+
+  revalidatePath("/protected/imports");
+  redirect(
+    buildImportsUrl(
+      batchId,
+      decisionValue === "clear"
+        ? "Cleared duplicate audit decision."
+        : "Duplicate audit decision saved.",
+      undefined,
+      mode,
+    ),
+  );
+}
+
+export async function resumeStudentImportBatchAction(formData: FormData) {
+  await requireStaffPermission("students:write");
+
+  const batchId =
+    typeof formData.get("batchId") === "string" ? String(formData.get("batchId")) : "";
+  const mode = normalizeImportMode(formData.get("importMode"));
+  let result: Awaited<ReturnType<typeof resumeStudentImportBatch>> | null = null;
+
+  try {
+    if (!batchId) {
+      throw new Error("Select an import batch before resuming.");
+    }
+
+    result = await resumeStudentImportBatch(batchId);
+    await publishOfficeSyncEvent({
+      sessionLabel: result.targetSessionLabel || "unknown",
+      entityType: "import",
+      entityId: batchId,
+      action: "committed",
+      affectedStudentIds: result.affectedStudentIds,
+      metadata: {
+        status: result.status,
+        createdCount: result.createdCount,
+        updatedCount: result.updatedCount,
+        duesReadyCount: result.duesReadyCount,
+        duesAttentionCount: result.duesAttentionCount,
+        resumed: true,
+      },
+    });
+
+    const importedStudentIds = result.affectedStudentIds ?? [];
+
+    if (importedStudentIds.length > 0) {
+      after(async () => {
+        await prepareDuesForStudentsAutomatically({
+          studentIds: importedStudentIds,
+          reason: "Resume failed import auto-prepare",
+          useSystemClient: true,
+        });
+      });
+    }
+
+    if (result.ledgerSyncError) {
+      revalidateImportPostCommit(result.affectedStudentIds);
+      redirect(
+        buildImportsUrl(
+          batchId,
+          `Resume finished, but dues sync needs attention: ${result.ledgerSyncError}`,
+          undefined,
+          mode,
+        ),
+      );
+    }
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unable to resume the import batch.";
+
+    redirect(buildImportsUrl(batchId || null, undefined, message, mode));
+  }
+
+  revalidateImportPostCommit(result?.affectedStudentIds ?? []);
+  redirect(
+    buildImportsUrl(
+      batchId,
+      "Resume finished. Previously failed rows were retried; any rows still failing remain available for correction.",
       undefined,
       mode,
     ),
