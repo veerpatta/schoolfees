@@ -576,6 +576,7 @@ function summarizeStudent(
   financial: Awaited<ReturnType<typeof getWorkbookStudentFinancials>>[number],
   breakdown: InstallmentBalanceItem[],
   financialState: StudentFinancialStateRow | null,
+  installmentCount: number,
 ): SelectedStudentSummary {
   const pendingAmount = financialState?.pending_amount ?? financial.outstandingAmount;
   const totalDue = financialState?.total_due ?? financial.totalDue;
@@ -603,6 +604,15 @@ function summarizeStudent(
     nextDueInstallmentLabel: financial.nextDueLabel,
     nextDueDate: financial.nextDueDate,
     nextDueAmount: financial.nextDueAmount,
+    feeHeadDistribution: {
+      tuitionFee: financial.tuitionFee,
+      transportFee: financial.transportFee,
+      academicFee: financial.academicFee,
+      otherAdjustmentHead: financial.otherAdjustmentHead,
+      otherAdjustmentAmount: financial.otherAdjustmentAmount,
+      discountAmount: financial.discountAmount,
+      installmentCount: Math.max(installmentCount, 1),
+    },
   };
 }
 
@@ -1263,7 +1273,7 @@ export async function getPaymentDeskStudentSummary(payload: {
     }
 
     const selectedStudent = {
-      ...summarizeStudent(selectedFinancial, breakdown, financialState),
+      ...summarizeStudent(selectedFinancial, breakdown, financialState, policy.installmentCount),
       confirmedFamilyGroupId: familyMembership.familyGroupId,
       confirmedSiblingCount: familyMembership.siblingCount,
     };

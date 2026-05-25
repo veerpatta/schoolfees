@@ -176,6 +176,8 @@ export function MobilePaymentFlowSheet({
   isLastAmountArmed,
 }: MobilePaymentFlowSheetProps) {
   const [breakdownExpanded, setBreakdownExpanded] = React.useState(false);
+  const [pendingHeadsExpanded, setPendingHeadsExpanded] = React.useState(false);
+  const [overdueHeadsExpanded, setOverdueHeadsExpanded] = React.useState(false);
   const amountInputRef = React.useRef<HTMLInputElement>(null);
   const hasFocusedRef = React.useRef(false);
 
@@ -188,6 +190,8 @@ export function MobilePaymentFlowSheet({
     if (view === "payment-entry") {
       hasFocusedRef.current = false;
       setBreakdownExpanded(false);
+      setPendingHeadsExpanded(false);
+      setOverdueHeadsExpanded(false);
     }
   }, [view]);
 
@@ -538,54 +542,184 @@ export function MobilePaymentFlowSheet({
             </div>
           ) : null}
 
-          {/* Collapsed summary — always visible */}
+          {/* Collapsed summary — always visible. Pending and Overdue are tappable to expand fee heads. */}
           <div className="flex-none border-b border-border px-3 py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex gap-4 text-sm">
-                <span>
-                  <span className="text-muted-foreground font-medium">Pending </span>
-                  <span className="font-bold tabular-nums text-foreground">{formatInr(previewTotalPending)}</span>
-                </span>
-                {previewOverdueAmount > 0 ? (
-                  <span>
-                    <span className="text-muted-foreground font-medium">Overdue </span>
-                    <span className="font-semibold tabular-nums text-destructive">{formatInr(previewOverdueAmount)}</span>
-                  </span>
-                ) : null}
-              </div>
-              <button
-                type="button"
-                className="text-xs font-medium text-accent underline-offset-2 hover:underline"
-                onClick={() => setBreakdownExpanded((prev) => !prev)}
-              >
-                {breakdownExpanded ? "Hide ↑" : "Details ↓"}
-              </button>
-            </div>
+            {(() => {
+              const dist = selectedStudent?.feeHeadDistribution;
+              const installmentCount = Math.max(dist?.installmentCount ?? 4, 1);
+              const overdueInstallments = previewBreakdown.filter(
+                (item) => item.balanceStatus === "overdue" && item.outstandingAmount > 0,
+              );
+              const overdueShareCount = Math.max(overdueInstallments.length, 1);
+              const buildHeads = (share: number) =>
+                dist
+                  ? ([
+                      { label: "Tuition", amount: Math.round(dist.tuitionFee * share) },
+                      { label: "Academic", amount: Math.round(dist.academicFee * share) },
+                      { label: "Transport", amount: Math.round(dist.transportFee * share) },
+                      dist.otherAdjustmentHead && dist.otherAdjustmentAmount > 0
+                        ? { label: dist.otherAdjustmentHead, amount: Math.round(dist.otherAdjustmentAmount * share) }
+                        : null,
+                      dist.discountAmount > 0
+                        ? { label: "Discount", amount: -Math.round(dist.discountAmount * share) }
+                        : null,
+                    ].filter(Boolean) as Array<{ label: string; amount: number }>)
+                  : [];
 
-            {/* Expanded breakdown */}
-            {breakdownExpanded ? (
-              <div className="mt-2 space-y-1 max-h-[20svh] overflow-y-auto pr-1">
-                {previewLoading ? (
-                  <p className="text-xs text-muted-foreground">Loading breakdown...</p>
-                ) : previewBreakdown.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No installment dues found.</p>
-                ) : (
-                  previewBreakdown.map((item) => (
-                    <div key={item.installmentId} className="flex items-center justify-between text-xs py-0.5 border-b border-border/40 last:border-0">
-                      <span className="text-muted-foreground">{item.installmentLabel} · {item.dueDate}</span>
-                      <span className={cn(
-                        "font-semibold tabular-nums",
-                        item.outstandingAmount <= 0 ? "text-success-soft-foreground"
-                          : item.balanceStatus === "overdue" ? "text-destructive"
-                          : "text-foreground"
-                      )}>
-                        {item.outstandingAmount <= 0 ? "Paid" : formatInr(item.outstandingAmount)}
-                      </span>
+              const pendingHeads = buildHeads(1).filter((h) => h.amount !== 0);
+              const overdueHeads = buildHeads(overdueShareCount / installmentCount).filter((h) => h.amount !== 0);
+              const overdueWithLateFee = previewOverdueAmount + pendingLateFeeAmount;
+
+              return (
+                <>
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
+                      <button
+                        type="button"
+                        onClick={() => setPendingHeadsExpanded((prev) => !prev)}
+                        className="inline-flex items-center gap-1 rounded-md px-1 -mx-1 hover:bg-surface-2/60"
+                        aria-expanded={pendingHeadsExpanded}
+                      >
+                        <span className="text-muted-foreground font-medium">Pending</span>
+                        <span className="font-bold tabular-nums text-foreground">{formatInr(previewTotalPending)}</span>
+                        <span className="text-[10px] text-muted-foreground">{pendingHeadsExpanded ? "▲" : "▼"}</span>
+                      </button>
+                      {previewOverdueAmount > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => setOverdueHeadsExpanded((prev) => !prev)}
+                          className="inline-flex items-center gap-1 rounded-md px-1 -mx-1 hover:bg-surface-2/60"
+                          aria-expanded={overdueHeadsExpanded}
+                        >
+                          <span className="text-muted-foreground font-medium">Overdue</span>
+                          <span className="font-semibold tabular-nums text-destructive">{formatInr(previewOverdueAmount)}</span>
+                          {pendingLateFeeAmount > 0 ? (
+                            <span
+                              className={cn(
+                                "ml-1 inline-flex items-center rounded-full border px-1.5 py-0 text-[10px] font-semibold tabular-nums transition-colors",
+                                waiveFullLateFee
+                                  ? "border-success-soft-foreground/30 bg-success-soft text-success-soft-foreground line-through decoration-[1.5px]"
+                                  : "border-destructive/30 bg-destructive/10 text-destructive",
+                              )}
+                            >
+                              + {formatInr(pendingLateFeeAmount)} late fee
+                            </span>
+                          ) : null}
+                          <span className="text-[10px] text-muted-foreground">{overdueHeadsExpanded ? "▲" : "▼"}</span>
+                        </button>
+                      ) : null}
                     </div>
-                  ))
-                )}
-              </div>
-            ) : null}
+                    <button
+                      type="button"
+                      className="text-xs font-medium text-accent underline-offset-2 hover:underline"
+                      onClick={() => setBreakdownExpanded((prev) => !prev)}
+                    >
+                      {breakdownExpanded ? "Hide ↑" : "Details ↓"}
+                    </button>
+                  </div>
+
+                  {pendingHeadsExpanded ? (
+                    <div className="mt-2 rounded-md border border-border bg-surface-2/40 px-3 py-2 text-xs">
+                      <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        Pending fee heads (annual whole)
+                      </p>
+                      {pendingHeads.length === 0 ? (
+                        <p className="text-muted-foreground">Fee head distribution unavailable.</p>
+                      ) : (
+                        <ul className="space-y-0.5">
+                          {pendingHeads.map((head) => (
+                            <li key={head.label} className="flex justify-between">
+                              <span className="text-muted-foreground">{head.label}</span>
+                              <span
+                                className={cn(
+                                  "font-mono font-medium",
+                                  head.amount < 0 ? "text-success-soft-foreground" : "text-foreground",
+                                )}
+                              >
+                                {head.amount < 0 ? `−${formatInr(Math.abs(head.amount))}` : formatInr(head.amount)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {overdueHeadsExpanded && previewOverdueAmount > 0 ? (
+                    <div className="mt-2 rounded-md border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs">
+                      <p className="mb-1 text-[10px] uppercase tracking-wide text-destructive">
+                        Overdue fee heads · {overdueInstallments.length} installment{overdueInstallments.length === 1 ? "" : "s"}
+                      </p>
+                      {overdueHeads.length === 0 ? (
+                        <p className="text-muted-foreground">Fee head distribution unavailable.</p>
+                      ) : (
+                        <ul className="space-y-0.5">
+                          {overdueHeads.map((head) => (
+                            <li key={head.label} className="flex justify-between">
+                              <span className="text-muted-foreground">{head.label}</span>
+                              <span
+                                className={cn(
+                                  "font-mono font-medium",
+                                  head.amount < 0 ? "text-success-soft-foreground" : "text-foreground",
+                                )}
+                              >
+                                {head.amount < 0 ? `−${formatInr(Math.abs(head.amount))}` : formatInr(head.amount)}
+                              </span>
+                            </li>
+                          ))}
+                          {pendingLateFeeAmount > 0 ? (
+                            <li className="flex justify-between border-t border-destructive/20 pt-1 mt-1">
+                              <span className="text-muted-foreground">Late fee</span>
+                              <span
+                                className={cn(
+                                  "font-mono font-semibold",
+                                  waiveFullLateFee
+                                    ? "text-success-soft-foreground line-through"
+                                    : "text-destructive",
+                                )}
+                              >
+                                {formatInr(pendingLateFeeAmount)}
+                              </span>
+                            </li>
+                          ) : null}
+                          <li className="flex justify-between border-t border-destructive/30 pt-1 mt-1 font-semibold">
+                            <span>Total overdue</span>
+                            <span className="font-mono tabular-nums">
+                              {formatInr(waiveFullLateFee ? previewOverdueAmount : overdueWithLateFee)}
+                            </span>
+                          </li>
+                        </ul>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {/* Expanded installment-level breakdown (existing Details ↓) */}
+                  {breakdownExpanded ? (
+                    <div className="mt-2 space-y-1 max-h-[20svh] overflow-y-auto pr-1">
+                      {previewLoading ? (
+                        <p className="text-xs text-muted-foreground">Loading breakdown...</p>
+                      ) : previewBreakdown.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No installment dues found.</p>
+                      ) : (
+                        previewBreakdown.map((item) => (
+                          <div key={item.installmentId} className="flex items-center justify-between text-xs py-0.5 border-b border-border/40 last:border-0">
+                            <span className="text-muted-foreground">{item.installmentLabel} · {item.dueDate}</span>
+                            <span className={cn(
+                              "font-semibold tabular-nums",
+                              item.outstandingAmount <= 0 ? "text-success-soft-foreground"
+                                : item.balanceStatus === "overdue" ? "text-destructive"
+                                : "text-foreground"
+                            )}>
+                              {item.outstandingAmount <= 0 ? "Paid" : formatInr(item.outstandingAmount)}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  ) : null}
+                </>
+              );
+            })()}
           </div>
 
           <div className="flex flex-col gap-0">

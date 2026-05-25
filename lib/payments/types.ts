@@ -104,6 +104,16 @@ export type PaymentAllocationItem = {
   outstandingAfter: number;
 };
 
+export type FeeHeadDistribution = {
+  tuitionFee: number;
+  transportFee: number;
+  academicFee: number;
+  otherAdjustmentHead: string | null;
+  otherAdjustmentAmount: number;
+  discountAmount: number;
+  installmentCount: number;
+};
+
 export type SelectedStudentSummary = {
   id: string;
   fullName: string;
@@ -126,6 +136,7 @@ export type SelectedStudentSummary = {
   nextDueInstallmentLabel: string | null;
   nextDueDate: string | null;
   nextDueAmount: number | null;
+  feeHeadDistribution?: FeeHeadDistribution;
   confirmedFamilyGroupId?: string | null;
   confirmedSiblingCount?: number;
 };
