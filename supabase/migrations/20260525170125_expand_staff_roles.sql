@@ -34,6 +34,14 @@ begin
       and t.typname = 'staff_role'
       and e.enumlabel = 'view_only'
   ) then
+    -- The test.users passthrough view (see 20260515152802_test_schema_init.sql)
+    -- holds a column-level dependency on public.users.role and blocks the
+    -- ALTER COLUMN ... TYPE below. Drop it for the duration of the type swap;
+    -- the recreate after restores the view definition and grants. Locally the
+    -- block is skipped (view_only already exists) so this is only reached on a
+    -- fresh database such as Supabase Preview.
+    drop view if exists test.users;
+
     create type public.staff_role_v3 as enum (
       'admin',
       'accountant',
@@ -56,6 +64,13 @@ begin
 
     drop type public.staff_role;
     alter type public.staff_role_v3 rename to staff_role;
+
+    if exists (
+      select 1 from information_schema.schemata where schema_name = 'test'
+    ) then
+      execute 'create view test.users with (security_invoker = true) as select * from public.users';
+      execute 'grant select on test.users to authenticated';
+    end if;
   end if;
 end
 $$;
