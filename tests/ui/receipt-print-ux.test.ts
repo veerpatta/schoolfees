@@ -20,8 +20,6 @@ describe("receipt print and loading UX", () => {
     expect(receiptDocument).toContain("font-size: 11px");
     expect(receiptDocument).toContain("nav, aside, .no-print");
     expect(receiptDocument).toContain("print-color-adjust: exact");
-    expect(receiptDocument).toContain("receipt-watermark");
-    expect(receiptDocument).toContain("security-strip");
   });
 
   it("keeps the printable receipt simple and bilingual for parents", () => {
@@ -51,7 +49,10 @@ describe("receipt print and loading UX", () => {
     const receiptDocument = readRepoFile("components/receipts/receipt-document.tsx");
     const successSheet = readRepoFile("components/payments/success-receipt-sheet.tsx");
 
-    expect(receiptDocument).toContain("data-mobile-receipt-summary");
+    // The earlier separate `data-mobile-receipt-summary` block was folded into
+    // the 4-card totals strip (now responsive 2-up on phones, 4-up on
+    // desktop). The mobile installment stack and the print table are still
+    // separate so thermal reprints get the table and phones get cards.
     expect(receiptDocument).toContain("data-mobile-installment-stack");
     expect(receiptDocument).toContain("data-print-installment-table");
     expect(receiptDocument).toContain("hidden sm:block print:block");

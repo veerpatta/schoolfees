@@ -314,17 +314,16 @@ export function ReceiptDocument({
         }
       `}</style>
 
-      <div
-        className={cn(
-          "receipt-watermark pointer-events-none absolute inset-0 hidden items-center justify-center text-center text-5xl font-semibold uppercase sm:flex print:flex print:text-foreground/8",
-          isDraft ? "text-foreground/12" : "text-foreground/8",
-        )}
-      >
-        {isDraft ? "DRAFT — NOT YET SAVED" : "VPPS Receipt"}
-      </div>
-      <div className="security-strip absolute inset-x-0 top-0 h-2 bg-foreground/85" />
+      {isDraft ? (
+        <div
+          className="pointer-events-none absolute inset-0 hidden items-center justify-center text-center text-5xl font-semibold uppercase text-foreground/10 sm:flex print:flex"
+          aria-hidden="true"
+        >
+          DRAFT — NOT YET SAVED
+        </div>
+      ) : null}
 
-      <div className="relative z-10 space-y-3 pt-2">
+      <div className="relative z-10 space-y-3">
         <header className="rounded-lg border border-border bg-card p-3 sm:p-4 print-compact">
           <div className="grid gap-3 md:grid-cols-[1fr_auto]">
             <div className="flex items-start gap-3">
@@ -363,22 +362,6 @@ export function ReceiptDocument({
             </div>
           </div>
         </header>
-
-        <section
-          data-mobile-receipt-summary
-          className="grid gap-2 rounded-lg border border-accent/30 bg-accent-soft p-3 sm:hidden print:hidden"
-        >
-          <div>
-            <BilingualLabel english="Receipt No" hindi="रसीद संख्या" />
-            <p className="mt-1 break-all text-xl font-bold text-accent-soft-foreground">
-              {isDraft ? "Not yet saved" : receipt.receiptNumber}
-            </p>
-          </div>
-          <div>
-            <BilingualLabel english="Paid Today" hindi="आज जमा" />
-            <p className="mt-1 text-3xl font-bold text-accent-soft-foreground">{formatInr(receipt.totalAmount)}</p>
-          </div>
-        </section>
 
         <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <div className="rounded-lg border border-border bg-surface-2 px-3 py-3 print-compact">
