@@ -1,22 +1,28 @@
 -- Expand staff_role enum from 3 roles to 5.
 -- New canonical roles: admin, accountant, teacher, defaulter_followup, view_only
--- read_only_staff is renamed to view_only via type-swap; the normalize function
--- continues to accept "read_only_staff" as a backward-compatible alias for one
--- release so any in-flight auth metadata still resolves cleanly.
+-- read_only_staff is renamed to view_only via ALTER TYPE RENAME VALUE; the
+-- normalize function continues to accept "read_only_staff" as a
+-- backward-compatible alias for one release so any in-flight auth metadata
+-- still resolves cleanly.
 
+-- check_function_bodies = off defers enum-cast resolution in the function
+-- bodies below until first call, by which time this transaction has
+-- committed and the new 'teacher' / 'defaulter_followup' values are fully
+-- usable (PG's "new value cannot be used in the same transaction" rule).
 set check_function_bodies = off;
 
--- 1) Recreate enum only when this migration has not already been applied.
+-- 1) Add the two new enum values. ADD VALUE IF NOT EXISTS is a no-op when
+-- the value already exists, so re-runs on already-migrated databases skip
+-- cleanly. Mutating in place (vs. type-swap) avoids tripping over the
+-- function/policy/test-view dependencies that previously blocked DROP TYPE.
+alter type public.staff_role add value if not exists 'teacher';
+alter type public.staff_role add value if not exists 'defaulter_followup';
+
+-- 2) Rename read_only_staff to view_only. Guarded so already-renamed
+-- databases (view_only present, read_only_staff absent) become no-ops.
 do $$
 begin
   if exists (
-    select 1
-    from pg_type t
-    join pg_namespace n on n.oid = t.typnamespace
-    where n.nspname = 'public'
-      and t.typname = 'staff_role'
-  )
-  and exists (
     select 1
     from pg_enum e
     join pg_type t on t.oid = e.enumtypid
@@ -34,51 +40,16 @@ begin
       and t.typname = 'staff_role'
       and e.enumlabel = 'view_only'
   ) then
-    -- The test.users passthrough view (see 20260515152802_test_schema_init.sql)
-    -- holds a column-level dependency on public.users.role and blocks the
-    -- ALTER COLUMN ... TYPE below. Drop it for the duration of the type swap;
-    -- the recreate after restores the view definition and grants. Locally the
-    -- block is skipped (view_only already exists) so this is only reached on a
-    -- fresh database such as Supabase Preview.
-    drop view if exists test.users;
-
-    create type public.staff_role_v3 as enum (
-      'admin',
-      'accountant',
-      'teacher',
-      'defaulter_followup',
-      'view_only'
-    );
-
-    alter table public.users
-      alter column role drop default,
-      alter column role type public.staff_role_v3
-      using (
-        case role::text
-          when 'admin' then 'admin'
-          when 'accountant' then 'accountant'
-          when 'read_only_staff' then 'view_only'
-          else 'view_only'
-        end::public.staff_role_v3
-      );
-
-    drop type public.staff_role;
-    alter type public.staff_role_v3 rename to staff_role;
-
-    if exists (
-      select 1 from information_schema.schemata where schema_name = 'test'
-    ) then
-      execute 'create view test.users with (security_invoker = true) as select * from public.users';
-      execute 'grant select on test.users to authenticated';
-    end if;
+    execute 'alter type public.staff_role rename value ''read_only_staff'' to ''view_only''';
   end if;
 end
 $$;
 
+-- 3) Default rows to view_only.
 alter table public.users
   alter column role set default 'view_only';
 
--- 2) Refresh normalize_staff_role to recognize the new role names and keep
+-- 4) Refresh normalize_staff_role to recognize the new role names and keep
 -- "read_only_staff" working as an alias for view_only.
 create or replace function private.normalize_staff_role(p_role text)
 returns public.staff_role
@@ -97,7 +68,7 @@ as $$
   end;
 $$;
 
--- 3) current_staff_role had read_only_staff baked into its body; rewrite it
+-- 5) current_staff_role had read_only_staff baked into its body; rewrite it
 -- before any caller exercises the new enum.
 create or replace function private.current_staff_role()
 returns public.staff_role
@@ -122,7 +93,7 @@ revoke all on function private.current_staff_role() from public;
 revoke all on function private.current_staff_role() from anon;
 grant execute on function private.current_staff_role() to authenticated;
 
--- 4) has_permission gets a branch per role. New permissions introduced this
+-- 6) has_permission gets a branch per role. New permissions introduced this
 -- migration: students:edit_basic, students:edit_sr_no, contacts:write,
 -- payments:waive_late_fee.
 create or replace function public.has_permission(p_permission text)
