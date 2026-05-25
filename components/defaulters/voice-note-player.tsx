@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2, Play } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,9 @@ type Props = {
   label?: string;
 };
 
-export function VoiceNotePlayer({ path, label = "Play voice note" }: Props) {
+export function VoiceNotePlayer({ path, label }: Props) {
+  const t = useTranslations("Defaulters");
+  const resolvedLabel = label ?? t("voiceNotePlay");
   const [src, setSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,13 +27,13 @@ export function VoiceNotePlayer({ path, label = "Play voice note" }: Props) {
         { headers: { accept: "application/json" } },
       );
       if (!response.ok) {
-        throw new Error(`Could not load voice note (${response.status})`);
+        throw new Error(t("voiceNoteLoadStatus", { status: response.status }));
       }
       const data = (await response.json()) as { url?: string };
-      if (!data.url) throw new Error("Voice note unavailable");
+      if (!data.url) throw new Error(t("voiceNoteUnavailable"));
       setSrc(data.url);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not load voice note.");
+      setError(caught instanceof Error ? caught.message : t("voiceNoteLoadFailed"));
     } finally {
       setLoading(false);
     }
@@ -55,7 +58,7 @@ export function VoiceNotePlayer({ path, label = "Play voice note" }: Props) {
         ) : (
           <Play className="size-3.5" aria-hidden="true" />
         )}
-        {label}
+        {resolvedLabel}
       </Button>
       {error ? <span className="text-xs text-destructive">{error}</span> : null}
     </div>

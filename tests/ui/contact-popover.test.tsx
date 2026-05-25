@@ -1,5 +1,8 @@
 import React from "react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
+import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
 // Sheet uses createPortal and document — skip its internals for SSR tests.
@@ -34,6 +37,18 @@ vi.mock("react", async () => {
 
 import { ContactPopover } from "@/components/defaulters/contact-popover";
 
+const messages = JSON.parse(
+  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+);
+
+function render(node: React.ReactElement): string {
+  return renderToStaticMarkup(
+    <NextIntlClientProvider locale="en" messages={messages}>
+      {node}
+    </NextIntlClientProvider>,
+  );
+}
+
 describe("ContactPopover", () => {
   const BASE_PROPS = {
     studentId: "student-001",
@@ -44,12 +59,12 @@ describe("ContactPopover", () => {
   };
 
   it("renders the student name in the sheet description", () => {
-    const html = renderToStaticMarkup(<ContactPopover {...BASE_PROPS} />);
+    const html = render(<ContactPopover {...BASE_PROPS} />);
     expect(html).toContain("Arjun Singh");
   });
 
   it("renders all five channel options", () => {
-    const html = renderToStaticMarkup(<ContactPopover {...BASE_PROPS} />);
+    const html = render(<ContactPopover {...BASE_PROPS} />);
     expect(html).toContain("Phone call");
     expect(html).toContain("WhatsApp");
     expect(html).toContain("SMS");
@@ -58,7 +73,7 @@ describe("ContactPopover", () => {
   });
 
   it("renders all five outcome options", () => {
-    const html = renderToStaticMarkup(<ContactPopover {...BASE_PROPS} />);
+    const html = render(<ContactPopover {...BASE_PROPS} />);
     expect(html).toContain("Reached");
     expect(html).toContain("No answer");
     expect(html).toContain("Promised to pay");
@@ -67,14 +82,14 @@ describe("ContactPopover", () => {
   });
 
   it("renders the snooze dropdown", () => {
-    const html = renderToStaticMarkup(<ContactPopover {...BASE_PROPS} />);
+    const html = render(<ContactPopover {...BASE_PROPS} />);
     expect(html).toContain("Snooze follow-up");
     expect(html).toContain("No snooze");
     expect(html).toContain("1 week");
   });
 
   it("includes hidden fields for studentId and sessionLabel", () => {
-    const html = renderToStaticMarkup(<ContactPopover {...BASE_PROPS} />);
+    const html = render(<ContactPopover {...BASE_PROPS} />);
     expect(html).toContain('name="studentId"');
     expect(html).toContain('value="student-001"');
     expect(html).toContain('name="sessionLabel"');
@@ -82,7 +97,7 @@ describe("ContactPopover", () => {
   });
 
   it("renders submit button", () => {
-    const html = renderToStaticMarkup(<ContactPopover {...BASE_PROPS} />);
+    const html = render(<ContactPopover {...BASE_PROPS} />);
     expect(html).toContain("Log contact");
   });
 });

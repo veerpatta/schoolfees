@@ -168,6 +168,11 @@ describe("read-only UX audit implementation", () => {
     const transactionLazyTables = readRepoFile("components/transactions/transactions-lazy-tables.tsx");
     const defaulters = readRepoFile("app/protected/defaulters/page.tsx");
     const dashboard = readRepoFile("app/protected/dashboard/page.tsx");
+    // Defaulters labels now live in the next-intl Defaulters namespace;
+    // assert against the message catalog for those.
+    const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
+      Defaulters: Record<string, string>;
+    };
 
     expect(studentsTable).toContain("SR no");
     expect(studentsTable).toContain("Student name");
@@ -175,9 +180,11 @@ describe("read-only UX audit implementation", () => {
     expect(transactions).toContain("Receipt no");
     expect(transactionLazyTables).toContain("tracker-mobile-");
     expect(transactions).not.toContain("Receipt / Ref");
-    expect(defaulters).toContain("Oldest due");
+    expect(englishMessages.Defaulters.tableOldestDue).toBe("Oldest due");
     expect(defaulters).toContain("missing-mobile-");
-    expect(defaulters).toContain("Phone-ready overdue list for");
+    expect(englishMessages.Defaulters.description).toContain(
+      "Phone-ready overdue list for",
+    );
     expect(dashboard).toContain("Today collection");
   });
 

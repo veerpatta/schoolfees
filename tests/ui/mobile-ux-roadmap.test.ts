@@ -63,10 +63,17 @@ describe("mobile UX roadmap implementation", () => {
   it("adds mobile WhatsApp follow-up and collapsible filters to Defaulters", () => {
     const defaulters = readRepoFile("app/protected/defaulters/page.tsx");
     const filters = readRepoFile("components/defaulters/defaulter-filters.tsx");
+    const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
+      Defaulters: Record<string, string>;
+    };
 
     expect(filters).toContain("activeFilterCount");
-    expect(filters).toContain("Filters {activeFilterCount > 0");
+    // The toggle label now comes from the next-intl Defaulters namespace,
+    // but the activeFilterCount-driven branch still gates the rendered text.
+    expect(filters).toContain("activeFilterCount > 0");
+    expect(filters).toContain('t("filtersMobileToggleCount"');
     expect(filters).toContain("open={activeFilterCount > 0}");
+    expect(englishMessages.Defaulters.filtersMobileToggleCount).toContain("Filters");
     expect(defaulters).toContain("DefaulterContactActions");
     expect(defaulters).toContain("defaulter-contact-actions");
   });

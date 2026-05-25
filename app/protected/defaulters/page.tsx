@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { PageHeader } from "@/components/admin/page-header";
@@ -90,6 +91,7 @@ export default async function DefaultersPage({
   searchParams,
 }: DefaultersPageProps) {
   const staff = await requireStaffPermission("defaulters:view", { onDenied: "redirect" });
+  const t = await getTranslations("Defaulters");
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const filters = normalizeFilters(resolvedSearchParams);
   const page = normalizePage(resolvedSearchParams?.page);
@@ -161,7 +163,7 @@ export default async function DefaultersPage({
   if (resolvedSearchParams?.query)
     triageBaseParams.query = asString(resolvedSearchParams.query);
 
-  const buildFilterHref = (chip: { label: string; value: string }) => {
+  const buildFilterHref = (chip: { value: string }) => {
     const search = new URLSearchParams();
     if (resolvedSearchParams?.session) {
       search.set("session", asString(resolvedSearchParams.session));
@@ -216,7 +218,7 @@ export default async function DefaultersPage({
     return `/protected/defaulters${qs ? `?${qs}` : ""}`;
   };
 
-  const isActive = (chip: { label: string; value: string }) => {
+  const isActive = (chip: { value: string }) => {
     if (chip.value === "all") {
       return !filters.overdue && !filters.minPendingAmount;
     }
@@ -235,29 +237,33 @@ export default async function DefaultersPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Defaulters"
-        title="Outstanding follow-up register"
-        description={`Phone-ready overdue list for ${viewSession.sessionLabel}. Highest risk appears first.`}
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description", { session: viewSession.sessionLabel })}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge
-              label={`${data.pagination.visibleStart}-${data.pagination.visibleEnd} of ${data.pagination.totalRows} listed`}
+              label={t("listedCount", {
+                visibleStart: data.pagination.visibleStart,
+                visibleEnd: data.pagination.visibleEnd,
+                totalRows: data.pagination.totalRows,
+              })}
               tone="accent"
             />
             <Button asChild size="sm" variant="outline">
-              <Link href={withSession("/protected/exports/defaulters")}>Export</Link>
+              <Link href={withSession("/protected/exports/defaulters")}>{t("exportAction")}</Link>
             </Button>
           </div>
         }
       />
 
       <OfficeNotice tone="info">
-        Use this screen for calls and follow-up only. Collect payments from Payment Desk.
+        {t("officeNotice")}
       </OfficeNotice>
 
       <SectionCard
-        title="Filters"
-        description="Keep the follow-up list narrow enough for the office team to act on."
+        title={t("filtersTitle")}
+        description={t("filtersDescription")}
       >
         <DefaulterFilters
           filters={filters}
@@ -270,78 +276,82 @@ export default async function DefaultersPage({
       <section className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 snap-x no-scrollbar md:mx-0 md:px-0 md:grid md:grid-cols-2 md:overflow-visible xl:grid-cols-5">
         <div className="rounded-lg border border-border bg-card p-4 shrink-0 w-[70vw] snap-start md:w-auto">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Students listed
+            {t("metricStudentsListed")}
           </p>
           <div className="mt-2 text-2xl font-semibold text-foreground">
             {data.metrics.totalStudents}
           </div>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Students currently matching the selected follow-up filters.
+            {t("metricStudentsListedHint")}
           </p>
         </div>
 
         <div className="rounded-lg border border-border bg-card p-4 shrink-0 w-[70vw] snap-start md:w-auto">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Pending amount
+            {t("metricPendingAmount")}
           </p>
           <div className="mt-2 text-2xl font-semibold text-foreground">
             {formatInr(data.metrics.totalPending)}
           </div>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Current outstanding balance across listed students.
+            {t("metricPendingAmountHint")}
           </p>
         </div>
 
         <div className="rounded-lg border border-border bg-card p-4 shrink-0 w-[70vw] snap-start md:w-auto">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Overdue installments
+            {t("metricOverdueInstallments")}
           </p>
           <div className="mt-2 text-2xl font-semibold text-foreground">
             {data.metrics.overdueInstallments}
           </div>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Installments already past due date and still unpaid. Amounts below show late fee separately.
+            {t("metricOverdueInstallmentsHint")}
           </p>
         </div>
 
         <div className="rounded-lg border border-border bg-card p-4 shrink-0 w-[70vw] snap-start md:w-auto">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Open installments
+            {t("metricOpenInstallments")}
           </p>
           <div className="mt-2 text-2xl font-semibold text-foreground">
             {data.metrics.openInstallments}
           </div>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Pending, partial, and overdue installments across the listed rows.
+            {t("metricOpenInstallmentsHint")}
           </p>
         </div>
 
         <div className="rounded-lg border bg-warning-soft p-4 shrink-0 w-[70vw] snap-start md:w-auto">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-warning-soft-foreground">
-            Dues not prepared
+            {t("metricMissingDues")}
           </p>
           <div className="mt-2 text-2xl font-semibold text-warning-soft-foreground">
             {data.metrics.missingDuesStudents}
           </div>
           <p className="mt-2 text-sm leading-6 text-warning-soft-foreground">
-            Active students whose dues need preparation, not counted as true defaulters.
+            {t("metricMissingDuesHint")}
           </p>
         </div>
       </section>
 
       {data.missingDuesRows.length > 0 ? (
         <SectionCard
-          title="Students whose dues are not prepared"
-          description="These active students are not treated as defaulters yet. Prepare dues before collection or follow-up."
+          title={t("missingDuesTitle")}
+          description={t("missingDuesDescription")}
         >
           <div className="space-y-3 md:hidden">
             {data.missingDuesRows.map((row) => (
               <div key={`missing-mobile-${row.studentId}`} className="rounded-xl border bg-warning-soft p-3 text-sm">
                 <p className="font-semibold text-warning-soft-foreground">{row.fullName}</p>
-                <p className="text-xs text-warning-soft-foreground">{row.classLabel} • SR {row.admissionNo}</p>
-                <p className="mt-1 text-xs text-warning-soft-foreground">Phone: {row.fatherPhone ?? "-"}</p>
+                <p className="text-xs text-warning-soft-foreground">
+                  {t("studentMetaLineBullet", { classLabel: row.classLabel, admissionNo: row.admissionNo })}
+                </p>
+                <p className="mt-1 text-xs text-warning-soft-foreground">
+                  {t("tablePhone")}: {row.fatherPhone ?? "-"}
+                </p>
                 <Button asChild size="sm" variant="outline" className="mt-3">
-                  <Link href={withSession(`/protected/payments?studentId=${row.studentId}${row.classId ? `&classId=${row.classId}` : ""}`)}>Prepare dues</Link>
+                  <Link href={withSession(`/protected/payments?studentId=${row.studentId}${row.classId ? `&classId=${row.classId}` : ""}`)}>{t("missingDuesPrepareDues")}</Link>
                 </Button>
               </div>
             ))}
@@ -350,13 +360,13 @@ export default async function DefaultersPage({
             <table className="w-full min-w-full text-left text-sm">
               <thead className="bg-warning-soft text-xs uppercase tracking-wide text-warning-soft-foreground">
                 <tr>
-                  <th className="px-4 py-3">Student</th>
-                  <th className="px-4 py-3">Class</th>
-                  <th className="px-4 py-3">SR no</th>
-                  <th className="px-4 py-3">Father</th>
-                  <th className="px-4 py-3">Phone</th>
-                  <th className="px-4 py-3">Route</th>
-                  <th className="px-4 py-3">Dues</th>
+                  <th className="px-4 py-3">{t("tableStudent")}</th>
+                  <th className="px-4 py-3">{t("tableClass")}</th>
+                  <th className="px-4 py-3">{t("tableSrNo")}</th>
+                  <th className="px-4 py-3">{t("tableFather")}</th>
+                  <th className="px-4 py-3">{t("tablePhone")}</th>
+                  <th className="px-4 py-3">{t("tableRoute")}</th>
+                  <th className="px-4 py-3">{t("tableDues")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -373,7 +383,7 @@ export default async function DefaultersPage({
                         className="text-xs font-medium text-info-soft-foreground hover:underline"
                         href={withSession(`/protected/payments?studentId=${row.studentId}${row.classId ? `&classId=${row.classId}` : ""}`)}
                       >
-                        Prepare dues
+                        {t("missingDuesPrepareDues")}
                       </Link>
                     </td>
                   </tr>
@@ -385,8 +395,8 @@ export default async function DefaultersPage({
       ) : null}
 
       <SectionCard
-        title="Defaulter list"
-        description="Ranked by pending amount and overdue days so the highest-risk follow-ups appear first."
+        title={t("listTitle")}
+        description={t("listDescription")}
       >
         <BulkWhatsappProvider
           rows={visibleRows.map((row) => ({
@@ -411,10 +421,10 @@ export default async function DefaultersPage({
           {/* Quick filter chips - horizontal scroll */}
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar md:mx-0 md:px-0">
             {[
-              { label: "All", value: "all" },
-              { label: "Overdue only", value: "overdue" },
-              { label: "₹5,000+", value: "5000" },
-              { label: "₹10,000+", value: "10000" },
+              { i18nKey: "chipAll", value: "all" },
+              { i18nKey: "chipOverdueOnly", value: "overdue" },
+              { i18nKey: "chip5000Plus", value: "5000" },
+              { i18nKey: "chip10000Plus", value: "10000" },
             ].map((chip) => (
               <Link
                 key={chip.value}
@@ -426,7 +436,7 @@ export default async function DefaultersPage({
                     : "bg-surface-2 text-foreground border-border hover:bg-surface-3"
                 )}
               >
-                {chip.label}
+                {t(chip.i18nKey)}
               </Link>
             ))}
           </div>
@@ -434,7 +444,7 @@ export default async function DefaultersPage({
           <div className="md:hidden">
             {visibleRows.length === 0 ? (
               <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
-                No defaulters found for the selected filters.
+                {t("emptyDefaulters")}
               </p>
             ) : (
               <ul className="divide-y divide-border/60 rounded-xl border border-border bg-card overflow-hidden">
@@ -446,39 +456,41 @@ export default async function DefaultersPage({
                         <span className="mt-1">
                           <BulkRowCheckbox
                             studentId={row.studentId}
-                            ariaLabel={`Select ${row.fullName} for WhatsApp`}
+                            ariaLabel={t("selectAriaLabel", { name: row.fullName })}
                           />
                         </span>
                         <div className="min-w-0">
                           <p className="font-semibold text-foreground">{row.fullName}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{row.classLabel} · SR {row.admissionNo}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {t("studentMetaLine", { classLabel: row.classLabel, admissionNo: row.admissionNo })}
+                          </p>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
                         <Money value={row.totalPending} size="lg" tone="warning" />
                         {row.overdueAmount > 0 ? (
                           <p className="text-[11px] font-medium text-destructive">
-                            Overdue {formatInr(row.overdueAmount)}
+                            {t("overdueAmountChip", { amount: formatInr(row.overdueAmount) })}
                           </p>
                         ) : null}
                         {row.lateFee > 0 ? (
                           <p className="text-[11px] text-muted-foreground">
-                            Late fee {formatInr(row.lateFee)}
+                            {t("lateFeeChip", { amount: formatInr(row.lateFee) })}
                           </p>
                         ) : null}
                         <div className="mt-1">
-                          <StatusBadge label={row.followUpStatus === "overdue" ? "OVERDUE" : row.followUpStatus} tone="warning" />
+                          <StatusBadge label={row.followUpStatus === "overdue" ? t("overdueBadge") : row.followUpStatus} tone="warning" />
                         </div>
                       </div>
                     </div>
 
                     {/* Extra metadata grid */}
                     <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                      <p>Days overdue: {row.daysOverdue}</p>
-                      <p>Oldest due: {row.oldestDueDate ? formatShortDate(row.oldestDueDate) : "-"}</p>
-                      <p>Father: {row.fatherName ?? "-"}</p>
+                      <p>{t("daysOverdueLabel", { count: row.daysOverdue })}</p>
+                      <p>{t("oldestDueLabel", { date: row.oldestDueDate ? formatShortDate(row.oldestDueDate) : "-" })}</p>
+                      <p>{t("fatherLabel", { name: row.fatherName ?? "-" })}</p>
                       {canViewPaymentHistory ? (
-                        <p>Last payment: {row.lastPaymentDate ? formatShortDate(row.lastPaymentDate) : "-"}</p>
+                        <p>{t("lastPaymentLabel", { date: row.lastPaymentDate ? formatShortDate(row.lastPaymentDate) : "-" })}</p>
                       ) : null}
                     </div>
 
@@ -500,7 +512,7 @@ export default async function DefaultersPage({
                       />
                       <div className="ml-auto flex gap-1.5">
                         <Button asChild size="sm" variant="ghost">
-                          <Link href={withSession(`/protected/students/${row.studentId}`)}>View</Link>
+                          <Link href={withSession(`/protected/students/${row.studentId}`)}>{t("viewAction")}</Link>
                         </Button>
                         {canCloseBalance && row.totalPending > 0 ? (
                           <CloseDueTrigger
@@ -516,7 +528,7 @@ export default async function DefaultersPage({
                         ) : null}
                         {canPostPayments && (
                           <Button asChild size="sm" variant="accent" className="rounded-full">
-                            <Link href={withSession(`/protected/payments?studentId=${row.studentId}${row.classId ? `&classId=${row.classId}` : ""}`)}>Collect</Link>
+                            <Link href={withSession(`/protected/payments?studentId=${row.studentId}${row.classId ? `&classId=${row.classId}` : ""}`)}>{t("collectAction")}</Link>
                           </Button>
                         )}
                       </div>
@@ -531,21 +543,21 @@ export default async function DefaultersPage({
           <table className="w-full min-w-full text-left text-sm">
             <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="px-3 py-3 w-10"><span className="sr-only">Select</span></th>
-                <th className="px-4 py-3">Rank</th>
-                <th className="px-4 py-3">Student</th>
-                <th className="px-4 py-3">Class</th>
-                <th className="px-4 py-3">Father</th>
-                <th className="px-4 py-3">Phone</th>
-                <th className="px-4 py-3">Pending</th>
-                <th className="px-4 py-3">Overdue</th>
-                <th className="px-4 py-3">Late fee</th>
-                <th className="px-4 py-3">Oldest due</th>
-                <th className="px-4 py-3">Days overdue</th>
+                <th className="px-3 py-3 w-10"><span className="sr-only">{t("tableSelect")}</span></th>
+                <th className="px-4 py-3">{t("tableRank")}</th>
+                <th className="px-4 py-3">{t("tableStudent")}</th>
+                <th className="px-4 py-3">{t("tableClass")}</th>
+                <th className="px-4 py-3">{t("tableFather")}</th>
+                <th className="px-4 py-3">{t("tablePhone")}</th>
+                <th className="px-4 py-3">{t("tablePending")}</th>
+                <th className="px-4 py-3">{t("tableOverdue")}</th>
+                <th className="px-4 py-3">{t("tableLateFee")}</th>
+                <th className="px-4 py-3">{t("tableOldestDue")}</th>
+                <th className="px-4 py-3">{t("tableDaysOverdue")}</th>
                 {canViewPaymentHistory ? (
-                  <th className="px-4 py-3">Last payment</th>
+                  <th className="px-4 py-3">{t("tableLastPayment")}</th>
                 ) : null}
-                <th className="px-4 py-3">Action</th>
+                <th className="px-4 py-3">{t("tableAction")}</th>
               </tr>
             </thead>
             <tbody>
@@ -555,7 +567,7 @@ export default async function DefaultersPage({
                     colSpan={canViewPaymentHistory ? 13 : 12}
                     className="px-4 py-6 text-center text-muted-foreground"
                   >
-                    No defaulters found for the selected filters.
+                    {t("emptyDefaulters")}
                   </td>
                 </tr>
               ) : (
@@ -567,13 +579,15 @@ export default async function DefaultersPage({
                     <td className="px-3 py-3">
                       <BulkRowCheckbox
                         studentId={row.studentId}
-                        ariaLabel={`Select ${row.fullName} for WhatsApp`}
+                        ariaLabel={t("selectAriaLabel", { name: row.fullName })}
                       />
                     </td>
                     <td className="px-4 py-3 font-semibold text-foreground">#{row.rank}</td>
                     <td className="px-4 py-3">
                       <div className="font-medium text-foreground">{row.fullName}</div>
-                      <div className="text-xs text-muted-foreground">SR no {row.admissionNo}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {t("tableSrNoLine", { value: row.admissionNo })}
+                      </div>
                       <div className="mt-1 flex flex-wrap items-center gap-2">
                         <ContactStatusChip summary={contactSummaries.get(row.studentId) ?? null} />
                         <ContactLogTimelineButton
@@ -610,7 +624,7 @@ export default async function DefaultersPage({
                           href={withSession(`/protected/students/${row.studentId}`)}
                           className="text-sm font-semibold text-info-soft-foreground hover:text-info-soft-foreground"
                         >
-                          View
+                          {t("viewAction")}
                         </Link>
                         <DefaulterContactActionsCompact
                           row={row}
@@ -634,7 +648,7 @@ export default async function DefaultersPage({
                             href={withSession(`/protected/payments?studentId=${row.studentId}`)}
                             className="text-sm font-semibold text-info-soft-foreground hover:text-info-soft-foreground"
                           >
-                            Collect
+                            {t("collectAction")}
                           </Link>
                         )}
                       </div>
@@ -645,14 +659,18 @@ export default async function DefaultersPage({
             </tbody>
           </table>
         </div>
-        <SummaryRow sticky={false} hint={`Page ${data.pagination.page}`}>
-          <SummaryCell label="Defaulters" value={String(data.pagination.totalRows)} />
-          <SummaryCell label="Total pending" value={formatInr(data.metrics.totalPending)} />
+        <SummaryRow sticky={false} hint={t("summaryPageLabel", { page: data.pagination.page })}>
+          <SummaryCell label={t("summaryDefaulters")} value={String(data.pagination.totalRows)} />
+          <SummaryCell label={t("summaryTotalPending")} value={formatInr(data.metrics.totalPending)} />
         </SummaryRow>
         {(data.pagination.hasPreviousPage || data.pagination.hasNextPage) ? (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm">
             <span className="text-muted-foreground">
-              Showing {data.pagination.visibleStart}-{data.pagination.visibleEnd} of {data.pagination.totalRows}
+              {t("paginationShowing", {
+                start: data.pagination.visibleStart,
+                end: data.pagination.visibleEnd,
+                total: data.pagination.totalRows,
+              })}
             </span>
             <div className="flex items-center gap-2">
               <Button asChild size="sm" variant="outline" aria-disabled={!data.pagination.hasPreviousPage}>
@@ -661,18 +679,18 @@ export default async function DefaultersPage({
                   className={!data.pagination.hasPreviousPage ? "pointer-events-none opacity-50" : undefined}
                 >
                   <ChevronLeft className="size-4" />
-                  Previous
+                  {t("previousPage")}
                 </Link>
               </Button>
               <span className="min-w-16 text-center text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                Page {data.pagination.page}
+                {t("summaryPageLabel", { page: data.pagination.page })}
               </span>
               <Button asChild size="sm" variant="outline" aria-disabled={!data.pagination.hasNextPage}>
                 <Link
                   href={buildPageHref(data.pagination.page + 1)}
                   className={!data.pagination.hasNextPage ? "pointer-events-none opacity-50" : undefined}
                 >
-                  Next
+                  {t("nextPage")}
                   <ChevronRight className="size-4" />
                 </Link>
               </Button>
@@ -683,23 +701,23 @@ export default async function DefaultersPage({
       </SectionCard>
 
       <SectionCard
-        title="Route-wise transport outstanding"
-        description="Use this view for transport follow-up and route-level reconciliation work."
+        title={t("routeTransportTitle")}
+        description={t("routeTransportDescription")}
       >
         <div className="space-y-3 md:hidden">
           {data.routeSummaryRows.length === 0 ? (
             <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
-              No route-wise outstanding rows for the selected filters.
+              {t("routeTransportEmpty")}
             </p>
           ) : (
             data.routeSummaryRows.map((row) => (
               <div key={`route-mobile-${row.routeId ?? row.routeLabel}`} className="rounded-xl border border-border bg-card p-3 text-sm">
                 <p className="font-semibold text-foreground">{row.routeLabel}</p>
                 <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                  <p>Students: {row.studentCount}</p>
-                  <p>Open installments: {row.openInstallments}</p>
-                  <p>Overdue installments: {row.overdueInstallments}</p>
-                  <p className="font-semibold text-foreground">Pending: {formatInr(row.totalPending)}</p>
+                  <p>{t("routeStudentsCount", { count: row.studentCount })}</p>
+                  <p>{t("routeOpenInstallmentsRow", { count: row.openInstallments })}</p>
+                  <p>{t("routeOverdueInstallmentsRow", { count: row.overdueInstallments })}</p>
+                  <p className="font-semibold text-foreground">{t("routePendingRow", { amount: formatInr(row.totalPending) })}</p>
                 </div>
               </div>
             ))
@@ -709,20 +727,20 @@ export default async function DefaultersPage({
           <table className="w-full min-w-full text-left text-sm">
             <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="px-4 py-3">Route</th>
-                <th className="px-4 py-3">Students with dues</th>
-                <th className="px-4 py-3">Pending amount</th>
-                <th className="px-4 py-3">Overdue installments</th>
-                <th className="px-4 py-3">Open installments</th>
-                <th className="px-4 py-3">Oldest due date</th>
-                <th className="px-4 py-3">Actions</th>
+                <th className="px-4 py-3">{t("tableRoute")}</th>
+                <th className="px-4 py-3">{t("routeStudentsWithDues")}</th>
+                <th className="px-4 py-3">{t("routePendingAmount")}</th>
+                <th className="px-4 py-3">{t("metricOverdueInstallments")}</th>
+                <th className="px-4 py-3">{t("metricOpenInstallments")}</th>
+                <th className="px-4 py-3">{t("routeOldestDueDate")}</th>
+                <th className="px-4 py-3">{t("tableActions")}</th>
               </tr>
             </thead>
             <tbody>
               {data.routeSummaryRows.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
-                    No route-wise outstanding rows for the selected filters.
+                    {t("routeTransportEmpty")}
                   </td>
                 </tr>
               ) : (
@@ -741,17 +759,17 @@ export default async function DefaultersPage({
                             className="text-xs font-medium text-info-soft-foreground hover:underline"
                             href={withSession(`/protected/defaulters?transportRouteId=${row.routeId}`)}
                           >
-                            Open defaulters
+                            {t("routeOpenDefaulters")}
                           </Link>
                           <Link
                             className="text-xs font-medium text-info-soft-foreground hover:underline"
                             href={withSession(`/protected/students?transportRouteId=${row.routeId}`)}
                           >
-                            Open students
+                            {t("routeOpenStudents")}
                           </Link>
                         </div>
                       ) : (
-                        <span className="text-xs text-muted-foreground">No direct route filter</span>
+                        <span className="text-xs text-muted-foreground">{t("routeNoDirectFilter")}</span>
                       )}
                     </td>
                   </tr>
@@ -763,14 +781,14 @@ export default async function DefaultersPage({
       </SectionCard>
 
       <SectionCard
-        title="Route-wise student list"
-        description="Operational student list grouped by route for office calls and overdue follow-up."
+        title={t("routeStudentListTitle")}
+        description={t("routeStudentListDescription")}
       >
         {/* ── Mobile cards grouped by route ── */}
         <div className="space-y-3 md:hidden">
           {data.rows.length === 0 ? (
             <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
-              No route-wise students for the selected filters.
+              {t("routeStudentListEmpty")}
             </p>
           ) : (
             (() => {
@@ -795,7 +813,7 @@ export default async function DefaultersPage({
                       {group.route}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {group.students.length} student{group.students.length === 1 ? "" : "s"}
+                      {t("routeStudentCount", { count: group.students.length })}
                     </span>
                   </div>
                   {group.students.map((row) => (
@@ -806,12 +824,14 @@ export default async function DefaultersPage({
                         <span className="shrink-0 font-semibold text-foreground">{formatInr(row.totalPending)}</span>
                       </div>
                       {/* Row 2: Class + SR */}
-                      <p className="text-xs text-muted-foreground">{row.classLabel} • SR {row.admissionNo}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t("studentMetaLineBullet", { classLabel: row.classLabel, admissionNo: row.admissionNo })}
+                      </p>
                       {/* Row 3: Details grid */}
                       <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                        <p>Father: {row.fatherName ?? "-"}</p>
+                        <p>{t("fatherLabel", { name: row.fatherName ?? "-" })}</p>
                         <p>
-                          Phone:{" "}
+                          {t("phoneLabel")}{" "}
                           {row.fatherPhone ? (
                             <Link href={`tel:${row.fatherPhone}`} className="text-info-soft-foreground hover:underline">
                               {row.fatherPhone}
@@ -820,8 +840,8 @@ export default async function DefaultersPage({
                             "-"
                           )}
                         </p>
-                        <p>Late fee: {formatInr(row.lateFee)}</p>
-                        <p>Next due: {row.nextDueDate ? formatShortDate(row.nextDueDate) : "-"}</p>
+                        <p>{t("tableLateFee")}: {formatInr(row.lateFee)}</p>
+                        <p>{t("tableNextDue")}: {row.nextDueDate ? formatShortDate(row.nextDueDate) : "-"}</p>
                       </div>
                       {/* Row 4: Actions */}
                       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -851,23 +871,23 @@ export default async function DefaultersPage({
           <table className="min-w-[900px] text-left text-sm">
             <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="px-4 py-3">Route</th>
-                <th className="px-4 py-3">Student</th>
-                <th className="px-4 py-3">SR no</th>
-                <th className="px-4 py-3">Class</th>
-                <th className="px-4 py-3">Father</th>
-                <th className="px-4 py-3">Phone</th>
-                <th className="px-4 py-3">Outstanding</th>
-                <th className="px-4 py-3">Late fee</th>
-                <th className="px-4 py-3">Next due</th>
-                <th className="px-4 py-3">Follow-up</th>
+                <th className="px-4 py-3">{t("tableRoute")}</th>
+                <th className="px-4 py-3">{t("tableStudent")}</th>
+                <th className="px-4 py-3">{t("tableSrNo")}</th>
+                <th className="px-4 py-3">{t("tableClass")}</th>
+                <th className="px-4 py-3">{t("tableFather")}</th>
+                <th className="px-4 py-3">{t("tablePhone")}</th>
+                <th className="px-4 py-3">{t("tableOutstanding")}</th>
+                <th className="px-4 py-3">{t("tableLateFee")}</th>
+                <th className="px-4 py-3">{t("tableNextDue")}</th>
+                <th className="px-4 py-3">{t("tableFollowUp")}</th>
               </tr>
             </thead>
             <tbody>
               {data.rows.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="px-4 py-6 text-center text-muted-foreground">
-                    No route-wise students for the selected filters.
+                    {t("routeStudentListEmpty")}
                   </td>
                 </tr>
               ) : (

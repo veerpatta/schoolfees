@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useTranslations } from "next-intl";
 import { MessageSquare, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,7 @@ type ProviderProps = {
 };
 
 export function BulkWhatsappProvider({ rows, templates, children }: ProviderProps) {
+  const t = useTranslations("Defaulters");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(
@@ -135,12 +137,12 @@ export function BulkWhatsappProvider({ rows, templates, children }: ProviderProp
                 type="button"
                 onClick={handleClear}
                 className="grid size-9 place-items-center rounded-full border border-border text-muted-foreground hover:bg-surface-2"
-                aria-label="Clear selection"
+                aria-label={t("bulkClearSelection")}
               >
                 <X className="size-4" />
               </button>
               <p className="text-sm font-medium text-foreground">
-                {selectedIds.size} selected
+                {t("bulkSelected", { count: selectedIds.size })}
               </p>
             </div>
             <Button
@@ -151,7 +153,7 @@ export function BulkWhatsappProvider({ rows, templates, children }: ProviderProp
               className="gap-2"
             >
               <MessageSquare className="size-4" aria-hidden="true" />
-              Send WhatsApp to {selectedIds.size} parent{selectedIds.size === 1 ? "" : "s"}
+              {t("bulkSendButton", { count: selectedIds.size })}
             </Button>
           </div>
         </div>
@@ -160,20 +162,20 @@ export function BulkWhatsappProvider({ rows, templates, children }: ProviderProp
       <Sheet
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
-        title={`WhatsApp to ${selectedIds.size} parent${selectedIds.size === 1 ? "" : "s"}`}
-        description="Choose a template, review the preview, then open one WhatsApp draft per parent."
+        title={t("bulkSheetTitle", { count: selectedIds.size })}
+        description={t("bulkSheetDescription")}
         size="full"
       >
         <div className="space-y-4">
           {templates.length === 0 ? (
             <p className="rounded-lg border border-warning/30 bg-warning-soft px-3 py-3 text-sm text-warning-soft-foreground">
-              No active templates. Create one under Admin Tools → WhatsApp templates.
+              {t("bulkNoTemplates")}
             </p>
           ) : (
             <>
               <div className="space-y-2">
                 <label htmlFor="bulk-template" className="text-sm font-medium text-foreground">
-                  Template
+                  {t("bulkTemplateLabel")}
                 </label>
                 <select
                   id="bulk-template"
@@ -191,7 +193,9 @@ export function BulkWhatsappProvider({ rows, templates, children }: ProviderProp
 
               <div className="space-y-1">
                 <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Preview (using {selectedRows[0]?.fullName ?? rows[0]?.fullName ?? "first row"})
+                  {t("bulkPreviewHeading", {
+                    name: selectedRows[0]?.fullName ?? rows[0]?.fullName ?? t("bulkFirstRow"),
+                  })}
                 </p>
                 <pre className="whitespace-pre-wrap rounded-lg border border-border bg-surface-2 p-3 font-sans text-sm text-foreground">
                   {preview}
@@ -200,9 +204,7 @@ export function BulkWhatsappProvider({ rows, templates, children }: ProviderProp
 
               {rowsWithoutPhone.length > 0 ? (
                 <div className="rounded-lg border border-warning/30 bg-warning-soft px-3 py-2 text-xs text-warning-soft-foreground">
-                  {rowsWithoutPhone.length} selected parent
-                  {rowsWithoutPhone.length === 1 ? " has " : "s have "}
-                  no phone number on file and will be skipped:
+                  {t("bulkNoPhoneMessage", { count: rowsWithoutPhone.length })}
                   <ul className="mt-1 list-disc pl-5">
                     {rowsWithoutPhone.map((row) => (
                       <li key={row.studentId}>{row.fullName}</li>
@@ -212,9 +214,7 @@ export function BulkWhatsappProvider({ rows, templates, children }: ProviderProp
               ) : null}
 
               <p className="text-xs text-muted-foreground">
-                Confirming will open {sendableRows.length} new browser tab
-                {sendableRows.length === 1 ? "" : "s"}, one per parent. Send each
-                manually after reviewing.
+                {t("bulkOpenInfo", { count: sendableRows.length })}
               </p>
 
               <div className="flex flex-wrap gap-3">
@@ -224,7 +224,7 @@ export function BulkWhatsappProvider({ rows, templates, children }: ProviderProp
                   onClick={() => setSheetOpen(false)}
                   className="flex-1"
                 >
-                  Cancel
+                  {t("bulkCancel")}
                 </Button>
                 <Button
                   type="button"
@@ -233,8 +233,7 @@ export function BulkWhatsappProvider({ rows, templates, children }: ProviderProp
                   disabled={sendableRows.length === 0 || activeTemplate === null}
                   className="flex-1"
                 >
-                  Open {sendableRows.length} WhatsApp tab
-                  {sendableRows.length === 1 ? "" : "s"}
+                  {t("bulkOpenButton", { count: sendableRows.length })}
                 </Button>
               </div>
             </>

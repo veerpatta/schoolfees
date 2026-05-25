@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import type { CadenceCounts, Cadence } from "@/lib/defaulters/cadence";
 import { cn } from "@/lib/utils";
@@ -13,11 +14,11 @@ type Props = {
   baseParams: Record<string, string>;
 };
 
-const TABS: { value: Cadence | "all"; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "call_today", label: "Call today" },
-  { value: "this_week", label: "This week" },
-  { value: "snoozed", label: "Snoozed" },
+const TABS: { value: Cadence | "all"; i18nKey: string }[] = [
+  { value: "all", i18nKey: "triageTabAll" },
+  { value: "call_today", i18nKey: "triageTabCallToday" },
+  { value: "this_week", i18nKey: "triageTabThisWeek" },
+  { value: "snoozed", i18nKey: "triageTabSnoozed" },
 ];
 
 function buildTabHref(
@@ -36,13 +37,14 @@ function buildTabHref(
 }
 
 export function TriageTabs({ counts, activeCadence, baseParams }: Props) {
+  const t = useTranslations("Defaulters");
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
 
   return (
     <div
       className="flex gap-1 overflow-x-auto rounded-lg border border-border bg-surface-2 p-1 no-scrollbar"
       role="tablist"
-      aria-label="Follow-up cadence"
+      aria-label={t("triageNavLabel")}
     >
       {TABS.map((tab) => {
         const count =
@@ -64,7 +66,7 @@ export function TriageTabs({ counts, activeCadence, baseParams }: Props) {
                 : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
             )}
           >
-            {tab.label}
+            {t(tab.i18nKey)}
             <span
               className={cn(
                 "rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums",

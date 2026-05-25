@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Check, Copy } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -22,14 +23,15 @@ type Props = {
 };
 
 export function WhatsAppDraftModal({ row, open, onClose }: Props) {
+  const t = useTranslations("Defaulters");
   const [copied, setCopied] = useState(false);
 
   const dueLabel =
     row.overdueAmount > 0
-      ? `Overdue ${formatInr(row.overdueAmount)}`
+      ? t("whatsappOverdueLabel", { amount: formatInr(row.overdueAmount) })
       : row.oldestDueDate
-        ? `Due ${row.oldestDueDate}`
-        : "Total dues";
+        ? t("whatsappDueLabel", { date: row.oldestDueDate })
+        : t("whatsappTotalDues");
 
   const draft = composeDefaulterDraft({
     studentName: row.fullName,
@@ -50,8 +52,8 @@ export function WhatsAppDraftModal({ row, open, onClose }: Props) {
     <Sheet
       open={open}
       onClose={onClose}
-      title="WhatsApp draft"
-      description={`Message template for ${row.fullName}`}
+      title={t("whatsappTitle")}
+      description={t("whatsappDescription", { name: row.fullName })}
       size="md"
     >
       <div className="space-y-4">
@@ -67,18 +69,17 @@ export function WhatsAppDraftModal({ row, open, onClose }: Props) {
           {copied ? (
             <>
               <Check className="size-4 text-success" aria-hidden="true" />
-              Copied!
+              {t("whatsappCopied")}
             </>
           ) : (
             <>
               <Copy className="size-4" aria-hidden="true" />
-              Copy to clipboard
+              {t("whatsappCopy")}
             </>
           )}
         </Button>
         <p className="text-center text-xs text-muted-foreground">
-          Copy this text and paste into WhatsApp. The app does not send
-          messages.
+          {t("whatsappDisclaimer")}
         </p>
       </div>
     </Sheet>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
@@ -19,27 +20,27 @@ type Props = {
 };
 
 const CHANNELS = [
-  { value: "call", label: "Phone call" },
-  { value: "whatsapp", label: "WhatsApp" },
-  { value: "sms", label: "SMS" },
-  { value: "in_person", label: "In person" },
-  { value: "email", label: "Email" },
+  { value: "call", i18nKey: "channelCall" },
+  { value: "whatsapp", i18nKey: "channelWhatsapp" },
+  { value: "sms", i18nKey: "channelSms" },
+  { value: "in_person", i18nKey: "channelInPerson" },
+  { value: "email", i18nKey: "channelEmail" },
 ] as const;
 
 const OUTCOMES = [
-  { value: "reached", label: "Reached" },
-  { value: "no_answer", label: "No answer" },
-  { value: "promised_pay", label: "Promised to pay" },
-  { value: "dispute", label: "Dispute / Query" },
-  { value: "other", label: "Other" },
+  { value: "reached", i18nKey: "outcomeReached" },
+  { value: "no_answer", i18nKey: "outcomeNoAnswer" },
+  { value: "promised_pay", i18nKey: "outcomePromisedPay" },
+  { value: "dispute", i18nKey: "outcomeDispute" },
+  { value: "other", i18nKey: "outcomeOther" },
 ] as const;
 
 const SNOOZE_OPTIONS = [
-  { value: "", label: "No snooze" },
-  { value: "2", label: "2 days" },
-  { value: "7", label: "1 week" },
-  { value: "14", label: "2 weeks" },
-  { value: "30", label: "1 month" },
+  { value: "", i18nKey: "snoozeNone" },
+  { value: "2", i18nKey: "snooze2Days" },
+  { value: "7", i18nKey: "snooze1Week" },
+  { value: "14", i18nKey: "snooze2Weeks" },
+  { value: "30", i18nKey: "snooze1Month" },
 ] as const;
 
 const INITIAL_STATE: LogContactState = { status: "idle" };
@@ -51,6 +52,7 @@ export function ContactPopover({
   open,
   onClose,
 }: Props) {
+  const t = useTranslations("Defaulters");
   const [state, formAction, pending] = useActionState(
     logContactAction,
     INITIAL_STATE,
@@ -64,8 +66,8 @@ export function ContactPopover({
     <Sheet
       open={open}
       onClose={onClose}
-      title="Log contact"
-      description={`Record a contact attempt for ${studentName}`}
+      title={t("popoverTitle")}
+      description={t("popoverDescription", { name: studentName })}
       size="lg"
     >
       <form action={formAction} className="space-y-5">
@@ -74,7 +76,7 @@ export function ContactPopover({
 
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium text-foreground">
-            Channel
+            {t("popoverChannel")}
           </legend>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {CHANNELS.map((ch) => (
@@ -89,7 +91,7 @@ export function ContactPopover({
                   defaultChecked={ch.value === "call"}
                   className="accent-accent"
                 />
-                {ch.label}
+                {t(ch.i18nKey)}
               </label>
             ))}
           </div>
@@ -97,7 +99,7 @@ export function ContactPopover({
 
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium text-foreground">
-            Outcome
+            {t("popoverOutcome")}
           </legend>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {OUTCOMES.map((oc) => (
@@ -112,7 +114,7 @@ export function ContactPopover({
                   defaultChecked={oc.value === "reached"}
                   className="accent-accent"
                 />
-                {oc.label}
+                {t(oc.i18nKey)}
               </label>
             ))}
           </div>
@@ -123,7 +125,7 @@ export function ContactPopover({
             htmlFor={`snooze-${studentId}`}
             className="text-sm font-medium text-foreground"
           >
-            Snooze follow-up
+            {t("popoverSnoozeLabel")}
           </label>
           <select
             id={`snooze-${studentId}`}
@@ -132,13 +134,12 @@ export function ContactPopover({
           >
             {SNOOZE_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
-                {opt.label}
+                {t(opt.i18nKey)}
               </option>
             ))}
           </select>
           <p className="text-xs text-muted-foreground">
-            If set, this student moves to the &quot;This week&quot; or
-            &quot;Snoozed&quot; tab.
+            {t("popoverSnoozeHint")}
           </p>
         </div>
 
@@ -147,14 +148,14 @@ export function ContactPopover({
             htmlFor={`note-${studentId}`}
             className="text-sm font-medium text-foreground"
           >
-            Note{" "}
-            <span className="font-normal text-muted-foreground">(optional)</span>
+            {t("popoverNoteLabel")}{" "}
+            <span className="font-normal text-muted-foreground">{t("popoverNoteOptional")}</span>
           </label>
           <textarea
             id={`note-${studentId}`}
             name="note"
             rows={3}
-            placeholder="e.g. Will pay by 20th, needs installment breakdown…"
+            placeholder={t("popoverNotePlaceholder")}
             className="w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
           />
         </div>
@@ -175,7 +176,7 @@ export function ContactPopover({
             onClick={onClose}
             disabled={pending}
           >
-            Cancel
+            {t("popoverCancel")}
           </Button>
           <Button
             type="submit"
@@ -183,7 +184,7 @@ export function ContactPopover({
             className="flex-1"
             disabled={pending}
           >
-            {pending ? "Saving…" : "Log contact"}
+            {pending ? t("popoverSaving") : t("popoverSubmit")}
           </Button>
         </div>
       </form>

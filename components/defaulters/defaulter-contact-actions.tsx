@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { MessageSquare, Phone } from "lucide-react";
 
 import { ContactPopover } from "@/components/defaulters/contact-popover";
@@ -22,6 +23,7 @@ type Props = {
 };
 
 export function DefaulterContactActions({ row, sessionLabel }: Props) {
+  const t = useTranslations("Defaulters");
   const [modal, setModal] = useState<"contact" | "whatsapp" | null>(null);
 
   return (
@@ -31,7 +33,7 @@ export function DefaulterContactActions({ row, sessionLabel }: Props) {
         onClick={() => setModal("contact")}
         className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-accent bg-accent px-3 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90"
       >
-        Log contact
+        {t("actionLogContact")}
       </button>
 
       <button
@@ -40,7 +42,7 @@ export function DefaulterContactActions({ row, sessionLabel }: Props) {
         className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-success/30 bg-success-soft px-3 py-2 text-sm font-medium text-success-soft-foreground transition-colors hover:bg-success-soft/80"
       >
         <MessageSquare className="size-4" aria-hidden="true" />
-        WhatsApp
+        {t("actionWhatsApp")}
       </button>
 
       {row.fatherPhone ? (
@@ -75,6 +77,7 @@ export function DefaulterContactActionsCompact({
   row,
   sessionLabel,
 }: Props) {
+  const t = useTranslations("Defaulters");
   const [modal, setModal] = useState<"contact" | "whatsapp" | null>(null);
 
   return (
@@ -84,7 +87,7 @@ export function DefaulterContactActionsCompact({
         onClick={() => setModal("contact")}
         className="inline-flex items-center gap-1 rounded-md border border-accent bg-accent px-2 py-1 text-xs font-semibold text-accent-foreground transition-colors hover:bg-accent/90"
       >
-        Log contact
+        {t("actionLogContact")}
       </button>
 
       <button
@@ -92,7 +95,7 @@ export function DefaulterContactActionsCompact({
         onClick={() => setModal("whatsapp")}
         className="text-sm font-semibold text-success-soft-foreground hover:text-success-soft-foreground"
       >
-        WhatsApp
+        {t("actionWhatsApp")}
       </button>
 
       <ContactPopover

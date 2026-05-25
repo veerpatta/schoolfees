@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { AlertCircle, Loader2, Mic, Pause, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ function fileExtension(mime: string): string {
 }
 
 export function VoiceNoteRecorder({ studentId, inputName }: Props) {
+  const t = useTranslations("Defaulters");
   const [state, setState] = useState<RecorderState>({ status: "idle" });
   const [elapsedMs, setElapsedMs] = useState(0);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -78,7 +80,7 @@ export function VoiceNoteRecorder({ studentId, inputName }: Props) {
       upsert: false,
     });
     if (error) {
-      throw new Error(error.message || "Upload failed");
+      throw new Error(error.message || t("voiceNoteUploadFailed"));
     }
     return objectName;
   }
@@ -88,7 +90,7 @@ export function VoiceNoteRecorder({ studentId, inputName }: Props) {
     if (!navigator.mediaDevices || typeof MediaRecorder === "undefined") {
       setState({
         status: "error",
-        message: "Audio recording is not supported in this browser.",
+        message: t("voiceNoteUnsupported"),
       });
       return;
     }
@@ -121,7 +123,7 @@ export function VoiceNoteRecorder({ studentId, inputName }: Props) {
           URL.revokeObjectURL(objectUrl);
           setState({
             status: "error",
-            message: error instanceof Error ? error.message : "Upload failed.",
+            message: error instanceof Error ? error.message : t("voiceNoteUploadFailed"),
           });
         }
       };
@@ -148,8 +150,8 @@ export function VoiceNoteRecorder({ studentId, inputName }: Props) {
         status: "error",
         message:
           error instanceof Error
-            ? `Could not start recording: ${error.message}`
-            : "Could not start recording (microphone permission denied?).",
+            ? t("voiceNoteCouldNotStart", { message: error.message })
+            : t("voiceNotePermissionDenied"),
       });
       stopStream();
     }
@@ -181,7 +183,7 @@ export function VoiceNoteRecorder({ studentId, inputName }: Props) {
     <div className="space-y-2 rounded-lg border border-border bg-surface-2 p-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-          Voice note (optional, ≤ 60 s)
+          {t("voiceNoteLabel")}
         </p>
         {state.status === "recording" ? (
           <span className="font-mono text-xs text-destructive">
@@ -195,20 +197,20 @@ export function VoiceNoteRecorder({ studentId, inputName }: Props) {
       <div className="flex flex-wrap items-center gap-2">
         {state.status === "idle" || state.status === "error" ? (
           <Button type="button" variant="outline" onClick={startRecording} className="gap-2">
-            <Mic className="size-4" aria-hidden="true" /> Record
+            <Mic className="size-4" aria-hidden="true" /> {t("voiceNoteRecord")}
           </Button>
         ) : null}
 
         {state.status === "recording" ? (
           <Button type="button" variant="outline" onClick={stopRecording} className="gap-2">
-            <Pause className="size-4" aria-hidden="true" /> Stop
+            <Pause className="size-4" aria-hidden="true" /> {t("voiceNoteStop")}
           </Button>
         ) : null}
 
         {state.status === "stopping" || state.status === "uploading" ? (
           <Button type="button" variant="outline" disabled className="gap-2">
             <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            {state.status === "stopping" ? "Finishing…" : "Uploading…"}
+            {state.status === "stopping" ? t("voiceNoteFinishing") : t("voiceNoteUploading")}
           </Button>
         ) : null}
 
@@ -230,7 +232,7 @@ export function VoiceNoteRecorder({ studentId, inputName }: Props) {
             disabled={state.status === "uploading"}
             className="gap-1 text-destructive"
           >
-            <Trash2 className="size-4" aria-hidden="true" /> Discard
+            <Trash2 className="size-4" aria-hidden="true" /> {t("voiceNoteDiscard")}
           </Button>
         ) : null}
       </div>

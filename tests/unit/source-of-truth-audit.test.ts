@@ -70,12 +70,21 @@ describe("source of truth audit fixes", () => {
   it("defaulters_shows_missing_dues_warning_for_active_students_without_financial_rows", () => {
     const defaultersData = readRepoFile("lib/defaulters/data.ts");
     const defaultersPage = readRepoFile("app/protected/defaulters/page.tsx");
+    // Headings live in the next-intl Defaulters namespace; assert the i18n key
+    // wiring rather than the literal English strings.
+    const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
+      Defaulters: Record<string, string>;
+    };
 
     expect(defaultersData).toContain("getActiveSessionStudents");
     expect(defaultersData).toContain("missingDuesRows");
     expect(defaultersData).toContain("!generatedStudentIds.has(row.studentId)");
-    expect(defaultersPage).toContain("Students whose dues are not prepared");
-    expect(defaultersPage).toContain("Dues not prepared");
+    expect(defaultersPage).toContain('t("missingDuesTitle")');
+    expect(defaultersPage).toContain('t("metricMissingDues")');
+    expect(englishMessages.Defaulters.missingDuesTitle).toBe(
+      "Students whose dues are not prepared",
+    );
+    expect(englishMessages.Defaulters.metricMissingDues).toBe("Dues not prepared");
   });
 
   it("import_status_change_to_active_generates_dues", () => {

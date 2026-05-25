@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import { CheckCircle2, Clock, MessageCircle, Phone, PhoneOff, AlertTriangle } from "lucide-react";
 
 import type { DefaulterContactSummary } from "@/lib/defaulters/cadence";
@@ -18,32 +21,34 @@ function daysSince(iso: string | null | undefined, now: Date): number | null {
   return Math.floor(ms / (1000 * 60 * 60 * 24));
 }
 
+type OutcomeKey = Exclude<DefaulterContactSummary["lastOutcome"], null | undefined>;
+
 const OUTCOME_STYLE: Record<
-  Exclude<DefaulterContactSummary["lastOutcome"], null | undefined>,
-  { label: string; cls: string; Icon: typeof Phone }
+  OutcomeKey,
+  { i18nKey: string; cls: string; Icon: typeof Phone }
 > = {
   reached: {
-    label: "Reached",
+    i18nKey: "chipOutcomeReached",
     cls: "border-info-soft bg-info-soft text-info-soft-foreground",
     Icon: Phone,
   },
   promised_pay: {
-    label: "Promised",
+    i18nKey: "chipOutcomePromised",
     cls: "border-success-soft-foreground/30 bg-success-soft text-success-soft-foreground",
     Icon: CheckCircle2,
   },
   no_answer: {
-    label: "No answer",
+    i18nKey: "chipOutcomeNoAnswer",
     cls: "border-warning-soft-foreground/30 bg-warning-soft text-warning-soft-foreground",
     Icon: PhoneOff,
   },
   dispute: {
-    label: "Dispute",
+    i18nKey: "chipOutcomeDispute",
     cls: "border-destructive/30 bg-destructive/10 text-destructive",
     Icon: AlertTriangle,
   },
   other: {
-    label: "Logged",
+    i18nKey: "chipOutcomeLogged",
     cls: "border-border bg-surface-2 text-muted-foreground",
     Icon: MessageCircle,
   },
@@ -54,6 +59,8 @@ export function ContactStatusChip({
   today = new Date(),
   className,
 }: ContactStatusChipProps) {
+  const t = useTranslations("Defaulters");
+
   if (!summary || !summary.lastContactedAt) {
     return (
       <span
@@ -63,7 +70,7 @@ export function ContactStatusChip({
         )}
       >
         <Clock className="size-3" aria-hidden="true" />
-        Never contacted
+        {t("chipNeverContacted")}
       </span>
     );
   }
@@ -72,6 +79,13 @@ export function ContactStatusChip({
   const outcomeStyle = summary.lastOutcome ? OUTCOME_STYLE[summary.lastOutcome] : OUTCOME_STYLE.other;
   const Icon = outcomeStyle.Icon;
   const isEscalation = (summary.noAnswerStreak ?? 0) >= 5;
+  const whenLabel =
+    days === 0
+      ? t("chipWhenToday")
+      : days === 1
+        ? t("chipWhenYesterday")
+        : t("chipWhenDaysAgo", { count: days });
+  const shortWhen = days === 0 ? t("chipDaysToday") : t("chipDaysShort", { count: days });
 
   return (
     <span className={cn("inline-flex flex-wrap items-center gap-1", className)}>
@@ -80,20 +94,24 @@ export function ContactStatusChip({
           "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium",
           outcomeStyle.cls,
         )}
-        title={`Last contacted ${days === 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`} · ${
-          summary.lastChannel ?? "channel unknown"
-        }`}
+        title={t("chipLastContactedTitle", {
+          when: whenLabel,
+          channel: summary.lastChannel ?? t("chipChannelUnknown"),
+        })}
       >
         <Icon className="size-3" aria-hidden="true" />
-        {outcomeStyle.label} · {days === 0 ? "today" : `${days}d`}
+        {t("chipOutcomeWithDays", {
+          outcome: t(outcomeStyle.i18nKey),
+          when: shortWhen,
+        })}
       </span>
       {isEscalation ? (
         <span
           className="inline-flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/15 px-2 py-0.5 text-[11px] font-semibold text-destructive"
-          title={`${summary.noAnswerStreak} consecutive no-answers — consider escalating.`}
+          title={t("chipEscalateTitle", { count: summary.noAnswerStreak ?? 0 })}
         >
           <AlertTriangle className="size-3" aria-hidden="true" />
-          Escalate ({summary.noAnswerStreak}× no answer)
+          {t("chipEscalate", { count: summary.noAnswerStreak ?? 0 })}
         </span>
       ) : null}
     </span>
