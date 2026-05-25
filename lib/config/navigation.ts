@@ -503,4 +503,17 @@ export const advancedHubSections: readonly AdvancedHubSection[] = [
       },
     ],
   },
+  {
+    title: "Year-End",
+    description: "Annual class promotion and credit carry-forward tools.",
+    items: [
+      {
+        href: "/protected/admin-tools/promotion",
+        label: "Class promotion",
+        description: "Build a preview, apply it, and roll back if needed. Carries credit balances forward.",
+        icon: UsersRound,
+        requiredPermission: "students:write",
+      },
+    ],
+  },
 ] as const;
