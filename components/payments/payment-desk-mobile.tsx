@@ -1296,6 +1296,18 @@ export function PaymentDeskClient({
     setMobileSheetView("class-picker");
   }, [classOptions, isMobileView, selectedClassId, selectedStudentId]);
 
+  // When mobile lands on Payment Desk with a pre-selected student (e.g. coming
+  // from a Collect button on the students list), jump straight to the payment
+  // entry sheet instead of leaving the user staring at the desk totals.
+  useEffect(() => {
+    if (!isMobileView) return;
+    if (!selectedStudentId) return;
+    if (mobileSheetView !== null) return;
+    if (mobileClassPickerAutoOpenedRef.current) return;
+    mobileClassPickerAutoOpenedRef.current = true;
+    setMobileSheetView("payment-entry");
+  }, [isMobileView, selectedStudentId, mobileSheetView]);
+
   useEffect(() => {
     if (isConfirmOpen && isMobileView) {
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -2058,19 +2070,36 @@ export function PaymentDeskClient({
                   </div>
                   {pendingLateFeeAmount > 0 ? (
                     <div className="border-t border-border bg-surface px-3 py-2 text-xs">
-                      <p className="font-medium text-foreground">
-                        {formatInr(previewTotalPending)}
-                        <span className="mx-1 text-muted-foreground">=</span>
-                        {formatInr(Math.max(previewTotalPending - pendingLateFeeAmount, 0))}
-                        <span className="ml-1 text-muted-foreground">base</span>
-                        <span className="mx-1 text-muted-foreground">+</span>
-                        <span className="text-destructive">{formatInr(pendingLateFeeAmount)} late fee</span>
+                      <p className="flex flex-wrap items-baseline gap-x-1 text-foreground">
+                        <span className="font-semibold">
+                          {formatInr(
+                            waiveFullLateFee
+                              ? Math.max(previewTotalPending - pendingLateFeeAmount, 0)
+                              : previewTotalPending,
+                          )}
+                        </span>
+                        <span className="text-muted-foreground">=</span>
+                        <span>
+                          {formatInr(Math.max(previewTotalPending - pendingLateFeeAmount, 0))}{" "}
+                          <span className="text-muted-foreground">overdue</span>
+                        </span>
+                        <span className="text-muted-foreground">+</span>
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] font-semibold transition-colors",
+                            waiveFullLateFee
+                              ? "border-success-soft-foreground/30 bg-success-soft text-success-soft-foreground line-through decoration-2"
+                              : "border-destructive/30 bg-destructive/10 text-destructive",
+                          )}
+                        >
+                          {formatInr(pendingLateFeeAmount)} late fee
+                        </span>
                       </p>
                       <button
                         type="button"
                         onClick={() => setWaiveFullLateFee((value) => !value)}
                         className={cn(
-                          "mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors",
+                          "mt-1.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors",
                           waiveFullLateFee
                             ? "border-success-soft-foreground/30 bg-success-soft text-success-soft-foreground"
                             : "border-border bg-card text-muted-foreground hover:bg-surface-2",
@@ -2078,7 +2107,7 @@ export function PaymentDeskClient({
                         aria-pressed={waiveFullLateFee}
                       >
                         {waiveFullLateFee
-                          ? `✓ Late fee waived (−${formatInr(pendingLateFeeAmount)})`
+                          ? `✓ Late fee waived — saving ${formatInr(pendingLateFeeAmount)}`
                           : `Waive late fee (−${formatInr(pendingLateFeeAmount)})`}
                       </button>
                     </div>

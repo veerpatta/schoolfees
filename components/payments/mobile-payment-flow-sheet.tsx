@@ -220,7 +220,13 @@ export function MobilePaymentFlowSheet({
       ) : null}
 
       {view === "class-picker" ? (
-        <div className="absolute bottom-0 left-0 right-0 max-h-[88svh] rounded-t-2xl border-t border-border bg-card flex flex-col overflow-hidden">
+        <div
+          className="absolute bottom-0 left-0 right-0 rounded-t-2xl border-t border-border bg-card flex flex-col overflow-hidden"
+          style={{
+            maxHeight: "calc(88svh - var(--keyboard-offset, 0px))",
+            paddingBottom: "var(--keyboard-offset, 0px)",
+          }}
+        >
           <SheetHandle swipeHandlers={classPickerSwipe} />
           <h2 className="px-4 pb-2 text-base font-semibold text-foreground">Collect Payment</h2>
           <div className="flex-none px-3 pb-2">
@@ -230,13 +236,22 @@ export function MobilePaymentFlowSheet({
               onChange={(event) => onStudentSearchChange(event.target.value)}
               autoComplete="off"
               aria-label="Search students directly"
+              onFocus={(event) => {
+                // Scroll the input into view so it stays visible above the keyboard.
+                const target = event.currentTarget;
+                window.setTimeout(() => {
+                  target.scrollIntoView({ block: "center", behavior: "smooth" });
+                }, 200);
+              }}
             />
           </div>
 
           {studentSearchQuery.trim().length > 0 ? (
             <div
               className="flex-1 overflow-y-auto px-3 pb-4"
-              style={{ paddingBottom: "calc(var(--mobile-bottom-nav-offset, 4.25rem) + 0.5rem)" }}
+              style={{
+                paddingBottom: "calc(var(--mobile-bottom-nav-offset, 4.25rem) + 0.5rem)",
+              }}
             >
               <p className="mb-1.5 text-[10px] uppercase text-muted-foreground">
                 {filteredStudents.length} match{filteredStudents.length === 1 ? "" : "es"}

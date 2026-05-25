@@ -251,10 +251,20 @@ function TransactionsTable({
               }}
               className="cursor-pointer rounded-xl border border-border bg-card p-3 text-sm transition-colors hover:bg-surface-2/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <p className="font-semibold text-foreground">{row.receiptNumber}</p>
-              <p className="text-xs text-muted-foreground">{formatShortDate(row.paymentDate)} · {row.studentName}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{row.classLabel} · {formatPaymentModeLabel(row.paymentMode)}</p>
-              <p className="mt-1 font-semibold text-foreground">{formatInr(row.totalAmount)}</p>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-semibold text-foreground truncate">{row.studentName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatShortDate(row.paymentDate)} · {row.classLabel}
+                  </p>
+                </div>
+                <p className="shrink-0 font-semibold text-foreground tabular-nums">
+                  {formatInr(row.totalAmount)}
+                </p>
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {row.receiptNumber} · {formatPaymentModeLabel(row.paymentMode)}
+              </p>
               <div className="mt-2 flex flex-wrap gap-2" data-row-action="true" onClick={(event) => event.stopPropagation()}>
                 <Button asChild size="sm" variant="ghost" aria-label={`Print receipt ${row.receiptNumber}`}>
                   <Link href={receiptPrintHref(row.receiptId, sessionLabel)} target="_blank" rel="noreferrer">
@@ -274,12 +284,12 @@ function TransactionsTable({
         <table className="min-w-[900px] text-left text-sm">
           <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="px-4 py-3">Date</th>
-              <th className="px-4 py-3">Receipt no</th>
               <th className="px-4 py-3">Student</th>
+              <th className="px-4 py-3">Date</th>
               <th className="px-4 py-3">Class</th>
               <th className="px-4 py-3">Mode</th>
-              <th className="px-4 py-3">Amount</th>
+              <th className="px-4 py-3 text-right">Amount</th>
+              <th className="px-4 py-3">Receipt no</th>
               <th className="px-4 py-3">Action</th>
             </tr>
           </thead>
@@ -297,12 +307,12 @@ function TransactionsTable({
                     onPreviewReceipt(row.receiptId);
                   }}
                 >
-                  <td className="px-4 py-3">{formatShortDate(row.paymentDate)}</td>
-                  <td className="px-4 py-3 font-medium text-foreground">{row.receiptNumber}</td>
-                  <td className="px-4 py-3">{row.studentName}</td>
-                  <td className="px-4 py-3">{row.classLabel}</td>
-                  <td className="px-4 py-3">{formatPaymentModeLabel(row.paymentMode)}</td>
-                  <td className="px-4 py-3 font-medium text-foreground">{formatInr(row.totalAmount)}</td>
+                  <td className="px-4 py-3 font-semibold text-foreground">{row.studentName}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{formatShortDate(row.paymentDate)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{row.classLabel}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{formatPaymentModeLabel(row.paymentMode)}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-foreground tabular-nums">{formatInr(row.totalAmount)}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{row.receiptNumber}</td>
                   <td className="px-4 py-3" data-row-action="true" onClick={(event) => event.stopPropagation()}>
                     <div className="flex flex-wrap gap-2">
                       <Button asChild size="sm" variant="ghost" aria-label={`Print receipt ${row.receiptNumber}`}>

@@ -15,6 +15,7 @@ import { Notice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
 import { buildFeeBreakupDisplayRows } from "@/lib/fees/display-breakdown";
 import { getDefaultAcademicSessionLabel } from "@/lib/config/fee-rules";
+import { cn } from "@/lib/utils";
 import {
   calculateInstallmentBasePending,
   calculateOverdueBaseAmount,
@@ -281,6 +282,38 @@ export default async function StudentDetailPage({
     }
   };
 
+  const installmentCount = financialSnapshot?.policy.installmentCount ?? installmentBalances.length ?? 4;
+  const resolvedHeads = financialSnapshot?.resolvedBreakdown
+    ? [
+        ...financialSnapshot.resolvedBreakdown.coreHeads,
+        ...financialSnapshot.resolvedBreakdown.customHeads,
+      ].filter((head) => head.amount > 0)
+    : [];
+  const annualDiscount =
+    (financialSnapshot?.resolvedBreakdown.discountApplied ?? 0) +
+    (financialSnapshot?.resolvedBreakdown.conventionalDiscountApplied ?? 0);
+
+  function buildPerInstallmentHeads(item: typeof installmentBalances[number]) {
+    if (resolvedHeads.length === 0 || installmentCount <= 0) return [] as Array<{ label: string; amount: number }>;
+    const headRows = resolvedHeads.map((head) => ({
+      label: head.label,
+      amount: Math.round(head.amount / installmentCount),
+    }));
+    if (annualDiscount > 0) {
+      headRows.push({
+        label: "Discount",
+        amount: -Math.round(annualDiscount / installmentCount),
+      });
+    }
+    if (item.finalLateFee > 0) {
+      headRows.push({ label: "Late fee", amount: item.finalLateFee });
+    }
+    if (item.waiverApplied > 0) {
+      headRows.push({ label: "Late fee waived", amount: -item.waiverApplied });
+    }
+    return headRows;
+  }
+
   const duesContent = (
     <Section
       title="Dues"
@@ -304,32 +337,65 @@ export default async function StudentDetailPage({
       ) : (
         <>
         <div className="md:hidden space-y-2">
-          {installmentBalances.map((item) => (
-            <div key={item.installmentId} className="rounded-lg border border-border bg-card px-4 py-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-sm text-foreground">
-                  {item.installmentLabel}
-                </span>
-                {getInstallmentStatusPill(item.balanceStatus)}
-              </div>
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Due {formatShortDate(item.dueDate)}</span>
-                <span className="font-mono font-semibold text-foreground">
-                  <Money value={item.pendingAmount} size="sm" />
-                </span>
-              </div>
-              {item.finalLateFee > 0 ? (
-                <div className="text-xs text-destructive font-medium">
-                  Includes {formatInr(item.finalLateFee)} late fee
-                  {item.waiverApplied > 0 ? ` (−${formatInr(item.waiverApplied)} waived)` : ""}
-                </div>
-              ) : item.balanceStatus === "overdue" && perInstallmentCandidateLateFee > 0 ? (
-                <div className="text-xs text-destructive/80 font-medium">
-                  + {formatInr(perInstallmentCandidateLateFee)} late fee pending
-                </div>
-              ) : null}
-            </div>
-          ))}
+          {installmentBalances.map((item) => {
+            const headRows = buildPerInstallmentHeads(item);
+            return (
+              <details
+                key={item.installmentId}
+                className="group rounded-lg border border-border bg-card"
+              >
+                <summary className="flex cursor-pointer list-none flex-col gap-2 px-4 py-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-sm text-foreground">
+                      {item.installmentLabel}
+                      <span className="ml-1.5 text-[10px] font-normal text-muted-foreground group-open:hidden">
+                        · tap for fee heads
+                      </span>
+                    </span>
+                    {getInstallmentStatusPill(item.balanceStatus)}
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Due {formatShortDate(item.dueDate)}</span>
+                    <span className="font-mono font-semibold text-foreground">
+                      <Money value={item.pendingAmount} size="sm" />
+                    </span>
+                  </div>
+                  {item.finalLateFee > 0 ? (
+                    <div className="text-xs text-destructive font-medium">
+                      Includes {formatInr(item.finalLateFee)} late fee
+                      {item.waiverApplied > 0 ? ` (−${formatInr(item.waiverApplied)} waived)` : ""}
+                    </div>
+                  ) : item.balanceStatus === "overdue" && perInstallmentCandidateLateFee > 0 ? (
+                    <div className="text-xs text-destructive/80 font-medium">
+                      + {formatInr(perInstallmentCandidateLateFee)} late fee pending
+                    </div>
+                  ) : null}
+                </summary>
+                {headRows.length > 0 ? (
+                  <div className="border-t border-border bg-surface-2/40 px-4 py-2 text-xs">
+                    <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Fee heads (approx · annual ÷ {installmentCount})
+                    </p>
+                    <ul className="space-y-1">
+                      {headRows.map((head) => (
+                        <li key={head.label} className="flex items-center justify-between">
+                          <span className="text-muted-foreground">{head.label}</span>
+                          <span
+                            className={cn(
+                              "font-mono font-medium",
+                              head.amount < 0 ? "text-success-soft-foreground" : "text-foreground",
+                            )}
+                          >
+                            {head.amount < 0 ? `−${formatInr(Math.abs(head.amount))}` : formatInr(head.amount)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </details>
+            );
+          })}
         </div>
         <div className="hidden md:block overflow-x-auto rounded-lg border border-border bg-card">
           <table className="w-full min-w-[820px] text-left text-sm">
