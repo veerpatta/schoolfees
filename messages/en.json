@@ -247,5 +247,30 @@
     "bulkOpenInfo": "Confirming will open {count, plural, =1 {# new browser tab} other {# new browser tabs}}, one per parent. Send each manually after reviewing.",
     "bulkCancel": "Cancel",
     "bulkOpenButton": "Open {count, plural, =1 {# WhatsApp tab} other {# WhatsApp tabs}}"
+  },
+  "Exports": {
+    "eyebrow": "Exports",
+    "title": "Exports",
+    "description": "Download Excel files for students, dues, follow-up, and receipts.",
+    "officeNotice": "On mobile, downloads may open in your browser or spreadsheet app depending on device settings.",
+    "groupChooseHint": "Choose the file that matches the office task.",
+    "groupStudents": "Students",
+    "groupFees": "Fees / Dues",
+    "groupPayments": "Payments",
+    "groupAnalysis": "For analysis",
+    "itemAllStudents": "All students",
+    "itemAllStudentsDetail": "Complete student list for office checking.",
+    "itemDiscountStudents": "Discount students",
+    "itemDiscountStudentsDetail": "RTE, staff child, and sibling policy.",
+    "itemClassWiseDues": "Class-wise dues",
+    "itemClassWiseDuesDetail": "Class totals and pending fee review.",
+    "itemDefaulters": "Defaulters",
+    "itemDefaultersDetail": "Follow-up list for pending and overdue dues.",
+    "itemReceiptRegister": "Receipt register",
+    "itemReceiptRegisterDetail": "Saved receipt records for office accounts.",
+    "itemAiContextBundle": "Full AI context",
+    "itemAiContextBundleDetail": "Multi-sheet workbook with students, installments, payments, classes, routes, discounts, defaulters and a README. Large file — may take 10–20 seconds to generate.",
+    "formatXlsx": "XLSX",
+    "formatPdf": "PDF"
   }
 }

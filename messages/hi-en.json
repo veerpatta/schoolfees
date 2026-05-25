@@ -247,5 +247,30 @@
     "bulkOpenInfo": "Pushti karne par {count, plural, =1 {# naya browser tab} other {# naye browser tabs}} khulega, har abhibhavak ke liye ek. Sameeksha ke baad har ek ko manually bhejein.",
     "bulkCancel": "Rad karein",
     "bulkOpenButton": "{count, plural, =1 {# WhatsApp tab} other {# WhatsApp tabs}} kholein"
+  },
+  "Exports": {
+    "eyebrow": "Export",
+    "title": "Export",
+    "description": "Vidyarthi, bakaya, anusaran, aur raseedon ke liye Excel files download karein.",
+    "officeNotice": "Mobile par, device settings ke anusaar download browser ya spreadsheet app mein khul sakte hain.",
+    "groupChooseHint": "Office karya se mel khaane vali file chunein.",
+    "groupStudents": "Vidyarthi",
+    "groupFees": "Shulk / Bakaya",
+    "groupPayments": "Bhugtan",
+    "groupAnalysis": "Vishleshan ke liye",
+    "itemAllStudents": "Sabhi vidyarthi",
+    "itemAllStudentsDetail": "Office jaanch ke liye poorn vidyarthi soochi.",
+    "itemDiscountStudents": "Chhoot praapt vidyarthi",
+    "itemDiscountStudentsDetail": "RTE, staff bachcha, aur bhai-behan neeti.",
+    "itemClassWiseDues": "Kakshavaar bakaya",
+    "itemClassWiseDuesDetail": "Kaksha kul aur lambit shulk sameeksha.",
+    "itemDefaulters": "Bakayedaar",
+    "itemDefaultersDetail": "Lambit aur atideya bakaya ke liye anusaran soochi.",
+    "itemReceiptRegister": "Raseed panji",
+    "itemReceiptRegisterDetail": "Office khaaton ke liye saheje gaye raseed records.",
+    "itemAiContextBundle": "Poorn AI context",
+    "itemAiContextBundleDetail": "Vidyarthi, kistein, bhugtan, kakshayein, route, chhoot, bakayedaar aur README ke saath bahu-sheet workbook. Badi file — banaane mein 10–20 second lag sakte hain.",
+    "formatXlsx": "XLSX",
+    "formatPdf": "PDF"
   }
 }

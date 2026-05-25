@@ -247,5 +247,30 @@
     "bulkOpenInfo": "पुष्टि करने पर {count, plural, =1 {# नया ब्राउज़र टैब} other {# नए ब्राउज़र टैब}} खुलेगा, हर अभिभावक के लिए एक। समीक्षा के बाद हर एक को मैन्युअल भेजें।",
     "bulkCancel": "रद्द करें",
     "bulkOpenButton": "{count, plural, =1 {# WhatsApp टैब} other {# WhatsApp टैब}} खोलें"
+  },
+  "Exports": {
+    "eyebrow": "निर्यात",
+    "title": "निर्यात",
+    "description": "विद्यार्थी, बकाया, अनुसरण, और रसीदों के लिए Excel फ़ाइलें डाउनलोड करें।",
+    "officeNotice": "मोबाइल पर, डिवाइस सेटिंग्स के अनुसार डाउनलोड ब्राउज़र या स्प्रेडशीट ऐप में खुल सकते हैं।",
+    "groupChooseHint": "कार्यालय कार्य से मेल खाने वाली फ़ाइल चुनें।",
+    "groupStudents": "विद्यार्थी",
+    "groupFees": "शुल्क / बकाया",
+    "groupPayments": "भुगतान",
+    "groupAnalysis": "विश्लेषण के लिए",
+    "itemAllStudents": "सभी विद्यार्थी",
+    "itemAllStudentsDetail": "कार्यालय जाँच के लिए पूर्ण विद्यार्थी सूची।",
+    "itemDiscountStudents": "छूट प्राप्त विद्यार्थी",
+    "itemDiscountStudentsDetail": "RTE, स्टाफ़ बच्चा, और भाई-बहन नीति।",
+    "itemClassWiseDues": "कक्षावार बकाया",
+    "itemClassWiseDuesDetail": "कक्षा कुल और लंबित शुल्क समीक्षा।",
+    "itemDefaulters": "बकायेदार",
+    "itemDefaultersDetail": "लंबित और अतिदेय बकाया के लिए अनुसरण सूची।",
+    "itemReceiptRegister": "रसीद पंजी",
+    "itemReceiptRegisterDetail": "कार्यालय खातों के लिए सहेजे गए रसीद रिकॉर्ड।",
+    "itemAiContextBundle": "पूर्ण AI संदर्भ",
+    "itemAiContextBundleDetail": "विद्यार्थी, किस्तें, भुगतान, कक्षाएँ, मार्ग, छूट, बकायेदार और README के साथ बहु-शीट कार्यपुस्तिका। बड़ी फ़ाइल — बनाने में 10–20 सेकंड लग सकते हैं।",
+    "formatXlsx": "XLSX",
+    "formatPdf": "PDF"
   }
 }
