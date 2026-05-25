@@ -17,10 +17,20 @@ import { appendSessionParam } from "@/lib/navigation/session-href";
 import { cn } from "@/lib/utils";
 import {
   officeWorkbookMeta,
-  officeWorkbookViews,
   resolveOfficeWorkbookView,
   type OfficeWorkbookView,
 } from "@/lib/transactions/workbook";
+
+// Visible tab whitelist — Defaulters, Class Register, Receipts, Today, and
+// Exports remain as URL aliases (handled by resolveOfficeWorkbookView) and
+// reachable from their dedicated top-level pages, but they no longer clutter
+// the Transactions filter row.
+const VISIBLE_VIEW_TABS: readonly OfficeWorkbookView[] = [
+  "transactions",
+  "student_dues",
+  "installments",
+  "import_issues",
+] as const;
 import type {
   OfficeWorkbookData,
   OfficeWorkbookPagination,
@@ -652,9 +662,11 @@ export function TransactionsClientShell({
             currentState={txnCurrentState}
             className="-mt-1 mb-2"
           />
-          {/* View tabs — exports tab excluded; use the Exports sidebar tab instead */}
+          {/* View tabs — only the four core views render as filter chips.
+              Other views (Today, Receipts, Defaulters, Class Register) live
+              on their own dedicated pages and remain reachable via URL. */}
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1.5 no-scrollbar md:mx-0 md:px-0 md:grid md:grid-cols-4 xl:grid-cols-4 md:gap-2 md:overflow-visible">
-            {officeWorkbookViews.filter((v) => v !== "exports").map((view) => (
+            {VISIBLE_VIEW_TABS.map((view) => (
               <button
                 key={view}
                 type="button"
