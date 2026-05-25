@@ -161,6 +161,18 @@ function ConventionalDiscountBlock({
     return null;
   }
 
+  // Per school rule, only one policy actually applies — the row marked
+  // isWinningPolicy. Other rows stay in the assignments array for audit, but
+  // their `savings` are superseded and must not be re-displayed (otherwise
+  // staff perceive discounts as doubled).
+  const winningIndex = assignments.findIndex((row) => row.isWinningPolicy);
+  const winning =
+    winningIndex >= 0 ? assignments[winningIndex] : assignments[0];
+  const superseded =
+    winningIndex >= 0
+      ? assignments.filter((_, index) => index !== winningIndex)
+      : assignments.slice(1);
+
   return (
     <section className="rounded-lg border border-accent/25 bg-accent-soft/70 p-4 print-compact">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -174,36 +186,45 @@ function ConventionalDiscountBlock({
         </div>
       </div>
       <div className="mt-3 grid gap-2">
-        {assignments.map((assignment) => {
-          const savings = Math.max(assignment.beforeTuitionAmount - assignment.resultingTuitionAmount, 0);
-
-          return (
-            <div
-              key={assignment.assignmentId}
-              className="grid gap-2 rounded-md border border-accent/20 bg-card/90 px-3 py-2 text-sm sm:grid-cols-[1fr_auto_auto]"
-            >
-              <div>
-                <p className="font-semibold text-foreground">{assignment.policyDisplayName}</p>
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{assignment.policyCode}</p>
-              </div>
-              <div>
-                <BilingualLabel english="Baseline Tuition" hindi="मूल शिक्षण शुल्क" />
-                <p className="font-semibold text-muted-foreground line-through">
-                  {formatInr(assignment.beforeTuitionAmount)}
-                </p>
-              </div>
-              <div>
-                <BilingualLabel english="Resulting Tuition" hindi="लागू शिक्षण शुल्क" />
-                <p className="font-semibold text-accent-soft-foreground">
-                  {formatInr(assignment.resultingTuitionAmount)}
-                </p>
-                <p className="mt-0.5 text-[10px] text-accent-soft-foreground">
-                  you save {formatInr(savings)} on tuition
-                </p>
-              </div>
+        {winning ? (
+          <div
+            key={winning.assignmentId}
+            className="grid gap-2 rounded-md border border-accent/20 bg-card/90 px-3 py-2 text-sm sm:grid-cols-[1fr_auto_auto]"
+          >
+            <div>
+              <p className="font-semibold text-foreground">{winning.policyDisplayName}</p>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{winning.policyCode}</p>
             </div>
-          );
-        })}
+            <div>
+              <BilingualLabel english="Baseline Tuition" hindi="मूल शिक्षण शुल्क" />
+              <p className="font-semibold text-muted-foreground line-through">
+                {formatInr(winning.beforeTuitionAmount)}
+              </p>
+            </div>
+            <div>
+              <BilingualLabel english="Resulting Tuition" hindi="लागू शिक्षण शुल्क" />
+              <p className="font-semibold text-accent-soft-foreground">
+                {formatInr(winning.resultingTuitionAmount)}
+              </p>
+              <p className="mt-0.5 text-[10px] text-accent-soft-foreground">
+                you save {formatInr(Math.max(winning.beforeTuitionAmount - winning.resultingTuitionAmount, 0))} on tuition
+              </p>
+            </div>
+          </div>
+        ) : null}
+        {superseded.length > 0 ? (
+          <div className="rounded-md border border-dashed border-accent/15 bg-card/60 px-3 py-2 text-[11px] text-muted-foreground">
+            <p className="font-medium text-foreground">Other assigned policies (audit only):</p>
+            <ul className="mt-1 list-disc pl-4">
+              {superseded.map((row) => (
+                <li key={row.assignmentId}>
+                  {row.policyDisplayName} ({row.policyCode}) — superseded by the lower
+                  candidate tuition above; no additional savings on this receipt.
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
     </section>
   );

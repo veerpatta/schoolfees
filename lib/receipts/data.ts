@@ -396,11 +396,28 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     paymentSessionLabels: breakdown.map((item) => item.sessionLabel),
     studentSessionLabel: studentClass?.session_label,
   });
-  const conventionalDiscountAssignments: ConventionalDiscountAssignmentSummary[] = (
+  // Conventional discount policy rule: lowest candidate tuition wins (see
+  // lib/fees/conventional-discount-rules.ts → applyConventionalDiscountsToTuition).
+  // The receipt has historically rendered one savings row per active assignment,
+  // which double-counts savings when a student holds two active policies. Keep
+  // every assignment in the audit list, but mark the single winning row so the
+  // receipt UI can show savings exactly once.
+  const conventionalDiscountRows = (
     (conventionalAssignmentsRaw ?? []) as ConventionalDiscountAssignmentRow[]
-  )
-    .filter((row) => row.academic_session_label === sessionLabel)
-    .map((row) => {
+  ).filter((row) => row.academic_session_label === sessionLabel);
+
+  const winningAssignmentId = conventionalDiscountRows.reduce<
+    { id: string; resulting: number } | null
+  >((winner, row) => {
+    const resulting = row.resulting_tuition_amount ?? Number.MAX_SAFE_INTEGER;
+    if (!winner || resulting < winner.resulting) {
+      return { id: row.id, resulting };
+    }
+    return winner;
+  }, null)?.id ?? null;
+
+  const conventionalDiscountAssignments: ConventionalDiscountAssignmentSummary[] =
+    conventionalDiscountRows.map((row) => {
       const policy = toSingleRecord(row.policy_ref);
 
       return {
@@ -409,6 +426,7 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
         policyDisplayName: policy?.display_name ?? "Conventional discount",
         beforeTuitionAmount: row.before_tuition_amount,
         resultingTuitionAmount: row.resulting_tuition_amount,
+        isWinningPolicy: row.id === winningAssignmentId,
       };
     });
 

@@ -36,6 +36,12 @@ export type ConventionalDiscountAssignmentSummary = {
   policyDisplayName: string;
   beforeTuitionAmount: number;
   resultingTuitionAmount: number;
+  /**
+   * True for the single assignment whose `resultingTuitionAmount` actually applies
+   * (lowest candidate wins per school rule). Other rows are kept for the audit
+   * trail but their savings have already been superseded.
+   */
+  isWinningPolicy: boolean;
 };
 
 export type ReceiptDetail = {

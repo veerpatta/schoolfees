@@ -628,7 +628,7 @@ async function getConventionalDiscountForStudent(
     const { data, error } = await supabase
       .from("student_conventional_discount_assignments")
       .select(
-        "before_tuition_amount, resulting_tuition_amount, policy:conventional_discount_policies (display_name, code)",
+        "before_tuition_amount, resulting_tuition_amount, policy:conventional_discount_policies (display_name, code, is_active)",
       )
       .eq("student_id", studentId)
       .eq("academic_session_label", sessionLabel)
@@ -641,20 +641,41 @@ async function getConventionalDiscountForStudent(
     type AssignmentRow = {
       before_tuition_amount: number;
       resulting_tuition_amount: number;
-      policy: { display_name: string | null; code: string | null } | Array<{
+      policy: { display_name: string | null; code: string | null; is_active?: boolean | null } | Array<{
         display_name: string | null;
         code: string | null;
+        is_active?: boolean | null;
       }> | null;
     };
 
-    let amount = 0;
-    const labels: string[] = [];
-    for (const row of data as AssignmentRow[]) {
-      amount += Math.max(0, (row.before_tuition_amount ?? 0) - (row.resulting_tuition_amount ?? 0));
+    // Conventional discount policy rule: max two active policies per student/year,
+    // and when multiple policies apply the *lowest* candidate tuition wins
+    // (see lib/fees/conventional-discount-rules.ts → applyConventionalDiscountsToTuition).
+    // Summing savings across rows therefore double-counts — keep only the winner.
+    const rows = (data as AssignmentRow[]).filter((row) => {
       const policyRow = Array.isArray(row.policy) ? row.policy[0] : row.policy;
-      const label = policyRow?.display_name ?? policyRow?.code ?? null;
-      if (label) labels.push(label);
+      return policyRow?.is_active !== false;
+    });
+
+    if (rows.length === 0) {
+      return { amount: 0, labels: [] };
     }
+
+    const baselineBefore = rows.reduce(
+      (max, row) => Math.max(max, row.before_tuition_amount ?? 0),
+      0,
+    );
+    const winningResulting = rows.reduce(
+      (min, row) => Math.min(min, row.resulting_tuition_amount ?? baselineBefore),
+      baselineBefore,
+    );
+    const amount = Math.max(0, baselineBefore - winningResulting);
+    const labels = rows
+      .map((row) => {
+        const policyRow = Array.isArray(row.policy) ? row.policy[0] : row.policy;
+        return policyRow?.display_name ?? policyRow?.code ?? null;
+      })
+      .filter((label): label is string => Boolean(label));
     return { amount, labels };
   } catch {
     return { amount: 0, labels: [] };

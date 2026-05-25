@@ -64,6 +64,7 @@ describe("receipt conventional discount block", () => {
               policyDisplayName: "Staff Child",
               beforeTuitionAmount: 12000,
               resultingTuitionAmount: 6000,
+              isWinningPolicy: true,
             },
           ],
         })}
@@ -84,5 +85,42 @@ describe("receipt conventional discount block", () => {
 
     expect(html).not.toContain("Conventional Discount");
     expect(html).not.toContain("you save");
+  });
+
+  it("renders savings only once for the winning policy even when two assignments are active (regression: Bhupesh Chouhan)", () => {
+    const html = renderToStaticMarkup(
+      <ReceiptDocument
+        receipt={receipt({
+          conventionalDiscountAssignments: [
+            {
+              assignmentId: "assignment-staff",
+              policyCode: "STAFF_CHILD",
+              policyDisplayName: "Staff Child",
+              beforeTuitionAmount: 38000,
+              resultingTuitionAmount: 19000,
+              isWinningPolicy: false,
+            },
+            {
+              assignmentId: "assignment-rte",
+              policyCode: "RTE",
+              policyDisplayName: "RTE",
+              beforeTuitionAmount: 38000,
+              resultingTuitionAmount: 0,
+              isWinningPolicy: true,
+            },
+          ],
+        })}
+      />,
+    );
+
+    // Only the winning RTE row should render the "you save" copy. The Staff
+    // Child row appears in the audit list but is explicitly labelled superseded.
+    const youSaveCount = html.split("you save").length - 1;
+    expect(youSaveCount).toBe(1);
+    expect(html).toContain("you save");
+    // RTE saves the full 38,000; the superseded Staff Child line must NOT add
+    // another 19,000 savings on top.
+    expect(html).toContain("38,000");
+    expect(html).toContain("superseded");
   });
 });
