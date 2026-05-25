@@ -26,15 +26,13 @@ export function DefaulterContactActions({ row, sessionLabel }: Props) {
 
   return (
     <>
-      {row.fatherPhone ? (
-        <a
-          href={`tel:${row.fatherPhone}`}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-foreground min-h-10 hover:bg-surface-3 transition-colors"
-        >
-          <Phone className="size-4 text-success" aria-hidden="true" />
-          {row.fatherPhone}
-        </a>
-      ) : null}
+      <button
+        type="button"
+        onClick={() => setModal("contact")}
+        className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-accent bg-accent px-3 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90"
+      >
+        Log contact
+      </button>
 
       <button
         type="button"
@@ -45,13 +43,15 @@ export function DefaulterContactActions({ row, sessionLabel }: Props) {
         WhatsApp
       </button>
 
-      <button
-        type="button"
-        onClick={() => setModal("contact")}
-        className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-3"
-      >
-        Log contact
-      </button>
+      {row.fatherPhone ? (
+        <a
+          href={`tel:${row.fatherPhone}`}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-foreground min-h-10 hover:bg-surface-3 transition-colors"
+        >
+          <Phone className="size-4 text-success" aria-hidden="true" />
+          {row.fatherPhone}
+        </a>
+      ) : null}
 
       <ContactPopover
         studentId={row.studentId}
@@ -81,18 +81,18 @@ export function DefaulterContactActionsCompact({
     <>
       <button
         type="button"
-        onClick={() => setModal("whatsapp")}
-        className="text-sm font-semibold text-success-soft-foreground hover:text-success-soft-foreground"
+        onClick={() => setModal("contact")}
+        className="inline-flex items-center gap-1 rounded-md border border-accent bg-accent px-2 py-1 text-xs font-semibold text-accent-foreground transition-colors hover:bg-accent/90"
       >
-        WhatsApp
+        Log contact
       </button>
 
       <button
         type="button"
-        onClick={() => setModal("contact")}
-        className="text-sm font-semibold text-muted-foreground hover:text-foreground"
+        onClick={() => setModal("whatsapp")}
+        className="text-sm font-semibold text-success-soft-foreground hover:text-success-soft-foreground"
       >
-        Log contact
+        WhatsApp
       </button>
 
       <ContactPopover
