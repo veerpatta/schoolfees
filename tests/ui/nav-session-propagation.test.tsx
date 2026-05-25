@@ -1,5 +1,8 @@
 import React from "react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
+import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
 const navigationState = vi.hoisted(() => ({
@@ -11,11 +14,22 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => navigationState.searchParams,
 }));
 
+function loadEnglishMessages() {
+  return JSON.parse(
+    readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+  );
+}
+
 describe("session-aware navigation", () => {
   it("appends the current session to every protected sidebar link", async () => {
     const { SidebarNav } = await import("@/components/admin/sidebar-nav");
+    const messages = loadEnglishMessages();
 
-    const html = renderToStaticMarkup(<SidebarNav staffRole="admin" />);
+    const html = renderToStaticMarkup(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <SidebarNav staffRole="admin" />
+      </NextIntlClientProvider>,
+    );
     const hrefs = Array.from(html.matchAll(/href="([^"]+)"/g)).map((match) => match[1]);
     const protectedHrefs = hrefs.filter((href) => href.startsWith("/protected/"));
 

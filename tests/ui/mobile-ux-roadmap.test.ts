@@ -76,10 +76,12 @@ describe("mobile UX roadmap implementation", () => {
     const navigation = readRepoFile("lib/config/navigation.ts");
 
     expect(navigation).toContain("getMobilePrimaryNavigation");
-    expect(mobileNav).toContain("More");
+    // The visible "More" label and the overflow's open/close aria-labels are
+    // now driven by the next-intl Navigation namespace (see messages/en.json).
     expect(mobileNav).toContain("getVisibleProtectedNavigation(staffRole)");
     expect(mobileNav).toContain("overflowOpen");
-    expect(mobileNav).toContain("aria-label=\"Open more workspace modules\"");
+    expect(mobileNav).toContain('t("openMore")');
+    expect(mobileNav).toContain('t("more")');
     expect(mobileNav).toContain("bg-accent/10 text-accent");
   });
 

@@ -35,6 +35,19 @@
     "exports": "Exports",
     "adminTools": "Admin Tools",
     "home": "Home",
-    "collect": "Collect"
+    "collect": "Collect",
+    "more": "More",
+    "moreDescription": "All office modules",
+    "primaryNavLabel": "Primary navigation",
+    "workspaceNavLabel": "Workspace navigation",
+    "openMore": "Open more workspace modules",
+    "closeMore": "Close more workspace modules"
+  },
+  "Roles": {
+    "admin": "Admin",
+    "accountant": "Accountant",
+    "teacher": "Teacher",
+    "defaulter_followup": "Defaulter follow-up",
+    "view_only": "View-only staff"
   }
 }

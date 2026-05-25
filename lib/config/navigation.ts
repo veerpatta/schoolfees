@@ -31,6 +31,8 @@ export type ProtectedNavigationItem = {
   requiredPermission: StaffPermission;
   visibleTo?: readonly StaffRole[];
   aliases?: readonly string[];
+  /** Key under the `Navigation` namespace in messages/. Falls back to `label`. */
+  i18nKey?: string;
 };
 
 export type ProtectedRouteMeta = {
@@ -43,6 +45,8 @@ export type MobileBottomNavigationItem = {
   href: string;
   label: string;
   icon: LucideIcon;
+  /** Key under the `Navigation` namespace in messages/. Falls back to `label`. */
+  i18nKey?: string;
 };
 
 const simpleNavigationItems: ProtectedNavigationItem[] = [
@@ -52,6 +56,7 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
     description: "Today, pending, follow-up.",
     icon: BarChart3,
     requiredPermission: "dashboard:view",
+    i18nKey: "dashboard",
   },
   {
     href: "/protected/students",
@@ -59,6 +64,7 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
     description: "Add, search, update students.",
     icon: UsersRound,
     requiredPermission: "students:view",
+    i18nKey: "students",
   },
   {
     href: "/protected/fee-setup",
@@ -67,6 +73,7 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
     icon: ScrollText,
     requiredPermission: "fees:view",
     aliases: ["/protected/fee-structure"],
+    i18nKey: "feeSetup",
   },
   {
     href: "/protected/payments",
@@ -75,6 +82,7 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
     icon: BadgeIndianRupee,
     requiredPermission: "payments:view",
     aliases: ["/protected/collections"],
+    i18nKey: "paymentDesk",
   },
   {
     href: "/protected/transactions",
@@ -83,6 +91,7 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
     icon: BookOpenCheck,
     requiredPermission: "receipts:view",
     aliases: ["/protected/dues", "/protected/receipts", "/protected/ledger"],
+    i18nKey: "transactions",
   },
   {
     href: "/protected/defaulters",
@@ -90,6 +99,7 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
     description: "Call and follow-up list.",
     icon: ClipboardList,
     requiredPermission: "defaulters:view",
+    i18nKey: "defaulters",
   },
   {
     href: "/protected/exports",
@@ -97,6 +107,7 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
     description: "Excel files for office work.",
     icon: FileSpreadsheet,
     requiredPermission: "reports:view",
+    i18nKey: "exports",
   },
   {
     href: "/protected/admin-tools",
@@ -105,6 +116,7 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
     icon: FolderCog,
     requiredPermission: "finance:view",
     visibleTo: ["admin", "accountant"],
+    i18nKey: "adminTools",
   },
 ] as const;
 
@@ -357,11 +369,13 @@ export function getMobilePrimaryNavigation(staffRole: StaffRole) {
         href: "/protected/defaulters",
         label: "Defaulters",
         icon: ClipboardList,
+        i18nKey: "defaulters",
       },
       {
         href: "/protected/students",
         label: "Students",
         icon: UsersRound,
+        i18nKey: "students",
       },
     ] satisfies MobileBottomNavigationItem[];
   }
@@ -371,11 +385,13 @@ export function getMobilePrimaryNavigation(staffRole: StaffRole) {
       href: "/protected/dashboard",
       label: "Home",
       icon: BarChart3,
+      i18nKey: "home",
     },
     {
       href: "/protected/students",
       label: "Students",
       icon: UsersRound,
+      i18nKey: "students",
     },
   ];
 
@@ -384,6 +400,7 @@ export function getMobilePrimaryNavigation(staffRole: StaffRole) {
       href: "/protected/payments",
       label: "Collect",
       icon: BadgeIndianRupee,
+      i18nKey: "collect",
     });
   }
 
@@ -392,6 +409,7 @@ export function getMobilePrimaryNavigation(staffRole: StaffRole) {
       href: "/protected/transactions",
       label: "Transactions",
       icon: BookOpenCheck,
+      i18nKey: "transactions",
     });
   }
 
@@ -400,6 +418,7 @@ export function getMobilePrimaryNavigation(staffRole: StaffRole) {
       href: "/protected/defaulters",
       label: "Defaulters",
       icon: ClipboardList,
+      i18nKey: "defaulters",
     });
   }
 

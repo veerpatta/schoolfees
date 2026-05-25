@@ -35,6 +35,19 @@
     "exports": "निर्यात",
     "adminTools": "व्यवस्थापक",
     "home": "मुख्य",
-    "collect": "वसूली"
+    "collect": "वसूली",
+    "more": "अधिक",
+    "moreDescription": "सभी कार्यालय मॉड्यूल",
+    "primaryNavLabel": "मुख्य नेविगेशन",
+    "workspaceNavLabel": "कार्यक्षेत्र नेविगेशन",
+    "openMore": "अधिक मॉड्यूल खोलें",
+    "closeMore": "अधिक मॉड्यूल बंद करें"
+  },
+  "Roles": {
+    "admin": "व्यवस्थापक",
+    "accountant": "लेखाकार",
+    "teacher": "शिक्षक",
+    "defaulter_followup": "बकाया अनुसरण",
+    "view_only": "केवल अवलोकन"
   }
 }

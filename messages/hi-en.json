@@ -35,6 +35,19 @@
     "exports": "Export",
     "adminTools": "Admin Tools",
     "home": "Mukhya",
-    "collect": "Vasooli"
+    "collect": "Vasooli",
+    "more": "Aur",
+    "moreDescription": "Sabhi office modules",
+    "primaryNavLabel": "Mukhya navigation",
+    "workspaceNavLabel": "Workspace navigation",
+    "openMore": "Aur modules kholein",
+    "closeMore": "Aur modules band karein"
+  },
+  "Roles": {
+    "admin": "Admin",
+    "accountant": "Lekhakar",
+    "teacher": "Shikshak",
+    "defaulter_followup": "Bakaya anusaran",
+    "view_only": "Keval avlokan"
   }
 }

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Ellipsis, X } from "lucide-react";
 
 import { type StaffRole } from "@/lib/auth/roles";
@@ -21,6 +22,9 @@ export function MobileBottomNav({ staffRole }: MobileBottomNavProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [overflowOpen, setOverflowOpen] = useState(false);
+  const t = useTranslations("Navigation");
+  const translateLabel = (item: { label: string; i18nKey?: string }) =>
+    item.i18nKey ? t(item.i18nKey) : item.label;
   const primaryItems = getMobileBottomNavigation(staffRole).slice(0, 4);
   const moduleItems = useMemo(
     () => getVisibleProtectedNavigation(staffRole),
@@ -35,7 +39,7 @@ export function MobileBottomNav({ staffRole }: MobileBottomNavProps) {
     ...primaryItems,
     {
       href: "#more",
-      label: "More",
+      label: t("more"),
       icon: Ellipsis,
       isOverflow: true,
     },
@@ -64,12 +68,12 @@ export function MobileBottomNav({ staffRole }: MobileBottomNavProps) {
           <div className="flex h-full flex-col pb-[calc(var(--mobile-bottom-nav-offset)+0.75rem)]">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <div>
-                <p className="text-sm font-semibold text-foreground">More</p>
-                <p className="text-xs text-muted-foreground">All office modules</p>
+                <p className="text-sm font-semibold text-foreground">{t("more")}</p>
+                <p className="text-xs text-muted-foreground">{t("moreDescription")}</p>
               </div>
               <button
                 type="button"
-                aria-label="Close more workspace modules"
+                aria-label={t("closeMore")}
                 className="inline-flex size-11 items-center justify-center rounded-full border border-border bg-card text-muted-foreground"
                 onClick={() => setOverflowOpen(false)}
               >
@@ -103,7 +107,7 @@ export function MobileBottomNav({ staffRole }: MobileBottomNavProps) {
                     </span>
                     <span className="min-w-0">
                       <span className="block text-sm font-semibold text-foreground">
-                        {item.label}
+                        {translateLabel(item)}
                       </span>
                       <span className="block truncate text-xs text-muted-foreground">
                         {item.description}
@@ -118,7 +122,7 @@ export function MobileBottomNav({ staffRole }: MobileBottomNavProps) {
       ) : null}
 
       <nav
-        aria-label="Primary navigation"
+        aria-label={t("primaryNavLabel")}
         className={cn(
           "fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur",
           "min-h-[var(--mobile-bottom-nav-height)] px-2 pb-1 pt-1.5 mobile-safe-bottom-padding",
@@ -153,7 +157,9 @@ export function MobileBottomNav({ staffRole }: MobileBottomNavProps) {
                     active ? "text-accent" : "text-muted-foreground/70",
                   )}
                 >
-                  {item.label}
+                  {"isOverflow" in item && item.isOverflow
+                    ? item.label
+                    : translateLabel(item as { label: string; i18nKey?: string })}
                 </span>
               </>
             );
@@ -163,7 +169,7 @@ export function MobileBottomNav({ staffRole }: MobileBottomNavProps) {
                 <button
                   key="mobile-more"
                   type="button"
-                  aria-label="Open more workspace modules"
+                  aria-label={t("openMore")}
                   aria-expanded={overflowOpen}
                   className="relative flex min-h-11 min-w-0 flex-col items-center justify-center rounded-md px-1 py-1 transition-colors"
                   onClick={() => setOverflowOpen(true)}

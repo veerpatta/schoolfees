@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import {
   getProtectedNavigationItem,
@@ -34,6 +35,9 @@ export function SidebarNav({
   const activeItem = getProtectedNavigationItem(pathname);
   const navigationItems = getVisibleProtectedNavigation(staffRole);
   const isTopbar = mode === "topbar";
+  const t = useTranslations("Navigation");
+  const translateLabel = (item: { label: string; i18nKey?: string }) =>
+    item.i18nKey ? t(item.i18nKey) : item.label;
 
   return (
     <nav
@@ -43,7 +47,7 @@ export function SidebarNav({
           : "flex flex-col gap-0.5",
         className,
       )}
-      aria-label="Workspace navigation"
+      aria-label={t("workspaceNavLabel")}
     >
       {navigationItems.map((item) => {
         const active = activeItem?.href === item.href;
@@ -65,7 +69,7 @@ export function SidebarNav({
               )}
             >
               <Icon className="size-3.5" aria-hidden="true" />
-              <span className="truncate">{item.label}</span>
+              <span className="truncate">{translateLabel(item)}</span>
             </Link>
           );
         }
@@ -97,7 +101,7 @@ export function SidebarNav({
               )}
               aria-hidden="true"
             />
-            <span className="min-w-0 flex-1 truncate">{item.label}</span>
+            <span className="min-w-0 flex-1 truncate">{translateLabel(item)}</span>
           </Link>
         );
       })}

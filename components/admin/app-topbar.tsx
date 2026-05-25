@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { ChevronDown, KeyRound, LogOut, UserRound } from "lucide-react";
 
 import { roleLabels, type StaffRole } from "@/lib/auth/roles";
@@ -48,6 +49,8 @@ export function AppTopBar({ staffEmail, staffRole, sessionPill, localeSwitcher }
   const searchParams = useSearchParams();
   const routeMeta = getProtectedRouteMeta(pathname);
   const passwordHref = appendCurrentSessionParam("/protected/password", searchParams);
+  const tRoles = useTranslations("Roles");
+  const roleLabel = tRoles.has(staffRole) ? tRoles(staffRole) : roleLabels[staffRole];
 
   return (
     <header className="z-20 hidden border-b border-border bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70 print:hidden md:sticky md:top-0 md:flex md:flex-col">
@@ -61,7 +64,7 @@ export function AppTopBar({ staffEmail, staffRole, sessionPill, localeSwitcher }
 
         <div className="flex items-center gap-2">
           {sessionPill}
-          <StatusBadge label={roleLabels[staffRole]} tone="neutral" iconless />
+          <StatusBadge label={roleLabel} tone="neutral" iconless />
           {localeSwitcher}
           <ThemeToggle />
 
@@ -83,7 +86,7 @@ export function AppTopBar({ staffEmail, staffRole, sessionPill, localeSwitcher }
                     {staffEmail}
                   </p>
                   <p className="text-xs font-normal text-muted-foreground">
-                    {roleLabels[staffRole]}
+                    {roleLabel}
                   </p>
                 </div>
               </DropdownMenuLabel>
@@ -133,6 +136,8 @@ export function MobileHeader({
   const sessionAwareHomeHref = appendCurrentSessionParam(homeHref, searchParams);
   const passwordHref = appendCurrentSessionParam("/protected/password", searchParams);
   const routeTitle = getProtectedRouteMeta(pathname).label;
+  const tRoles = useTranslations("Roles");
+  const roleLabel = tRoles.has(staffRole) ? tRoles(staffRole) : roleLabels[staffRole];
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/90 px-3 backdrop-blur print:hidden md:hidden">
@@ -167,7 +172,7 @@ export function MobileHeader({
                   {staffEmail}
                 </p>
                 <p className="text-xs font-normal text-muted-foreground">
-                  {roleLabels[staffRole]}
+                  {roleLabel}
                 </p>
               </div>
             </DropdownMenuLabel>
