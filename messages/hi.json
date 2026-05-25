@@ -1,0 +1,40 @@
+{
+  "Locale": {
+    "label": "भाषा",
+    "current": "वर्तमान भाषा",
+    "english": "English",
+    "hindi": "हिन्दी",
+    "hinglish": "Hinglish",
+    "menuHeading": "भाषा चुनें"
+  },
+  "Common": {
+    "appName": "श्री वीर पट्टा विद्यालय शुल्क प्रबंधन",
+    "school": "श्री वीर पट्टा सीनियर सेकेंडरी स्कूल",
+    "save": "सहेजें",
+    "cancel": "रद्द करें",
+    "delete": "हटाएँ",
+    "edit": "संपादित करें",
+    "loading": "लोड हो रहा है...",
+    "yes": "हाँ",
+    "no": "नहीं",
+    "search": "खोजें",
+    "filter": "छानें",
+    "export": "निर्यात",
+    "print": "प्रिंट",
+    "actions": "क्रियाएँ",
+    "openMenu": "मेनू खोलें",
+    "close": "बंद करें"
+  },
+  "Navigation": {
+    "dashboard": "डैशबोर्ड",
+    "students": "विद्यार्थी",
+    "feeSetup": "शुल्क व्यवस्था",
+    "paymentDesk": "भुगतान काउंटर",
+    "transactions": "लेन-देन",
+    "defaulters": "बकायेदार",
+    "exports": "निर्यात",
+    "adminTools": "व्यवस्थापक",
+    "home": "मुख्य",
+    "collect": "वसूली"
+  }
+}

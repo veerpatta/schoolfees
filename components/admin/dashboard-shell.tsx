@@ -14,7 +14,10 @@ import { formatInr } from "@/lib/helpers/currency";
 import { getSessionSwitcherData } from "@/lib/session/switcher";
 import { SessionSwitchingProvider } from "@/lib/session/switching-context";
 
+import { isLocaleSwitcherEnabled } from "@/lib/env";
+
 import { AppTopBar, MobileHeader } from "./app-topbar";
+import { LocaleSwitcher } from "./locale-switcher";
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { RouteProgress } from "./route-progress";
 import { ScrollRestoringMain } from "./scroll-restoring-main";
@@ -40,6 +43,7 @@ export async function DashboardShell({
     getSessionSwitcherData(),
   ]);
   const homeHref = getDefaultProtectedHref(staffRole);
+  const localeSwitcher = isLocaleSwitcherEnabled() ? <LocaleSwitcher /> : null;
 
   return (
     <SessionSwitchingProvider>
@@ -90,6 +94,7 @@ export async function DashboardShell({
               initialSessions={sessionSwitcher.availableSessions}
             />
           }
+          localeSwitcher={localeSwitcher}
           homeHref={homeHref}
         />
         <AppTopBar
@@ -102,6 +107,7 @@ export async function DashboardShell({
               initialSessions={sessionSwitcher.availableSessions}
             />
           }
+          localeSwitcher={localeSwitcher}
         />
         <ScrollRestoringMain
           className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8 lg:py-7 mobile-bottom-nav-clearance md:pb-6 lg:pb-8 print:max-w-none print:px-0 print:py-0"

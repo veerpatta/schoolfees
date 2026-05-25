@@ -28,6 +28,11 @@ type AppTopBarProps = {
   staffEmail: string;
   staffRole: StaffRole;
   sessionPill?: ReactNode;
+  /**
+   * Locale switcher trigger (Globe icon + dropdown). Rendered only when the
+   * LOCALE_SWITCHER_ENABLED env flag is on — the parent shell decides.
+   */
+  localeSwitcher?: ReactNode;
 };
 
 function initialsOf(email: string) {
@@ -38,7 +43,7 @@ function initialsOf(email: string) {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-export function AppTopBar({ staffEmail, staffRole, sessionPill }: AppTopBarProps) {
+export function AppTopBar({ staffEmail, staffRole, sessionPill, localeSwitcher }: AppTopBarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const routeMeta = getProtectedRouteMeta(pathname);
@@ -57,6 +62,7 @@ export function AppTopBar({ staffEmail, staffRole, sessionPill }: AppTopBarProps
         <div className="flex items-center gap-2">
           {sessionPill}
           <StatusBadge label={roleLabels[staffRole]} tone="neutral" iconless />
+          {localeSwitcher}
           <ThemeToggle />
 
           <DropdownMenu>
@@ -117,6 +123,7 @@ export function MobileHeader({
   staffEmail,
   staffRole,
   sessionPill,
+  localeSwitcher,
   homeHref,
 }: AppTopBarProps & {
   homeHref: string;
@@ -143,6 +150,7 @@ export function MobileHeader({
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
         {sessionPill}
+        {localeSwitcher}
         <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger

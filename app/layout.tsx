@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Source_Serif_4 } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 
 import { ServiceWorkerRegistration } from "@/components/system/service-worker-registration";
 import { ThemeProvider } from "@/components/system/theme-provider";
@@ -60,24 +62,31 @@ export const viewport: Viewport = {
 
 export const dynamic = "force-dynamic";
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // next-intl resolves locale from the vpps_locale cookie via i18n/request.ts
+  // and gates language switching behind LOCALE_SWITCHER_ENABLED.
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
     <html
-      lang="en"
+      lang={locale}
       className={`${fontSans.variable} ${fontDisplay.variable}`}
       suppressHydrationWarning
     >
       <body className="antialiased">
-        <ThemeProvider>
-          <DensityProvider>
-            {children}
-            <ToastViewport />
-          </DensityProvider>
-        </ThemeProvider>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <ThemeProvider>
+            <DensityProvider>
+              {children}
+              <ToastViewport />
+            </DensityProvider>
+          </ThemeProvider>
+        </NextIntlClientProvider>
         <ServiceWorkerRegistration />
       </body>
     </html>

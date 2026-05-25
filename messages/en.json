@@ -1,0 +1,40 @@
+{
+  "Locale": {
+    "label": "Language",
+    "current": "Current language",
+    "english": "English",
+    "hindi": "Hindi (हिन्दी)",
+    "hinglish": "Hinglish",
+    "menuHeading": "Choose language"
+  },
+  "Common": {
+    "appName": "Shri Veer Patta School Fee Admin",
+    "school": "Shri Veer Patta Senior Secondary School",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading...",
+    "yes": "Yes",
+    "no": "No",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "print": "Print",
+    "actions": "Actions",
+    "openMenu": "Open menu",
+    "close": "Close"
+  },
+  "Navigation": {
+    "dashboard": "Dashboard",
+    "students": "Students",
+    "feeSetup": "Fee Setup",
+    "paymentDesk": "Payment Desk",
+    "transactions": "Transactions",
+    "defaulters": "Defaulters",
+    "exports": "Exports",
+    "adminTools": "Admin Tools",
+    "home": "Home",
+    "collect": "Collect"
+  }
+}

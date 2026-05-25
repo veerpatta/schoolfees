@@ -1,0 +1,40 @@
+{
+  "Locale": {
+    "label": "Bhasha",
+    "current": "Vartman bhasha",
+    "english": "English",
+    "hindi": "Hindi (हिन्दी)",
+    "hinglish": "Hinglish",
+    "menuHeading": "Bhasha chunein"
+  },
+  "Common": {
+    "appName": "Shri Veer Patta School Fee Admin",
+    "school": "Shri Veer Patta Senior Secondary School",
+    "save": "Save karein",
+    "cancel": "Rad karein",
+    "delete": "Hatayein",
+    "edit": "Sampaadit karein",
+    "loading": "Load ho raha hai...",
+    "yes": "Haan",
+    "no": "Nahin",
+    "search": "Khojein",
+    "filter": "Filter",
+    "export": "Export",
+    "print": "Print",
+    "actions": "Karyon",
+    "openMenu": "Menu kholein",
+    "close": "Band karein"
+  },
+  "Navigation": {
+    "dashboard": "Dashboard",
+    "students": "Vidyarthi",
+    "feeSetup": "Shulk vyavastha",
+    "paymentDesk": "Bhugtan counter",
+    "transactions": "Len-den",
+    "defaulters": "Bakayedaar",
+    "exports": "Export",
+    "adminTools": "Admin Tools",
+    "home": "Mukhya",
+    "collect": "Vasooli"
+  }
+}

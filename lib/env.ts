@@ -118,6 +118,19 @@ export function isStaffRolesV2Enabled() {
   return truthyEnvValues.has(value.toLowerCase());
 }
 
+// Gates the in-app language switcher (English / Hindi / Hinglish). When off,
+// every request resolves to English regardless of the vpps_locale cookie.
+// Keep off in production until office staff have reviewed Hindi/Hinglish copy.
+export function isLocaleSwitcherEnabled() {
+  const value = getOptionalEnvVar("LOCALE_SWITCHER_ENABLED");
+
+  if (!value) {
+    return false;
+  }
+
+  return truthyEnvValues.has(value.toLowerCase());
+}
+
 export function isVercelProductionEnvironment() {
   return getOptionalEnvVar("VERCEL_ENV") === "production";
 }
