@@ -10,7 +10,7 @@ import { getSetupWizardDataLight } from "@/lib/setup/data";
 import { getStudentFormOptions } from "@/lib/students/data";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
-import { requireAnyStaffPermission } from "@/lib/supabase/session";
+import { hasStaffPermission, requireAnyStaffPermission } from "@/lib/supabase/session";
 import { getWorkbookTransactions } from "@/lib/workbook/data";
 
 type TransactionsPageProps = {
@@ -163,6 +163,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         paymentModeOptions={policy.acceptedPaymentModes.map((m) => ({ value: m.value, label: m.label }))}
         resolvedSessionLabel={sessionLabel}
         todaySnapshot={todaySnapshot}
+        canCloseBalance={hasStaffPermission(staff, "finance:write")}
       />
     </div>
   );

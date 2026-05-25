@@ -78,6 +78,7 @@ export type TransactionsClientShellProps = {
   paymentModeOptions: PaymentModeOption[];
   resolvedSessionLabel: string;
   todaySnapshot: TodaySnapshot;
+  canCloseBalance: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -349,7 +350,11 @@ function TransactionsTable({
   );
 }
 
-type StudentTableProps = { rows: OfficeWorkbookStudentRow[]; sessionLabel: string };
+type StudentTableProps = {
+  rows: OfficeWorkbookStudentRow[];
+  sessionLabel: string;
+  canCloseBalance?: boolean;
+};
 
 function LazyTableSkeleton() {
   return (
@@ -495,6 +500,7 @@ export function TransactionsClientShell({
   paymentModeOptions,
   resolvedSessionLabel,
   todaySnapshot,
+  canCloseBalance,
 }: TransactionsClientShellProps) {
   const [activeView, setActiveView] = useState(initialView);
   const [filters, setFilters] = useState<FilterState>(initialFilters);
@@ -942,7 +948,7 @@ export function TransactionsClientShell({
         )}
         {workbook.view === "student_dues" && (
           <SectionCard title="Student dues" description="Student-wise dues, paid, pending, discount, and next-due details.">
-            <StudentDuesTable rows={workbook.rows} sessionLabel={effectiveSession} />
+            <StudentDuesTable rows={workbook.rows} sessionLabel={effectiveSession} canCloseBalance={canCloseBalance} />
           </SectionCard>
         )}
         {workbook.view === "class_register" && (

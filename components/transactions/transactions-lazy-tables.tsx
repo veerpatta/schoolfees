@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Money } from "@/components/ui/money";
 import { ValueStatePill } from "@/components/office/office-ui";
+import { CloseDueTrigger } from "@/components/students/close-due-trigger";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { appendSessionParam } from "@/lib/navigation/session-href";
@@ -116,7 +117,15 @@ export function InstallmentTrackerTable({ rows, sessionLabel }: { rows: OfficeWo
 // Student dues table
 // ---------------------------------------------------------------------------
 
-export function StudentDuesTable({ rows, sessionLabel }: { rows: OfficeWorkbookStudentRow[]; sessionLabel: string }) {
+export function StudentDuesTable({
+  rows,
+  sessionLabel,
+  canCloseBalance,
+}: {
+  rows: OfficeWorkbookStudentRow[];
+  sessionLabel: string;
+  canCloseBalance?: boolean;
+}) {
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
   return (
     <>
@@ -181,6 +190,18 @@ export function StudentDuesTable({ rows, sessionLabel }: { rows: OfficeWorkbookS
                     <div className="flex flex-wrap gap-2">
                       <Button asChild size="sm" variant="outline"><Link href={withSession(`/protected/students/${row.studentId}/statement`)}>Print statement</Link></Button>
                       <Button asChild size="sm" variant="outline"><Link href={withSession(`/protected/payments?studentId=${row.studentId}`)}>Payment</Link></Button>
+                      {canCloseBalance && row.outstandingAmount > 0 ? (
+                        <CloseDueTrigger
+                          studentId={row.studentId}
+                          studentLabel={row.studentName}
+                          studentAdmissionNo={row.admissionNo}
+                          classLabel={row.classLabel}
+                          pendingAmount={row.outstandingAmount}
+                          currentDiscount={row.discountAmount}
+                          size="sm"
+                          variant="outline"
+                        />
+                      ) : null}
                     </div>
                   </td>
                 </tr>
