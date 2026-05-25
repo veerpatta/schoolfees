@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 
 import { SaveBar } from "@/components/forms/save-bar";
 import { WhyDisabled } from "@/components/forms/why-disabled";
-import { FirstRunHint } from "@/components/system/first-run-hint";
 
 describe("SaveBar — SSR contract", () => {
   it("renders nothing when not dirty and not saving", () => {
@@ -57,13 +56,3 @@ describe("WhyDisabled — SSR contract", () => {
   });
 });
 
-describe("FirstRunHint — SSR contract", () => {
-  it("renders nothing on the SSR pass (revealed only after hydration)", () => {
-    const html = renderToStaticMarkup(
-      <FirstRunHint hintKey="cmdk">Press ⌘K to jump anywhere.</FirstRunHint>,
-    );
-    // Children appear in the markup only after the mount-effect runs;
-    // during SSR we render nothing so it doesn't flash.
-    expect(html).toBe("");
-  });
-});

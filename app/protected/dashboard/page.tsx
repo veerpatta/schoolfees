@@ -20,8 +20,6 @@ import { CollectionHeatmap } from "@/components/dashboard/collection-heatmap";
 import { MorningBrief } from "@/components/dashboard/morning-brief";
 import { RouteCollectionHeatmap } from "@/components/dashboard/route-collection-heatmap";
 import { OptimisticBanner } from "@/components/dashboard/optimistic-banner";
-import { AnomalyToaster } from "@/components/dashboard/anomaly-toaster";
-import { FirstRunHint } from "@/components/system/first-run-hint";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { composeMorningBrief } from "@/lib/dashboard/morning-brief";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -1793,18 +1791,6 @@ async function DashboardBelowFold({
         sessionLabel={sessionLabel}
       />
 
-      {staffRole === "admin" ? (
-        <AnomalyToaster
-          recentPayments={data.recentPayments}
-          classSummary={data.classSummary}
-          todayIso={new Intl.DateTimeFormat("sv-SE", {
-            timeZone: "Asia/Kolkata",
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-          }).format(new Date())}
-        />
-      ) : null}
     </div>
   );
 }
@@ -1901,10 +1887,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         counts={todayActivityCounts}
         sessionLabel={viewSession.sessionLabel}
       />
-
-      <FirstRunHint hintKey="cmdk">
-        Tip: press <kbd className="mx-0.5 rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-semibold text-foreground">Ctrl/Cmd&nbsp;+&nbsp;K</kbd> from anywhere to jump to a student, find a receipt, or post a payment.
-      </FirstRunHint>
 
       {resolvedSearchParams?.notice ? (
         <Notice tone="success" iconless={false}>
