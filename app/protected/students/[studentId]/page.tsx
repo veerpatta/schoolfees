@@ -337,37 +337,36 @@ export default async function StudentDetailPage({
     financialSnapshot?.resolvedBreakdown.conventionalDiscountLabels ?? [];
 
   const installmentCount = financialSnapshot?.policy.installmentCount ?? installmentBalances.length ?? 4;
-  const resolvedHeads = financialSnapshot?.resolvedBreakdown
-    ? [
-        ...financialSnapshot.resolvedBreakdown.coreHeads,
-        ...financialSnapshot.resolvedBreakdown.customHeads,
-      ].filter((head) => head.amount > 0)
-    : [];
-  const annualDiscount =
-    (financialSnapshot?.resolvedBreakdown.discountApplied ?? 0) +
-    (financialSnapshot?.resolvedBreakdown.conventionalDiscountApplied ?? 0);
-  const conventionalDiscountLabels = financialSnapshot?.resolvedBreakdown.conventionalDiscountLabels ?? [];
-  const discountSuffix = conventionalDiscountLabels.length > 0 ? ` (${conventionalDiscountLabels.join(" + ")})` : "";
+  // Use the same display-breakdown rows the snapshot and Fee plan tab use,
+  // so the per-installment slice (mobile dues) stays consistent with the
+  // pre-conventional-discount tuition + discount-line presentation.
+  const annualBreakdownRows = glanceBreakdownRows;
 
   function buildPerInstallmentHeads(item: typeof installmentBalances[number]) {
-    if (resolvedHeads.length === 0 || installmentCount <= 0) return [] as Array<{ label: string; amount: number }>;
+    if (annualBreakdownRows.length === 0 || installmentCount <= 0) {
+      return [] as Array<{ label: string; amount: number }>;
+    }
     const isFirstInstallment = item.installmentNo === 1;
     const headRows: Array<{ label: string; amount: number }> = [];
-    for (const head of resolvedHeads) {
-      // Academic fee is bundled into installment 1 only (workbook model).
-      if (head.id === "academic_fee") {
-        if (isFirstInstallment) {
-          headRows.push({ label: head.label, amount: head.amount });
+    for (const row of annualBreakdownRows) {
+      if (row.kind === "charge") {
+        if (row.amount <= 0) continue;
+        // Academic fee is bundled into installment 1 only (workbook model).
+        if (row.id === "academic_fee") {
+          if (isFirstInstallment) {
+            headRows.push({ label: row.label, amount: row.amount });
+          }
+        } else {
+          headRows.push({ label: row.label, amount: Math.round(row.amount / installmentCount) });
         }
       } else {
-        headRows.push({ label: head.label, amount: Math.round(head.amount / installmentCount) });
+        // Conventional + student discount rows split evenly across installments.
+        // Labels are preserved so RTE/Staff Child/3rd Child stay legible per row.
+        const slice = -Math.round(Math.abs(row.amount) / installmentCount);
+        if (slice !== 0) {
+          headRows.push({ label: row.label, amount: slice });
+        }
       }
-    }
-    if (annualDiscount > 0) {
-      headRows.push({
-        label: `Discount${discountSuffix}`,
-        amount: -Math.round(annualDiscount / installmentCount),
-      });
     }
     if (item.finalLateFee > 0) {
       headRows.push({ label: "Late fee", amount: item.finalLateFee });
