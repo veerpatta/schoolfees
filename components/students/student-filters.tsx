@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import { AutoSubmitForm } from "@/components/office/auto-submit-form";
 import { Button } from "@/components/ui/button";
@@ -22,27 +23,28 @@ type StudentFiltersProps = {
 const selectClassName =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
-export function StudentFilters({
+export async function StudentFilters({
   filters,
   sessionOptions,
   classOptions,
   routeOptions,
 }: StudentFiltersProps) {
+  const t = await getTranslations("Students");
   return (
     <AutoSubmitForm method="get" className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
       <div className="xl:col-span-2">
-        <Label htmlFor="query">Search</Label>
+        <Label htmlFor="query">{t("searchLabel")}</Label>
         <Input
           id="query"
           name="query"
-          placeholder="Student name, SR no, or phone"
+          placeholder={t("searchPlaceholder")}
           defaultValue={filters.query}
           className="mt-2"
         />
       </div>
 
       <div>
-        <Label htmlFor="sessionLabel">Academic year</Label>
+        <Label htmlFor="sessionLabel">{t("academicYearLabel")}</Label>
         <select
           id="sessionLabel"
           name="sessionLabel"
@@ -58,14 +60,14 @@ export function StudentFilters({
       </div>
 
       <div>
-        <Label htmlFor="classId">Class</Label>
+        <Label htmlFor="classId">{t("classLabel")}</Label>
         <select
           id="classId"
           name="classId"
           defaultValue={filters.classId}
           className={`${selectClassName} mt-2`}
         >
-          <option value="">All classes</option>
+          <option value="">{t("classAll")}</option>
           {classOptions.map((classOption) => (
             <option key={classOption.id} value={classOption.id}>
               {classOption.label}
@@ -75,18 +77,18 @@ export function StudentFilters({
       </div>
 
       <div>
-        <Label htmlFor="transportRouteId">Transport route</Label>
+        <Label htmlFor="transportRouteId">{t("transportRouteLabel")}</Label>
         <select
           id="transportRouteId"
           name="transportRouteId"
           defaultValue={filters.transportRouteId}
           className={`${selectClassName} mt-2`}
         >
-          <option value="">All routes</option>
+          <option value="">{t("transportRouteAll")}</option>
           {routeOptions.map((route) => (
             <option key={route.id} value={route.id}>
               {route.routeCode
-                ? `${route.label} (${route.routeCode})`
+                ? t("transportRouteWithCode", { label: route.label, code: route.routeCode })
                 : route.label}
             </option>
           ))}
@@ -94,14 +96,14 @@ export function StudentFilters({
       </div>
 
       <div>
-        <Label htmlFor="status">Status</Label>
+        <Label htmlFor="status">{t("statusLabel")}</Label>
         <select
           id="status"
           name="status"
           defaultValue={filters.status}
           className={`${selectClassName} mt-2`}
         >
-          <option value="">All statuses</option>
+          <option value="">{t("statusAll")}</option>
           {STUDENT_STATUSES.map((statusOption) => (
             <option key={statusOption.value} value={statusOption.value}>
               {statusOption.label}
@@ -112,7 +114,7 @@ export function StudentFilters({
 
       <div className="flex items-end gap-2 xl:col-span-6">
         <Button type="button" variant="outline" asChild>
-          <Link href="/protected/students">Clear</Link>
+          <Link href="/protected/students">{t("filterClear")}</Link>
         </Button>
       </div>
     </AutoSubmitForm>

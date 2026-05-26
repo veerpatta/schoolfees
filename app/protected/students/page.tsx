@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -74,6 +76,7 @@ function normalizeFilters(
 }
 
 export default async function StudentsPage({ searchParams }: StudentsPageProps) {
+  const t = await getTranslations("Students");
   const staff = await requireStaffPermission("students:view", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const parsedFilters = normalizeFilters(resolvedSearchParams);
@@ -100,8 +103,8 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
   } catch (error) {
     formLoadWarning =
       error instanceof Error
-        ? `Student filters could not be loaded safely: ${error.message}`
-        : "Student filters could not be loaded safely.";
+        ? t("filterLoadWarning", { error: error.message })
+        : t("filterLoadWarningFallback");
     sessionOptions = parsedFilters.sessionLabel
       ? [{ value: parsedFilters.sessionLabel, label: parsedFilters.sessionLabel }]
       : viewSession.sessionLabel
@@ -131,8 +134,8 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
   } catch (error) {
     studentLoadWarning =
       error instanceof Error
-        ? `Students could not be loaded safely: ${error.message}`
-        : "Students could not be loaded safely.";
+        ? t("studentLoadWarning", { error: error.message })
+        : t("studentLoadWarningFallback");
   }
   const canWriteStudents = hasStaffPermission(staff, "students:write");
   const canRealignRecentImports = hasStaffPermission(staff, "fees:write");
@@ -163,15 +166,15 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Students"
-        title="Students"
-        description="Add, search, bulk update, and review student-specific fee exceptions."
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
         actions={
           canWriteStudents ? (
             <OfficeActionBar className="border-0 bg-transparent p-0 shadow-none">
               <Button asChild>
                 <Link href={withSession(`/protected/students/new?sessionLabel=${encodeURIComponent(filters.sessionLabel)}`)}>
-                  Add Student
+                  {t("addStudent")}
                 </Link>
               </Button>
               <StudentBulkImportDialogTrigger
@@ -180,34 +183,34 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
               />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" aria-label="More templates">
-                    Templates
+                  <Button variant="outline" aria-label={t("templatesMenuAria")}>
+                    {t("templatesMenuLabel")}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64">
                   <DropdownMenuItem asChild>
                     <Link href={withSession(`/protected/imports/template?mode=add&sessionLabel=${encodeURIComponent(filters.sessionLabel)}`)}>
-                      Download Add Template
+                      {t("downloadAddTemplate")}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href={withSession("/protected/imports/template?mode=update")}>
-                      Download Update Template
+                      {t("downloadUpdateTemplate")}
                     </Link>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </OfficeActionBar>
           ) : (
-            <StatusBadge label="Read-only access" tone="warning" />
+            <StatusBadge label={t("readOnlyAccess")} tone="warning" />
           )
         }
       />
 
       {formOptions?.sessionMismatch ? (
         <SectionCard
-          title="Working session mismatch"
-            description="Fee Setup and student lists are not pointing to the same academic year."
+          title={t("sessionMismatchTitle")}
+            description={t("sessionMismatchDescription")}
         >
           <OfficeNotice
             tone="warning"
@@ -220,7 +223,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
             }
           >
             <p>
-              Defaulting finance workflows to Fee Setup session{" "}
+              {t("sessionMismatchBodyPrefix")}
               <strong>{formOptions.policySessionLabel || resolvedSessionLabel}</strong>.
             </p>
           </OfficeNotice>
@@ -229,8 +232,8 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
 
       {loadWarnings.length > 0 ? (
         <SectionCard
-          title="Load warning"
-          description="Some student workspace data could not be loaded safely. The page is still available."
+          title={t("loadWarningTitle")}
+          description={t("loadWarningDescription")}
         >
           <div className="space-y-2 text-sm text-warning-soft-foreground">
             {loadWarnings.map((warning) => (

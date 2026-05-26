@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Users, GraduationCap, ShieldAlert, ChevronRight, Phone, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +17,8 @@ import { cn } from "@/lib/utils";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { StudentStatusBadge } from "@/components/students/student-status-badge";
 import { StudentRowCollectButton } from "@/components/students/student-row-collect-button";
+
+type StudentsTranslator = ReturnType<typeof useTranslations<"Students">>;
 
 type StudentListTableProps = {
   students: StudentListItem[];
@@ -33,13 +36,13 @@ type StudentListTableProps = {
   };
 };
 
-function OutstandingCell({ student }: { student: StudentListItem }) {
+function OutstandingCell({ student, t }: { student: StudentListItem; t: StudentsTranslator }) {
   if (student.duesStatus !== "generated") {
     return (
       <div className="flex flex-col items-end gap-1">
         <span className="text-sm font-semibold text-muted-foreground font-mono">—</span>
         <Badge variant="outline" className="rounded-full text-[10px] py-0 px-2 font-medium border-border">
-          Dues not prepared
+          {t("duesNotPrepared")}
         </Badge>
       </div>
     );
@@ -50,7 +53,7 @@ function OutstandingCell({ student }: { student: StudentListItem }) {
       <div className="flex flex-col items-end gap-1">
         <CheckCircle2 className="h-5 w-5 text-success" />
         <Badge variant="success" dot className="rounded-full text-[10px] py-0 px-2 font-semibold whitespace-nowrap">
-          Year Clear ✓
+          {t("yearClear")}
         </Badge>
       </div>
     );
@@ -77,26 +80,26 @@ function OutstandingCell({ student }: { student: StudentListItem }) {
         {isOverdue ? (
           <>
             <Badge variant="danger" dot className="rounded-full text-[10px] py-0 px-2 font-semibold whitespace-nowrap">
-              {formatInr(student.overdueAmount)} overdue
+              {t("overdueBadge", { amount: formatInr(student.overdueAmount) })}
             </Badge>
             {effectiveLateFee > 0 ? (
               <span className="text-[9px] font-semibold text-destructive/80 mt-0.5 whitespace-nowrap">
-                + {formatInr(effectiveLateFee)} late fee
+                {t("lateFeeSuffix", { amount: formatInr(effectiveLateFee) })}
               </span>
             ) : student.hasLateFeeWaiver ? (
               <span className="text-[9px] font-semibold text-success-soft-foreground mt-0.5 whitespace-nowrap">
-                Late fee waived
+                {t("lateFeeWaived")}
               </span>
             ) : null}
           </>
         ) : (
           <div className="flex flex-col items-end gap-0.5">
             <Badge variant="warning" dot className="rounded-full text-[10px] py-0 px-2 font-semibold whitespace-nowrap">
-              Pending
+              {t("pendingBadge")}
             </Badge>
             <span className="inline-flex items-center gap-0.5 text-[9px] font-medium text-success-soft-foreground mt-0.5 whitespace-nowrap">
               <Clock className="h-2.5 w-2.5" />
-              On track
+              {t("onTrackHint")}
             </span>
           </div>
         )}
@@ -105,16 +108,16 @@ function OutstandingCell({ student }: { student: StudentListItem }) {
   );
 }
 
-function discountLabelHint(label: string) {
+function discountLabelHint(label: string, t: StudentsTranslator) {
   const normalized = label.toLowerCase();
-  if (normalized.includes("rte")) return "RTE — tuition waived to ₹0 for this session.";
-  if (normalized.includes("staff")) return "Staff Child — 50% tuition discount.";
+  if (normalized.includes("rte")) return t("discountHintRte");
+  if (normalized.includes("staff")) return t("discountHintStaff");
   if (normalized.includes("3rd") || normalized.includes("third"))
-    return "3rd Child Policy — tuition capped at ₹6,000.";
-  return `${label} — conventional discount applied.`;
+    return t("discountHintThird");
+  return t("discountHintGeneric", { label });
 }
 
-function SiblingPill({ student, session }: { student: StudentListItem; session?: string }) {
+function SiblingPill({ student, session, t }: { student: StudentListItem; session?: string; t: StudentsTranslator }) {
   if (!student.siblingPill || student.siblingPill.siblingCount < 1) {
     return null;
   }
@@ -128,38 +131,38 @@ function SiblingPill({ student, session }: { student: StudentListItem; session?:
     >
       <Badge variant="soft" className="flex items-center gap-1 bg-info-soft text-info-soft-foreground border-none px-2 py-0.5 text-[11px] font-medium rounded-full">
         <Users className="h-3 w-3" />
-        +{student.siblingPill.siblingCount} sibling{student.siblingPill.siblingCount === 1 ? "" : "s"}
+        {t("siblingPillSuffix", { count: student.siblingPill.siblingCount })}
       </Badge>
     </Link>
   );
 }
 
-function DataQualityFlags({ student }: { student: StudentListItem }) {
+function DataQualityFlags({ student, t }: { student: StudentListItem; t: StudentsTranslator }) {
   const flags = [];
   if (student.duplicateSrFlag) {
     flags.push(
-      <span key="dup-sr" title="Duplicate SR number">
+      <span key="dup-sr" title={t("flagDuplicateSr")}>
         <AlertTriangle className="h-3 w-3 text-warning inline-block" />
       </span>
     );
   }
   if (student.missingDobFlag) {
     flags.push(
-      <span key="miss-dob" title="Date of birth missing">
+      <span key="miss-dob" title={t("flagMissingDob")}>
         <AlertTriangle className="h-3 w-3 text-warning inline-block" />
       </span>
     );
   }
   if (student.missingClassFlag) {
     flags.push(
-      <span key="miss-class" title="Class not assigned">
+      <span key="miss-class" title={t("flagMissingClass")}>
         <AlertTriangle className="h-3 w-3 text-warning inline-block" />
       </span>
     );
   }
   if (student.missingStatusFlag) {
     flags.push(
-      <span key="miss-status" title="Status not set">
+      <span key="miss-status" title={t("flagMissingStatus")}>
         <AlertTriangle className="h-3 w-3 text-warning inline-block" />
       </span>
     );
@@ -178,6 +181,7 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
   lastViewedAt,
   isSelected,
   onToggleSelection,
+  t,
 }: {
   student: StudentListItem;
   returnTo: string;
@@ -186,6 +190,7 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
   lastViewedAt?: string | null;
   isSelected?: boolean;
   onToggleSelection?: (studentId: string) => void;
+  t: StudentsTranslator;
 }) {
   const withSession = (href: string) => appendSessionParam(href, session);
   const srNoMissing = student.status === "active" && !student.admissionNo.trim();
@@ -212,7 +217,7 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
     <li
       role="link"
       tabIndex={0}
-      aria-label={`Open ${student.fullName}`}
+      aria-label={t("openStudentAria", { name: student.fullName })}
       onClick={handleRowOpen}
       onKeyDown={handleRowKey}
       className="group relative flex cursor-pointer items-center gap-3 pl-6 pr-3 py-4 transition-all hover:bg-surface-2/50 active:bg-surface-2 border-b border-border/40 focus-visible:outline-none focus-visible:bg-surface-2"
@@ -234,7 +239,7 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
         <span data-row-action="true" className="shrink-0" onClick={(event) => event.stopPropagation()}>
           <input
             type="checkbox"
-            aria-label={`Select ${student.fullName}`}
+            aria-label={t("selectStudentAria", { name: student.fullName })}
             checked={isSelected ?? false}
             onChange={() => onToggleSelection(student.id)}
             className="size-5 accent-primary"
@@ -252,23 +257,23 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
           {srNoMissing ? (
             <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[9px] font-medium text-warning-soft-foreground flex items-center gap-0.5">
               <ShieldAlert className="h-2.5 w-2.5" />
-              SR missing
+              {t("srMissingBadge")}
             </span>
           ) : null}
           <span data-row-action="true" className="inline-flex">
-            <SiblingPill student={student} session={session} />
+            <SiblingPill student={student} session={session} t={t} />
           </span>
-          <DataQualityFlags student={student} />
+          <DataQualityFlags student={student} t={t} />
           {student.status !== "active" && (
             <StudentStatusBadge status={student.status} />
           )}
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          {student.classLabel} · SR {student.admissionNo || "Pending"}
+          {t("classLineWithSr", { class: student.classLabel, sr: student.admissionNo || t("tableSrPending") })}
         </p>
         {lastViewedAt ? (
           <p className="text-[10px] text-muted-foreground/70 mt-0.5">
-            Last viewed by you {timeAgoShort(lastViewedAt) ?? "recently"}
+            {t("lastViewedByYou", { when: timeAgoShort(lastViewedAt) ?? t("lastViewedFallback") })}
           </p>
         ) : null}
         {(student.fatherPhone || student.motherPhone) && (
@@ -287,7 +292,7 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
       </div>
 
       <div className="shrink-0 text-right">
-        <OutstandingCell student={student} />
+        <OutstandingCell student={student} t={t} />
       </div>
 
       {canWrite && (
@@ -319,6 +324,7 @@ export const StudentListTable = React.memo(function StudentListTable({
   lastViewedByUser,
   selection,
 }: StudentListTableProps) {
+  const t = useTranslations("Students");
   const router = useRouter();
   const withSession = (href: string) => appendSessionParam(href, session);
   const selectedIdSet = React.useMemo(
@@ -339,15 +345,13 @@ export const StudentListTable = React.memo(function StudentListTable({
   if (students.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-border-strong bg-surface-2 p-8 text-center">
-        <h3 className="text-base font-semibold text-foreground">No students found</h3>
+        <h3 className="text-base font-semibold text-foreground">{t("emptyTitle")}</h3>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          {hasFilters
-            ? "No records match the selected filters. Try clearing filters or broadening the search."
-            : "Start by adding the first student record for this session."}
+          {hasFilters ? t("emptyFiltered") : t("emptyFresh")}
         </p>
         {!hasFilters && canWrite ? (
           <Link href={withSession("/protected/students/new")} className={cn(buttonVariants(), "mt-4")}>
-            Add first student
+            {t("addFirstStudent")}
           </Link>
         ) : null}
       </div>
@@ -366,6 +370,7 @@ export const StudentListTable = React.memo(function StudentListTable({
             lastViewedAt={lastViewedByUser?.[student.id] ?? null}
             isSelected={selectedIdSet.has(student.id)}
             onToggleSelection={selection ? selection.onToggle : undefined}
+            t={t}
           />
         ))}
       </ul>
@@ -376,7 +381,7 @@ export const StudentListTable = React.memo(function StudentListTable({
               <th className="w-10 px-3 py-3 text-left">
                 <input
                   type="checkbox"
-                  aria-label={allVisibleSelected ? "Deselect all visible students" : "Select all visible students"}
+                  aria-label={allVisibleSelected ? t("deselectAllVisible") : t("selectAllVisible")}
                   checked={allVisibleSelected}
                   ref={(node) => {
                     if (node) node.indeterminate = !allVisibleSelected && someVisibleSelected;
@@ -387,22 +392,22 @@ export const StudentListTable = React.memo(function StudentListTable({
               </th>
             ) : null}
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground pl-6">
-              SR no
+              {t("tableSrNo")}
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Student name
+              {t("tableStudentName")}
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Class
+              {t("tableClass")}
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Next Due
+              {t("tableNextDue")}
             </th>
             <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground pr-6">
-              Outstanding
+              {t("tableOutstanding")}
             </th>
             <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Actions
+              {t("tableActions")}
             </th>
           </tr>
         </thead>
@@ -425,7 +430,7 @@ export const StudentListTable = React.memo(function StudentListTable({
                   <td className="w-10 px-3 py-3.5" data-row-action="true" onClick={(event) => event.stopPropagation()}>
                     <input
                       type="checkbox"
-                      aria-label={`Select ${student.fullName}`}
+                      aria-label={t("selectStudentAria", { name: student.fullName })}
                       checked={selectedIdSet.has(student.id)}
                       onChange={() => selection.onToggle(student.id)}
                       className="size-4 accent-primary"
@@ -456,18 +461,18 @@ export const StudentListTable = React.memo(function StudentListTable({
                     {srNoMissing ? (
                       <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning-soft-foreground flex items-center gap-1">
                         <ShieldAlert className="h-3 w-3" />
-                        SR missing
+                        {t("srMissingBadge")}
                       </span>
                     ) : null}
-                    <SiblingPill student={student} session={session} />
+                    <SiblingPill student={student} session={session} t={t} />
                   </div>
-                  <DataQualityFlags student={student} />
+                  <DataQualityFlags student={student} t={t} />
                   {student.conventionalDiscountLabels.length > 0 ? (
                     <div className="mt-1.5 flex flex-wrap gap-1">
                       {student.conventionalDiscountLabels.map((label) => (
                         <span
                           key={label}
-                          title={discountLabelHint(label)}
+                          title={discountLabelHint(label, t)}
                           className="rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-semibold text-success-soft-foreground"
                         >
                           {label}
@@ -477,7 +482,7 @@ export const StudentListTable = React.memo(function StudentListTable({
                   ) : null}
                   {lastViewedByUser?.[student.id] ? (
                     <p className="mt-1 text-[10px] text-muted-foreground/70">
-                      Last viewed by you {timeAgoShort(lastViewedByUser[student.id]) ?? "recently"}
+                      {t("lastViewedByYou", { when: timeAgoShort(lastViewedByUser[student.id]) ?? t("lastViewedFallback") })}
                     </p>
                   ) : null}
                 </td>
@@ -506,10 +511,10 @@ export const StudentListTable = React.memo(function StudentListTable({
                       onClick={(e) => e.stopPropagation()}
                       className="block hover:opacity-80 transition-opacity"
                     >
-                      <OutstandingCell student={student} />
+                      <OutstandingCell student={student} t={t} />
                     </Link>
                   ) : (
-                    <OutstandingCell student={student} />
+                    <OutstandingCell student={student} t={t} />
                   )}
                 </td>
                 <td className="px-4 py-3.5 text-right">
@@ -523,7 +528,7 @@ export const StudentListTable = React.memo(function StudentListTable({
                             event.stopPropagation();
                           }}
                         >
-                          Edit
+                          {t("tableEdit")}
                         </Link>
                       </div>
                     )}

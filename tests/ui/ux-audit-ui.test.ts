@@ -14,15 +14,19 @@ describe("read-only UX audit implementation", () => {
     const page = readRepoFile("app/protected/students/page.tsx");
     const filters = readRepoFile("components/students/student-filters.tsx");
     const bulkDialog = readRepoFile("components/students/student-bulk-import-dialog.tsx");
+    // Students chrome copy now lives in the next-intl Students namespace.
+    const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
+      Students: Record<string, string>;
+    };
 
     expect(filters).toContain("AutoSubmitForm");
     expect(filters).not.toContain("Apply filters");
     expect(page).toContain('("active" as StudentListFilters["status"])');
-    expect(page).toContain("Add Student");
-    expect(page).toContain("More");
+    expect(englishMessages.Students.addStudent).toBe("Add Student");
+    expect(englishMessages.Students.templatesMenuAria).toContain("More");
     expect(bulkDialog).toContain("Bulk Add Students");
     expect(bulkDialog).toContain("Bulk Update Existing Students");
-    expect(page).toContain("Download Add Template");
+    expect(englishMessages.Students.downloadAddTemplate).toBe("Download Add Template");
     expect(page).not.toContain("Import column names");
   });
 
@@ -158,12 +162,13 @@ describe("read-only UX audit implementation", () => {
       "components/fees/fee-setup-client.tsx",
     ];
     const combined = dailyFiles.map(readRepoFile).join("\n");
-    // Fee Setup wording now lives in the next-intl FeeSetup namespace.
+    // Fee Setup / Students wording now lives in their next-intl namespaces.
     const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
       FeeSetup: Record<string, string>;
+      Students: Record<string, string>;
     };
 
-    expect(combined).toContain("Dues not prepared");
+    expect(englishMessages.Students.duesNotPrepared).toBe("Dues not prepared");
     expect(englishMessages.FeeSetup.topbarSave).toBe("Save Fee Setup");
     expect(englishMessages.FeeSetup.savingInfoNotice).toContain(
       "Saving updates future or unpaid dues automatically.",
@@ -186,15 +191,17 @@ describe("read-only UX audit implementation", () => {
     const dashboard = readRepoFile("app/protected/dashboard/page.tsx");
     // Defaulters labels now live in the next-intl Defaulters namespace;
     // Dashboard KPI labels live in the Dashboard namespace;
-    // Transactions column headers live in the Transactions namespace.
+    // Transactions column headers live in the Transactions namespace;
+    // Students table headers live in the Students namespace.
     const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
       Defaulters: Record<string, string>;
       Dashboard: Record<string, string>;
       Transactions: Record<string, string>;
+      Students: Record<string, string>;
     };
 
-    expect(studentsTable).toContain("SR no");
-    expect(studentsTable).toContain("Student name");
+    expect(englishMessages.Students.tableSrNo).toBe("SR no");
+    expect(englishMessages.Students.tableStudentName).toBe("Student name");
     expect(studentsTable).toContain("md:hidden");
     expect(englishMessages.Transactions.tableHeaderReceiptNo).toBe("Receipt no");
     expect(transactionLazyTables).toContain("tracker-mobile-");

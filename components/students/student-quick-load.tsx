@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { SectionCard } from "@/components/admin/section-card";
 import { SavedViewsTabs } from "@/components/data-table/saved-views-tabs";
@@ -30,6 +31,8 @@ const selectClassName =
 
 const PAGE_SIZE = 40;
 
+// Saved-view labels are translated at render time inside StudentQuickLoad so
+// the SavedViewsTabs control shows them in the user's chosen locale.
 const STUDENT_BUILTIN_VIEWS: readonly SavedView<StudentQuickLoadFilters>[] = [
   { id: "active", label: "All active", builtIn: true, createdAt: 0, state: { query: "", classId: "", transportRouteId: "", status: "active" } },
   { id: "all", label: "All students", builtIn: true, createdAt: 0, state: { query: "", classId: "", transportRouteId: "", status: "" } },
@@ -58,6 +61,7 @@ export function StudentQuickLoad({
   canWrite,
   lastViewedByUser,
 }: StudentQuickLoadProps) {
+  const t = useTranslations("Students");
   const [filters, setFilters] = useState<StudentQuickLoadFilters>({
     query: initialFilters.query,
     classId: initialFilters.classId,
@@ -211,7 +215,7 @@ export function StudentQuickLoad({
           console.error(error);
           setStudents([]);
           setTotalCount(0);
-          setLoadError("Students could not be loaded for this filter. Try clearing filters or selecting another class.");
+          setLoadError(t("studentLoadError"));
         }
       } finally {
         setIsLoading(false);
@@ -222,7 +226,7 @@ export function StudentQuickLoad({
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [params]);
+  }, [params, t]);
 
   useEffect(() => {
     function handleSlash(event: KeyboardEvent) {
@@ -255,12 +259,12 @@ export function StudentQuickLoad({
   return (
     <>
       <SectionCard
-        title="Find students"
-        description="Search by student name, SR no, or phone, then narrow by class, route, or status."
+        title={t("findStudentsTitle")}
+        description={t("findStudentsDescription")}
       >
         <div className="md:hidden space-y-3" data-mobile-student-search>
           <div>
-            <Label htmlFor="query-mobile-inline">Search</Label>
+            <Label htmlFor="query-mobile-inline">{t("searchLabel")}</Label>
             <div className="relative mt-2">
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               <Input
@@ -272,8 +276,8 @@ export function StudentQuickLoad({
                   setPage(1);
                   setFilters((previous) => ({ ...previous, query: event.target.value }));
                 }}
-                placeholder="Student name, SR no, or phone"
-                title="Press / to focus"
+                placeholder={t("searchPlaceholder")}
+                title={t("searchFocusHint")}
                 className="h-11 pl-9"
               />
             </div>
@@ -282,10 +286,10 @@ export function StudentQuickLoad({
           {/* Quick filter chips — one-tap focus on common subsets. */}
           <div className="flex flex-wrap gap-1.5">
             {[
-              { key: "has-overdue", label: "Has overdue" },
-              { key: "missing-phone", label: "Missing phone" },
-              { key: "left", label: "Withdrawn" },
-              { key: "new", label: "New this year" },
+              { key: "has-overdue", label: t("chipHasOverdue") },
+              { key: "missing-phone", label: t("chipMissingPhone") },
+              { key: "left", label: t("chipWithdrawn") },
+              { key: "new", label: t("chipNewThisYear") },
             ].map((chip) => {
               const isActive =
                 (chip.key === "left" && filters.status === "left") ||
@@ -332,7 +336,7 @@ export function StudentQuickLoad({
 
           <div data-mobile-class-filter>
             <div className="flex items-center justify-between gap-2">
-              <Label htmlFor="classId-mobile-inline">Class</Label>
+              <Label htmlFor="classId-mobile-inline">{t("classLabel")}</Label>
               <button
                 type="button"
                 className="text-xs font-medium text-muted-foreground underline underline-offset-2"
@@ -341,7 +345,7 @@ export function StudentQuickLoad({
                   setFilters((previous) => ({ ...previous, classId: "" }));
                 }}
               >
-                All classes
+                {t("classAll")}
               </button>
             </div>
             <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
@@ -383,7 +387,7 @@ export function StudentQuickLoad({
                   }}
                   className={`${selectClassName} h-10 pl-9`}
                 >
-                  <option value="">All classes</option>
+                  <option value="">{t("classAll")}</option>
                   {classOptions.map((classOption) => (
                     <option key={classOption.id} value={classOption.id}>
                       {classOption.label}
@@ -404,7 +408,7 @@ export function StudentQuickLoad({
               onClick={() => setFilterSheetOpen(true)}
             >
               <SlidersHorizontal className="size-4" />
-              Route and status
+              {t("filterRouteAndStatus")}
               {activeFilterCount > 0 && (
                 <span className="ml-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-foreground">
                   {activeFilterCount}
@@ -419,7 +423,7 @@ export function StudentQuickLoad({
               className="h-10 px-3 hover:bg-surface-2 shrink-0"
               onClick={resetFilters}
             >
-              Clear
+              {t("filterClear")}
             </Button>
             ) : null}
           </div>
@@ -428,12 +432,12 @@ export function StudentQuickLoad({
         <Sheet
           open={filterSheetOpen}
           onClose={() => setFilterSheetOpen(false)}
-          title="Route and status"
+          title={t("filterRouteAndStatus")}
           size="md"
         >
           <div className="space-y-4 pt-2">
             <div>
-              <Label htmlFor="transportRouteId-mobile">Transport route</Label>
+              <Label htmlFor="transportRouteId-mobile">{t("transportRouteLabel")}</Label>
               <div className="relative mt-2">
                 <Bus className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 <select
@@ -445,10 +449,12 @@ export function StudentQuickLoad({
                   }}
                   className={`${selectClassName} pl-9 h-11`}
                 >
-                  <option value="">All routes</option>
+                  <option value="">{t("transportRouteAll")}</option>
                   {routeOptions.map((route) => (
                     <option key={route.id} value={route.id}>
-                      {route.routeCode ? `${route.label} (${route.routeCode})` : route.label}
+                      {route.routeCode
+                        ? t("transportRouteWithCode", { label: route.label, code: route.routeCode })
+                        : route.label}
                     </option>
                   ))}
                 </select>
@@ -457,7 +463,7 @@ export function StudentQuickLoad({
             </div>
 
             <div>
-              <Label htmlFor="status-mobile">Status</Label>
+              <Label htmlFor="status-mobile">{t("statusLabel")}</Label>
               <div className="relative mt-2">
                 <UserCheck className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 <select
@@ -469,10 +475,10 @@ export function StudentQuickLoad({
                   }}
                   className={`${selectClassName} pl-9 h-11`}
                 >
-                  <option value="">All statuses</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="left">Withdrawn</option>
+                  <option value="">{t("statusAll")}</option>
+                  <option value="active">{t("statusActive")}</option>
+                  <option value="inactive">{t("statusInactive")}</option>
+                  <option value="left">{t("statusLeft")}</option>
                 </select>
                 <ChevronDown className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               </div>
@@ -484,7 +490,7 @@ export function StudentQuickLoad({
                 className="flex-1 h-12 text-sm font-semibold rounded-xl"
                 onClick={() => setFilterSheetOpen(false)}
               >
-                Apply Filters
+                {t("filterApplyFilters")}
               </Button>
               <Button
                 type="button"
@@ -492,14 +498,14 @@ export function StudentQuickLoad({
                 className="h-12 px-4 text-sm font-medium rounded-xl"
                 onClick={resetFilters}
               >
-                Reset
+                {t("filterReset")}
               </Button>
             </div>
           </div>
         </Sheet>
         <div className="hidden gap-3 md:grid md:grid-cols-2 xl:grid-cols-5">
           <div className="xl:col-span-2">
-            <Label htmlFor="query">Search</Label>
+            <Label htmlFor="query">{t("searchLabel")}</Label>
             <div className="relative mt-2">
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               <Input
@@ -511,8 +517,8 @@ export function StudentQuickLoad({
                   setPage(1);
                   setFilters((previous) => ({ ...previous, query: event.target.value }));
                 }}
-                placeholder="Student name, SR no, or phone"
-                title="Press / to focus"
+                placeholder={t("searchPlaceholder")}
+                title={t("searchFocusHint")}
                 className="pl-9 pr-8 h-9 peer"
               />
               <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground transition-opacity opacity-0 peer-placeholder-shown:opacity-100 peer-focus:opacity-0">
@@ -522,7 +528,7 @@ export function StudentQuickLoad({
           </div>
 
           <div>
-            <Label htmlFor="classId">Class</Label>
+            <Label htmlFor="classId">{t("classLabel")}</Label>
             <div className="relative mt-2">
               <GraduationCap className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               <select
@@ -534,7 +540,7 @@ export function StudentQuickLoad({
                 }}
                 className={`${selectClassName} pl-9 h-9`}
               >
-                <option value="">All classes</option>
+                <option value="">{t("classAll")}</option>
                 {classOptions.map((classOption) => (
                   <option key={classOption.id} value={classOption.id}>
                     {classOption.label}
@@ -546,7 +552,7 @@ export function StudentQuickLoad({
           </div>
 
           <div>
-            <Label htmlFor="transportRouteId">Transport route</Label>
+            <Label htmlFor="transportRouteId">{t("transportRouteLabel")}</Label>
             <div className="relative mt-2">
               <Bus className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               <select
@@ -558,10 +564,12 @@ export function StudentQuickLoad({
                 }}
                 className={`${selectClassName} pl-9 h-9`}
               >
-                <option value="">All routes</option>
+                <option value="">{t("transportRouteAll")}</option>
                 {routeOptions.map((route) => (
                   <option key={route.id} value={route.id}>
-                    {route.routeCode ? `${route.label} (${route.routeCode})` : route.label}
+                    {route.routeCode
+                      ? t("transportRouteWithCode", { label: route.label, code: route.routeCode })
+                      : route.label}
                   </option>
                 ))}
               </select>
@@ -570,7 +578,7 @@ export function StudentQuickLoad({
           </div>
 
           <div>
-            <Label htmlFor="status">Status</Label>
+            <Label htmlFor="status">{t("statusLabel")}</Label>
             <div className="relative mt-2">
               <UserCheck className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               <select
@@ -582,10 +590,10 @@ export function StudentQuickLoad({
                 }}
                 className={`${selectClassName} pl-9 h-9`}
               >
-                <option value="">All statuses</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="left">Withdrawn</option>
+                <option value="">{t("statusAll")}</option>
+                <option value="active">{t("statusActive")}</option>
+                <option value="inactive">{t("statusInactive")}</option>
+                <option value="left">{t("statusLeft")}</option>
               </select>
               <ChevronDown className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             </div>
@@ -603,7 +611,7 @@ export function StudentQuickLoad({
                 }}
               >
                 <X className="h-3.5 w-3.5" />
-                Clear Filters
+                {t("filterClearFilters")}
               </Button>
             </div>
           )}
@@ -611,8 +619,11 @@ export function StudentQuickLoad({
       </SectionCard>
 
       <SectionCard
-        title="Student list"
-        description={`${totalCount} student${totalCount === 1 ? "" : "s"} found.${isLoading ? " Refreshing…" : ""}`}
+        title={t("studentListTitle")}
+        description={t("studentListDescription", {
+          count: totalCount,
+          refreshing: isLoading ? t("refreshingSuffix") : "",
+        })}
       >
         <SavedViewsTabs
           tableKey="vpps.students.views"
@@ -625,17 +636,14 @@ export function StudentQuickLoad({
         <div className="space-y-4">
           {pendingSrCount > 0 && !srBannerDismissed ? (
             <div className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground">
-              <span>
-                {pendingSrCount} student{pendingSrCount === 1 ? "" : "s"} still have temporary SR numbers - assign
-                permanent SR nos before fee collection.
-              </span>
+              <span>{t("pendingSrNotice", { count: pendingSrCount })}</span>
               <button
                 type="button"
                 onClick={() => setSrBannerDismissed(true)}
                 className="ml-auto shrink-0 text-xs underline hover:no-underline"
-                aria-label="Dismiss SR pending notice"
+                aria-label={t("pendingSrDismissAria")}
               >
-                Dismiss
+                {t("pendingSrDismiss")}
               </button>
             </div>
           ) : null}
@@ -646,11 +654,11 @@ export function StudentQuickLoad({
             </div>
           ) : null}
 
-          <SummaryRow sticky={false} hint={`Page ${page} of ${pageCount}`}>
-            <SummaryCell label="Students" value={isLoading ? "…" : String(totalCount)} />
+          <SummaryRow sticky={false} hint={t("summaryPageOf", { page, pageCount })}>
+            <SummaryCell label={t("summaryStudents")} value={isLoading ? "…" : String(totalCount)} />
             {filters.classId ? (
               <SummaryCell
-                label="Class"
+                label={t("summaryClass")}
                 value={classOptions.find((c) => c.id === filters.classId)?.label ?? ""}
               />
             ) : null}
@@ -684,15 +692,13 @@ export function StudentQuickLoad({
           )}
 
           <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <p>
-              Page {page} of {pageCount}
-            </p>
+            <p>{t("pageOf", { page, pageCount })}</p>
             <div className="flex gap-2">
               <Button type="button" variant="outline" size="sm" disabled={page <= 1 || isLoading} onClick={() => setPage((value) => Math.max(1, value - 1))}>
-                Previous
+                {t("previous")}
               </Button>
               <Button type="button" variant="outline" size="sm" disabled={page >= pageCount || isLoading} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>
-                Next
+                {t("next")}
               </Button>
             </div>
           </div>
@@ -703,7 +709,7 @@ export function StudentQuickLoad({
         <Link
           href={withSession(`/protected/students/new?sessionLabel=${encodeURIComponent(initialFilters.sessionLabel || "")}`)}
           className="fixed bottom-24 right-4 z-30 flex size-14 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg hover:bg-accent/90 active:scale-95 transition-all md:hidden"
-          aria-label="Add new student"
+          aria-label={t("addNewStudentAria")}
         >
           <Plus className="size-6" />
         </Link>

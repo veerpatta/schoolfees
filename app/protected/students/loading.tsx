@@ -1,12 +1,15 @@
+import { getTranslations } from "next-intl/server";
+
 import { PageHeader } from "@/components/admin/page-header";
 
-export default function Loading() {
+export default async function Loading() {
+  const t = await getTranslations("Students");
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Students"
-        title="Students"
-        description="Add, search, bulk update, and review student-specific fee exceptions."
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
       />
 
       <div className="rounded-xl border border-border bg-card p-6 space-y-4">
