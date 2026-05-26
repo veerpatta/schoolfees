@@ -1518,13 +1518,24 @@ export function resolveStudentPolicyBreakdown(payload: {
       effectiveStudentType === "new"
         ? payload.policy.newStudentAcademicFeeAmount
         : payload.policy.oldStudentAcademicFeeAmount;
+    // Patch C (2026-05-24, docs/go-live/POLICY-FIX-2026-05-24.md) backfilled
+    // conventional-policy discounts into student_fee_overrides.discount_amount
+    // for ~68 students so the workbook view could surface the discount line.
+    // The resolver also applies the conventional discount independently, so
+    // we subtract that portion here — the override now means "owner-extra
+    // discount on top of conventional".
+    const remainingOwnerDiscount = Math.max(
+      0,
+      (payload.studentOverride?.discountAmount ?? 0) -
+        conventionalDiscountEffect.discountApplied,
+    );
     const workbookCharges = buildWorkbookInstallmentCharges({
       installmentCount: payload.policy.installmentCount,
       tuitionFee,
       transportFee,
       academicFee: academicFeeAmount,
       otherAdjustmentAmount,
-      discountAmount: payload.studentOverride?.discountAmount ?? 0,
+      discountAmount: remainingOwnerDiscount,
       academicFeeDistribution: payload.policy.academicFeeDistribution,
     });
 
@@ -1580,6 +1591,12 @@ export function resolveStudentPolicyBreakdown(payload: {
     legacyBooksFee +
     admissionActivityMiscFee +
     Object.values(mergedCustomAmounts).reduce((sum, value) => sum + value, 0);
+  // See workbook branch above for the rationale.
+  const legacyRemainingOwnerDiscount = Math.max(
+    0,
+    (payload.studentOverride?.discountAmount ?? 0) -
+      conventionalDiscountEffect.discountApplied,
+  );
 
   const breakdown = buildResolvedBreakdown({
     tuitionFee,
@@ -1592,7 +1609,7 @@ export function resolveStudentPolicyBreakdown(payload: {
     calculationModel: payload.policy.calculationModel,
     studentType: effectiveStudentType,
     grossBaseBeforeDiscount: legacyGrossBaseBeforeDiscount,
-    discountApplied: payload.studentOverride?.discountAmount ?? 0,
+    discountApplied: legacyRemainingOwnerDiscount,
     conventionalDiscountApplied: conventionalDiscountEffect.discountApplied,
     conventionalDiscountLabels: conventionalDiscountEffect.appliedLabels,
     lateFeeWaiverAmount,

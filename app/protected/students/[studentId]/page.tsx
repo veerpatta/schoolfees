@@ -319,17 +319,20 @@ export default async function StudentDetailPage({
     (sum, b) => sum + b.waiverApplied,
     0,
   );
-  const glanceAnnualHeads = financialSnapshot?.resolvedBreakdown
-    ? [
-        ...financialSnapshot.resolvedBreakdown.coreHeads,
-        ...financialSnapshot.resolvedBreakdown.customHeads,
-      ]
-        .filter((head) => head.amount > 0)
-        .map((head) => ({ label: head.label, amount: head.amount }))
+  // Build the snapshot rows from the same source as the Fee plan tab so the
+  // tuition row shows the gross amount and the discount line subtracts it
+  // cleanly — otherwise the resolver's post-conventional-discount tuition
+  // would appear alongside the conventional discount, producing nonsensical
+  // arithmetic on the screen.
+  const glanceBreakdownRows = financialSnapshot
+    ? buildFeeBreakupDisplayRows(financialSnapshot.resolvedBreakdown)
     : [];
-  const glanceDiscountAmount =
-    (financialSnapshot?.resolvedBreakdown.discountApplied ?? 0) +
-    (financialSnapshot?.resolvedBreakdown.conventionalDiscountApplied ?? 0);
+  const glanceAnnualHeads = glanceBreakdownRows
+    .filter((row) => row.kind === "charge" && row.amount > 0)
+    .map((row) => ({ label: row.label, amount: row.amount }));
+  const glanceDiscountAmount = glanceBreakdownRows
+    .filter((row) => row.kind === "discount")
+    .reduce((sum, row) => sum + Math.abs(row.amount), 0);
   const glanceDiscountLabels =
     financialSnapshot?.resolvedBreakdown.conventionalDiscountLabels ?? [];
 
