@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { ChevronDown, ChevronLeft, ChevronRight, Printer, SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, CreditCard, Printer, SlidersHorizontal, User, X } from "lucide-react";
 
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -102,7 +102,17 @@ function formatPaymentModeLabel(value: string, t: TxnTranslator) {
   if (value === "upi") return t("paymentModeUpi");
   if (value === "bank_transfer") return t("paymentModeBankTransfer");
   if (value === "cheque") return t("paymentModeCheque");
+  if (value === "discount") return "Discount";
   return t("paymentModeCash");
+}
+
+function modeBadgeClassName(mode: string) {
+  if (mode === "cash") return "bg-success-soft text-success-soft-foreground";
+  if (mode === "upi") return "bg-info-soft text-info-soft-foreground";
+  if (mode === "bank_transfer") return "bg-accent/10 text-accent";
+  if (mode === "cheque") return "bg-warning-soft text-warning-soft-foreground";
+  if (mode === "discount") return "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200";
+  return "bg-surface-2 text-muted-foreground";
 }
 
 
@@ -127,6 +137,10 @@ function getPaymentModeChipClassName(mode: string, active: boolean) {
 
   if (mode === "cheque") {
     return cn(base, "border-warning-soft-foreground/20 bg-warning-soft text-warning-soft-foreground");
+  }
+
+  if (mode === "discount") {
+    return cn(base, "border-purple-300 bg-purple-100 text-purple-800 dark:border-purple-800 dark:bg-purple-950 dark:text-purple-200");
   }
 
   return cn(base, "border-accent/20 bg-accent/10 text-accent");
@@ -306,52 +320,72 @@ function TransactionsTable({
           ))
         )}
       </div>
-      <div className="hidden w-full overflow-x-auto rounded-xl border border-border md:block">
-        <table className="min-w-[900px] text-left text-sm">
-          <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
+      <div className="hidden rounded-xl border border-border md:block">
+        <table className="w-full text-left text-sm">
+          <thead className="sticky top-0 z-10 bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="px-4 py-3">{t("tableHeaderStudent")}</th>
-              <th className="px-4 py-3">{t("tableHeaderDate")}</th>
-              <th className="px-4 py-3">{t("tableHeaderClass")}</th>
+              <th className="px-4 py-3">{t("tableHeaderReceiptNo")}</th>
               <th className="px-4 py-3">{t("tableHeaderMode")}</th>
               <th className="px-4 py-3 text-right">{t("tableHeaderAmount")}</th>
-              <th className="px-4 py-3">{t("tableHeaderReceiptNo")}</th>
-              <th className="px-4 py-3">{t("tableHeaderAction")}</th>
+              <th className="w-10 px-2 py-3 text-right" aria-label={t("tableHeaderAction")} />
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">{t("tableEmpty")}</td></tr>
+              <tr><td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">{t("tableEmpty")}</td></tr>
             ) : (
               rows.map((row) => (
                 <tr
                   key={row.receiptId}
-                  className="cursor-pointer border-t border-border hover:bg-surface-2/30 transition-colors"
+                  className="cursor-pointer border-t border-border transition-colors hover:bg-surface-2/30"
                   onClick={(event) => {
                     const target = event.target as HTMLElement | null;
                     if (target && target.closest('[data-row-action="true"]')) return;
                     onPreviewReceipt(row.receiptId);
                   }}
                 >
-                  <td className="px-4 py-3 font-semibold text-foreground">{row.studentName}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatShortDate(row.paymentDate)}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{row.classLabel}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatPaymentModeLabel(row.paymentMode, t)}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-foreground tabular-nums">{formatInr(row.totalAmount)}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{row.receiptNumber}</td>
-                  <td className="px-4 py-3" data-row-action="true" onClick={(event) => event.stopPropagation()}>
-                    <div className="flex flex-wrap gap-2">
-                      <Button asChild size="sm" variant="ghost" aria-label={t("rowActionPrintAria", { number: row.receiptNumber })}>
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-foreground">{row.studentName}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {row.classLabel} · SR {row.admissionNo}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="font-mono text-xs text-foreground">{row.receiptNumber}</div>
+                    <div className="text-xs text-muted-foreground tabular-nums">
+                      {formatShortDate(row.paymentDate)}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
+                        modeBadgeClassName(row.paymentMode),
+                      )}
+                    >
+                      {formatPaymentModeLabel(row.paymentMode, t)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold tabular-nums text-foreground">
+                    {formatInr(row.totalAmount)}
+                  </td>
+                  <td className="w-10 px-2 py-3 text-right" data-row-action="true" onClick={(event) => event.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button asChild size="sm" variant="ghost" className="size-8 p-0" aria-label={t("rowActionPrintAria", { number: row.receiptNumber })}>
                         <Link href={receiptPrintHref(row.receiptId, sessionLabel)} target="_blank" rel="noreferrer">
                           <Printer className="size-4" />
-                          <span className="sr-only">{t("rowActionPrint")}</span>
                         </Link>
                       </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={withSession(`/protected/students/${row.studentId}?returnTo=${encodeURIComponent(returnTo)}`)}>{t("rowActionStudent")}</Link>
+                      <Button asChild size="sm" variant="ghost" className="size-8 p-0" aria-label={t("rowActionPaymentDesk")}>
+                        <Link href={withSession(`/protected/payments?studentId=${row.studentId}`)}>
+                          <CreditCard className="size-4" />
+                        </Link>
                       </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={withSession(`/protected/payments?studentId=${row.studentId}`)}>{t("rowActionPaymentDesk")}</Link>
+                      <Button asChild size="sm" variant="ghost" className="size-8 p-0" aria-label={t("rowActionStudent")}>
+                        <Link href={withSession(`/protected/students/${row.studentId}?returnTo=${encodeURIComponent(returnTo)}`)}>
+                          <User className="size-4" />
+                        </Link>
                       </Button>
                     </div>
                   </td>
