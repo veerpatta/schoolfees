@@ -345,6 +345,8 @@ function HeroKpis({
   receiptsToday,
   followUpCount,
   overdueAmount,
+  totalCollected,
+  totalExpected,
   todayDelta,
   t,
 }: {
@@ -354,13 +356,40 @@ function HeroKpis({
   receiptsToday: number;
   followUpCount: number;
   overdueAmount: number;
+  totalCollected: number;
+  totalExpected: number;
   todayDelta: KpiDelta | null;
   t: DashboardTranslator;
 }) {
   const rateSignal = getCollectionRateHealth(collectionRate, t);
+  const collectedPct =
+    totalExpected > 0
+      ? Math.min(100, Math.round((totalCollected / totalExpected) * 100))
+      : 0;
 
   return (
-    <div className="hidden sm:grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+    <div className="hidden sm:grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5">
+      {/* Total Collected (YTD) — answers "how much has come in this year so far?"
+          Hint surfaces the % progress + expected target. Drills into the
+          year-to-date collection view inside Transactions. */}
+      <KpiCard
+        accent="success"
+        label={t("totalCollected")}
+        href="/protected/transactions?view=receipts"
+        className="snap-start shrink-0 w-[72vw] sm:w-auto"
+        value={
+          <CountUp
+            value={totalCollected}
+            className="text-xl font-semibold tracking-tight text-success md:text-2xl md:text-[28px] md:leading-[34px]"
+          />
+        }
+        hint={
+          <span className="text-xs text-muted-foreground">
+            {collectedPct}% · of <Money value={totalExpected} size="sm" />
+          </span>
+        }
+      />
+
       {/* Today - saffron accent border */}
       <KpiCard
         accent="accent"
@@ -614,12 +643,11 @@ function QuickActions({
 }
 
 /* ---------------------------------------------------------------------------
-   Analytics widgets — currently unmounted from the main page during the
-   Phase 4 morning-brief refactor. Kept around so partial dashboards
-   (admin-tools previews) can still compose them.
+   Analytics widgets. CollectionFunnelBar is mounted from the desktop hero so
+   the year-to-date collection progress is the second thing the office sees
+   after the KPI cards. DailyMomentumCard below stays parked for now.
    --------------------------------------------------------------------------- */
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function CollectionFunnelBar({
   expected,
   collected,
@@ -2026,9 +2054,23 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           receiptsToday={aboveFold.kpis.receiptsToday}
           followUpCount={aboveFold.studentsWithPending}
           overdueAmount={aboveFold.kpis.overdueAmount}
+          totalCollected={aboveFold.kpis.totalCollected}
+          totalExpected={aboveFold.kpis.totalExpectedFees}
           todayDelta={todayDelta}
           t={t}
         />
+        {/* Year-to-date collection progress. Mobile keeps the MobileSecondaryKpis
+            tiles below (which already show Total Expected + Total Collected as
+            cards); the funnel bar's 3-segment progress + labels need horizontal
+            room, so it's tablet+ only. */}
+        <div className="hidden sm:block anim-fade-in">
+          <CollectionFunnelBar
+            expected={aboveFold.kpis.totalExpectedFees}
+            collected={aboveFold.kpis.totalCollected}
+            pending={aboveFold.kpis.totalPending}
+            overdue={aboveFold.kpis.overdueAmount}
+          />
+        </div>
         <MobileSecondaryKpis kpis={aboveFold.kpis} t={t} />
         <InstallmentPulse
           installment={aboveFold.currentInstallment}
