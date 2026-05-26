@@ -7,8 +7,7 @@ import {
   resetStaffPasswordAction,
   updateStaffAccountAction,
 } from "@/app/protected/staff/actions";
-import { staffRoles, type StaffRole } from "@/lib/auth/roles";
-import { isStaffRolesV2Enabled } from "@/lib/env";
+import { staffRoles } from "@/lib/auth/roles";
 import {
   INITIAL_STAFF_FORM_ACTION_STATE,
   isStaffManagementConfigured,
@@ -22,12 +21,10 @@ export default async function StaffPage() {
   });
   const staffManagementConfigured = isStaffManagementConfigured();
   const accounts = staffManagementConfigured ? await listStaffAccounts() : [];
-  const v2RolesEnabled = isStaffRolesV2Enabled();
-  const assignableRoles: readonly StaffRole[] = v2RolesEnabled
-    ? staffRoles
-    : staffRoles.filter(
-        (role) => role !== "teacher" && role !== "fee_collector",
-      );
+  // All five roles (admin, accountant, teacher, fee_collector, view_only)
+  // are first-class once the rebalance migration has shipped. No more
+  // rollout flag — admins can assign any role from this page.
+  const assignableRoles = staffRoles;
 
   return (
     <div className="space-y-6">
