@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Money } from "@/components/ui/money";
 import { ValueStatePill } from "@/components/office/office-ui";
+import { BulkRowCheckbox } from "@/components/defaulters/bulk-whatsapp-provider";
 import { CloseDueAsDiscountSheet } from "@/components/students/close-due-as-discount-sheet";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
@@ -860,13 +861,22 @@ export function ClassRegisterTable({
 export function DefaultersTable({
   rows,
   sessionLabel,
+  bulkSelectable = false,
 }: {
   rows: OfficeWorkbookStudentRow[];
   sessionLabel: string;
+  /**
+   * When true, the desktop table renders an extra leading checkbox column
+   * driven by `BulkWhatsappProvider`. Caller is responsible for wrapping
+   * this table in that provider — mismatched usage throws at render time
+   * (see `useBulkWhatsapp` in bulk-whatsapp-provider). Mobile cards never
+   * render checkboxes; bulk-select is a desktop-only workflow.
+   */
+  bulkSelectable?: boolean;
 }) {
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
   const { isExpanded, toggle } = useExpandedRows();
-  const colSpan = 6;
+  const colSpan = bulkSelectable ? 7 : 6;
   return (
     <>
       <div className="md:hidden">
@@ -911,6 +921,9 @@ export function DefaultersTable({
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0 z-10 bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
+              {bulkSelectable ? (
+                <th className="w-10 px-3 py-3" aria-label="Bulk select" />
+              ) : null}
               <th className="w-8 px-2 py-3" aria-label="Expand row" />
               <th className="px-4 py-3">Student</th>
               <th className="px-4 py-3">Father / Phone</th>
@@ -933,6 +946,17 @@ export function DefaultersTable({
                       className="cursor-pointer border-t border-border transition-colors hover:bg-surface-2/30"
                       onClick={() => toggle(row.studentId)}
                     >
+                      {bulkSelectable ? (
+                        <td
+                          className="w-10 px-3 py-3"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <BulkRowCheckbox
+                            studentId={row.studentId}
+                            ariaLabel={`Select ${row.studentName}`}
+                          />
+                        </td>
+                      ) : null}
                       <td className="w-8 px-2 py-3">
                         <ChevronToggle
                           expanded={expanded}

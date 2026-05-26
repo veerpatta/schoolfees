@@ -40,6 +40,11 @@ import type {
 } from "@/lib/transactions/dues";
 import type { WorkbookClassOption, WorkbookTransaction } from "@/lib/workbook/data";
 import { ReceiptPreviewSheet } from "@/components/receipts/receipt-preview-sheet";
+import {
+  BulkWhatsappProvider,
+  type BulkWhatsappRow,
+} from "@/components/defaulters/bulk-whatsapp-provider";
+import type { WhatsappTemplate } from "@/lib/whatsapp-templates/types";
 import type { CollectionRow } from "./transactions-lazy-tables";
 
 // ---------------------------------------------------------------------------
@@ -90,6 +95,7 @@ export type TransactionsClientShellProps = {
   resolvedSessionLabel: string;
   todaySnapshot: TodaySnapshot;
   canCloseBalance: boolean;
+  whatsappTemplates: readonly WhatsappTemplate[];
 };
 
 // ---------------------------------------------------------------------------
@@ -248,22 +254,43 @@ function SummaryCards({ summary, t }: { summary: OfficeWorkbookSummary; t: TxnTr
 // Transactions / Receipts table
 // ---------------------------------------------------------------------------
 
+type ReceiptSelection = {
+  selectedIds: ReadonlySet<string>;
+  onToggle: (receiptId: string) => void;
+  onToggleAll: (visibleIds: readonly string[], selectAll: boolean) => void;
+};
+
 function TransactionsTable({
   rows,
   returnTo,
   sessionLabel,
   onPreviewReceipt,
+  selection,
   t,
 }: {
   rows: WorkbookTransaction[];
   returnTo: string;
   sessionLabel: string;
   onPreviewReceipt: (receiptId: string) => void;
+  /**
+   * Desktop-only bulk-select hook. When provided, the table renders a
+   * checkbox column (header `select-all` + per-row) inside the `md:block`
+   * desktop view. The mobile card layout never renders checkboxes — bulk
+   * actions are a desktop-only workflow per product spec.
+   */
+  selection?: ReceiptSelection;
   t: TxnTranslator;
 }) {
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
   const receiptPrintHref = (receiptId: string, label: string) =>
     `/protected/receipts/${receiptId}?session=${encodeURIComponent(label)}`;
+  const visibleIds = rows.map((row) => row.receiptId);
+  const allVisibleSelected =
+    selection !== undefined &&
+    visibleIds.length > 0 &&
+    visibleIds.every((id) => selection.selectedIds.has(id));
+  const someVisibleSelected =
+    selection !== undefined && visibleIds.some((id) => selection.selectedIds.has(id));
   return (
     <>
       <div className="space-y-3 md:hidden">
@@ -324,6 +351,20 @@ function TransactionsTable({
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0 z-10 bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
+              {selection ? (
+                <th className="w-10 px-3 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    aria-label={allVisibleSelected ? "Deselect all receipts" : "Select all receipts"}
+                    checked={allVisibleSelected}
+                    ref={(node) => {
+                      if (node) node.indeterminate = !allVisibleSelected && someVisibleSelected;
+                    }}
+                    onChange={() => selection.onToggleAll(visibleIds, !allVisibleSelected)}
+                    className="size-4 cursor-pointer accent-accent"
+                  />
+                </th>
+              ) : null}
               <th className="px-4 py-3">{t("tableHeaderStudent")}</th>
               <th className="px-4 py-3">{t("tableHeaderReceiptNo")}</th>
               <th className="px-4 py-3">{t("tableHeaderMode")}</th>
@@ -333,7 +374,7 @@ function TransactionsTable({
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">{t("tableEmpty")}</td></tr>
+              <tr><td colSpan={selection ? 6 : 5} className="px-4 py-10 text-center text-muted-foreground">{t("tableEmpty")}</td></tr>
             ) : (
               rows.map((row) => (
                 <tr
@@ -345,6 +386,21 @@ function TransactionsTable({
                     onPreviewReceipt(row.receiptId);
                   }}
                 >
+                  {selection ? (
+                    <td
+                      className="w-10 px-3 py-3"
+                      data-row-action="true"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        aria-label={`Select receipt ${row.receiptNumber}`}
+                        checked={selection.selectedIds.has(row.receiptId)}
+                        onChange={() => selection.onToggle(row.receiptId)}
+                        className="size-4 cursor-pointer accent-accent"
+                      />
+                    </td>
+                  ) : null}
                   <td className="px-4 py-3">
                     <div className="font-medium text-foreground">{row.studentName}</div>
                     <div className="text-xs text-muted-foreground">
@@ -403,6 +459,11 @@ type StudentTableProps = {
   rows: OfficeWorkbookStudentRow[];
   sessionLabel: string;
   canCloseBalance?: boolean;
+  /**
+   * DefaultersTable-only: when true, renders the bulk-WhatsApp checkbox
+   * column on the desktop view. Other student tables ignore this flag.
+   */
+  bulkSelectable?: boolean;
 };
 
 function LazyTableSkeleton() {
@@ -554,6 +615,7 @@ export function TransactionsClientShell({
   resolvedSessionLabel,
   todaySnapshot,
   canCloseBalance,
+  whatsappTemplates,
 }: TransactionsClientShellProps) {
   const t = useTranslations("Transactions");
   const tCommon = useTranslations("Common");
@@ -563,6 +625,11 @@ export function TransactionsClientShell({
   const [isLoading, setIsLoading] = useState(false);
   const [previewReceiptId, setPreviewReceiptId] = useState<string | null>(null);
   const [activeSavedViewId, setActiveSavedViewId] = useState<string | null>(null);
+  // Desktop-only bulk-select for the Transactions / Receipts views. Mobile
+  // cards never render checkboxes — see TransactionsTable below.
+  const [selectedReceiptIds, setSelectedReceiptIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [showMoreFilters, setShowMoreFilters] = useState(
     () => Boolean(
       initialFilters.fromDate || initialFilters.toDate ||
@@ -629,6 +696,9 @@ export function TransactionsClientShell({
     setActiveView(view);
     setFilters(nextFilters);
     setActiveSavedViewId(null);
+    // Selection is scoped to the receipts list; clear it when the user
+    // switches views so a stale selection can't trigger a wrong action.
+    setSelectedReceiptIds(new Set());
     window.history.pushState(null, "", buildPageUrl(view, nextFilters));
     fetchData(view, nextFilters);
   }
@@ -1002,6 +1072,25 @@ export function TransactionsClientShell({
               returnTo={returnTo}
               sessionLabel={effectiveSession}
               onPreviewReceipt={(receiptId) => setPreviewReceiptId(receiptId)}
+              selection={{
+                selectedIds: selectedReceiptIds,
+                onToggle: (receiptId) =>
+                  setSelectedReceiptIds((current) => {
+                    const next = new Set(current);
+                    if (next.has(receiptId)) next.delete(receiptId);
+                    else next.add(receiptId);
+                    return next;
+                  }),
+                onToggleAll: (visibleIds, selectAll) =>
+                  setSelectedReceiptIds((current) => {
+                    const next = new Set(current);
+                    for (const id of visibleIds) {
+                      if (selectAll) next.add(id);
+                      else next.delete(id);
+                    }
+                    return next;
+                  }),
+              }}
               t={t}
             />
           </SectionCard>
@@ -1023,7 +1112,25 @@ export function TransactionsClientShell({
         )}
         {workbook.view === "defaulters" && (
           <SectionCard title={t("defaultersTitle")} description={t("defaultersDescription")}>
-            <DefaultersTable rows={workbook.rows} sessionLabel={effectiveSession} />
+            <BulkWhatsappProvider
+              rows={(workbook.rows as OfficeWorkbookStudentRow[]).map<BulkWhatsappRow>((row) => ({
+                studentId: row.studentId,
+                fullName: row.studentName,
+                fatherName: row.fatherName,
+                fatherPhone: row.fatherPhone,
+                classLabel: row.classLabel,
+                totalPending: row.outstandingAmount,
+                oldestDueDate: row.nextDueDate,
+              }))}
+              templates={[...whatsappTemplates]}
+              sessionLabel={effectiveSession}
+            >
+              <DefaultersTable
+                rows={workbook.rows}
+                sessionLabel={effectiveSession}
+                bulkSelectable
+              />
+            </BulkWhatsappProvider>
           </SectionCard>
         )}
         {workbook.view === "collection_today" && (
@@ -1123,6 +1230,83 @@ export function TransactionsClientShell({
         receiptId={previewReceiptId}
         sessionLabel={effectiveSession}
       />
+
+      {(workbook.view === "transactions" || workbook.view === "receipts") &&
+      selectedReceiptIds.size > 0 ? (
+        <ReceiptBulkPrintBar
+          selectedIds={selectedReceiptIds}
+          sessionLabel={effectiveSession}
+          onClear={() => setSelectedReceiptIds(new Set())}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Bulk-print floating bar for the Transactions / Receipts views.
+//
+// Desktop-only by virtue of being mounted alongside the desktop table — the
+// mobile cards never expose checkboxes, so this bar can never appear there.
+// "Print" opens each receipt's print URL in a new tab; modern browsers cap
+// rapid window.open() calls, so we warn above a sensible threshold and ask
+// the user to print in smaller batches.
+// ---------------------------------------------------------------------------
+
+const RECEIPT_BULK_PRINT_CAP = 10;
+
+function ReceiptBulkPrintBar({
+  selectedIds,
+  sessionLabel,
+  onClear,
+}: {
+  selectedIds: ReadonlySet<string>;
+  sessionLabel: string;
+  onClear: () => void;
+}) {
+  const count = selectedIds.size;
+  const overCap = count > RECEIPT_BULK_PRINT_CAP;
+
+  const handlePrint = () => {
+    if (overCap) {
+      const proceed = window.confirm(
+        `${count} receipts selected. Browsers may block opening more than ${RECEIPT_BULK_PRINT_CAP} tabs at once. Open them in smaller batches?`,
+      );
+      if (proceed) return;
+    }
+    for (const id of selectedIds) {
+      const href = `/protected/receipts/${id}?session=${encodeURIComponent(sessionLabel)}`;
+      window.open(href, "_blank", "noopener");
+    }
+    onClear();
+  };
+
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-30 hidden border-t border-border bg-card/95 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur-sm md:block">
+      <div className="mx-auto flex max-w-screen-xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onClear}
+            className="grid size-9 place-items-center rounded-full border border-border text-muted-foreground hover:bg-surface-2"
+            aria-label="Clear receipt selection"
+          >
+            <X className="size-4" aria-hidden="true" />
+          </button>
+          <p className="text-sm font-medium text-foreground">
+            {count} receipt{count === 1 ? "" : "s"} selected
+          </p>
+          {overCap ? (
+            <span className="text-xs text-warning-soft-foreground">
+              Over {RECEIPT_BULK_PRINT_CAP} — print in batches.
+            </span>
+          ) : null}
+        </div>
+        <Button type="button" variant="accent" onClick={handlePrint} className="gap-2">
+          <Printer className="size-4" aria-hidden="true" />
+          Print {count} receipt{count === 1 ? "" : "s"}
+        </Button>
+      </div>
     </div>
   );
 }
