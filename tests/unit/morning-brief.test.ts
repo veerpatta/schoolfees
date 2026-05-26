@@ -1,6 +1,9 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 
-import { composeMorningBrief } from "@/lib/dashboard/morning-brief";
+import { composeMorningBrief, type MorningBriefTranslator } from "@/lib/dashboard/morning-brief";
 
 const ZERO_KPIS = {
   totalStudents: 0,
@@ -14,20 +17,32 @@ const ZERO_KPIS = {
   collectionRate: 0,
 } as const;
 
+const messages = JSON.parse(
+  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+);
+
+const t = createTranslator({
+  locale: "en",
+  messages,
+  namespace: "Dashboard",
+}) as unknown as MorningBriefTranslator;
+
 describe("composeMorningBrief", () => {
   it("greets a quiet morning when nothing is collected and nothing pending", () => {
-    const text = composeMorningBrief({ kpis: { ...ZERO_KPIS } });
+    const text = composeMorningBrief({ kpis: { ...ZERO_KPIS }, t });
     expect(text).toContain("Today: no collections yet.");
   });
 
   it("composes the collected line with pluralization", () => {
     const oneReceipt = composeMorningBrief({
       kpis: { ...ZERO_KPIS, todaysCollection: 10_000, receiptsToday: 1 },
+      t,
     });
     expect(oneReceipt).toMatch(/1 receipt(?!s)/);
 
     const many = composeMorningBrief({
       kpis: { ...ZERO_KPIS, todaysCollection: 84_200, receiptsToday: 12 },
+      t,
     });
     expect(many).toMatch(/12 receipts/);
   });
@@ -36,15 +51,16 @@ describe("composeMorningBrief", () => {
     const text = composeMorningBrief({
       kpis: { ...ZERO_KPIS, totalPending: 1_000_000 },
       pendingPhrase: "47 students still owe Q1.",
+      t,
     });
     expect(text).toContain("47 students still owe Q1.");
-    // The fallback "pending across the school" line should NOT appear.
     expect(text).not.toMatch(/still pending across the school/);
   });
 
   it("falls back to total pending when no curated phrase is supplied", () => {
     const text = composeMorningBrief({
       kpis: { ...ZERO_KPIS, totalPending: 1_234_500 },
+      t,
     });
     expect(text).toMatch(/still pending across the school/);
   });
@@ -57,6 +73,7 @@ describe("composeMorningBrief", () => {
         dueDate: "20-04-2026",
         status: "overdue",
       },
+      t,
     });
     expect(overdue).toMatch(/Q1 is overdue/);
 
@@ -67,6 +84,7 @@ describe("composeMorningBrief", () => {
         dueDate: "20-07-2026",
         status: "due_today",
       },
+      t,
     });
     expect(today).toMatch(/Q2 is due today\./);
   });
@@ -74,9 +92,11 @@ describe("composeMorningBrief", () => {
   it("never produces an LLM-style hallucination — output is a deterministic concat", () => {
     const a = composeMorningBrief({
       kpis: { ...ZERO_KPIS, todaysCollection: 5000, receiptsToday: 1 },
+      t,
     });
     const b = composeMorningBrief({
       kpis: { ...ZERO_KPIS, todaysCollection: 5000, receiptsToday: 1 },
+      t,
     });
     expect(a).toBe(b);
   });

@@ -118,14 +118,16 @@ describe("read-only UX audit implementation", () => {
     const dashboard = readRepoFile("app/protected/dashboard/page.tsx");
     const advanced = readRepoFile("app/protected/admin-tools/page.tsx");
     const navigation = readRepoFile("lib/config/navigation.ts");
-    // Admin Tools wording now lives in the next-intl AdminTools namespace.
+    // Admin Tools / Dashboard wording now lives in the next-intl AdminTools
+    // and Dashboard namespaces.
     const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
       AdminTools: Record<string, string>;
+      Dashboard: Record<string, string>;
     };
 
     expect(dashboard).not.toContain("System Sync Health");
     expect(dashboard).not.toContain("Generate Missing Dues");
-    expect(dashboard).toContain("Open Fee Data Troubleshooting");
+    expect(englishMessages.Dashboard.feeRecordsAttentionAction).toBe("Open Fee Data Troubleshooting");
     expect(englishMessages.AdminTools.noticeAutoOnTitle).toBe("Automatic sync is on");
     expect(advanced).toContain("autoReconcileSessionIfSafe");
     expect(englishMessages.AdminTools.sessionStatusOpenHealth).toBe("Open Session Health");
@@ -179,9 +181,10 @@ describe("read-only UX audit implementation", () => {
     const defaulters = readRepoFile("app/protected/defaulters/page.tsx");
     const dashboard = readRepoFile("app/protected/dashboard/page.tsx");
     // Defaulters labels now live in the next-intl Defaulters namespace;
-    // assert against the message catalog for those.
+    // Dashboard KPI labels live in the Dashboard namespace.
     const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
       Defaulters: Record<string, string>;
+      Dashboard: Record<string, string>;
     };
 
     expect(studentsTable).toContain("SR no");
@@ -195,7 +198,8 @@ describe("read-only UX audit implementation", () => {
     expect(englishMessages.Defaulters.description).toContain(
       "Phone-ready overdue list for",
     );
-    expect(dashboard).toContain("Today collection");
+    expect(englishMessages.Dashboard.todayCollection).toBe("Today collection");
+    expect(dashboard).toContain("HeroKpis");
   });
 
   it("write actions still revalidate finance surfaces", () => {

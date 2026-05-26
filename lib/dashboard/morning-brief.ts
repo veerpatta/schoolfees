@@ -15,44 +15,64 @@ import type { DashboardCurrentInstallment } from "@/lib/dashboard/data";
  * happens server-side via the dashboard route.
  */
 
+export type MorningBriefTranslator = (
+  key:
+    | "morningBriefTodayNone"
+    | "morningBriefTodayCount"
+    | "morningBriefPendingTotal"
+    | "morningBriefInstallmentOverdue"
+    | "morningBriefInstallmentDueToday",
+  values?: Record<string, string | number>,
+) => string;
+
 export type MorningBriefInput = {
   kpis: DashboardKpis;
   currentInstallment?: DashboardCurrentInstallment | null;
   /** Optional pending Q1-style label; pages can pass a custom phrase. */
   pendingPhrase?: string;
+  /** Translator scoped to the Dashboard namespace. */
+  t: MorningBriefTranslator;
 };
 
 export function composeMorningBrief({
   kpis,
   currentInstallment,
   pendingPhrase,
+  t,
 }: MorningBriefInput): string {
   const parts: string[] = [];
 
-  // Today's collection — keep grammatical for 0 and 1.
   if (kpis.todaysCollection > 0 || kpis.receiptsToday > 0) {
-    const receiptWord = kpis.receiptsToday === 1 ? "receipt" : "receipts";
     parts.push(
-      `Today: ${formatInr(kpis.todaysCollection)} collected across ${kpis.receiptsToday} ${receiptWord}.`,
+      t("morningBriefTodayCount", {
+        amount: formatInr(kpis.todaysCollection),
+        count: kpis.receiptsToday,
+      }),
     );
   } else {
-    parts.push("Today: no collections yet.");
+    parts.push(t("morningBriefTodayNone"));
   }
 
-  // Pending mention — fall back to total pending when caller didn't pass
-  // a curated phrase (e.g. "47 students still owe Q1").
   if (pendingPhrase) {
     parts.push(pendingPhrase);
   } else if (kpis.totalPending > 0) {
-    parts.push(`${formatInr(kpis.totalPending)} still pending across the school.`);
+    parts.push(
+      t("morningBriefPendingTotal", { amount: formatInr(kpis.totalPending) }),
+    );
   }
 
-  // Installment context — only when one is currently due/overdue.
   if (currentInstallment) {
     if (currentInstallment.status === "overdue") {
-      parts.push(`${currentInstallment.label} is overdue (due ${currentInstallment.dueDate}).`);
+      parts.push(
+        t("morningBriefInstallmentOverdue", {
+          label: currentInstallment.label,
+          dueDate: currentInstallment.dueDate,
+        }),
+      );
     } else if (currentInstallment.status === "due_today") {
-      parts.push(`${currentInstallment.label} is due today.`);
+      parts.push(
+        t("morningBriefInstallmentDueToday", { label: currentInstallment.label }),
+      );
     }
   }
 

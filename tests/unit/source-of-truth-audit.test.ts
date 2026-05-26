@@ -125,6 +125,10 @@ describe("source of truth audit fixes", () => {
     const dashboardPage = readRepoFile("app/protected/dashboard/page.tsx");
     const dashboardActions = readRepoFile("app/protected/dashboard/actions.ts");
     const dashboardData = readRepoFile("lib/dashboard/data.ts");
+    // "Open Fee Data Troubleshooting" now lives in the Dashboard namespace.
+    const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
+      Dashboard: Record<string, string>;
+    };
 
     expect(financialSync).toContain("activeStudentsBySession");
     expect(financialSync).toContain("generateMissingSessionDues");
@@ -134,7 +138,9 @@ describe("source of truth audit fixes", () => {
     expect(financialSync).toContain("classSessionMismatchStudents");
     expect(financialSync).toContain("requiredDatabaseObjectsStatus");
     expect(financialSync).toContain("alignAcademicCurrentSessionWithFeeSetup");
-    expect(dashboardPage).toContain("Open Fee Data Troubleshooting");
+    expect(englishMessages.Dashboard.feeRecordsAttentionAction).toBe(
+      "Open Fee Data Troubleshooting",
+    );
     expect(dashboardPage).not.toContain("Live Data Health");
     expect(dashboardActions).toContain("alignWorkingSessionWithFeeSetupAction");
     expect(dashboardData).toContain('optionalLoad(');

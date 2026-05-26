@@ -48,14 +48,18 @@ describe("mobile UX roadmap implementation", () => {
 
   it("makes the dashboard mobile view complete instead of hiding secondary data", () => {
     const dashboard = readRepoFile("app/protected/dashboard/page.tsx");
+    // Dashboard copy now lives in the next-intl Dashboard namespace.
+    const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
+      Dashboard: Record<string, string>;
+    };
 
     expect(dashboard).toContain("MobileSecondaryKpis");
-    expect(dashboard).toContain("Total expected");
-    expect(dashboard).toContain("Active students");
-    expect(dashboard).toContain("This month");
+    expect(englishMessages.Dashboard.totalExpected).toBe("Total expected");
+    expect(englishMessages.Dashboard.activeStudents).toBe("Active students");
+    expect(englishMessages.Dashboard.thisMonth).toBe("This month");
     expect(dashboard).toContain("className=\"space-y-2 md:hidden\"");
     expect(dashboard).toContain("style={{ width: `${Math.min(100, row.collectionRate)}%` }}");
-    expect(dashboard).toContain("Open Desk");
+    expect(englishMessages.Dashboard.openDesk).toBe("Open Desk");
     expect(dashboard).toContain("bottom-[calc(var(--mobile-bottom-nav-offset)+12px)]");
     expect(dashboard).toContain("fromDate=${point.date}&toDate=${point.date}");
   });

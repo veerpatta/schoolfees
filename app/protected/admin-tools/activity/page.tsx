@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 export const revalidate = 0;
 
 type AdminToolsTranslator = Awaited<ReturnType<typeof getTranslations<"AdminTools">>>;
+type ActivityTranslator = Awaited<ReturnType<typeof getTranslations<"Activity">>>;
 
 const TONE_CLASS: Record<"success" | "info" | "warning" | "muted", string> = {
   success: "bg-success-soft text-success-soft-foreground",
@@ -19,18 +20,18 @@ const TONE_CLASS: Record<"success" | "info" | "warning" | "muted", string> = {
 };
 
 const ACTIVITY_KIND_I18N: Record<ActivityKind, string> = {
-  payment_posted: "activityKindPaymentPosted",
-  receipt_printed: "activityKindReceiptPrinted",
-  student_edited: "activityKindStudentEdited",
-  student_view: "activityKindStudentView",
-  export_downloaded: "activityKindExportDownloaded",
-  defaulter_contacted: "activityKindDefaulterContacted",
-  import_committed: "activityKindImportCommitted",
+  payment_posted: "kindPaymentPosted",
+  receipt_printed: "kindReceiptPrinted",
+  student_edited: "kindStudentEdited",
+  student_view: "kindStudentView",
+  export_downloaded: "kindExportDownloaded",
+  defaulter_contacted: "kindDefaulterContacted",
+  import_committed: "kindImportCommitted",
 };
 
-function localizedActivityKindLabel(kind: string, t: AdminToolsTranslator): string {
+function localizedActivityKindLabel(kind: string, t: ActivityTranslator): string {
   if ((ACTIVITY_KINDS as readonly string[]).includes(kind)) {
-    return t(ACTIVITY_KIND_I18N[kind as ActivityKind] as Parameters<AdminToolsTranslator>[0]);
+    return t(ACTIVITY_KIND_I18N[kind as ActivityKind] as Parameters<ActivityTranslator>[0]);
   }
   return kind;
 }
@@ -70,6 +71,7 @@ function payloadDescription(
 
 export default async function ActivityFeedPage() {
   const t = await getTranslations("AdminTools");
+  const tActivity = await getTranslations("Activity");
   const staff = await requireAnyStaffPermission(["settings:view", "finance:view"], {
     onDenied: "redirect",
   });
@@ -116,7 +118,7 @@ export default async function ActivityFeedPage() {
                         TONE_CLASS[tone],
                       )}
                     >
-                      {localizedActivityKindLabel(event.kind, t)}
+                      {localizedActivityKindLabel(event.kind, tActivity)}
                     </span>
                     {description ? (
                       <p className="text-sm text-foreground truncate">{description}</p>

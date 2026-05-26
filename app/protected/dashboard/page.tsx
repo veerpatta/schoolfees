@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { getTranslations } from "next-intl/server";
 import {
   AlertTriangle,
   ArrowRight,
@@ -60,6 +61,8 @@ import {
 } from "@/lib/supabase/session";
 import { cn } from "@/lib/utils";
 
+type DashboardTranslator = Awaited<ReturnType<typeof getTranslations<"Dashboard">>>;
+
 function formatPercent(value: number) {
   return `${value}%`;
 }
@@ -112,10 +115,12 @@ function InstallmentPulse({
   installment,
   pending,
   followUpCount,
+  t,
 }: {
   installment: Awaited<ReturnType<typeof getDashboardAboveFoldData>>["currentInstallment"];
   pending: number;
   followUpCount: number;
+  t: DashboardTranslator;
 }) {
   if (!installment) {
     return null;
@@ -124,8 +129,16 @@ function InstallmentPulse({
   const tone = installment.status === "overdue" ? "warning" : "info";
 
   return (
-    <Notice tone={tone} iconless title={`${installment.label} due ${formatShortDate(installment.dueDate)}`}>
-      <Money value={pending} size="sm" /> pending across {followUpCount} student{followUpCount === 1 ? "" : "s"} in this session.
+    <Notice
+      tone={tone}
+      iconless
+      title={t("installmentPulsePending", {
+        label: installment.label,
+        dueDate: formatShortDate(installment.dueDate),
+      })}
+    >
+      <Money value={pending} size="sm" />{" "}
+      {t("installmentPulseBody", { count: followUpCount })}
     </Notice>
   );
 }
@@ -133,35 +146,46 @@ function InstallmentPulse({
 function CriticalAlerts({
   syncError,
   appRole,
+  t,
 }: {
   syncError: boolean;
   appRole: string;
+  t: DashboardTranslator;
 }) {
   if (!syncError) {
     return null;
   }
 
   return (
-    <Notice tone="warning" title="Data sync issue">
-      Some fee data could not be loaded. Numbers may be incomplete.
+    <Notice tone="warning" title={t("criticalAlertTitle")}>
+      {t("criticalAlertBody")}
       {appRole === "admin" ? (
-        <> <Link href="/protected/admin-tools#fee-data-troubleshooting" className="underline">Check Admin Tools</Link> for details.</>
+        <>
+          {" "}
+          <Link href="/protected/admin-tools#fee-data-troubleshooting" className="underline">
+            {t("criticalAlertAdminTools")}
+          </Link>
+          {t("criticalAlertAdminToolsSuffix")}
+        </>
       ) : null}
     </Notice>
   );
 }
 
-function getCollectionRateSignal(rate: number): {
+function getCollectionRateSignal(
+  rate: number,
+  t: DashboardTranslator,
+): {
   label: string;
   tone: "success" | "warning" | "danger";
 } {
-  if (rate >= 75) return { label: "On track", tone: "success" };
-  if (rate >= 50) return { label: "Behind pace", tone: "warning" };
-  return { label: "Needs attention", tone: "danger" };
+  if (rate >= 75) return { label: t("signalOnTrack"), tone: "success" };
+  if (rate >= 50) return { label: t("signalBehindPace"), tone: "warning" };
+  return { label: t("signalNeedsAttention"), tone: "danger" };
 }
 
-function getCollectionRateHealth(rate: number) {
-  return getCollectionRateSignal(rate);
+function getCollectionRateHealth(rate: number, t: DashboardTranslator) {
+  return getCollectionRateSignal(rate, t);
 }
 
 /**
@@ -194,6 +218,7 @@ function MobileDashboardHero({
   updatedAt,
   currentInstallmentLabel,
   todayDelta,
+  t,
 }: {
   collected: number;
   pending: number;
@@ -204,6 +229,7 @@ function MobileDashboardHero({
   updatedAt: string;
   currentInstallmentLabel?: string;
   todayDelta: KpiDelta | null;
+  t: DashboardTranslator;
 }) {
   const todayLabel = new Intl.DateTimeFormat("en-IN", {
     timeZone: "Asia/Kolkata",
@@ -215,11 +241,11 @@ function MobileDashboardHero({
   return (
     <div
       className="sm:hidden -mx-4 bg-card border-b border-border"
-      aria-label={`Dashboard summary. Updated at ${formatUpdatedAt(updatedAt)}`}
+      aria-label={t("dashboardSummaryAria", { when: formatUpdatedAt(updatedAt) })}
     >
       <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          Today - {todayLabel}
+          {t("todayLabel", { date: todayLabel })}
         </p>
         {currentInstallmentLabel ? (
           <span className="rounded-full bg-accent-soft px-2.5 py-0.5 text-[10px] font-semibold text-accent-soft-foreground">
@@ -231,7 +257,7 @@ function MobileDashboardHero({
       <div className="flex items-end justify-between gap-4 px-4 pb-4">
         <div className="min-w-0">
           <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-            Today&apos;s collection
+            {t("todaysCollection")}
           </p>
           <div className="mt-1.5">
             <Money
@@ -241,14 +267,14 @@ function MobileDashboardHero({
             />
           </div>
           <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-            <span>{receiptsToday} receipt{receiptsToday === 1 ? "" : "s"} posted today</span>
+            <span>{t("receiptsPosted", { count: receiptsToday })}</span>
             <KpiDeltaLine delta={todayDelta} />
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-center gap-1">
           <RateGauge value={collectionRate} size="md" />
           <p className="text-[10px] font-medium text-muted-foreground">
-            Collection rate
+            {t("collectionRate")}
           </p>
         </div>
       </div>
@@ -256,27 +282,30 @@ function MobileDashboardHero({
       <div className="grid grid-cols-3 border-t border-border">
         {[
           {
-            label: "Pending",
+            key: "pending",
+            label: t("pending"),
             value: pending,
             tone: "warning" as const,
-            subtext: `${followUpCount} students`,
+            subtext: t("studentsCount", { count: followUpCount }),
           },
           {
-            label: "Overdue",
+            key: "overdue",
+            label: t("overdue"),
             value: overdueAmount,
             tone: "danger" as const,
-            subtext: "without late fee",
+            subtext: t("withoutLateFee"),
           },
           {
-            label: "Receipts",
+            key: "receipts",
+            label: t("receipts"),
             value: receiptsToday,
             tone: "neutral" as const,
-            subtext: "posted today",
+            subtext: t("postedToday"),
             isCount: true,
           },
         ].map((stat, index) => (
           <div
-            key={stat.label}
+            key={stat.key}
             className={cn(
               "flex flex-col items-center justify-center px-2 py-3 text-center",
               index < 2 && "border-r border-border",
@@ -317,6 +346,7 @@ function HeroKpis({
   followUpCount,
   overdueAmount,
   todayDelta,
+  t,
 }: {
   collected: number;
   pending: number;
@@ -325,15 +355,16 @@ function HeroKpis({
   followUpCount: number;
   overdueAmount: number;
   todayDelta: KpiDelta | null;
+  t: DashboardTranslator;
 }) {
-  const rateSignal = getCollectionRateHealth(collectionRate);
+  const rateSignal = getCollectionRateHealth(collectionRate, t);
 
   return (
     <div className="hidden sm:grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
       {/* Today - saffron accent border */}
       <KpiCard
         accent="accent"
-        label="Today collection"
+        label={t("todayCollection")}
         href="/protected/transactions?view=collection_today"
         className="snap-start shrink-0 w-[72vw] sm:w-auto"
         value={
@@ -344,7 +375,7 @@ function HeroKpis({
         }
         hint={
           <span className="flex flex-wrap items-center gap-1.5">
-            <span>{receiptsToday} receipt{receiptsToday === 1 ? "" : "s"} posted today</span>
+            <span>{t("receiptsPosted", { count: receiptsToday })}</span>
             <KpiDeltaLine delta={todayDelta} />
           </span>
         }
@@ -353,7 +384,7 @@ function HeroKpis({
       {/* Pending dues */}
       <KpiCard
         accent="warning"
-        label="Pending dues"
+        label={t("pendingDues")}
         href="/protected/defaulters"
         className="snap-start shrink-0 w-[72vw] sm:w-auto"
         value={
@@ -362,13 +393,13 @@ function HeroKpis({
             className="text-xl font-semibold tracking-tight md:text-2xl md:text-[28px] md:leading-[34px]"
           />
         }
-        hint={`Full session due across ${followUpCount} student${followUpCount === 1 ? "" : "s"}`}
+        hint={t("fullSessionDue", { count: followUpCount })}
       />
 
       {/* Collection rate - arc gauge */}
       <KpiCard
         accent="info"
-        label="Collection rate"
+        label={t("collectionRate")}
         className="snap-start shrink-0 w-[72vw] sm:w-auto"
         value={<RateGauge value={collectionRate} size="md" />}
         hint={
@@ -388,7 +419,7 @@ function HeroKpis({
       {/* Overdue amount - destructive-soft tinted card */}
       <div className="snap-start shrink-0 w-[72vw] sm:w-auto rounded-lg border border-destructive/30 bg-destructive-soft px-4 py-3">
         <p className="text-[10px] font-medium uppercase tracking-widest text-destructive/70">
-          Overdue without late fee
+          {t("overdueWithoutLateFee")}
         </p>
         <div className="mt-1">
           <CountUp
@@ -397,41 +428,45 @@ function HeroKpis({
           />
         </div>
         <p className="mt-1 text-xs text-destructive/60">
-          Past installment due date
+          {t("pastInstallmentDueDate")}
         </p>
       </div>
     </div>
   );
 }
 
-function MobileSecondaryKpis({ kpis }: { kpis: DashboardKpis }) {
+function MobileSecondaryKpis({ kpis, t }: { kpis: DashboardKpis; t: DashboardTranslator }) {
   const cards = [
     {
-      label: "Total expected",
+      key: "totalExpected",
+      label: t("totalExpected"),
       value: <Money value={kpis.totalExpectedFees} size="sm" />,
-      hint: "Session target",
+      hint: t("sessionTarget"),
     },
     {
-      label: "Total collected",
+      key: "totalCollected",
+      label: t("totalCollected"),
       value: <Money value={kpis.totalCollected} size="sm" tone="success" />,
-      hint: "All receipts",
+      hint: t("allReceipts"),
     },
     {
-      label: "Active students",
+      key: "activeStudents",
+      label: t("activeStudents"),
       value: <span className="text-lg font-semibold tabular-nums text-foreground">{kpis.totalStudents}</span>,
-      hint: "Current session",
+      hint: t("currentSession"),
     },
     {
-      label: "This month",
+      key: "thisMonth",
+      label: t("thisMonth"),
       value: <Money value={kpis.thisMonthCollection} size="sm" tone="success" />,
-      hint: "Monthly receipts",
+      hint: t("monthlyReceipts"),
     },
   ];
 
   return (
     <div className="grid grid-cols-2 gap-2 sm:hidden">
       {cards.map((card) => (
-        <div key={card.label} className="rounded-lg border border-border bg-card px-3 py-2.5">
+        <div key={card.key} className="rounded-lg border border-border bg-card px-3 py-2.5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             {card.label}
           </p>
@@ -455,10 +490,12 @@ function MobileQuickActions({
   canWriteStudents,
   canPostPayments,
   sessionLabel,
+  t,
 }: {
   canWriteStudents: boolean;
   canPostPayments: boolean;
   sessionLabel?: string;
+  t: DashboardTranslator;
 }) {
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
@@ -473,7 +510,7 @@ function MobileQuickActions({
           <Link href={withSession("/protected/payments")}>
             <span className="flex items-center gap-2.5">
               <BadgeIndianRupee className="size-5" aria-hidden="true" />
-              Open Payment Desk
+              {t("openPaymentDesk")}
             </span>
             <ArrowRight className="size-5" aria-hidden="true" />
           </Link>
@@ -489,7 +526,7 @@ function MobileQuickActions({
           >
             <Link href={withSession("/protected/students/new")}>
               <UsersRound className="size-[18px]" aria-hidden="true" />
-              Add student
+              {t("addStudent")}
             </Link>
           </Button>
         ) : (
@@ -500,7 +537,7 @@ function MobileQuickActions({
           >
             <Link href={withSession("/protected/students")}>
               <UsersRound className="size-[18px]" aria-hidden="true" />
-              Students
+              {t("students")}
             </Link>
           </Button>
         )}
@@ -511,7 +548,7 @@ function MobileQuickActions({
         >
           <Link href={withSession("/protected/defaulters")}>
             <ClipboardList className="size-[18px]" aria-hidden="true" />
-            Defaulters
+            {t("defaulters")}
           </Link>
         </Button>
         <Button
@@ -521,7 +558,7 @@ function MobileQuickActions({
         >
           <Link href={withSession("/protected/transactions")}>
             <ReceiptText className="size-[18px]" aria-hidden="true" />
-            History
+            {t("history")}
           </Link>
         </Button>
       </div>
@@ -533,10 +570,12 @@ function QuickActions({
   canWriteStudents,
   canPostPayments,
   sessionLabel,
+  t,
 }: {
   canWriteStudents: boolean;
   canPostPayments: boolean;
   sessionLabel?: string;
+  t: DashboardTranslator;
 }) {
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
@@ -548,7 +587,7 @@ function QuickActions({
           leadingIcon={<BadgeIndianRupee className="size-5" />}
         >
           <Link href={withSession("/protected/payments")}>
-            Open Payment Desk
+            {t("openPaymentDesk")}
             <ArrowRight className="size-5 ml-2" />
           </Link>
         </Button>
@@ -556,18 +595,18 @@ function QuickActions({
       <div className="grid grid-cols-2 gap-2 sm:contents">
         {canWriteStudents ? (
           <Button asChild variant="outline" className="min-h-11 justify-center" leadingIcon={<UsersRound className="size-4" />}>
-            <Link href={withSession("/protected/students/new")}>Add student</Link>
+            <Link href={withSession("/protected/students/new")}>{t("addStudent")}</Link>
           </Button>
         ) : (
           <Button asChild variant="outline" className="min-h-11 justify-center" leadingIcon={<UsersRound className="size-4" />}>
-            <Link href={withSession("/protected/students")}>Students</Link>
+            <Link href={withSession("/protected/students")}>{t("students")}</Link>
           </Button>
         )}
         <Button asChild variant="outline" className="min-h-11 justify-center" leadingIcon={<ReceiptText className="size-4" />}>
-          <Link href={withSession("/protected/transactions")}>Transactions</Link>
+          <Link href={withSession("/protected/transactions")}>{t("transactions")}</Link>
         </Button>
         <Button asChild variant="ghost" className="min-h-11 justify-center col-span-2 sm:col-span-1" leadingIcon={<ClipboardList className="size-4" />}>
-          <Link href={withSession("/protected/defaulters")}>Defaulters</Link>
+          <Link href={withSession("/protected/defaulters")}>{t("defaulters")}</Link>
         </Button>
       </div>
     </div>
@@ -1592,11 +1631,37 @@ function ClassSummaryTable({
    Alerts panel
    --------------------------------------------------------------------------- */
 
-function AlertsPanel({ alerts }: { alerts: DashboardAlert[] }) {
+const DASHBOARD_ALERT_I18N: Record<string, { title: string; body: string; action: string }> = {
+  "no-students": {
+    title: "alertNoStudentsTitle",
+    body: "alertNoStudentsBody",
+    action: "alertNoStudentsAction",
+  },
+  "no-receipts": {
+    title: "alertNoReceiptsTitle",
+    body: "alertNoReceiptsBody",
+    action: "alertNoReceiptsAction",
+  },
+};
+
+function localizedAlertField(
+  alert: DashboardAlert,
+  field: "title" | "body" | "action",
+  t: DashboardTranslator,
+): string {
+  const mapping = DASHBOARD_ALERT_I18N[alert.key];
+  const fallback = field === "title" ? alert.title : field === "body" ? alert.detail : alert.actionLabel ?? "";
+  if (!mapping) return fallback;
+  const key = mapping[field];
+  if (!key) return fallback;
+  return t(key as Parameters<DashboardTranslator>[0]);
+}
+
+function AlertsPanel({ alerts, t }: { alerts: DashboardAlert[]; t: DashboardTranslator }) {
   if (alerts.length === 0) {
     return (
-      <Notice tone="success" iconless title="No attention items">
-        No setup, import, or dues-update issues are visible right now.
+      <Notice tone="success" iconless title={t("alertsEmptyTitle")}>
+        {t("alertsEmptyBody")}
       </Notice>
     );
   }
@@ -1613,7 +1678,7 @@ function AlertsPanel({ alerts }: { alerts: DashboardAlert[] }) {
             title={
               <span className="flex items-center gap-2">
                 <Icon className="size-4 shrink-0" aria-hidden="true" />
-                {alert.title}
+                {localizedAlertField(alert, "title", t)}
               </span>
             }
             action={
@@ -1623,14 +1688,14 @@ function AlertsPanel({ alerts }: { alerts: DashboardAlert[] }) {
                     href={alert.actionHref}
                     className="inline-flex items-center gap-1 text-current"
                   >
-                    {alert.actionLabel}
+                    {localizedAlertField(alert, "action", t)}
                     <ArrowRight className="size-3.5" />
                   </Link>
                 </Button>
               ) : null
             }
           >
-            {alert.detail}
+            {localizedAlertField(alert, "body", t)}
           </Notice>
         );
       })}
@@ -1644,8 +1709,10 @@ function AlertsPanel({ alerts }: { alerts: DashboardAlert[] }) {
 
 function FeeDataAttentionBanner({
   health,
+  t,
 }: {
   health: NonNullable<Awaited<ReturnType<typeof getDashboardPageData>>["systemSyncHealth"]>;
+  t: DashboardTranslator;
 }) {
   const needsAttention =
     health.sessionMismatch ||
@@ -1659,17 +1726,16 @@ function FeeDataAttentionBanner({
   return (
     <Notice
       tone="warning"
-      title="Fee records need attention"
+      title={t("feeRecordsAttentionTitle")}
       action={
         <Button asChild size="sm" variant="outline">
           <Link href="/protected/admin-tools#fee-data-troubleshooting">
-            Open Fee Data Troubleshooting
+            {t("feeRecordsAttentionAction")}
           </Link>
         </Button>
       }
     >
-      The payment desk or dashboard data layer is not responding correctly.
-      Open Admin Tools → Fee Data Troubleshooting for details.
+      {t("feeRecordsAttentionBody")}
     </Notice>
   );
 }
@@ -1704,6 +1770,7 @@ async function DashboardBelowFold({
   canAutoPrepareDues: boolean;
   kpis: DashboardKpis;
 }) {
+  const t = await getTranslations("Dashboard");
   const [data, routeSummary] = await Promise.all([
     getDashboardPageData({ staffRole, sessionLabel }),
     getRouteCollectionSummary(sessionLabel),
@@ -1728,16 +1795,16 @@ async function DashboardBelowFold({
   return (
     <div className="space-y-4 md:space-y-6">
       {autoPrepareCount > 0 ? (
-        <Notice tone="info" title="Dues update started">
-          Preparing dues for {autoPrepareCount} student{autoPrepareCount === 1 ? "" : "s"} in the background. Refresh in a moment to see the updated totals.
+        <Notice tone="info" title={t("duesUpdateStartedTitle")}>
+          {t("duesUpdateStartedBody", { count: autoPrepareCount })}
         </Notice>
       ) : null}
 
       {staffRole === "admin" && data.systemSyncHealth ? (
-        <FeeDataAttentionBanner health={data.systemSyncHealth} />
+        <FeeDataAttentionBanner health={data.systemSyncHealth} t={t} />
       ) : null}
 
-      {visibleAlerts.length > 0 ? <AlertsPanel alerts={visibleAlerts} /> : null}
+      {visibleAlerts.length > 0 ? <AlertsPanel alerts={visibleAlerts} t={t} /> : null}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
         <TodayBreakdown kpis={kpis} paymentModeBreakdown={data.todayPaymentModeBreakdown} />
@@ -1746,15 +1813,15 @@ async function DashboardBelowFold({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
         <Section
-          title="Collection heatmap"
-          description="Day-wise receipt activity. Use the arrows to step through past months."
+          title={t("collectionHeatmapTitle")}
+          description={t("collectionHeatmapDescription")}
           variant="card"
         >
           <CollectionHeatmap collections={data.collectionHeatmap} />
         </Section>
         <Section
-          title="Class-wise collection progress"
-          description="Most behind classes appear first."
+          title={t("classProgressTitle")}
+          description={t("classProgressDescription")}
           variant="card"
         >
           <ClassCollectionProgress rows={data.classSummary} />
@@ -1763,8 +1830,8 @@ async function DashboardBelowFold({
 
       {routeSummary.length > 0 ? (
         <Section
-          title="Route-wise collection"
-          description="Transport routes ordered by highest pending balance."
+          title={t("routeProgressTitle")}
+          description={t("routeProgressDescription")}
           variant="card"
         >
           <RouteCollectionHeatmap rows={routeSummary} />
@@ -1779,8 +1846,8 @@ async function DashboardBelowFold({
       </div>
 
       <Section
-        title="Class-wise fee position"
-        description="Sorted by highest pending amount."
+        title={t("classFeePositionTitle")}
+        description={t("classFeePositionDescription")}
       >
         <ClassSummaryTable classSummary={data.classSummary} />
       </Section>
@@ -1804,6 +1871,7 @@ type DashboardPageProps = {
 };
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const t = await getTranslations("Dashboard");
   const staff = await requireStaffPermission("dashboard:view", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const viewSession = await resolveViewSession({
@@ -1843,12 +1911,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         canPostPayments={canPostPayments}
       />
       <PageHeader
-        eyebrow="Workspace"
-        title="Dashboard"
-        description="Today's collection, pending dues, and follow-up - at a glance."
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
         actions={
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-            <StatusBadge label={`Session ${aboveFold.currentSession}`} tone="accent" />
+            <StatusBadge label={t("sessionPrefix", { session: aboveFold.currentSession })} tone="accent" />
             {aboveFold.currentInstallment ? (
               <StatusBadge
                 label={`${aboveFold.currentInstallment.label} - ${formatShortDate(aboveFold.currentInstallment.dueDate)}`}
@@ -1861,7 +1929,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
       <div className="flex flex-wrap items-center gap-2 -mt-3 sm:-mt-5">
         <p className="hidden text-xs text-muted-foreground sm:block">
-          Updated at {formatUpdatedAt(aboveFold.generatedAt)}
+          {t("updatedAt", { when: formatUpdatedAt(aboveFold.generatedAt) })}
         </p>
         <TrustBadge
           source="Workbook v1"
@@ -1880,6 +1948,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 status: aboveFold.currentInstallment.status,
               }
             : null,
+          t,
         })}
       />
 
@@ -1898,23 +1967,23 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           in the redirect URL. No direct code change needed - the after() flow handles this. */}
       {Number.isFinite(preparedCount) && preparedCount > 0 ? (
         <Notice tone="success" iconless={false}>
-          Refreshed dues for {preparedCount} student{preparedCount === 1 ? "" : "s"}.
+          {t("preparedNotice", { count: preparedCount })}
         </Notice>
       ) : null}
 
       {/* Empty-state guidance */}
       {!aboveFold.emptyState.hasStudents ? (
         <Section
-          title="No students yet"
-          description="Start with student records, then review Fee Setup before collection."
-          actions={<StatusBadge label="Get started" tone="accent" />}
+          title={t("noStudentsTitle")}
+          description={t("noStudentsBody")}
+          actions={<StatusBadge label={t("getStartedBadge")} tone="accent" />}
         >
           <div className="grid gap-2.5 sm:grid-cols-2">
             {[
-              { href: "/protected/students/new", label: "Add a student", detail: "Create one student record." },
-              { href: "/protected/imports/template", label: "Bulk-add students", detail: "Download the import template." },
-              { href: "/protected/fee-setup", label: "Open Fee Setup", detail: "Check yearly fees before collection." },
-              { href: "/protected/admin-tools", label: "Admin Tools", detail: "Setup, lists, and fixes." },
+              { href: "/protected/students/new", label: t("emptyAddStudent"), detail: t("emptyAddStudentDetail") },
+              { href: "/protected/imports/template", label: t("emptyBulkAdd"), detail: t("emptyBulkAddDetail") },
+              { href: "/protected/fee-setup", label: t("emptyOpenFeeSetup"), detail: t("emptyOpenFeeSetupDetail") },
+              { href: "/protected/admin-tools", label: t("emptyAdminTools"), detail: t("emptyAdminToolsDetail") },
             ].map((action) => (
               <Link
                 key={action.href}
@@ -1947,6 +2016,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           updatedAt={aboveFold.generatedAt}
           currentInstallmentLabel={aboveFold.currentInstallment?.label}
           todayDelta={todayDelta}
+          t={t}
         />
 
         <HeroKpis
@@ -1957,19 +2027,22 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           followUpCount={aboveFold.studentsWithPending}
           overdueAmount={aboveFold.kpis.overdueAmount}
           todayDelta={todayDelta}
+          t={t}
         />
-        <MobileSecondaryKpis kpis={aboveFold.kpis} />
+        <MobileSecondaryKpis kpis={aboveFold.kpis} t={t} />
         <InstallmentPulse
           installment={aboveFold.currentInstallment}
           pending={aboveFold.kpis.totalPending}
           followUpCount={aboveFold.studentsWithPending}
+          t={t}
         />
-        <CriticalAlerts syncError={aboveFold.syncError} appRole={staff.appRole} />
+        <CriticalAlerts syncError={aboveFold.syncError} appRole={staff.appRole} t={t} />
 
         <MobileQuickActions
           canWriteStudents={canWriteStudents}
           canPostPayments={canPostPayments}
           sessionLabel={viewSession.sessionLabel}
+          t={t}
         />
 
         <div className="anim-fade-in [animation-delay:60ms]">
@@ -1977,6 +2050,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             canWriteStudents={canWriteStudents}
             canPostPayments={canPostPayments}
             sessionLabel={viewSession.sessionLabel}
+            t={t}
           />
         </div>
         <Suspense fallback={<DashboardBelowFoldSkeleton />}>
@@ -1995,7 +2069,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           className="fixed bottom-[calc(var(--mobile-bottom-nav-offset)+12px)] right-4 z-50 flex items-center gap-2 rounded-full bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground shadow-md md:hidden"
         >
           <BadgeIndianRupee className="size-4" aria-hidden="true" />
-          Open Desk
+          {t("openDesk")}
         </Link>
       ) : null}
     </div>
