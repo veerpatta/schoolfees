@@ -650,10 +650,24 @@ export function TransactionsClientShell({
       if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
       setWorkbook(await res.json() as OfficeWorkbookData);
     } catch (err) {
-      if ((err as Error).name !== "AbortError") console.error("[TransactionsShell] fetch error:", err);
+      // Aborted requests can surface either as a DOMException(AbortError) or as
+      // a generic TypeError("Failed to fetch") during route teardown. Both are
+      // expected when the next request supersedes this one — only log real
+      // errors so production console telemetry stays clean.
+      const isAborted = controller.signal.aborted || (err as Error)?.name === "AbortError";
+      if (!isAborted) console.error("[TransactionsShell] fetch error:", err);
     } finally {
       if (!controller.signal.aborted) setIsLoading(false);
     }
+  }, []);
+
+  // Cancel any in-flight fetch and pending debounce when the shell unmounts so
+  // a navigated-away component never logs a stale request.
+  useEffect(() => {
+    return () => {
+      if (abortRef.current) abortRef.current.abort();
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, []);
 
   // Sync state on browser back/forward

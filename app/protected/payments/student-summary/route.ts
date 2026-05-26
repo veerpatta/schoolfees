@@ -17,6 +17,17 @@ function normalizePaymentDate(value: string | null) {
   return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : "";
 }
 
+function getSchoolDateStamp() {
+  // School time zone (Asia/Kolkata) — same source-of-truth pattern as the
+  // student detail page; keeps the default in sync with how staff see "today".
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 function normalizeIncludeLatestReceipt(value: string | null) {
   return (value ?? "").trim().toLowerCase() !== "false";
 }
@@ -50,7 +61,10 @@ export async function GET(request: NextRequest) {
   const tAuth = performance.now() - t0;
 
   const studentId = normalizeStudentId(request.nextUrl.searchParams.get("studentId"));
-  const paymentDate = normalizePaymentDate(request.nextUrl.searchParams.get("paymentDate"));
+  // Default to today (school time zone) when the caller omits paymentDate so
+  // health checks and simple integrations can probe with studentId alone.
+  const paymentDate =
+    normalizePaymentDate(request.nextUrl.searchParams.get("paymentDate")) || getSchoolDateStamp();
   const includeLatestReceipt = normalizeIncludeLatestReceipt(
     request.nextUrl.searchParams.get("includeLatestReceipt"),
   );
@@ -63,9 +77,9 @@ export async function GET(request: NextRequest) {
     request.nextUrl.searchParams.get("quickLateFeeWaiverAmount"),
   );
 
-  if (!studentId || !paymentDate) {
+  if (!studentId) {
     return Response.json(
-      { error: "Student and payment date are required." },
+      { error: "Student id is required." },
       { status: 400 },
     );
   }

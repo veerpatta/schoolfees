@@ -542,7 +542,12 @@ async function loadUserNameMap(userIds: string[]) {
   const { data, error } = await supabase.from("users").select("id, full_name").in("id", uniqueIds);
 
   if (error) {
-    throw new Error(`Unable to load finance staff names: ${error.message}`);
+    // The finance page degrades gracefully without staff names — log and fall
+    // back to ids in the UI rather than failing the whole route.
+    console.error("[finance-controls] users name map load failed", {
+      message: error.message,
+    });
+    return new Map<string, string>();
   }
 
   const nameMap = new Map<string, string>();
@@ -606,26 +611,39 @@ export async function getFinanceControlsPageData(
       .maybeSingle(),
   ]);
 
+  // Per-section resilience: if any single finance table fails (schema drift, RLS
+  // grant gap, transient outage), keep the other panels useful and surface the
+  // failure in server logs instead of throwing the whole page into the protected
+  // error boundary. The admin still sees the day, just without the broken slice.
+  if (receiptsResult.error) {
+    console.error("[finance-controls] receipts load failed", {
+      selectedDate,
+      message: receiptsResult.error.message,
+    });
+  }
+  if (refundsResult.error) {
+    console.error("[finance-controls] refund_requests load failed", {
+      selectedDate,
+      message: refundsResult.error.message,
+    });
+  }
+  if (adjustmentsResult.error) {
+    console.error("[finance-controls] payment_adjustments load failed", {
+      selectedDate,
+      message: adjustmentsResult.error.message,
+    });
+  }
+  if (closureResult.error) {
+    console.error("[finance-controls] collection_closures load failed", {
+      selectedDate,
+      message: closureResult.error.message,
+    });
+  }
+
   const receiptsRaw = (receiptsResult.data ?? []) as ReceiptRow[];
   const refundsRaw = (refundsResult.data ?? []) as RefundRow[];
   const adjustmentsRaw = (adjustmentsResult.data ?? []) as PaymentAdjustmentRow[];
   const closureRaw = (closureResult.data ?? null) as CollectionCloseRow | null;
-
-  if (receiptsResult.error) {
-    throw new Error(`Unable to load finance receipts: ${receiptsResult.error.message}`);
-  }
-
-  if (refundsResult.error) {
-    throw new Error(`Unable to load refund requests: ${refundsResult.error.message}`);
-  }
-
-  if (adjustmentsResult.error) {
-    throw new Error(`Unable to load payment adjustments: ${adjustmentsResult.error.message}`);
-  }
-
-  if (closureResult.error) {
-    throw new Error(`Unable to load day close record: ${closureResult.error.message}`);
-  }
 
   const reviewIds = adjustmentsRaw.map((row) => row.id);
   const reviewResult =
@@ -638,7 +656,10 @@ export async function getFinanceControlsPageData(
       : { data: [], error: null };
 
   if (reviewResult.error) {
-    throw new Error(`Unable to load correction review rows: ${reviewResult.error.message}`);
+    console.error("[finance-controls] payment_adjustment_reviews load failed", {
+      selectedDate,
+      message: reviewResult.error.message,
+    });
   }
 
   const userNameMap = await loadUserNameMap(

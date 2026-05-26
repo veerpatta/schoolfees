@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type TouchEvent } from "react";
+import { useEffect, useRef, useState, type TouchEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
@@ -66,6 +66,18 @@ export function ConfirmReceiptSheet({
   const [dragY, setDragY] = useState(0);
   const startY = useRef(0);
 
+  useEffect(() => {
+    if (!open || isSubmitting) return;
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onBack();
+      }
+    };
+    window.addEventListener("keydown", handleKeydown);
+    return () => window.removeEventListener("keydown", handleKeydown);
+  }, [open, isSubmitting, onBack]);
+
   if (!open) {
     return null;
   }
@@ -89,7 +101,12 @@ export function ConfirmReceiptSheet({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 px-2 md:items-center md:px-4">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 px-2 md:items-center md:px-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Confirm and save payment"
+    >
       <div
         className="max-h-[92vh] w-full anim-slide-up overflow-y-auto rounded-t-2xl border border-border bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-3xl md:rounded-xl md:p-5"
         onTouchStart={handleTouchStart}

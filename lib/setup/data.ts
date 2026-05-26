@@ -363,7 +363,7 @@ function buildFlowItems(payload: {
       detail: payload.readiness.collectionDeskReady
         ? "The collection desk can begin posting receipts for the active session."
         : "Collections should start only after the blocking setup, fee defaults, and student records are ready.",
-      href: "/protected/collections",
+      href: "/protected/payments",
       status: payload.readiness.collectionDeskReady ? "current" : "upcoming",
     },
   ];

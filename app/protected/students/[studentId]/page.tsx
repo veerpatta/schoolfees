@@ -90,6 +90,15 @@ export default async function StudentDetailPage({
   const encodedReturnTo = encodeURIComponent(returnTo);
   const { student, financialSnapshot, ledger, receipts, installmentBalances } =
     await getStudentWorkspaceData(resolvedParams.studentId);
+
+  // Bail to the not-found UI before running any dependent loaders. Previously
+  // deletion/family/share-link queries ran first and could throw on an unknown
+  // id, which surfaced as the generic protected error boundary instead of a
+  // graceful not-found page.
+  if (!student) {
+    notFound();
+  }
+
   const deletionSafety = await getStudentDeletionSafety(resolvedParams.studentId);
   const familyMembersDetail = await getStudentFamilyMembersDetail(
     resolvedParams.studentId,
@@ -97,10 +106,6 @@ export default async function StudentDetailPage({
   );
   const shareLinks = await listStudentShareLinks(resolvedParams.studentId).catch(() => []);
   const publicSiteUrl = getPublicSiteUrl();
-
-  if (!student) {
-    notFound();
-  }
 
   // Fire-and-forget student view event for the activity feed and last-viewed hints.
   void recordActivity({

@@ -49,4 +49,28 @@ describe("payment student summary route", () => {
       includeBreakdown: true,
     });
   });
+
+  it("defaults paymentDate to today (Asia/Kolkata) when only studentId is supplied", async () => {
+    const { GET } = await import("@/app/protected/payments/student-summary/route");
+    const response = await GET(
+      request(
+        "/protected/payments/student-summary?studentId=c98d3184-2060-4a80-9c77-0657a928b7dd",
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(getPaymentDeskStudentSummary).toHaveBeenCalledTimes(1);
+    const call = getPaymentDeskStudentSummary.mock.calls[0]?.[0] as { paymentDate: string };
+    expect(call.paymentDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("rejects requests without a valid studentId", async () => {
+    const { GET } = await import("@/app/protected/payments/student-summary/route");
+    const response = await GET(request("/protected/payments/student-summary"));
+
+    expect(response.status).toBe(400);
+    const body = (await response.json()) as { error: string };
+    expect(body.error).toMatch(/student/i);
+    expect(getPaymentDeskStudentSummary).not.toHaveBeenCalled();
+  });
 });
