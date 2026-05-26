@@ -78,8 +78,10 @@ describe("mobile UX roadmap implementation", () => {
     expect(filters).toContain('t("filtersMobileToggleCount"');
     expect(filters).toContain("open={activeFilterCount > 0}");
     expect(englishMessages.Defaulters.filtersMobileToggleCount).toContain("Filters");
-    expect(defaulters).toContain("DefaulterContactActions");
-    expect(defaulters).toContain("defaulter-contact-actions");
+    // Mobile-first defaulters surface: workspace renders cards with a
+    // tap-to-open Worklist Drawer and 3-button quick log.
+    expect(defaulters).toContain("DefaultersWorkspace");
+    expect(defaulters).toContain("defaulters-workspace");
   });
 
   it("uses a More overflow tab for the eight-module mobile workspace", () => {

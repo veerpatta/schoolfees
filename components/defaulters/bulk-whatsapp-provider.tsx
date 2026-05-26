@@ -6,8 +6,10 @@ import {
   useContext,
   useMemo,
   useState,
+  useTransition,
   type ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { MessageSquare, X } from "lucide-react";
 
@@ -18,6 +20,7 @@ import { formatShortDate } from "@/lib/helpers/date";
 import { buildWaMeLink, renderWhatsappTemplate } from "@/lib/whatsapp-templates/render";
 import type { WhatsappTemplate } from "@/lib/whatsapp-templates/types";
 import { schoolProfile } from "@/lib/config/school";
+import { logWhatsAppSendAttempts } from "@/app/protected/defaulters/actions";
 
 export type BulkWhatsappRow = {
   studentId: string;
@@ -46,10 +49,14 @@ type ProviderProps = {
   rows: BulkWhatsappRow[];
   templates: WhatsappTemplate[];
   children: ReactNode;
+  /** Session label used to auto-log a contact attempt per recipient. */
+  sessionLabel?: string;
 };
 
-export function BulkWhatsappProvider({ rows, templates, children }: ProviderProps) {
+export function BulkWhatsappProvider({ rows, templates, children, sessionLabel }: ProviderProps) {
   const t = useTranslations("Defaulters");
+  const router = useRouter();
+  const [, startTransition] = useTransition();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(
@@ -105,6 +112,7 @@ export function BulkWhatsappProvider({ rows, templates, children }: ProviderProp
 
   const handleOpenAll = useCallback(() => {
     if (!activeTemplate) return;
+    const sentIds: string[] = [];
     for (const row of sendableRows) {
       if (!row.fatherPhone) continue;
       const text = renderWhatsappTemplate(activeTemplate.body, {
@@ -116,10 +124,22 @@ export function BulkWhatsappProvider({ rows, templates, children }: ProviderProp
         schoolName: schoolProfile.shortName,
       });
       window.open(buildWaMeLink(row.fatherPhone, text), "_blank", "noopener");
+      sentIds.push(row.studentId);
     }
     setSheetOpen(false);
     setSelectedIds(new Set());
-  }, [activeTemplate, sendableRows]);
+
+    if (sessionLabel && sentIds.length > 0) {
+      startTransition(async () => {
+        await logWhatsAppSendAttempts({
+          sessionLabel,
+          studentIds: sentIds,
+          templateName: activeTemplate.name,
+        });
+        router.refresh();
+      });
+    }
+  }, [activeTemplate, sendableRows, sessionLabel, router]);
 
   const handleClear = useCallback(() => {
     setSelectedIds(new Set());

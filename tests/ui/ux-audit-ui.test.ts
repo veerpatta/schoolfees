@@ -207,7 +207,9 @@ describe("read-only UX audit implementation", () => {
     expect(transactionLazyTables).toContain("tracker-mobile-");
     expect(transactions).not.toContain("Receipt / Ref");
     expect(englishMessages.Defaulters.tableOldestDue).toBe("Oldest due");
-    expect(defaulters).toContain("missing-mobile-");
+    // Missing-dues rows now render as a responsive grid with a stable
+    // missing- prefix per row (no separate mobile/desktop tables).
+    expect(defaulters).toContain("missing-");
     expect(englishMessages.Defaulters.description).toContain(
       "Phone-ready overdue list for",
     );

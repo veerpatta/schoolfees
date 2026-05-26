@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { cacheSafeUnstableCache, getCacheSafeClient } from "@/lib/supabase/cache-safe";
 import { getWorkbookClassOptions, getWorkbookInstallmentRows, getWorkbookStudentFinancials } from "@/lib/workbook/data";
 import { getStudentFormOptions } from "@/lib/students/data";
+import { heatScore, type DefaulterContactSummary } from "@/lib/defaulters/cadence";
 
 import type {
   DefaulterFilters,
@@ -232,7 +233,11 @@ export async function getDefaultersPageData(
   filters: DefaulterFilters,
   sessionLabel?: string,
   pagination?: { page?: number; pageSize?: number },
-  options?: { redactPaymentHistory?: boolean },
+  options?: {
+    redactPaymentHistory?: boolean;
+    /** Optional pre-fetched contact summaries (heat score uses these). */
+    contactSummaries?: Map<string, DefaulterContactSummary>;
+  },
 ): Promise<DefaultersPageData> {
   const _t0 = Date.now();
   const redactPaymentHistory = options?.redactPaymentHistory === true;
@@ -258,6 +263,8 @@ export async function getDefaultersPageData(
   const minimumPendingAmount = parseMinimumPendingAmount(filters.minPendingAmount);
   const normalizedSearch = (filters.searchQuery ?? "").trim().toLowerCase();
   const today = toDateKey();
+  const todayDate = new Date(`${today}T12:00:00+05:30`);
+  const contactSummaries = options?.contactSummaries;
   const overdueRowsByStudent = new Map<string, typeof overdueInstallmentRows>();
   overdueInstallmentRows
     .filter((row) => (filters.transportRouteId ? row.transportRouteId === filters.transportRouteId : true))
@@ -297,6 +304,12 @@ export async function getDefaultersPageData(
         const daysOverdue = calculateDaysOverdue(row.nextDueDate, today);
         const overdueAmount = calculateOverdueBaseAmount(overdueRowsByStudent.get(row.studentId) ?? []);
         const defaulterScore = row.outstandingAmount + overdueAmount + daysOverdue * 100;
+        const heat = heatScore({
+          totalPending: row.outstandingAmount,
+          daysOverdue,
+          today: todayDate,
+          contact: contactSummaries?.get(row.studentId) ?? null,
+        });
 
         return {
           studentId: row.studentId,
@@ -329,11 +342,18 @@ export async function getDefaultersPageData(
           followUpStatus: overdueAmount > 0 ? "overdue" : "pending",
           daysOverdue,
           defaulterScore,
+          heat,
           rank: 0,
         } satisfies DefaulterSummaryRow;
       },
     )
     .sort((left, right) => {
+      // Primary: heat score (uses contact log). Falls back to defaulterScore
+      // when contact summaries weren't supplied (heat stays at base level).
+      if (right.heat !== left.heat) {
+        return right.heat - left.heat;
+      }
+
       if (right.defaulterScore !== left.defaulterScore) {
         return right.defaulterScore - left.defaulterScore;
       }

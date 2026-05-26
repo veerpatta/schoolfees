@@ -11,6 +11,7 @@ export type InsertContactArgs = {
   sessionLabel: string;
   channel: ContactChannel;
   outcome: ContactOutcome;
+  /** ISO yyyy-mm-dd. When outcome=promised_pay this is the promised date. */
   snoozeUntil?: string | null;
   note?: string | null;
   voiceNotePath?: string | null;
@@ -60,6 +61,7 @@ export type DefaulterContactEntry = {
   outcome: ContactOutcome | null;
   note: string | null;
   voiceNotePath: string | null;
+  snoozeUntil: string | null;
 };
 
 /**
@@ -76,7 +78,7 @@ export async function getStudentContactLog(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("defaulter_contacts")
-    .select("contacted_at, channel, outcome, note, voice_note_path")
+    .select("contacted_at, channel, outcome, note, voice_note_path, snooze_until")
     .eq("student_id", studentId)
     .eq("session_label", sessionLabel)
     .order("contacted_at", { ascending: false })
@@ -94,12 +96,14 @@ export async function getStudentContactLog(
     outcome: ContactOutcome | null;
     note: string | null;
     voice_note_path: string | null;
+    snooze_until: string | null;
   }>).map((row) => ({
     contactedAt: row.contacted_at,
     channel: row.channel,
     outcome: row.outcome,
     note: row.note,
     voiceNotePath: row.voice_note_path,
+    snoozeUntil: row.snooze_until,
   }));
 }
 
@@ -138,7 +142,8 @@ export async function getContactSummariesForStudents(
   if (error) {
     // 42P01 = relation does not exist — migration not yet applied.
     if ((error as { code?: string }).code === "42P01") return new Map();
-    throw new Error(`Failed to fetch contact summaries: ${error.message}`);
+    console.error("[contacts] summaries fetch failed", error);
+    return new Map();
   }
 
   const result = new Map<string, DefaulterContactSummary>();

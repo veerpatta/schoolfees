@@ -48,6 +48,8 @@ export type DefaulterSummaryRow = {
   followUpStatus: "overdue" | "pending";
   daysOverdue: number;
   defaulterScore: number;
+  /** 0–100 heat score (money + age + promise + responsiveness + freshness). */
+  heat: number;
   rank: number;
   familyGroupId?: string | null;
   familyVisibleSiblingCount?: number;
