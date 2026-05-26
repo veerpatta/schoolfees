@@ -36,6 +36,10 @@ function paymentModeLabel(value: ReceiptDetail["paymentMode"], t: ReceiptTransla
     return t("paymentModeCheque");
   }
 
+  if (value === "discount") {
+    return "Discount";
+  }
+
   return t("paymentModeCash");
 }
 

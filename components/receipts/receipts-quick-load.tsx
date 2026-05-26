@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
 import { ReceiptPreviewSheet } from "@/components/receipts/receipt-preview-sheet";
 import type { ReceiptListItem } from "@/lib/receipts/types";
+import type { PaymentMode } from "@/lib/db/types";
 
 type ReceiptsQuickLoadProps = {
   initialQuery: string;
@@ -34,10 +35,11 @@ export function ReceiptsQuickLoad({
   const [previewReceiptId, setPreviewReceiptId] = useState<string | null>(null);
   const isFirstRender = useRef(true);
 
-  const paymentModeLabel = (mode: "cash" | "upi" | "bank_transfer" | "cheque") => {
+  const paymentModeLabel = (mode: PaymentMode) => {
     if (mode === "upi") return t("paymentModeUpi");
     if (mode === "bank_transfer") return t("paymentModeBankTransfer");
     if (mode === "cheque") return t("paymentModeCheque");
+    if (mode === "discount") return "Discount";
     return t("paymentModeCash");
   };
   const params = useMemo(() => {

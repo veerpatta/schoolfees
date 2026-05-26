@@ -112,6 +112,7 @@ function paymentModeLabel(value: ReceiptDetail["paymentMode"], t: ReceiptTransla
   if (value === "upi") return t("paymentModeUpi");
   if (value === "bank_transfer") return t("paymentModeBankTransfer");
   if (value === "cheque") return t("paymentModeCheque");
+  if (value === "discount") return "Discount";
   return t("paymentModeCash");
 }
 

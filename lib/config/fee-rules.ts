@@ -89,6 +89,7 @@ export const PAYMENT_MODE_LABELS: Record<PaymentMode, string> = {
   upi: "UPI",
   bank_transfer: "Bank transfer",
   cheque: "Cheque",
+  discount: "Discount",
 };
 
 export function formatPaymentModeLabel(value: PaymentMode) {

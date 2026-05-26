@@ -1,6 +1,7 @@
 import "server-only";
 
 import { WORKBOOK_CLASS_ORDER, normalizeWorkbookClassLabel } from "@/lib/fees/workbook";
+import type { PaymentMode } from "@/lib/db/types";
 import { createClient } from "@/lib/supabase/server";
 import { getStudentFormOptions } from "@/lib/students/data";
 
@@ -113,7 +114,7 @@ type ReceiptRow = {
   receipt_number: string;
   payment_date: string;
   created_at: string | null;
-  payment_mode: "cash" | "upi" | "bank_transfer" | "cheque";
+  payment_mode: PaymentMode;
   total_amount: number;
   reference_number: string | null;
   received_by: string | null;

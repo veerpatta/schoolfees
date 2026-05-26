@@ -18,7 +18,7 @@ import { formatInr } from "@/lib/helpers/currency";
 const INITIAL_STATE: CloseDueActionState = {
   status: "idle",
   message: null,
-  newDiscountAmount: null,
+  receiptNumber: null,
 };
 
 type CloseDueAsDiscountSheetProps = {

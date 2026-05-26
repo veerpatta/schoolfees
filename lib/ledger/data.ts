@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { AdjustmentType } from "@/lib/db/types";
+import type { AdjustmentType, PaymentMode } from "@/lib/db/types";
 import { createClient } from "@/lib/supabase/server";
 import type {
   LedgerAdjustmentRow,
@@ -27,7 +27,7 @@ type StudentRow = {
 type ReceiptRow = {
   receipt_number: string;
   payment_date: string;
-  payment_mode: "cash" | "upi" | "bank_transfer" | "cheque";
+  payment_mode: PaymentMode;
   reference_number: string | null;
   received_by: string | null;
 };
