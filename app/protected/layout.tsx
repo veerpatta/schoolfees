@@ -1,8 +1,9 @@
 import { CommandHost } from "@/components/command/command-host";
 import { DashboardShell } from "@/components/admin/dashboard-shell";
+import { DashboardShellV2 } from "@/components/admin/dashboard-shell-v2";
 import { getVisibleProtectedNavigation } from "@/lib/config/navigation";
 import { hasRolePermission } from "@/lib/auth/roles";
-import { getAppMode } from "@/lib/env";
+import { getAppMode, isShellV2Enabled } from "@/lib/env";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
 import { requireAuthenticatedStaff } from "@/lib/supabase/session";
@@ -34,14 +35,10 @@ export default async function ProtectedLayout({
   }));
   const canViewStudents = hasRolePermission(staff.appRole, "students:view");
   const canViewReceipts = hasRolePermission(staff.appRole, "receipts:view");
+  const shellV2 = isShellV2Enabled();
 
-  return (
-    <DashboardShell
-      staffEmail={staff.email ?? "Authorized staff"}
-      staffRole={staff.appRole}
-      viewSessionLabel={resolvedSession.sessionLabel}
-      viewSessionIsTest={resolvedSession.isTest}
-    >
+  const shellChildren = (
+    <>
       {isTestDatabase ? (
         <div className="mb-4 rounded-md border border-destructive/40 bg-destructive px-4 py-2 text-center text-xs font-bold uppercase tracking-[0.14em] text-destructive-foreground shadow-sm">
           TEST DATABASE - Staging deployment
@@ -53,6 +50,30 @@ export default async function ProtectedLayout({
         canViewStudents={canViewStudents}
         canViewReceipts={canViewReceipts}
       />
+    </>
+  );
+
+  if (shellV2) {
+    return (
+      <DashboardShellV2
+        staffEmail={staff.email ?? "Authorized staff"}
+        staffRole={staff.appRole}
+        viewSessionLabel={resolvedSession.sessionLabel}
+        viewSessionIsTest={resolvedSession.isTest}
+      >
+        {shellChildren}
+      </DashboardShellV2>
+    );
+  }
+
+  return (
+    <DashboardShell
+      staffEmail={staff.email ?? "Authorized staff"}
+      staffRole={staff.appRole}
+      viewSessionLabel={resolvedSession.sessionLabel}
+      viewSessionIsTest={resolvedSession.isTest}
+    >
+      {shellChildren}
     </DashboardShell>
   );
 }
