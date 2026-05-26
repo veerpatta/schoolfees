@@ -380,7 +380,7 @@ function HeroKpis({
         value={
           <CountUp
             value={totalCollected}
-            className="text-xl font-semibold tracking-tight text-success md:text-2xl md:text-[28px] md:leading-[34px]"
+            className="text-xl font-semibold tracking-tight text-success md:text-2xl lg:text-xl xl:text-2xl"
           />
         }
         hint={
@@ -399,7 +399,7 @@ function HeroKpis({
         value={
           <CountUp
             value={collected}
-            className="text-xl font-semibold tracking-tight text-accent md:text-2xl md:text-[28px] md:leading-[34px]"
+            className="text-xl font-semibold tracking-tight text-accent md:text-2xl lg:text-xl xl:text-2xl"
           />
         }
         hint={
@@ -419,7 +419,7 @@ function HeroKpis({
         value={
           <CountUp
             value={pending}
-            className="text-xl font-semibold tracking-tight md:text-2xl md:text-[28px] md:leading-[34px]"
+            className="text-xl font-semibold tracking-tight md:text-2xl lg:text-xl xl:text-2xl"
           />
         }
         hint={t("fullSessionDue", { count: followUpCount })}
@@ -453,7 +453,7 @@ function HeroKpis({
         <div className="mt-1">
           <CountUp
             value={overdueAmount}
-            className="text-xl font-semibold tracking-tight text-destructive md:text-2xl md:text-[28px] md:leading-[34px]"
+            className="text-xl font-semibold tracking-tight text-destructive md:text-2xl lg:text-xl xl:text-2xl"
           />
         </div>
         <p className="mt-1 text-xs text-destructive/60">
