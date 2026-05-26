@@ -655,6 +655,14 @@
     "morningBriefInstallmentOverdue": "{label} is overdue (due {dueDate}).",
     "morningBriefInstallmentDueToday": "{label} is due today."
   },
+  "Payments": {
+    "eyebrow": "Payments",
+    "title": "Payment Desk",
+    "description": "Select a student, review dues, collect payment, and print the receipt.",
+    "loadingAria": "Loading Payment Desk",
+    "postingEnabled": "Posting enabled",
+    "readOnlyAccess": "Read-only access"
+  },
   "Students": {
     "eyebrow": "Students",
     "title": "Students",

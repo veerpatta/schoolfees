@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { OfficeNotice, WorkflowGuard } from "@/components/office/office-ui";
@@ -39,6 +40,7 @@ function normalizeStudentId(rawValue: string | undefined) {
 }
 
 export default async function PaymentsPage({ searchParams }: PaymentsPageProps) {
+  const t = await getTranslations("Payments");
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const studentId = normalizeStudentId(resolvedSearchParams?.studentId);
   const classId = normalizeStudentId(resolvedSearchParams?.classId);
@@ -56,9 +58,9 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Payments"
-        title="Payment Desk"
-        description="Select a student, review dues, collect payment, and print the receipt."
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
       />
 
       {repairNotice ? (
@@ -93,6 +95,7 @@ async function PaymentDeskDataLoader({
   classId: string | null;
   sessionLabel: string;
 }) {
+  const t = await getTranslations("Payments");
   const canWritePayments = hasStaffPermission(staff, "payments:write");
   const readinessPromise = getPaymentDeskReadiness({
     sessionLabel,
@@ -119,7 +122,7 @@ async function PaymentDeskDataLoader({
       <>
         <div className="flex justify-end">
           <StatusBadge
-            label={canPostPayments ? "Posting enabled" : "Read-only access"}
+            label={canPostPayments ? t("postingEnabled") : t("readOnlyAccess")}
             tone={canPostPayments ? "good" : "warning"}
           />
         </div>
