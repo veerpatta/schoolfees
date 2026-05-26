@@ -9,6 +9,7 @@ import {
   MoreHorizontal,
   Phone,
   Printer,
+  Scissors,
   User,
 } from "lucide-react";
 
@@ -23,7 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Money } from "@/components/ui/money";
 import { ValueStatePill } from "@/components/office/office-ui";
-import { CloseDueTrigger } from "@/components/students/close-due-trigger";
+import { CloseDueAsDiscountSheet } from "@/components/students/close-due-as-discount-sheet";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { appendSessionParam } from "@/lib/navigation/session-href";
@@ -481,6 +482,10 @@ export function StudentDuesTable({
 }) {
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
   const { isExpanded, toggle } = useExpandedRows();
+  // Lifted so the Sheet doesn't unmount when the dropdown menu closes after
+  // clicking "Close balance" — otherwise the user loses the sheet the moment
+  // they focus the reason textarea.
+  const [closeTarget, setCloseTarget] = useState<OfficeWorkbookStudentRow | null>(null);
   const colSpan = 6;
   return (
     <>
@@ -604,21 +609,10 @@ export function StudentDuesTable({
                             ...(canCloseBalance && row.outstandingAmount > 0
                               ? ([
                                   {
-                                    type: "node",
-                                    node: (
-                                      <CloseDueTrigger
-                                        studentId={row.studentId}
-                                        studentLabel={row.studentName}
-                                        studentAdmissionNo={row.admissionNo}
-                                        classLabel={row.classLabel}
-                                        pendingAmount={row.outstandingAmount}
-                                        currentDiscount={row.discountAmount}
-                                        sessionLabel={sessionLabel}
-                                        size="sm"
-                                        variant="ghost"
-                                        className="w-full justify-start gap-2 text-xs"
-                                      />
-                                    ),
+                                    type: "button",
+                                    onClick: () => setCloseTarget(row),
+                                    label: "Close balance as discount",
+                                    icon: <Scissors className="size-3.5" aria-hidden="true" />,
                                   },
                                 ] as RowAction[])
                               : []),
@@ -655,6 +649,20 @@ export function StudentDuesTable({
           </tbody>
         </table>
       </div>
+      {closeTarget ? (
+        <CloseDueAsDiscountSheet
+          key={closeTarget.studentId}
+          open
+          onClose={() => setCloseTarget(null)}
+          studentId={closeTarget.studentId}
+          studentLabel={closeTarget.studentName}
+          studentAdmissionNo={closeTarget.admissionNo}
+          classLabel={closeTarget.classLabel}
+          pendingAmount={closeTarget.outstandingAmount}
+          currentDiscount={closeTarget.discountAmount}
+          sessionLabel={sessionLabel}
+        />
+      ) : null}
     </>
   );
 }
