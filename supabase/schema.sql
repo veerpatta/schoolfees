@@ -3268,15 +3268,18 @@ as $$
     select
       session_installments.*,
       coalesce(payment_row.paid_amount, 0)::integer as paid_amount,
+      coalesce(payment_row.discount_closeout_amount, 0)::integer as discount_closeout_amount,
       coalesce(adjustment_row.adjustment_amount, 0)::integer as adjustment_amount,
       payment_row.last_payment_date,
       coalesce(payment_row.had_payment_after_due, false) as had_payment_after_due
     from session_installments
     left join lateral (
       select
-        coalesce(sum(payment_row.amount), 0) as paid_amount,
+        coalesce(sum(payment_row.amount) filter (where receipt_row.payment_mode <> 'discount'), 0) as paid_amount,
+        coalesce(sum(payment_row.amount) filter (where receipt_row.payment_mode = 'discount'), 0) as discount_closeout_amount,
         max(receipt_row.payment_date) as last_payment_date,
-        bool_or(receipt_row.payment_date > session_installments.due_date) as had_payment_after_due
+        bool_or(receipt_row.payment_date > session_installments.due_date
+                and receipt_row.payment_mode <> 'discount') as had_payment_after_due
       from public.payments as payment_row
       join public.receipts as receipt_row
         on receipt_row.id = payment_row.receipt_id
@@ -3295,13 +3298,13 @@ as $$
       rolled.*,
       greatest(rolled.paid_amount + rolled.adjustment_amount, 0)::integer as applied_amount,
       greatest(
-        rolled.base_charge - greatest(rolled.paid_amount + rolled.adjustment_amount, 0),
+        rolled.base_charge - greatest(rolled.paid_amount + rolled.adjustment_amount + rolled.discount_closeout_amount, 0),
         0
       )::integer as base_pending_amount,
       case
         when rolled.installment_status = 'waived' then 0
         when greatest(
-          rolled.base_charge - greatest(rolled.paid_amount + rolled.adjustment_amount, 0),
+          rolled.base_charge - greatest(rolled.paid_amount + rolled.adjustment_amount + rolled.discount_closeout_amount, 0),
           0
         ) <= 0 then 0
         when rolled.had_payment_after_due then rolled.late_fee_flat_amount
@@ -3354,16 +3357,18 @@ as $$
     greatest(waiver_eval.raw_late_fee - waiver_eval.waiver_applied, 0)::integer as final_late_fee,
     greatest(waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied, 0)::integer as total_charge,
     greatest(
-      waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied - waiver_eval.applied_amount,
+      waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied
+        - waiver_eval.applied_amount - waiver_eval.discount_closeout_amount,
       0
     )::integer as pending_amount,
     case
       when waiver_eval.installment_status = 'waived' then 'waived'
       when greatest(
-        waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied - waiver_eval.applied_amount,
+        waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied
+          - waiver_eval.applied_amount - waiver_eval.discount_closeout_amount,
         0
       ) <= 0 then 'paid'
-      when waiver_eval.applied_amount > 0 then 'partial'
+      when waiver_eval.applied_amount > 0 or waiver_eval.discount_closeout_amount > 0 then 'partial'
       when p_as_of_date > waiver_eval.due_date then 'overdue'
       else 'pending'
     end as balance_status,
@@ -3427,6 +3432,7 @@ rolled as (
   select
     session_installments.*,
     coalesce(payment_row.paid_amount, 0)::integer as paid_amount,
+    coalesce(payment_row.discount_closeout_amount, 0)::integer as discount_closeout_amount,
     coalesce(payment_row.paid_by_due_amount, 0)::integer as paid_by_due_amount,
     coalesce(adjustment_row.adjustment_amount, 0)::integer as adjustment_amount,
     payment_row.last_payment_date,
@@ -3434,10 +3440,15 @@ rolled as (
   from session_installments
   left join lateral (
     select
-      coalesce(sum(payment_row.amount), 0) as paid_amount,
-      coalesce(sum(payment_row.amount) filter (where receipt_row.payment_date <= session_installments.due_date), 0) as paid_by_due_amount,
+      coalesce(sum(payment_row.amount) filter (where receipt_row.payment_mode <> 'discount'), 0) as paid_amount,
+      coalesce(sum(payment_row.amount) filter (where receipt_row.payment_mode = 'discount'), 0) as discount_closeout_amount,
+      coalesce(sum(payment_row.amount) filter (
+        where receipt_row.payment_date <= session_installments.due_date
+          and receipt_row.payment_mode <> 'discount'
+      ), 0) as paid_by_due_amount,
       max(receipt_row.payment_date) as last_payment_date,
-      bool_or(receipt_row.payment_date > session_installments.due_date) as had_payment_after_due
+      bool_or(receipt_row.payment_date > session_installments.due_date
+              and receipt_row.payment_mode <> 'discount') as had_payment_after_due
     from public.payments as payment_row
     join public.receipts as receipt_row
       on receipt_row.id = payment_row.receipt_id
@@ -3456,7 +3467,7 @@ late_eval as (
     rolled.*,
     greatest(rolled.paid_amount + rolled.adjustment_amount, 0)::integer as applied_amount,
     greatest(
-      rolled.base_charge - greatest(rolled.paid_amount + rolled.adjustment_amount, 0),
+      rolled.base_charge - greatest(rolled.paid_amount + rolled.adjustment_amount + rolled.discount_closeout_amount, 0),
       0
     )::integer as base_pending_amount,
     case
@@ -3505,6 +3516,7 @@ select
   waiver_eval.due_date,
   waiver_eval.base_charge,
   waiver_eval.paid_amount,
+  waiver_eval.discount_closeout_amount,
   waiver_eval.adjustment_amount,
   waiver_eval.applied_amount,
   waiver_eval.raw_late_fee,
@@ -3512,16 +3524,18 @@ select
   greatest(waiver_eval.raw_late_fee - waiver_eval.waiver_applied, 0)::integer as final_late_fee,
   greatest(waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied, 0)::integer as total_charge,
   greatest(
-    waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied - waiver_eval.applied_amount,
+    waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied
+      - waiver_eval.applied_amount - waiver_eval.discount_closeout_amount,
     0
   )::integer as pending_amount,
   case
     when waiver_eval.installment_status = 'waived' then 'waived'
     when greatest(
-      waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied - waiver_eval.applied_amount,
+      waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied
+        - waiver_eval.applied_amount - waiver_eval.discount_closeout_amount,
       0
     ) <= 0 then 'paid'
-    when waiver_eval.applied_amount > 0 then 'partial'
+    when waiver_eval.applied_amount > 0 or waiver_eval.discount_closeout_amount > 0 then 'partial'
     when current_date > waiver_eval.due_date then 'overdue'
     else 'pending'
   end as balance_status,
@@ -3721,10 +3735,11 @@ installment_summary as (
     coalesce(sum(final_late_fee), 0)::integer as late_fee_total,
     coalesce(sum(total_charge), 0)::integer as total_due,
     coalesce(sum(applied_amount), 0)::integer as total_paid,
+    coalesce(sum(discount_closeout_amount), 0)::integer as total_discount_closeouts,
     coalesce(sum(pending_amount), 0)::integer as outstanding_amount,
     coalesce(max(last_payment_date), null) as last_payment_date,
     count(*) filter (where pending_amount <= 0) as paid_installment_count,
-    count(*) filter (where pending_amount > 0 and applied_amount > 0) as partly_paid_installment_count,
+    count(*) filter (where pending_amount > 0 and (applied_amount > 0 or discount_closeout_amount > 0)) as partly_paid_installment_count,
     count(*) filter (where balance_status = 'overdue') as overdue_installment_count,
     max(case when installment_no = 1 then pending_amount end)::integer as inst1_pending,
     max(case when installment_no = 2 then pending_amount end)::integer as inst2_pending,
@@ -3775,6 +3790,7 @@ select
   coalesce(summary.late_fee_total, 0) as late_fee_total,
   coalesce(summary.total_due, greatest(profile.gross_base_before_discount - profile.discount_amount, 0)) as total_due,
   coalesce(summary.total_paid, 0) as total_paid,
+  coalesce(summary.total_discount_closeouts, 0) as total_discount_closeouts,
   coalesce(summary.outstanding_amount, greatest(profile.gross_base_before_discount - profile.discount_amount, 0)) as outstanding_amount,
   next_due.next_due_date,
   next_due.next_due_amount,
@@ -3791,7 +3807,7 @@ select
     when coalesce(summary.total_due, greatest(profile.gross_base_before_discount - profile.discount_amount, 0)) <= 0 then ''
     when coalesce(summary.outstanding_amount, greatest(profile.gross_base_before_discount - profile.discount_amount, 0)) <= 0 then 'PAID'
     when next_due.next_due_date is not null and current_date > next_due.next_due_date then 'OVERDUE'
-    when coalesce(summary.total_paid, 0) <= 0 then 'NOT STARTED'
+    when coalesce(summary.total_paid, 0) <= 0 and coalesce(summary.total_discount_closeouts, 0) <= 0 then 'NOT STARTED'
     else 'PARTLY PAID'
   end as status_label,
   profile.override_reason
@@ -4380,6 +4396,7 @@ as $$
     select
       session_installments.*,
       coalesce(payment_row.paid_amount, 0)::integer as paid_amount,
+      coalesce(payment_row.discount_closeout_amount, 0)::integer as discount_closeout_amount,
       coalesce(payment_row.paid_by_due_amount, 0)::integer as paid_by_due_amount,
       coalesce(adjustment_row.adjustment_amount, 0)::integer as adjustment_amount,
       payment_row.last_payment_date,
@@ -4387,10 +4404,15 @@ as $$
     from session_installments
     left join lateral (
       select
-        coalesce(sum(payment_row.amount), 0) as paid_amount,
-        coalesce(sum(payment_row.amount) filter (where receipt_row.payment_date <= session_installments.due_date), 0) as paid_by_due_amount,
+        coalesce(sum(payment_row.amount) filter (where receipt_row.payment_mode <> 'discount'), 0) as paid_amount,
+        coalesce(sum(payment_row.amount) filter (where receipt_row.payment_mode = 'discount'), 0) as discount_closeout_amount,
+        coalesce(sum(payment_row.amount) filter (
+          where receipt_row.payment_date <= session_installments.due_date
+            and receipt_row.payment_mode <> 'discount'
+        ), 0) as paid_by_due_amount,
         max(receipt_row.payment_date) as last_payment_date,
-        bool_or(receipt_row.payment_date > session_installments.due_date) as had_payment_after_due
+        bool_or(receipt_row.payment_date > session_installments.due_date
+                and receipt_row.payment_mode <> 'discount') as had_payment_after_due
       from public.payments as payment_row
       join public.receipts as receipt_row
         on receipt_row.id = payment_row.receipt_id
@@ -4409,7 +4431,7 @@ as $$
       rolled.*,
       greatest(rolled.paid_amount + rolled.adjustment_amount, 0)::integer as applied_amount,
       greatest(
-        rolled.base_charge - greatest(rolled.paid_amount + rolled.adjustment_amount, 0),
+        rolled.base_charge - greatest(rolled.paid_amount + rolled.adjustment_amount + rolled.discount_closeout_amount, 0),
         0
       )::integer as base_pending_amount,
       case
@@ -4420,7 +4442,7 @@ as $$
         when p_include_candidate_late
           and p_as_of_date > rolled.due_date
           and greatest(
-            rolled.base_charge - greatest(rolled.paid_amount + rolled.adjustment_amount, 0),
+            rolled.base_charge - greatest(rolled.paid_amount + rolled.adjustment_amount + rolled.discount_closeout_amount, 0),
             0
           ) > 0
           then rolled.late_fee_flat_amount
@@ -4472,16 +4494,18 @@ as $$
     greatest(waiver_eval.raw_late_fee - waiver_eval.waiver_applied, 0)::integer as final_late_fee,
     greatest(waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied, 0)::integer as total_charge,
     greatest(
-      waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied - waiver_eval.applied_amount,
+      waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied
+        - waiver_eval.applied_amount - waiver_eval.discount_closeout_amount,
       0
     )::integer as pending_amount,
     case
       when waiver_eval.installment_status = 'waived' then 'waived'
       when greatest(
-        waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied - waiver_eval.applied_amount,
+        waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied
+          - waiver_eval.applied_amount - waiver_eval.discount_closeout_amount,
         0
       ) <= 0 then 'paid'
-      when waiver_eval.applied_amount > 0 then 'partial'
+      when waiver_eval.applied_amount > 0 or waiver_eval.discount_closeout_amount > 0 then 'partial'
       when p_as_of_date > waiver_eval.due_date then 'overdue'
       else 'pending'
     end as balance_status,
@@ -4544,6 +4568,7 @@ rolled as (
   select
     session_installments.*,
     coalesce(payment_row.paid_amount, 0)::integer as paid_amount,
+    coalesce(payment_row.discount_closeout_amount, 0)::integer as discount_closeout_amount,
     coalesce(payment_row.paid_by_due_amount, 0)::integer as paid_by_due_amount,
     coalesce(adjustment_row.adjustment_amount, 0)::integer as adjustment_amount,
     payment_row.last_payment_date,
@@ -4551,10 +4576,15 @@ rolled as (
   from session_installments
   left join lateral (
     select
-      coalesce(sum(payment_row.amount), 0) as paid_amount,
-      coalesce(sum(payment_row.amount) filter (where receipt_row.payment_date <= session_installments.due_date), 0) as paid_by_due_amount,
+      coalesce(sum(payment_row.amount) filter (where receipt_row.payment_mode <> 'discount'), 0) as paid_amount,
+      coalesce(sum(payment_row.amount) filter (where receipt_row.payment_mode = 'discount'), 0) as discount_closeout_amount,
+      coalesce(sum(payment_row.amount) filter (
+        where receipt_row.payment_date <= session_installments.due_date
+          and receipt_row.payment_mode <> 'discount'
+      ), 0) as paid_by_due_amount,
       max(receipt_row.payment_date) as last_payment_date,
-      bool_or(receipt_row.payment_date > session_installments.due_date) as had_payment_after_due
+      bool_or(receipt_row.payment_date > session_installments.due_date
+              and receipt_row.payment_mode <> 'discount') as had_payment_after_due
     from public.payments as payment_row
     join public.receipts as receipt_row
       on receipt_row.id = payment_row.receipt_id
@@ -4573,7 +4603,7 @@ late_eval as (
     rolled.*,
     greatest(rolled.paid_amount + rolled.adjustment_amount, 0)::integer as applied_amount,
     greatest(
-      rolled.base_charge - greatest(rolled.paid_amount + rolled.adjustment_amount, 0),
+      rolled.base_charge - greatest(rolled.paid_amount + rolled.adjustment_amount + rolled.discount_closeout_amount, 0),
       0
     )::integer as base_pending_amount,
     case
@@ -4622,6 +4652,7 @@ select
   waiver_eval.due_date,
   waiver_eval.base_charge,
   waiver_eval.paid_amount,
+  waiver_eval.discount_closeout_amount,
   waiver_eval.adjustment_amount,
   waiver_eval.applied_amount,
   waiver_eval.raw_late_fee,
@@ -4837,10 +4868,11 @@ installment_summary as (
     coalesce(sum(final_late_fee), 0)::integer as late_fee_total,
     coalesce(sum(total_charge), 0)::integer as total_due,
     coalesce(sum(applied_amount), 0)::integer as total_paid,
+    coalesce(sum(discount_closeout_amount), 0)::integer as total_discount_closeouts,
     coalesce(sum(pending_amount), 0)::integer as outstanding_amount,
     coalesce(max(last_payment_date), null) as last_payment_date,
     count(*) filter (where pending_amount <= 0) as paid_installment_count,
-    count(*) filter (where pending_amount > 0 and applied_amount > 0) as partly_paid_installment_count,
+    count(*) filter (where pending_amount > 0 and (applied_amount > 0 or discount_closeout_amount > 0)) as partly_paid_installment_count,
     count(*) filter (where balance_status = 'overdue') as overdue_installment_count,
     max(case when installment_no = 1 then base_charge end)::integer as installment1_base,
     max(case when installment_no = 2 then base_charge end)::integer as installment2_base,
@@ -4949,6 +4981,7 @@ select
   coalesce(summary.late_fee_total, 0) as late_fee_total,
   coalesce(summary.total_due, greatest(profile.gross_base_before_discount - profile.discount_amount, 0)) as total_due,
   coalesce(summary.total_paid, 0) as total_paid,
+  coalesce(summary.total_discount_closeouts, 0) as total_discount_closeouts,
   coalesce(summary.outstanding_amount, greatest(profile.gross_base_before_discount - profile.discount_amount, 0)) as outstanding_amount,
   next_due.next_due_date,
   next_due.next_due_amount,
@@ -4962,7 +4995,7 @@ select
     when coalesce(summary.total_due, greatest(profile.gross_base_before_discount - profile.discount_amount, 0)) <= 0 then ''
     when coalesce(summary.outstanding_amount, greatest(profile.gross_base_before_discount - profile.discount_amount, 0)) <= 0 then 'PAID'
     when next_due.next_due_date is not null and current_date > next_due.next_due_date then 'OVERDUE'
-    when coalesce(summary.total_paid, 0) <= 0 then 'NOT STARTED'
+    when coalesce(summary.total_paid, 0) <= 0 and coalesce(summary.total_discount_closeouts, 0) <= 0 then 'NOT STARTED'
     else 'PARTLY PAID'
   end as status_label,
   case when nullif(trim(profile.admission_no), '') is not null and profile.admission_no_count > 1 then true else false end as duplicate_sr_flag,

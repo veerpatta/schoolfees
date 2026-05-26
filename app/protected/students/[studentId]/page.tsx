@@ -300,17 +300,17 @@ export default async function StudentDetailPage({
     }
   };
 
-  const totalPaidAllInstallments = installmentBalances.reduce(
+  // `paidAmount` on the workbook installment row is cash-only (the view
+  // splits out discount-mode receipts into a separate column). Sum it
+  // directly for "Paid till now"; "Closed as discount" is sourced from
+  // discount-mode receipts on the receipts list.
+  const cashPaidAllInstallments = installmentBalances.reduce(
     (sum, b) => sum + b.paidAmount,
     0,
   );
-  // Discount-mode receipts go through `payments` to drive the workbook pending
-  // to zero, so they get summed into installment paid_amount. Separate them out
-  // here so "Paid till now" only shows actual cash collected.
   const discountClosedAmount = receipts
     .filter((r) => r.paymentMode === "discount")
     .reduce((sum, r) => sum + r.totalAmount, 0);
-  const cashPaidAllInstallments = Math.max(0, totalPaidAllInstallments - discountClosedAmount);
   const totalAnnualForGlance = installmentBalances.reduce(
     (sum, b) => sum + b.baseCharge,
     0,
