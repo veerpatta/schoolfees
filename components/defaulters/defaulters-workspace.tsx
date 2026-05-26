@@ -1,22 +1,40 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useTranslations } from "next-intl";
-import { ChevronRight, Phone } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  Flame,
+  Phone,
+  Snowflake,
+} from "lucide-react";
 
 import { BulkRowCheckbox } from "@/components/defaulters/bulk-whatsapp-provider";
 import { ContactStatusChip } from "@/components/defaulters/contact-status-chip";
 import { FeeBreakdownPanel } from "@/components/defaulters/fee-breakdown-panel";
 import { HeatChip } from "@/components/defaulters/heat-chip";
-import { QuickLogButtons } from "@/components/defaulters/quick-log-buttons";
+import { QuickLogButtons, type QuickLogKind } from "@/components/defaulters/quick-log-buttons";
 import { WorklistDrawer } from "@/components/defaulters/worklist-drawer";
 import { ContactPopover } from "@/components/defaulters/contact-popover";
 import { Money } from "@/components/ui/money";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { formatInr } from "@/lib/helpers/currency";
 import { cn } from "@/lib/utils";
-import type { DefaulterContactSummary } from "@/lib/defaulters/cadence";
+import {
+  deriveCadence,
+  tallyCadence,
+  type Cadence,
+  type CadenceCounts,
+  type DefaulterContactSummary,
+} from "@/lib/defaulters/cadence";
 import type { DefaulterSummaryRow } from "@/lib/defaulters/types";
 
 type Props = {
@@ -24,14 +42,62 @@ type Props = {
   sessionLabel: string;
   /** Map studentId → contact summary. Plain object for client serialization. */
   contactSummaries: Record<string, DefaulterContactSummary>;
+  /** Initial active cadence from the URL on first render. */
+  initialCadence: string;
   canPostPayments: boolean;
   canViewPaymentHistory: boolean;
 };
+
+const DEFAULT_SUMMARY: DefaulterContactSummary = {
+  snoozeUntil: null,
+  lastContactedAt: null,
+};
+
+/** Quick-log outcome → optimistic summary patch applied to the local overlay. */
+function patchForQuickLog(
+  kind: QuickLogKind,
+  defaultChannel: DefaulterContactSummary["lastChannel"],
+  promisedDate: string | null,
+  previous: DefaulterContactSummary,
+): DefaulterContactSummary {
+  const now = new Date().toISOString();
+  switch (kind) {
+    case "no_answer":
+      return {
+        ...previous,
+        lastContactedAt: now,
+        lastOutcome: "no_answer",
+        lastChannel: defaultChannel ?? "call",
+        noAnswerStreak: (previous.noAnswerStreak ?? 0) + 1,
+        totalAttempts: (previous.totalAttempts ?? 0) + 1,
+      };
+    case "reached":
+      return {
+        ...previous,
+        lastContactedAt: now,
+        lastOutcome: "reached",
+        lastChannel: defaultChannel ?? "call",
+        noAnswerStreak: 0,
+        totalAttempts: (previous.totalAttempts ?? 0) + 1,
+      };
+    case "promised":
+      return {
+        ...previous,
+        lastContactedAt: now,
+        lastOutcome: "promised_pay",
+        lastChannel: defaultChannel ?? "call",
+        snoozeUntil: promisedDate ?? previous.snoozeUntil,
+        noAnswerStreak: 0,
+        totalAttempts: (previous.totalAttempts ?? 0) + 1,
+      };
+  }
+}
 
 export function DefaultersWorkspace({
   rows,
   sessionLabel,
   contactSummaries,
+  initialCadence,
   canPostPayments,
   canViewPaymentHistory,
 }: Props) {
@@ -39,6 +105,98 @@ export function DefaultersWorkspace({
   const [activeStudentId, setActiveStudentId] = useState<string | null>(null);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [fullFormFor, setFullFormFor] = useState<DefaulterSummaryRow | null>(null);
+  const [activeCadence, setActiveCadence] = useState<string>(initialCadence);
+
+  /**
+   * Local overlay on top of the server-supplied contact summaries — keyed by
+   * studentId. When the officer taps a quick-log button we patch this
+   * immediately so the card moves bucket without waiting for the server.
+   */
+  const [overlay, setOverlay] = useState<Record<string, DefaulterContactSummary>>({});
+
+  // Reset overlay when the underlying server summaries change (page nav).
+  useEffect(() => {
+    setOverlay({});
+  }, [contactSummaries]);
+
+  const effectiveSummaries: Record<string, DefaulterContactSummary> = useMemo(() => {
+    const merged: Record<string, DefaulterContactSummary> = { ...contactSummaries };
+    for (const [id, patch] of Object.entries(overlay)) {
+      merged[id] = patch;
+    }
+    return merged;
+  }, [contactSummaries, overlay]);
+
+  // Compute cadence + counts purely on the client.
+  const today = useMemo(() => new Date(), []);
+  const rowsWithCadence: { row: DefaulterSummaryRow; cadence: Cadence }[] = useMemo(
+    () =>
+      rows.map((row) => ({
+        row,
+        cadence: deriveCadence(effectiveSummaries[row.studentId] ?? DEFAULT_SUMMARY, today),
+      })),
+    [rows, effectiveSummaries, today],
+  );
+
+  const cadenceCounts: CadenceCounts = useMemo(
+    () =>
+      tallyCadence(
+        rows.map((row) => effectiveSummaries[row.studentId] ?? DEFAULT_SUMMARY),
+        today,
+      ),
+    [rows, effectiveSummaries, today],
+  );
+
+  const visibleRows = useMemo(
+    () =>
+      activeCadence === "all"
+        ? rowsWithCadence
+        : rowsWithCadence.filter((r) => r.cadence === activeCadence),
+    [rowsWithCadence, activeCadence],
+  );
+
+  // Persist cadence to URL via shallow history update — no server re-render.
+  const handleCadenceChange = useCallback((next: string) => {
+    setActiveCadence(next);
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (next === "now") {
+      url.searchParams.delete("cadence");
+    } else {
+      url.searchParams.set("cadence", next);
+    }
+    url.searchParams.delete("page");
+    window.history.replaceState(null, "", url.toString());
+  }, []);
+
+  const handleQuickLog = useCallback(
+    (
+      studentId: string,
+      kind: QuickLogKind,
+      defaultChannel: DefaulterContactSummary["lastChannel"],
+      promisedDate: string | null,
+    ) => {
+      setOverlay((prev) => {
+        const previous = prev[studentId] ?? contactSummaries[studentId] ?? DEFAULT_SUMMARY;
+        return {
+          ...prev,
+          [studentId]: patchForQuickLog(kind, defaultChannel, promisedDate, previous),
+        };
+      });
+    },
+    [contactSummaries],
+  );
+
+  const handleQuickLogRevert = useCallback(
+    (studentId: string) => {
+      setOverlay((prev) => {
+        const next = { ...prev };
+        delete next[studentId];
+        return next;
+      });
+    },
+    [],
+  );
 
   const withSession = useCallback(
     (href: string) => appendSessionParam(href, sessionLabel),
@@ -49,108 +207,124 @@ export function DefaultersWorkspace({
     () => rows.find((row) => row.studentId === activeStudentId) ?? null,
     [rows, activeStudentId],
   );
-  const activeSummary = activeRow ? contactSummaries[activeRow.studentId] ?? null : null;
+  const activeSummary = activeRow
+    ? effectiveSummaries[activeRow.studentId] ?? null
+    : null;
 
   function openDrawer(row: DefaulterSummaryRow) {
     setActiveStudentId(row.studentId);
     setMobileDrawerOpen(true);
   }
 
-  if (rows.length === 0) {
-    return (
-      <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
-        {t("emptyDefaulters")}
-      </p>
-    );
-  }
-
   return (
-    <>
-      {/* ── Mobile card list (primary surface) ── */}
-      <div className="space-y-2 lg:hidden">
-        {rows.map((row) => (
-          <DefaulterCard
-            key={row.studentId}
-            row={row}
-            summary={contactSummaries[row.studentId] ?? null}
-            sessionLabel={sessionLabel}
-            onOpenDrawer={() => openDrawer(row)}
-            onOpenFullForm={() => setFullFormFor(row)}
-          />
-        ))}
-      </div>
+    <div className="space-y-3">
+      <CadenceTabs
+        counts={cadenceCounts}
+        active={activeCadence}
+        onSelect={handleCadenceChange}
+      />
 
-      {/* ── Desktop two-pane (list left, detail right) ── */}
-      <div className="hidden gap-4 lg:grid lg:grid-cols-[minmax(340px,420px)_1fr]">
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <ul className="divide-y divide-border/60">
-            {rows.map((row) => {
-              const summary = contactSummaries[row.studentId] ?? null;
-              const isActive = activeStudentId === row.studentId;
-              return (
-                <li key={row.studentId}>
-                  <button
-                    type="button"
-                    onClick={() => setActiveStudentId(row.studentId)}
-                    className={cn(
-                      "w-full px-4 py-3 text-left transition-colors hover:bg-surface-2",
-                      isActive && "bg-accent/10 ring-1 ring-inset ring-accent",
-                    )}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-semibold text-foreground">
-                          {row.fullName}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {t("studentMetaLine", {
-                            classLabel: row.classLabel,
-                            admissionNo: row.admissionNo,
-                          })}
-                        </p>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <Money value={row.totalPending} size="sm" tone="warning" />
-                        <div className="mt-1">
-                          <HeatChip score={row.heat} iconOnly />
+      {visibleRows.length === 0 ? (
+        <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
+          {t("emptyDefaulters")}
+        </p>
+      ) : (
+        <>
+          {/* ── Mobile card list (primary surface) ── */}
+          <div className="space-y-2 lg:hidden">
+            {visibleRows.map(({ row }) => (
+              <DefaulterCard
+                key={row.studentId}
+                row={row}
+                summary={effectiveSummaries[row.studentId] ?? null}
+                sessionLabel={sessionLabel}
+                onOpenDrawer={() => openDrawer(row)}
+                onOpenFullForm={() => setFullFormFor(row)}
+                onOptimisticLog={(kind, defaultChannel, promisedDate) =>
+                  handleQuickLog(row.studentId, kind, defaultChannel, promisedDate)
+                }
+                onLogRevert={() => handleQuickLogRevert(row.studentId)}
+              />
+            ))}
+          </div>
+
+          {/* ── Desktop two-pane ── */}
+          <div className="hidden gap-4 lg:grid lg:grid-cols-[minmax(340px,420px)_1fr]">
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
+              <ul className="divide-y divide-border/60">
+                {visibleRows.map(({ row }) => {
+                  const summary = effectiveSummaries[row.studentId] ?? null;
+                  const isActive = activeStudentId === row.studentId;
+                  return (
+                    <li key={row.studentId}>
+                      <button
+                        type="button"
+                        onClick={() => setActiveStudentId(row.studentId)}
+                        className={cn(
+                          "w-full px-4 py-3 text-left transition-colors hover:bg-surface-2",
+                          isActive && "bg-accent/10 ring-1 ring-inset ring-accent",
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-semibold text-foreground">
+                              {row.fullName}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {t("studentMetaLine", {
+                                classLabel: row.classLabel,
+                                admissionNo: row.admissionNo,
+                              })}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <Money value={row.totalPending} size="sm" tone="warning" />
+                            <div className="mt-1">
+                              <HeatChip score={row.heat} iconOnly />
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                    <div className="mt-1.5">
-                      <ContactStatusChip summary={summary} />
-                    </div>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-
-        <div className="rounded-xl border border-border bg-card p-5">
-          {activeRow ? (
-            <DesktopDetailPane
-              row={activeRow}
-              summary={activeSummary}
-              sessionLabel={sessionLabel}
-              canPostPayments={canPostPayments}
-              withSession={withSession}
-              onOpenFullForm={() => setFullFormFor(activeRow)}
-            />
-          ) : (
-            <div className="flex h-full min-h-[400px] flex-col items-center justify-center text-center">
-              <ChevronRight className="size-8 text-muted-foreground" aria-hidden="true" />
-              <p className="mt-2 text-sm font-medium text-foreground">
-                {t("desktopPickStudent")}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t("desktopPickHint")}
-              </p>
+                        <div className="mt-1.5">
+                          <ContactStatusChip summary={summary} />
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Mobile drawer (full-screen sheet) */}
+            <div className="rounded-xl border border-border bg-card p-5">
+              {activeRow ? (
+                <DesktopDetailPane
+                  row={activeRow}
+                  summary={activeSummary}
+                  sessionLabel={sessionLabel}
+                  canPostPayments={canPostPayments}
+                  withSession={withSession}
+                  onOpenFullForm={() => setFullFormFor(activeRow)}
+                  onOptimisticLog={(kind, defaultChannel, promisedDate) =>
+                    handleQuickLog(activeRow.studentId, kind, defaultChannel, promisedDate)
+                  }
+                  onLogRevert={() => handleQuickLogRevert(activeRow.studentId)}
+                />
+              ) : (
+                <div className="flex h-full min-h-[400px] flex-col items-center justify-center text-center">
+                  <ChevronRight className="size-8 text-muted-foreground" aria-hidden="true" />
+                  <p className="mt-2 text-sm font-medium text-foreground">
+                    {t("desktopPickStudent")}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t("desktopPickHint")}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Mobile drawer */}
       <WorklistDrawer
         open={mobileDrawerOpen}
         onClose={() => setMobileDrawerOpen(false)}
@@ -159,9 +333,16 @@ export function DefaultersWorkspace({
         contactSummary={activeSummary}
         canPostPayments={canPostPayments}
         canViewPaymentHistory={canViewPaymentHistory}
+        onOptimisticLog={(kind, defaultChannel, promisedDate) => {
+          if (activeRow) {
+            handleQuickLog(activeRow.studentId, kind, defaultChannel, promisedDate);
+          }
+        }}
+        onLogRevert={() => {
+          if (activeRow) handleQuickLogRevert(activeRow.studentId);
+        }}
       />
 
-      {/* Full-form sheet for advanced outcomes / note / voice note */}
       {fullFormFor ? (
         <ContactPopover
           studentId={fullFormFor.studentId}
@@ -171,7 +352,101 @@ export function DefaultersWorkspace({
           onClose={() => setFullFormFor(null)}
         />
       ) : null}
-    </>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Cadence tabs — fully client-controlled, instant filter                      */
+/* -------------------------------------------------------------------------- */
+
+const CADENCE_TABS: { value: Cadence | "all"; i18nKey: string; Icon: typeof Flame }[] = [
+  { value: "now", i18nKey: "triageTabNow", Icon: Flame },
+  { value: "soon", i18nKey: "triageTabSoon", Icon: Clock },
+  { value: "later", i18nKey: "triageTabLater", Icon: Snowflake },
+  { value: "done", i18nKey: "triageTabDone", Icon: CheckCircle2 },
+  { value: "all", i18nKey: "triageTabAll", Icon: Flame },
+];
+
+const CADENCE_TONE: Record<Cadence | "all", { active: string; inactive: string; badge: string }> = {
+  now: {
+    active: "bg-destructive text-destructive-foreground shadow-sm",
+    inactive: "text-destructive hover:bg-destructive/10",
+    badge: "bg-destructive/20 text-destructive",
+  },
+  soon: {
+    active: "bg-warning-soft text-warning-soft-foreground shadow-sm",
+    inactive: "text-warning-soft-foreground hover:bg-warning-soft/60",
+    badge: "bg-warning/30 text-warning-soft-foreground",
+  },
+  later: {
+    active: "bg-info-soft text-info-soft-foreground shadow-sm",
+    inactive: "text-info-soft-foreground hover:bg-info-soft/60",
+    badge: "bg-info-soft text-info-soft-foreground",
+  },
+  done: {
+    active: "bg-success text-success-foreground shadow-sm",
+    inactive: "text-success-soft-foreground hover:bg-success-soft",
+    badge: "bg-success-soft text-success-soft-foreground",
+  },
+  all: {
+    active: "bg-card text-foreground shadow-sm",
+    inactive: "text-muted-foreground hover:bg-card/60 hover:text-foreground",
+    badge: "bg-muted text-muted-foreground",
+  },
+};
+
+function CadenceTabs({
+  counts,
+  active,
+  onSelect,
+}: {
+  counts: CadenceCounts;
+  active: string;
+  onSelect: (next: string) => void;
+}) {
+  const t = useTranslations("Defaulters");
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+
+  return (
+    <div
+      className="-mx-4 flex gap-1 overflow-x-auto rounded-lg border border-border bg-surface-2 p-1 px-4 no-scrollbar md:mx-0 md:px-1"
+      role="tablist"
+      aria-label={t("triageNavLabel")}
+    >
+      {CADENCE_TABS.map((tab) => {
+        const count = tab.value === "all" ? total : counts[tab.value as Cadence] ?? 0;
+        const isActive =
+          active === tab.value ||
+          (tab.value === "now" && (active === "all" || active === ""));
+        const tone = CADENCE_TONE[tab.value as Cadence | "all"];
+        const Icon = tab.Icon;
+        return (
+          <button
+            key={tab.value}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            onClick={() => onSelect(tab.value)}
+            className={cn(
+              "flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              isActive ? tone.active : tone.inactive,
+            )}
+          >
+            <Icon className="size-3.5" aria-hidden="true" />
+            {t(tab.i18nKey)}
+            <span
+              className={cn(
+                "rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums",
+                isActive ? "bg-card/30 text-current" : tone.badge,
+              )}
+            >
+              {count}
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -185,9 +460,23 @@ type CardProps = {
   sessionLabel: string;
   onOpenDrawer: () => void;
   onOpenFullForm: () => void;
+  onOptimisticLog: (
+    kind: QuickLogKind,
+    defaultChannel: DefaulterContactSummary["lastChannel"],
+    promisedDate: string | null,
+  ) => void;
+  onLogRevert: () => void;
 };
 
-function DefaulterCard({ row, summary, sessionLabel, onOpenDrawer, onOpenFullForm }: CardProps) {
+function DefaulterCard({
+  row,
+  summary,
+  sessionLabel,
+  onOpenDrawer,
+  onOpenFullForm,
+  onOptimisticLog,
+  onLogRevert,
+}: CardProps) {
   const t = useTranslations("Defaulters");
   const defaultChannel =
     (summary?.lastChannel as "call" | "whatsapp" | "sms" | "in_person" | "email" | null) ?? "call";
@@ -205,7 +494,6 @@ function DefaulterCard({ row, summary, sessionLabel, onOpenDrawer, onOpenFullFor
       }}
       className="cursor-pointer rounded-xl border border-border bg-card p-3 transition-colors hover:bg-surface-2/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
     >
-      {/* Top row: select + name + outstanding */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-start gap-2">
           <span
@@ -252,18 +540,18 @@ function DefaulterCard({ row, summary, sessionLabel, onOpenDrawer, onOpenFullFor
         </div>
       </div>
 
-      {/* Contact status */}
       <div className="mt-2">
         <ContactStatusChip summary={summary} />
       </div>
 
-      {/* One-tap quick log */}
       <div className="mt-3">
         <QuickLogButtons
           studentId={row.studentId}
           sessionLabel={sessionLabel}
           defaultChannel={defaultChannel}
           onOpenFullForm={onOpenFullForm}
+          onOptimisticLog={onOptimisticLog}
+          onLogRevert={onLogRevert}
         />
       </div>
     </div>
@@ -281,6 +569,12 @@ type DetailProps = {
   canPostPayments: boolean;
   withSession: (href: string) => string;
   onOpenFullForm: () => void;
+  onOptimisticLog: (
+    kind: QuickLogKind,
+    defaultChannel: DefaulterContactSummary["lastChannel"],
+    promisedDate: string | null,
+  ) => void;
+  onLogRevert: () => void;
 };
 
 function DesktopDetailPane({
@@ -290,6 +584,8 @@ function DesktopDetailPane({
   canPostPayments,
   withSession,
   onOpenFullForm,
+  onOptimisticLog,
+  onLogRevert,
 }: DetailProps) {
   const t = useTranslations("Defaulters");
   const defaultChannel =
@@ -334,6 +630,8 @@ function DesktopDetailPane({
           sessionLabel={sessionLabel}
           defaultChannel={defaultChannel}
           onOpenFullForm={onOpenFullForm}
+          onOptimisticLog={onOptimisticLog}
+          onLogRevert={onLogRevert}
         />
       </section>
 
@@ -378,94 +676,6 @@ function DesktopDetailPane({
       </section>
 
       <FeeBreakdownPanel studentId={row.studentId} sessionLabel={sessionLabel} />
-
-      <DesktopTimeline studentId={row.studentId} sessionLabel={sessionLabel} />
     </div>
-  );
-}
-
-const OUTCOME_I18N: Record<string, string> = {
-  reached: "outcomeReached",
-  no_answer: "outcomeNoAnswer",
-  promised_pay: "outcomePromisedPay",
-  dispute: "outcomeDisputeLog",
-  other: "outcomeOther",
-};
-
-function DesktopTimeline({ studentId, sessionLabel }: { studentId: string; sessionLabel: string }) {
-  const t = useTranslations("Defaulters");
-  const [entries, setEntries] = useState<
-    Array<{
-      contactedAt: string;
-      channel: string | null;
-      outcome: string | null;
-      note: string | null;
-      snoozeUntil: string | null;
-    }> | null
-  >(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    setEntries(null);
-    setLoading(true);
-    fetch(
-      `/protected/defaulters/contact-log?studentId=${encodeURIComponent(studentId)}&sessionLabel=${encodeURIComponent(sessionLabel)}`,
-      { headers: { accept: "application/json" } },
-    )
-      .then((r) => (r.ok ? r.json() : { entries: [] }))
-      .then((data: { entries?: typeof entries }) => {
-        if (cancelled) return;
-        setEntries(data.entries ?? []);
-      })
-      .catch(() => {
-        if (!cancelled) setEntries([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [studentId, sessionLabel]);
-
-  return (
-    <section className="border-t border-border pt-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-        {t("drawerTimelineHeading")}
-      </p>
-      {loading ? (
-        <p className="mt-2 text-xs text-muted-foreground">{t("logLoading")}</p>
-      ) : null}
-      {entries !== null && entries.length === 0 ? (
-        <p className="mt-2 rounded-lg border border-dashed border-border bg-surface-2 px-3 py-3 text-center text-xs text-muted-foreground">
-          {t("logEmpty")}
-        </p>
-      ) : null}
-      <ul className="mt-2 space-y-1.5">
-        {entries?.slice(0, 6).map((entry, index) => {
-          const outcomeKey = entry.outcome ? OUTCOME_I18N[entry.outcome] : null;
-          return (
-            <li
-              key={`${entry.contactedAt}-${index}`}
-              className="flex items-baseline justify-between gap-3 rounded-md border border-border bg-surface-2 px-3 py-2 text-xs"
-            >
-              <div>
-                <span className="font-medium text-foreground">
-                  {outcomeKey ? t(outcomeKey) : entry.outcome ?? t("logLogged")}
-                </span>
-                <span className="text-muted-foreground"> · {entry.channel ?? t("logChannelUnknown")}</span>
-                {entry.note ? <p className="mt-0.5 text-foreground">{entry.note}</p> : null}
-              </div>
-              <span className="shrink-0 text-muted-foreground">
-                {new Intl.DateTimeFormat("en-IN", { dateStyle: "short", timeStyle: "short" }).format(
-                  new Date(entry.contactedAt),
-                )}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
   );
 }

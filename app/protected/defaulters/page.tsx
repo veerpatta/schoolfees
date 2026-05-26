@@ -10,11 +10,10 @@ import { OfficeNotice } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { DefaulterFilters } from "@/components/defaulters/defaulter-filters";
-import { TriageTabs } from "@/components/defaulters/triage-tabs";
 import { BulkWhatsappProvider } from "@/components/defaulters/bulk-whatsapp-provider";
 import { DefaultersWorkspace } from "@/components/defaulters/defaulters-workspace";
 import { getDefaultersPageData } from "@/lib/defaulters/data";
-import { deriveCadence, tallyCadence, type DefaulterContactSummary } from "@/lib/defaulters/cadence";
+import { type DefaulterContactSummary } from "@/lib/defaulters/cadence";
 import { getContactSummariesForStudents } from "@/lib/defaulters/contacts";
 import { listWhatsappTemplates } from "@/lib/whatsapp-templates/data";
 import {
@@ -118,52 +117,13 @@ export default async function DefaultersPage({
   const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
   const whatsappTemplates = await listWhatsappTemplates({ onlyActive: true });
 
-  const todayDate = new Date();
-  const rowsWithCadence = data.rows.map((row) => {
-    const summary = contactSummaries.get(row.studentId) ?? {
-      snoozeUntil: null,
-      lastContactedAt: null,
-    };
-    return {
-      row,
-      summary,
-      cadence: deriveCadence(summary, todayDate),
-    };
-  });
-  const cadenceCounts = tallyCadence(
-    rowsWithCadence.map((r) => r.summary),
-    todayDate,
-  );
-
-  const activeCadence = asString(resolvedSearchParams?.cadence) || "now";
-  const visibleRows =
-    activeCadence === "all"
-      ? rowsWithCadence
-      : rowsWithCadence.filter((r) => r.cadence === activeCadence);
+  const initialCadence = asString(resolvedSearchParams?.cadence) || "now";
 
   // Plain-object map for client component serialization.
   const contactSummariesObj: Record<string, DefaulterContactSummary> = {};
   for (const [id, summary] of contactSummaries.entries()) {
     contactSummariesObj[id] = summary;
   }
-
-  const triageBaseParams: Record<string, string> = {};
-  if (resolvedSearchParams?.session)
-    triageBaseParams.session = asString(resolvedSearchParams.session);
-  if (resolvedSearchParams?.classId)
-    triageBaseParams.classId = asString(resolvedSearchParams.classId);
-  if (resolvedSearchParams?.transportRouteId)
-    triageBaseParams.transportRouteId = asString(
-      resolvedSearchParams.transportRouteId,
-    );
-  if (resolvedSearchParams?.overdue)
-    triageBaseParams.overdue = asString(resolvedSearchParams.overdue);
-  if (resolvedSearchParams?.minPendingAmount)
-    triageBaseParams.minPendingAmount = asString(
-      resolvedSearchParams.minPendingAmount,
-    );
-  if (resolvedSearchParams?.query)
-    triageBaseParams.query = asString(resolvedSearchParams.query);
 
   const buildFilterHref = (chip: { value: string }) => {
     const search = new URLSearchParams();
@@ -347,7 +307,7 @@ export default async function DefaultersPage({
         description={t("listDescription")}
       >
         <BulkWhatsappProvider
-          rows={visibleRows.map(({ row }) => ({
+          rows={data.rows.map((row) => ({
             studentId: row.studentId,
             fullName: row.fullName,
             fatherName: row.fatherName,
@@ -360,12 +320,7 @@ export default async function DefaultersPage({
           sessionLabel={viewSession.sessionLabel}
         >
           <div className="space-y-4">
-            <TriageTabs
-              counts={cadenceCounts}
-              activeCadence={activeCadence}
-              baseParams={triageBaseParams}
-            />
-
+            {/* Amount filter chips remain server-driven (they affect query) */}
             <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar md:mx-0 md:px-0">
               {[
                 { i18nKey: "chipAll", value: "all" },
@@ -388,10 +343,12 @@ export default async function DefaultersPage({
               ))}
             </div>
 
+            {/* Cadence tabs + worklist — both client-side now, instant filter */}
             <DefaultersWorkspace
-              rows={visibleRows.map(({ row }) => row)}
+              rows={data.rows}
               sessionLabel={viewSession.sessionLabel}
               contactSummaries={contactSummariesObj}
+              initialCadence={initialCadence}
               canPostPayments={canPostPayments}
               canViewPaymentHistory={canViewPaymentHistory}
             />

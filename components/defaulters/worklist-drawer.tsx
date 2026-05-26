@@ -11,7 +11,10 @@ import { ContactStatusChip } from "@/components/defaulters/contact-status-chip";
 import { ContactPopover } from "@/components/defaulters/contact-popover";
 import { FeeBreakdownPanel } from "@/components/defaulters/fee-breakdown-panel";
 import { HeatChip } from "@/components/defaulters/heat-chip";
-import { QuickLogButtons } from "@/components/defaulters/quick-log-buttons";
+import {
+  QuickLogButtons,
+  type QuickLogKind,
+} from "@/components/defaulters/quick-log-buttons";
 import { VoiceNotePlayer } from "@/components/defaulters/voice-note-player";
 import { WhatsAppDraftModal } from "@/components/defaulters/whatsapp-draft-modal";
 import { formatInr } from "@/lib/helpers/currency";
@@ -62,6 +65,12 @@ type Props = {
   contactSummary?: DefaulterContactSummary | null;
   canPostPayments: boolean;
   canViewPaymentHistory: boolean;
+  onOptimisticLog?: (
+    kind: QuickLogKind,
+    defaultChannel: DefaulterContactSummary["lastChannel"],
+    promisedDate: string | null,
+  ) => void;
+  onLogRevert?: () => void;
 };
 
 export function WorklistDrawer({
@@ -72,6 +81,8 @@ export function WorklistDrawer({
   contactSummary,
   canPostPayments,
   canViewPaymentHistory,
+  onOptimisticLog,
+  onLogRevert,
 }: Props) {
   const t = useTranslations("Defaulters");
   const [entries, setEntries] = useState<ContactEntry[] | null>(null);
@@ -207,6 +218,8 @@ export function WorklistDrawer({
               sessionLabel={sessionLabel}
               defaultChannel={defaultChannel}
               onOpenFullForm={() => setShowFullForm(true)}
+              onOptimisticLog={onOptimisticLog}
+              onLogRevert={onLogRevert}
             />
           </div>
 

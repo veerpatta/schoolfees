@@ -1,30 +1,44 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Check, HandshakeIcon, Loader2, PhoneOff, PhoneCall } from "lucide-react";
 
 import { quickLogContact } from "@/app/protected/defaulters/actions";
 import { cn } from "@/lib/utils";
 
+export type QuickLogKind = "no_answer" | "reached" | "promised";
+
+type Channel = "call" | "whatsapp" | "sms" | "in_person" | "email";
+
 type Props = {
   studentId: string;
   sessionLabel: string;
   /** Inferred from the last attempt; defaults to "call". */
-  defaultChannel?: "call" | "whatsapp" | "sms" | "in_person" | "email";
+  defaultChannel?: Channel;
   /** Open the full-form sheet (for Dispute / Other / add note). */
   onOpenFullForm: () => void;
   /** Compact icon-only buttons (for desktop table cells). */
   compact?: boolean;
+  /**
+   * Optimistic UI hook — fired synchronously when the user taps.
+   * Parent should merge the implied summary patch into its local state so the
+   * row jumps to the correct bucket without a server roundtrip.
+   */
+  onOptimisticLog?: (
+    kind: QuickLogKind,
+    defaultChannel: Channel,
+    promisedDate: string | null,
+  ) => void;
+  /** Called when the server save fails — parent should revert overlay. */
+  onLogRevert?: () => void;
 };
 
-type PendingKind = "no_answer" | "reached" | "promised" | null;
-
 /**
- * One-tap log buttons. No modal, no form. The Promised button expands inline
- * to a tiny date picker (Today / Tomorrow / Pick date). Anything more complex
- * (Dispute, Other, add note, voice note) opens the full sheet via onOpenFullForm.
+ * One-tap log buttons. Optimistic by design: parent UI updates *instantly*
+ * via onOptimisticLog; the server insert fires in the background and the
+ * button only flashes a checkmark long enough to acknowledge the press.
+ * Dispute / Other / add note open the full sheet via onOpenFullForm.
  */
 export function QuickLogButtons({
   studentId,
@@ -32,40 +46,38 @@ export function QuickLogButtons({
   defaultChannel = "call",
   onOpenFullForm,
   compact = false,
+  onOptimisticLog,
+  onLogRevert,
 }: Props) {
   const t = useTranslations("Defaulters");
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [pendingKind, setPendingKind] = useState<PendingKind>(null);
-  const [confirmed, setConfirmed] = useState<PendingKind>(null);
+  const [pendingKind, setPendingKind] = useState<QuickLogKind | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showPromiseOptions, setShowPromiseOptions] = useState(false);
 
   function submit(
-    kind: PendingKind,
+    kind: QuickLogKind,
+    promisedDate: string | null,
     args: Parameters<typeof quickLogContact>[0],
   ) {
+    // Optimistic: fire the parent patch immediately.
+    onOptimisticLog?.(kind, defaultChannel, promisedDate);
     setPendingKind(kind);
     setError(null);
+    setShowPromiseOptions(false);
+
     startTransition(async () => {
       const result = await quickLogContact(args);
-      if (result.ok) {
-        setConfirmed(kind);
-        setShowPromiseOptions(false);
-        // Brief acknowledgement, then refresh the worklist.
-        window.setTimeout(() => {
-          setConfirmed(null);
-          router.refresh();
-        }, 700);
-      } else {
+      if (!result.ok) {
         setError(result.message ?? "Could not save.");
+        onLogRevert?.();
       }
       setPendingKind(null);
     });
   }
 
   function handleNoAnswer() {
-    submit("no_answer", {
+    submit("no_answer", null, {
       studentId,
       sessionLabel,
       outcome: "no_answer",
@@ -74,7 +86,7 @@ export function QuickLogButtons({
   }
 
   function handleReached() {
-    submit("reached", {
+    submit("reached", null, {
       studentId,
       sessionLabel,
       outcome: "reached",
@@ -83,7 +95,7 @@ export function QuickLogButtons({
   }
 
   function handlePromised(promisedDate: string) {
-    submit("promised", {
+    submit("promised", promisedDate, {
       studentId,
       sessionLabel,
       outcome: "promised_pay",
@@ -175,15 +187,11 @@ export function QuickLogButtons({
             onClick={handleNoAnswer}
             className={cn(
               btnBase,
-              confirmed === "no_answer"
-                ? "border-success bg-success text-success-foreground"
-                : "border border-warning-soft-foreground/30 bg-warning-soft text-warning-soft-foreground hover:bg-warning-soft/80",
+              "border border-warning-soft-foreground/30 bg-warning-soft text-warning-soft-foreground active:scale-[0.98]",
             )}
             aria-label={t("quickNoAnswerAria")}
           >
             {pendingKind === "no_answer" ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            ) : confirmed === "no_answer" ? (
               <Check className="size-4" aria-hidden="true" />
             ) : (
               <PhoneOff className="size-4" aria-hidden="true" />
@@ -197,15 +205,11 @@ export function QuickLogButtons({
             onClick={handleReached}
             className={cn(
               btnBase,
-              confirmed === "reached"
-                ? "border-success bg-success text-success-foreground"
-                : "border border-info-soft bg-info-soft text-info-soft-foreground hover:bg-info-soft/80",
+              "border border-info-soft bg-info-soft text-info-soft-foreground active:scale-[0.98]",
             )}
             aria-label={t("quickReachedAria")}
           >
             {pendingKind === "reached" ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            ) : confirmed === "reached" ? (
               <Check className="size-4" aria-hidden="true" />
             ) : (
               <PhoneCall className="size-4" aria-hidden="true" />
@@ -219,14 +223,12 @@ export function QuickLogButtons({
             onClick={() => setShowPromiseOptions(true)}
             className={cn(
               btnBase,
-              confirmed === "promised"
-                ? "border-success bg-success text-success-foreground"
-                : "border border-success/40 bg-success-soft text-success-soft-foreground hover:bg-success-soft/80",
+              "border border-success/40 bg-success-soft text-success-soft-foreground active:scale-[0.98]",
             )}
             aria-label={t("quickPromisedAria")}
           >
-            {confirmed === "promised" ? (
-              <Check className="size-4" aria-hidden="true" />
+            {pendingKind === "promised" ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
             ) : (
               <HandshakeIcon className="size-4" aria-hidden="true" />
             )}
