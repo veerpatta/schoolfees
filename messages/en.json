@@ -1062,7 +1062,14 @@
     "feeLabelDiscount": "Discount",
     "feeLabelBooks": "Books",
     "feeLabelOther": "Other Fees",
-    "feeLabelGeneric": "Fee"
+    "feeLabelGeneric": "Fee",
+    "v2PendingBeforeColumn": "Pending Before",
+    "v2PaidColumn": "Paid",
+    "v2BalanceAfterColumn": "Balance After",
+    "v2TotalPaidToday": "Total Paid Today",
+    "v2BalanceDueAfter": "Balance Due After",
+    "v2FeeDetailSummary": "Fee detail",
+    "v2FeeDetailHint": "Conventional discount + full fee breakup (A4 prints only)."
   },
   "AdminTools": {
     "eyebrow": "Admin Tools",

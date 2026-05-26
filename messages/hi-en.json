@@ -1062,7 +1062,14 @@
     "feeLabelDiscount": "[HI-EN] Discount",
     "feeLabelBooks": "[HI-EN] Books",
     "feeLabelOther": "[HI-EN] Other Fees",
-    "feeLabelGeneric": "[HI-EN] Fee"
+    "feeLabelGeneric": "[HI-EN] Fee",
+    "v2PendingBeforeColumn": "[HI-EN] Pending Before",
+    "v2PaidColumn": "[HI-EN] Paid",
+    "v2BalanceAfterColumn": "[HI-EN] Balance After",
+    "v2TotalPaidToday": "[HI-EN] Total Paid Today",
+    "v2BalanceDueAfter": "[HI-EN] Balance Due After",
+    "v2FeeDetailSummary": "[HI-EN] Fee detail",
+    "v2FeeDetailHint": "[HI-EN] Conventional discount + full fee breakup (A4 prints only)."
   },
   "AdminTools": {
     "eyebrow": "[HI-EN] Admin Tools",

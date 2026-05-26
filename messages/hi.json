@@ -1062,7 +1062,14 @@
     "feeLabelDiscount": "छूट",
     "feeLabelBooks": "पुस्तक शुल्क",
     "feeLabelOther": "अन्य शुल्क",
-    "feeLabelGeneric": "शुल्क"
+    "feeLabelGeneric": "शुल्क",
+    "v2PendingBeforeColumn": "पहले बकाया",
+    "v2PaidColumn": "जमा",
+    "v2BalanceAfterColumn": "शेष राशि",
+    "v2TotalPaidToday": "आज कुल जमा",
+    "v2BalanceDueAfter": "इसके बाद शेष",
+    "v2FeeDetailSummary": "शुल्क विवरण",
+    "v2FeeDetailHint": "[HI] Conventional discount + full fee breakup (A4 prints only)."
   },
   "AdminTools": {
     "eyebrow": "[HI] Admin Tools",

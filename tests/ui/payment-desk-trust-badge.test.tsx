@@ -12,9 +12,10 @@ const messages = JSON.parse(
 );
 
 function render(node: React.ReactElement): string {
-  // eslint-disable-next-line react/no-children-prop
   return renderToStaticMarkup(
-    React.createElement(NextIntlClientProvider, { locale: "en", messages, children: node }),
+    <NextIntlClientProvider locale="en" messages={messages}>
+      {node}
+    </NextIntlClientProvider>,
   );
 }
 

@@ -1,9 +1,11 @@
 import Image from "next/image";
 
 import { schoolProfile } from "@/lib/config/school";
+import { isReceiptLayoutV2Enabled } from "@/lib/env";
 import { formatInr } from "@/lib/helpers/currency";
 import type { ReceiptDetail } from "@/lib/receipts/types";
 import { cn } from "@/lib/utils";
+import { ReceiptDocumentV2 } from "@/components/receipts/receipt-document-v2";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -253,6 +255,22 @@ export function ReceiptDocument({
   mode = "print",
   embedPageStyles = true,
 }: ReceiptDocumentProps) {
+  // RECEIPT_LAYOUT_V2 flag swap. When on, the simplified P1.3 layout renders
+  // instead of the legacy detail-heavy print. Both share the same prop
+  // contract; consumers (preview sheet, batch-print page, detail page) need
+  // no changes when the flag flips.
+  if (isReceiptLayoutV2Enabled()) {
+    return (
+      <ReceiptDocumentV2
+        receipt={receipt}
+        t={t}
+        className={className}
+        mode={mode}
+        embedPageStyles={embedPageStyles}
+      />
+    );
+  }
+
   const breakdownTotal = receipt.breakdown.reduce((sum, item) => sum + item.amount, 0);
   const isDraft = mode === "draft";
   const isSaved = mode === "saved";
