@@ -13,12 +13,6 @@ export type CloseDueActionState = {
   newDiscountAmount: number | null;
 };
 
-export const INITIAL_CLOSE_DUE_ACTION_STATE: CloseDueActionState = {
-  status: "idle",
-  message: null,
-  newDiscountAmount: null,
-};
-
 type StudentRow = {
   id: string;
   full_name: string;

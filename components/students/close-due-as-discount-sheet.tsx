@@ -10,10 +10,16 @@ import { Sheet } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import {
-  INITIAL_CLOSE_DUE_ACTION_STATE,
+  type CloseDueActionState,
   closeDueAsDiscountAction,
 } from "@/app/protected/students/close-due-actions";
 import { formatInr } from "@/lib/helpers/currency";
+
+const INITIAL_STATE: CloseDueActionState = {
+  status: "idle",
+  message: null,
+  newDiscountAmount: null,
+};
 
 type CloseDueAsDiscountSheetProps = {
   open: boolean;
@@ -42,7 +48,7 @@ export function CloseDueAsDiscountSheet({
   const [reason, setReason] = useState<string>("");
   const [state, formAction, pending] = useActionState(
     closeDueAsDiscountAction,
-    INITIAL_CLOSE_DUE_ACTION_STATE,
+    INITIAL_STATE,
   );
 
   useEffect(() => {
