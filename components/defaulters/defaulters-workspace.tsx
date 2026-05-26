@@ -7,6 +7,7 @@ import { ChevronRight, Phone } from "lucide-react";
 
 import { BulkRowCheckbox } from "@/components/defaulters/bulk-whatsapp-provider";
 import { ContactStatusChip } from "@/components/defaulters/contact-status-chip";
+import { FeeBreakdownPanel } from "@/components/defaulters/fee-breakdown-panel";
 import { HeatChip } from "@/components/defaulters/heat-chip";
 import { QuickLogButtons } from "@/components/defaulters/quick-log-buttons";
 import { WorklistDrawer } from "@/components/defaulters/worklist-drawer";
@@ -14,7 +15,6 @@ import { ContactPopover } from "@/components/defaulters/contact-popover";
 import { Money } from "@/components/ui/money";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { formatInr } from "@/lib/helpers/currency";
-import { formatShortDate } from "@/lib/helpers/date";
 import { cn } from "@/lib/utils";
 import type { DefaulterContactSummary } from "@/lib/defaulters/cadence";
 import type { DefaulterSummaryRow } from "@/lib/defaulters/types";
@@ -133,7 +133,6 @@ export function DefaultersWorkspace({
               summary={activeSummary}
               sessionLabel={sessionLabel}
               canPostPayments={canPostPayments}
-              canViewPaymentHistory={canViewPaymentHistory}
               withSession={withSession}
               onOpenFullForm={() => setFullFormFor(activeRow)}
             />
@@ -280,7 +279,6 @@ type DetailProps = {
   summary: DefaulterContactSummary | null;
   sessionLabel: string;
   canPostPayments: boolean;
-  canViewPaymentHistory: boolean;
   withSession: (href: string) => string;
   onOpenFullForm: () => void;
 };
@@ -290,7 +288,6 @@ function DesktopDetailPane({
   summary,
   sessionLabel,
   canPostPayments,
-  canViewPaymentHistory,
   withSession,
   onOpenFullForm,
 }: DetailProps) {
@@ -375,24 +372,12 @@ function DesktopDetailPane({
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
           <dt className="text-muted-foreground">{t("tableFather")}</dt>
           <dd className="text-right text-foreground">{row.fatherName ?? "-"}</dd>
-          <dt className="text-muted-foreground">{t("tableOldestDue")}</dt>
-          <dd className="text-right text-foreground">
-            {row.oldestDueDate ? formatShortDate(row.oldestDueDate) : "-"}
-          </dd>
-          <dt className="text-muted-foreground">{t("tableLateFee")}</dt>
-          <dd className="text-right text-foreground">{formatInr(row.lateFee)}</dd>
           <dt className="text-muted-foreground">{t("tableRoute")}</dt>
           <dd className="text-right text-foreground">{row.transportRouteLabel}</dd>
-          {canViewPaymentHistory ? (
-            <>
-              <dt className="text-muted-foreground">{t("tableLastPayment")}</dt>
-              <dd className="text-right text-foreground">
-                {row.lastPaymentDate ? formatShortDate(row.lastPaymentDate) : "-"}
-              </dd>
-            </>
-          ) : null}
         </dl>
       </section>
+
+      <FeeBreakdownPanel studentId={row.studentId} sessionLabel={sessionLabel} />
 
       <DesktopTimeline studentId={row.studentId} sessionLabel={sessionLabel} />
     </div>

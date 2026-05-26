@@ -9,6 +9,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { Money } from "@/components/ui/money";
 import { ContactStatusChip } from "@/components/defaulters/contact-status-chip";
 import { ContactPopover } from "@/components/defaulters/contact-popover";
+import { FeeBreakdownPanel } from "@/components/defaulters/fee-breakdown-panel";
 import { HeatChip } from "@/components/defaulters/heat-chip";
 import { QuickLogButtons } from "@/components/defaulters/quick-log-buttons";
 import { VoiceNotePlayer } from "@/components/defaulters/voice-note-player";
@@ -252,6 +253,12 @@ export function WorklistDrawer({
               </Link>
             )}
           </div>
+
+          {/* Full fee breakdown — installments + recent receipts + adjustments */}
+          <FeeBreakdownPanel
+            studentId={row.studentId}
+            sessionLabel={sessionLabel}
+          />
 
           {/* Timeline */}
           <div className="space-y-2">
