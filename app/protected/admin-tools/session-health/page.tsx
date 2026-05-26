@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
@@ -7,14 +8,11 @@ import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { OfficeNotice } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
+import { LoadingBlock } from "@/components/ui/loading-skeleton";
 import { REQUIRED_OFFICE_SESSION_LABELS } from "@/lib/session/available-sessions";
 import { createClient } from "@/lib/supabase/server";
-import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
-import {
-  autoReconcileSessionIfSafe,
-  getSystemSyncHealth,
-  type SystemSyncHealth,
-} from "@/lib/system-sync/finance-sync";
+import { requireStaffPermission } from "@/lib/supabase/session";
+import { getSystemSyncHealth, type SystemSyncHealth } from "@/lib/system-sync/finance-sync";
 import {
   buildUnavailableSystemSyncHealth,
   getErrorMessage,
@@ -49,14 +47,6 @@ type SessionHealthCard = {
   health: SystemSyncHealth;
   lastReconciledAt: string | null;
   needsAttention: boolean;
-  autoSyncRan: boolean;
-  autoSyncReason: string;
-};
-
-type SessionSyncState = {
-  health: SystemSyncHealth;
-  ran: boolean;
-  reason: string;
 };
 
 function getSessionBadge(session: AcademicSessionRow, t: AdminToolsTranslator) {
@@ -99,36 +89,15 @@ function fallbackSessionRows(): AcademicSessionRow[] {
   }));
 }
 
-async function loadSessionSyncState(
-  sessionLabel: string,
-  canAutoReconcile: boolean,
-  t: AdminToolsTranslator,
-): Promise<SessionSyncState> {
+async function loadSessionHealthSafely(sessionLabel: string): Promise<SystemSyncHealth> {
   try {
-    if (canAutoReconcile) {
-      return await autoReconcileSessionIfSafe(sessionLabel);
-    }
-
-    return {
-      health: await getSystemSyncHealth(sessionLabel),
-      ran: false,
-      reason: t("sessionHealthSyncReasonAutoUnavailable"),
-    };
+    return await getSystemSyncHealth(sessionLabel);
   } catch (error) {
-    const errorMessage = getErrorMessage(error);
-
-    return {
-      health: buildUnavailableSystemSyncHealth(sessionLabel, errorMessage),
-      ran: false,
-      reason: t("sessionHealthSyncReasonFailed"),
-    };
+    return buildUnavailableSystemSyncHealth(sessionLabel, getErrorMessage(error));
   }
 }
 
-async function getSessionHealthCards(
-  canAutoReconcile: boolean,
-  t: AdminToolsTranslator,
-): Promise<SessionHealthCard[]> {
+async function getSessionHealthCards(): Promise<SessionHealthCard[]> {
   const supabase = await createClient();
   const { data: sessions, error: sessionsError } = await supabase
     .from("academic_sessions")
@@ -162,74 +131,36 @@ async function getSessionHealthCards(
 
   return Promise.all(
     sessionRows.map(async (session) => {
-      const autoSync = await loadSessionSyncState(session.session_label, canAutoReconcile, t);
+      const health = await loadSessionHealthSafely(session.session_label);
 
       return {
         session,
-        health: autoSync.health,
+        health,
         lastReconciledAt: latestBySession.get(session.session_label) ?? null,
-        needsAttention: needsSessionAttention(autoSync.health),
-        autoSyncRan: autoSync.ran,
-        autoSyncReason: autoSync.reason,
+        needsAttention: needsSessionAttention(health),
       };
     }),
   );
 }
 
-export default async function SessionHealthPage({ searchParams }: SessionHealthPageProps) {
-  const t = await getTranslations("AdminTools");
-  const staff = await requireStaffPermission("fees:view", { onDenied: "redirect" });
-  const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const canAutoReconcile = hasStaffPermission(staff, "fees:write");
-  const cards = await getSessionHealthCards(canAutoReconcile, t);
+export async function SessionHealthGrid({ t }: { t: AdminToolsTranslator }) {
+  const cards = await getSessionHealthCards();
   const attentionCount = cards.filter((card) => card.needsAttention).length;
-  const autoSyncCount = cards.filter((card) => card.autoSyncRan).length;
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow={t("eyebrow")}
-        title={t("sessionHealthTitle")}
-        description={t("sessionHealthDescription")}
-        actions={
-          <Button asChild variant="outline">
-            <Link href="/protected/admin-tools">{t("sessionHealthBackToAdmin")}</Link>
-          </Button>
-        }
-      />
-
+    <>
       <OfficeNotice
         title={
-          autoSyncCount > 0
-            ? t("sessionHealthAutoSynced", { count: autoSyncCount })
-            : attentionCount === 0
-              ? t("sessionHealthAllHealthy")
-              : t("sessionHealthAttention", { count: attentionCount })
+          attentionCount === 0
+            ? t("sessionHealthAllHealthy")
+            : t("sessionHealthAttention", { count: attentionCount })
         }
-        tone={attentionCount === 0 || autoSyncCount > 0 ? "success" : "warning"}
+        tone={attentionCount === 0 ? "success" : "warning"}
       >
-        {autoSyncCount > 0
-          ? t("sessionHealthAutoSyncedBody")
-          : attentionCount === 0
-            ? t("sessionHealthAllHealthyBody")
-            : t("sessionHealthAttentionBody")}
+        {attentionCount === 0
+          ? t("sessionHealthAllHealthyBody")
+          : t("sessionHealthAttentionBody")}
       </OfficeNotice>
-
-      {resolvedSearchParams?.reconciled ? (
-        <OfficeNotice title={t("sessionHealthReconcileTitle")} tone="success">
-          {t("sessionHealthReconcileBody", {
-            count: resolvedSearchParams.reconciled,
-            prepared: resolvedSearchParams.prepared ?? "0",
-          })}
-        </OfficeNotice>
-      ) : null}
-
-      {resolvedSearchParams?.error ? (
-        <OfficeNotice title={t("sessionHealthReconcileErrTitle")} tone="danger">
-          {resolvedSearchParams.session ? `${resolvedSearchParams.session}: ` : ""}
-          {resolvedSearchParams.error}
-        </OfficeNotice>
-      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-3">
         {cards.map((card) => {
@@ -248,9 +179,7 @@ export default async function SessionHealthPage({ searchParams }: SessionHealthP
               description={
                 card.needsAttention
                   ? t("sessionHealthCardAttentionDesc")
-                  : card.autoSyncRan
-                    ? t("sessionHealthCardAutoDesc")
-                    : t("sessionHealthCardReadyDesc")
+                  : t("sessionHealthCardReadyDesc")
               }
               actions={
                 <StatusBadge
@@ -268,7 +197,9 @@ export default async function SessionHealthPage({ searchParams }: SessionHealthP
                   <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                     {t("sessionHealthCardActiveStudents")}
                   </dt>
-                  <dd className="mt-1 text-lg font-semibold text-foreground">{studentsInThisSession}</dd>
+                  <dd className="mt-1 text-lg font-semibold text-foreground">
+                    {studentsInThisSession}
+                  </dd>
                 </div>
                 <div className="rounded-md border border-border bg-surface-2 px-3 py-2">
                   <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -297,45 +228,98 @@ export default async function SessionHealthPage({ searchParams }: SessionHealthP
               </dl>
 
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2 text-sm">
-                <span className="text-muted-foreground">{t("sessionHealthCardLastReconciled")}</span>
+                <span className="text-muted-foreground">
+                  {t("sessionHealthCardLastReconciled")}
+                </span>
                 <span className="font-semibold text-foreground">
-                  {formatLastReconciled(card.lastReconciledAt, t("sessionHealthCardLastReconciledNever"))}
+                  {formatLastReconciled(
+                    card.lastReconciledAt,
+                    t("sessionHealthCardLastReconciledNever"),
+                  )}
                 </span>
               </div>
 
-              <div className="mt-4 rounded-md border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
-                {card.autoSyncReason}
-              </div>
-
               {card.needsAttention ? (
-                <details className="mt-4 rounded-md border border-border bg-card">
-                  <summary className="cursor-pointer list-none px-3 py-2 text-sm font-semibold text-foreground">
-                    {t("sessionHealthManualFallback")}
-                  </summary>
-                  <div className="border-t border-border p-3">
-                    {card.health.classesWithoutFeeSettings > 0 ? (
-                      <Button asChild className="w-full" variant="outline">
-                        <Link href={`/protected/fee-setup?session=${encodeURIComponent(card.session.session_label)}`}>
-                          {t("sessionHealthOpenFeeSetup")}
-                        </Link>
-                      </Button>
-                    ) : (
-                      <form action={reconcileSessionAction}>
-                        <input type="hidden" name="sessionLabel" value={card.session.session_label} />
-                        <PendingSubmitButton
-                          idleLabel={t("sessionHealthReconcileButton")}
-                          pendingLabel={t("sessionHealthReconcileButtonPending")}
-                          className="w-full"
-                        />
-                      </form>
-                    )}
-                  </div>
-                </details>
+                <div className="mt-4 rounded-md border border-border bg-card p-3">
+                  {card.health.classesWithoutFeeSettings > 0 ? (
+                    <Button asChild className="w-full" variant="outline">
+                      <Link
+                        href={`/protected/fee-setup?session=${encodeURIComponent(card.session.session_label)}`}
+                      >
+                        {t("sessionHealthOpenFeeSetup")}
+                      </Link>
+                    </Button>
+                  ) : (
+                    <form action={reconcileSessionAction}>
+                      <input
+                        type="hidden"
+                        name="sessionLabel"
+                        value={card.session.session_label}
+                      />
+                      <PendingSubmitButton
+                        idleLabel={t("sessionHealthReconcileButton")}
+                        pendingLabel={t("sessionHealthReconcileButtonPending")}
+                        className="w-full"
+                      />
+                    </form>
+                  )}
+                </div>
               ) : null}
             </SectionCard>
           );
         })}
       </div>
+    </>
+  );
+}
+
+function SessionHealthGridFallback() {
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <LoadingBlock key={index} lines={6} />
+      ))}
+    </div>
+  );
+}
+
+export default async function SessionHealthPage({ searchParams }: SessionHealthPageProps) {
+  const t = await getTranslations("AdminTools");
+  await requireStaffPermission("fees:view", { onDenied: "redirect" });
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow={t("eyebrow")}
+        title={t("sessionHealthTitle")}
+        description={t("sessionHealthDescription")}
+        actions={
+          <Button asChild variant="outline">
+            <Link href="/protected/admin-tools">{t("sessionHealthBackToAdmin")}</Link>
+          </Button>
+        }
+      />
+
+      {resolvedSearchParams?.reconciled ? (
+        <OfficeNotice title={t("sessionHealthReconcileTitle")} tone="success">
+          {t("sessionHealthReconcileBody", {
+            count: resolvedSearchParams.reconciled,
+            prepared: resolvedSearchParams.prepared ?? "0",
+          })}
+        </OfficeNotice>
+      ) : null}
+
+      {resolvedSearchParams?.error ? (
+        <OfficeNotice title={t("sessionHealthReconcileErrTitle")} tone="danger">
+          {resolvedSearchParams.session ? `${resolvedSearchParams.session}: ` : ""}
+          {resolvedSearchParams.error}
+        </OfficeNotice>
+      ) : null}
+
+      <Suspense fallback={<SessionHealthGridFallback />}>
+        <SessionHealthGrid t={t} />
+      </Suspense>
     </div>
   );
 }

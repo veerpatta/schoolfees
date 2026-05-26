@@ -6,9 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const createClient = vi.fn();
 const getSystemSyncHealth = vi.fn();
-const autoReconcileSessionIfSafe = vi.fn();
 const requireStaffPermission = vi.fn();
-const hasStaffPermission = vi.fn();
 
 vi.mock("server-only", () => ({}));
 
@@ -33,12 +31,10 @@ vi.mock("@/lib/supabase/server", () => ({
 
 vi.mock("@/lib/supabase/session", () => ({
   requireStaffPermission,
-  hasStaffPermission,
 }));
 
 vi.mock("@/lib/system-sync/finance-sync", () => ({
   getSystemSyncHealth,
-  autoReconcileSessionIfSafe,
 }));
 
 vi.mock("@/components/admin/pending-submit-button", () => ({
@@ -57,6 +53,8 @@ function health(overrides: {
   missingClasses: number;
 }) {
   return {
+    dashboardReady: true,
+    paymentDeskReady: true,
     rawStudentsInActiveSession: overrides.students,
     workbookFinancialRowCount: overrides.prepared,
     studentsMissingInstallmentRows: overrides.missing,
@@ -69,7 +67,6 @@ describe("Session Health page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireStaffPermission.mockResolvedValue({ appRole: "admin" });
-    hasStaffPermission.mockReturnValue(true);
 
     const sessionsQuery = {
       select: vi.fn().mockReturnThis(),
@@ -113,30 +110,29 @@ describe("Session Health page", () => {
 
       return health({ students: 3, prepared: 0, missing: 3, missingClasses: 1 });
     });
-    autoReconcileSessionIfSafe.mockImplementation(async (sessionLabel: string) => ({
-      health:
-        sessionLabel === "2026-27"
-          ? health({ students: 315, prepared: 315, missing: 0, missingClasses: 0 })
-          : await getSystemSyncHealth(sessionLabel),
-      ran: sessionLabel === "2026-27",
-      reason:
-        sessionLabel === "2026-27"
-          ? "Missing dues were prepared automatically."
-          : "No missing dues found.",
-    }));
   });
 
   it("renders one card per academic session with different health states", async () => {
-    const { default: SessionHealthPage } = await import(
+    const { SessionHealthGrid } = await import(
       "@/app/protected/admin-tools/session-health/page"
     );
-    const element = await SessionHealthPage({ searchParams: Promise.resolve({}) });
+    const { createTranslator } = await vi.importActual<typeof import("next-intl")>(
+      "next-intl",
+    );
+    const messages = JSON.parse(
+      readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+    );
+    const t = createTranslator({
+      locale: "en",
+      messages,
+      namespace: "AdminTools",
+    }) as Parameters<typeof SessionHealthGrid>[0]["t"];
+
+    const element = await SessionHealthGrid({ t });
     const html = renderToStaticMarkup(element as React.ReactElement);
 
-    expect(requireStaffPermission).toHaveBeenCalledWith("fees:view", {
-      onDenied: "redirect",
-    });
-    expect(html).toContain("1 session auto-synced");
+    // No auto-sync banner anymore — only attention vs. healthy.
+    expect(html).toContain("sessions need setup review");
     expect(html).toContain("2025-26");
     expect(html).toContain("Archived");
     expect(html).toContain("2026-27");
@@ -148,8 +144,41 @@ describe("Session Health page", () => {
     expect(html).toContain("Dues missing");
     expect(html).toContain("15");
     expect(html).toContain("Classes missing fees");
-    expect(html).toContain("Manual fallback");
+    // 2026-27 has missing dues but no class-fee gaps → manual reconcile button.
+    expect(html).toContain("Reconcile this session");
+    // TEST session has classes missing fees → routed to Fee Setup instead.
     expect(html).toContain("Open Fee Setup");
-    expect(html.match(/<button type="submit">Reconcile this session/g) ?? []).toHaveLength(0);
+  });
+
+  it("does not crash when one session's health probe throws", async () => {
+    getSystemSyncHealth.mockImplementation(async (sessionLabel: string) => {
+      if (sessionLabel === "2026-27") {
+        throw new Error("simulated probe failure");
+      }
+      return health({ students: 1, prepared: 1, missing: 0, missingClasses: 0 });
+    });
+
+    const { SessionHealthGrid } = await import(
+      "@/app/protected/admin-tools/session-health/page"
+    );
+    const { createTranslator } = await vi.importActual<typeof import("next-intl")>(
+      "next-intl",
+    );
+    const messages = JSON.parse(
+      readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+    );
+    const t = createTranslator({
+      locale: "en",
+      messages,
+      namespace: "AdminTools",
+    }) as Parameters<typeof SessionHealthGrid>[0]["t"];
+
+    const element = await SessionHealthGrid({ t });
+    const html = renderToStaticMarkup(element as React.ReactElement);
+
+    // Render still completes and shows all three session cards.
+    expect(html).toContain("2025-26");
+    expect(html).toContain("2026-27");
+    expect(html).toContain("TEST");
   });
 });

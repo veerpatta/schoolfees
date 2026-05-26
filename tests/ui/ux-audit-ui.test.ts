@@ -137,7 +137,11 @@ describe("read-only UX audit implementation", () => {
     expect(dashboard).not.toContain("Generate Missing Dues");
     expect(englishMessages.Dashboard.feeRecordsAttentionAction).toBe("Open Fee Data Troubleshooting");
     expect(englishMessages.AdminTools.noticeAutoOnTitle).toBe("Automatic sync is on");
-    expect(advanced).toContain("autoReconcileSessionIfSafe");
+    // Admin Tools now reads health passively (no render-time reconcile).
+    // Reconcile is an explicit user action via reconcileSessionAction.
+    expect(advanced).toContain("getSystemSyncHealth");
+    expect(advanced).not.toContain("autoReconcileSessionIfSafe");
+    expect(advanced).toContain("reconcileSessionAction");
     expect(englishMessages.AdminTools.sessionStatusOpenHealth).toBe("Open Session Health");
     expect(advanced).not.toContain("Legacy repair actions");
     expect(advanced).not.toContain("Prepare missing dues");
