@@ -1152,13 +1152,13 @@ describe("payment desk cashier workflow", () => {
   });
 
   it("receipt_view_labels_current_balance_vs_receipt_balance", () => {
-    const component = readFileSync(
-      join(process.cwd(), "components/receipts/receipt-document.tsx"),
-      "utf8",
-    );
+    // Labels live in the Receipts namespace; the component reads them via t(...).
+    const englishMessages = JSON.parse(
+      readFileSync(join(process.cwd(), "messages/en.json"), "utf-8"),
+    ) as { Receipts: Record<string, string> };
 
-    expect(component).toContain("Balance after this receipt");
-    expect(component).toContain("Current outstanding now");
+    expect(englishMessages.Receipts.balanceAfterThisReceipt).toBe("Balance after this receipt");
+    expect(englishMessages.Receipts.currentOutstandingNow).toContain("Current outstanding now");
   });
 
   it("mobile payment mode is an inline 4-button segment, not a sheet", () => {

@@ -1,6 +1,19 @@
 import React from "react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
+import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const messages = JSON.parse(
+  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+);
+
+function renderWithLocale(node: React.ReactElement): string {
+  return renderToStaticMarkup(
+    React.createElement(NextIntlClientProvider, { locale: "en", messages, children: node }),
+  );
+}
 
 const getOfficeWorkbookData = vi.fn();
 const getSetupWizardData = vi.fn();
@@ -122,7 +135,7 @@ describe("transactions page session resilience", () => {
     const element = await TransactionsPage({
       searchParams: Promise.resolve({ session: "2026-27" }),
     });
-    const html = renderToStaticMarkup(element as React.ReactElement);
+    const html = renderWithLocale(element as React.ReactElement);
 
     expect(html).toContain("Transactions");
     expect(getOfficeWorkbookData).toHaveBeenCalledWith(
@@ -137,7 +150,7 @@ describe("transactions page session resilience", () => {
     const element = await TransactionsPage({
       searchParams: Promise.resolve({ session: "UNKNOWN-2026-27" }),
     });
-    const html = renderToStaticMarkup(element as React.ReactElement);
+    const html = renderWithLocale(element as React.ReactElement);
 
     expect(html).toContain("Transactions");
     expect(getStudentFormOptions).toHaveBeenCalledWith({

@@ -24,21 +24,30 @@ describe("receipt print and loading UX", () => {
 
   it("keeps the printable receipt simple and bilingual for parents", () => {
     const receiptDocument = readRepoFile("components/receipts/receipt-document.tsx");
+    // Receipt copy now lives in the Receipts namespace. English in en.json,
+    // real Hindi in hi.json — assert against the catalogs so the labels can
+    // render as a single locale when the user picks Hindi or Hinglish.
+    const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
+      Receipts: Record<string, string>;
+    };
+    const hindiMessages = JSON.parse(readRepoFile("messages/hi.json")) as {
+      Receipts: Record<string, string>;
+    };
 
-    expect(receiptDocument).toContain("Total Fee Due");
-    expect(receiptDocument).toContain("कुल देय शुल्क");
-    expect(receiptDocument).toContain("Paid Till Date");
-    expect(receiptDocument).toContain("अब तक जमा");
-    expect(receiptDocument).toContain("Paid Today");
-    expect(receiptDocument).toContain("आज जमा");
-    expect(receiptDocument).toContain("Balance Due");
-    expect(receiptDocument).toContain("शेष राशि");
-    expect(receiptDocument).toContain("Student Details");
-    expect(receiptDocument).toContain("विद्यार्थी विवरण");
-    expect(receiptDocument).toContain("Payment Details");
-    expect(receiptDocument).toContain("भुगतान विवरण");
-    expect(receiptDocument).toContain("Installment Details");
-    expect(receiptDocument).toContain("किस्त विवरण");
+    expect(englishMessages.Receipts.totalFeeDue).toBe("Total Fee Due");
+    expect(hindiMessages.Receipts.totalFeeDue).toBe("कुल देय शुल्क");
+    expect(englishMessages.Receipts.paidTillDate).toBe("Paid Till Date");
+    expect(hindiMessages.Receipts.paidTillDate).toBe("अब तक जमा");
+    expect(englishMessages.Receipts.paidToday).toBe("Paid Today");
+    expect(hindiMessages.Receipts.paidToday).toBe("आज जमा");
+    expect(englishMessages.Receipts.balanceDue).toBe("Balance Due");
+    expect(hindiMessages.Receipts.balanceDue).toBe("शेष राशि");
+    expect(englishMessages.Receipts.studentDetails).toBe("Student Details");
+    expect(hindiMessages.Receipts.studentDetails).toBe("विद्यार्थी विवरण");
+    expect(englishMessages.Receipts.paymentDetails).toBe("Payment Details");
+    expect(hindiMessages.Receipts.paymentDetails).toBe("भुगतान विवरण");
+    expect(englishMessages.Receipts.installmentDetailsHeading).toBe("Installment Details");
+    expect(hindiMessages.Receipts.installmentDetailsHeading).toBe("किस्त विवरण");
     expect(receiptDocument).not.toContain("Installment allocation");
     expect(receiptDocument).not.toContain("Saved receipt breakup");
     expect(receiptDocument).not.toContain("Allocation total");
@@ -63,17 +72,22 @@ describe("receipt print and loading UX", () => {
   });
 
   it("receipt-document renders draft watermark text in draft mode", () => {
-    // This is a string-presence test on the component source.
-    // Verify that the component contains the strings required for all three modes.
+    // Draft / saved labels live in the Receipts namespace; component still owns the mode branches.
     const receiptDocument = readRepoFile("components/receipts/receipt-document.tsx");
+    const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
+      Receipts: Record<string, string>;
+    };
+    const hindiMessages = JSON.parse(readRepoFile("messages/hi.json")) as {
+      Receipts: Record<string, string>;
+    };
 
-    expect(receiptDocument).toContain("DRAFT — NOT YET SAVED");
-    expect(receiptDocument).toContain("प्रारूप");
-    expect(receiptDocument).toContain("SAVED");
-    expect(receiptDocument).toContain("सहेजा गया");
+    expect(englishMessages.Receipts.draftWatermark).toBe("DRAFT — NOT YET SAVED");
+    expect(hindiMessages.Receipts.draftLabel).toBe("प्रारूप");
+    expect(englishMessages.Receipts.savedLabel).toContain("SAVED");
+    expect(hindiMessages.Receipts.savedLabel).toContain("सहेजा गया");
     expect(receiptDocument).toContain('mode === "draft"');
     expect(receiptDocument).toContain('mode === "saved"');
-    expect(receiptDocument).toContain("not yet saved");
+    expect(englishMessages.Receipts.draftReceiptNumberPlaceholder).toContain("not yet saved");
   });
 
   it("supports print-ready receipt links from Payment Desk success", () => {

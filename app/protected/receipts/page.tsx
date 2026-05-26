@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import { PageHeader } from "@/components/admin/page-header";
 import { ReceiptsQuickLoad } from "@/components/receipts/receipts-quick-load";
 import { getReceiptsPage } from "@/lib/receipts/data";
@@ -11,6 +13,7 @@ type ReceiptsPageProps = {
 };
 
 export default async function ReceiptsPage({ searchParams }: ReceiptsPageProps) {
+  const t = await getTranslations("Receipts");
   const staff = await requireStaffPermission("receipts:view", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const query = (resolvedSearchParams?.query ?? "").trim();
@@ -21,9 +24,9 @@ export default async function ReceiptsPage({ searchParams }: ReceiptsPageProps) 
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Receipts"
-        title="Receipts and reprints"
-        description="Search receipts and open printable copies."
+        eyebrow={t("indexEyebrow")}
+        title={t("indexTitle")}
+        description={t("indexDescription")}
       />
 
       <ReceiptsQuickLoad

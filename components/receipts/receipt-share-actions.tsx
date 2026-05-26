@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Mail, MessageSquare } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ const DEFAULT_BODY = [
 ].join("\n");
 
 export function ReceiptShareActions({ receipt, templates }: Props) {
+  const t = useTranslations("Receipts");
   const receiptTemplates = templates.filter(
     (template) => template.category === "receipt" && template.isActive,
   );
@@ -73,25 +75,25 @@ export function ReceiptShareActions({ receipt, templates }: Props) {
         variant="outline"
         onClick={() => setSheetOpen(true)}
         className="gap-2"
-        title={hasPhone ? "Open WhatsApp draft" : "No phone number on file"}
+        title={hasPhone ? t("shareTitleHint") : t("shareDisabledHint")}
         disabled={!hasPhone && !hasEmail}
       >
         <MessageSquare className="size-4" aria-hidden="true" />
-        Share
+        {t("shareAction")}
       </Button>
 
       <Sheet
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
-        title={`Share receipt ${receipt.receiptNumber}`}
-        description="Review the message, then open WhatsApp or your email client to send."
+        title={t("shareSheetTitle", { number: receipt.receiptNumber })}
+        description={t("shareSheetDescription")}
         size="full"
       >
         <div className="space-y-4">
           {receiptTemplates.length > 0 ? (
             <div className="space-y-2">
               <label htmlFor="receipt-share-template" className="text-sm font-medium text-foreground">
-                Template
+                {t("shareTemplateLabel")}
               </label>
               <select
                 id="receipt-share-template"
@@ -99,7 +101,7 @@ export function ReceiptShareActions({ receipt, templates }: Props) {
                 onChange={(event) => setActiveId(event.target.value)}
                 className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
               >
-                <option value="__default__">Default receipt confirmation</option>
+                <option value="__default__">{t("shareDefaultTemplateLabel")}</option>
                 {receiptTemplates.map((template) => (
                   <option key={template.id} value={template.id}>
                     {template.name}
@@ -110,7 +112,7 @@ export function ReceiptShareActions({ receipt, templates }: Props) {
           ) : null}
 
           <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Preview</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">{t("sharePreviewLabel")}</p>
             <pre className="whitespace-pre-wrap rounded-lg border border-border bg-surface-2 p-3 font-sans text-sm text-foreground">
               {rendered}
             </pre>
@@ -122,17 +124,17 @@ export function ReceiptShareActions({ receipt, templates }: Props) {
               variant="accent"
               disabled={!hasPhone}
               className="gap-2"
-              title={hasPhone ? undefined : "No phone number on file"}
+              title={hasPhone ? undefined : t("shareDisabledHint")}
             >
               {hasPhone ? (
                 <a href={whatsappHref!} target="_blank" rel="noopener" onClick={() => setSheetOpen(false)}>
                   <MessageSquare className="size-4" aria-hidden="true" />
-                  WhatsApp to parent
+                  {t("shareWhatsappButton")}
                 </a>
               ) : (
                 <span>
                   <MessageSquare className="size-4" aria-hidden="true" />
-                  No phone number
+                  {t("shareWhatsappNoPhone")}
                 </span>
               )}
             </Button>
@@ -142,26 +144,23 @@ export function ReceiptShareActions({ receipt, templates }: Props) {
               variant="outline"
               disabled={!hasEmail}
               className="gap-2"
-              title={hasEmail ? undefined : "No email on file"}
+              title={hasEmail ? undefined : t("shareNoEmailHint")}
             >
               {hasEmail ? (
                 <a href={mailtoHref!} onClick={() => setSheetOpen(false)}>
                   <Mail className="size-4" aria-hidden="true" />
-                  Email to parent
+                  {t("shareEmailButton")}
                 </a>
               ) : (
                 <span>
                   <Mail className="size-4" aria-hidden="true" />
-                  No email on file
+                  {t("shareEmailNoEmail")}
                 </span>
               )}
             </Button>
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            The mail client will not auto-attach the PDF. Save the receipt as PDF first
-            (from the print dialog) and attach it before sending.
-          </p>
+          <p className="text-xs text-muted-foreground">{t("shareMailNote")}</p>
         </div>
       </Sheet>
     </>

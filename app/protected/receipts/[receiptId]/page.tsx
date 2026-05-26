@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { ReceiptDocument } from "@/components/receipts/receipt-document";
@@ -27,6 +28,7 @@ function isUuid(value: string) {
 }
 
 export default async function ReceiptDetailPage({ params, searchParams }: ReceiptDetailPageProps) {
+  const t = await getTranslations("Receipts");
   const staff = await requireStaffPermission("receipts:view", { onDenied: "redirect" });
 
   const resolvedParams = await params;
@@ -55,13 +57,13 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Receipts"
-        title={`Receipt ${receipt.receiptNumber}`}
-        description="Formal receipt view with print-friendly layout for office records and reprints."
+        eyebrow={t("detailEyebrow")}
+        title={t("detailTitle", { number: receipt.receiptNumber })}
+        description={t("detailDescription")}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Link className="text-sm font-medium text-foreground underline-offset-4 hover:underline" href={returnTo}>
-              Back to Transactions
+              {t("backToTransactions")}
             </Link>
             {canPrintReceipts ? (
               <>
@@ -74,7 +76,7 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
         className="no-print"
       />
 
-      <ReceiptDocument receipt={receipt} />
+      <ReceiptDocument receipt={receipt} t={t} />
     </div>
   );
 }

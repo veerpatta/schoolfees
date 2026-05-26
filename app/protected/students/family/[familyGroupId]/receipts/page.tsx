@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { ReceiptDocument } from "@/components/receipts/receipt-document";
@@ -24,6 +25,7 @@ export default async function FamilyReceiptsBatchPage({
   params,
   searchParams,
 }: FamilyReceiptsPageProps) {
+  const t = await getTranslations("Receipts");
   const staff = await requireStaffPermission("receipts:print", { onDenied: "redirect" });
   const resolvedParams = await params;
   const resolvedSearch = searchParams ? await searchParams : undefined;
@@ -124,7 +126,7 @@ export default async function FamilyReceiptsBatchPage({
             <p className="no-print mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {index + 1} / {flatReceipts.length} · {member.full_name} (SR {member.admission_no})
             </p>
-            <ReceiptDocument receipt={receipt} mode="saved" embedPageStyles={false} />
+            <ReceiptDocument receipt={receipt} mode="saved" embedPageStyles={false} t={t} />
           </div>
         ))}
       </div>

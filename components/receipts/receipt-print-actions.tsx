@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 
@@ -14,6 +15,7 @@ export function ReceiptPrintActions({
   backHref = "/protected/receipts",
   autoPrint = false,
 }: ReceiptPrintActionsProps) {
+  const t = useTranslations("Receipts");
   const [showPdfHint, setShowPdfHint] = useState(false);
 
   // Hide the PDF hint after the print dialog closes (afterprint).
@@ -76,7 +78,7 @@ export function ReceiptPrintActions({
     <div className="no-print flex flex-col items-end gap-1.5">
       <div className="flex flex-wrap items-center justify-end gap-2">
         <Button type="button" variant="outline" onClick={() => window.print()}>
-          Print receipt
+          {t("printActionsPrintReceipt")}
         </Button>
         <Button
           type="button"
@@ -86,15 +88,17 @@ export function ReceiptPrintActions({
             window.print();
           }}
         >
-          Save as PDF
+          {t("printActionsSaveAsPdf")}
         </Button>
         <Button asChild variant="secondary">
-          <Link href={backHref}>Back to receipts</Link>
+          <Link href={backHref}>{t("printActionsBack")}</Link>
         </Button>
       </div>
       {showPdfHint ? (
         <p className="text-[11px] text-muted-foreground">
-          In the print dialog, choose <strong>Save as PDF</strong> as the destination.
+          {t("printActionsPdfHintPrefix")}
+          <strong>{t("printActionsPdfHintEmphasis")}</strong>
+          {t("printActionsPdfHintSuffix")}
         </p>
       ) : null}
     </div>

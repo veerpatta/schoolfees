@@ -11,20 +11,30 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-function paymentModeLabel(value: ReceiptDetail["paymentMode"]) {
+/**
+ * Translator function used by ReceiptDocument. Compatible with both
+ * `getTranslations("Receipts")` (server) and `useTranslations("Receipts")`
+ * (client) — both return a callable with this shape.
+ */
+export type ReceiptTranslator = (
+  key: string,
+  values?: Record<string, string | number>,
+) => string;
+
+function paymentModeLabel(value: ReceiptDetail["paymentMode"], t: ReceiptTranslator) {
   if (value === "upi") {
-    return "UPI";
+    return t("paymentModeUpi");
   }
 
   if (value === "bank_transfer") {
-    return "Bank transfer";
+    return t("paymentModeBankTransfer");
   }
 
   if (value === "cheque") {
-    return "Cheque";
+    return t("paymentModeCheque");
   }
 
-  return "Cash";
+  return t("paymentModeCash");
 }
 
 function wordsBelowThousand(value: number): string {
@@ -70,11 +80,11 @@ function wordsBelowThousand(value: number): string {
   return parts.join(" ");
 }
 
-function amountInWords(value: number) {
+function amountInWords(value: number, t: ReceiptTranslator) {
   const amount = Math.max(Math.round(value), 0);
 
   if (amount === 0) {
-    return "Zero Rupees Only";
+    return t("rupeesZero");
   }
 
   const groups: Array<[number, string]> = [
@@ -95,41 +105,29 @@ function amountInWords(value: number) {
     }
   });
 
-  return `${parts.join(" ")} Rupees Only`;
+  return `${parts.join(" ")} ${t("rupeesSuffix")}`;
 }
 
-function feeLabelHindi(label: string) {
-  const normalized = label.toLowerCase();
+function localizedFeeLabel(rawLabel: string, t: ReceiptTranslator) {
+  const normalized = rawLabel.toLowerCase();
 
-  if (normalized.includes("tuition")) {
-    return "शिक्षण शुल्क";
-  }
-
-  if (normalized.includes("transport")) {
-    return "परिवहन शुल्क";
-  }
-
-  if (normalized.includes("academic")) {
-    return "शैक्षणिक शुल्क";
-  }
-
-  if (normalized.includes("late")) {
-    return "विलंब शुल्क";
-  }
-
+  if (normalized.includes("tuition")) return t("feeLabelTuition");
+  if (normalized.includes("transport")) return t("feeLabelTransport");
+  if (normalized.includes("academic")) return t("feeLabelAcademic");
+  if (normalized.includes("late")) return t("feeLabelLate");
   if (normalized.includes("discount") || normalized.includes("waiver")) {
-    return "छूट";
+    return t("feeLabelDiscount");
   }
+  if (normalized.includes("book")) return t("feeLabelBooks");
+  if (normalized === "other fees") return t("feeLabelOther");
 
-  if (normalized.includes("book")) {
-    return "पुस्तक शुल्क";
-  }
-
-  return "शुल्क";
+  return rawLabel;
 }
 
 type ReceiptDocumentProps = {
   receipt: ReceiptDetail;
+  /** Translator scoped to the Receipts namespace. Required. */
+  t: ReceiptTranslator;
   className?: string;
   mode?: ReceiptDocumentMode;
   /**
@@ -148,6 +146,11 @@ type ReceiptDocumentProps = {
 
 type ReceiptDocumentMode = "print" | "draft" | "saved";
 
+/**
+ * Legacy bilingual label kept for backwards compatibility. New receipt code
+ * should resolve a single localized string from the Receipts namespace
+ * instead of rendering English + Hindi together.
+ */
 export function BilingualLabel({ english, hindi }: { english: string; hindi: string }) {
   return (
     <span className="block text-[10px] font-medium text-muted-foreground">
@@ -156,10 +159,16 @@ export function BilingualLabel({ english, hindi }: { english: string; hindi: str
   );
 }
 
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <span className="block text-[10px] font-medium text-muted-foreground">{children}</span>;
+}
+
 function ConventionalDiscountBlock({
   assignments,
+  t,
 }: {
   assignments: ReceiptDetail["conventionalDiscountAssignments"];
+  t: ReceiptTranslator;
 }) {
   if (assignments.length === 0) {
     return null;
@@ -182,10 +191,10 @@ function ConventionalDiscountBlock({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-foreground">
-            Conventional Discount / पारंपरिक छूट
+            {t("conventionalDiscountHeading")}
           </h2>
           <p className="mt-1 text-xs text-accent-soft-foreground">
-            Tuition-only policy applied for this academic session.
+            {t("conventionalDiscountTagline")}
           </p>
         </div>
       </div>
@@ -200,30 +209,33 @@ function ConventionalDiscountBlock({
               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{winning.policyCode}</p>
             </div>
             <div>
-              <BilingualLabel english="Baseline Tuition" hindi="मूल शिक्षण शुल्क" />
+              <FieldLabel>{t("baselineTuition")}</FieldLabel>
               <p className="font-semibold text-muted-foreground line-through">
                 {formatInr(winning.beforeTuitionAmount)}
               </p>
             </div>
             <div>
-              <BilingualLabel english="Resulting Tuition" hindi="लागू शिक्षण शुल्क" />
+              <FieldLabel>{t("resultingTuition")}</FieldLabel>
               <p className="font-semibold text-accent-soft-foreground">
                 {formatInr(winning.resultingTuitionAmount)}
               </p>
               <p className="mt-0.5 text-[10px] text-accent-soft-foreground">
-                you save {formatInr(Math.max(winning.beforeTuitionAmount - winning.resultingTuitionAmount, 0))} on tuition
+                {t("youSaveOnTuition", {
+                  amount: formatInr(
+                    Math.max(winning.beforeTuitionAmount - winning.resultingTuitionAmount, 0),
+                  ),
+                })}
               </p>
             </div>
           </div>
         ) : null}
         {superseded.length > 0 ? (
           <div className="rounded-md border border-dashed border-accent/15 bg-card/60 px-3 py-2 text-[11px] text-muted-foreground">
-            <p className="font-medium text-foreground">Other assigned policies (audit only):</p>
+            <p className="font-medium text-foreground">{t("otherAssignedPolicies")}</p>
             <ul className="mt-1 list-disc pl-4">
               {superseded.map((row) => (
                 <li key={row.assignmentId}>
-                  {row.policyDisplayName} ({row.policyCode}) — superseded by the lower
-                  candidate tuition above; no additional savings on this receipt.
+                  {t("supersededPolicyItem", { name: row.policyDisplayName, code: row.policyCode })}
                 </li>
               ))}
             </ul>
@@ -236,6 +248,7 @@ function ConventionalDiscountBlock({
 
 export function ReceiptDocument({
   receipt,
+  t,
   className,
   mode = "print",
   embedPageStyles = true,
@@ -319,7 +332,7 @@ export function ReceiptDocument({
           className="pointer-events-none absolute inset-0 hidden items-center justify-center text-center text-5xl font-semibold uppercase text-foreground/10 sm:flex print:flex"
           aria-hidden="true"
         >
-          DRAFT — NOT YET SAVED
+          {t("draftWatermark")}
         </div>
       ) : null}
 
@@ -339,24 +352,24 @@ export function ReceiptDocument({
               </div>
               <div>
                 <p className="text-lg font-semibold uppercase text-foreground">{schoolProfile.name}</p>
-                <p className="text-xs font-medium text-muted-foreground">Fee Receipt / शुल्क रसीद</p>
-                <p className="mt-1 text-xs text-muted-foreground">Academic Year / शैक्षणिक सत्र: {receipt.sessionLabel}</p>
+                <p className="text-xs font-medium text-muted-foreground">{t("feeReceiptHeading")}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{t("academicYearLabel")}: {receipt.sessionLabel}</p>
               </div>
             </div>
             <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-left sm:text-right">
-              <BilingualLabel english="Receipt No" hindi="रसीद संख्या" />
+              <FieldLabel>{t("receiptNo")}</FieldLabel>
               <p className="mt-1 text-lg font-semibold text-foreground">
-                {isDraft ? "— (not yet saved) —" : receipt.receiptNumber}
+                {isDraft ? t("draftReceiptNumberPlaceholder") : receipt.receiptNumber}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">{formatDate(receipt.paymentDate)}</p>
               {isDraft ? (
                 <span className="mt-2 inline-flex rounded bg-warning-soft px-2 py-0.5 text-[10px] font-semibold text-warning-soft-foreground">
-                  DRAFT / प्रारूप
+                  {t("draftLabel")}
                 </span>
               ) : null}
               {isSaved ? (
                 <span className="mt-2 inline-flex rounded bg-success-soft px-2 py-0.5 text-[10px] font-semibold text-success-soft-foreground">
-                  SAVED · Receipt {receipt.receiptNumber} / सहेजा गया
+                  {t("savedLabel", { number: receipt.receiptNumber })}
                 </span>
               ) : null}
             </div>
@@ -365,15 +378,15 @@ export function ReceiptDocument({
 
         <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <div className="rounded-lg border border-border bg-surface-2 px-3 py-3 print-compact">
-            <BilingualLabel english="Total Fee Due" hindi="कुल देय शुल्क" />
+            <FieldLabel>{t("totalFeeDue")}</FieldLabel>
             <p className="mt-1 text-lg font-semibold text-foreground">{formatInr(receipt.totalDue)}</p>
           </div>
           <div className="rounded-lg border bg-info-soft px-3 py-3 print-compact">
-            <BilingualLabel english="Paid Till Date" hindi="अब तक जमा" />
+            <FieldLabel>{t("paidTillDate")}</FieldLabel>
             <p className="mt-1 text-lg font-semibold text-foreground">{formatInr(receipt.totalPaidToDate)}</p>
           </div>
           <div className="rounded-lg border border-accent/30 bg-accent-soft px-3 py-3 print-compact">
-            <BilingualLabel english="Paid Today" hindi="आज जमा" />
+            <FieldLabel>{t("paidToday")}</FieldLabel>
             <p className="mt-1 text-2xl font-semibold text-accent-soft-foreground">{formatInr(receipt.totalAmount)}</p>
           </div>
            <div
@@ -382,75 +395,75 @@ export function ReceiptDocument({
                receipt.outstandingAfterReceipt === 0 ? "bg-success-soft" : "bg-warning-soft",
              )}
            >
-             <BilingualLabel english="Balance Due" hindi="शेष राशि" />
+             <FieldLabel>{t("balanceDue")}</FieldLabel>
              <p className="mt-1 text-lg font-semibold">{formatInr(receipt.outstandingAfterReceipt)}</p>
-             <p className="mt-1 text-[10px] text-warning-soft-foreground">Balance after this receipt / इस रसीद के बाद शेष</p>
+             <p className="mt-1 text-[10px] text-warning-soft-foreground">{t("balanceAfterThisReceipt")}</p>
              <p className="mt-1 text-[10px] text-warning-soft-foreground">
-               Current outstanding now / वर्तमान बकाया: {formatInr(receipt.currentOutstanding)}
+               {t("currentOutstandingNow", { amount: formatInr(receipt.currentOutstanding) })}
              </p>
            </div>
         </section>
 
         <section className="grid gap-3 md:grid-cols-[1fr_0.82fr]">
           <div className="rounded-lg border border-border bg-card/95 p-4 print-compact">
-            <h2 className="text-sm font-semibold text-foreground">Student Details / विद्यार्थी विवरण</h2>
+            <h2 className="text-sm font-semibold text-foreground">{t("studentDetails")}</h2>
             <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
               <div>
-                <BilingualLabel english="Student Name" hindi="विद्यार्थी का नाम" />
+                <FieldLabel>{t("studentName")}</FieldLabel>
                 <p className="font-semibold text-foreground">{receipt.studentFullName}</p>
               </div>
               <div>
-                <BilingualLabel english="SR No" hindi="एस.आर. नंबर" />
+                <FieldLabel>{t("srNo")}</FieldLabel>
                 <p className="font-medium">{receipt.admissionNo}</p>
               </div>
               <div>
-                <BilingualLabel english="Class" hindi="कक्षा" />
+                <FieldLabel>{t("classFieldLabel")}</FieldLabel>
                 <p className="font-medium">{receipt.classLabel}</p>
               </div>
               <div>
-                <BilingualLabel english="Father Name" hindi="पिता का नाम" />
+                <FieldLabel>{t("fatherName")}</FieldLabel>
                 <p className="font-medium">{receipt.fatherName || "-"}</p>
               </div>
               <div>
-                <BilingualLabel english="Phone" hindi="फोन" />
+                <FieldLabel>{t("phone")}</FieldLabel>
                 <p className="font-medium">{receipt.fatherPhone || "-"}</p>
               </div>
               <div>
-                <BilingualLabel english="Route" hindi="मार्ग" />
+                <FieldLabel>{t("route")}</FieldLabel>
                 <p className="font-medium">{receipt.transportRouteLabel}</p>
               </div>
             </div>
           </div>
 
           <div className="rounded-lg border border-border bg-card/95 p-4 print-compact">
-            <h2 className="text-sm font-semibold text-foreground">Payment Details / भुगतान विवरण</h2>
+            <h2 className="text-sm font-semibold text-foreground">{t("paymentDetails")}</h2>
             <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
               <div>
-                <BilingualLabel english="Date" hindi="दिनांक" />
+                <FieldLabel>{t("paymentDate")}</FieldLabel>
                 <p className="font-medium">{formatDate(receipt.paymentDate)}</p>
               </div>
               <div>
-                <BilingualLabel english="Payment Mode" hindi="भुगतान माध्यम" />
-                <p className="font-medium">{paymentModeLabel(receipt.paymentMode)}</p>
+                <FieldLabel>{t("paymentMode")}</FieldLabel>
+                <p className="font-medium">{paymentModeLabel(receipt.paymentMode, t)}</p>
               </div>
               <div>
-                <BilingualLabel english="Reference No" hindi="संदर्भ संख्या" />
+                <FieldLabel>{t("referenceNumber")}</FieldLabel>
                 <p className="font-medium">{receipt.referenceNumber || "-"}</p>
               </div>
               <div>
-                <BilingualLabel english="Received By" hindi="प्राप्तकर्ता" />
+                <FieldLabel>{t("receivedBy")}</FieldLabel>
                 <p className="font-medium">{receipt.receivedBy || "-"}</p>
               </div>
             </div>
           </div>
         </section>
 
-        <ConventionalDiscountBlock assignments={receipt.conventionalDiscountAssignments} />
+        <ConventionalDiscountBlock assignments={receipt.conventionalDiscountAssignments} t={t} />
 
         <section className="rounded-lg border border-border bg-card/95 p-4 print-compact">
           <div className="mb-2 flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-foreground">Installment Details / किस्त विवरण</h2>
-            <p className="text-xs text-muted-foreground">Paid today rows / आज जमा विवरण</p>
+            <h2 className="text-sm font-semibold text-foreground">{t("installmentDetailsHeading")}</h2>
+            <p className="text-xs text-muted-foreground">{t("paidTodayRows")}</p>
           </div>
           <div data-mobile-installment-stack className="space-y-2 sm:hidden print:hidden">
             {receipt.breakdown.map((item) => (
@@ -458,20 +471,20 @@ export function ReceiptDocument({
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold text-foreground">{item.installmentLabel}</p>
-                    <p className="text-xs text-muted-foreground">Due {formatDate(item.dueDate)}</p>
+                    <p className="text-xs text-muted-foreground">{t("dueShortPrefix", { date: formatDate(item.dueDate) })}</p>
                   </div>
                   <p className="text-base font-bold text-accent">{formatInr(item.amount)}</p>
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                  <span>Pending before</span>
+                  <span>{t("pendingBefore")}</span>
                   <span className="text-right font-medium text-foreground">{formatInr(item.amount)}</span>
-                  <span>Allocated</span>
+                  <span>{t("allocated")}</span>
                   <span className="text-right font-medium text-foreground">{formatInr(item.amount)}</span>
                 </div>
               </div>
             ))}
             <div className="flex items-center justify-between rounded-md bg-surface-2 px-3 py-2 text-sm font-semibold">
-              <span>Paid Today Total / आज कुल जमा</span>
+              <span>{t("paidTodayTotal")}</span>
               <span>{formatInr(breakdownTotal)}</span>
             </div>
           </div>
@@ -479,10 +492,10 @@ export function ReceiptDocument({
             <table className="w-full text-left text-xs">
               <thead className="bg-surface-2 text-muted-foreground">
                 <tr>
-                  <th className="px-2 py-2">Installment / किस्त</th>
-                  <th className="px-2 py-2">Due Date / देय दिनांक</th>
-                  <th className="px-2 py-2 text-right">Pending Before / पहले बकाया</th>
-                  <th className="px-2 py-2 text-right">Allocated / आज जमा</th>
+                  <th className="px-2 py-2">{t("installmentColumn")}</th>
+                  <th className="px-2 py-2">{t("dueDateColumn")}</th>
+                  <th className="px-2 py-2 text-right">{t("pendingBeforeColumn")}</th>
+                  <th className="px-2 py-2 text-right">{t("allocatedColumn")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -497,7 +510,7 @@ export function ReceiptDocument({
               </tbody>
               <tfoot>
                 <tr className="border-t border-border-strong bg-surface-2">
-                  <td colSpan={3} className="px-2 py-2 text-right font-semibold">Paid Today Total / आज कुल जमा</td>
+                  <td colSpan={3} className="px-2 py-2 text-right font-semibold">{t("paidTodayTotal")}</td>
                   <td className="px-2 py-2 text-right font-semibold">{formatInr(breakdownTotal)}</td>
                 </tr>
               </tfoot>
@@ -507,15 +520,13 @@ export function ReceiptDocument({
 
         <section className="grid gap-3 md:grid-cols-[0.95fr_1.05fr]">
           <div className="rounded-lg border border-border bg-card/95 p-4 print-compact">
-            <h2 className="text-sm font-semibold text-foreground">Fee Breakup / शुल्क विवरण</h2>
+            <h2 className="text-sm font-semibold text-foreground">{t("feeBreakup")}</h2>
             <div className="mt-2 overflow-hidden rounded-md border border-border">
               <table className="w-full text-left text-xs">
                 <tbody>
                   {receipt.feeSummary.map((item) => (
                     <tr key={item.label} className="border-t border-border first:border-t-0">
-                      <td className="px-2 py-1.5">
-                        {item.label} / {item.label === "Other Fees" ? "अन्य शुल्क" : feeLabelHindi(item.label)}
-                      </td>
+                      <td className="px-2 py-1.5">{localizedFeeLabel(item.label, t)}</td>
                       <td className="px-2 py-1.5 text-right font-medium">{formatInr(item.amount)}</td>
                     </tr>
                   ))}
@@ -526,18 +537,18 @@ export function ReceiptDocument({
 
           <div className="rounded-lg border border-border bg-surface-2 p-4 text-sm print-compact">
             <p>
-              <span className="font-semibold">Amount in Words / राशि शब्दों में:</span>{" "}
-              {amountInWords(receipt.totalAmount)}
+              <span className="font-semibold">{t("amountInWords")}:</span>{" "}
+              {amountInWords(receipt.totalAmount, t)}
             </p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              <p><span className="font-semibold">Discount / छूट:</span> {formatInr(receipt.discountAmount)}</p>
-              <p><span className="font-semibold">Late Fee / विलंब शुल्क:</span> {formatInr(receipt.lateFeeAmount)}</p>
-              <p><span className="font-semibold">Late Fee Waived / विलंब शुल्क माफ:</span> {formatInr(receipt.lateFeeWaived)}</p>
-              <p><span className="font-semibold">Paid Before / पहले जमा:</span> {formatInr(receipt.totalPaidBeforeReceipt)}</p>
+              <p><span className="font-semibold">{t("discount")}:</span> {formatInr(receipt.discountAmount)}</p>
+              <p><span className="font-semibold">{t("lateFee")}:</span> {formatInr(receipt.lateFeeAmount)}</p>
+              <p><span className="font-semibold">{t("lateFeeWaived")}:</span> {formatInr(receipt.lateFeeWaived)}</p>
+              <p><span className="font-semibold">{t("paidBefore")}:</span> {formatInr(receipt.totalPaidBeforeReceipt)}</p>
             </div>
             {receipt.notes ? (
               <p className="mt-2 text-foreground">
-                <span className="font-semibold">Remarks / टिप्पणी:</span> {receipt.notes}
+                <span className="font-semibold">{t("remarks")}:</span> {receipt.notes}
               </p>
             ) : null}
           </div>
@@ -545,11 +556,11 @@ export function ReceiptDocument({
 
         <footer className="flex items-end justify-between gap-4 pt-2 text-xs text-muted-foreground">
           <div>
-            <p className="font-medium text-foreground">This is an official school fee receipt. / यह विद्यालय की आधिकारिक शुल्क रसीद है।</p>
-            <p>Please keep this receipt for your records. / कृपया इस रसीद को सुरक्षित रखें।</p>
+            <p className="font-medium text-foreground">{t("officialReceiptStatement")}</p>
+            <p>{t("keepRecordsStatement")}</p>
           </div>
           <div className="min-w-48 border-t border-border-strong pt-2 text-center">
-            Authorised Signature / अधिकृत हस्ताक्षर
+            {t("authorisedSignature")}
           </div>
         </footer>
       </div>

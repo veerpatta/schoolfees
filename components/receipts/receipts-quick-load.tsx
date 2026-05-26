@@ -2,19 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { SectionCard } from "@/components/admin/section-card";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
 import { ReceiptPreviewSheet } from "@/components/receipts/receipt-preview-sheet";
 import type { ReceiptListItem } from "@/lib/receipts/types";
-
-function paymentModeLabel(mode: "cash" | "upi" | "bank_transfer" | "cheque") {
-  if (mode === "upi") return "UPI";
-  if (mode === "bank_transfer") return "Bank transfer";
-  if (mode === "cheque") return "Cheque";
-  return "Cash";
-}
 
 type ReceiptsQuickLoadProps = {
   initialQuery: string;
@@ -31,6 +25,7 @@ export function ReceiptsQuickLoad({
   initialTotalCount,
   canPrintReceipts,
 }: ReceiptsQuickLoadProps) {
+  const t = useTranslations("Receipts");
   const [query, setQuery] = useState(initialQuery);
   const [page, setPage] = useState(initialPage);
   const [receipts, setReceipts] = useState(initialReceipts);
@@ -38,6 +33,13 @@ export function ReceiptsQuickLoad({
   const [isLoading, setIsLoading] = useState(false);
   const [previewReceiptId, setPreviewReceiptId] = useState<string | null>(null);
   const isFirstRender = useRef(true);
+
+  const paymentModeLabel = (mode: "cash" | "upi" | "bank_transfer" | "cheque") => {
+    if (mode === "upi") return t("paymentModeUpi");
+    if (mode === "bank_transfer") return t("paymentModeBankTransfer");
+    if (mode === "cheque") return t("paymentModeCheque");
+    return t("paymentModeCash");
+  };
   const params = useMemo(() => {
     const value = new URLSearchParams();
     if (query) value.set("query", query);
@@ -99,7 +101,7 @@ export function ReceiptsQuickLoad({
 
   return (
     <>
-      <SectionCard title="Receipt lookup" description="Search by receipt number or reference number.">
+      <SectionCard title={t("lookupTitle")} description={t("lookupDescription")}>
         <div className="flex flex-col gap-3 sm:flex-row">
           <input
             value={query}
@@ -108,25 +110,25 @@ export function ReceiptsQuickLoad({
               setQuery(event.target.value);
             }}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-            placeholder="e.g. SVP20260421-0001 or UPI reference"
+            placeholder={t("lookupPlaceholder")}
           />
           {query ? (
             <Button type="button" variant="outline" onClick={() => setQuery("")}>
-              Clear
+              {t("lookupClear")}
             </Button>
           ) : null}
         </div>
       </SectionCard>
 
       <SectionCard
-        title="Recent receipts"
-        description={`${totalCount} receipt${totalCount === 1 ? "" : "s"} in this view.${isLoading ? " Refreshing…" : ""}`}
+        title={t("recentTitle")}
+        description={`${t("recentCount", { count: totalCount })}${isLoading ? t("recentRefreshing") : ""}`}
       >
         <div className="space-y-4">
           <div className="space-y-3 md:hidden">
             {receipts.length === 0 ? (
               <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
-                No receipts found for this filter.
+                {t("emptyMobile")}
               </p>
             ) : (
               receipts.map((receipt) => {
@@ -144,14 +146,14 @@ export function ReceiptsQuickLoad({
                     <p className="text-xs text-muted-foreground">{receipt.classLabel} • {paymentModeLabel(receipt.paymentMode)}</p>
                     <p className="mt-1 font-semibold text-foreground">{formatInr(receipt.totalAmount)}</p>
                     <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-accent">
-                      Tap to preview
+                      {t("tapToPreview")}
                     </span>
                     <Link
                       onClick={(event) => event.stopPropagation()}
                       href={`/protected/receipts/${receipt.id}?returnTo=${encodeURIComponent(returnTo)}`}
                       className="sr-only"
                     >
-                      Open {receipt.receiptNumber} full page
+                      {t("openFullSr", { receiptNumber: receipt.receiptNumber })}
                     </Link>
                   </button>
                 );
@@ -162,20 +164,20 @@ export function ReceiptsQuickLoad({
             <table className="w-full min-w-full text-left text-sm">
               <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3">Receipt no</th>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Student</th>
-                  <th className="px-4 py-3">Class</th>
-                  <th className="px-4 py-3">Mode</th>
-                  <th className="px-4 py-3">Amount</th>
-                  <th className="px-4 py-3">Action</th>
+                  <th className="px-4 py-3">{t("tableReceiptNo")}</th>
+                  <th className="px-4 py-3">{t("tableDate")}</th>
+                  <th className="px-4 py-3">{t("tableStudent")}</th>
+                  <th className="px-4 py-3">{t("tableClass")}</th>
+                  <th className="px-4 py-3">{t("tableMode")}</th>
+                  <th className="px-4 py-3">{t("tableAmount")}</th>
+                  <th className="px-4 py-3">{t("tableAction")}</th>
                 </tr>
               </thead>
               <tbody>
                 {receipts.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
-                      No receipts found for this filter.
+                      {t("tableEmpty")}
                     </td>
                   </tr>
                 ) : (
@@ -202,7 +204,7 @@ export function ReceiptsQuickLoad({
                         <td className="px-4 py-3" data-row-action="true" onClick={(event) => event.stopPropagation()}>
                           <Button asChild variant="outline" size="sm">
                             <Link href={`/protected/receipts/${receipt.id}?returnTo=${encodeURIComponent(returnTo)}`}>
-                              {canPrintReceipts ? "Open / Print" : "Open"}
+                              {canPrintReceipts ? t("openOrPrint") : t("openOnly")}
                             </Link>
                           </Button>
                         </td>
@@ -216,14 +218,14 @@ export function ReceiptsQuickLoad({
 
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <p>
-              Page {page} of {pageCount}
+              {t("pageOf", { page, pageCount })}
             </p>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" disabled={page <= 1 || isLoading} onClick={() => setPage((value) => Math.max(1, value - 1))}>
-                Previous
+                {t("paginationPrevious")}
               </Button>
               <Button size="sm" variant="outline" disabled={page >= pageCount || isLoading} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>
-                Next
+                {t("paginationNext")}
               </Button>
             </div>
           </div>

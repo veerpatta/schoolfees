@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Printer, ExternalLink, AlertTriangle, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ export function ReceiptPreviewSheet({
   canPrint = true,
   whatsappTemplates = [],
 }: ReceiptPreviewSheetProps) {
+  const t = useTranslations("Receipts");
   const [state, setState] = useState<FetchState>(
     initialReceipt ? { status: "ready", receipt: initialReceipt } : { status: "idle" },
   );
@@ -94,15 +96,19 @@ export function ReceiptPreviewSheet({
     <Sheet
       open={open}
       onClose={onClose}
-      title={receiptNumber ? `Receipt ${receiptNumber}` : "Receipt"}
-      description="Quick preview. Open full page to print or share."
+      title={
+        receiptNumber
+          ? t("previewSheetTitleWithNumber", { number: receiptNumber })
+          : t("previewSheetTitle")
+      }
+      description={t("previewSheetDescription")}
       size="full"
     >
       <div className="space-y-3">
         {state.status === "loading" ? (
           <div className="flex items-center gap-2 rounded-md border border-border bg-surface-2 px-3 py-4 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            Loading receipt…
+            {t("previewLoading")}
           </div>
         ) : null}
 
@@ -110,19 +116,19 @@ export function ReceiptPreviewSheet({
           <div className="flex items-start gap-2 rounded-md bg-destructive-soft px-3 py-3 text-sm text-destructive-soft-foreground">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <div className="min-w-0">
-              <p className="font-semibold">Unable to load receipt</p>
+              <p className="font-semibold">{t("previewErrorTitle")}</p>
               <p className="mt-0.5 text-xs">{state.message}</p>
             </div>
           </div>
         ) : null}
 
         {state.status === "ready" ? (
-          <ReceiptDocument receipt={state.receipt} mode="saved" density="compact" />
+          <ReceiptDocument receipt={state.receipt} mode="saved" density="compact" t={t} />
         ) : null}
 
         <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-end gap-2 border-t border-border bg-card px-4 py-3 mobile-safe-bottom-padding sm:-mx-5 sm:px-5">
           <Button variant="ghost" type="button" onClick={onClose}>
-            Close
+            {t("previewClose")}
           </Button>
           {state.status === "ready" ? (
             <ReceiptShareActions receipt={state.receipt} templates={whatsappTemplates} />
@@ -131,7 +137,7 @@ export function ReceiptPreviewSheet({
             <Button asChild variant="outline" size="sm">
               <Link href={fullPageHref} target="_blank" rel="noopener">
                 <ExternalLink className="size-4" aria-hidden="true" />
-                Open full page
+                {t("openFullPage")}
               </Link>
             </Button>
           ) : null}
@@ -139,7 +145,7 @@ export function ReceiptPreviewSheet({
             <Button asChild size="sm">
               <Link href={printHref} target="_blank" rel="noopener">
                 <Printer className="size-4" aria-hidden="true" />
-                Print
+                {t("printAction")}
               </Link>
             </Button>
           ) : null}
