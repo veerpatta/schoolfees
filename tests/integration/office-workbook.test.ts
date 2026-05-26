@@ -7,7 +7,7 @@ import {
   buildOfficeWorkbookExportHref,
   buildOfficeWorkbookHref,
   normalizeOfficeWorkbookView,
-  officeWorkbookMeta,
+  officeWorkbookViewI18nPrefix,
 } from "@/lib/transactions/workbook";
 
 describe("office workbook helpers", () => {
@@ -47,12 +47,25 @@ describe("office workbook helpers", () => {
   });
 
   it("keeps the simplified office-facing workbook labels", () => {
-    expect(officeWorkbookMeta.transactions.title).toBe("All Transactions");
-    expect(officeWorkbookMeta.receipts.title).toBe("Receipts");
-    expect(officeWorkbookMeta.student_dues.title).toBe("Student Dues");
-    expect(officeWorkbookMeta.installments.title).toBe("Installment Tracker");
-    expect(officeWorkbookMeta.class_register.title).toBe("Class Register");
-    expect(officeWorkbookMeta.collection_today.title).toBe("Today's Collection");
+    // Labels moved to messages/en.json under Common.workbookViews during the
+    // i18n port — assert against the catalog and against the i18n-prefix map
+    // that wires those keys to OfficeWorkbookView ids.
+    const englishMessages = JSON.parse(
+      readFileSync(join(process.cwd(), "messages/en.json"), "utf-8"),
+    ) as { Common: { workbookViews: Record<string, string> } };
+    const views = englishMessages.Common.workbookViews;
+
+    expect(officeWorkbookViewI18nPrefix.transactions).toBe("transactions");
+    expect(views[`${officeWorkbookViewI18nPrefix.transactions}Title`]).toBe("All Transactions");
+    expect(views[`${officeWorkbookViewI18nPrefix.receipts}Title`]).toBe("Receipts");
+    expect(views[`${officeWorkbookViewI18nPrefix.student_dues}Title`]).toBe("Student Dues");
+    expect(views[`${officeWorkbookViewI18nPrefix.installments}Title`]).toBe(
+      "Installment Tracker",
+    );
+    expect(views[`${officeWorkbookViewI18nPrefix.class_register}Title`]).toBe("Class Register");
+    expect(views[`${officeWorkbookViewI18nPrefix.collection_today}Title`]).toBe(
+      "Today's Collection",
+    );
   });
 
   it("builds Transactions export links with practical filters", () => {

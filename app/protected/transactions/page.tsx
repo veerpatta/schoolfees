@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import { PageHeader } from "@/components/admin/page-header";
 import { OfficeNotice, WorkflowGuard } from "@/components/office/office-ui";
 import { TransactionsClientShell } from "@/components/transactions/transactions-client-shell";
@@ -54,6 +56,7 @@ function normalizePage(value: string | undefined) {
 }
 
 export default async function TransactionsPage({ searchParams }: TransactionsPageProps) {
+  const t = await getTranslations("Transactions");
   const staff = await requireAnyStaffPermission(
     ["receipts:view", "defaulters:view", "reports:view", "finance:view"],
     { onDenied: "redirect" },
@@ -119,12 +122,12 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Finance records"
-        title="Transactions"
-        description="Read-only receipts, dues, class register, and payment history."
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
         actions={
-          <TrustBadge source="Append-only ledger">
-            Append-only · click any receipt for the audit trail
+          <TrustBadge source={t("trustBadgeSource")}>
+            {t("trustBadgeBody")}
           </TrustBadge>
         }
       />
@@ -139,8 +142,8 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
       ) : null}
 
       {!resolvedView.wasRecognized ? (
-        <OfficeNotice tone="warning" title="Unknown view">
-          Unknown view &apos;{resolvedView.rawValue}&apos; — showing default view.
+        <OfficeNotice tone="warning" title={t("unknownViewTitle")}>
+          {t("unknownViewBody", { value: resolvedView.rawValue })}
         </OfficeNotice>
       ) : null}
 

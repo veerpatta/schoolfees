@@ -12,59 +12,25 @@ export const officeWorkbookViews = [
 
 export type OfficeWorkbookView = (typeof officeWorkbookViews)[number];
 
-export const officeWorkbookMeta: Record<
-  OfficeWorkbookView,
-  {
-    title: string;
-    shortTitle: string;
-    description: string;
-  }
-> = {
-  transactions: {
-    title: "All Transactions",
-    shortTitle: "Transactions",
-    description: "Latest posted receipt records with current paid and outstanding context.",
-  },
-  collection_today: {
-    title: "Today's Collection",
-    shortTitle: "Today",
-    description: "Daily summary totals for day-book checking.",
-  },
-  receipts: {
-    title: "Receipts",
-    shortTitle: "Receipts",
-    description: "Receipt register for reprints, verification, and desk follow-up.",
-  },
-  student_dues: {
-    title: "Student Dues",
-    shortTitle: "Dues",
-    description: "Student-wise dues, paid, pending, discount, and next-due view.",
-  },
-  installments: {
-    title: "Installment Tracker",
-    shortTitle: "Installments",
-    description: "Student-wise pending installment view with next due and late fee position.",
-  },
-  class_register: {
-    title: "Class Register",
-    shortTitle: "Class Reg",
-    description: "Workbook-style class register with summary totals and compact payment history.",
-  },
-  defaulters: {
-    title: "Defaulters",
-    shortTitle: "Defaulters",
-    description: "Overdue students with phone-ready follow-up details.",
-  },
-  import_issues: {
-    title: "Import Issues",
-    shortTitle: "Imports",
-    description: "Recent import rows that still need office review.",
-  },
-  exports: {
-    title: "Exports",
-    shortTitle: "Exports",
-    description: "Download permanent finance views as CSV files.",
-  },
+/**
+ * Translation key prefixes for each office workbook view. The Common
+ * namespace exposes `<prefix>Title`, `<prefix>Short`, and
+ * `<prefix>Description` under `workbookViews`. Callers translate via
+ * `useTranslations("Common")` and reference these keys.
+ *
+ * Old hardcoded English labels lived in `officeWorkbookMeta`; that map
+ * moved into messages/en.json + sibling locale files during the i18n port.
+ */
+export const officeWorkbookViewI18nPrefix: Record<OfficeWorkbookView, string> = {
+  transactions: "transactions",
+  collection_today: "collectionToday",
+  receipts: "receipts",
+  student_dues: "studentDues",
+  installments: "installments",
+  class_register: "classRegister",
+  defaulters: "defaulters",
+  import_issues: "importIssues",
+  exports: "exports",
 };
 
 export function normalizeOfficeWorkbookView(

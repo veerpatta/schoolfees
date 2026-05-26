@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { ChevronDown, ChevronLeft, ChevronRight, Printer, SlidersHorizontal, X } from "lucide-react";
 
 import { SectionCard } from "@/components/admin/section-card";
@@ -16,7 +17,7 @@ import { formatShortDate } from "@/lib/helpers/date";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { cn } from "@/lib/utils";
 import {
-  officeWorkbookMeta,
+  officeWorkbookViewI18nPrefix,
   resolveOfficeWorkbookView,
   type OfficeWorkbookView,
 } from "@/lib/transactions/workbook";
@@ -95,11 +96,13 @@ export type TransactionsClientShellProps = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatPaymentModeLabel(value: string) {
-  if (value === "upi") return "UPI";
-  if (value === "bank_transfer") return "Bank transfer";
-  if (value === "cheque") return "Cheque";
-  return "Cash";
+type TxnTranslator = ReturnType<typeof useTranslations<"Transactions">>;
+
+function formatPaymentModeLabel(value: string, t: TxnTranslator) {
+  if (value === "upi") return t("paymentModeUpi");
+  if (value === "bank_transfer") return t("paymentModeBankTransfer");
+  if (value === "cheque") return t("paymentModeCheque");
+  return t("paymentModeCash");
 }
 
 
@@ -176,28 +179,28 @@ function filtersFromUrl(): { view: OfficeWorkbookView; filters: FilterState } {
 // Summary Cards
 // ---------------------------------------------------------------------------
 
-function SummaryCards({ summary }: { summary: OfficeWorkbookSummary }) {
+function SummaryCards({ summary, t }: { summary: OfficeWorkbookSummary; t: TxnTranslator }) {
   const [showMore, setShowMore] = useState(false);
   const top = [
-    { label: "Students", value: summary.studentCount },
-    { label: "Total due", value: formatInr(summary.totalDue) },
-    { label: "Outstanding", value: formatInr(summary.totalOutstanding) },
-    { label: "Total paid", value: formatInr(summary.totalPaid) },
+    { key: "students", label: t("summaryStudents"), value: summary.studentCount },
+    { key: "totalDue", label: t("summaryTotalDue"), value: formatInr(summary.totalDue) },
+    { key: "outstanding", label: t("summaryOutstanding"), value: formatInr(summary.totalOutstanding) },
+    { key: "totalPaid", label: t("summaryTotalPaid"), value: formatInr(summary.totalPaid) },
   ];
   const more = [
-    { label: "Discounts", value: formatInr(summary.totalDiscount) },
-    { label: "Late fee waived", value: formatInr(summary.totalLateFeeWaived) },
-    { label: "Transport students", value: summary.transportStudentCount },
-    { label: "Tuition total", value: formatInr(summary.tuitionFeeTotal) },
-    { label: "Transport total", value: formatInr(summary.transportFeeTotal) },
-    { label: "Academic fee", value: formatInr(summary.academicFeeTotal) },
-    { label: "Other adj.", value: formatInr(summary.otherAdjustmentTotal) },
+    { key: "discounts", label: t("summaryDiscounts"), value: formatInr(summary.totalDiscount) },
+    { key: "lateFeeWaived", label: t("summaryLateFeeWaived"), value: formatInr(summary.totalLateFeeWaived) },
+    { key: "transportStudents", label: t("summaryTransportStudents"), value: summary.transportStudentCount },
+    { key: "tuitionTotal", label: t("summaryTuitionTotal"), value: formatInr(summary.tuitionFeeTotal) },
+    { key: "transportTotal", label: t("summaryTransportTotal"), value: formatInr(summary.transportFeeTotal) },
+    { key: "academicFee", label: t("summaryAcademicFee"), value: formatInr(summary.academicFeeTotal) },
+    { key: "otherAdj", label: t("summaryOtherAdj"), value: formatInr(summary.otherAdjustmentTotal) },
   ];
   return (
     <div className="space-y-4">
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {top.map((c) => (
-          <div key={c.label} className="rounded-xl border border-border bg-surface-2 px-4 py-3">
+          <div key={c.key} className="rounded-xl border border-border bg-surface-2 px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{c.label}</p>
             <p className="mt-1.5 text-base font-semibold text-foreground">{c.value}</p>
           </div>
@@ -209,13 +212,13 @@ function SummaryCards({ summary }: { summary: OfficeWorkbookSummary }) {
           onClick={() => setShowMore((v) => !v)}
           className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-foreground hover:bg-surface-3 transition-colors"
         >
-          <span>More totals</span>
+          <span>{t("summaryMoreTotals")}</span>
           <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200", showMore && "rotate-180")} />
         </button>
         {showMore && (
           <div className="grid gap-3 border-t border-border bg-card p-4 md:grid-cols-2 xl:grid-cols-4">
             {more.map((c) => (
-              <div key={c.label} className="rounded-xl border border-border bg-surface-2 px-4 py-3">
+              <div key={c.key} className="rounded-xl border border-border bg-surface-2 px-4 py-3">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{c.label}</p>
                 <p className="mt-1.5 text-base font-semibold text-foreground">{c.value}</p>
               </div>
@@ -236,11 +239,13 @@ function TransactionsTable({
   returnTo,
   sessionLabel,
   onPreviewReceipt,
+  t,
 }: {
   rows: WorkbookTransaction[];
   returnTo: string;
   sessionLabel: string;
   onPreviewReceipt: (receiptId: string) => void;
+  t: TxnTranslator;
 }) {
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
   const receiptPrintHref = (receiptId: string, label: string) =>
@@ -250,7 +255,7 @@ function TransactionsTable({
       <div className="space-y-3 md:hidden">
         {rows.length === 0 ? (
           <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
-            No transactions found for this view.
+            {t("tableEmpty")}
           </p>
         ) : (
           rows.map((row) => (
@@ -284,17 +289,17 @@ function TransactionsTable({
                 </p>
               </div>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                {row.receiptNumber} · {formatPaymentModeLabel(row.paymentMode)}
+                {row.receiptNumber} · {formatPaymentModeLabel(row.paymentMode, t)}
               </p>
               <div className="mt-2 flex flex-wrap gap-2" data-row-action="true" onClick={(event) => event.stopPropagation()}>
-                <Button asChild size="sm" variant="ghost" aria-label={`Print receipt ${row.receiptNumber}`}>
+                <Button asChild size="sm" variant="ghost" aria-label={t("rowActionPrintAria", { number: row.receiptNumber })}>
                   <Link href={receiptPrintHref(row.receiptId, sessionLabel)} target="_blank" rel="noreferrer">
                     <Printer className="size-4" />
-                    <span className="sr-only">Print</span>
+                    <span className="sr-only">{t("rowActionPrint")}</span>
                   </Link>
                 </Button>
                 <Button asChild size="sm" variant="outline">
-                  <Link href={withSession(`/protected/payments?studentId=${row.studentId}`)}>Payment</Link>
+                  <Link href={withSession(`/protected/payments?studentId=${row.studentId}`)}>{t("rowActionPayment")}</Link>
                 </Button>
               </div>
             </div>
@@ -305,18 +310,18 @@ function TransactionsTable({
         <table className="min-w-[900px] text-left text-sm">
           <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="px-4 py-3">Student</th>
-              <th className="px-4 py-3">Date</th>
-              <th className="px-4 py-3">Class</th>
-              <th className="px-4 py-3">Mode</th>
-              <th className="px-4 py-3 text-right">Amount</th>
-              <th className="px-4 py-3">Receipt no</th>
-              <th className="px-4 py-3">Action</th>
+              <th className="px-4 py-3">{t("tableHeaderStudent")}</th>
+              <th className="px-4 py-3">{t("tableHeaderDate")}</th>
+              <th className="px-4 py-3">{t("tableHeaderClass")}</th>
+              <th className="px-4 py-3">{t("tableHeaderMode")}</th>
+              <th className="px-4 py-3 text-right">{t("tableHeaderAmount")}</th>
+              <th className="px-4 py-3">{t("tableHeaderReceiptNo")}</th>
+              <th className="px-4 py-3">{t("tableHeaderAction")}</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">No transactions found for this view.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">{t("tableEmpty")}</td></tr>
             ) : (
               rows.map((row) => (
                 <tr
@@ -331,22 +336,22 @@ function TransactionsTable({
                   <td className="px-4 py-3 font-semibold text-foreground">{row.studentName}</td>
                   <td className="px-4 py-3 text-muted-foreground">{formatShortDate(row.paymentDate)}</td>
                   <td className="px-4 py-3 text-muted-foreground">{row.classLabel}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatPaymentModeLabel(row.paymentMode)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{formatPaymentModeLabel(row.paymentMode, t)}</td>
                   <td className="px-4 py-3 text-right font-semibold text-foreground tabular-nums">{formatInr(row.totalAmount)}</td>
                   <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{row.receiptNumber}</td>
                   <td className="px-4 py-3" data-row-action="true" onClick={(event) => event.stopPropagation()}>
                     <div className="flex flex-wrap gap-2">
-                      <Button asChild size="sm" variant="ghost" aria-label={`Print receipt ${row.receiptNumber}`}>
+                      <Button asChild size="sm" variant="ghost" aria-label={t("rowActionPrintAria", { number: row.receiptNumber })}>
                         <Link href={receiptPrintHref(row.receiptId, sessionLabel)} target="_blank" rel="noreferrer">
                           <Printer className="size-4" />
-                          <span className="sr-only">Print</span>
+                          <span className="sr-only">{t("rowActionPrint")}</span>
                         </Link>
                       </Button>
                       <Button asChild size="sm" variant="outline">
-                        <Link href={withSession(`/protected/students/${row.studentId}?returnTo=${encodeURIComponent(returnTo)}`)}>Student</Link>
+                        <Link href={withSession(`/protected/students/${row.studentId}?returnTo=${encodeURIComponent(returnTo)}`)}>{t("rowActionStudent")}</Link>
                       </Button>
                       <Button asChild size="sm" variant="outline">
-                        <Link href={withSession(`/protected/payments?studentId=${row.studentId}`)}>Payment Desk</Link>
+                        <Link href={withSession(`/protected/payments?studentId=${row.studentId}`)}>{t("rowActionPaymentDesk")}</Link>
                       </Button>
                     </div>
                   </td>
@@ -367,6 +372,8 @@ type StudentTableProps = {
 };
 
 function LazyTableSkeleton() {
+  // The lazy fallback renders before the parent's translator binding hits the
+  // tree; the bare string is fine because it shows for a frame at most.
   return (
     <div className="rounded-xl border border-border bg-surface-2 px-4 py-8 text-center text-sm text-muted-foreground">
       Loading view...
@@ -399,12 +406,12 @@ const CollectionTable = dynamic<{ rows: CollectionRow[] }>(
 // Loading overlay
 // ---------------------------------------------------------------------------
 
-function LoadingOverlay() {
+function LoadingOverlay({ t }: { t: TxnTranslator }) {
   return (
     <div className="absolute inset-0 z-10 flex items-start justify-center rounded-xl bg-background/60 pt-12 backdrop-blur-[1px]">
       <div className="flex items-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-2 text-sm text-muted-foreground shadow-sm">
         <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-        Loading…
+        {t("loadingOverlay")}
       </div>
     </div>
   );
@@ -413,9 +420,11 @@ function LoadingOverlay() {
 function PaginationControls({
   pagination,
   onPageChange,
+  t,
 }: {
   pagination: OfficeWorkbookPagination;
   onPageChange: (page: number) => void;
+  t: TxnTranslator;
 }) {
   const totalLabel = pagination.totalRows === null
     ? `${pagination.visibleStart}-${pagination.visibleEnd}`
@@ -428,7 +437,7 @@ function PaginationControls({
   return (
     <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm">
       <span className="text-muted-foreground">
-        Showing {totalLabel}
+        {t("paginationShowing", { label: totalLabel })}
       </span>
       <div className="flex items-center gap-2">
         <Button
@@ -439,10 +448,10 @@ function PaginationControls({
           onClick={() => onPageChange(Math.max(1, pagination.page - 1))}
         >
           <ChevronLeft className="size-4" />
-          Previous
+          {t("paginationPrevious")}
         </Button>
         <span className="min-w-16 text-center text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          Page {pagination.page}
+          {t("paginationPage", { page: pagination.page })}
         </span>
         <Button
           type="button"
@@ -451,7 +460,7 @@ function PaginationControls({
           disabled={!pagination.hasNextPage}
           onClick={() => onPageChange(pagination.page + 1)}
         >
-          Next
+          {t("paginationNext")}
           <ChevronRight className="size-4" />
         </Button>
       </div>
@@ -463,7 +472,7 @@ function PaginationControls({
 // Main shell
 // ---------------------------------------------------------------------------
 
-function TodayStrip({ snapshot }: { snapshot: TodaySnapshot }) {
+function TodayStrip({ snapshot, t }: { snapshot: TodaySnapshot; t: TxnTranslator }) {
   const today = new Intl.DateTimeFormat("en-IN", {
     timeZone: "Asia/Kolkata",
     day: "numeric",
@@ -471,19 +480,19 @@ function TodayStrip({ snapshot }: { snapshot: TodaySnapshot }) {
     weekday: "short",
   }).format(new Date());
   const modes: Array<{ key: string; label: string; value: number }> = [
-    { key: "cash", label: "Cash", value: snapshot.cashTotal },
-    { key: "upi", label: "UPI", value: snapshot.upiTotal },
-    { key: "bank", label: "Bank", value: snapshot.bankTotal },
-    { key: "cheque", label: "Cheque", value: snapshot.chequeTotal },
+    { key: "cash", label: t("todayStripModeCash"), value: snapshot.cashTotal },
+    { key: "upi", label: t("todayStripModeUpi"), value: snapshot.upiTotal },
+    { key: "bank", label: t("todayStripModeBank"), value: snapshot.bankTotal },
+    { key: "cheque", label: t("todayStripModeCheque"), value: snapshot.chequeTotal },
   ];
   return (
     <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-xs">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
         <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-          Today · {today}
+          {t("todayStripPrefix", { date: today })}
         </span>
         <span className="font-semibold text-foreground">
-          {snapshot.receiptCount} receipt{snapshot.receiptCount === 1 ? "" : "s"}
+          {t("todayStripReceipts", { count: snapshot.receiptCount })}
         </span>
         <span className="font-semibold tabular-nums text-accent">{formatInr(snapshot.total)}</span>
         <span className="hidden md:inline text-muted-foreground">·</span>
@@ -512,6 +521,8 @@ export function TransactionsClientShell({
   todaySnapshot,
   canCloseBalance,
 }: TransactionsClientShellProps) {
+  const t = useTranslations("Transactions");
+  const tCommon = useTranslations("Common");
   const [activeView, setActiveView] = useState(initialView);
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [workbook, setWorkbook] = useState<OfficeWorkbookData>(initialWorkbook);
@@ -632,24 +643,29 @@ export function TransactionsClientShell({
   // Badge counts only secondary-panel filters — primary-row filters (search, class, mode chips) are always visible
   const extraActiveCount = [filters.fromDate, filters.toDate, filters.routeId, filters.sessionLabel].filter(Boolean).length;
   const effectiveSession = filters.sessionLabel || resolvedSessionLabel;
-  const activeMeta = officeWorkbookMeta[activeView];
+  const activeViewPrefix = officeWorkbookViewI18nPrefix[activeView];
+  const activeMeta = {
+    title: tCommon(`workbookViews.${activeViewPrefix}Title` as Parameters<typeof tCommon>[0]),
+    shortTitle: tCommon(`workbookViews.${activeViewPrefix}Short` as Parameters<typeof tCommon>[0]),
+    description: tCommon(`workbookViews.${activeViewPrefix}Description` as Parameters<typeof tCommon>[0]),
+  };
 
   // Return-to URL for action links
   const returnTo = buildPageUrl(activeView, filters);
 
   return (
     <div className="space-y-6">
-      <TodayStrip snapshot={todaySnapshot} />
+      <TodayStrip snapshot={todaySnapshot} t={t} />
 
       {/* ── View + Filters ── */}
       <SectionCard
-        title="View & Filter"
-        description="Switch views instantly. Filters apply without reloading the page."
+        title={t("viewFilterTitle")}
+        description={t("viewFilterDescription")}
         actions={
           <div className="flex items-center gap-2">
-            <StatusBadge label="Read-only" tone="accent" />
+            <StatusBadge label={t("readOnlyBadge")} tone="accent" />
             <Button asChild size="sm" variant="outline">
-              <Link href={appendSessionParam("/protected/payments", effectiveSession)}>Payment Desk</Link>
+              <Link href={appendSessionParam("/protected/payments", effectiveSession)}>{t("paymentDeskAction")}</Link>
             </Button>
           </div>
         }
@@ -678,7 +694,9 @@ export function TransactionsClientShell({
                     : "bg-surface-2 border-border text-foreground hover:bg-surface-3"
                 )}
               >
-                {officeWorkbookMeta[view].shortTitle}
+                {tCommon(
+                  `workbookViews.${officeWorkbookViewI18nPrefix[view]}Short` as Parameters<typeof tCommon>[0],
+                )}
               </button>
             ))}
           </div>
@@ -690,14 +708,14 @@ export function TransactionsClientShell({
               {/* Search */}
               <div className="min-w-[180px] flex-1">
                 <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="txn-query">
-                  Search
+                  {t("filterSearchLabel")}
                 </label>
                 <input
                   id="txn-query"
                   type="search"
                   value={filters.query}
                   onChange={(e) => handleFilterChange("query", e.target.value, true)}
-                  placeholder="Student, SR no, receipt no, phone…"
+                  placeholder={t("filterSearchPlaceholder")}
                   className="mt-1.5 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 />
               </div>
@@ -705,7 +723,7 @@ export function TransactionsClientShell({
               {/* Class */}
               <div className="min-w-[140px] flex-1 max-w-[220px]">
                 <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="txn-class">
-                  Class
+                  {t("filterClassLabel")}
                 </label>
                 <select
                   id="txn-class"
@@ -713,7 +731,7 @@ export function TransactionsClientShell({
                   onChange={(e) => handleFilterChange("classId", e.target.value)}
                   className="mt-1.5 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
-                  <option value="">All classes</option>
+                  <option value="">{t("filterClassAll")}</option>
                   {classOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
                 </select>
               </div>
@@ -748,7 +766,7 @@ export function TransactionsClientShell({
                 )}
               >
                 <SlidersHorizontal className="h-3.5 w-3.5" />
-                Filters
+                {t("filterFiltersToggle")}
                 {extraActiveCount > 0 && (
                   <span className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
                     {extraActiveCount}
@@ -762,9 +780,9 @@ export function TransactionsClientShell({
                   type="button"
                   onClick={handleReset}
                   className="mt-auto flex h-9 items-center gap-1 rounded-md border border-border px-3 text-sm text-muted-foreground hover:bg-surface-2 transition-colors"
-                  title="Clear all filters"
+                  title={t("filterClearTitle")}
                 >
-                  <X className="h-3.5 w-3.5" /> Clear
+                  <X className="h-3.5 w-3.5" /> {t("filterClear")}
                 </button>
               )}
             </div>
@@ -773,17 +791,17 @@ export function TransactionsClientShell({
                 staff can jump to common windows without opening More filters. */}
             <div className="flex flex-wrap gap-1.5">
               {[
-                { label: "Today", days: 0 },
-                { label: "Yesterday", days: -1 },
-                { label: "This week", days: -7, weekToDate: true },
-                { label: "This month", days: 0, monthToDate: true },
+                { label: t("chipToday"), key: "Today", days: 0 },
+                { label: t("chipYesterday"), key: "Yesterday", days: -1 },
+                { label: t("chipThisWeek"), key: "This week", days: -7, weekToDate: true },
+                { label: t("chipThisMonth"), key: "This month", days: 0, monthToDate: true },
               ].map((chip) => {
                 const isActive = (() => {
                   if (!filters.fromDate || !filters.toDate) return false;
                   const today = new Date();
                   const todayIso = today.toISOString().slice(0, 10);
-                  if (chip.label === "Today") return filters.fromDate === todayIso && filters.toDate === todayIso;
-                  if (chip.label === "Yesterday") {
+                  if (chip.key === "Today") return filters.fromDate === todayIso && filters.toDate === todayIso;
+                  if (chip.key === "Yesterday") {
                     const y = new Date(today);
                     y.setDate(y.getDate() - 1);
                     const yIso = y.toISOString().slice(0, 10);
@@ -793,23 +811,23 @@ export function TransactionsClientShell({
                 })();
                 return (
                   <button
-                    key={chip.label}
+                    key={chip.key}
                     type="button"
                     onClick={() => {
                       const today = new Date();
                       const todayIso = today.toISOString().slice(0, 10);
                       let fromIso = todayIso;
                       let toIso = todayIso;
-                      if (chip.label === "Yesterday") {
+                      if (chip.key === "Yesterday") {
                         const y = new Date(today);
                         y.setDate(y.getDate() - 1);
                         fromIso = y.toISOString().slice(0, 10);
                         toIso = fromIso;
-                      } else if (chip.label === "This week") {
+                      } else if (chip.key === "This week") {
                         const start = new Date(today);
                         start.setDate(today.getDate() - today.getDay());
                         fromIso = start.toISOString().slice(0, 10);
-                      } else if (chip.label === "This month") {
+                      } else if (chip.key === "This month") {
                         const start = new Date(today.getFullYear(), today.getMonth(), 1);
                         fromIso = start.toISOString().slice(0, 10);
                       }
@@ -838,7 +856,7 @@ export function TransactionsClientShell({
                   }}
                   className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-surface-2"
                 >
-                  Clear dates
+                  {t("filterClearDates")}
                 </button>
               ) : null}
             </div>
@@ -849,7 +867,7 @@ export function TransactionsClientShell({
                 {/* Session */}
                 <div>
                   <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="txn-session">
-                    Academic year
+                    {t("filterAcademicYearLabel")}
                   </label>
                   <select
                     id="txn-session"
@@ -857,7 +875,7 @@ export function TransactionsClientShell({
                     onChange={(e) => handleFilterChange("sessionLabel", e.target.value)}
                     className="mt-1.5 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
                   >
-                    <option value="">Current year</option>
+                    <option value="">{t("filterAcademicYearCurrent")}</option>
                     {sessionOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
@@ -865,7 +883,7 @@ export function TransactionsClientShell({
                 {/* Route */}
                 <div>
                   <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="txn-route">
-                    Route
+                    {t("filterRouteLabel")}
                   </label>
                   <select
                     id="txn-route"
@@ -873,7 +891,7 @@ export function TransactionsClientShell({
                     onChange={(e) => handleFilterChange("routeId", e.target.value)}
                     className="mt-1.5 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
                   >
-                    <option value="">All routes</option>
+                    <option value="">{t("filterRouteAll")}</option>
                     {routeOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
                   </select>
                 </div>
@@ -881,7 +899,7 @@ export function TransactionsClientShell({
                 {/* From date */}
                 <div>
                   <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="txn-from">
-                    From
+                    {t("filterFromLabel")}
                   </label>
                   <input
                     id="txn-from"
@@ -899,7 +917,7 @@ export function TransactionsClientShell({
                 {/* To date */}
                 <div>
                   <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="txn-to">
-                    To
+                    {t("filterToLabel")}
                   </label>
                   <input
                     id="txn-to"
@@ -922,27 +940,27 @@ export function TransactionsClientShell({
       {/* ── Summary cards ── */}
       {"summary" in workbook && (
         <SectionCard
-          title={activeView === "class_register" ? "Class summary" : "Working totals"}
+          title={activeView === "class_register" ? t("summaryClassTitle") : t("summaryWorkingTitle")}
           description={
             activeView === "class_register"
-              ? "Top-level register totals for the selected class or working set."
-              : "Essential totals first, more totals only when needed."
+              ? t("summaryClassDescription")
+              : t("summaryWorkingDescription")
           }
         >
-          <SummaryCards summary={(workbook as { summary: OfficeWorkbookSummary }).summary} />
+          <SummaryCards summary={(workbook as { summary: OfficeWorkbookSummary }).summary} t={t} />
         </SectionCard>
       )}
 
       {/* ── Data table (with loading overlay) ── */}
       <div className="relative">
-        {isLoading && <LoadingOverlay />}
+        {isLoading && <LoadingOverlay t={t} />}
         {(workbook.view === "transactions" || workbook.view === "receipts") && (
           <SectionCard
             title={activeMeta.title}
             description={
               workbook.view === "transactions"
-                ? "Latest posted records newest first."
-                : "Receipt register with print, student, and payment desk shortcuts."
+                ? t("transactionsDescriptionShort")
+                : t("receiptsDescriptionShort")
             }
           >
             <TransactionsTable
@@ -950,46 +968,56 @@ export function TransactionsClientShell({
               returnTo={returnTo}
               sessionLabel={effectiveSession}
               onPreviewReceipt={(receiptId) => setPreviewReceiptId(receiptId)}
+              t={t}
             />
           </SectionCard>
         )}
         {workbook.view === "installments" && (
-          <SectionCard title="Dues tracker" description="Student-wise dues tracker with pending installments and next due details.">
+          <SectionCard title={t("duesTrackerTitle")} description={t("duesTrackerDescription")}>
             <InstallmentTrackerTable rows={workbook.rows} sessionLabel={effectiveSession} />
           </SectionCard>
         )}
         {workbook.view === "student_dues" && (
-          <SectionCard title="Student dues" description="Student-wise dues, paid, pending, discount, and next-due details.">
+          <SectionCard title={t("studentDuesTitle")} description={t("studentDuesDescription")}>
             <StudentDuesTable rows={workbook.rows} sessionLabel={effectiveSession} canCloseBalance={canCloseBalance} />
           </SectionCard>
         )}
         {workbook.view === "class_register" && (
-          <SectionCard title="Class register" description="Class register with dues status, paid, pending, and actions.">
+          <SectionCard title={t("classRegisterTitle")} description={t("classRegisterDescription")}>
             <ClassRegisterTable rows={workbook.rows} sessionLabel={effectiveSession} />
           </SectionCard>
         )}
         {workbook.view === "defaulters" && (
-          <SectionCard title="Defaulters" description="Overdue-only follow-up register with phone-ready details.">
+          <SectionCard title={t("defaultersTitle")} description={t("defaultersDescription")}>
             <DefaultersTable rows={workbook.rows} sessionLabel={effectiveSession} />
           </SectionCard>
         )}
         {workbook.view === "collection_today" && (
-          <SectionCard title="Today's collection" description="Grouped daily collection totals for desk and day-book recheck.">
+          <SectionCard title={t("collectionTodayTitle")} description={t("collectionTodayDescription")}>
             <CollectionTable rows={workbook.rows as CollectionRow[]} />
           </SectionCard>
         )}
         {workbook.view === "import_issues" && (
-          <SectionCard title="Import issues" description="Recent staged rows that still need review or cleanup.">
+          <SectionCard title={t("importIssuesTitle")} description={t("importIssuesDescription")}>
             <div className="overflow-x-auto rounded-xl border border-border">
               <table className="w-full min-w-full text-left text-sm">
                 <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
-                    {["Row","Student","SR no","Class","Status","Errors","Warnings","Action"].map((h) => <th key={h} className="px-4 py-3">{h}</th>)}
+                    {[
+                      { key: "row", label: t("importColRow") },
+                      { key: "student", label: t("importColStudent") },
+                      { key: "srNo", label: t("importColSrNo") },
+                      { key: "class", label: t("importColClass") },
+                      { key: "status", label: t("importColStatus") },
+                      { key: "errors", label: t("importColErrors") },
+                      { key: "warnings", label: t("importColWarnings") },
+                      { key: "action", label: t("importColAction") },
+                    ].map((col) => <th key={col.key} className="px-4 py-3">{col.label}</th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {workbook.rows.length === 0 ? (
-                    <tr><td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">No import issues found.</td></tr>
+                    <tr><td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">{t("importIssuesEmpty")}</td></tr>
                   ) : (
                     workbook.rows.map((row) => (
                       <tr key={row.rowId} className="border-t border-border hover:bg-surface-2/30 transition-colors align-top">
@@ -1002,7 +1030,7 @@ export function TransactionsClientShell({
                         <td className="px-4 py-3">{row.warnings.length > 0 ? row.warnings.join(" | ") : "-"}</td>
                         <td className="px-4 py-3">
                           <Button asChild size="sm" variant="outline">
-                            <Link href={appendSessionParam(`/protected/imports?batchId=${row.batchId}`, effectiveSession)}>Open batch</Link>
+                            <Link href={appendSessionParam(`/protected/imports?batchId=${row.batchId}`, effectiveSession)}>{t("importOpenBatch")}</Link>
                           </Button>
                         </td>
                       </tr>
@@ -1014,20 +1042,22 @@ export function TransactionsClientShell({
           </SectionCard>
         )}
         {workbook.view === "exports" && (
-          <SectionCard title="Exports" description="CSV downloads have moved.">
+          <SectionCard title={t("exportsSectionTitle")} description={t("exportsSectionDescription")}>
             <p className="text-sm text-muted-foreground">
-              Use the <strong className="text-foreground">Exports</strong> tab in the sidebar to download finance data as CSV.
+              {t("exportsSectionBodyPrefix")}
+              <strong className="text-foreground">{t("exportsSectionBodyEmphasis")}</strong>
+              {t("exportsSectionBodySuffix")}
             </p>
           </SectionCard>
         )}
         {"rows" in workbook && workbook.rows.length > 0 ? (
           <SummaryRow sticky={false}>
-            <SummaryCell label="Records" value={String(workbook.rows.length)} />
+            <SummaryCell label={t("summaryRecords")} value={String(workbook.rows.length)} />
             {(() => {
               const rows = workbook.rows as unknown as Array<Record<string, unknown>>;
               if (workbook.view === "transactions" || workbook.view === "receipts" || workbook.view === "collection_today") {
                 const sum = rows.reduce((acc, row) => acc + Number(row.totalAmount ?? 0), 0);
-                return <SummaryCell label="Σ Amount" value={formatInr(sum)} />;
+                return <SummaryCell label={t("summaryAmountSigma")} value={formatInr(sum)} />;
               }
               if (
                 workbook.view === "student_dues" ||
@@ -1039,8 +1069,8 @@ export function TransactionsClientShell({
                 const paid = rows.reduce((acc, row) => acc + Number(row.totalPaid ?? 0), 0);
                 return (
                   <>
-                    <SummaryCell label="Σ Pending" value={formatInr(pending)} />
-                    <SummaryCell label="Σ Paid" value={formatInr(paid)} />
+                    <SummaryCell label={t("summaryPendingSigma")} value={formatInr(pending)} />
+                    <SummaryCell label={t("summaryPaidSigma")} value={formatInr(paid)} />
                   </>
                 );
               }
@@ -1049,7 +1079,7 @@ export function TransactionsClientShell({
           </SummaryRow>
         ) : null}
         {"pagination" in workbook && (
-          <PaginationControls pagination={workbook.pagination} onPageChange={handlePageChange} />
+          <PaginationControls pagination={workbook.pagination} onPageChange={handlePageChange} t={t} />
         )}
       </div>
 

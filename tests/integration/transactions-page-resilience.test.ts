@@ -10,9 +10,13 @@ const messages = JSON.parse(
 );
 
 function renderWithLocale(node: React.ReactElement): string {
-  return renderToStaticMarkup(
-    React.createElement(NextIntlClientProvider, { locale: "en", messages, children: node }),
-  );
+  // eslint-disable-next-line react/no-children-prop
+  const provider = React.createElement(NextIntlClientProvider, {
+    locale: "en",
+    messages,
+    children: node,
+  });
+  return renderToStaticMarkup(provider);
 }
 
 const getOfficeWorkbookData = vi.fn();
@@ -29,6 +33,16 @@ const getSetupWizardDataLight = vi.fn();
 const getWorkbookTransactions = vi.fn();
 
 vi.mock("server-only", () => ({}));
+
+// Server pages now call getTranslations() from next-intl/server. In tests
+// substitute a sync translator built from the English message catalog.
+vi.mock("next-intl/server", async () => {
+  const actual = await vi.importActual<typeof import("next-intl")>("next-intl");
+  return {
+    getTranslations: async (namespace: string) =>
+      actual.createTranslator({ locale: "en", messages, namespace }),
+  };
+});
 
 vi.mock("@/lib/workbook/data", () => ({
   getWorkbookTransactions,

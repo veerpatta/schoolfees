@@ -50,10 +50,14 @@ describe("read-only UX audit implementation", () => {
     const reports = readRepoFile("app/protected/reports/page.tsx");
     const defaulters = readRepoFile("components/defaulters/defaulter-filters.tsx");
     const receipts = readRepoFile("app/protected/receipts/page.tsx");
+    // Transactions filter labels now live in the Transactions namespace.
+    const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
+      Transactions: Record<string, string>;
+    };
 
     expect(transactions).toContain("handleFilterChange");
     expect(transactions).not.toContain("Apply filters");
-    expect(transactions).toContain("Academic year");
+    expect(englishMessages.Transactions.filterAcademicYearLabel).toBe("Academic year");
     expect(reports).toContain("AutoSubmitForm");
     expect(reports).not.toContain("Update view");
     expect(defaulters).toContain("AutoSubmitForm");
@@ -181,16 +185,18 @@ describe("read-only UX audit implementation", () => {
     const defaulters = readRepoFile("app/protected/defaulters/page.tsx");
     const dashboard = readRepoFile("app/protected/dashboard/page.tsx");
     // Defaulters labels now live in the next-intl Defaulters namespace;
-    // Dashboard KPI labels live in the Dashboard namespace.
+    // Dashboard KPI labels live in the Dashboard namespace;
+    // Transactions column headers live in the Transactions namespace.
     const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
       Defaulters: Record<string, string>;
       Dashboard: Record<string, string>;
+      Transactions: Record<string, string>;
     };
 
     expect(studentsTable).toContain("SR no");
     expect(studentsTable).toContain("Student name");
     expect(studentsTable).toContain("md:hidden");
-    expect(transactions).toContain("Receipt no");
+    expect(englishMessages.Transactions.tableHeaderReceiptNo).toBe("Receipt no");
     expect(transactionLazyTables).toContain("tracker-mobile-");
     expect(transactions).not.toContain("Receipt / Ref");
     expect(englishMessages.Defaulters.tableOldestDue).toBe("Oldest due");

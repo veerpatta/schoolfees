@@ -1,11 +1,14 @@
+import { getTranslations } from "next-intl/server";
+
 import { RouteLoading } from "@/components/admin/route-loading";
 
-export default function Loading() {
+export default async function Loading() {
+  const t = await getTranslations("Transactions");
   return (
     <RouteLoading
-      badgeLabel="Transactions"
-      title="Loading finance records"
-      description="Fetching receipts, dues, and export-ready records for the selected view."
+      badgeLabel={t("loadingBadge")}
+      title={t("loadingTitle")}
+      description={t("loadingDescription")}
       cards={5}
     />
   );
