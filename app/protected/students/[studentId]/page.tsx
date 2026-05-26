@@ -13,7 +13,6 @@ import { StudentStickyHeader } from "@/components/students/student-sticky-header
 import { StudentWorkspaceTabs } from "@/components/students/student-workspace-tabs";
 import { StudentFamilyPanel } from "@/components/students/family-panel";
 import { StudentFinanceGlance } from "@/components/students/student-finance-glance";
-import { CloseDueTrigger } from "@/components/students/close-due-trigger";
 import { Money } from "@/components/ui/money";
 import { Notice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
@@ -117,7 +116,6 @@ export default async function StudentDetailPage({
   const canPrintReceipts = hasStaffPermission(staff, "receipts:print");
   const canPostPayments = hasStaffPermission(staff, "payments:write");
   const canViewLedger = hasStaffPermission(staff, "ledger:view");
-  const canCloseDueAsDiscount = hasStaffPermission(staff, "finance:write");
   const canShowDangerZone = staff.appRole === "admin" && canEditStudent && deletionSafety;
   const outstandingAmount = installmentBalances.reduce((sum, row) => sum + row.pendingAmount, 0);
   const overdueAmount = calculateOverdueBaseAmount(installmentBalances);
@@ -747,28 +745,6 @@ export default async function StudentDetailPage({
         nextDueLabel={firstPendingInstallment?.installmentLabel ?? null}
         nextDueAmount={firstPendingInstallment?.pendingAmount ?? null}
       />
-
-      {canCloseDueAsDiscount && outstandingAmount > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-border bg-surface-2/40 px-4 py-3">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground">
-              Small balance left? Close it as a discount.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              For rounding leftovers, transport part-month, or admin-approved write-offs. Posts a discount
-              against this student with a required reason — receipts are not changed.
-            </p>
-          </div>
-          <CloseDueTrigger
-            studentId={student.id}
-            studentLabel={student.fullName}
-            studentAdmissionNo={student.admissionNo}
-            classLabel={student.classLabel}
-            pendingAmount={outstandingAmount}
-            currentDiscount={student.discountAmount ?? 0}
-          />
-        </div>
-      ) : null}
 
       <StudentStatCards
         installmentProgress={{

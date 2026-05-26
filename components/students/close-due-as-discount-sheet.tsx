@@ -24,6 +24,7 @@ type CloseDueAsDiscountSheetProps = {
   classLabel: string;
   pendingAmount: number;
   currentDiscount: number;
+  sessionLabel: string;
 };
 
 export function CloseDueAsDiscountSheet({
@@ -35,6 +36,7 @@ export function CloseDueAsDiscountSheet({
   classLabel,
   pendingAmount,
   currentDiscount,
+  sessionLabel,
 }: CloseDueAsDiscountSheetProps) {
   const [amount, setAmount] = useState<string>(String(pendingAmount));
   const [reason, setReason] = useState<string>("");
@@ -78,6 +80,7 @@ export function CloseDueAsDiscountSheet({
     >
       <form action={formAction} className="space-y-4 pb-2">
         <input type="hidden" name="studentId" value={studentId} />
+        <input type="hidden" name="sessionLabel" value={sessionLabel} />
 
         <div className="rounded-lg border border-border bg-surface-2 px-3 py-2.5">
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Student</p>

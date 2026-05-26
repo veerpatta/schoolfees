@@ -198,6 +198,7 @@ export function StudentDuesTable({
                           classLabel={row.classLabel}
                           pendingAmount={row.outstandingAmount}
                           currentDiscount={row.discountAmount}
+                          sessionLabel={sessionLabel}
                           size="sm"
                           variant="outline"
                         />

@@ -69,11 +69,15 @@ export async function closeDueAsDiscountAction(
     const staff = await requireStaffPermission("finance:write");
 
     const studentId = (formData.get("studentId") ?? "").toString().trim();
+    const sessionLabel = (formData.get("sessionLabel") ?? "").toString().trim();
     const amount = parseAmount(formData.get("amount"));
     const reason = (formData.get("reason") ?? "").toString().trim();
 
     if (!studentId) {
       return { status: "error", message: "Student is required.", newDiscountAmount: null };
+    }
+    if (!sessionLabel) {
+      return { status: "error", message: "Session is required.", newDiscountAmount: null };
     }
     if (!Number.isInteger(amount) || amount <= 0) {
       return {
@@ -116,6 +120,7 @@ export async function closeDueAsDiscountAction(
       .from("v_workbook_student_financials")
       .select("outstanding_amount, discount_amount")
       .eq("student_id", studentId)
+      .eq("session_label", sessionLabel)
       .maybeSingle();
     if (financialError) {
       return {

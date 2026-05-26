@@ -13,6 +13,7 @@ type CloseDueTriggerProps = {
   classLabel: string;
   pendingAmount: number;
   currentDiscount: number;
+  sessionLabel: string;
   className?: string;
   size?: "sm" | "default";
   variant?: "outline" | "default" | "ghost";
@@ -25,6 +26,7 @@ export function CloseDueTrigger({
   classLabel,
   pendingAmount,
   currentDiscount,
+  sessionLabel,
   className,
   size = "sm",
   variant = "outline",
@@ -51,6 +53,7 @@ export function CloseDueTrigger({
         classLabel={classLabel}
         pendingAmount={pendingAmount}
         currentDiscount={currentDiscount}
+        sessionLabel={sessionLabel}
       />
     </>
   );

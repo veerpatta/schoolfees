@@ -22,7 +22,6 @@ import {
   BulkRowCheckbox,
   BulkWhatsappProvider,
 } from "@/components/defaulters/bulk-whatsapp-provider";
-import { CloseDueTrigger } from "@/components/students/close-due-trigger";
 import { getDefaultersPageData } from "@/lib/defaulters/data";
 import { deriveCadence, tallyCadence } from "@/lib/defaulters/cadence";
 import { getContactSummariesForStudents } from "@/lib/defaulters/contacts";
@@ -100,7 +99,6 @@ export default async function DefaultersPage({
     cookieSession: await getViewSessionCookie(),
   });
   const canPostPayments = hasStaffPermission(staff, "payments:write");
-  const canCloseBalance = hasStaffPermission(staff, "finance:write");
   const canViewPaymentHistory = hasStaffPermission(staff, "payments:view");
   const data = await getDefaultersPageData(
     filters,
@@ -514,18 +512,6 @@ export default async function DefaultersPage({
                         <Button asChild size="sm" variant="ghost">
                           <Link href={withSession(`/protected/students/${row.studentId}`)}>{t("viewAction")}</Link>
                         </Button>
-                        {canCloseBalance && row.totalPending > 0 ? (
-                          <CloseDueTrigger
-                            studentId={row.studentId}
-                            studentLabel={row.fullName}
-                            studentAdmissionNo={row.admissionNo}
-                            classLabel={row.classLabel}
-                            pendingAmount={row.totalPending}
-                            currentDiscount={row.discountApplied}
-                            size="sm"
-                            variant="ghost"
-                          />
-                        ) : null}
                         {canPostPayments && (
                           <Button asChild size="sm" variant="accent" className="rounded-full">
                             <Link href={withSession(`/protected/payments?studentId=${row.studentId}${row.classId ? `&classId=${row.classId}` : ""}`)}>{t("collectAction")}</Link>
@@ -630,19 +616,6 @@ export default async function DefaultersPage({
                           row={row}
                           sessionLabel={viewSession.sessionLabel}
                         />
-                        {canCloseBalance && row.totalPending > 0 ? (
-                          <CloseDueTrigger
-                            studentId={row.studentId}
-                            studentLabel={row.fullName}
-                            studentAdmissionNo={row.admissionNo}
-                            classLabel={row.classLabel}
-                            pendingAmount={row.totalPending}
-                            currentDiscount={row.discountApplied}
-                            size="sm"
-                            variant="ghost"
-                            className="text-xs"
-                          />
-                        ) : null}
                         {canPostPayments && (
                           <Link
                             href={withSession(`/protected/payments?studentId=${row.studentId}`)}
