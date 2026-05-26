@@ -580,6 +580,7 @@ export async function getFinanceControlsPageData(
         "id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, created_by, student_ref:students(id, full_name, admission_no, class_ref:classes(class_name, section, stream_name))",
       )
       .eq("payment_date", selectedDate)
+      .neq("payment_mode", "discount")
       .order("created_at", { ascending: false }),
     supabase
       .from("refund_requests")

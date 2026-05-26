@@ -251,6 +251,7 @@ async function loadExtendedCollectionHeatmap(options: {
       .eq("students.status", "active")
       .eq("students.classes.session_label", options.sessionLabel)
       .eq("students.classes.status", "active")
+      .neq("payment_mode", "discount")
       .order("payment_date", { ascending: true });
 
     if (error || !Array.isArray(data)) {

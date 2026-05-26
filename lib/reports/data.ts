@@ -497,12 +497,15 @@ function matchesImportClassAndSession(
 }
 
 async function getReceiptSourceRows() {
+  // Collection reports are about cash receipts; discount-mode write-offs are
+  // tracked separately in the workbook view as total_discount_closeouts.
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("receipts")
     .select(
       "id, receipt_number, payment_date, payment_mode, total_amount, reference_number, received_by, created_at, student_ref:students(id, full_name, admission_no, transport_route_id, route_ref:transport_routes(route_name, route_code), class_ref:classes(session_label, class_name, section, stream_name))",
     )
+    .neq("payment_mode", "discount")
     .order("payment_date", { ascending: false })
     .order("created_at", { ascending: false });
 
