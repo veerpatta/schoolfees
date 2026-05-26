@@ -118,13 +118,17 @@ describe("read-only UX audit implementation", () => {
     const dashboard = readRepoFile("app/protected/dashboard/page.tsx");
     const advanced = readRepoFile("app/protected/admin-tools/page.tsx");
     const navigation = readRepoFile("lib/config/navigation.ts");
+    // Admin Tools wording now lives in the next-intl AdminTools namespace.
+    const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
+      AdminTools: Record<string, string>;
+    };
 
     expect(dashboard).not.toContain("System Sync Health");
     expect(dashboard).not.toContain("Generate Missing Dues");
     expect(dashboard).toContain("Open Fee Data Troubleshooting");
-    expect(advanced).toContain("Automatic sync is on");
+    expect(englishMessages.AdminTools.noticeAutoOnTitle).toBe("Automatic sync is on");
     expect(advanced).toContain("autoReconcileSessionIfSafe");
-    expect(advanced).toContain("Open Session Health");
+    expect(englishMessages.AdminTools.sessionStatusOpenHealth).toBe("Open Session Health");
     expect(advanced).not.toContain("Legacy repair actions");
     expect(advanced).not.toContain("Prepare missing dues");
     expect(advanced).not.toContain("Update fee records for this year");

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
@@ -20,6 +21,8 @@ import {
 } from "@/lib/system-sync/health-fallback";
 
 import { reconcileSessionAction } from "./actions";
+
+type AdminToolsTranslator = Awaited<ReturnType<typeof getTranslations<"AdminTools">>>;
 
 type SessionHealthPageProps = {
   searchParams?: Promise<{
@@ -56,16 +59,16 @@ type SessionSyncState = {
   reason: string;
 };
 
-function getSessionBadge(session: AcademicSessionRow) {
+function getSessionBadge(session: AcademicSessionRow, t: AdminToolsTranslator) {
   if (session.session_label.toUpperCase().includes("TEST")) {
-    return { label: "Test", tone: "info" as const };
+    return { label: t("sessionHealthBadgeTest"), tone: "info" as const };
   }
 
   if (session.is_current || session.status === "active") {
-    return { label: "Active", tone: "good" as const };
+    return { label: t("sessionHealthBadgeActive"), tone: "good" as const };
   }
 
-  return { label: "Archived", tone: "neutral" as const };
+  return { label: t("sessionHealthBadgeArchived"), tone: "neutral" as const };
 }
 
 function needsSessionAttention(health: SystemSyncHealth) {
@@ -76,9 +79,9 @@ function needsSessionAttention(health: SystemSyncHealth) {
   );
 }
 
-function formatLastReconciled(value: string | null) {
+function formatLastReconciled(value: string | null, neverLabel: string) {
   if (!value) {
-    return "Never";
+    return neverLabel;
   }
 
   return new Intl.DateTimeFormat("en-IN", {
@@ -99,6 +102,7 @@ function fallbackSessionRows(): AcademicSessionRow[] {
 async function loadSessionSyncState(
   sessionLabel: string,
   canAutoReconcile: boolean,
+  t: AdminToolsTranslator,
 ): Promise<SessionSyncState> {
   try {
     if (canAutoReconcile) {
@@ -108,7 +112,7 @@ async function loadSessionSyncState(
     return {
       health: await getSystemSyncHealth(sessionLabel),
       ran: false,
-      reason: "Automatic sync is available to fee setup admins.",
+      reason: t("sessionHealthSyncReasonAutoUnavailable"),
     };
   } catch (error) {
     const errorMessage = getErrorMessage(error);
@@ -116,13 +120,15 @@ async function loadSessionSyncState(
     return {
       health: buildUnavailableSystemSyncHealth(sessionLabel, errorMessage),
       ran: false,
-      reason:
-        "Health check could not finish for this session. Normal pages remain available while setup is reviewed.",
+      reason: t("sessionHealthSyncReasonFailed"),
     };
   }
 }
 
-async function getSessionHealthCards(canAutoReconcile: boolean): Promise<SessionHealthCard[]> {
+async function getSessionHealthCards(
+  canAutoReconcile: boolean,
+  t: AdminToolsTranslator,
+): Promise<SessionHealthCard[]> {
   const supabase = await createClient();
   const { data: sessions, error: sessionsError } = await supabase
     .from("academic_sessions")
@@ -156,7 +162,7 @@ async function getSessionHealthCards(canAutoReconcile: boolean): Promise<Session
 
   return Promise.all(
     sessionRows.map(async (session) => {
-      const autoSync = await loadSessionSyncState(session.session_label, canAutoReconcile);
+      const autoSync = await loadSessionSyncState(session.session_label, canAutoReconcile, t);
 
       return {
         session,
@@ -171,22 +177,23 @@ async function getSessionHealthCards(canAutoReconcile: boolean): Promise<Session
 }
 
 export default async function SessionHealthPage({ searchParams }: SessionHealthPageProps) {
+  const t = await getTranslations("AdminTools");
   const staff = await requireStaffPermission("fees:view", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const canAutoReconcile = hasStaffPermission(staff, "fees:write");
-  const cards = await getSessionHealthCards(canAutoReconcile);
+  const cards = await getSessionHealthCards(canAutoReconcile, t);
   const attentionCount = cards.filter((card) => card.needsAttention).length;
   const autoSyncCount = cards.filter((card) => card.autoSyncRan).length;
 
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Admin Tools"
-        title="Session Health"
-        description="Review each academic year. Missing dues are prepared automatically when Fee Setup is complete."
+        eyebrow={t("eyebrow")}
+        title={t("sessionHealthTitle")}
+        description={t("sessionHealthDescription")}
         actions={
           <Button asChild variant="outline">
-            <Link href="/protected/admin-tools">Back to Admin Tools</Link>
+            <Link href="/protected/admin-tools">{t("sessionHealthBackToAdmin")}</Link>
           </Button>
         }
       />
@@ -194,28 +201,31 @@ export default async function SessionHealthPage({ searchParams }: SessionHealthP
       <OfficeNotice
         title={
           autoSyncCount > 0
-            ? `${autoSyncCount} session${autoSyncCount === 1 ? "" : "s"} auto-synced`
+            ? t("sessionHealthAutoSynced", { count: autoSyncCount })
             : attentionCount === 0
-              ? "All sessions healthy"
-              : `${attentionCount} sessions need setup review.`
+              ? t("sessionHealthAllHealthy")
+              : t("sessionHealthAttention", { count: attentionCount })
         }
         tone={attentionCount === 0 || autoSyncCount > 0 ? "success" : "warning"}
       >
         {autoSyncCount > 0
-          ? "Safe missing dues were prepared automatically. Remaining warnings need Fee Setup or database review."
+          ? t("sessionHealthAutoSyncedBody")
           : attentionCount === 0
-            ? "Every session has prepared dues and class fee settings."
-            : "Use Fee Setup for class fee gaps. Manual reconcile remains available only as a fallback."}
+            ? t("sessionHealthAllHealthyBody")
+            : t("sessionHealthAttentionBody")}
       </OfficeNotice>
 
       {resolvedSearchParams?.reconciled ? (
-        <OfficeNotice title="Reconcile complete" tone="success">
-          {resolvedSearchParams.reconciled} reconciled. {resolvedSearchParams.prepared ?? "0"} dues prepared.
+        <OfficeNotice title={t("sessionHealthReconcileTitle")} tone="success">
+          {t("sessionHealthReconcileBody", {
+            count: resolvedSearchParams.reconciled,
+            prepared: resolvedSearchParams.prepared ?? "0",
+          })}
         </OfficeNotice>
       ) : null}
 
       {resolvedSearchParams?.error ? (
-        <OfficeNotice title="Reconcile could not finish" tone="danger">
+        <OfficeNotice title={t("sessionHealthReconcileErrTitle")} tone="danger">
           {resolvedSearchParams.session ? `${resolvedSearchParams.session}: ` : ""}
           {resolvedSearchParams.error}
         </OfficeNotice>
@@ -223,7 +233,7 @@ export default async function SessionHealthPage({ searchParams }: SessionHealthP
 
       <div className="grid gap-4 lg:grid-cols-3">
         {cards.map((card) => {
-          const badge = getSessionBadge(card.session);
+          const badge = getSessionBadge(card.session, t);
           const studentsInThisSession = card.health.rawStudentsInActiveSession;
 
           return (
@@ -237,14 +247,18 @@ export default async function SessionHealthPage({ searchParams }: SessionHealthP
               }
               description={
                 card.needsAttention
-                  ? "This session needs a dues or fee setup review."
+                  ? t("sessionHealthCardAttentionDesc")
                   : card.autoSyncRan
-                    ? "This session was updated automatically."
-                    : "This session is ready."
+                    ? t("sessionHealthCardAutoDesc")
+                    : t("sessionHealthCardReadyDesc")
               }
               actions={
                 <StatusBadge
-                  label={card.needsAttention ? "Needs attention" : "Healthy"}
+                  label={
+                    card.needsAttention
+                      ? t("sessionHealthBadgeNeedsAttention")
+                      : t("sessionHealthBadgeHealthy")
+                  }
                   tone={card.needsAttention ? "warning" : "good"}
                 />
               }
@@ -252,13 +266,13 @@ export default async function SessionHealthPage({ searchParams }: SessionHealthP
               <dl className="grid grid-cols-2 gap-3 text-sm">
                 <div className="rounded-md border border-border bg-surface-2 px-3 py-2">
                   <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                    Active students
+                    {t("sessionHealthCardActiveStudents")}
                   </dt>
                   <dd className="mt-1 text-lg font-semibold text-foreground">{studentsInThisSession}</dd>
                 </div>
                 <div className="rounded-md border border-border bg-surface-2 px-3 py-2">
                   <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                    Dues prepared
+                    {t("sessionHealthCardDuesPrepared")}
                   </dt>
                   <dd className="mt-1 text-lg font-semibold text-foreground">
                     {card.health.workbookFinancialRowCount}
@@ -266,7 +280,7 @@ export default async function SessionHealthPage({ searchParams }: SessionHealthP
                 </div>
                 <div className="rounded-md border border-border bg-surface-2 px-3 py-2">
                   <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                    Dues missing
+                    {t("sessionHealthCardDuesMissing")}
                   </dt>
                   <dd className="mt-1 text-lg font-semibold text-foreground">
                     {card.health.studentsMissingInstallmentRows}
@@ -274,7 +288,7 @@ export default async function SessionHealthPage({ searchParams }: SessionHealthP
                 </div>
                 <div className="rounded-md border border-border bg-surface-2 px-3 py-2">
                   <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                    Classes missing fees
+                    {t("sessionHealthCardClassesMissing")}
                   </dt>
                   <dd className="mt-1 text-lg font-semibold text-foreground">
                     {card.health.classesWithoutFeeSettings}
@@ -283,9 +297,9 @@ export default async function SessionHealthPage({ searchParams }: SessionHealthP
               </dl>
 
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2 text-sm">
-                <span className="text-muted-foreground">Last reconciled</span>
+                <span className="text-muted-foreground">{t("sessionHealthCardLastReconciled")}</span>
                 <span className="font-semibold text-foreground">
-                  {formatLastReconciled(card.lastReconciledAt)}
+                  {formatLastReconciled(card.lastReconciledAt, t("sessionHealthCardLastReconciledNever"))}
                 </span>
               </div>
 
@@ -296,21 +310,21 @@ export default async function SessionHealthPage({ searchParams }: SessionHealthP
               {card.needsAttention ? (
                 <details className="mt-4 rounded-md border border-border bg-card">
                   <summary className="cursor-pointer list-none px-3 py-2 text-sm font-semibold text-foreground">
-                    Manual fallback
+                    {t("sessionHealthManualFallback")}
                   </summary>
                   <div className="border-t border-border p-3">
                     {card.health.classesWithoutFeeSettings > 0 ? (
                       <Button asChild className="w-full" variant="outline">
                         <Link href={`/protected/fee-setup?session=${encodeURIComponent(card.session.session_label)}`}>
-                          Open Fee Setup
+                          {t("sessionHealthOpenFeeSetup")}
                         </Link>
                       </Button>
                     ) : (
                       <form action={reconcileSessionAction}>
                         <input type="hidden" name="sessionLabel" value={card.session.session_label} />
                         <PendingSubmitButton
-                          idleLabel="Reconcile this session"
-                          pendingLabel="Reconciling..."
+                          idleLabel={t("sessionHealthReconcileButton")}
+                          pendingLabel={t("sessionHealthReconcileButtonPending")}
                           className="w-full"
                         />
                       </form>

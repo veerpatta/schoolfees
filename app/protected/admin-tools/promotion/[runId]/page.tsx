@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
@@ -24,12 +25,12 @@ type Props = {
   }>;
 };
 
-const DECISION_LABEL: Record<string, string> = {
-  pending: "Pending",
-  promote: "Promote",
-  graduate: "Graduate",
-  skip: "Skip",
-  manual: "Manual",
+const DECISION_I18N: Record<string, string> = {
+  pending: "promotionDecisionPending",
+  promote: "promotionDecisionPromote",
+  graduate: "promotionDecisionGraduate",
+  skip: "promotionDecisionSkip",
+  manual: "promotionDecisionManual",
 };
 
 const DECISION_TONE: Record<string, string> = {
@@ -51,6 +52,7 @@ function formatDateTime(value: string) {
 }
 
 export default async function PromotionDetailPage({ params, searchParams }: Props) {
+  const t = await getTranslations("AdminTools");
   await requireStaffPermission("students:write", { onDenied: "redirect" });
   const { runId } = await params;
   const resolved = searchParams ? await searchParams : undefined;
@@ -69,15 +71,28 @@ export default async function PromotionDetailPage({ params, searchParams }: Prop
   const pendingCount = entries.filter((entry) => entry.decision === "pending" || entry.decision === "manual").length;
   const creditTotal = entries.reduce((sum, entry) => sum + entry.openingCreditAmount, 0);
 
+  const decisionLabel = (decision: string) => {
+    const key = DECISION_I18N[decision];
+    return key
+      ? t(key as Parameters<typeof t>[0])
+      : decision;
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Admin Tools · Promotion"
-        title={`${run.sourceSessionLabel} → ${run.targetSessionLabel}`}
-        description={`Triggered ${formatDateTime(run.triggeredAt)} · status ${run.status}`}
+        eyebrow={t("promotionDetailEyebrow")}
+        title={t("promotionDetailTitle", {
+          source: run.sourceSessionLabel,
+          target: run.targetSessionLabel,
+        })}
+        description={t("promotionDetailDescription", {
+          when: formatDateTime(run.triggeredAt),
+          status: run.status,
+        })}
         actions={
           <Button asChild variant="outline">
-            <Link href="/protected/admin-tools/promotion">Back to runs</Link>
+            <Link href="/protected/admin-tools/promotion">{t("promotionBackToRuns")}</Link>
           </Button>
         }
       />
@@ -94,41 +109,41 @@ export default async function PromotionDetailPage({ params, searchParams }: Prop
       ) : null}
 
       <SectionCard
-        title="Summary"
-        description="Counts derived from per-student decisions. Review carefully before applying."
+        title={t("promotionSummaryTitle")}
+        description={t("promotionSummaryDescription")}
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-xl border bg-surface-2 px-4 py-3">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Total</p>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("promotionSummaryTotal")}</p>
             <p className="mt-1 text-2xl font-semibold">{run.previewCount}</p>
           </div>
           <div className="rounded-xl border bg-success-soft px-4 py-3">
-            <p className="text-xs uppercase tracking-wide text-success-soft-foreground">To promote</p>
+            <p className="text-xs uppercase tracking-wide text-success-soft-foreground">{t("promotionSummaryToPromote")}</p>
             <p className="mt-1 text-2xl font-semibold text-success-soft-foreground">{promoteCount}</p>
           </div>
           <div className="rounded-xl border bg-info-soft px-4 py-3">
-            <p className="text-xs uppercase tracking-wide text-info-soft-foreground">To graduate</p>
+            <p className="text-xs uppercase tracking-wide text-info-soft-foreground">{t("promotionSummaryToGraduate")}</p>
             <p className="mt-1 text-2xl font-semibold text-info-soft-foreground">{graduateCount}</p>
           </div>
           <div className="rounded-xl border bg-warning-soft px-4 py-3">
-            <p className="text-xs uppercase tracking-wide text-warning-soft-foreground">Need attention</p>
+            <p className="text-xs uppercase tracking-wide text-warning-soft-foreground">{t("promotionSummaryNeedAttention")}</p>
             <p className="mt-1 text-2xl font-semibold text-warning-soft-foreground">{pendingCount}</p>
           </div>
         </div>
         <p className="mt-3 text-sm text-muted-foreground">
-          Credit to carry forward: <strong>{formatInr(creditTotal)}</strong>
+          {t("promotionSummaryCreditCarry")}<strong>{formatInr(creditTotal)}</strong>
         </p>
       </SectionCard>
 
       {isPreview ? (
         <SectionCard
-          title="Apply this promotion"
-          description="Once you apply, every promote/graduate entry is committed. Type APPLY in the box to confirm."
+          title={t("promotionApplyTitle")}
+          description={t("promotionApplyDescription")}
         >
           <form action={applyPromotionRunAction} className="flex flex-wrap items-end gap-3">
             <input type="hidden" name="runId" value={run.id} />
             <div>
-              <Label htmlFor="confirmation">Confirmation</Label>
+              <Label htmlFor="confirmation">{t("promotionConfirmationLabel")}</Label>
               <Input
                 id="confirmation"
                 name="confirmation"
@@ -137,23 +152,23 @@ export default async function PromotionDetailPage({ params, searchParams }: Prop
                 required
               />
             </div>
-            <Button type="submit">Apply promotion ({promoteCount + graduateCount} students)</Button>
+            <Button type="submit">
+              {t("promotionApplyButton", { count: promoteCount + graduateCount })}
+            </Button>
           </form>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Verify the next-year fee setup is in place. Dues are re-prepared automatically afterwards.
-          </p>
+          <p className="mt-2 text-xs text-muted-foreground">{t("promotionApplyHint")}</p>
         </SectionCard>
       ) : null}
 
       {isApplied ? (
         <SectionCard
-          title="Roll back this promotion"
-          description="Reverses the class/status changes and undoes credit carry-forward. Type ROLLBACK to confirm."
+          title={t("promotionRollbackTitle")}
+          description={t("promotionRollbackDescription")}
         >
           <form action={rollbackPromotionRunAction} className="flex flex-wrap items-end gap-3">
             <input type="hidden" name="runId" value={run.id} />
             <div>
-              <Label htmlFor="rollbackConfirmation">Confirmation</Label>
+              <Label htmlFor="rollbackConfirmation">{t("promotionConfirmationLabel")}</Label>
               <Input
                 id="rollbackConfirmation"
                 name="confirmation"
@@ -162,22 +177,22 @@ export default async function PromotionDetailPage({ params, searchParams }: Prop
                 required
               />
             </div>
-            <Button type="submit" variant="destructive">Roll back applied promotion</Button>
+            <Button type="submit" variant="destructive">{t("promotionRollbackButton")}</Button>
           </form>
         </SectionCard>
       ) : null}
 
-      <SectionCard title="Per-student plan" description="Review each row. Switch decisions if needed.">
+      <SectionCard title={t("promotionPlanTitle")} description={t("promotionPlanDescription")}>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-border text-sm">
             <thead className="bg-surface-2 text-left text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
-                <th className="px-3 py-2">Student</th>
-                <th className="px-3 py-2">From</th>
-                <th className="px-3 py-2">To</th>
-                <th className="px-3 py-2 text-right">Credit</th>
-                <th className="px-3 py-2">Decision</th>
-                {isPreview ? <th className="px-3 py-2">Change</th> : null}
+                <th className="px-3 py-2">{t("promotionPlanColStudent")}</th>
+                <th className="px-3 py-2">{t("promotionPlanColFrom")}</th>
+                <th className="px-3 py-2">{t("promotionPlanColTo")}</th>
+                <th className="px-3 py-2 text-right">{t("promotionPlanColCredit")}</th>
+                <th className="px-3 py-2">{t("promotionPlanColDecision")}</th>
+                {isPreview ? <th className="px-3 py-2">{t("promotionPlanColChange")}</th> : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -185,20 +200,22 @@ export default async function PromotionDetailPage({ params, searchParams }: Prop
                 <tr key={entry.id} className="hover:bg-surface-2/40">
                   <td className="px-3 py-2">
                     <div className="font-medium text-foreground">{entry.studentName}</div>
-                    <div className="text-xs text-muted-foreground">SR {entry.studentAdmissionNo || "—"}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {t("promotionPlanSrPrefix", { value: entry.studentAdmissionNo || "—" })}
+                    </div>
                   </td>
                   <td className="px-3 py-2 text-xs text-muted-foreground">
                     {entry.previousClassLabel}
                   </td>
                   <td className="px-3 py-2 text-xs text-foreground">
-                    {entry.decision === "graduate" ? "Graduated" : entry.newClassLabel}
+                    {entry.decision === "graduate" ? t("promotionPlanGraduated") : entry.newClassLabel}
                   </td>
                   <td className="px-3 py-2 text-right font-mono">
                     {entry.openingCreditAmount > 0 ? formatInr(entry.openingCreditAmount) : "—"}
                   </td>
                   <td className="px-3 py-2">
                     <span className={`rounded-full border px-2 py-0.5 text-xs ${DECISION_TONE[entry.decision] ?? DECISION_TONE.pending}`}>
-                      {DECISION_LABEL[entry.decision] ?? entry.decision}
+                      {decisionLabel(entry.decision)}
                     </span>
                     {entry.reason ? (
                       <p className="mt-1 text-[11px] text-muted-foreground">{entry.reason}</p>
@@ -214,14 +231,14 @@ export default async function PromotionDetailPage({ params, searchParams }: Prop
                           defaultValue={entry.decision}
                           className="h-8 rounded-md border border-input bg-card px-2 text-xs"
                         >
-                          <option value="pending">Pending</option>
-                          <option value="promote" disabled={!entry.newClassId}>Promote</option>
-                          <option value="graduate">Graduate</option>
-                          <option value="skip">Skip</option>
-                          <option value="manual">Mark manual</option>
+                          <option value="pending">{t("promotionDecisionPending")}</option>
+                          <option value="promote" disabled={!entry.newClassId}>{t("promotionDecisionPromote")}</option>
+                          <option value="graduate">{t("promotionDecisionGraduate")}</option>
+                          <option value="skip">{t("promotionDecisionSkip")}</option>
+                          <option value="manual">{t("promotionDecisionMarkManual")}</option>
                         </select>
                         <Button type="submit" size="sm" variant="outline" className="h-8 px-2 text-xs">
-                          Save
+                          {t("promotionPlanSave")}
                         </Button>
                       </form>
                     </td>

@@ -1,14 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { DeleteTemplateButton, TemplateEditor } from "@/components/whatsapp-templates/template-editor";
-import { WHATSAPP_TEMPLATE_CATEGORIES, type WhatsappTemplate } from "@/lib/whatsapp-templates/types";
+import { type WhatsappTemplate } from "@/lib/whatsapp-templates/types";
 
-function categoryLabel(value: WhatsappTemplate["category"]): string {
-  return WHATSAPP_TEMPLATE_CATEGORIES.find((option) => option.value === value)?.label ?? value;
-}
+const CATEGORY_I18N: Record<WhatsappTemplate["category"], string> = {
+  reminder: "whatsappCategoryReminder",
+  final_reminder: "whatsappCategoryFinalReminder",
+  receipt: "whatsappCategoryReceipt",
+  custom: "whatsappCategoryCustom",
+};
 
 type Props = {
   templates: WhatsappTemplate[];
@@ -16,22 +20,28 @@ type Props = {
 };
 
 export function TemplatesListClient({ templates, canEdit }: Props) {
+  const t = useTranslations("AdminTools");
   const [editing, setEditing] = useState<WhatsappTemplate | null>(null);
   const [creating, setCreating] = useState(false);
+
+  const categoryLabel = (value: WhatsappTemplate["category"]) => {
+    const key = CATEGORY_I18N[value];
+    return key ? t(key as Parameters<typeof t>[0]) : value;
+  };
 
   return (
     <div className="space-y-4">
       {canEdit ? (
         <div className="flex justify-end">
           <Button type="button" variant="accent" onClick={() => setCreating(true)}>
-            New template
+            {t("whatsappNewTemplate")}
           </Button>
         </div>
       ) : null}
 
       {templates.length === 0 ? (
         <p className="rounded-xl border border-border bg-surface-2 px-4 py-8 text-center text-sm text-muted-foreground">
-          No templates yet. Create one to enable bulk WhatsApp drafts from the defaulters page.
+          {t("whatsappEmpty")}
         </p>
       ) : (
         <ul className="space-y-3">
@@ -49,13 +59,15 @@ export function TemplatesListClient({ templates, canEdit }: Props) {
                     </span>
                     {!template.isActive ? (
                       <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                        Inactive
+                        {t("whatsappInactive")}
                       </span>
                     ) : null}
                   </div>
                   {template.placeholders.length > 0 ? (
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Variables: {template.placeholders.map((token) => `{{${token}}}`).join(", ")}
+                      {t("whatsappVariables", {
+                        tokens: template.placeholders.map((token) => `{{${token}}}`).join(", "),
+                      })}
                     </p>
                   ) : null}
                 </div>
@@ -67,7 +79,7 @@ export function TemplatesListClient({ templates, canEdit }: Props) {
                       size="sm"
                       onClick={() => setEditing(template)}
                     >
-                      Edit
+                      {t("whatsappEdit")}
                     </Button>
                     <DeleteTemplateButton template={template} />
                   </div>

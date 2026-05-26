@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
@@ -32,6 +33,24 @@ const PREVIEW_VARS: Record<string, string> = {
   amount: "₹6,250",
 };
 
+const CATEGORY_I18N: Record<WhatsappTemplateCategory, string> = {
+  reminder: "whatsappCategoryReminder",
+  final_reminder: "whatsappCategoryFinalReminder",
+  receipt: "whatsappCategoryReceipt",
+  custom: "whatsappCategoryCustom",
+};
+
+const PLACEHOLDER_I18N: Record<string, string> = {
+  studentName: "whatsappPlaceholderStudentName",
+  fatherName: "whatsappPlaceholderFatherName",
+  className: "whatsappPlaceholderClassName",
+  pending: "whatsappPlaceholderPending",
+  dueDate: "whatsappPlaceholderDueDate",
+  schoolName: "whatsappPlaceholderSchoolName",
+  receiptNumber: "whatsappPlaceholderReceiptNumber",
+  amount: "whatsappPlaceholderAmount",
+};
+
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -39,6 +58,7 @@ type Props = {
 };
 
 export function TemplateEditor({ open, onClose, template }: Props) {
+  const t = useTranslations("AdminTools");
   const isEdit = template !== null;
   const action = isEdit ? updateTemplateAction : createTemplateAction;
   const [state, formAction, pending] = useActionState(action, INITIAL);
@@ -56,10 +76,10 @@ export function TemplateEditor({ open, onClose, template }: Props) {
 
   useEffect(() => {
     if (state.status === "success") {
-      toast({ title: state.message ?? "Template saved" });
+      toast({ title: state.message ?? t("whatsappEditorTemplateSaved") });
       onClose();
     }
-  }, [state.status, state.message, onClose]);
+  }, [state.status, state.message, onClose, t]);
 
   const placeholders = useMemo(() => extractPlaceholders(body), [body]);
   const preview = useMemo(() => renderWhatsappTemplate(body, PREVIEW_VARS), [body]);
@@ -69,12 +89,22 @@ export function TemplateEditor({ open, onClose, template }: Props) {
     setBody((current) => `${current}${current.endsWith(" ") || current.length === 0 ? "" : " "}${inserted}`);
   }
 
+  const categoryLabel = (value: WhatsappTemplateCategory) => {
+    const key = CATEGORY_I18N[value];
+    return key ? t(key as Parameters<typeof t>[0]) : value;
+  };
+
+  const placeholderDescription = (token: string, fallback: string) => {
+    const key = PLACEHOLDER_I18N[token];
+    return key ? t(key as Parameters<typeof t>[0]) : fallback;
+  };
+
   return (
     <Sheet
       open={open}
       onClose={onClose}
-      title={isEdit ? "Edit template" : "New template"}
-      description="Use {{token}} placeholders. The app renders these before opening WhatsApp."
+      title={isEdit ? t("whatsappEditorEditTitle") : t("whatsappEditorNewTitle")}
+      description={t("whatsappEditorDescription")}
       size="full"
     >
       <form action={formAction} className="space-y-4">
@@ -82,7 +112,7 @@ export function TemplateEditor({ open, onClose, template }: Props) {
 
         <div className="space-y-2">
           <label htmlFor="template-name" className="text-sm font-medium text-foreground">
-            Name
+            {t("whatsappEditorNameLabel")}
           </label>
           <input
             id="template-name"
@@ -93,13 +123,13 @@ export function TemplateEditor({ open, onClose, template }: Props) {
             maxLength={80}
             required
             className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
-            placeholder="e.g. Final reminder for class 10"
+            placeholder={t("whatsappEditorNamePlaceholder")}
           />
         </div>
 
         <div className="space-y-2">
           <label htmlFor="template-category" className="text-sm font-medium text-foreground">
-            Category
+            {t("whatsappEditorCategoryLabel")}
           </label>
           <select
             id="template-category"
@@ -110,7 +140,7 @@ export function TemplateEditor({ open, onClose, template }: Props) {
           >
             {WHATSAPP_TEMPLATE_CATEGORIES.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {categoryLabel(option.value)}
               </option>
             ))}
           </select>
@@ -118,7 +148,7 @@ export function TemplateEditor({ open, onClose, template }: Props) {
 
         <div className="space-y-2">
           <label htmlFor="template-body" className="text-sm font-medium text-foreground">
-            Message body
+            {t("whatsappEditorBodyLabel")}
           </label>
           <textarea
             id="template-body"
@@ -129,14 +159,14 @@ export function TemplateEditor({ open, onClose, template }: Props) {
             rows={8}
             maxLength={2000}
             className="w-full resize-y rounded-lg border border-border bg-card px-3 py-2 font-mono text-sm text-foreground"
-            placeholder="Namaste {{fatherName}} ji, …"
+            placeholder={t("whatsappEditorBodyPlaceholder")}
           />
-          <p className="text-xs text-muted-foreground">{body.length}/2000 characters</p>
+          <p className="text-xs text-muted-foreground">{t("whatsappEditorBodyCount", { count: body.length })}</p>
         </div>
 
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Insert placeholder
+            {t("whatsappEditorPlaceholdersTitle")}
           </p>
           <div className="flex flex-wrap gap-2">
             {KNOWN_PLACEHOLDERS.map((option) => (
@@ -144,7 +174,7 @@ export function TemplateEditor({ open, onClose, template }: Props) {
                 key={option.token}
                 type="button"
                 onClick={() => insertToken(option.token)}
-                title={option.description}
+                title={placeholderDescription(option.token, option.description)}
                 className="rounded-full border border-border bg-surface-2 px-3 py-1 text-xs font-medium text-foreground hover:bg-surface-3"
               >
                 {`{{${option.token}}}`}
@@ -153,14 +183,16 @@ export function TemplateEditor({ open, onClose, template }: Props) {
           </div>
           {placeholders.length > 0 ? (
             <p className="text-xs text-muted-foreground">
-              Detected: {placeholders.map((token) => `{{${token}}}`).join(", ")}
+              {t("whatsappEditorDetected", {
+                tokens: placeholders.map((token) => `{{${token}}}`).join(", "),
+              })}
             </p>
           ) : null}
         </div>
 
         <div className="space-y-2 rounded-lg border border-border bg-surface-2 p-3">
           <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Live preview (sample data)
+            {t("whatsappEditorPreviewTitle")}
           </p>
           <pre className="whitespace-pre-wrap font-sans text-sm text-foreground">{preview}</pre>
         </div>
@@ -173,7 +205,7 @@ export function TemplateEditor({ open, onClose, template }: Props) {
             onChange={(event) => setIsActive(event.target.checked)}
             className="size-4 accent-accent"
           />
-          Active (available in the WhatsApp picker)
+          {t("whatsappEditorActiveLabel")}
         </label>
 
         {state.status === "error" ? (
@@ -184,10 +216,14 @@ export function TemplateEditor({ open, onClose, template }: Props) {
 
         <div className="flex flex-wrap gap-3">
           <Button type="button" variant="outline" onClick={onClose} disabled={pending} className="flex-1">
-            Cancel
+            {t("whatsappEditorCancel")}
           </Button>
           <Button type="submit" variant="accent" disabled={pending} className="flex-1">
-            {pending ? "Saving…" : isEdit ? "Save changes" : "Create template"}
+            {pending
+              ? t("whatsappEditorSavingDots")
+              : isEdit
+                ? t("whatsappEditorSaveChanges")
+                : t("whatsappEditorCreate")}
           </Button>
         </div>
       </form>
@@ -196,21 +232,22 @@ export function TemplateEditor({ open, onClose, template }: Props) {
 }
 
 export function DeleteTemplateButton({ template }: { template: WhatsappTemplate }) {
+  const t = useTranslations("AdminTools");
   const [state, formAction, pending] = useActionState(deleteTemplateAction, INITIAL);
 
   useEffect(() => {
     if (state.status === "success") {
-      toast({ title: "Template deleted" });
+      toast({ title: t("whatsappEditorDeletedToast") });
     } else if (state.status === "error" && state.message) {
-      toast({ title: "Could not delete", description: state.message });
+      toast({ title: t("whatsappEditorDeleteErrorTitle"), description: state.message });
     }
-  }, [state.status, state.message]);
+  }, [state.status, state.message, t]);
 
   return (
     <form
       action={formAction}
       onSubmit={(event) => {
-        if (!confirm(`Delete template "${template.name}"? Active drafts will not be affected.`)) {
+        if (!confirm(t("whatsappEditorConfirmDelete", { name: template.name }))) {
           event.preventDefault();
         }
       }}
@@ -224,7 +261,7 @@ export function DeleteTemplateButton({ template }: { template: WhatsappTemplate 
         disabled={pending}
         className="text-destructive hover:bg-destructive/5"
       >
-        {pending ? "Deleting…" : "Delete"}
+        {pending ? t("whatsappDeleting") : t("whatsappDelete")}
       </Button>
     </form>
   );

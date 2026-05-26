@@ -1,4 +1,6 @@
 import React from "react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -28,6 +30,21 @@ vi.mock("@/lib/system-sync/finance-sync", () => ({
   autoReconcileSessionIfSafe,
   getSystemSyncHealth,
 }));
+
+// Server pages call getTranslations() from next-intl/server, which expects the
+// next-intl request config to be bootstrapped. In tests we substitute a sync
+// translator built from the English message catalog so the rendered markup
+// matches the production English copy.
+vi.mock("next-intl/server", async () => {
+  const actual = await vi.importActual<typeof import("next-intl")>("next-intl");
+  const messages = JSON.parse(
+    readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+  );
+  return {
+    getTranslations: async (namespace: string) =>
+      actual.createTranslator({ locale: "en", messages, namespace }),
+  };
+});
 
 describe("Admin Tools page resilience", () => {
   beforeEach(() => {

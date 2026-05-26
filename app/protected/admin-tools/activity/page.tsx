@@ -1,12 +1,15 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
-import { listActivity, activityKindLabel, activityKindTone } from "@/lib/activity/events";
+import { listActivity, activityKindTone, ACTIVITY_KINDS, type ActivityKind } from "@/lib/activity/events";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/lib/supabase/session";
 import { cn } from "@/lib/utils";
 
 export const revalidate = 0;
+
+type AdminToolsTranslator = Awaited<ReturnType<typeof getTranslations<"AdminTools">>>;
 
 const TONE_CLASS: Record<"success" | "info" | "warning" | "muted", string> = {
   success: "bg-success-soft text-success-soft-foreground",
@@ -14,6 +17,23 @@ const TONE_CLASS: Record<"success" | "info" | "warning" | "muted", string> = {
   warning: "bg-warning-soft text-warning-soft-foreground",
   muted: "bg-surface-2 text-muted-foreground",
 };
+
+const ACTIVITY_KIND_I18N: Record<ActivityKind, string> = {
+  payment_posted: "activityKindPaymentPosted",
+  receipt_printed: "activityKindReceiptPrinted",
+  student_edited: "activityKindStudentEdited",
+  student_view: "activityKindStudentView",
+  export_downloaded: "activityKindExportDownloaded",
+  defaulter_contacted: "activityKindDefaulterContacted",
+  import_committed: "activityKindImportCommitted",
+};
+
+function localizedActivityKindLabel(kind: string, t: AdminToolsTranslator): string {
+  if ((ACTIVITY_KINDS as readonly string[]).includes(kind)) {
+    return t(ACTIVITY_KIND_I18N[kind as ActivityKind] as Parameters<AdminToolsTranslator>[0]);
+  }
+  return kind;
+}
 
 function formatWhen(iso: string): string {
   const date = new Date(iso);
@@ -24,18 +44,32 @@ function formatWhen(iso: string): string {
   }).format(date);
 }
 
-function payloadDescription(payload: Record<string, unknown>): string {
+function payloadDescription(
+  payload: Record<string, unknown>,
+  t: AdminToolsTranslator,
+): string {
   const parts: string[] = [];
-  if (typeof payload.receiptNumber === "string") parts.push(`Receipt ${payload.receiptNumber}`);
-  if (typeof payload.amount === "number") parts.push(`₹${payload.amount.toLocaleString("en-IN")}`);
+  if (typeof payload.receiptNumber === "string") {
+    parts.push(t("activityPayloadReceipt", { number: payload.receiptNumber }));
+  }
+  if (typeof payload.amount === "number") {
+    parts.push(`₹${payload.amount.toLocaleString("en-IN")}`);
+  }
   if (typeof payload.exportType === "string") parts.push(payload.exportType);
-  if (typeof payload.outcome === "string") parts.push(`Outcome: ${payload.outcome}`);
-  if (typeof payload.channel === "string") parts.push(`via ${payload.channel}`);
-  if (typeof payload.paymentMode === "string") parts.push(`mode: ${payload.paymentMode}`);
+  if (typeof payload.outcome === "string") {
+    parts.push(t("activityPayloadOutcome", { value: payload.outcome }));
+  }
+  if (typeof payload.channel === "string") {
+    parts.push(t("activityPayloadVia", { channel: payload.channel }));
+  }
+  if (typeof payload.paymentMode === "string") {
+    parts.push(t("activityPayloadMode", { value: payload.paymentMode }));
+  }
   return parts.join(" · ");
 }
 
 export default async function ActivityFeedPage() {
+  const t = await getTranslations("AdminTools");
   const staff = await requireAnyStaffPermission(["settings:view", "finance:view"], {
     onDenied: "redirect",
   });
@@ -48,24 +82,24 @@ export default async function ActivityFeedPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Admin Tools"
-        title="Activity feed"
-        description="Recent staff actions across the workspace. Read-only audit trail for the day-to-day."
+        eyebrow={t("eyebrow")}
+        title={t("activityTitle")}
+        description={t("activityDescription")}
       />
 
       <SectionCard
-        title={canSeeAll ? "Recent activity" : "Your recent activity"}
-        description="Most recent 100 events first. Older events drop off the feed but remain in the table."
+        title={canSeeAll ? t("activityRecentTitle") : t("activityYourTitle")}
+        description={t("activityRecentDescription")}
       >
         {events.length === 0 ? (
           <p className="rounded-xl border border-border bg-surface-2 px-4 py-8 text-center text-sm text-muted-foreground">
-            No activity yet today.
+            {t("activityEmpty")}
           </p>
         ) : (
           <ol className="space-y-2">
             {events.map((event) => {
               const tone = activityKindTone(event.kind);
-              const description = payloadDescription(event.payload);
+              const description = payloadDescription(event.payload, t);
               const studentId =
                 event.kind === "student_view" || event.kind === "student_edited" || event.kind === "defaulter_contacted"
                   ? event.refId
@@ -82,12 +116,12 @@ export default async function ActivityFeedPage() {
                         TONE_CLASS[tone],
                       )}
                     >
-                      {activityKindLabel(event.kind)}
+                      {localizedActivityKindLabel(event.kind, t)}
                     </span>
                     {description ? (
                       <p className="text-sm text-foreground truncate">{description}</p>
                     ) : (
-                      <p className="text-sm text-muted-foreground">—</p>
+                      <p className="text-sm text-muted-foreground">{t("activityDash")}</p>
                     )}
                   </div>
                   <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
@@ -97,7 +131,7 @@ export default async function ActivityFeedPage() {
                         href={`/protected/students/${studentId}`}
                         className="text-info-soft-foreground hover:underline"
                       >
-                        Open student
+                        {t("activityOpenStudent")}
                       </Link>
                     ) : null}
                   </div>

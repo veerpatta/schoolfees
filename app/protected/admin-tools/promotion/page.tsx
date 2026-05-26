@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
@@ -29,16 +30,24 @@ function formatDateTime(value: string) {
 }
 
 export default async function PromotionIndexPage({ searchParams }: Props) {
+  const t = await getTranslations("AdminTools");
   await requireStaffPermission("students:write", { onDenied: "redirect" });
   const resolved = searchParams ? await searchParams : undefined;
   const runs = await listPromotionRuns(25);
 
+  const runStatusLabel = (status: string) =>
+    status === "preview"
+      ? t("promotionStatusPreview")
+      : status === "applied"
+        ? t("promotionStatusApplied")
+        : t("promotionStatusRolledBack");
+
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Admin Tools"
-        title="Year-End Class Promotion"
-        description="Build a per-student preview that proposes next-year classes (Class 8 → Class 9, etc.), apply it once verified, and roll back if needed."
+        eyebrow={t("eyebrow")}
+        title={t("promotionTitle")}
+        description={t("promotionDescription")}
       />
 
       {resolved?.error ? (
@@ -54,12 +63,12 @@ export default async function PromotionIndexPage({ searchParams }: Props) {
       ) : null}
 
       <SectionCard
-        title="Start a new promotion run"
-        description="Sessions follow the format 2026-27 / 2027-28. The target session's classes and fee setup must already be in place."
+        title={t("promotionStartTitle")}
+        description={t("promotionStartDescription")}
       >
         <form action={createPromotionPreviewAction} className="grid gap-4 sm:grid-cols-2">
           <div>
-            <Label htmlFor="sourceSessionLabel">Source session</Label>
+            <Label htmlFor="sourceSessionLabel">{t("promotionSourceLabel")}</Label>
             <Input
               id="sourceSessionLabel"
               name="sourceSessionLabel"
@@ -69,7 +78,7 @@ export default async function PromotionIndexPage({ searchParams }: Props) {
             />
           </div>
           <div>
-            <Label htmlFor="targetSessionLabel">Target session</Label>
+            <Label htmlFor="targetSessionLabel">{t("promotionTargetLabel")}</Label>
             <Input
               id="targetSessionLabel"
               name="targetSessionLabel"
@@ -79,21 +88,19 @@ export default async function PromotionIndexPage({ searchParams }: Props) {
             />
           </div>
           <div className="sm:col-span-2">
-            <Button type="submit">Build promotion preview</Button>
-            <p className="mt-2 text-xs text-muted-foreground">
-              No student records are changed until you explicitly Apply on the next screen.
-            </p>
+            <Button type="submit">{t("promotionBuildPreview")}</Button>
+            <p className="mt-2 text-xs text-muted-foreground">{t("promotionBuildPreviewHint")}</p>
           </div>
         </form>
       </SectionCard>
 
       <SectionCard
-        title="Recent runs"
-        description="History of previous promotion attempts. Click any run to view its details."
+        title={t("promotionRecentTitle")}
+        description={t("promotionRecentDescription")}
       >
         {runs.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border-strong bg-surface-2 px-4 py-6 text-center text-sm text-muted-foreground">
-            No promotion runs yet.
+            {t("promotionEmpty")}
           </p>
         ) : (
           <ul className="divide-y divide-border">
@@ -108,9 +115,13 @@ export default async function PromotionIndexPage({ searchParams }: Props) {
                       {run.sourceSessionLabel} → {run.targetSessionLabel}
                     </Link>
                     <p className="text-xs text-muted-foreground">
-                      Triggered {formatDateTime(run.triggeredAt)}
-                      {run.appliedAt ? ` · applied ${formatDateTime(run.appliedAt)}` : ""}
-                      {run.rolledBackAt ? ` · rolled back ${formatDateTime(run.rolledBackAt)}` : ""}
+                      {t("promotionTriggered", { when: formatDateTime(run.triggeredAt) })}
+                      {run.appliedAt
+                        ? t("promotionAppliedSuffix", { when: formatDateTime(run.appliedAt) })
+                        : ""}
+                      {run.rolledBackAt
+                        ? t("promotionRolledBackSuffix", { when: formatDateTime(run.rolledBackAt) })
+                        : ""}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -123,13 +134,16 @@ export default async function PromotionIndexPage({ searchParams }: Props) {
                             : "border-border bg-surface-2 text-muted-foreground"
                       }`}
                     >
-                      {run.status === "preview" ? "Preview" : run.status === "applied" ? "Applied" : "Rolled back"}
+                      {runStatusLabel(run.status)}
                     </span>
                     <span className="text-muted-foreground">
-                      {run.previewCount} students · {run.graduatedCount} graduates
+                      {t("promotionStudentCount", {
+                        students: run.previewCount,
+                        graduates: run.graduatedCount,
+                      })}
                     </span>
                     <span className="text-muted-foreground">
-                      Credit forward {formatInr(run.creditCarryForwardTotal)}
+                      {t("promotionCreditForward", { amount: formatInr(run.creditCarryForwardTotal) })}
                     </span>
                   </div>
                 </div>

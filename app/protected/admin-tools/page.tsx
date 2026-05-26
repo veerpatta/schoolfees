@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { ChevronRight } from "lucide-react";
 
 import { PageHeader } from "@/components/admin/page-header";
@@ -22,6 +23,8 @@ import {
   isUnavailableSystemSyncHealth,
 } from "@/lib/system-sync/health-fallback";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/lib/supabase/session";
+
+type AdminToolsTranslator = Awaited<ReturnType<typeof getTranslations<"AdminTools">>>;
 
 export const revalidate = 60;
 
@@ -47,27 +50,32 @@ function isHealthy(health: SystemSyncHealth) {
   );
 }
 
-function healthStatus(health: SystemSyncHealth, autoSyncRan: boolean) {
+function healthStatus(
+  health: SystemSyncHealth,
+  autoSyncRan: boolean,
+  t: AdminToolsTranslator,
+) {
   if (isUnavailableSystemSyncHealth(health)) {
-    return { label: "Sync unavailable", tone: "warning" as const };
+    return { label: t("statusSyncUnavailable"), tone: "warning" as const };
   }
 
   if (isHealthy(health)) {
     return autoSyncRan
-      ? { label: "Sync repaired", tone: "info" as const }
-      : { label: "Synced", tone: "good" as const };
+      ? { label: t("statusSyncRepaired"), tone: "info" as const }
+      : { label: t("statusSynced"), tone: "good" as const };
   }
 
   if (health.classesWithoutFeeSettings > 0 || health.errors.length > 0) {
-    return { label: "Setup needed", tone: "warning" as const };
+    return { label: t("statusSetupNeeded"), tone: "warning" as const };
   }
 
-  return { label: "Dues pending", tone: "info" as const };
+  return { label: t("statusDuesPending"), tone: "info" as const };
 }
 
 async function loadAdminToolsSyncState(
   sessionLabel: string,
   canAutoSync: boolean,
+  t: AdminToolsTranslator,
 ): Promise<AdminToolsSyncState> {
   try {
     if (canAutoSync) {
@@ -77,7 +85,7 @@ async function loadAdminToolsSyncState(
     return {
       health: await getSystemSyncHealth(sessionLabel),
       ran: false,
-      reason: "Automatic sync is available to fee setup admins.",
+      reason: t("syncReasonAutoUnavailable"),
     };
   } catch (error) {
     const errorMessage = getErrorMessage(error);
@@ -86,14 +94,14 @@ async function loadAdminToolsSyncState(
       health: buildUnavailableSystemSyncHealth(sessionLabel, errorMessage),
       result: null,
       ran: false,
-      reason:
-        "Admin Tools opened, but the automatic health check could not finish. Normal pages remain available while setup is reviewed.",
+      reason: t("syncReasonHealthFailed"),
       errorMessage,
     };
   }
 }
 
 export default async function AdvancedPage({ searchParams }: AdvancedPageProps) {
+  const t = await getTranslations("AdminTools");
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const viewSession = await resolveViewSession({
     searchParamSession: resolvedSearchParams?.session,
@@ -103,9 +111,9 @@ export default async function AdvancedPage({ searchParams }: AdvancedPageProps) 
     onDenied: "redirect",
   });
   const canRepairFeeData = hasStaffPermission(staff, "fees:write");
-  const autoSync = await loadAdminToolsSyncState(viewSession.sessionLabel, canRepairFeeData);
+  const autoSync = await loadAdminToolsSyncState(viewSession.sessionLabel, canRepairFeeData, t);
   const feeDataHealth = autoSync.health;
-  const status = healthStatus(feeDataHealth, autoSync.ran);
+  const status = healthStatus(feeDataHealth, autoSync.ran, t);
   const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
 
   const visibleSections = advancedHubSections
@@ -118,19 +126,19 @@ export default async function AdvancedPage({ searchParams }: AdvancedPageProps) 
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Admin Tools"
-        title="Admin Tools"
-        description="Setup and staff tools. Routine dues sync runs automatically from Students and Fee Setup."
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
         actions={<StatusBadge label={status.label} tone={status.tone} />}
       />
 
       <OfficeNotice
         title={
           autoSync.errorMessage
-            ? "Health check unavailable"
+            ? t("noticeHealthUnavailableTitle")
             : autoSync.ran
-              ? "Automatic sync just updated this session"
-              : "Automatic sync is on"
+              ? t("noticeAutoSyncedTitle")
+              : t("noticeAutoOnTitle")
         }
         tone={
           autoSync.errorMessage
@@ -141,19 +149,19 @@ export default async function AdvancedPage({ searchParams }: AdvancedPageProps) 
         }
       >
         {autoSync.errorMessage
-          ? `Admin Tools opened, but the automatic health check could not finish. ${autoSync.errorMessage}`
+          ? t("noticeHealthUnavailableBody", { error: autoSync.errorMessage })
           : autoSync.ran
-          ? `${viewSession.sessionLabel} was reconciled automatically. Continue normal work in Students, Fee Setup, Payment Desk, and Transactions.`
-          : "The app prepares dues after student changes, imports, Fee Setup changes, and selected-student Payment Desk loading. Admin Tools is now only for review and rare setup tasks."}
+            ? t("noticeAutoSyncedBody", { session: viewSession.sessionLabel })
+            : t("noticeAutoOnBody")}
       </OfficeNotice>
 
       <SectionCard
-        title={`${viewSession.sessionLabel} session status`}
-        description="This shows whether the selected year is ready for Dashboard, Payment Desk, Transactions, and Defaulters."
+        title={t("sessionStatusTitle", { session: viewSession.sessionLabel })}
+        description={t("sessionStatusDescription")}
         actions={
           <Button asChild variant={isHealthy(feeDataHealth) ? "outline" : "default"}>
             <Link href={withSession("/protected/admin-tools/session-health")}>
-              Open Session Health
+              {t("sessionStatusOpenHealth")}
             </Link>
           </Button>
         }
@@ -161,7 +169,7 @@ export default async function AdvancedPage({ searchParams }: AdvancedPageProps) 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              Students
+              {t("metricStudents")}
             </p>
             <p className="mt-2 text-xl font-semibold text-foreground">
               {feeDataHealth.rawStudentsInActiveSession}
@@ -169,7 +177,7 @@ export default async function AdvancedPage({ searchParams }: AdvancedPageProps) 
           </div>
           <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              Dues prepared
+              {t("metricDuesPrepared")}
             </p>
             <p className="mt-2 text-xl font-semibold text-foreground">
               {feeDataHealth.workbookFinancialRowCount}
@@ -177,7 +185,7 @@ export default async function AdvancedPage({ searchParams }: AdvancedPageProps) 
           </div>
           <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              Dues missing
+              {t("metricDuesMissing")}
             </p>
             <p className="mt-2 text-xl font-semibold text-foreground">
               {feeDataHealth.studentsMissingInstallmentRows}
@@ -185,7 +193,7 @@ export default async function AdvancedPage({ searchParams }: AdvancedPageProps) 
           </div>
           <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              Class fee gaps
+              {t("metricClassFeeGaps")}
             </p>
             <p className="mt-2 text-xl font-semibold text-foreground">
               {feeDataHealth.classesWithoutFeeSettings}
@@ -205,41 +213,37 @@ export default async function AdvancedPage({ searchParams }: AdvancedPageProps) 
       </SectionCard>
 
       <SectionCard
-        title="Platform quality safeguards"
-        description="Read-only guardrails for offline fallback, visual checks, and workflow speed targets."
-        actions={<StatusBadge label="Read-only" tone="info" />}
+        title={t("qualityTitle")}
+        description={t("qualityDescription")}
+        actions={<StatusBadge label={t("qualityReadOnly")} tone="info" />}
       >
         <div className="grid gap-3 md:grid-cols-3">
           <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              Offline fallback
+              {t("qualityOfflineLabel")}
             </p>
-            <p className="mt-2 font-semibold text-foreground">Read-only</p>
-            <p className="mt-1 text-muted-foreground">
-              Payments and receipts still require server confirmation.
-            </p>
+            <p className="mt-2 font-semibold text-foreground">{t("qualityOfflineValue")}</p>
+            <p className="mt-1 text-muted-foreground">{t("qualityOfflineDetail")}</p>
           </div>
           <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              Workflow target
+              {t("qualityWorkflowLabel")}
             </p>
             <p className="mt-2 font-semibold text-foreground">
-              {qualityBudgets.performance.officeWorkflow.paymentDeskSearchToSelectionMs / 1000}s lookup
+              {t("qualityWorkflowValue", {
+                seconds: qualityBudgets.performance.officeWorkflow.paymentDeskSearchToSelectionMs / 1000,
+              })}
             </p>
-            <p className="mt-1 text-muted-foreground">
-              Search-to-student selection budget for counter work.
-            </p>
+            <p className="mt-1 text-muted-foreground">{t("qualityWorkflowDetail")}</p>
           </div>
           <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              Visual smoke
+              {t("qualityVisualLabel")}
             </p>
             <p className="mt-2 font-semibold text-foreground">
-              {qualityBudgets.visualRegression.routes.length} routes
+              {t("qualityVisualValue", { count: qualityBudgets.visualRegression.routes.length })}
             </p>
-            <p className="mt-1 text-muted-foreground">
-              Dashboard, Payment Desk, Students, Reports, and Admin Tools in TEST session.
-            </p>
+            <p className="mt-1 text-muted-foreground">{t("qualityVisualDetail")}</p>
           </div>
         </div>
       </SectionCard>
