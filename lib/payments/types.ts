@@ -147,6 +147,14 @@ export type SelectedStudentSummary = {
 };
 
 export type PaymentDeskIssue = {
+  /**
+   * Stable identifier mirroring `PaymentDeskBlockingReasonKey`. Optional so
+   * legacy emission sites still typecheck while we migrate the table; render
+   * sites should translate by key when present and fall back to the
+   * shipped-from-server English title/detail/actionLabel otherwise.
+   */
+  key?: string;
+  keyValues?: Record<string, string | number>;
   title: string;
   detail: string;
   actionLabel: string | null;

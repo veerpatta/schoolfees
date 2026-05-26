@@ -1,15 +1,23 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Banknote, Building2, ChevronDown, FileText, Smartphone } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-const PAYMENT_MODES = [
-  { value: "cash", label: "Cash", icon: Banknote, description: "Collect physical notes" },
-  { value: "upi", label: "UPI", icon: Smartphone, description: "PhonePe, GPay, Paytm" },
-  { value: "bank_transfer", label: "Bank Transfer", icon: Building2, description: "NEFT / RTGS / IMPS" },
-  { value: "cheque", label: "Cheque", icon: FileText, description: "Cheque or DD" },
+type PaymentMode = {
+  value: "cash" | "upi" | "bank_transfer" | "cheque";
+  labelKey: "modeCash" | "modeUpi" | "modeBankTransfer" | "modeCheque";
+  hintKey: "modeCashHint" | "modeUpiHint" | "modeBankTransferHint" | "modeChequeHint";
+  icon: typeof Banknote;
+};
+
+const PAYMENT_MODES: readonly PaymentMode[] = [
+  { value: "cash", labelKey: "modeCash", hintKey: "modeCashHint", icon: Banknote },
+  { value: "upi", labelKey: "modeUpi", hintKey: "modeUpiHint", icon: Smartphone },
+  { value: "bank_transfer", labelKey: "modeBankTransfer", hintKey: "modeBankTransferHint", icon: Building2 },
+  { value: "cheque", labelKey: "modeCheque", hintKey: "modeChequeHint", icon: FileText },
 ] as const;
 
 type MobilePaymentModeSheetProps = {
@@ -23,6 +31,7 @@ export function MobilePaymentModeSheet({
   onChange,
   disabled,
 }: MobilePaymentModeSheetProps) {
+  const t = useTranslations("Payments");
   const [open, setOpen] = useState(false);
   const selected = PAYMENT_MODES.find((mode) => mode.value === value);
   const Icon = selected?.icon ?? Banknote;
@@ -44,7 +53,7 @@ export function MobilePaymentModeSheet({
       >
         <span className="flex min-w-0 items-center gap-2">
           <Icon className="size-4 shrink-0 text-muted-foreground" />
-          <span className="truncate">{selected?.label ?? "Select mode"}</span>
+          <span className="truncate">{selected ? t(selected.labelKey) : t("modeSelectFallback")}</span>
         </span>
         <ChevronDown className="size-4 shrink-0 text-subtle-foreground" />
       </button>
@@ -53,12 +62,12 @@ export function MobilePaymentModeSheet({
         <div className="fixed inset-0 z-[60] flex items-end bg-foreground/30 px-2" role="dialog" aria-modal="true">
           <button
             type="button"
-            aria-label="Close payment mode"
+            aria-label={t("modeSheetCloseAria")}
             className="absolute inset-0 cursor-default"
             onClick={() => setOpen(false)}
           />
           <div className="relative w-full anim-slide-up rounded-t-2xl border border-border bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl">
-            <h2 className="text-base font-semibold text-foreground">Payment Mode</h2>
+            <h2 className="text-base font-semibold text-foreground">{t("modeSheetTitle")}</h2>
             <div className="mt-4 space-y-2">
               {PAYMENT_MODES.map((mode) => {
                 const ModeIcon = mode.icon;
@@ -78,8 +87,8 @@ export function MobilePaymentModeSheet({
                   >
                     <ModeIcon className={cn("size-5 shrink-0", isActive ? "text-info" : "text-muted-foreground")} />
                     <span className="min-w-0">
-                      <span className="block text-sm font-medium">{mode.label}</span>
-                      <span className="mt-0.5 block text-xs text-muted-foreground">{mode.description}</span>
+                      <span className="block text-sm font-medium">{t(mode.labelKey)}</span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">{t(mode.hintKey)}</span>
                     </span>
                     {isActive ? <span className="ml-auto size-2 rounded-full bg-info" /> : null}
                   </button>

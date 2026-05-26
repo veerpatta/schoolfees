@@ -22,14 +22,36 @@ import type {
   SelectedStudentSummary,
 } from "@/lib/payments/types";
 
+/**
+ * Stable identifier for each readiness blocking reason. Lets callers (the
+ * Payment Desk page renders WorkflowGuard) translate by key while keeping
+ * the English fallback shipped from this server-side data layer.
+ */
+export type PaymentDeskBlockingReasonKey =
+  | "read_only"
+  | "no_policy"
+  | "no_active_class"
+  | "selected_student_missing"
+  | "selected_student_inactive"
+  | "selected_student_session_mismatch"
+  | "selected_student_review_needed"
+  | "dues_prepare_failed"
+  | "dues_load_failed"
+  | "dues_not_prepared";
+
 export type PaymentDeskReadiness = {
   canPostPayments: boolean;
-  blockingReason: {
-    title: string;
-    detail: string;
-    actionLabel: string | null;
-    actionHref: string | null;
-  } | null;
+  blockingReason:
+    | {
+        key?: PaymentDeskBlockingReasonKey;
+        /** Optional ICU-message values for dynamic substitution at render. */
+        keyValues?: Record<string, string | number>;
+        title: string;
+        detail: string;
+        actionLabel: string | null;
+        actionHref: string | null;
+      }
+    | null;
   canRepairOrPrepareDues: boolean;
 };
 
@@ -388,6 +410,7 @@ async function getPaymentDeskReadinessUncached(payload: {
 
   if (!payload.canWritePayments) {
     blockingReason = {
+      key: "read_only",
       title: "Read-only access.",
       detail: "You can review the desk but cannot post payments.",
       actionLabel: null,
@@ -395,6 +418,7 @@ async function getPaymentDeskReadinessUncached(payload: {
     };
   } else if (!policyExists) {
     blockingReason = {
+      key: "no_policy",
       title: "Fee Setup is incomplete for this year.",
       detail:
         "Open Fee Setup and publish the academic year policy before collecting payments.",
@@ -403,6 +427,7 @@ async function getPaymentDeskReadinessUncached(payload: {
     };
   } else if (!hasActiveClass) {
     blockingReason = {
+      key: "no_active_class",
       title: "No active classes for this academic year.",
       detail: "Open Master Data and activate at least one class for the session.",
       actionLabel: "Open Master Data",
@@ -1099,6 +1124,7 @@ async function tryAutoPrepareSelectedStudentDues(payload: {
 
   if (!student) {
     return {
+      key: "selected_student_missing",
       title: "Selected student could not be loaded.",
       detail: "Refresh Payment Desk and select the student again.",
       actionLabel: "Open Students",
@@ -1108,6 +1134,7 @@ async function tryAutoPrepareSelectedStudentDues(payload: {
 
   if (student.status !== "active") {
     return {
+      key: "selected_student_inactive",
       title: "Dues were not prepared.",
       detail: "This student is not active, so new dues were not prepared.",
       actionLabel: "Open student record",
@@ -1117,6 +1144,11 @@ async function tryAutoPrepareSelectedStudentDues(payload: {
 
   if (student.classSessionLabel !== payload.policySessionLabel) {
     return {
+      key: "selected_student_session_mismatch",
+      keyValues: {
+        studentSession: student.classSessionLabel || "another year",
+        policySession: payload.policySessionLabel,
+      },
       title: "Selected student belongs to another academic session.",
       detail:
         `This student is in ${student.classSessionLabel || "another year"}, but Fee Setup is active for ${payload.policySessionLabel}.`,
@@ -1129,6 +1161,7 @@ async function tryAutoPrepareSelectedStudentDues(payload: {
 
   if (nonCancelledInstallments > 0) {
     return {
+      key: "selected_student_review_needed",
       title: "Fee records need admin review.",
       detail:
         "Dues records already exist, but Payment Desk could not load payable balances. Ask an admin to run Fee Data Status before posting.",
@@ -1147,6 +1180,8 @@ async function tryAutoPrepareSelectedStudentDues(payload: {
   }
 
   return {
+    key: "dues_prepare_failed",
+    keyValues: duesResult.reasonSummary ? { detail: duesResult.reasonSummary } : undefined,
     title: "Dues could not be prepared.",
     detail:
       duesResult.reasonSummary ||
@@ -1303,6 +1338,8 @@ export async function getPaymentDeskStudentSummary(payload: {
         } catch (error) {
           previewReadError = error;
           selectedStudentIssue = {
+            key: "dues_load_failed",
+            keyValues: { detail: toFriendlyPaymentPreviewError(error) },
             title: "Dues could not be loaded.",
             detail: toFriendlyPaymentPreviewError(error),
             actionLabel: "Prepare dues again",
@@ -1324,6 +1361,10 @@ export async function getPaymentDeskStudentSummary(payload: {
         student: null,
         issue:
           selectedStudentIssue ?? {
+            key: "dues_not_prepared",
+            keyValues: previewReadError
+              ? { detail: toFriendlyPaymentPreviewError(previewReadError) }
+              : undefined,
             title: "Dues are not prepared for this student.",
             detail:
               previewReadError
@@ -1376,6 +1417,11 @@ export async function getPaymentDeskStudentSummary(payload: {
         selectedStudentIssue ??
         (selectedStudentDetail.classSessionLabel !== sessionLabel
           ? {
+              key: "selected_student_session_mismatch",
+              keyValues: {
+                studentSession: selectedStudentDetail.classSessionLabel || "a different session",
+                policySession: sessionLabel,
+              },
               title: "Selected student belongs to another academic session.",
               detail:
                 `This student is in ${selectedStudentDetail.classSessionLabel || "a different session"}, but this view is showing ${sessionLabel}. Change the session to review matching dues.`,
@@ -1383,12 +1429,13 @@ export async function getPaymentDeskStudentSummary(payload: {
               actionHref: "/protected/fee-setup",
             }
           : {
+              key: "dues_not_prepared",
               title: "Dues are not prepared for this student.",
               detail:
                 "Student exists, but dues are not prepared yet. Payment Desk can repair this only when Fee Setup is complete.",
-            actionLabel: "Prepare dues again",
-            actionHref: null,
-            repairStudentId: selectedStudentDetail.id,
+              actionLabel: "Prepare dues again",
+              actionHref: null,
+              repairStudentId: selectedStudentDetail.id,
             }),
       latestReceipt: await latestReceiptPromise,
       suggestedDefaultAmount: null,

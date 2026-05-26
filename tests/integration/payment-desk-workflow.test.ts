@@ -747,13 +747,19 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("Payment Successful");
     expect(component).toContain("Receipt has been saved.");
     expect(component).toContain("Collect Another Payment");
-    expect(component).toContain("Latest receipt:");
+    // "Latest receipt:" and "Similar payment already recorded" copy moved to
+    // the Payments next-intl namespace during the Payment Desk i18n port —
+    // assert against messages/en.json instead of the component source.
+    const englishMessages = JSON.parse(
+      readFileSync(join(process.cwd(), "messages/en.json"), "utf-8"),
+    ) as { Payments: Record<string, string> };
+    expect(englishMessages.Payments.duplicateLatestReceiptPrefix).toContain("Latest receipt:");
     expect(component).toContain("Amount to refund/adjust");
     expect(component).toContain("referenceNumber");
     expect(component).toContain("Copy WhatsApp Message");
     expect(component).toContain("animate-bottom-sheet-up");
     expect(component).toContain("animate-success-check");
-    expect(component).toContain("Similar payment already recorded");
+    expect(englishMessages.Payments.duplicateTitle).toBe("Similar payment already recorded");
     expect(component).toContain("isLockedAfterSuccess");
     expect(component).toContain("PayeeSummaryStrip");
     expect(component).toContain("latestReceiptToday");
@@ -909,12 +915,18 @@ describe("payment desk cashier workflow", () => {
       join(process.cwd(), "components/payments/payee-summary-strip.tsx"),
       "utf8",
     );
+    // Overdue / Credit / Paid today badge labels now live in the Payments
+    // next-intl namespace; component still owns the sticky layout + the
+    // risk-pill branches and the props that drive them.
+    const englishMessages = JSON.parse(
+      readFileSync(join(process.cwd(), "messages/en.json"), "utf-8"),
+    ) as { Payments: Record<string, string> };
 
     expect(component).toContain("sticky");
     expect(component).toContain("latestReceiptToday");
-    expect(component).toContain("Overdue");
-    expect(component).toContain("Credit");
-    expect(component).toContain("Paid today");
+    expect(englishMessages.Payments.payeeOverdueBadge).toContain("Overdue");
+    expect(englishMessages.Payments.payeeCreditBadge).toContain("Credit");
+    expect(englishMessages.Payments.payeePaidTodayBadge).toContain("Paid today");
     expect(component).toContain("tel:");
     expect(component).toContain("fatherPhone");
     expect(component).toContain("totalPending");

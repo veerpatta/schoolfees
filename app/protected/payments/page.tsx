@@ -12,6 +12,7 @@ import {
   getPaymentDeskReadiness,
   getPaymentEntryPageData,
 } from "@/lib/payments/data";
+import { translateBlockingReason } from "@/lib/payments/blocking-reason-i18n";
 import { INITIAL_PAYMENT_ENTRY_ACTION_STATE } from "@/lib/payments/types";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
@@ -116,7 +117,11 @@ async function PaymentDeskDataLoader({
       }),
     ]);
     const { canPostPayments } = readiness;
-    const blockingReason = readiness.blockingReason;
+    const blockingReason = translateBlockingReason(readiness.blockingReason, t);
+    const translatedData = {
+      ...data,
+      initialStudentIssue: translateBlockingReason(data.initialStudentIssue, t),
+    };
 
     return (
       <>
@@ -137,7 +142,7 @@ async function PaymentDeskDataLoader({
         ) : null}
 
         <PaymentEntryClient
-          data={data}
+          data={translatedData}
           canPost={canPostPayments}
           canViewDiagnostics={staff.appRole === "admin"}
           canWaiveLateFee={hasStaffPermission(staff, "payments:waive_late_fee")}
@@ -165,13 +170,17 @@ async function PaymentDeskDataLoader({
     }),
   ]);
   const { canPostPayments } = readiness;
-  const blockingReason = readiness.blockingReason;
+  const blockingReason = translateBlockingReason(readiness.blockingReason, t);
+  const translatedData = {
+    ...data,
+    initialStudentIssue: translateBlockingReason(data.initialStudentIssue, t),
+  };
 
   return (
     <>
       <div className="flex justify-end">
         <StatusBadge
-          label={canPostPayments ? "Posting enabled" : "Read-only access"}
+          label={canPostPayments ? t("postingEnabled") : t("readOnlyAccess")}
           tone={canPostPayments ? "good" : "warning"}
         />
       </div>
@@ -186,7 +195,7 @@ async function PaymentDeskDataLoader({
       ) : null}
 
       <PaymentEntryClient
-        data={data}
+        data={translatedData}
         canPost={canPostPayments}
         canViewDiagnostics={staff.appRole === "admin"}
         canWaiveLateFee={hasStaffPermission(staff, "payments:waive_late_fee")}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { ReceiptText } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ export function WaiveLateFeeTrigger({
   size = "sm",
   variant = "outline",
 }: WaiveLateFeeTriggerProps) {
+  const t = useTranslations("Payments");
   const [open, setOpen] = useState(false);
 
   if (pendingLateFeeAmount <= 0) {
@@ -51,7 +53,7 @@ export function WaiveLateFeeTrigger({
         onClick={() => setOpen(true)}
       >
         <ReceiptText className="size-4" aria-hidden="true" />
-        Waive late fee
+        {t("waiveTriggerLabel")}
       </Button>
       <WaiveLateFeeSheet
         open={open}

@@ -4,6 +4,7 @@ import { useActionState, useCallback, useDeferredValue, useEffect, useId, useMem
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { MetricCard } from "@/components/admin/metric-card";
 import { SectionCard } from "@/components/admin/section-card";
@@ -257,6 +258,7 @@ export function PaymentDeskClient({
   repairPaymentDeskStudentDuesAction,
   formId = "payment-entry-form",
 }: PaymentDeskMobileProps) {
+  const tPayments = useTranslations("Payments");
   const [state, formAction, pending] = useActionState(
     submitPaymentEntryAction,
     initialState,
@@ -2186,7 +2188,7 @@ export function PaymentDeskClient({
                       {canWaiveLateFee ? (
                         <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border/60 pt-2">
                           <span className="text-[11px] text-muted-foreground">
-                            Standalone waiver (writes to fee override, audited):
+                            {tPayments("waiveStandaloneCaption")}
                           </span>
                           <WaiveLateFeeTrigger
                             studentId={selectedStudent.id}

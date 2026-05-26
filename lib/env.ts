@@ -118,14 +118,15 @@ export function isStaffRolesV2Enabled() {
   return truthyEnvValues.has(value.toLowerCase());
 }
 
-// Gates the in-app language switcher (English / Hindi / Hinglish). When off,
-// every request resolves to English regardless of the vpps_locale cookie.
-// Keep off in production until office staff have reviewed Hindi/Hinglish copy.
+// Gates the in-app language switcher (English / Hindi / Hinglish). The flag
+// is now opt-out: when LOCALE_SWITCHER_ENABLED is unset or truthy, the
+// switcher is on; only an explicit falsy value (`0`, `false`, `off`, `no`)
+// disables it. Per-env overrides remain available (Vercel env / .env.local).
 export function isLocaleSwitcherEnabled() {
   const value = getOptionalEnvVar("LOCALE_SWITCHER_ENABLED");
 
   if (!value) {
-    return false;
+    return true;
   }
 
   return truthyEnvValues.has(value.toLowerCase());

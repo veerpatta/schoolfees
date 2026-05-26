@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { WifiOff, Wifi } from "lucide-react";
 
 /**
@@ -15,6 +16,7 @@ import { WifiOff, Wifi } from "lucide-react";
  * RPC after explicit user confirmation.
  */
 export function CollectDraftBanner() {
+  const t = useTranslations("Payments");
   const [status, setStatus] = useState<"idle" | "offline" | "recovered">("idle");
 
   useEffect(() => {
@@ -47,10 +49,8 @@ export function CollectDraftBanner() {
       <div className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground">
         <WifiOff className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
         <div>
-          <p className="font-semibold">You&apos;re offline.</p>
-          <p className="text-xs">
-            Keep typing — your draft is saved locally per student. Reconnect before you confirm; the post happens once you tap the confirm button.
-          </p>
+          <p className="font-semibold">{t("offlineTitle")}</p>
+          <p className="text-xs">{t("offlineBody")}</p>
         </div>
       </div>
     );
@@ -60,8 +60,8 @@ export function CollectDraftBanner() {
     <div className="flex items-start gap-2 rounded-xl border border-success/40 bg-success-soft px-3 py-2 text-sm text-success-soft-foreground">
       <Wifi className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
       <div>
-        <p className="font-semibold">You&apos;re back online.</p>
-        <p className="text-xs">Drafts are intact. Review the amount and confirm when ready.</p>
+        <p className="font-semibold">{t("recoveredTitle")}</p>
+        <p className="text-xs">{t("recoveredBody")}</p>
       </div>
     </div>
   );

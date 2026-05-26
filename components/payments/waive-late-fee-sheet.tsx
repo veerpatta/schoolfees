@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ export function WaiveLateFeeSheet({
   pendingLateFeeAmount,
   currentWaiverAmount,
 }: WaiveLateFeeSheetProps) {
+  const t = useTranslations("Payments");
   const [amount, setAmount] = useState<string>(String(pendingLateFeeAmount));
   const [reason, setReason] = useState<string>("");
   const [state, formAction, pending] = useActionState(
@@ -53,12 +55,12 @@ export function WaiveLateFeeSheet({
   useEffect(() => {
     if (state.status === "success") {
       toast({
-        title: "Late fee waived",
-        description: state.message ?? "Late fee waiver applied.",
+        title: t("waiveTriggerLabel"),
+        description: state.message ?? "",
       });
       onClose();
     }
-  }, [state.status, state.message, onClose]);
+  }, [state.status, state.message, onClose, t]);
 
   const numericAmount = Number(amount);
   const validAmount =
@@ -72,8 +74,8 @@ export function WaiveLateFeeSheet({
     <Sheet
       open={open}
       onClose={onClose}
-      title={`Waive late fee — ${studentLabel}`}
-      description={`Pending late fee: ${formatInr(pendingLateFeeAmount)}. Writes to the student's fee override; the receipt next issued will show the lower balance.`}
+      title={`${t("waiveSheetTitlePrefix")} ${studentLabel}`}
+      description={t("waiveSheetDescription", { amount: formatInr(pendingLateFeeAmount) })}
       size="md"
     >
       <form action={formAction} className="space-y-4">
@@ -81,19 +83,20 @@ export function WaiveLateFeeSheet({
 
         <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-xs text-muted-foreground">
           <p>
-            <span className="font-semibold text-foreground">{studentLabel}</span>{" "}
-            · SR {studentAdmissionNo} · {classLabel}
+            <span className="font-semibold text-foreground">{studentLabel}</span>
+            {t("waiveSheetStudentLineSeparator")}
+            {studentAdmissionNo} · {classLabel}
           </p>
           {currentWaiverAmount > 0 ? (
             <p className="mt-1">
-              Previous standalone waivers on this student:{" "}
+              {t("waivePreviousTotal")}{" "}
               <span className="font-medium text-foreground">{formatInr(currentWaiverAmount)}</span>
             </p>
           ) : null}
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="waive-late-fee-amount">Amount to waive (₹)</Label>
+          <Label htmlFor="waive-late-fee-amount">{t("waiveAmountLabel")}</Label>
           <Input
             id="waive-late-fee-amount"
             name="amount"
@@ -107,24 +110,22 @@ export function WaiveLateFeeSheet({
             onChange={(event) => setAmount(event.target.value)}
           />
           <p className="text-xs text-muted-foreground">
-            Capped at the current pending late fee ({formatInr(pendingLateFeeAmount)}).
+            {t("waiveAmountHint", { amount: formatInr(pendingLateFeeAmount) })}
           </p>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="waive-late-fee-reason">Reason (required)</Label>
+          <Label htmlFor="waive-late-fee-reason">{t("waiveReasonLabel")}</Label>
           <Textarea
             id="waive-late-fee-reason"
             name="reason"
-            placeholder="e.g. Family emergency, principal approval, etc."
+            placeholder={t("waiveReasonPlaceholder")}
             value={reason}
             onChange={(event) => setReason(event.target.value)}
             rows={3}
             required
           />
-          <p className="text-xs text-muted-foreground">
-            Minimum 4 characters. Reason is appended to the student&apos;s fee-override audit trail.
-          </p>
+          <p className="text-xs text-muted-foreground">{t("waiveReasonHint")}</p>
         </div>
 
         {state.status === "error" && state.message ? (
@@ -142,16 +143,16 @@ export function WaiveLateFeeSheet({
 
         <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
           <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
-            Cancel
+            {t("waiveCancel")}
           </Button>
           <Button type="submit" disabled={!canSubmit}>
             {pending ? (
               <span className="flex items-center gap-1.5">
                 <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                Waiving…
+                {t("waiveSubmitting")}
               </span>
             ) : (
-              "Waive late fee"
+              t("waiveSubmit")
             )}
           </Button>
         </div>

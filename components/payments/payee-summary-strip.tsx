@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { StatusBadge } from "@/components/admin/status-badge";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { formatInr } from "@/lib/helpers/currency";
@@ -39,6 +41,7 @@ export function PayeeSummaryStrip({
   latestReceiptToday,
   className,
 }: PayeeSummaryStripProps) {
+  const t = useTranslations("Payments");
   const hasRiskPills =
     student.overdueAmount > 0 ||
     student.creditBalance > 0 ||
@@ -65,7 +68,7 @@ export function PayeeSummaryStrip({
                 </p>
                 {student.nextDueDate && student.nextDueAmount !== null ? (
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Next due: {student.nextDueDate} · {formatInr(student.nextDueAmount)}
+                    {t("payeeNextDuePrefix")} {student.nextDueDate} · {formatInr(student.nextDueAmount)}
                   </p>
                 ) : null}
               </div>
@@ -81,13 +84,15 @@ export function PayeeSummaryStrip({
                   {formatInr(student.totalPending)}
                 </p>
                 <p className="mt-0.5 flex items-center justify-end gap-1.5 text-xs font-medium text-muted-foreground">
-                  Pending
+                  {t("payeePendingLabel")}
                   <TrustBadge source="Workbook v1" />
                 </p>
               </div>
             </div>
             <div className="mt-2 text-sm text-muted-foreground">
-              <p>Father: {student.fatherName || "Not entered"}</p>
+              <p>
+                {t("payeeFatherPrefix")} {student.fatherName || t("payeeFatherMissing")}
+              </p>
               {student.fatherPhone ? (
                 <a
                   href={`tel:${student.fatherPhone}`}
@@ -103,14 +108,23 @@ export function PayeeSummaryStrip({
         {hasRiskPills ? (
           <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
             {student.overdueAmount > 0 ? (
-              <StatusBadge label={`Overdue ${formatInr(student.overdueAmount)} without late fee`} tone="warning" />
+              <StatusBadge
+                label={t("payeeOverdueBadge", { amount: formatInr(student.overdueAmount) })}
+                tone="warning"
+              />
             ) : null}
             {student.creditBalance > 0 ? (
-              <StatusBadge label={`Credit ${formatInr(student.creditBalance)}`} tone="info" />
+              <StatusBadge
+                label={t("payeeCreditBadge", { amount: formatInr(student.creditBalance) })}
+                tone="info"
+              />
             ) : null}
             {latestReceiptToday ? (
               <span className="inline-flex items-center rounded-full bg-warning-soft px-2.5 py-1 text-xs font-medium text-warning-soft-foreground">
-                Paid today {formatInr(latestReceiptToday.totalAmount)} · {latestReceiptToday.receiptNumber}
+                {t("payeePaidTodayBadge", {
+                  amount: formatInr(latestReceiptToday.totalAmount),
+                  receiptNumber: latestReceiptToday.receiptNumber,
+                })}
               </span>
             ) : null}
           </div>

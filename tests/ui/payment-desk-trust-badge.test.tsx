@@ -1,8 +1,22 @@
 import React from "react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
+import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it } from "vitest";
 
 import { PayeeSummaryStrip } from "@/components/payments/payee-summary-strip";
+
+const messages = JSON.parse(
+  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+);
+
+function render(node: React.ReactElement): string {
+  // eslint-disable-next-line react/no-children-prop
+  return renderToStaticMarkup(
+    React.createElement(NextIntlClientProvider, { locale: "en", messages, children: node }),
+  );
+}
 
 const STUDENT = {
   fullName: "Arjun Singh",
@@ -20,21 +34,21 @@ const STUDENT = {
 
 describe("PayeeSummaryStrip — TrustBadge", () => {
   it("renders a TrustBadge with source 'Workbook v1' next to the Pending label", () => {
-    const html = renderToStaticMarkup(
+    const html = render(
       <PayeeSummaryStrip student={STUDENT} latestReceiptToday={null} />,
     );
     expect(html).toContain("Workbook v1");
   });
 
   it("TrustBadge title attribute references the source", () => {
-    const html = renderToStaticMarkup(
+    const html = render(
       <PayeeSummaryStrip student={STUDENT} latestReceiptToday={null} />,
     );
     expect(html).toContain("Source: Workbook v1");
   });
 
   it("renders the pending amount alongside the badge", () => {
-    const html = renderToStaticMarkup(
+    const html = render(
       <PayeeSummaryStrip student={STUDENT} latestReceiptToday={null} />,
     );
     expect(html).toContain("Workbook v1");
@@ -42,7 +56,7 @@ describe("PayeeSummaryStrip — TrustBadge", () => {
   });
 
   it("badge is present even when student has no pending amount", () => {
-    const html = renderToStaticMarkup(
+    const html = render(
       <PayeeSummaryStrip
         student={{ ...STUDENT, totalPending: 0 }}
         latestReceiptToday={null}
