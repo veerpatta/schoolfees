@@ -304,6 +304,13 @@ export default async function StudentDetailPage({
     (sum, b) => sum + b.paidAmount,
     0,
   );
+  // Discount-mode receipts go through `payments` to drive the workbook pending
+  // to zero, so they get summed into installment paid_amount. Separate them out
+  // here so "Paid till now" only shows actual cash collected.
+  const discountClosedAmount = receipts
+    .filter((r) => r.paymentMode === "discount")
+    .reduce((sum, r) => sum + r.totalAmount, 0);
+  const cashPaidAllInstallments = Math.max(0, totalPaidAllInstallments - discountClosedAmount);
   const totalAnnualForGlance = installmentBalances.reduce(
     (sum, b) => sum + b.baseCharge,
     0,
@@ -724,7 +731,8 @@ export default async function StudentDetailPage({
         discountAmount={glanceDiscountAmount}
         discountLabels={glanceDiscountLabels}
         totalAnnual={totalAnnualForGlance + lateFeeWaivedTotal}
-        totalPaid={totalPaidAllInstallments}
+        totalPaid={cashPaidAllInstallments}
+        discountClosedAmount={discountClosedAmount}
         totalPending={outstandingAmount}
         overdueAmount={overdueAmount}
         pendingLateFeeAmount={effectivePendingLateFeeAmount}

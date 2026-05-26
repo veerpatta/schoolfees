@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { PaymentMode } from "@/lib/db/types";
 import { getStudentFinancialSnapshot } from "@/lib/fees/data";
 import { getLedgerPageData } from "@/lib/ledger/data";
 import { createClient } from "@/lib/supabase/server";
@@ -11,7 +12,7 @@ type StudentReceiptRow = {
   receipt_number: string;
   payment_date: string;
   total_amount: number;
-  payment_mode: "cash" | "upi" | "bank_transfer" | "cheque";
+  payment_mode: PaymentMode;
   reference_number: string | null;
   received_by: string | null;
   created_at: string;
@@ -28,6 +29,10 @@ function paymentModeLabel(mode: StudentReceiptRow["payment_mode"]) {
 
   if (mode === "cheque") {
     return "Cheque";
+  }
+
+  if (mode === "discount") {
+    return "Discount";
   }
 
   return "Cash";

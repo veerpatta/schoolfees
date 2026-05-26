@@ -321,14 +321,28 @@ export function ReceiptDocumentV2({
         <section className="rounded-lg border border-border bg-surface-2 p-3 text-sm">
           <div className="grid gap-2 sm:grid-cols-2">
             <div>
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t("v2TotalPaidToday")}</p>
-              <p className="text-lg font-semibold text-accent-soft-foreground">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                {receipt.paymentMode === "discount" ? "Closed as discount" : t("v2TotalPaidToday")}
+              </p>
+              <p
+                className={cn(
+                  "text-lg font-semibold",
+                  receipt.paymentMode === "discount"
+                    ? "text-purple-900 dark:text-purple-100"
+                    : "text-accent-soft-foreground",
+                )}
+              >
                 {formatInr(breakdownTotal || receipt.totalAmount)}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {t("paymentMode")}: {paymentModeLabel(receipt.paymentMode, t)}
                 {receipt.referenceNumber ? ` · ${receipt.referenceNumber}` : ""}
               </p>
+              {receipt.paymentMode === "discount" ? (
+                <p className="mt-0.5 text-[10px] font-medium text-purple-800 dark:text-purple-200">
+                  Non-cash · written off
+                </p>
+              ) : null}
             </div>
             <div
               className={cn(

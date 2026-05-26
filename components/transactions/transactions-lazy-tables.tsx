@@ -103,7 +103,10 @@ function ChevronToggle({
       type="button"
       aria-label={label}
       aria-expanded={expanded}
-      onClick={onClick}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
       className="inline-flex size-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-all hover:border-border hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <ChevronRight
@@ -365,7 +368,10 @@ export function InstallmentTrackerTable({
                 const expanded = isExpanded(row.studentId);
                 return (
                   <Fragment key={row.studentId}>
-                    <tr className="border-t border-border transition-colors hover:bg-surface-2/30">
+                    <tr
+                      className="cursor-pointer border-t border-border transition-colors hover:bg-surface-2/30"
+                      onClick={() => toggle(row.studentId)}
+                    >
                       <td className="w-8 px-2 py-3">
                         <ChevronToggle
                           expanded={expanded}
@@ -527,7 +533,10 @@ export function StudentDuesTable({
                 const nextDue = formatRelativeDue(row.nextDueDate);
                 return (
                   <Fragment key={row.studentId}>
-                    <tr className="border-t border-border transition-colors hover:bg-surface-2/30">
+                    <tr
+                      className="cursor-pointer border-t border-border transition-colors hover:bg-surface-2/30"
+                      onClick={() => toggle(row.studentId)}
+                    >
                       <td className="w-8 px-2 py-3">
                         <ChevronToggle
                           expanded={expanded}
@@ -718,7 +727,10 @@ export function ClassRegisterTable({
                 const expanded = isExpanded(row.studentId);
                 return (
                   <Fragment key={row.studentId}>
-                    <tr className="border-t border-border transition-colors hover:bg-surface-2/30">
+                    <tr
+                      className="cursor-pointer border-t border-border transition-colors hover:bg-surface-2/30"
+                      onClick={() => toggle(row.studentId)}
+                    >
                       <td className="w-8 px-2 py-3">
                         <ChevronToggle
                           expanded={expanded}
@@ -909,7 +921,10 @@ export function DefaultersTable({
                 const nextDue = formatRelativeDue(row.nextDueDate);
                 return (
                   <Fragment key={row.studentId}>
-                    <tr className="border-t border-border transition-colors hover:bg-surface-2/30">
+                    <tr
+                      className="cursor-pointer border-t border-border transition-colors hover:bg-surface-2/30"
+                      onClick={() => toggle(row.studentId)}
+                    >
                       <td className="w-8 px-2 py-3">
                         <ChevronToggle
                           expanded={expanded}

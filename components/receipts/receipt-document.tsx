@@ -407,9 +407,32 @@ export function ReceiptDocument({
             <FieldLabel>{t("paidTillDate")}</FieldLabel>
             <p className="mt-1 text-lg font-semibold text-foreground">{formatInr(receipt.totalPaidToDate)}</p>
           </div>
-          <div className="rounded-lg border border-accent/30 bg-accent-soft px-3 py-3 print-compact">
-            <FieldLabel>{t("paidToday")}</FieldLabel>
-            <p className="mt-1 text-2xl font-semibold text-accent-soft-foreground">{formatInr(receipt.totalAmount)}</p>
+          <div
+            className={cn(
+              "rounded-lg border px-3 py-3 print-compact",
+              receipt.paymentMode === "discount"
+                ? "border-purple-300 bg-purple-100 dark:border-purple-800 dark:bg-purple-950/40"
+                : "border-accent/30 bg-accent-soft",
+            )}
+          >
+            <FieldLabel>
+              {receipt.paymentMode === "discount" ? "Closed as discount" : t("paidToday")}
+            </FieldLabel>
+            <p
+              className={cn(
+                "mt-1 text-2xl font-semibold",
+                receipt.paymentMode === "discount"
+                  ? "text-purple-900 dark:text-purple-100"
+                  : "text-accent-soft-foreground",
+              )}
+            >
+              {formatInr(receipt.totalAmount)}
+            </p>
+            {receipt.paymentMode === "discount" ? (
+              <p className="mt-1 text-[10px] text-purple-800 dark:text-purple-200">
+                Non-cash · written off
+              </p>
+            ) : null}
           </div>
            <div
              className={cn(

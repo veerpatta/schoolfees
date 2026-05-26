@@ -25,6 +25,8 @@ export type StudentFinanceGlanceProps = {
   discountLabels: string[];
   totalAnnual: number;
   totalPaid: number;
+  /** Sum of close-outs recorded as discount-mode receipts. Shown separately from cash paid. */
+  discountClosedAmount?: number;
   totalPending: number;
   overdueAmount: number;
   pendingLateFeeAmount: number;
@@ -42,6 +44,7 @@ export function StudentFinanceGlance({
   discountLabels,
   totalAnnual,
   totalPaid,
+  discountClosedAmount = 0,
   totalPending,
   overdueAmount,
   pendingLateFeeAmount,
@@ -52,7 +55,7 @@ export function StudentFinanceGlance({
   nextDueLabel,
   nextDueAmount,
 }: StudentFinanceGlanceProps) {
-  const isYearClear = totalPending <= 0 && totalPaid > 0;
+  const isYearClear = totalPending <= 0 && (totalPaid + discountClosedAmount) > 0;
   const discountSuffix = discountLabels.length > 0 ? ` (${discountLabels.join(" + ")})` : "";
 
   return (
@@ -69,7 +72,11 @@ export function StudentFinanceGlance({
               <CheckCircle2 className="size-4" aria-hidden="true" />
               Year Clear · all dues settled
             </span>
-            <span className="text-xs opacity-80">Paid {formatInr(totalPaid)}</span>
+            <span className="text-xs opacity-80">
+              {discountClosedAmount > 0
+                ? `Cleared ${formatInr(totalPaid + discountClosedAmount)} (incl. ${formatInr(discountClosedAmount)} discount)`
+                : `Paid ${formatInr(totalPaid)}`}
+            </span>
           </div>
         ) : creditBalance > 0 ? (
           <div className="flex items-center justify-between gap-3 rounded-lg bg-info-soft px-3 py-2.5 text-sm font-semibold text-info-soft-foreground">
@@ -144,6 +151,14 @@ export function StudentFinanceGlance({
                   {formatInr(totalPaid)}
                 </span>
               </li>
+              {discountClosedAmount > 0 ? (
+                <li className="flex justify-between">
+                  <span className="text-muted-foreground">Closed as discount</span>
+                  <span className="font-mono font-semibold tabular-nums text-purple-700 dark:text-purple-300">
+                    −{formatInr(discountClosedAmount)}
+                  </span>
+                </li>
+              ) : null}
               {pendingLateFeeAmount > 0 ? (
                 <li className="flex justify-between">
                   <span className="text-muted-foreground">Late fee pending</span>
