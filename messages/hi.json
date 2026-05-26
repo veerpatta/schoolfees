@@ -76,8 +76,8 @@
     "admin": "व्यवस्थापक",
     "accountant": "लेखाकार",
     "teacher": "शिक्षक",
-    "defaulter_followup": "बकाया अनुसरण",
-    "view_only": "केवल अवलोकन"
+    "fee_collector": "शुल्क संग्रहकर्ता",
+    "view_only": "अवलोकनकर्ता"
   },
   "Defaulters": {
     "eyebrow": "बकायेदार",

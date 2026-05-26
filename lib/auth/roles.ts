@@ -2,7 +2,7 @@ export const staffRoles = [
   "admin",
   "accountant",
   "teacher",
-  "defaulter_followup",
+  "fee_collector",
   "view_only",
 ] as const;
 
@@ -41,20 +41,20 @@ export const roleLabels: Record<StaffRole, string> = {
   admin: "Admin",
   accountant: "Accountant",
   teacher: "Teacher",
-  defaulter_followup: "Defaulter follow-up",
-  view_only: "View-only staff",
+  fee_collector: "Fee Collector",
+  view_only: "Viewer",
 };
 
 export const roleDescriptions: Record<StaffRole, string> = {
-  admin: "Manages staff access, school settings, and correction-safe workflows.",
+  admin: "Full access to every workspace, including staff, settings, and corrections.",
   accountant:
-    "Reviews fee setup, runs daily payment entry, day closing, refund requests, and follow-up reporting.",
+    "Posts payments, waives late fees, and reprints receipts. Reads everything else; no edits outside the Payment Desk.",
   teacher:
-    "Adds and edits basic student details (without SR number) and views their own class lists. No financial access.",
-  defaulter_followup:
-    "Works the defaulter follow-up list and logs parent contact attempts. Sees outstanding amounts only — not receipts or payment history.",
+    "Reads every workspace tab. Can edit basic student data (not the SR number). No financial writes.",
+  fee_collector:
+    "Defaults to the Defaulters list. Logs parent contact attempts and follow-ups. Reads every other tab; no financial writes.",
   view_only:
-    "Can review dashboard, student, ledger, receipt, and defaulter information without making changes.",
+    "Read-only access for oversight: Dashboard, Students, Defaulters, and Receipts. Cannot post payments or edit any record.",
 };
 
 const adminPermissions: readonly StaffPermission[] = [
@@ -84,6 +84,8 @@ const adminPermissions: readonly StaffPermission[] = [
   "staff:manage",
 ];
 
+// Accountant: payment entry + late-fee waiver + receipt print. Everything
+// else is view-only. Day-close/refund/correction stays admin-only.
 const accountantPermissions: readonly StaffPermission[] = [
   "dashboard:view",
   "students:view",
@@ -92,58 +94,85 @@ const accountantPermissions: readonly StaffPermission[] = [
   "payments:write",
   "payments:waive_late_fee",
   "finance:view",
-  "finance:write",
   "ledger:view",
   "receipts:view",
   "receipts:print",
   "defaulters:view",
-  "contacts:write",
+  "imports:view",
   "reports:view",
+  "settings:view",
 ];
 
+// Teacher: reads every tab; can edit basic student fields (never SR No).
+// No financial writes.
 const teacherPermissions: readonly StaffPermission[] = [
   "dashboard:view",
   "students:view",
   "students:edit_basic",
-  "defaulters:view",
-];
-
-const defaulterFollowupPermissions: readonly StaffPermission[] = [
-  "students:view",
-  "defaulters:view",
-  "contacts:write",
-];
-
-const viewOnlyPermissions: readonly StaffPermission[] = [
-  "dashboard:view",
-  "students:view",
   "fees:view",
   "payments:view",
+  "finance:view",
   "ledger:view",
   "receipts:view",
   "defaulters:view",
   "imports:view",
   "reports:view",
+  "settings:view",
+];
+
+// Fee Collector: defaulters first; writes contact logs; reads everything.
+// Replaces the older "defaulter_followup" role and absorbs its scope plus
+// full-app read access.
+const feeCollectorPermissions: readonly StaffPermission[] = [
+  "dashboard:view",
+  "students:view",
+  "fees:view",
+  "payments:view",
+  "finance:view",
+  "ledger:view",
+  "receipts:view",
+  "defaulters:view",
+  "contacts:write",
+  "imports:view",
+  "reports:view",
+  "settings:view",
+];
+
+// Viewer: practical read-only oversight. Dashboard for a daily snapshot,
+// Students for lookups, Defaulters for the call list, Receipts for reprints.
+// Tighter than the old read_only_staff scope, which exposed every :view.
+const viewerPermissions: readonly StaffPermission[] = [
+  "dashboard:view",
+  "students:view",
+  "defaulters:view",
+  "receipts:view",
 ];
 
 export const rolePermissions: Record<StaffRole, readonly StaffPermission[]> = {
   admin: adminPermissions,
   accountant: accountantPermissions,
   teacher: teacherPermissions,
-  defaulter_followup: defaulterFollowupPermissions,
-  view_only: viewOnlyPermissions,
+  fee_collector: feeCollectorPermissions,
+  view_only: viewerPermissions,
 };
 
 export function isStaffRole(value: unknown): value is StaffRole {
   return typeof value === "string" && staffRoles.includes(value as StaffRole);
 }
 
-// Backward-compatible alias: the database used "read_only_staff" before the
-// 5-role expansion. Keep it accepted as an alias to "view_only" for one
-// release so any in-flight session metadata still resolves cleanly.
+// Backward-compatible aliases. The role schema has moved twice:
+//   - "read_only_staff" was the original name for view_only.
+//   - "defaulter_followup" was the original name for fee_collector.
+// We accept both so any in-flight session metadata or cached JWTs continue
+// to resolve cleanly after the rename. Drop these once a release cycle has
+// elapsed and all clients have rotated.
 export function resolveStaffRole(value: unknown): StaffRole {
   if (isStaffRole(value)) {
     return value;
+  }
+
+  if (value === "defaulter_followup") {
+    return "fee_collector";
   }
 
   if (value === "read_only_staff") {

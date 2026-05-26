@@ -21,7 +21,7 @@ begin
     where typnamespace = 'public'::regnamespace
       and typname = 'staff_role'
   ) then
-    create type public.staff_role as enum ('admin', 'accountant', 'teacher', 'defaulter_followup', 'view_only');
+    create type public.staff_role as enum ('admin', 'accountant', 'teacher', 'fee_collector', 'view_only');
   end if;
 
   if not exists (
@@ -192,7 +192,8 @@ as $$
     when 'admin' then 'admin'::public.staff_role
     when 'accountant' then 'accountant'::public.staff_role
     when 'teacher' then 'teacher'::public.staff_role
-    when 'defaulter_followup' then 'defaulter_followup'::public.staff_role
+    when 'fee_collector' then 'fee_collector'::public.staff_role
+    when 'defaulter_followup' then 'fee_collector'::public.staff_role
     when 'view_only' then 'view_only'::public.staff_role
     when 'read_only_staff' then 'view_only'::public.staff_role
     else 'view_only'::public.staff_role
@@ -1015,13 +1016,13 @@ as $$
           'payments:write',
           'payments:waive_late_fee',
           'finance:view',
-          'finance:write',
           'ledger:view',
           'receipts:view',
           'receipts:print',
           'defaulters:view',
-          'contacts:write',
-          'reports:view'
+          'imports:view',
+          'reports:view',
+          'settings:view'
         ]
       )
       when 'teacher'::public.staff_role then p_permission = any (
@@ -1029,27 +1030,39 @@ as $$
           'dashboard:view',
           'students:view',
           'students:edit_basic',
-          'defaulters:view'
+          'fees:view',
+          'payments:view',
+          'finance:view',
+          'ledger:view',
+          'receipts:view',
+          'defaulters:view',
+          'imports:view',
+          'reports:view',
+          'settings:view'
         ]
       )
-      when 'defaulter_followup'::public.staff_role then p_permission = any (
+      when 'fee_collector'::public.staff_role then p_permission = any (
         array[
+          'dashboard:view',
           'students:view',
+          'fees:view',
+          'payments:view',
+          'finance:view',
+          'ledger:view',
+          'receipts:view',
           'defaulters:view',
-          'contacts:write'
+          'contacts:write',
+          'imports:view',
+          'reports:view',
+          'settings:view'
         ]
       )
       when 'view_only'::public.staff_role then p_permission = any (
         array[
           'dashboard:view',
           'students:view',
-          'fees:view',
-          'payments:view',
-          'ledger:view',
-          'receipts:view',
           'defaulters:view',
-          'imports:view',
-          'reports:view'
+          'receipts:view'
         ]
       )
       else false

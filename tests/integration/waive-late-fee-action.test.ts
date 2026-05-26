@@ -163,7 +163,7 @@ describe("waiveLateFeeAction — RBAC + write path", () => {
     expect(upsertStudentFeeOverride.mock.calls[0][0].lateFeeWaiverAmount).toBe(500);
   });
 
-  it.each(["teacher", "defaulter_followup", "view_only"] as const)(
+  it.each(["teacher", "fee_collector", "view_only"] as const)(
     "%s cannot waive — requireStaffPermission rejects before any write",
     async (role) => {
       setStaff(role);

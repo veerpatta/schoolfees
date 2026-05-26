@@ -105,7 +105,7 @@ export function isBootstrapSignupEnabled() {
   return truthyEnvValues.has(value.toLowerCase());
 }
 
-// Gates exposure of the new `teacher` and `defaulter_followup` roles in the
+// Gates exposure of the new `teacher` and `fee_collector` roles in the
 // Staff Management dropdown. Keep off in production until office staff have
 // been briefed on the new personas, then flip on.
 export function isStaffRolesV2Enabled() {

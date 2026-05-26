@@ -26,7 +26,7 @@ export default async function StaffPage() {
   const assignableRoles: readonly StaffRole[] = v2RolesEnabled
     ? staffRoles
     : staffRoles.filter(
-        (role) => role !== "teacher" && role !== "defaulter_followup",
+        (role) => role !== "teacher" && role !== "fee_collector",
       );
 
   return (

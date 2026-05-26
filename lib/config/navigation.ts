@@ -300,7 +300,7 @@ export function getDefaultProtectedHref(role: StaffRole) {
     return "/protected/students";
   }
 
-  if (role === "defaulter_followup") {
+  if (role === "fee_collector") {
     return "/protected/defaulters";
   }
 
@@ -317,24 +317,9 @@ export function getVisibleProtectedNavigation(staffRole: StaffRole) {
       return false;
     }
 
-    // Defaulter follow-up lands on the defaulters list and stays there.
-    if (
-      staffRole === "defaulter_followup" &&
-      item.href !== "/protected/defaulters"
-    ) {
-      return false;
-    }
-
-    // Teacher's primary nav is Students + Defaulters. Hide Dashboard from the
-    // top bar so the workflow points at the lists they actually act on.
-    if (
-      staffRole === "teacher" &&
-      item.href !== "/protected/students" &&
-      item.href !== "/protected/defaulters"
-    ) {
-      return false;
-    }
-
+    // Teacher and Fee Collector see every tab they have permission for.
+    // Their workflow focus is set by the default landing route, not by
+    // hiding nav items.
     return true;
   });
 
@@ -363,7 +348,7 @@ export function getMobileBottomNavigation(staffRole: StaffRole) {
 }
 
 export function getMobilePrimaryNavigation(staffRole: StaffRole) {
-  if (staffRole === "defaulter_followup") {
+  if (staffRole === "fee_collector") {
     return [
       {
         href: "/protected/defaulters",

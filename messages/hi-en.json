@@ -76,8 +76,8 @@
     "admin": "Admin",
     "accountant": "Lekhakar",
     "teacher": "Shikshak",
-    "defaulter_followup": "Bakaya anusaran",
-    "view_only": "Keval avlokan"
+    "fee_collector": "Shulk sangrahkarta",
+    "view_only": "Avlokankarta"
   },
   "Defaulters": {
     "eyebrow": "Bakayedaar",

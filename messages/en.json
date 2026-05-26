@@ -76,8 +76,8 @@
     "admin": "Admin",
     "accountant": "Accountant",
     "teacher": "Teacher",
-    "defaulter_followup": "Defaulter follow-up",
-    "view_only": "View-only staff"
+    "fee_collector": "Fee Collector",
+    "view_only": "Viewer"
   },
   "Defaulters": {
     "eyebrow": "Defaulters",

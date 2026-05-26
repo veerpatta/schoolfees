@@ -18,7 +18,7 @@ type StaffManagementClientProps = {
   accounts: StaffAccountRecord[];
   /**
    * Roles offered in the create / update dropdowns. Pass a subset to hide
-   * roles still behind a rollout flag (e.g. teacher / defaulter_followup).
+   * roles still behind a rollout flag (e.g. teacher / fee_collector).
    * Existing accounts on hidden roles still show their assigned label via the
    * status badge — only the assignment dropdown is gated.
    */

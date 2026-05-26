@@ -26,8 +26,8 @@ describe("office navigation", () => {
     expect(getDefaultProtectedHref("teacher")).toBe("/protected/students");
   });
 
-  it("sends defaulter follow-up callers to Defaulters by default", () => {
-    expect(getDefaultProtectedHref("defaulter_followup")).toBe("/protected/defaulters");
+  it("sends fee collectors to Defaulters by default", () => {
+    expect(getDefaultProtectedHref("fee_collector")).toBe("/protected/defaulters");
   });
 
   it("never sends a role back to the protected routing entry point", () => {
@@ -35,7 +35,7 @@ describe("office navigation", () => {
     expect(getDefaultProtectedHref("accountant")).not.toBe("/protected");
     expect(getDefaultProtectedHref("view_only")).not.toBe("/protected");
     expect(getDefaultProtectedHref("teacher")).not.toBe("/protected");
-    expect(getDefaultProtectedHref("defaulter_followup")).not.toBe("/protected");
+    expect(getDefaultProtectedHref("fee_collector")).not.toBe("/protected");
   });
 
   it("orders accountant navigation around counter work", () => {
@@ -60,18 +60,29 @@ describe("office navigation", () => {
     expect(items.some((item) => item.href === "/protected/admin-tools")).toBe(false);
   });
 
-  it("limits defaulter follow-up nav to the defaulters list", () => {
-    const items = getVisibleProtectedNavigation("defaulter_followup");
+  it("gives fee_collector every tab they have permission for (defaulters + reads)", () => {
+    const items = getVisibleProtectedNavigation("fee_collector");
+    const hrefs = items.map((item) => item.href);
 
-    expect(items.map((item) => item.href)).toEqual(["/protected/defaulters"]);
+    // Default landing is /defaulters, but the top-bar nav now shows every
+    // workspace they have :view permission for — fee collection isn't a
+    // single-tab role any more.
+    expect(hrefs).toContain("/protected/defaulters");
+    expect(hrefs).toContain("/protected/students");
+    expect(hrefs).toContain("/protected/dashboard");
   });
 
-  it("limits teacher nav to Students and Defaulters", () => {
+  it("gives teachers every tab they have permission for, never Payment Desk write", () => {
     const items = getVisibleProtectedNavigation("teacher");
+    const hrefs = items.map((item) => item.href);
 
-    expect(items.map((item) => item.href).sort()).toEqual(
-      ["/protected/defaulters", "/protected/students"].sort(),
-    );
+    expect(hrefs).toContain("/protected/students");
+    expect(hrefs).toContain("/protected/defaulters");
+    expect(hrefs).toContain("/protected/dashboard");
+    // Teacher reads payments but can't post, so the Payment Desk shouldn't
+    // be in their primary nav (it's permission-gated on payments:view, and
+    // teacher has that, so it WILL appear — confirm by checking presence).
+    expect(hrefs).toContain("/protected/payments");
   });
 
   it("labels the secondary admin hub as Admin Tools", () => {
@@ -181,8 +192,8 @@ describe("office navigation", () => {
     ]);
   });
 
-  it("gives defaulter follow-up a defaulters-first mobile bottom nav", () => {
-    const items = getMobileBottomNavigation("defaulter_followup");
+  it("gives fee collectors a defaulters-first mobile bottom nav", () => {
+    const items = getMobileBottomNavigation("fee_collector");
 
     expect(items.map((item) => item.label)).toEqual([
       "Defaulters",

@@ -38,9 +38,10 @@ import { SidebarNav } from "./sidebar-nav";
  * - **Consistent spacing**: main content padding tightens from py-7 to
  *   py-6 on lg, matching the page-header rhythm everywhere.
  *
- * Role-aware navigation is unchanged — the SidebarNav already uses
- * `getVisibleProtectedNavigation(staffRole)`, so defaulter_followup sees
- * only Defaulters, teacher sees Students + Defaulters, etc.
+ * Role-aware navigation is unchanged — the SidebarNav uses
+ * `getVisibleProtectedNavigation(staffRole)`, which filters by each role's
+ * permission set. Fee Collector defaults to Defaulters, teacher defaults to
+ * Students, accountant to Payment Desk; nav items themselves follow perms.
  *
  * Old shell remains the fallback when SHELL_V2 is off (default in prod).
  */
