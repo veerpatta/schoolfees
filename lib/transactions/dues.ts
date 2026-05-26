@@ -500,7 +500,9 @@ export async function getOfficeWorkbookData(
       const filteredRows =
         filters.view === "defaulters"
           ? students.filter((row) => row.statusLabel === "OVERDUE")
-          : sourceAwareStudents;
+          : filters.view === "student_dues"
+            ? sourceAwareStudents.filter((row) => row.outstandingAmount > 0)
+            : sourceAwareStudents;
       const visibleRows = filterStudentRows(filteredRows, filters);
       const pageRows = filters.exportAll
         ? visibleRows
