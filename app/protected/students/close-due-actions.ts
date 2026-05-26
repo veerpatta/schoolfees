@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 
 import { revalidatePath } from "next/cache";
 
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 export type CloseDueActionState = {
@@ -62,9 +62,9 @@ export async function closeDueAsDiscountAction(
       };
     }
 
-    const admin = createAdminClient();
+    const supabase = await createClient();
 
-    const { data: financialRaw, error: financialError } = await admin
+    const { data: financialRaw, error: financialError } = await supabase
       .from("v_workbook_student_financials")
       .select("outstanding_amount")
       .eq("student_id", studentId)
@@ -96,7 +96,7 @@ export async function closeDueAsDiscountAction(
     const today = new Date().toISOString().slice(0, 10);
     const remarks = `Close due as discount by ${staff.email ?? "staff"}: ${reason}`;
 
-    const { data: rpcRaw, error: rpcError } = await admin.rpc(
+    const { data: rpcRaw, error: rpcError } = await supabase.rpc(
       "post_student_payment_with_adjustments",
       {
         p_student_id: studentId,
