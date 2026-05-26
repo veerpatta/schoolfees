@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2, Search, UserCheck, UserPlus, AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ export function LinkSiblingSheet({
   sessionLabel,
   excludeStudentIds = [],
 }: LinkSiblingSheetProps) {
+  const tToasts = useTranslations("Toasts");
   const [query, setQuery] = useState("");
   const [students, setStudents] = useState<PaymentStudentIndexItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -86,14 +88,14 @@ export function LinkSiblingSheet({
   useEffect(() => {
     if (state.status === "success") {
       toast({
-        title: "Sibling linked",
+        title: tToasts("siblingLinkedTitle"),
         description: state.message ?? "",
       });
       setSelected(null);
       setQuery("");
       onClose();
     }
-  }, [state.status, state.message, onClose]);
+  }, [state.status, state.message, onClose, tToasts]);
 
   const exclude = useMemo(
     () => new Set<string>([studentId, ...excludeStudentIds]),

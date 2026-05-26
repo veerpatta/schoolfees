@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ export function CloseDueAsDiscountSheet({
   currentDiscount,
   sessionLabel,
 }: CloseDueAsDiscountSheetProps) {
+  const tToasts = useTranslations("Toasts");
   const [amount, setAmount] = useState<string>(String(pendingAmount));
   const [reason, setReason] = useState<string>("");
   const [state, formAction, pending] = useActionState(
@@ -61,12 +63,12 @@ export function CloseDueAsDiscountSheet({
   useEffect(() => {
     if (state.status === "success") {
       toast({
-        title: "Balance closed",
-        description: state.message ?? "Pending closed as discount.",
+        title: tToasts("balanceClosedTitle"),
+        description: state.message ?? tToasts("balanceClosedFallback"),
       });
       onClose();
     }
-  }, [state.status, state.message, onClose]);
+  }, [state.status, state.message, onClose, tToasts]);
 
   const numericAmount = Number(amount) || 0;
   const isAmountValid = numericAmount > 0 && numericAmount <= pendingAmount;

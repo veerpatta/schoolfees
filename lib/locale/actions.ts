@@ -1,7 +1,6 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { revalidatePath } from "next/cache";
 
 import {
   LOCALE_COOKIE_NAME,
@@ -13,12 +12,11 @@ const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 
 /**
  * Persists the staff's chosen app locale in the `vpps_locale` cookie. The
- * cookie is read by `i18n/request.ts` on the next request to load the right
- * message catalog. Server actions revalidate the protected workspace so the
- * fresh locale renders immediately.
- *
- * No-ops on unsupported values rather than throwing — the dropdown is the only
- * legitimate caller and ships a fixed set of options.
+ * cookie is read by `i18n/request.ts` on the next request to seed the SSR
+ * locale. Client switching happens instantly via the LanguageProvider — this
+ * action only persists the choice, so it deliberately does NOT call
+ * revalidatePath: that would re-fetch every Supabase query in `/protected`
+ * on every language click.
  */
 export async function setLocaleAction(locale: AppLocale | string) {
   if (!isSupportedLocale(locale)) {
@@ -33,6 +31,4 @@ export async function setLocaleAction(locale: AppLocale | string) {
     maxAge: ONE_YEAR_SECONDS,
     sameSite: "lax",
   });
-
-  revalidatePath("/protected", "layout");
 }

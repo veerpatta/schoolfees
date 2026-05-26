@@ -1,14 +1,8 @@
 "use client";
 
-import { Globe } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { Check, ChevronDown, Globe } from "lucide-react";
+import { useTranslations } from "next-intl";
 
-import { setLocaleAction } from "@/lib/locale/actions";
-import {
-  localeLabels,
-  supportedLocales,
-  type AppLocale,
-} from "@/i18n/locales";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,49 +11,77 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { type AppLocale, supportedLocales } from "@/i18n/locales";
+import { useLang } from "@/lib/locale/language-provider";
 
-const shortLabels: Record<AppLocale, string> = {
-  en: "EN",
-  hi: "हि",
-  "hi-en": "HG",
+// Full native name shown on the pill so non-technical staff recognise their
+// language at a glance instead of decoding a two-letter code.
+const pillLabel: Record<AppLocale, string> = {
+  en: "English",
+  hi: "हिन्दी",
+  "hi-en": "Hinglish",
+};
+
+// One-line preview rendered in the dropdown row, written in that language so
+// the user can recognise the script and tone before committing.
+const optionPreview: Record<AppLocale, string> = {
+  en: "Today's collection ₹45,000",
+  hi: "आज की वसूली ₹45,000",
+  "hi-en": "Aaj ki vasooli ₹45,000",
 };
 
 export function LocaleSwitcher() {
-  const locale = useLocale() as AppLocale;
+  const { locale, setLocale, isSwitching } = useLang();
   const t = useTranslations("Locale");
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-2 focus-ring"
+        className="inline-flex h-10 items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-semibold text-foreground transition-colors hover:bg-surface-2 focus-ring disabled:opacity-60"
         aria-label={t("label")}
+        disabled={isSwitching}
       >
-        <Globe className="size-3.5 text-muted-foreground" aria-hidden="true" />
-        <span className="tabular-nums">{shortLabels[locale] ?? "EN"}</span>
+        <Globe className="size-4 text-muted-foreground" aria-hidden="true" />
+        <span>{pillLabel[locale]}</span>
+        <ChevronDown
+          className="size-3.5 text-muted-foreground"
+          aria-hidden="true"
+        />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
+      <DropdownMenuContent align="end" className="w-72">
         <DropdownMenuLabel className="text-xs uppercase tracking-wide text-muted-foreground">
           {t("menuHeading")}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {supportedLocales.map((option) => (
-          <form key={option} action={setLocaleAction.bind(null, option)}>
-            <DropdownMenuItem asChild>
-              <button
-                type="submit"
-                className="flex w-full items-center justify-between gap-2 text-left"
-                aria-current={option === locale ? "true" : undefined}
-              >
-                <span>{localeLabels[option]}</span>
-                {option === locale ? (
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-accent">
-                    {t("current")}
-                  </span>
-                ) : null}
-              </button>
+        {supportedLocales.map((option) => {
+          const isActive = option === locale;
+          return (
+            <DropdownMenuItem
+              key={option}
+              onSelect={(event) => {
+                event.preventDefault();
+                setLocale(option);
+              }}
+              aria-current={isActive ? "true" : undefined}
+              className="flex items-start gap-3 py-2"
+            >
+              <Check
+                aria-hidden="true"
+                className={`mt-0.5 size-4 shrink-0 ${
+                  isActive ? "text-accent" : "text-transparent"
+                }`}
+              />
+              <span className="flex-1">
+                <span className="block text-sm font-semibold text-foreground">
+                  {pillLabel[option]}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  {optionPreview[option]}
+                </span>
+              </span>
             </DropdownMenuItem>
-          </form>
-        ))}
+          );
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   );

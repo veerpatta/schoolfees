@@ -1,14 +1,19 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Source_Serif_4 } from "next/font/google";
-import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getMessages } from "next-intl/server";
+import { Inter, Noto_Sans_Devanagari, Source_Serif_4 } from "next/font/google";
+import { getLocale } from "next-intl/server";
 
 import { ServiceWorkerRegistration } from "@/components/system/service-worker-registration";
 import { ThemeProvider } from "@/components/system/theme-provider";
 import { ToastViewport } from "@/components/ui/toast";
 import { DensityProvider } from "@/lib/design/density-context";
+import { LanguageProvider, type LanguageCatalogs } from "@/lib/locale/language-provider";
 import { schoolProfile } from "@/lib/config/school";
 import { getSiteUrl } from "@/lib/env";
+import { type AppLocale, isSupportedLocale } from "@/i18n/locales";
+
+import enMessages from "@/messages/en.json";
+import hiMessages from "@/messages/hi.json";
+import hiEnMessages from "@/messages/hi-en.json";
 
 import "./globals.css";
 
@@ -24,6 +29,22 @@ const fontDisplay = Source_Serif_4({
   display: "swap",
   weight: ["500", "600", "700"],
 });
+
+// Devanagari for Hindi script (हिन्दी). Bundled so the first paint in Hindi
+// uses a consistent font across devices instead of falling back to whatever
+// the OS happens to ship.
+const fontDevanagari = Noto_Sans_Devanagari({
+  subsets: ["devanagari"],
+  variable: "--font-devanagari",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
+
+const catalogs: LanguageCatalogs = {
+  en: enMessages as Record<string, unknown>,
+  hi: hiMessages as Record<string, unknown>,
+  "hi-en": hiEnMessages as Record<string, unknown>,
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
@@ -67,26 +88,30 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // next-intl resolves locale from the vpps_locale cookie via i18n/request.ts
-  // and gates language switching behind LOCALE_SWITCHER_ENABLED.
-  const locale = await getLocale();
-  const messages = await getMessages();
+  // next-intl seeds the initial locale from the vpps_locale cookie via
+  // i18n/request.ts. Switching after first paint is handled client-side by
+  // LanguageProvider, which holds all three catalogs in memory so the swap
+  // is synchronous — no server round-trip, no Supabase refetch.
+  const resolvedLocale = await getLocale();
+  const initialLocale: AppLocale = isSupportedLocale(resolvedLocale)
+    ? resolvedLocale
+    : "en";
 
   return (
     <html
-      lang={locale}
-      className={`${fontSans.variable} ${fontDisplay.variable}`}
+      lang={initialLocale}
+      className={`${fontSans.variable} ${fontDisplay.variable} ${fontDevanagari.variable}`}
       suppressHydrationWarning
     >
       <body className="antialiased">
-        <NextIntlClientProvider locale={locale} messages={messages}>
+        <LanguageProvider initialLocale={initialLocale} catalogs={catalogs}>
           <ThemeProvider>
             <DensityProvider>
               {children}
               <ToastViewport />
             </DensityProvider>
           </ThemeProvider>
-        </NextIntlClientProvider>
+        </LanguageProvider>
         <ServiceWorkerRegistration />
       </body>
     </html>

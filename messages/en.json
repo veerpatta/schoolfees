@@ -1318,5 +1318,27 @@
     "whatsappPlaceholderSchoolName": "School short name.",
     "whatsappPlaceholderReceiptNumber": "Receipt number (receipt templates).",
     "whatsappPlaceholderAmount": "Receipt amount in ₹ (receipt templates)."
+  },
+  "Toasts": {
+    "receiptPostedTitle": "Receipt {receiptNumber} posted",
+    "receiptPostedDescription": "{amount} for {studentName}",
+    "receiptPostedAction": "Print",
+    "bulkUpdateCompleteTitle": "Bulk update complete",
+    "bulkUpdateFailedTitle": "Bulk update failed",
+    "balanceClosedTitle": "Balance closed",
+    "balanceClosedFallback": "Pending closed as discount.",
+    "siblingLinkedTitle": "Sibling linked",
+    "shareLinkCopiedTitle": "Share link copied",
+    "shareLinkCopiedDescription": "Send it to the parent via WhatsApp or SMS.",
+    "shareLinkReadyTitle": "Share link ready",
+    "shareLinkReadyDescription": "Copy the URL below and send it to the parent.",
+    "shareLinkCreateFailTitle": "Could not create share link",
+    "shareLinkRevokedTitle": "Share link revoked",
+    "shareLinkRevokedDescription": "The parent can no longer open it.",
+    "shareLinkRevokeFailTitle": "Could not revoke link",
+    "linkCopiedTitle": "Link copied",
+    "copyFailedTitle": "Copy failed",
+    "copyFailedDescription": "Long-press the URL to copy manually.",
+    "unknownError": "Unknown error"
   }
 }

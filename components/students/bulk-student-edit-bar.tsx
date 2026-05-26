@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 
 import { bulkUpdateStudentsAction } from "@/app/protected/students/actions";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ export function BulkStudentEditBar({
   onClearSelection,
 }: BulkStudentEditBarProps) {
   const router = useRouter();
+  const tToasts = useTranslations("Toasts");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [classId, setClassId] = useState("");
   const [transportRouteId, setTransportRouteId] = useState("");
@@ -59,7 +61,7 @@ export function BulkStudentEditBar({
 
       if (result.status === "success") {
         toast({
-          title: "Bulk update complete",
+          title: tToasts("bulkUpdateCompleteTitle"),
           description: result.message,
         });
         setSheetOpen(false);
@@ -71,7 +73,7 @@ export function BulkStudentEditBar({
         router.refresh();
       } else {
         toast({
-          title: "Bulk update failed",
+          title: tToasts("bulkUpdateFailedTitle"),
           description: result.message,
         });
       }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Copy, Link2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ function formatDate(value: string) {
 }
 
 export function ParentShareLinkCard({ studentId, initialLinks, baseUrl }: Props) {
+  const tToasts = useTranslations("Toasts");
   const [links, setLinks] = useState<Link[]>(initialLinks);
   const [isPending, startTransition] = useTransition();
   const activeLinks = links.filter((link) => !link.revokedAt && new Date(link.expiresAt).getTime() > Date.now());
@@ -59,14 +61,20 @@ export function ParentShareLinkCard({ studentId, initialLinks, baseUrl }: Props)
         ]);
         try {
           await navigator.clipboard.writeText(buildUrl(link.token));
-          toast({ title: "Share link copied", description: "Send it to the parent via WhatsApp or SMS." });
+          toast({
+            title: tToasts("shareLinkCopiedTitle"),
+            description: tToasts("shareLinkCopiedDescription"),
+          });
         } catch {
-          toast({ title: "Share link ready", description: "Copy the URL below and send it to the parent." });
+          toast({
+            title: tToasts("shareLinkReadyTitle"),
+            description: tToasts("shareLinkReadyDescription"),
+          });
         }
       } catch (error) {
         toast({
-          title: "Could not create share link",
-          description: error instanceof Error ? error.message : "Unknown error",
+          title: tToasts("shareLinkCreateFailTitle"),
+          description: error instanceof Error ? error.message : tToasts("unknownError"),
         });
       }
     });
@@ -81,11 +89,14 @@ export function ParentShareLinkCard({ studentId, initialLinks, baseUrl }: Props)
             link.id === linkId ? { ...link, revokedAt: new Date().toISOString() } : link,
           ),
         );
-        toast({ title: "Share link revoked", description: "The parent can no longer open it." });
+        toast({
+          title: tToasts("shareLinkRevokedTitle"),
+          description: tToasts("shareLinkRevokedDescription"),
+        });
       } catch (error) {
         toast({
-          title: "Could not revoke link",
-          description: error instanceof Error ? error.message : "Unknown error",
+          title: tToasts("shareLinkRevokeFailTitle"),
+          description: error instanceof Error ? error.message : tToasts("unknownError"),
         });
       }
     });
@@ -94,9 +105,12 @@ export function ParentShareLinkCard({ studentId, initialLinks, baseUrl }: Props)
   async function handleCopy(token: string) {
     try {
       await navigator.clipboard.writeText(buildUrl(token));
-      toast({ title: "Link copied" });
+      toast({ title: tToasts("linkCopiedTitle") });
     } catch {
-      toast({ title: "Copy failed", description: "Long-press the URL to copy manually." });
+      toast({
+        title: tToasts("copyFailedTitle"),
+        description: tToasts("copyFailedDescription"),
+      });
     }
   }
 

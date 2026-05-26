@@ -259,6 +259,7 @@ export function PaymentDeskClient({
   formId = "payment-entry-form",
 }: PaymentDeskMobileProps) {
   const tPayments = useTranslations("Payments");
+  const tToasts = useTranslations("Toasts");
   const [state, formAction, pending] = useActionState(
     submitPaymentEntryAction,
     initialState,
@@ -1089,12 +1090,17 @@ export function PaymentDeskClient({
       triggerHaptic([50, 30, 80]);
       if (state.receiptNumber && state.amountReceived && selectedStudent && printReceiptHref) {
         toast({
-          title: `Receipt ${state.receiptNumber} posted`,
-          description: `${formatInr(state.amountReceived)} for ${selectedStudent.fullName}`,
+          title: tToasts("receiptPostedTitle", {
+            receiptNumber: state.receiptNumber,
+          }),
+          description: tToasts("receiptPostedDescription", {
+            amount: formatInr(state.amountReceived),
+            studentName: selectedStudent.fullName,
+          }),
           action: (
             <Button asChild size="sm" variant="outline">
               <Link href={printReceiptHref} target="_blank" rel="noreferrer">
-                Print
+                {tToasts("receiptPostedAction")}
               </Link>
             </Button>
           ),
