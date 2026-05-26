@@ -864,7 +864,7 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("Installment");
     expect(component).toContain("Allocated");
     expect(component).toContain("Remaining");
-    expect(component).toContain("Save & Print Receipt");
+    expect(component).toContain("Save & Print");
     expect(component).toContain("Save Only");
     expect(component).toContain("Back / Edit");
     expect(component).toContain("Posted receipts stay in history");

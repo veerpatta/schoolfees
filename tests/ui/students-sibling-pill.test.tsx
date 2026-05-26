@@ -1,9 +1,24 @@
 import React from "react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { NextIntlClientProvider } from "next-intl";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { StudentListTable } from "@/components/students/student-list-table";
 import type { StudentListItem } from "@/lib/students/types";
+
+const messages = JSON.parse(
+  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+);
+
+function renderWithIntl(children: React.ReactElement) {
+  return renderToStaticMarkup(
+    <NextIntlClientProvider locale="en" messages={messages}>
+      {children}
+    </NextIntlClientProvider>,
+  );
+}
 
 function student(overrides: Partial<StudentListItem> = {}): StudentListItem {
   return {
@@ -58,7 +73,7 @@ function student(overrides: Partial<StudentListItem> = {}): StudentListItem {
 
 describe("students sibling pill", () => {
   it("renders a confirmed family pill with a family route link", () => {
-    const html = renderToStaticMarkup(
+    const html = renderWithIntl(
       <StudentListTable
         students={[
           student({
@@ -81,7 +96,7 @@ describe("students sibling pill", () => {
   });
 
   it("does not render a sibling pill when the student has no group", () => {
-    const html = renderToStaticMarkup(
+    const html = renderWithIntl(
       <StudentListTable
         students={[student()]}
         hasFilters={false}

@@ -1,15 +1,12 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { ReceiptDocument } from "@/components/receipts/receipt-document";
 import { FamilyReceiptsBatchActions } from "@/components/students/family-receipts-batch-actions";
-import { Button } from "@/components/ui/button";
 import { appendSessionParam } from "@/lib/navigation/session-href";
-import { isFamilyPaymentsEnabled } from "@/lib/family-payments/feature-flag";
 import { FAMILY_REPRINT_RECEIPT_LIMIT, getFamilyReceiptsBundle } from "@/lib/receipts/family";
-import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
+import { requireStaffPermission } from "@/lib/supabase/session";
 
 type FamilyReceiptsPageProps = {
   params: Promise<{
@@ -26,12 +23,10 @@ export default async function FamilyReceiptsBatchPage({
   searchParams,
 }: FamilyReceiptsPageProps) {
   const t = await getTranslations("Receipts");
-  const staff = await requireStaffPermission("receipts:print", { onDenied: "redirect" });
+  await requireStaffPermission("receipts:print", { onDenied: "redirect" });
   const resolvedParams = await params;
   const resolvedSearch = searchParams ? await searchParams : undefined;
   const bundle = await getFamilyReceiptsBundle(resolvedParams.familyGroupId);
-  const canPostPayments = hasStaffPermission(staff, "payments:write");
-  const showPayTogetherCta = isFamilyPaymentsEnabled() && canPostPayments;
 
   if (!bundle) {
     notFound();
@@ -102,13 +97,6 @@ export default async function FamilyReceiptsBatchPage({
         description={`${bundle.receiptCount} receipt${bundle.receiptCount === 1 ? "" : "s"} across ${bundle.members.filter((m) => m.receipts.length > 0).length} sibling${bundle.members.filter((m) => m.receipts.length > 0).length === 1 ? "" : "s"}.${hitLimit ? ` Capped at ${FAMILY_REPRINT_RECEIPT_LIMIT}.` : ""}`}
         actions={
           <div className="flex flex-wrap gap-2">
-            {showPayTogetherCta ? (
-              <Button asChild variant="outline">
-                <Link href={`/protected/students/family/${resolvedParams.familyGroupId}/pay`}>
-                  Pay together (beta)
-                </Link>
-              </Button>
-            ) : null}
             <FamilyReceiptsBatchActions backHref={backHref} autoPrint={shouldAutoPrint} />
           </div>
         }
