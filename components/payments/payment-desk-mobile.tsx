@@ -20,6 +20,7 @@ import { AlertTriangle, Banknote, Building2, CheckCircle2, CircleAlert, FileText
 import { PayeeSummaryStrip } from "@/components/payments/payee-summary-strip";
 import { DeskTotalsSection } from "@/components/payments/desk-totals-section";
 import { MobilePaymentFlowSheet } from "@/components/payments/mobile-payment-flow-sheet";
+import { WaiveLateFeeTrigger } from "@/components/payments/waive-late-fee-trigger";
 import {
   DesktopPaymentDeskBody,
   DesktopPaymentDeskMainPanel,
@@ -90,6 +91,7 @@ export type PaymentDeskMobileProps = {
   data: PaymentEntryPageData;
   canPost: boolean;
   canViewDiagnostics: boolean;
+  canWaiveLateFee: boolean;
   classOptions: Array<{ id: string; label: string }>;
   workflowGuard: {
     title: string;
@@ -246,6 +248,7 @@ export function PaymentDeskClient({
   data,
   canPost,
   canViewDiagnostics,
+  canWaiveLateFee,
   classOptions,
   workflowGuard,
   initialState,
@@ -2180,6 +2183,21 @@ export function PaymentDeskClient({
                           ? `✓ Late fee waived — saving ${formatInr(pendingLateFeeAmount)}`
                           : `Waive late fee (−${formatInr(pendingLateFeeAmount)})`}
                       </button>
+                      {canWaiveLateFee ? (
+                        <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border/60 pt-2">
+                          <span className="text-[11px] text-muted-foreground">
+                            Standalone waiver (writes to fee override, audited):
+                          </span>
+                          <WaiveLateFeeTrigger
+                            studentId={selectedStudent.id}
+                            studentLabel={selectedStudent.fullName}
+                            studentAdmissionNo={selectedStudent.admissionNo}
+                            classLabel={selectedStudent.classLabel}
+                            pendingLateFeeAmount={pendingLateFeeAmount}
+                            currentWaiverAmount={0}
+                          />
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
