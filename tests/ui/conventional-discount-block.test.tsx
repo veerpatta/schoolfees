@@ -66,7 +66,7 @@ function receipt(overrides: Partial<ReceiptDetail> = {}): ReceiptDetail {
 }
 
 describe("receipt conventional discount block", () => {
-  it("renders baseline, policy, resulting tuition, and savings when an assignment is present", () => {
+  it("renders policy name, baseline, and resulting tuition when an assignment is present", () => {
     const html = renderToStaticMarkup(
       <ReceiptDocument
         t={t}
@@ -90,18 +90,15 @@ describe("receipt conventional discount block", () => {
     expect(html).toContain("Staff Child");
     expect(html).toContain("12,000");
     expect(html).toContain("6,000");
-    expect(html).toContain("you save");
-    expect(html).toContain("6,000");
   });
 
   it("does not render the block when no assignment is present", () => {
     const html = renderToStaticMarkup(<ReceiptDocument t={t} receipt={receipt()} />);
 
     expect(html).not.toContain("Conventional Discount");
-    expect(html).not.toContain("you save");
   });
 
-  it("renders savings only once for the winning policy even when two assignments are active (regression: Bhupesh Chouhan)", () => {
+  it("only renders the winning policy when two assignments are active (regression: Bhupesh Chouhan)", () => {
     const html = renderToStaticMarkup(
       <ReceiptDocument
         t={t}
@@ -128,14 +125,16 @@ describe("receipt conventional discount block", () => {
       />,
     );
 
-    // Only the winning RTE row should render the "you save" copy. The Staff
-    // Child row appears in the audit list but is explicitly labelled superseded.
-    const youSaveCount = html.split("you save").length - 1;
-    expect(youSaveCount).toBe(1);
-    expect(html).toContain("you save");
-    // RTE saves the full 38,000; the superseded Staff Child line must NOT add
-    // another 19,000 savings on top.
+    // Only the winning RTE row renders on the simplified receipt. The Staff
+    // Child row is suppressed entirely on the print so its 19,000 figure
+    // cannot be mis-read as a second simultaneous saving.
+    expect(html).toContain("Conventional Discount");
+    expect(html).toContain("RTE");
+    expect(html).not.toContain("STAFF_CHILD");
+    expect(html).not.toContain("Staff Child");
+    // The winning policy's baseline (38,000) and zero resulting tuition both
+    // appear; the superseded policy's 19,000 must not.
     expect(html).toContain("38,000");
-    expect(html).toContain("superseded");
+    expect(html).not.toContain("19,000");
   });
 });

@@ -1127,13 +1127,15 @@
     "feeLabelBooks": "Books",
     "feeLabelOther": "Other Fees",
     "feeLabelGeneric": "Fee",
-    "v2PendingBeforeColumn": "Pending Before",
+    "paymentDateLabel": "Payment date",
+    "sessionLabelText": "Session {session}",
+    "v2DueDateColumn": "Due date",
     "v2PaidColumn": "Paid",
-    "v2BalanceAfterColumn": "Balance After",
-    "v2TotalPaidToday": "Total Paid Today",
-    "v2BalanceDueAfter": "Balance Due After",
+    "v2TotalPaid": "Total paid",
+    "v2BalanceDue": "Balance due",
+    "v2ClosedAsDiscount": "Closed as discount",
     "v2FeeDetailSummary": "Fee detail",
-    "v2FeeDetailHint": "Conventional discount + full fee breakup (A4 prints only)."
+    "v2FeeDetailHint": "Conventional discount + full fee breakup. Shown on screen for office reference; not printed."
   },
   "AdminTools": {
     "eyebrow": "Admin Tools",

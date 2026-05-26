@@ -1127,13 +1127,15 @@
     "feeLabelBooks": "[HI-EN] Books",
     "feeLabelOther": "[HI-EN] Other Fees",
     "feeLabelGeneric": "[HI-EN] Fee",
-    "v2PendingBeforeColumn": "[HI-EN] Pending Before",
-    "v2PaidColumn": "[HI-EN] Paid",
-    "v2BalanceAfterColumn": "[HI-EN] Balance After",
-    "v2TotalPaidToday": "[HI-EN] Total Paid Today",
-    "v2BalanceDueAfter": "[HI-EN] Balance Due After",
-    "v2FeeDetailSummary": "[HI-EN] Fee detail",
-    "v2FeeDetailHint": "[HI-EN] Conventional discount + full fee breakup (A4 prints only)."
+    "paymentDateLabel": "Bhugtaan tithi",
+    "sessionLabelText": "Satra {session}",
+    "v2DueDateColumn": "Deya tithi",
+    "v2PaidColumn": "Jama",
+    "v2TotalPaid": "Kul jama",
+    "v2BalanceDue": "Shesh raashi",
+    "v2ClosedAsDiscount": "Chhoot ke roop mein band",
+    "v2FeeDetailSummary": "Shulk vivaran",
+    "v2FeeDetailHint": "[HI-EN] Conventional discount and full fee breakup. Visible on screen for staff; not printed."
   },
   "AdminTools": {
     "eyebrow": "[HI-EN] Admin Tools",

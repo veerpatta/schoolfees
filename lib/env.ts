@@ -119,24 +119,6 @@ export function isLocaleSwitcherEnabled() {
   return truthyEnvValues.has(value.toLowerCase());
 }
 
-// Gates the simplified V2 receipt layout (school header → student strip →
-// installment table → totals footer → signature → collapsed Fee detail
-// section). Default OFF in production, ON in TEST-2026-27. Office staff
-// expect the V1 layout until reconciliation is verified against V2 prints.
-//
-// Uses NEXT_PUBLIC_ so the client-side receipt preview sheet (in the
-// Transactions and Receipts modules) and the server-side detail page both
-// read the same value at request time.
-export function isReceiptLayoutV2Enabled() {
-  const value = getOptionalEnvVar("NEXT_PUBLIC_RECEIPT_LAYOUT_V2");
-
-  if (!value) {
-    return false;
-  }
-
-  return truthyEnvValues.has(value.toLowerCase());
-}
-
 // Gates the redesigned admin shell (tighter sidebar, header session pill,
 // global Cmd/Ctrl+K command palette, top-bar overflow). Default OFF in
 // production, ON in TEST-2026-27. Old shell remains the fallback.

@@ -8,19 +8,21 @@ import { cn } from "@/lib/utils";
 import type { ReceiptTranslator } from "@/components/receipts/receipt-document";
 
 /**
- * RECEIPT_LAYOUT_V2 — the simplified receipt layout decided in the May 2026
- * overhaul plan (P1.3). The hierarchy is:
+ * Simplified, point-in-time receipt layout.
  *
- *   1. School header (logo + name + receipt number + date)
- *   2. Student strip (name / SR / class / father / phone)
- *   3. Installment table (one row per installment paid today; columns
- *      Installment / Pending Before / Paid / Balance After)
- *   4. Totals footer (Total Paid Today, Balance Due After, Amount in Words)
- *   5. Signature line
- *   6. Collapsed Fee detail (conventional discount + full breakup, A4 only)
+ * Hierarchy:
+ *   1. School header (logo + name + address / phone / email + receipt number)
+ *   2. Payment date subtitle (anchors every figure on the receipt)
+ *   3. Student strip (name / SR / class / father / phone)
+ *   4. Installment table (Installment / Due date / Paid — that's it)
+ *   5. Totals block (Total Paid / mode line / Balance Due / In words)
+ *   6. Signature line
+ *   7. (Screen only) Fee detail disclosure — not printed
  *
- * The 80mm thermal print path keeps the receipt at the same width as V1 so
- * the existing printer config keeps working.
+ * Label policy: every figure references the receipt's payment date, not
+ * the current calendar day. No "Today" / "Paid Today" wording. A reprinted
+ * receipt from 3 months ago reads honestly without any new translator
+ * branch — the labels are time-neutral.
  */
 
 function formatDate(value: string) {
@@ -134,34 +136,19 @@ export function ReceiptDocumentV2({
   const isDraft = mode === "draft";
   const isSaved = mode === "saved";
 
-  // Build per-installment rows for "Paid today". Pending Before = the
-  // installment's pending balance before this receipt landed. Paid = the
-  // amount allocated against that installment by this receipt. Balance After
-  // = Pending Before - Paid. The existing breakdown[].amount field carries
-  // the allocation; the workbook view's pending_amount captured at the time
-  // of posting is not retained per-row, so we reconstruct Pending Before as
-  // the allocated amount (= the row's actual paid figure) for non-overdue
-  // rows and fall through to zero when no separate pre-allocation exists.
-  const installmentRows = receipt.breakdown.map((item) => {
-    const paidToday = item.amount;
-    // The schema doesn't store the "pending before this receipt" snapshot
-    // per allocation row, so we treat each allocation as a clean per-row
-    // payment. Balance After is then 0 for any allocation that cleared the
-    // installment; for partial allocations the per-row pending after this
-    // receipt is not available without a re-query. The simpler, audit-true
-    // story: show Paid for the allocation and Balance After 0 for that
-    // installment in this row.
-    return {
-      paymentId: item.paymentId,
-      installmentLabel: item.installmentLabel,
-      dueDate: item.dueDate,
-      paidToday,
-      pendingBefore: paidToday,
-      balanceAfter: 0,
-    };
-  });
-
-  const breakdownTotal = installmentRows.reduce((sum, row) => sum + row.paidToday, 0);
+  // Per-installment rows. Pending Before / Balance After columns are gone:
+  // they were synthesized at render time (the schema doesn't snapshot
+  // pre-allocation balances per row), so they were never true data. The
+  // receipt now shows what was actually paid against each installment —
+  // that's all parents need and all the data we genuinely have.
+  const installmentRows = receipt.breakdown.map((item) => ({
+    paymentId: item.paymentId,
+    installmentLabel: item.installmentLabel,
+    dueDate: item.dueDate,
+    paid: item.amount,
+  }));
+  const breakdownTotal = installmentRows.reduce((sum, row) => sum + row.paid, 0);
+  const totalPaid = breakdownTotal || receipt.totalAmount;
 
   return (
     <article
@@ -191,7 +178,7 @@ export function ReceiptDocumentV2({
             line-height: 1.4;
           }
 
-          /* V2: The Fee detail section is A4-only. On thermal it's hidden. */
+          /* Fee detail disclosure is screen-only; never printed. */
           [data-receipt-fee-detail="v2"] {
             display: none !important;
           }
@@ -203,14 +190,6 @@ export function ReceiptDocumentV2({
           .receipt-print-page td {
             padding-top: 0.2rem;
             padding-bottom: 0.2rem;
-          }
-        }
-
-        /* A4-mode override: when @page is A4 (caller passes embedPageStyles=false
-           and a parent declares A4) we still need the Fee detail visible. */
-        @media print and (min-width: 200mm) {
-          [data-receipt-fee-detail="v2"] {
-            display: block !important;
           }
         }
       `}</style>
@@ -225,7 +204,7 @@ export function ReceiptDocumentV2({
       ) : null}
 
       <div className="relative z-10 space-y-3">
-        {/* 1. School header */}
+        {/* 1. School header — logo, name, address / phone / email, receipt # */}
         <header className="flex items-start justify-between gap-3 rounded-lg border border-border bg-card p-3">
           <div className="flex items-start gap-3">
             <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-border bg-card">
@@ -238,9 +217,21 @@ export function ReceiptDocumentV2({
                 priority
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-base font-semibold uppercase text-foreground">{schoolProfile.name}</p>
-              <p className="text-xs text-muted-foreground">{t("feeReceiptHeading")}</p>
+              {schoolProfile.address ? (
+                <p className="text-[10px] leading-snug text-muted-foreground">
+                  {schoolProfile.address}
+                </p>
+              ) : null}
+              {(schoolProfile.phone || schoolProfile.email) ? (
+                <p className="text-[10px] leading-snug text-muted-foreground">
+                  {schoolProfile.phone}
+                  {schoolProfile.phone && schoolProfile.email ? " · " : ""}
+                  {schoolProfile.email}
+                </p>
+              ) : null}
+              <p className="mt-1 text-xs font-medium text-foreground">{t("feeReceiptHeading")}</p>
             </div>
           </div>
           <div className="text-right">
@@ -248,7 +239,6 @@ export function ReceiptDocumentV2({
             <p className="text-base font-semibold text-foreground">
               {isDraft ? t("draftReceiptNumberPlaceholder") : receipt.receiptNumber}
             </p>
-            <p className="text-xs text-muted-foreground">{formatDate(receipt.paymentDate)}</p>
             {isDraft ? (
               <span className="mt-1 inline-flex rounded bg-warning-soft px-2 py-0.5 text-[10px] font-semibold text-warning-soft-foreground">
                 {t("draftLabel")}
@@ -262,7 +252,18 @@ export function ReceiptDocumentV2({
           </div>
         </header>
 
-        {/* 2. Student strip — single row on A4, wraps on 80mm */}
+        {/* 2. Payment date — explicit subtitle. Anchors every figure below. */}
+        <div className="flex items-baseline justify-between gap-3 px-1">
+          <p className="text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">{t("paymentDateLabel")}:</span>{" "}
+            {formatDate(receipt.paymentDate)}
+          </p>
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            {t("sessionLabelText", { session: receipt.sessionLabel })}
+          </p>
+        </div>
+
+        {/* 3. Student strip — single row on A4, wraps on 80mm */}
         <section className="rounded-lg border border-border bg-card/95 p-3 text-xs">
           <div className="grid gap-1.5 sm:grid-cols-5 sm:gap-3">
             <div>
@@ -288,15 +289,14 @@ export function ReceiptDocumentV2({
           </div>
         </section>
 
-        {/* 3. Installment table */}
+        {/* 4. Installment table — 3 columns, no synthesized data */}
         <section className="rounded-lg border border-border bg-card/95 p-3">
           <table className="w-full text-left text-xs">
             <thead className="bg-surface-2 text-muted-foreground">
               <tr>
                 <th className="px-2 py-2">{t("installmentColumn")}</th>
-                <th className="px-2 py-2 text-right">{t("v2PendingBeforeColumn")}</th>
+                <th className="px-2 py-2 text-right">{t("v2DueDateColumn")}</th>
                 <th className="px-2 py-2 text-right">{t("v2PaidColumn")}</th>
-                <th className="px-2 py-2 text-right">{t("v2BalanceAfterColumn")}</th>
               </tr>
             </thead>
             <tbody>
@@ -304,63 +304,73 @@ export function ReceiptDocumentV2({
                 <tr key={row.paymentId} className="border-t border-border">
                   <td className="px-2 py-2 font-medium text-foreground">
                     {row.installmentLabel}
-                    <span className="ml-1 text-[10px] text-muted-foreground">
-                      ({formatDate(row.dueDate)})
-                    </span>
                   </td>
-                  <td className="px-2 py-2 text-right">{formatInr(row.pendingBefore)}</td>
-                  <td className="px-2 py-2 text-right font-semibold">{formatInr(row.paidToday)}</td>
-                  <td className="px-2 py-2 text-right">{formatInr(row.balanceAfter)}</td>
+                  <td className="px-2 py-2 text-right text-muted-foreground tabular-nums">
+                    {formatDate(row.dueDate)}
+                  </td>
+                  <td className="px-2 py-2 text-right font-semibold tabular-nums">
+                    {formatInr(row.paid)}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </section>
 
-        {/* 4. Totals footer */}
+        {/* 5. Totals block — single column, dense, scannable. */}
         <section className="rounded-lg border border-border bg-surface-2 p-3 text-sm">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div>
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                {receipt.paymentMode === "discount" ? "Closed as discount" : t("v2TotalPaidToday")}
-              </p>
-              <p
-                className={cn(
-                  "text-lg font-semibold",
-                  receipt.paymentMode === "discount"
-                    ? "text-purple-900 dark:text-purple-100"
-                    : "text-accent-soft-foreground",
-                )}
-              >
-                {formatInr(breakdownTotal || receipt.totalAmount)}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t("paymentMode")}: {paymentModeLabel(receipt.paymentMode, t)}
-                {receipt.referenceNumber ? ` · ${receipt.referenceNumber}` : ""}
-              </p>
-              {receipt.paymentMode === "discount" ? (
-                <p className="mt-0.5 text-[10px] font-medium text-purple-800 dark:text-purple-200">
-                  Non-cash · written off
-                </p>
-              ) : null}
-            </div>
-            <div
+          <div className="flex items-baseline justify-between gap-3">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              {receipt.paymentMode === "discount"
+                ? t("v2ClosedAsDiscount")
+                : t("v2TotalPaid")}
+            </p>
+            <p
               className={cn(
-                "rounded-md px-3 py-2 text-right",
-                receipt.outstandingAfterReceipt === 0 ? "bg-success-soft" : "bg-warning-soft",
+                "text-xl font-semibold tabular-nums",
+                receipt.paymentMode === "discount"
+                  ? "text-purple-900 dark:text-purple-100"
+                  : "text-foreground",
               )}
             >
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t("v2BalanceDueAfter")}</p>
-              <p className="text-lg font-semibold">{formatInr(receipt.outstandingAfterReceipt)}</p>
-            </div>
+              {formatInr(totalPaid)}
+            </p>
           </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t("paymentMode")}: {paymentModeLabel(receipt.paymentMode, t)}
+            {receipt.referenceNumber ? ` · ${receipt.referenceNumber}` : ""}
+            {receipt.paymentMode === "discount" ? (
+              <span className="ml-1 font-medium text-purple-800 dark:text-purple-200">
+                · non-cash, written off
+              </span>
+            ) : null}
+          </p>
+
+          <div className="my-2 border-t border-dashed border-border" />
+
+          <div className="flex items-baseline justify-between gap-3">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              {t("v2BalanceDue")}
+            </p>
+            <p
+              className={cn(
+                "font-semibold tabular-nums",
+                receipt.outstandingAfterReceipt === 0
+                  ? "text-success-soft-foreground"
+                  : "text-warning-soft-foreground",
+              )}
+            >
+              {formatInr(receipt.outstandingAfterReceipt)}
+            </p>
+          </div>
+
           <p className="mt-3 text-xs">
             <span className="font-semibold">{t("amountInWords")}:</span>{" "}
-            {amountInWords(receipt.totalAmount, t)}
+            {amountInWords(totalPaid, t)}
           </p>
         </section>
 
-        {/* 5. Signature */}
+        {/* 6. Signature */}
         <footer className="flex items-end justify-between gap-4 pt-2 text-xs text-muted-foreground">
           <div>
             <p className="font-medium text-foreground">{t("officialReceiptStatement")}</p>
@@ -371,9 +381,10 @@ export function ReceiptDocumentV2({
           </div>
         </footer>
 
-        {/* 6. Collapsed Fee detail — A4 only (hidden on 80mm via CSS above) */}
+        {/* 7. Fee detail disclosure — screen-only, never printed. Office
+            staff who need the full fee breakup can expand on screen. */}
         <details
-          className="rounded-lg border border-dashed border-border bg-surface-2 px-3 py-2 text-xs print:rounded-none"
+          className="rounded-lg border border-dashed border-border bg-surface-2 px-3 py-2 text-xs"
           data-receipt-fee-detail="v2"
         >
           <summary className="cursor-pointer text-sm font-medium text-foreground">
@@ -432,7 +443,7 @@ export function ReceiptDocumentV2({
                 {receipt.feeSummary.map((item) => (
                   <tr key={item.label} className="border-t border-border first:border-t-0">
                     <td className="px-2 py-1.5">{localizedFeeLabel(item.label, t)}</td>
-                    <td className="px-2 py-1.5 text-right font-medium">{formatInr(item.amount)}</td>
+                    <td className="px-2 py-1.5 text-right font-medium tabular-nums">{formatInr(item.amount)}</td>
                   </tr>
                 ))}
               </tbody>

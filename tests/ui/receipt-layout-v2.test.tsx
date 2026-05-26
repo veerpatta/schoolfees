@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createTranslator } from "next-intl";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { ReceiptDocument, type ReceiptTranslator } from "@/components/receipts/receipt-document";
 import { ReceiptDocumentV2 } from "@/components/receipts/receipt-document-v2";
@@ -66,31 +66,44 @@ function receipt(overrides: Partial<ReceiptDetail> = {}): ReceiptDetail {
   };
 }
 
-describe("ReceiptDocumentV2 — direct render", () => {
-  it("renders the school header, student strip, installment table, and totals footer", () => {
+describe("ReceiptDocumentV2 — simplified layout", () => {
+  it("renders the school header, payment date subtitle, installment table, and totals block", () => {
     const html = renderToStaticMarkup(<ReceiptDocumentV2 t={t} receipt={receipt()} />);
 
     // School header
     expect(html).toContain("SVP-V2-001");
     expect(html).toContain("Fee Receipt");
+    // Payment date subtitle is the time-anchor for every figure on the receipt
+    expect(html).toContain("Payment date");
     // Student strip
     expect(html).toContain("TEST Student V2");
     expect(html).toContain("SR-V2");
     expect(html).toContain("Class 9");
     expect(html).toContain("TEST Father");
-    // Installment table columns
-    expect(html).toContain("Pending Before");
+    // Installment table — Installment / Due date / Paid only (Pending Before
+    // and Balance After columns are gone in the simplified layout)
+    expect(html).toContain("Installment");
+    expect(html).toContain("Due date");
     expect(html).toContain("Paid");
-    expect(html).toContain("Balance After");
-    // Totals footer
-    expect(html).toContain("Total Paid Today");
-    expect(html).toContain("Balance Due After");
+    // Totals block uses time-neutral wording — never "Today"
+    expect(html).toContain("Total paid");
+    expect(html).toContain("Balance due");
     expect(html).toContain("Amount in Words");
     // Signature
     expect(html).toContain("Authorised Signature");
-    // Collapsed fee detail
+    // Fee detail disclosure (screen-only)
     expect(html).toContain("Fee detail");
     expect(html).toContain('data-receipt-fee-detail="v2"');
+  });
+
+  it("never prints 'Today' on the receipt body (so reprints from the past stay honest)", () => {
+    const html = renderToStaticMarkup(<ReceiptDocumentV2 t={t} receipt={receipt()} />);
+    // The body must be time-neutral. Catalog keys that still say "Today"
+    // (like the legacy `paidToday`) are not referenced by this layout.
+    expect(html).not.toContain("Total Paid Today");
+    expect(html).not.toContain("Balance Due After");
+    expect(html).not.toContain("Pending Before");
+    expect(html).not.toContain("Balance After");
   });
 
   it("marks the document with data-receipt-layout='v2'", () => {
@@ -98,45 +111,22 @@ describe("ReceiptDocumentV2 — direct render", () => {
     expect(html).toContain('data-receipt-layout="v2"');
   });
 
-  it("hides the Fee detail section on 80mm thermal prints via @media print CSS", () => {
+  it("keeps the Fee detail disclosure off the print path via @media print CSS", () => {
     const html = renderToStaticMarkup(<ReceiptDocumentV2 t={t} receipt={receipt()} />);
-    // The Fee detail block exists in the markup but is `display: none` on
-    // narrow print media. Verify the CSS contract is shipped.
+    // The Fee detail block exists in the markup but is `display: none` when
+    // printing. Office staff still see it on screen for reference.
     expect(html).toContain('[data-receipt-fee-detail="v2"] {');
     expect(html).toContain("display: none !important;");
   });
 });
 
-describe("ReceiptDocument switch — RECEIPT_LAYOUT_V2 flag", () => {
-  const originalFlag = process.env.NEXT_PUBLIC_RECEIPT_LAYOUT_V2;
-
-  beforeEach(() => {
-    delete process.env.NEXT_PUBLIC_RECEIPT_LAYOUT_V2;
-  });
-
-  afterEach(() => {
-    if (originalFlag === undefined) {
-      delete process.env.NEXT_PUBLIC_RECEIPT_LAYOUT_V2;
-    } else {
-      process.env.NEXT_PUBLIC_RECEIPT_LAYOUT_V2 = originalFlag;
-    }
-  });
-
-  it("renders V1 layout when the flag is off (default in production)", () => {
-    const html = renderToStaticMarkup(<ReceiptDocument t={t} receipt={receipt()} />);
-    // V1 has the four-card totals strip (Total Fee Due / Paid Till Date /
-    // Paid Today / Balance Due) — V2 does not.
-    expect(html).toContain("Total Fee Due");
-    expect(html).not.toContain('data-receipt-layout="v2"');
-  });
-
-  it("renders V2 layout when NEXT_PUBLIC_RECEIPT_LAYOUT_V2 is truthy", () => {
-    process.env.NEXT_PUBLIC_RECEIPT_LAYOUT_V2 = "1";
+describe("ReceiptDocument shim — always renders V2", () => {
+  it("renders the simplified V2 layout regardless of any env state", () => {
     const html = renderToStaticMarkup(<ReceiptDocument t={t} receipt={receipt()} />);
     expect(html).toContain('data-receipt-layout="v2"');
-    expect(html).toContain("Pending Before");
-    expect(html).toContain("Total Paid Today");
-    // V1 four-card totals strip is gone.
+    expect(html).toContain("Payment date");
+    expect(html).toContain("Total paid");
+    // The old V1-only string is gone with the legacy layout.
     expect(html).not.toContain("Total Fee Due");
   });
 });

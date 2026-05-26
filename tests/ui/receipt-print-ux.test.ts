@@ -11,7 +11,9 @@ function readRepoFile(path: string) {
 
 describe("receipt print and loading UX", () => {
   it("keeps the receipt print document constrained for thermal reprints", () => {
-    const receiptDocument = readRepoFile("components/receipts/receipt-document.tsx");
+    // The actual print CSS now lives in the V2 layout body; the legacy
+    // receipt-document.tsx is a thin shim that always renders V2.
+    const receiptDocument = readRepoFile("components/receipts/receipt-document-v2.tsx");
 
     expect(receiptDocument).toContain("receipt-print-page");
     expect(receiptDocument).toContain("receipt-body");
@@ -22,11 +24,7 @@ describe("receipt print and loading UX", () => {
     expect(receiptDocument).toContain("print-color-adjust: exact");
   });
 
-  it("keeps the printable receipt simple and bilingual for parents", () => {
-    const receiptDocument = readRepoFile("components/receipts/receipt-document.tsx");
-    // Receipt copy now lives in the Receipts namespace. English in en.json,
-    // real Hindi in hi.json — assert against the catalogs so the labels can
-    // render as a single locale when the user picks Hindi or Hinglish.
+  it("ships a localized receipt vocabulary that stays time-neutral", () => {
     const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
       Receipts: Record<string, string>;
     };
@@ -34,46 +32,31 @@ describe("receipt print and loading UX", () => {
       Receipts: Record<string, string>;
     };
 
-    expect(englishMessages.Receipts.totalFeeDue).toBe("Total Fee Due");
-    expect(hindiMessages.Receipts.totalFeeDue).toBe("कुल देय शुल्क");
-    expect(englishMessages.Receipts.paidTillDate).toBe("Paid Till Date");
-    expect(hindiMessages.Receipts.paidTillDate).toBe("अब तक जमा");
-    expect(englishMessages.Receipts.paidToday).toBe("Paid Today");
-    expect(hindiMessages.Receipts.paidToday).toBe("आज जमा");
-    expect(englishMessages.Receipts.balanceDue).toBe("Balance Due");
-    expect(hindiMessages.Receipts.balanceDue).toBe("शेष राशि");
-    expect(englishMessages.Receipts.studentDetails).toBe("Student Details");
-    expect(hindiMessages.Receipts.studentDetails).toBe("विद्यार्थी विवरण");
-    expect(englishMessages.Receipts.paymentDetails).toBe("Payment Details");
-    expect(hindiMessages.Receipts.paymentDetails).toBe("भुगतान विवरण");
-    expect(englishMessages.Receipts.installmentDetailsHeading).toBe("Installment Details");
-    expect(hindiMessages.Receipts.installmentDetailsHeading).toBe("किस्त विवरण");
-    expect(receiptDocument).not.toContain("Installment allocation");
-    expect(receiptDocument).not.toContain("Saved receipt breakup");
-    expect(receiptDocument).not.toContain("Allocation total");
-    expect(receiptDocument).not.toContain("bg-slate-950");
+    // The V2 receipt body uses these time-neutral labels — never the older
+    // "Paid Today" / "Total Paid Today" / "Balance Due After" wording, which
+    // turned every reprint into a lie about when the payment happened.
+    expect(englishMessages.Receipts.paymentDateLabel).toBe("Payment date");
+    expect(englishMessages.Receipts.v2TotalPaid).toBe("Total paid");
+    expect(englishMessages.Receipts.v2BalanceDue).toBe("Balance due");
+    expect(englishMessages.Receipts.v2DueDateColumn).toBe("Due date");
+    expect(englishMessages.Receipts.v2PaidColumn).toBe("Paid");
+    expect(hindiMessages.Receipts.paymentDateLabel).toBe("भुगतान तिथि");
+    expect(hindiMessages.Receipts.v2TotalPaid).toBe("कुल जमा");
+    expect(hindiMessages.Receipts.v2BalanceDue).toBe("शेष राशि");
   });
 
   it("uses a stacked mobile receipt layout while keeping the print table", () => {
-    const receiptDocument = readRepoFile("components/receipts/receipt-document.tsx");
     const successSheet = readRepoFile("components/payments/success-receipt-sheet.tsx");
-
-    // The earlier separate `data-mobile-receipt-summary` block was folded into
-    // the 4-card totals strip (now responsive 2-up on phones, 4-up on
-    // desktop). The mobile installment stack and the print table are still
-    // separate so thermal reprints get the table and phones get cards.
-    expect(receiptDocument).toContain("data-mobile-installment-stack");
-    expect(receiptDocument).toContain("data-print-installment-table");
-    expect(receiptDocument).toContain("hidden sm:block print:block");
-    expect(receiptDocument).toContain("sm:hidden print:hidden");
+    // The success receipt confirmation sheet on the Payment Desk still keeps
+    // its own mobile-friendly summary card and waive-fee detail row — that
+    // contract is independent of the printed receipt layout.
     expect(successSheet).toContain("data-mobile-success-receipt-summary");
     expect(successSheet).toContain("Late fee waived");
     expect(successSheet).toContain("Remaining");
   });
 
-  it("receipt-document renders draft watermark text in draft mode", () => {
-    // Draft / saved labels live in the Receipts namespace; component still owns the mode branches.
-    const receiptDocument = readRepoFile("components/receipts/receipt-document.tsx");
+  it("receipt-document-v2 renders draft and saved variants explicitly", () => {
+    const receiptDocument = readRepoFile("components/receipts/receipt-document-v2.tsx");
     const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
       Receipts: Record<string, string>;
     };

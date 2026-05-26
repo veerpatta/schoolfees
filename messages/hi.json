@@ -1127,13 +1127,15 @@
     "feeLabelBooks": "पुस्तक शुल्क",
     "feeLabelOther": "अन्य शुल्क",
     "feeLabelGeneric": "शुल्क",
-    "v2PendingBeforeColumn": "पहले बकाया",
+    "paymentDateLabel": "भुगतान तिथि",
+    "sessionLabelText": "सत्र {session}",
+    "v2DueDateColumn": "देय तिथि",
     "v2PaidColumn": "जमा",
-    "v2BalanceAfterColumn": "शेष राशि",
-    "v2TotalPaidToday": "आज कुल जमा",
-    "v2BalanceDueAfter": "इसके बाद शेष",
+    "v2TotalPaid": "कुल जमा",
+    "v2BalanceDue": "शेष राशि",
+    "v2ClosedAsDiscount": "छूट के रूप में बंद",
     "v2FeeDetailSummary": "शुल्क विवरण",
-    "v2FeeDetailHint": "[HI] Conventional discount + full fee breakup (A4 prints only)."
+    "v2FeeDetailHint": "[HI] Conventional discount and full fee breakup. Visible on screen for staff; not printed."
   },
   "AdminTools": {
     "eyebrow": "[HI] Admin Tools",
