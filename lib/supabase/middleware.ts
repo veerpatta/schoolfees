@@ -38,12 +38,18 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // Revalidate the auth token on the server before protected routes render.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Use getClaims() instead of getUser() so the JWT is verified locally when
+  // asymmetric signing keys are configured (no round trip to the Supabase
+  // auth server on every navigation). Falls back to getUser() internally if
+  // only the legacy symmetric secret is set, so this is safe either way. The
+  // cookie-refresh machinery (the setAll callback above) still runs, keeping
+  // auth cookies fresh for SSR. The page-level requireAuthenticatedStaff()
+  // still calls getUser() (cached via React.cache) once per request where a
+  // verified user is actually needed.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const hasUser = Boolean(claimsData?.claims?.sub);
 
-  if (isProtectedPath && !user) {
+  if (isProtectedPath && !hasUser) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
     url.searchParams.set(

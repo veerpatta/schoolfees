@@ -76,13 +76,20 @@ function normalizeFilters(
 }
 
 export default async function StudentsPage({ searchParams }: StudentsPageProps) {
-  const t = await getTranslations("Students");
-  const staff = await requireStaffPermission("students:view", { onDenied: "redirect" });
-  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  // Resolve everything that doesn't depend on data in parallel up front —
+  // translations, staff auth, search params, the view-session cookie. These
+  // were sequential awaits before, costing ~3-4 extra round trips on cold
+  // navigations from /protected/dashboard.
+  const [t, staff, resolvedSearchParams, cookieSession] = await Promise.all([
+    getTranslations("Students"),
+    requireStaffPermission("students:view", { onDenied: "redirect" }),
+    searchParams ? searchParams : Promise.resolve(undefined),
+    getViewSessionCookie(),
+  ]);
   const parsedFilters = normalizeFilters(resolvedSearchParams);
   const viewSession = await resolveViewSession({
     searchParamSession: resolvedSearchParams?.session ?? resolvedSearchParams?.sessionLabel,
-    cookieSession: await getViewSessionCookie(),
+    cookieSession,
   });
   let formOptions: Awaited<ReturnType<typeof getStudentFormOptions>> | null = null;
   let allClassOptions: StudentClassOption[] = [];
@@ -123,28 +130,34 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
     filters.classId = EMPTY_STUDENT_FILTERS.classId;
   }
   const page = Math.max(1, Number.parseInt(resolvedSearchParams?.page ?? "1", 10) || 1);
-  let students: StudentListItem[] = [];
-  let totalCount = 0;
-  let studentLoadWarning: string | null = null;
-
-  try {
-    const pageData = await getStudentsPage(filters, { page, pageSize: 40 });
-    students = pageData.students;
-    totalCount = pageData.totalCount;
-  } catch (error) {
-    studentLoadWarning =
-      error instanceof Error
-        ? t("studentLoadWarning", { error: error.message })
-        : t("studentLoadWarningFallback");
-  }
   const canWriteStudents = hasStaffPermission(staff, "students:write");
   const canRealignRecentImports = hasStaffPermission(staff, "fees:write");
   const withSession = (href: string) => appendSessionParam(href, resolvedSearchParams?.session);
   const activePolicySessionLabel = formOptions?.policySessionLabel || resolvedSessionLabel;
-  const recentImportStudentCount =
+
+  // Run the page load + the (conditional) recent-import count in parallel;
+  // both are independent and were previously sequential.
+  const [pageDataResult, recentImportStudentCount] = await Promise.all([
+    getStudentsPage(filters, { page, pageSize: 40 })
+      .then((pageData) => ({ ok: true as const, pageData }))
+      .catch((error: unknown) => ({ ok: false as const, error })),
     formOptions?.sessionMismatch && canRealignRecentImports
-      ? await countRecentImportStudentsOutsideSession(activePolicySessionLabel).catch(() => 0)
-      : 0;
+      ? countRecentImportStudentsOutsideSession(activePolicySessionLabel).catch(() => 0)
+      : Promise.resolve(0),
+  ]);
+
+  let students: StudentListItem[] = [];
+  let totalCount = 0;
+  let studentLoadWarning: string | null = null;
+  if (pageDataResult.ok) {
+    students = pageDataResult.pageData.students;
+    totalCount = pageDataResult.pageData.totalCount;
+  } else {
+    studentLoadWarning =
+      pageDataResult.error instanceof Error
+        ? t("studentLoadWarning", { error: pageDataResult.error.message })
+        : t("studentLoadWarningFallback");
+  }
   const loadWarnings = [formLoadWarning, studentLoadWarning].filter(
     (value): value is string => Boolean(value),
   );

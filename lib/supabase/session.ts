@@ -42,24 +42,33 @@ const _getAuthenticatedStaffOnce = cache(async () => {
   }
 
   const supabase = await createClient();
-  const { data: authData, error: authError } = await supabase.auth.getUser();
+  // getClaims() decodes (and verifies) the JWT locally when asymmetric signing
+  // keys are configured; otherwise falls back to a server call. Either way,
+  // matches the security model of getUser() while avoiding an unconditional
+  // round trip on every protected page.
+  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+  const claims = claimsData?.claims;
+  const userId = typeof claims?.sub === "string" ? claims.sub : null;
 
-  if (authError || !authData.user) {
+  if (claimsError || !userId) {
     return null;
   }
 
   const { data: profileData } = await supabase
     .from("users")
     .select("full_name, role, is_active, last_login_at")
-    .eq("id", authData.user.id)
+    .eq("id", userId)
     .maybeSingle();
 
   const profile = (profileData as StaffProfileRow | null) ?? null;
   const appRole = resolveStaffRole(profile?.role);
 
   return {
-    id: authData.user.id,
-    ...(authData.user as unknown as StaffAuthClaims),
+    id: userId,
+    sub: userId,
+    email: typeof claims?.email === "string" ? claims.email : undefined,
+    role: typeof claims?.role === "string" ? claims.role : undefined,
+    ...(claims as StaffAuthClaims),
     appRole,
     permissions: rolePermissions[appRole],
     isActive: profile?.is_active ?? true,

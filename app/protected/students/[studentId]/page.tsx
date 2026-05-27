@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { after } from "next/server";
 
 import { OfficeRecentTracker, ValueStatePill } from "@/components/office/office-ui";
 import { StudentAboutPanel } from "@/components/students/student-about-panel";
@@ -82,33 +83,49 @@ export default async function StudentDetailPage({
     ? resolvedSearchParams.returnTo
     : "/protected/students";
   const encodedReturnTo = encodeURIComponent(returnTo);
+  // Run three independent loaders in parallel. familyMembersDetail needs the
+  // policy session label from the workspace snapshot, so it gets chained after
+  // — but the round trips that were previously 4-deep now collapse to 2-deep,
+  // with the heavy workspace fetch and the two side loaders overlapping.
+  const [workspaceResult, deletionSafetyResult, shareLinksResult] =
+    await Promise.all([
+      getStudentWorkspaceData(resolvedParams.studentId),
+      getStudentDeletionSafety(resolvedParams.studentId).catch(() => null),
+      listStudentShareLinks(resolvedParams.studentId).catch(() => []),
+    ]);
   const { student, financialSnapshot, ledger, receipts, installmentBalances } =
-    await getStudentWorkspaceData(resolvedParams.studentId);
+    workspaceResult;
 
-  // Bail to the not-found UI before running any dependent loaders. Previously
-  // deletion/family/share-link queries ran first and could throw on an unknown
-  // id, which surfaced as the generic protected error boundary instead of a
-  // graceful not-found page.
+  // Bail to the not-found UI before running any dependent rendering.
   if (!student) {
     notFound();
   }
 
-  const deletionSafety = await getStudentDeletionSafety(resolvedParams.studentId);
   const familyMembersDetail = await getStudentFamilyMembersDetail(
     resolvedParams.studentId,
-    financialSnapshot?.policy.academicSessionLabel || "2026-27"
+    financialSnapshot?.policy.academicSessionLabel || "2026-27",
+  ).catch(
+    () =>
+      ({ familyGroupId: null, confidence: null, members: [] }) as Awaited<
+        ReturnType<typeof getStudentFamilyMembersDetail>
+      >,
   );
-  const shareLinks = await listStudentShareLinks(resolvedParams.studentId).catch(() => []);
+
+  const deletionSafety = deletionSafetyResult;
+  const shareLinks = shareLinksResult;
   const publicSiteUrl = getPublicSiteUrl();
 
-  // Fire-and-forget student view event for the activity feed and last-viewed hints.
-  void recordActivity({
-    userId: (staff?.id as string | undefined) ?? null,
-    kind: "student_view",
-    refId: student.id,
-    payload: {
-      sessionLabel: financialSnapshot?.policy.academicSessionLabel ?? null,
-    },
+  // Fire-and-forget student view event after the response is sent — keeps
+  // it off the critical path entirely.
+  after(() => {
+    void recordActivity({
+      userId: (staff?.id as string | undefined) ?? null,
+      kind: "student_view",
+      refId: student.id,
+      payload: {
+        sessionLabel: financialSnapshot?.policy.academicSessionLabel ?? null,
+      },
+    });
   });
 
   const canEditStudent = hasStaffPermission(staff, "students:write");

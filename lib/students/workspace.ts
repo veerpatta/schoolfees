@@ -100,29 +100,34 @@ export async function getFamilyWorkspaceData(familyGroupId: string) {
   }
 
   const studentIds = members.map((m) => m.student_id);
-  const workspaces = await Promise.all(
-    studentIds.map(async (studentId) => {
-      try {
-        const workspace = await getStudentWorkspaceData(studentId);
-        return workspace;
-      } catch (err) {
-        console.error(`Error loading workspace for student ${studentId}`, err);
-        return null;
-      }
-    })
-  );
+  // Workspaces fan out in parallel; the family-group detail row fetches
+  // alongside them so we don't pay a second sequential round trip after the
+  // (slowest) workspace resolves.
+  const [workspaces, familyGroupResult] = await Promise.all([
+    Promise.all(
+      studentIds.map(async (studentId) => {
+        try {
+          const workspace = await getStudentWorkspaceData(studentId);
+          return workspace;
+        } catch (err) {
+          console.error(`Error loading workspace for student ${studentId}`, err);
+          return null;
+        }
+      }),
+    ),
+    supabase
+      .from("student_family_groups")
+      .select("id, name, academic_session_label")
+      .eq("id", familyGroupId)
+      .maybeSingle(),
+  ]);
 
   const activeWorkspaces = workspaces.filter(
     (w): w is Omit<NonNullable<typeof w>, "student"> & { student: NonNullable<NonNullable<typeof w>["student"]> } =>
       w !== null && w.student !== null
   );
 
-  // Fetch family group details
-  const { data: familyGroup } = await supabase
-    .from("student_family_groups")
-    .select("id, name, academic_session_label")
-    .eq("id", familyGroupId)
-    .maybeSingle();
+  const familyGroup = familyGroupResult.data;
 
   return {
     familyGroup: familyGroup ?? { id: familyGroupId, name: "Family Group", academic_session_label: members[0]?.academic_session_label ?? "2026-27" },

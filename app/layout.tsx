@@ -11,10 +11,6 @@ import { schoolProfile } from "@/lib/config/school";
 import { getSiteUrl } from "@/lib/env";
 import { type AppLocale, isSupportedLocale } from "@/i18n/locales";
 
-import enMessages from "@/messages/en.json";
-import hiMessages from "@/messages/hi.json";
-import hiEnMessages from "@/messages/hi-en.json";
-
 import "./globals.css";
 
 const fontSans = Inter({
@@ -40,11 +36,18 @@ const fontDevanagari = Noto_Sans_Devanagari({
   weight: ["400", "500", "600", "700"],
 });
 
-const catalogs: LanguageCatalogs = {
-  en: enMessages as Record<string, unknown>,
-  hi: hiMessages as Record<string, unknown>,
-  "hi-en": hiEnMessages as Record<string, unknown>,
-};
+async function loadActiveCatalog(
+  locale: AppLocale,
+): Promise<LanguageCatalogs> {
+  switch (locale) {
+    case "en":
+      return { en: (await import("@/messages/en.json")).default as Record<string, unknown> };
+    case "hi":
+      return { hi: (await import("@/messages/hi.json")).default as Record<string, unknown> };
+    case "hi-en":
+      return { "hi-en": (await import("@/messages/hi-en.json")).default as Record<string, unknown> };
+  }
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
@@ -81,6 +84,11 @@ export const viewport: Viewport = {
   ],
 };
 
+// Keep the app dynamic at the root so Vercel's Next 16 adapter consistently
+// emits lambdas for every App Router page (the deep-smoke and deployment
+// configuration guards rely on this). The big P0-2 win from the perf plan —
+// shipping only the active locale's catalog instead of all three — is
+// preserved via loadActiveCatalog below and the lazy provider import.
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({
@@ -89,13 +97,14 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   // next-intl seeds the initial locale from the vpps_locale cookie via
-  // i18n/request.ts. Switching after first paint is handled client-side by
-  // LanguageProvider, which holds all three catalogs in memory so the swap
-  // is synchronous — no server round-trip, no Supabase refetch.
+  // i18n/request.ts. Only the active locale's catalog is shipped on the
+  // initial response; LanguageProvider dynamic-imports the other two on the
+  // first switch (~2/3 smaller first-load JS).
   const resolvedLocale = await getLocale();
   const initialLocale: AppLocale = isSupportedLocale(resolvedLocale)
     ? resolvedLocale
     : "en";
+  const catalogs = await loadActiveCatalog(initialLocale);
 
   return (
     <html
