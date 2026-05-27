@@ -217,18 +217,12 @@ begin
         balance_row.pending_amount, v_pending_after
       );
       v_remaining_payment := v_remaining_payment - v_payment_allocation;
-    elsif v_discount_allocation > 0 or v_waiver_allocation > 0 then
-      -- Discount or waiver landed on an installment with no cash payment.
-      -- Insert a zero-cash bookkeeping payments row so the per-installment
-      -- timeline ALWAYS has one row per (receipt × installment) — this is
-      -- what UI queries iterate over. The `amount > 0` check on the table
-      -- prevents zero rows today, so we bump the check via a partial-zero
-      -- migration in a follow-up. For now we skip this branch — the
-      -- adjustment row alone carries the audit; this just means no
-      -- payments-table snapshot for adjustment-only allocations. UI
-      -- handles this by reading both tables.
-      null;
     end if;
+    -- Note: when v_payment_allocation is 0 but a discount or waiver applied
+    -- to this installment, the receipt_adjustments row alone carries the
+    -- audit. The `payments` table has a `check (amount > 0)` constraint that
+    -- forbids zero-cash rows, so no payments-table snapshot exists for
+    -- adjustment-only allocations. UI queries read both tables.
   end loop;
 
   if v_remaining_payment <> 0 or v_remaining_discount <> 0 or v_remaining_waiver <> 0 then
