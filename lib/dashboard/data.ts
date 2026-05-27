@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { hasAnyRolePermission, type StaffRole } from "@/lib/auth/roles";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { getCacheSafeClient } from "@/lib/supabase/cache-safe";
@@ -398,6 +400,30 @@ export async function getDashboardAlerts(options: {
   return filterDashboardAlertsForRole(alerts, options.staffRole);
 }
 
+// Shared per-request RPC fetch. Dashboard above-fold and below-fold both
+// need get_dashboard_summary for the same (session, day) tuple — wrapping in
+// React.cache() dedupes the round trip so the below-fold Suspense island
+// resolves instantly from memory instead of re-issuing the call.
+const _getDashboardSummaryCached = cache(
+  async (sessionLabel: string, today: string) => {
+    const _t0 = Date.now();
+    const supabase = await getCacheSafeClient();
+    const { data, error } = await supabase.rpc("get_dashboard_summary", {
+      p_session_label: sessionLabel,
+      p_today: today,
+    });
+    if (error) {
+      throw new Error(`Unable to load dashboard summary: ${error.message}`);
+    }
+    console.log(
+      `[dashboard-summary-rpc] loaded in ${Date.now() - _t0}ms (cached per request)`,
+    );
+    const result = data as unknown as DashboardSummaryRpcResult;
+    dedupeInstallmentDuplicates(result);
+    return result;
+  },
+);
+
 export async function getDashboardAboveFoldData(options: {
   staffRole?: StaffRole;
   sessionLabel?: string;
@@ -407,20 +433,7 @@ export async function getDashboardAboveFoldData(options: {
   const policy = await getFeePolicySummary();
   const sessionLabel = options.sessionLabel ?? policy.academicSessionLabel;
 
-  const _t0 = Date.now();
-  const supabase = await getCacheSafeClient();
-  const { data, error } = await supabase.rpc("get_dashboard_summary", {
-    p_session_label: sessionLabel,
-    p_today: today,
-  });
-
-  if (error) {
-    throw new Error(`Unable to load dashboard summary: ${error.message}`);
-  }
-
-  console.log(`[dashboard-above-fold] loaded via RPC in ${Date.now() - _t0}ms`);
-  const result = data as unknown as DashboardSummaryRpcResult;
-  dedupeInstallmentDuplicates(result);
+  const result = await _getDashboardSummaryCached(sessionLabel, today);
 
   const emptyState: DashboardEmptyState = {
     hasStudents: result.kpis.totalStudents > 0,
@@ -469,20 +482,8 @@ export async function getDashboardPageData(options: {
   const policy = await getFeePolicySummary();
   const sessionLabel = options.sessionLabel ?? policy.academicSessionLabel;
 
-  const _tp0 = Date.now();
   const supabase = await getCacheSafeClient();
-  const { data, error } = await supabase.rpc("get_dashboard_summary", {
-    p_session_label: sessionLabel,
-    p_today: today,
-  });
-
-  if (error) {
-    throw new Error(`Unable to load dashboard summary: ${error.message}`);
-  }
-
-  console.log(`[dashboard-page-data] loaded via RPC in ${Date.now() - _tp0}ms`);
-  const result = data as unknown as DashboardSummaryRpcResult;
-  dedupeInstallmentDuplicates(result);
+  const result = await _getDashboardSummaryCached(sessionLabel, today);
   const warnings: string[] = [];
 
   const emptyState: DashboardEmptyState = {

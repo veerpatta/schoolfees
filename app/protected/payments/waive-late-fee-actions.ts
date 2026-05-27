@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 import { upsertStudentFeeOverride } from "@/lib/fees/data";
 import { recordActivity } from "@/lib/activity/events";
@@ -236,11 +236,13 @@ export async function waiveLateFeeAction(
       // Activity logging is best-effort.
     }
 
-    revalidatePath("/protected/students");
+    // Tag-based invalidation for the just-changed student plus a targeted
+    // route revalidation on the student profile. The broader list pages
+    // (students/payments/transactions/defaulters) re-fetch on next nav from
+    // their own caches — wide revalidatePath sweeps were over-eager.
+    try { revalidateTag(`student:${studentId}`, "max"); } catch {}
     revalidatePath(`/protected/students/${studentId}`);
-    revalidatePath("/protected/payments");
     revalidatePath("/protected/transactions");
-    revalidatePath("/protected/defaulters");
 
     return {
       status: "success",

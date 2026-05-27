@@ -201,7 +201,13 @@ describe("office performance guardrails", () => {
     expect(sidebarNav).toContain('"/protected/payments"');
     expect(sidebarNav).toContain('"/protected/dashboard"');
     expect(sidebarNav).toContain('"/protected/students"');
-    expect(sidebarNav).toContain("prefetch={eagerPrefetchHrefs.has(item.href)}");
+    // eagerPrefetchHrefs.has(item.href) is now bound to the local `isEager`
+    // const and reused for the prefetch prop. Either form keeps the eager set
+    // wired up.
+    expect(sidebarNav).toMatch(
+      /prefetch=\{(?:eagerPrefetchHrefs\.has\(item\.href\)|isEager)\}/,
+    );
+    expect(sidebarNav).toContain("eagerPrefetchHrefs.has(item.href)");
 
     expect(paymentsData).toContain("const [policy, hasActiveClass] = await Promise.all");
     expect(paymentsData).toContain("[payment-entry-page-data] loaded in");

@@ -12,6 +12,14 @@ const navigationState = vi.hoisted(() => ({
 vi.mock("next/navigation", () => ({
   usePathname: () => "/protected/dashboard",
   useSearchParams: () => navigationState.searchParams,
+  useRouter: () => ({
+    prefetch: () => {},
+    push: () => {},
+    replace: () => {},
+    back: () => {},
+    forward: () => {},
+    refresh: () => {},
+  }),
 }));
 
 function loadEnglishMessages() {

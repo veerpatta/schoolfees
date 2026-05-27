@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { requireStaffPermission } from "@/lib/supabase/session";
+import { revalidateSessionFinance } from "@/lib/system-sync/finance-revalidation";
 
 export type CloseDueActionState = {
   status: "idle" | "success" | "error";
@@ -122,11 +123,13 @@ export async function closeDueAsDiscountAction(
         ? String((rpcRow as { receipt_number: unknown }).receipt_number ?? "")
         : null;
 
-    revalidatePath("/protected/students");
+    // Tag-based invalidation is the fast path: only callers that opted into
+    // `student:<id>` / `session:<label>` tags get re-fetched. The route-level
+    // revalidatePath calls below remain as a belt-and-braces fallback for
+    // pages that don't go through unstable_cache yet.
+    revalidateSessionFinance(sessionLabel, [studentId]);
     revalidatePath(`/protected/students/${studentId}`);
-    revalidatePath("/protected/payments");
     revalidatePath("/protected/transactions");
-    revalidatePath("/protected/defaulters");
     revalidatePath("/protected/receipts");
 
     return {

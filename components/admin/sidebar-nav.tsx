@@ -1,7 +1,8 @@
 "use client";
 
+import { useCallback, useRef } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import {
@@ -19,11 +20,34 @@ type SidebarNavProps = {
   className?: string;
 };
 
+// These three are always eagerly prefetched (the office's daily flow). Every
+// other nav item is prefetched only on hover/focus so we don't blast the
+// server with N speculative requests on every page load — see useHoverPrefetch
+// below.
 const eagerPrefetchHrefs = new Set([
   "/protected/payments",
   "/protected/dashboard",
   "/protected/students",
 ]);
+
+/**
+ * Idempotent hover-prefetch hook. On the first onMouseEnter / onFocus / onTouchStart
+ * for a given href, calls router.prefetch() and remembers it so subsequent
+ * hovers are free. Combines with the eagerly-prefetched set above so the most
+ * common destinations stay warm regardless of intent.
+ */
+function useHoverPrefetch() {
+  const router = useRouter();
+  const warmed = useRef<Set<string>>(new Set());
+  return useCallback(
+    (href: string) => {
+      if (warmed.current.has(href)) return;
+      warmed.current.add(href);
+      router.prefetch(href);
+    },
+    [router],
+  );
+}
 
 export function SidebarNav({
   staffRole,
@@ -36,6 +60,7 @@ export function SidebarNav({
   const navigationItems = getVisibleProtectedNavigation(staffRole);
   const isTopbar = mode === "topbar";
   const t = useTranslations("Navigation");
+  const warmRoute = useHoverPrefetch();
   const translateLabel = (item: { label: string; i18nKey?: string }) =>
     item.i18nKey ? t(item.i18nKey) : item.label;
 
@@ -54,12 +79,18 @@ export function SidebarNav({
         const Icon = item.icon;
         const href = appendCurrentSessionParam(item.href, searchParams);
 
+        const isEager = eagerPrefetchHrefs.has(item.href);
+        const onWarm = isEager || active ? undefined : () => warmRoute(item.href);
+
         if (isTopbar) {
           return (
             <Link
               key={item.href}
               href={href}
-              prefetch={eagerPrefetchHrefs.has(item.href)}
+              prefetch={isEager}
+              onMouseEnter={onWarm}
+              onFocus={onWarm}
+              onTouchStart={onWarm}
               aria-current={active ? "page" : undefined}
               className={cn(
                 "flex w-full items-center justify-center gap-1.5 rounded-md border px-2 py-2 text-[11px] font-medium leading-4 transition-colors duration-150",
@@ -78,7 +109,10 @@ export function SidebarNav({
           <Link
             key={item.href}
             href={href}
-            prefetch={eagerPrefetchHrefs.has(item.href)}
+            prefetch={isEager}
+            onMouseEnter={onWarm}
+            onFocus={onWarm}
+            onTouchStart={onWarm}
             aria-current={active ? "page" : undefined}
             className={cn(
               "group relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors duration-150",

@@ -400,13 +400,19 @@ describe("dashboard summary", () => {
 
   it("above-fold dashboard data reads overdue KPI from the summary RPC", () => {
     const dashboardData = readRepoFile("lib/dashboard/data.ts");
+    // The RPC call now lives in a shared `_getDashboardSummaryCached` helper
+    // (React.cache wrapper) that both above-fold and below-fold consume —
+    // the dedupe keeps each request to a single round trip. Assert the wire
+    // call still exists in the file and the above-fold function consumes its
+    // typed result.
+    expect(dashboardData).toContain('supabase.rpc("get_dashboard_summary"');
+    expect(dashboardData).toContain("p_session_label: sessionLabel");
+
     const aboveFoldFunction = dashboardData.slice(
       dashboardData.indexOf("export async function getDashboardAboveFoldData"),
       dashboardData.indexOf("export async function getDashboardPageData"),
     );
-
-    expect(aboveFoldFunction).toContain('supabase.rpc("get_dashboard_summary"');
-    expect(aboveFoldFunction).toContain("p_session_label: sessionLabel");
+    expect(aboveFoldFunction).toContain("_getDashboardSummaryCached");
     expect(aboveFoldFunction).toContain("result.kpis");
     expect(aboveFoldFunction).not.toContain("installmentRows: []");
     expect(aboveFoldFunction).not.toContain("overdueInstallments: []");
