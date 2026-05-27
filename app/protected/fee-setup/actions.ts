@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 import {
   applyWorkbookFeeSetupBatch,
@@ -343,6 +343,10 @@ function revalidateFeeSetupSurface() {
   revalidatePath("/protected/students/new");
   revalidatePath("/protected/imports");
   revalidateCoreFinancePaths();
+  // Bust the cached setup-readiness/light-wizard payload so Transactions,
+  // Payments, and other office pages see fresh readiness state immediately.
+  try { revalidateTag("setup-readiness", "max"); } catch {}
+  try { revalidateTag("fee-policy", "max"); } catch {}
 }
 
 async function saveConventionalDiscountPoliciesAndSync(payload: {

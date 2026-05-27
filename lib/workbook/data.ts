@@ -586,6 +586,96 @@ export async function getWorkbookInstallmentRows(filters?: {
   return ((data ?? []) as WorkbookInstallmentBalanceRow[]).map(mapInstallmentRow);
 }
 
+/**
+ * Lean aggregate of today's receipts by payment mode. Used by the
+ * Transactions page snapshot strip (and anywhere else that just wants the
+ * "what came in today" totals — receipt count + per-mode amount). It avoids
+ * the 4-level nested student/class/route embed that the regular
+ * `getWorkbookTransactions` pulls.
+ *
+ * Returns: { receiptCount, total, cashTotal, upiTotal, bankTotal, chequeTotal }
+ */
+export type TodayReceiptSnapshot = {
+  receiptCount: number;
+  total: number;
+  cashTotal: number;
+  upiTotal: number;
+  bankTotal: number;
+  chequeTotal: number;
+};
+
+export async function getTodayReceiptSnapshot(
+  options: { sessionLabel?: string } = {},
+): Promise<TodayReceiptSnapshot> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("receipts")
+    .select("payment_mode, total_amount")
+    .eq("payment_date", getTodayStamp());
+
+  // Receipts have no direct session_label; we restrict via students when a
+  // scope is supplied. Most callers don't filter — the office only needs
+  // "what came in today" totals.
+  if (options.sessionLabel) {
+    const scopedStudentIds = await loadTransactionStudentIds({
+      sessionLabel: options.sessionLabel,
+    });
+    // loadTransactionStudentIds returns null when no scoping is needed; in
+    // practice we always passed sessionLabel here so it will be an array,
+    // but guard explicitly for type-safety.
+    if (scopedStudentIds && scopedStudentIds.length === 0) {
+      return {
+        receiptCount: 0,
+        total: 0,
+        cashTotal: 0,
+        upiTotal: 0,
+        bankTotal: 0,
+        chequeTotal: 0,
+      };
+    }
+    if (scopedStudentIds) {
+      query = query.in("student_id", scopedStudentIds);
+    }
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    throw new Error(`Unable to load today receipt snapshot: ${error.message}`);
+  }
+
+  const totals: TodayReceiptSnapshot = {
+    receiptCount: 0,
+    total: 0,
+    cashTotal: 0,
+    upiTotal: 0,
+    bankTotal: 0,
+    chequeTotal: 0,
+  };
+  for (const row of (data ?? []) as Array<{
+    payment_mode: string | null;
+    total_amount: number | null;
+  }>) {
+    const amount = Math.round(Number(row.total_amount ?? 0));
+    totals.receiptCount += 1;
+    totals.total += amount;
+    switch (row.payment_mode) {
+      case "cash":
+        totals.cashTotal += amount;
+        break;
+      case "upi":
+        totals.upiTotal += amount;
+        break;
+      case "bank_transfer":
+        totals.bankTotal += amount;
+        break;
+      case "cheque":
+        totals.chequeTotal += amount;
+        break;
+    }
+  }
+  return totals;
+}
+
 export async function getWorkbookTransactions(filters?: {
   classId?: string;
   fromDate?: string;

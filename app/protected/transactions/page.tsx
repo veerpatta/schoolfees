@@ -15,7 +15,7 @@ import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/lib/supabase/session";
 import { listWhatsappTemplates } from "@/lib/whatsapp-templates/data";
-import { getWorkbookTransactions } from "@/lib/workbook/data";
+import { getTodayReceiptSnapshot } from "@/lib/workbook/data";
 
 type TransactionsPageProps = {
   searchParams?: Promise<{
@@ -85,7 +85,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     setup,
     { routeOptions, sessionOptions },
     policy,
-    todayTransactions,
+    todaySnapshot,
     whatsappTemplates,
   ] = await Promise.all([
     getOfficeWorkbookData({
@@ -104,30 +104,15 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     getSetupWizardDataLight(),
     getStudentFormOptions({ sessionLabel }),
     getFeePolicySummary(),
-    getWorkbookTransactions({ sessionLabel, todayOnly: true, skipFinancials: true }),
+    // Lean aggregate query: only payment_mode + total_amount for today's
+    // receipts. Previously this used getWorkbookTransactions with the full
+    // 4-table nested embed (students > classes + routes) just to sum mode
+    // totals — dropped the per-row join entirely.
+    getTodayReceiptSnapshot({ sessionLabel }),
     // Templates power the bulk-WhatsApp draft on the Defaulters view inside
     // the Transactions tab. Cheap query (small table) — load alongside.
     listWhatsappTemplates({ onlyActive: true }).catch(() => []),
   ]);
-
-  const todaySnapshot = (() => {
-    const modeTotals = { cash: 0, upi: 0, bank_transfer: 0, cheque: 0 } as Record<string, number>;
-    let total = 0;
-    for (const txn of todayTransactions) {
-      total += txn.totalAmount;
-      if (txn.paymentMode in modeTotals) {
-        modeTotals[txn.paymentMode] += txn.totalAmount;
-      }
-    }
-    return {
-      receiptCount: todayTransactions.length,
-      total,
-      cashTotal: modeTotals.cash,
-      upiTotal: modeTotals.upi,
-      bankTotal: modeTotals.bank_transfer,
-      chequeTotal: modeTotals.cheque,
-    };
-  })();
 
   const readiness = getOfficeWorkflowReadiness(setup, staff.appRole);
 

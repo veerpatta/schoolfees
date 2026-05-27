@@ -31,6 +31,7 @@ const hasStaffPermission = vi.fn();
 
 const getSetupWizardDataLight = vi.fn();
 const getWorkbookTransactions = vi.fn();
+const getTodayReceiptSnapshot = vi.fn();
 
 vi.mock("server-only", () => ({}));
 
@@ -46,6 +47,7 @@ vi.mock("next-intl/server", async () => {
 
 vi.mock("@/lib/workbook/data", () => ({
   getWorkbookTransactions,
+  getTodayReceiptSnapshot,
 }));
 
 vi.mock("@/lib/transactions/dues", async () => {
@@ -135,6 +137,14 @@ function setupPageData(sessionLabel: string) {
     },
   });
   getWorkbookTransactions.mockResolvedValue([]);
+  getTodayReceiptSnapshot.mockResolvedValue({
+    receiptCount: 0,
+    total: 0,
+    cashTotal: 0,
+    upiTotal: 0,
+    bankTotal: 0,
+    chequeTotal: 0,
+  });
 }
 
 describe("transactions page session resilience", () => {

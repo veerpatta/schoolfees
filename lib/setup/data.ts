@@ -6,6 +6,7 @@ import type { ClassStatus } from "@/lib/db/types";
 import { parseAcademicSessionLabel } from "@/lib/config/fee-rules";
 import { previewLedgerGeneration, type LedgerGenerationPreview } from "@/lib/fees/generator";
 import { getFeeSetupPageData } from "@/lib/fees/data";
+import { cacheSafeUnstableCache } from "@/lib/supabase/cache-safe";
 import {
   upsertClassFeeDefault,
   upsertGlobalFeePolicy,
@@ -565,7 +566,27 @@ async function loadSetupWizardData(options: { skipLedgerPreview?: boolean } = {}
 }
 
 const getSetupWizardDataForRequest = cache(loadSetupWizardData);
-const getSetupWizardDataLightForRequest = cache(() => loadSetupWizardData({ skipLedgerPreview: true }));
+
+// The "light" form is used by Transactions, Payments, and other office pages
+// purely to compute a workflow-readiness chip (class count, has-defaults,
+// ledgers-ready, …). Under the hood it still pulls all classes, every active
+// student row, recent import batches, setup progress and system-sync health —
+// hundreds of millis on every nav. The underlying truth only changes when an
+// admin actually saves Fee Setup / regenerates ledgers, so cache it for 60s
+// and invalidate via the existing `fee-policy` / `setup-readiness` tags from
+// those write actions.
+const loadSetupWizardDataLightUncached = () =>
+  loadSetupWizardData({ skipLedgerPreview: true });
+
+const _getSetupWizardDataLightDataCached = cacheSafeUnstableCache(
+  loadSetupWizardDataLightUncached,
+  ["setup-wizard-data-light"],
+  { tags: ["setup-readiness", "fee-policy"], revalidate: 60 },
+);
+
+const getSetupWizardDataLightForRequest = cache(
+  () => _getSetupWizardDataLightDataCached(),
+);
 
 export async function getSetupWizardData(): Promise<SetupWizardData> {
   return getSetupWizardDataForRequest();

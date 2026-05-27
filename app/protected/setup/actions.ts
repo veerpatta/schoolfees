@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { after } from "next/server";
 
 import type { ClassStatus, FeeCalculationModel, PaymentMode } from "@/lib/db/types";
@@ -266,6 +266,11 @@ function revalidateSetupSurface() {
   revalidatePath("/protected/collections");
   revalidatePath("/protected/payments");
   revalidatePath("/protected/settings");
+  // Bust the cached setup-readiness/light-wizard payload so Transactions,
+  // Payments, and other office pages see fresh "ready?" state immediately
+  // instead of waiting for the 60s revalidate window.
+  try { revalidateTag("setup-readiness", "max"); } catch {}
+  try { revalidateTag("fee-policy", "max"); } catch {}
 }
 
 function scheduleSetupDuesSync() {
