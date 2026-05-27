@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/admin/page-header";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { MoneyGlossaryLink } from "@/components/ui/money-glossary";
 import { LedgerClient } from "@/components/ledger/ledger-client";
 import { getLedgerPageData } from "@/lib/ledger/data";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
@@ -48,10 +49,13 @@ export default async function LedgerPage({ searchParams }: LedgerPageProps) {
         title="Student ledger and adjustments"
         description="Review chronological payment history per student, keep newest entries visible first, and post linked adjustments without editing original payment rows."
         actions={
-          <StatusBadge
-            label={canAddAdjustments ? "Adjustment access" : "View-only access"}
-            tone={canAddAdjustments ? "good" : "warning"}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge
+              label={canAddAdjustments ? "Adjustment access" : "View-only access"}
+              tone={canAddAdjustments ? "good" : "warning"}
+            />
+            <MoneyGlossaryLink />
+          </div>
         }
       />
 

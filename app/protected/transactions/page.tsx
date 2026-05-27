@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { OfficeNotice, WorkflowGuard } from "@/components/office/office-ui";
 import { TransactionsClientShell } from "@/components/transactions/transactions-client-shell";
 import { TrustBadge } from "@/components/trust/trust-badge";
+import { MoneyGlossaryLink } from "@/components/ui/money-glossary";
 import { getOfficeWorkbookData } from "@/lib/transactions/dues";
 import { resolveOfficeWorkbookView } from "@/lib/transactions/workbook";
 import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
@@ -137,9 +138,12 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         title={t("title")}
         description={t("description")}
         actions={
-          <TrustBadge source={t("trustBadgeSource")}>
-            {t("trustBadgeBody")}
-          </TrustBadge>
+          <div className="flex flex-wrap items-center gap-2">
+            <TrustBadge source={t("trustBadgeSource")}>
+              {t("trustBadgeBody")}
+            </TrustBadge>
+            <MoneyGlossaryLink />
+          </div>
         }
       />
 

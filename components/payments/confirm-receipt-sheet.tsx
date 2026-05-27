@@ -194,7 +194,7 @@ export function ConfirmReceiptSheet({
                   : "text-warning-soft-foreground"
             }`}
           >
-            {clearsDues ? "₹0 ✓" : formatInr(Math.abs(confirmationSummary.remainingBalance))}
+            {clearsDues ? "₹0 ✓" : formatInr(Math.abs(confirmationSummary.remainingBalance))} {/* @allow-raw-money-format */}
           </p>
         </div>
 

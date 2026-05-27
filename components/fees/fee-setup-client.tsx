@@ -25,6 +25,7 @@ import {
   buildWorkbookRouteSetupRows,
 } from "@/lib/fees/workbook-setup";
 import { formatInr } from "@/lib/helpers/currency";
+import { formatDateTimeIst, formatMediumDate, formatTimeIst } from "@/lib/helpers/date";
 
 const selectClassName =
   "flex h-11 w-full rounded-xl border border-input/80 bg-card/88 px-3.5 py-2 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-[border-color,box-shadow,background-color] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50";
@@ -137,7 +138,7 @@ type SyncStatus = "synced" | "dirty" | "saving" | "error";
 
 const FEE_SETUP_SECTIONS = [
   { id: "session", i18nKey: "sectionSession", icon: "📅" },
-  { id: "basic", i18nKey: "sectionBasic", icon: "₹" },
+  { id: "basic", i18nKey: "sectionBasic", icon: "₹" }, // @allow-raw-money-format — section icon glyph, not a money value
   { id: "classes", i18nKey: "sectionClasses", icon: "🏫" },
   { id: "transport", i18nKey: "sectionTransport", icon: "🚌" },
   { id: "fee-heads", i18nKey: "sectionFeeHeads", icon: "📋" },
@@ -147,21 +148,7 @@ const FEE_SETUP_SECTIONS = [
 type FeeSetupSectionId = (typeof FEE_SETUP_SECTIONS)[number]["id"];
 
 function formatDateTime(value: string | null, notSavedLabel: string) {
-  if (!value) {
-    return notSavedLabel;
-  }
-
-  const parsed = new Date(value);
-
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Asia/Kolkata",
-  }).format(parsed);
+  return formatDateTimeIst(value, notSavedLabel);
 }
 
 function isTestSessionLabel(label: string) {
@@ -364,10 +351,7 @@ function SyncPill({ status, lastSavedAt }: { status: SyncStatus; lastSavedAt: st
           ? t("syncStatusDirty")
           : lastSavedAt
             ? t("syncStatusSynced", {
-                when: new Intl.DateTimeFormat("en-IN", {
-                  dateStyle: "medium",
-                  timeZone: "Asia/Kolkata",
-                }).format(new Date(lastSavedAt)),
+                when: formatMediumDate(lastSavedAt),
               })
             : t("syncStatusNotSaved");
 
@@ -454,19 +438,11 @@ function SectionNavRail({
           {t("lastSavedLabel")}
         </p>
         <p className="mt-1 text-xs text-foreground">
-          {lastSavedAt
-            ? new Intl.DateTimeFormat("en-IN", {
-                dateStyle: "medium",
-                timeZone: "Asia/Kolkata",
-              }).format(new Date(lastSavedAt))
-            : t("lastSavedNever")}
+          {lastSavedAt ? formatMediumDate(lastSavedAt) : t("lastSavedNever")}
         </p>
         {lastSavedAt ? (
           <p className="text-[10px] text-muted-foreground">
-            {new Intl.DateTimeFormat("en-IN", {
-              timeStyle: "short",
-              timeZone: "Asia/Kolkata",
-            }).format(new Date(lastSavedAt))}
+            {formatTimeIst(lastSavedAt)}
           </p>
         ) : null}
       </div>
@@ -616,14 +592,7 @@ export function FeeSetupClient({
           : "dirty";
 
   function formatLastSaved(value: string | null): string {
-    if (!value) return t("neverSaved");
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return t("unknown");
-    return new Intl.DateTimeFormat("en-IN", {
-      dateStyle: "medium",
-      timeStyle: "short",
-      timeZone: "Asia/Kolkata",
-    }).format(d);
+    return formatDateTimeIst(value, t("neverSaved"));
   }
 
   function updateInstallmentDate(index: number, value: string) {

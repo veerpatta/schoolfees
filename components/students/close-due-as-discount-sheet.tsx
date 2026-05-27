@@ -163,7 +163,7 @@ export function CloseDueAsDiscountSheet({
                       : "text-foreground"
                   }
                 >
-                  {newPending === 0 ? "₹0 ✓" : formatInr(newPending)}
+                  {newPending === 0 ? "₹0 ✓" : formatInr(newPending)} {/* @allow-raw-money-format */}
                 </span>
               </span>
             </li>

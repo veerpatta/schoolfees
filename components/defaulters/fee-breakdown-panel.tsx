@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { Money } from "@/components/ui/money";
+import { InstallmentRowDetail } from "@/components/fees/installment-row-detail";
 import { cn } from "@/lib/utils";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
@@ -302,59 +303,23 @@ export function FeeBreakdownPanel({
 /* -------------------------------------------------------------------------- */
 
 function InstallmentDetail({ installment }: { installment: FeeBreakdownInstallment }) {
-  const t = useTranslations("Defaulters");
-  const style = STATUS_STYLE[installment.balanceStatus];
+  // Render the canonical shared component so this surface stays in lock-step
+  // with the student profile and any future installment view.
   return (
-    <div
-      className={cn(
-        "rounded-lg border p-3 text-sm anim-fade-in",
-        style.wrap,
-      )}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <p className="font-semibold">
-          Q{installment.installmentNo} · {installment.installmentLabel || t("feeInstallmentDefault", { n: installment.installmentNo })}
-        </p>
-        <span
-          className={cn(
-            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
-            style.pill,
-          )}
-        >
-          <ChevronDown className="size-3" aria-hidden="true" />
-          {t(style.labelKey)}
-        </span>
-      </div>
-
-      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-        <dt className="opacity-80">{t("feeDueDate")}</dt>
-        <dd className="text-right font-medium">{formatShortDate(installment.dueDate)}</dd>
-        <dt className="opacity-80">{t("feeCharge")}</dt>
-        <dd className="text-right font-medium tabular-nums">{formatInr(installment.baseCharge)}</dd>
-        <dt className="opacity-80">{t("feePaidAmount")}</dt>
-        <dd className="text-right font-medium tabular-nums">{formatInr(installment.paidAmount)}</dd>
-        {installment.finalLateFee > 0 ? (
-          <>
-            <dt className="opacity-80">{t("feeLateFeeAmount")}</dt>
-            <dd className="text-right font-medium tabular-nums">
-              + {formatInr(installment.finalLateFee)}
-            </dd>
-          </>
-        ) : null}
-        <dt className="opacity-80">{t("feePendingNow")}</dt>
-        <dd className="text-right font-semibold tabular-nums">
-          {formatInr(installment.pendingAmount)}
-        </dd>
-        {installment.lastPaymentDate ? (
-          <>
-            <dt className="opacity-80">{t("feeLastPaymentForInstallment")}</dt>
-            <dd className="text-right font-medium">
-              {formatShortDate(installment.lastPaymentDate)}
-            </dd>
-          </>
-        ) : null}
-      </dl>
-    </div>
+    <InstallmentRowDetail
+      installmentNo={installment.installmentNo}
+      installmentLabel={installment.installmentLabel}
+      dueDate={installment.dueDate}
+      baseCharge={installment.baseCharge}
+      rawLateFee={installment.rawLateFee ?? installment.finalLateFee}
+      waiverApplied={installment.waiverApplied ?? 0}
+      finalLateFee={installment.finalLateFee}
+      paidAmount={installment.paidAmount}
+      adjustmentAmount={installment.adjustmentAmount ?? 0}
+      pendingAmount={installment.pendingAmount}
+      status={installment.balanceStatus}
+      lastPaymentDate={installment.lastPaymentDate}
+    />
   );
 }
 

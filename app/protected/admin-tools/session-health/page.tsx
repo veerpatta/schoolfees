@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { OfficeNotice } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
 import { LoadingBlock } from "@/components/ui/loading-skeleton";
+import { formatDateTimeIst } from "@/lib/helpers/date";
 import { REQUIRED_OFFICE_SESSION_LABELS } from "@/lib/session/available-sessions";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaffPermission } from "@/lib/supabase/session";
@@ -70,15 +71,7 @@ function needsSessionAttention(health: SystemSyncHealth) {
 }
 
 function formatLastReconciled(value: string | null, neverLabel: string) {
-  if (!value) {
-    return neverLabel;
-  }
-
-  return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Asia/Kolkata",
-  }).format(new Date(value));
+  return formatDateTimeIst(value, neverLabel);
 }
 
 function fallbackSessionRows(): AcademicSessionRow[] {

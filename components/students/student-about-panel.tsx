@@ -1,4 +1,4 @@
-import { formatShortDate } from "@/lib/helpers/date";
+import { formatDateTimeIst, formatShortDate } from "@/lib/helpers/date";
 import type { LedgerSelectedStudent } from "@/lib/ledger/types";
 import type { StudentDetail } from "@/lib/students/types";
 import { Section } from "@/components/ui/section";
@@ -21,13 +21,7 @@ function formatDate(value: string | null) {
   return formatShortDate(value);
 }
 
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("en-IN", {
-    timeZone: "Asia/Kolkata",
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
+const formatDateTime = (value: string) => formatDateTimeIst(value);
 
 function readValue(value: string | null) {
   return value?.trim() || "-";

@@ -23,6 +23,13 @@ export type ReceiptBreakdownItem = {
   dueDate: string;
   amount: number;
   notes: string | null;
+  // Allocation snapshot — populated for payments posted after the
+  // 20260527000000_persist_payment_allocation_snapshot.sql migration. Older
+  // rows have these as `null`, which the UI renders as "—".
+  discountAppliedAtPosting: number | null;
+  waiverAppliedAtPosting: number | null;
+  pendingBeforePosting: number | null;
+  pendingAfterPosting: number | null;
 };
 
 export type ReceiptFeeSummaryItem = {

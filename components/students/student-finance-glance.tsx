@@ -1,5 +1,9 @@
-import { CheckCircle2, AlertTriangle, Clock, Wallet } from "lucide-react";
+"use client";
 
+import { CheckCircle2, AlertTriangle, Clock, Wallet } from "lucide-react";
+import { useState } from "react";
+
+import { InstallmentRowDetail } from "@/components/fees/installment-row-detail";
 import { Section } from "@/components/ui/section";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
@@ -12,10 +16,18 @@ type InstallmentSnapshot = {
   installmentNo: number;
   installmentLabel: string;
   dueDate: string;
+  /** Base principal allocated to this installment. */
+  baseCharge?: number;
   pendingAmount: number;
   paidAmount: number;
+  /** Late fee charged on this installment before waiver. */
+  rawLateFee?: number;
   finalLateFee: number;
   waiverApplied: number;
+  /** Net adjustments on this installment. */
+  adjustmentAmount?: number;
+  /** Most recent payment date allocated to this installment. */
+  lastPaymentDate?: string | null;
   balanceStatus: "paid" | "partial" | "overdue" | "pending" | "waived";
 };
 
@@ -187,7 +199,7 @@ export function StudentFinanceGlance({
                         : "text-foreground",
                   )}
                 >
-                  {totalPending <= 0 ? "₹0 ✓" : formatInr(totalPending)}
+                  {totalPending <= 0 ? "₹0 ✓" : formatInr(totalPending)} {/* @allow-raw-money-format — '₹0 ✓' is the zero-state cleared indicator */}
                 </span>
               </li>
             </ul>
@@ -195,54 +207,89 @@ export function StudentFinanceGlance({
         </div>
 
         {installments.length > 0 ? (
-          <div>
-            <p className="mb-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-              Installments
-            </p>
-            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-              {installments.map((item) => {
-                const isPaid = item.pendingAmount <= 0 && item.paidAmount > 0;
-                const isOverdue = item.balanceStatus === "overdue";
-                const isPartial = item.paidAmount > 0 && item.pendingAmount > 0;
-                const cls = isPaid
-                  ? "border-success-soft-foreground/30 bg-success-soft text-success-soft-foreground"
-                  : isOverdue
-                    ? "border-destructive/30 bg-destructive/10 text-destructive"
-                    : isPartial
-                      ? "border-warning-soft-foreground/30 bg-warning-soft text-warning-soft-foreground"
-                      : "border-border bg-card text-muted-foreground";
-                return (
-                  <div
-                    key={item.installmentId}
-                    className={cn(
-                      "rounded-lg border px-2.5 py-2 text-xs",
-                      cls,
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-1.5">
-                      <span className="font-semibold">Inst {item.installmentNo}</span>
-                      <span className="text-[10px] font-medium uppercase tracking-wide">
-                        {isPaid ? "✓ Paid" : isOverdue ? "Overdue" : isPartial ? "Partial" : "Pending"}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 truncate text-[10px] opacity-80">
-                      Due {formatShortDate(item.dueDate)}
-                    </p>
-                    <p className="mt-1 font-mono text-sm font-semibold tabular-nums">
-                      {isPaid
-                        ? formatInr(item.paidAmount)
-                        : formatInr(item.pendingAmount)}
-                    </p>
-                    {item.finalLateFee > 0 ? (
-                      <p className="text-[10px] font-medium">+ {formatInr(item.finalLateFee)} late fee</p>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <InstallmentsBlock installments={installments} />
         ) : null}
       </div>
     </Section>
+  );
+}
+
+function InstallmentsBlock({ installments }: { installments: InstallmentSnapshot[] }) {
+  const [expandedNo, setExpandedNo] = useState<number | null>(null);
+
+  return (
+    <div>
+      <div className="mb-1.5 flex items-baseline justify-between">
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Installments</p>
+        <p className="text-[10px] text-muted-foreground">Tap any chip for the full breakdown</p>
+      </div>
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+        {installments.map((item) => {
+          const isPaid = item.pendingAmount <= 0 && item.paidAmount > 0;
+          const isOverdue = item.balanceStatus === "overdue";
+          const isPartial = item.paidAmount > 0 && item.pendingAmount > 0;
+          const isExpanded = expandedNo === item.installmentNo;
+          const cls = isPaid
+            ? "border-success-soft-foreground/30 bg-success-soft text-success-soft-foreground"
+            : isOverdue
+              ? "border-destructive/30 bg-destructive/10 text-destructive"
+              : isPartial
+                ? "border-warning-soft-foreground/30 bg-warning-soft text-warning-soft-foreground"
+                : "border-border bg-card text-muted-foreground";
+          return (
+            <button
+              type="button"
+              key={item.installmentId}
+              onClick={() => setExpandedNo(isExpanded ? null : item.installmentNo)}
+              aria-expanded={isExpanded}
+              className={cn(
+                "rounded-lg border px-2.5 py-2 text-left text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                cls,
+                isExpanded && "ring-2 ring-accent",
+              )}
+            >
+              <div className="flex items-center justify-between gap-1.5">
+                <span className="font-semibold">Inst {item.installmentNo}</span>
+                <span className="text-[10px] font-medium uppercase tracking-wide">
+                  {isPaid ? "✓ Paid" : isOverdue ? "Overdue" : isPartial ? "Partial" : "Pending"}
+                </span>
+              </div>
+              <p className="mt-0.5 truncate text-[10px] opacity-80">
+                Due {formatShortDate(item.dueDate)}
+              </p>
+              <p className="mt-1 font-mono text-sm font-semibold tabular-nums">
+                {isPaid ? formatInr(item.paidAmount) : formatInr(item.pendingAmount)}
+              </p>
+              {item.finalLateFee > 0 ? (
+                <p className="text-[10px] font-medium">+ {formatInr(item.finalLateFee)} late fee</p>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+
+      {expandedNo !== null ? (() => {
+        const detail = installments.find((i) => i.installmentNo === expandedNo);
+        if (!detail) return null;
+        return (
+          <div className="mt-3">
+            <InstallmentRowDetail
+              installmentNo={detail.installmentNo}
+              installmentLabel={detail.installmentLabel}
+              dueDate={detail.dueDate}
+              baseCharge={detail.baseCharge ?? Math.max(detail.paidAmount + detail.pendingAmount - detail.finalLateFee, 0)}
+              rawLateFee={detail.rawLateFee ?? detail.finalLateFee + (detail.waiverApplied ?? 0)}
+              waiverApplied={detail.waiverApplied ?? 0}
+              finalLateFee={detail.finalLateFee}
+              paidAmount={detail.paidAmount}
+              adjustmentAmount={detail.adjustmentAmount ?? 0}
+              pendingAmount={detail.pendingAmount}
+              status={detail.balanceStatus}
+              lastPaymentDate={detail.lastPaymentDate ?? null}
+            />
+          </div>
+        );
+      })() : null}
+    </div>
   );
 }

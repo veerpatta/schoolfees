@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { PaymentMode } from "@/lib/db/types";
 import { formatInr } from "@/lib/helpers/currency";
+import { formatDateTimeIst } from "@/lib/helpers/date";
 import type {
   SetupActionState,
   SetupClassDefaultRow,
@@ -80,15 +81,7 @@ const paymentModeOptions: Array<{ value: PaymentMode; label: string }> = [
 ];
 
 function formatSavedAt(value: string | null) {
-  if (!value) {
-    return "Not marked complete yet";
-  }
-
-  return new Date(value).toLocaleString("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Asia/Kolkata",
-  });
+  return formatDateTimeIst(value, "Not marked complete yet");
 }
 
 function ActionNotice({ state }: { state: SetupActionState }) {

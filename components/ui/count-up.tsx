@@ -30,7 +30,9 @@ type CountUpProps = {
   startFrom?: number;
 };
 
-const numberFormatter = new Intl.NumberFormat("en-IN");
+// Plain-number formatter used only for the non-money "number" / "percent" formats.
+// Money figures route through formatInr() — see formatBuiltIn() below.
+const numberFormatter = new Intl.NumberFormat("en-IN"); // @allow-raw-money-format
 
 function formatBuiltIn(type: FormatType, value: number): string {
   switch (type) {

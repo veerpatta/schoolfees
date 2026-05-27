@@ -13,7 +13,14 @@ export type FeeBreakdownInstallment = {
   baseCharge: number;
   paidAmount: number;
   pendingAmount: number;
+  /** Late fee CHARGED on this installment before waiver. */
+  rawLateFee: number;
+  /** Late fee waived on this installment. */
+  waiverApplied: number;
+  /** Late fee actually owed (raw − waiver). */
   finalLateFee: number;
+  /** Net adjustments applied to this installment (positive reduces due). */
+  adjustmentAmount: number;
   totalCharge: number;
   lastPaymentDate: string | null;
   balanceStatus: "paid" | "partial" | "overdue" | "pending" | "waived";
@@ -95,7 +102,10 @@ export async function getStudentFeeBreakdown(
         baseCharge: row.baseCharge,
         paidAmount: row.paidAmount,
         pendingAmount: row.pendingAmount,
+        rawLateFee: row.rawLateFee,
+        waiverApplied: row.waiverApplied,
         finalLateFee: row.finalLateFee,
+        adjustmentAmount: row.adjustmentAmount,
         totalCharge: row.totalCharge,
         lastPaymentDate: row.lastPaymentDate,
         balanceStatus: row.balanceStatus,

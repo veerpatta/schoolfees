@@ -748,7 +748,7 @@ export function MobilePaymentFlowSheet({
                                 )}
                               >
                                 {previewTotalPending <= 0
-                                  ? "₹0 ✓"
+                                  ? "₹0 ✓" /* @allow-raw-money-format */
                                   : formatInr(previewTotalPending)}
                               </span>
                             </div>

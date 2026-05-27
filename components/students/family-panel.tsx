@@ -123,7 +123,7 @@ export function StudentFamilyPanel({
                 </div>
                 <div className="text-right">
                   <span className={`text-xs font-semibold ${isPending ? "text-review" : "text-success"}`}>
-                    {member.financials ? formatInr(member.financials.outstanding) : "₹0"}
+                    {member.financials ? formatInr(member.financials.outstanding) : "₹0"} {/* @allow-raw-money-format */}
                   </span>
                   <p className="text-[10px] text-muted-foreground uppercase">
                     {isPending ? "Pending" : "Paid"}

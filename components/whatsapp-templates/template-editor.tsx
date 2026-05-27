@@ -22,15 +22,20 @@ import {
 
 const INITIAL: TemplateActionState = { status: "idle" };
 
+// Sample variable bindings used to render a live template preview in the
+// editor. These are literal placeholder strings the staff sees on the
+// preview pane — they are NOT live money values from the database, so the
+// audit suppression below is genuine. Keeping the ₹ glyph inline so the
+// preview text matches what a parent will actually receive.
 const PREVIEW_VARS: Record<string, string> = {
   studentName: "Aarav Sharma",
   fatherName: "Rajesh Sharma",
   className: "Class 8 - A",
-  pending: "₹12,500",
+  pending: "₹12,500", // @allow-raw-money-format — preview sample, not a money value
   dueDate: "20-04-2026",
   schoolName: "Shri Veer Patta",
   receiptNumber: "SVP-12345",
-  amount: "₹6,250",
+  amount: "₹6,250", // @allow-raw-money-format — preview sample, not a money value
 };
 
 const CATEGORY_I18N: Record<WhatsappTemplateCategory, string> = {

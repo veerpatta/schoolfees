@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { formatInr } from "@/lib/helpers/currency";
+import { formatMonthYear } from "@/lib/helpers/date";
 import { cn } from "@/lib/utils";
 
 export type CollectionHeatmapPoint = {
@@ -46,9 +47,7 @@ function getAmountClass(amount: number) {
 }
 
 function formatMonthLabel({ year, month }: YearMonth): string {
-  return new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric" }).format(
-    new Date(year, month - 1, 1),
-  );
+  return formatMonthYear(new Date(year, month - 1, 1));
 }
 
 export function CollectionHeatmap({ collections }: CollectionHeatmapProps) {

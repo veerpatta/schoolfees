@@ -25,7 +25,7 @@ import {
   calculatePendingLateFeeAmount,
 } from "@/lib/fees/due-amounts";
 import { formatInr } from "@/lib/helpers/currency";
-import { formatShortDate } from "@/lib/helpers/date";
+import { formatDateTimeIst, formatShortDate } from "@/lib/helpers/date";
 import { recordActivity } from "@/lib/activity/events";
 import { getPublicSiteUrl } from "@/lib/env";
 import { listStudentShareLinks } from "@/lib/share-links/data";
@@ -67,13 +67,7 @@ function getSchoolDateStamp(referenceDate = new Date()) {
   }).format(referenceDate);
 }
 
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("en-IN", {
-    timeZone: "Asia/Kolkata",
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
+const formatDateTime = (value: string) => formatDateTimeIst(value);
 
 
 export default async function StudentDetailPage({
@@ -750,10 +744,14 @@ export default async function StudentDetailPage({
           installmentNo: b.installmentNo,
           installmentLabel: b.installmentLabel,
           dueDate: b.dueDate,
+          baseCharge: b.baseCharge,
           pendingAmount: b.pendingAmount,
           paidAmount: b.paidAmount,
+          rawLateFee: b.rawLateFee,
           finalLateFee: b.finalLateFee,
           waiverApplied: b.waiverApplied,
+          adjustmentAmount: b.adjustmentAmount,
+          lastPaymentDate: b.lastPaymentDate,
           balanceStatus: b.balanceStatus,
         }))}
         nextDueDate={firstPendingInstallment?.dueDate ?? null}

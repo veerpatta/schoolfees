@@ -18,7 +18,7 @@ import {
 import { VoiceNotePlayer } from "@/components/defaulters/voice-note-player";
 import { WhatsAppDraftModal } from "@/components/defaulters/whatsapp-draft-modal";
 import { formatInr } from "@/lib/helpers/currency";
-import { formatShortDate } from "@/lib/helpers/date";
+import { formatDateTimeIst, formatShortDate } from "@/lib/helpers/date";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import type { DefaulterContactSummary } from "@/lib/defaulters/cadence";
 import type { DefaulterSummaryRow } from "@/lib/defaulters/types";
@@ -48,14 +48,7 @@ const OUTCOME_I18N: Record<string, string> = {
   other: "outcomeOther",
 };
 
-function formatDateTime(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
-}
+const formatDateTime = (iso: string) => formatDateTimeIst(iso, iso);
 
 type Props = {
   open: boolean;

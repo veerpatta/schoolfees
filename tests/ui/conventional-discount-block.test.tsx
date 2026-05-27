@@ -52,6 +52,10 @@ function receipt(overrides: Partial<ReceiptDetail> = {}): ReceiptDetail {
     breakdown: [
       {
         paymentId: "payment-1",
+        discountAppliedAtPosting: null,
+        waiverAppliedAtPosting: null,
+        pendingBeforePosting: null,
+        pendingAfterPosting: null,
         installmentNo: 1,
         installmentLabel: "Installment 1",
         sessionLabel: "TEST-2026-27",
@@ -98,7 +102,12 @@ describe("receipt conventional discount block", () => {
     expect(html).not.toContain("Conventional Discount");
   });
 
-  it("only renders the winning policy when two assignments are active (regression: Bhupesh Chouhan)", () => {
+  it("renders ALL active policies with Applied / Not applied pills (was: 'Bhupesh Chouhan' regression)", () => {
+    // Previously this test asserted that only the winning policy was visible.
+    // That hid the second-policy audit trail entirely — a clarity gap flagged
+    // in the money-clarity pass. The new contract: BOTH policies render, but
+    // exactly one is tagged "Applied" and the other is tagged "Not applied",
+    // so a reader cannot mis-read the secondary policy as a parallel saving.
     const html = renderToStaticMarkup(
       <ReceiptDocument
         t={t}
@@ -125,16 +134,19 @@ describe("receipt conventional discount block", () => {
       />,
     );
 
-    // Only the winning RTE row renders on the simplified receipt. The Staff
-    // Child row is suppressed entirely on the print so its 19,000 figure
-    // cannot be mis-read as a second simultaneous saving.
+    // Both policies render so the audit shows what was considered.
     expect(html).toContain("Conventional Discount");
     expect(html).toContain("RTE");
-    expect(html).not.toContain("STAFF_CHILD");
-    expect(html).not.toContain("Staff Child");
-    // The winning policy's baseline (38,000) and zero resulting tuition both
-    // appear; the superseded policy's 19,000 must not.
+    expect(html).toContain("Staff Child");
+    expect(html).toContain("STAFF_CHILD");
+    // Exactly one policy is tagged Applied; the other Not applied. The "Not
+    // applied" pill is the safeguard against the original mis-reading the
+    // previous test was preventing.
+    expect(html).toContain("Applied");
+    expect(html).toContain("Not applied");
+    // Both numbers appear, but the non-winning row is visibly de-emphasized
+    // via the "Not applied" pill and muted styling.
     expect(html).toContain("38,000");
-    expect(html).not.toContain("19,000");
+    expect(html).toContain("19,000");
   });
 });

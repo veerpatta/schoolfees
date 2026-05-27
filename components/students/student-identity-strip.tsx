@@ -19,6 +19,7 @@ import { StudentAvatar } from "@/components/students/student-avatar";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
+import { formatMediumDate } from "@/lib/helpers/date";
 import type { StudentStatus } from "@/lib/db/types";
 import { cn } from "@/lib/utils";
 
@@ -97,17 +98,13 @@ function computeTemporalHint(
   }
 
   return {
-    label: `Due by ${new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(new Date(nextDueDate))}`,
+    label: `Due by ${formatMediumDate(nextDueDate)}`,
     tone: "neutral",
   };
 }
 
 function formatReadableDate(value: string | null) {
-  if (!value) {
-    return "No date";
-  }
-
-  return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(new Date(value));
+  return formatMediumDate(value, "No date");
 }
 
 type NextActionStripProps = {
@@ -138,7 +135,7 @@ function NextActionStrip({
       ? "Call Mother"
       : null;
   const dueMessage = outstandingAmount > 0
-    ? `Namaste${student.fatherName ? ` ${student.fatherName}` : ""}, this is a fee reminder for ${student.fullName} (${student.classLabel}, SR ${student.admissionNo}). Pending dues are ₹${outstandingAmount.toLocaleString("en-IN")}. Please contact the school office.`
+    ? `Namaste${student.fatherName ? ` ${student.fatherName}` : ""}, this is a fee reminder for ${student.fullName} (${student.classLabel}, SR ${student.admissionNo}). Pending dues are ${formatInr(outstandingAmount)}. Please contact the school office.`
     : `Namaste${student.fatherName ? ` ${student.fatherName}` : ""}, all fees are settled for ${student.fullName} (${student.classLabel}). Thank you.`;
   const whatsappHref = callTarget ? buildWhatsAppLink(callTarget, dueMessage) : null;
 

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatInr } from "@/lib/helpers/currency";
+import { formatDateTimeIst } from "@/lib/helpers/date";
 import { listPromotionRuns } from "@/lib/promotion/data";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
@@ -19,15 +20,7 @@ type Props = {
   }>;
 };
 
-function formatDateTime(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString("en-IN", {
-    timeZone: "Asia/Kolkata",
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
+const formatDateTime = (value: string) => formatDateTimeIst(value, value);
 
 export default async function PromotionIndexPage({ searchParams }: Props) {
   const t = await getTranslations("AdminTools");

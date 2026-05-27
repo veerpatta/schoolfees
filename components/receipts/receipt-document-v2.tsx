@@ -2,6 +2,7 @@ import Image from "next/image";
 
 import { schoolProfile } from "@/lib/config/school";
 import { formatInr } from "@/lib/helpers/currency";
+import { formatDateTimeIst, formatMediumDate } from "@/lib/helpers/date";
 import type { ReceiptDetail } from "@/lib/receipts/types";
 import { cn } from "@/lib/utils";
 
@@ -25,11 +26,10 @@ import type { ReceiptTranslator } from "@/components/receipts/receipt-document";
  * branch — the labels are time-neutral.
  */
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-  }).format(new Date(value));
-}
+// All money rendered via formatInr; all dates via the canonical helpers.
+// Use formatMediumDate so the receipt date matches every other screen's date
+// format. No local Intl.DateTimeFormat — clarity audit forbids it.
+const formatDate = (value: string) => formatMediumDate(value);
 
 function wordsBelowThousand(value: number): string {
   const ones = [
@@ -136,19 +136,34 @@ export function ReceiptDocumentV2({
   const isDraft = mode === "draft";
   const isSaved = mode === "saved";
 
-  // Per-installment rows. Pending Before / Balance After columns are gone:
-  // they were synthesized at render time (the schema doesn't snapshot
-  // pre-allocation balances per row), so they were never true data. The
-  // receipt now shows what was actually paid against each installment —
-  // that's all parents need and all the data we genuinely have.
+  // Per-installment rows. After migration 20260527000000, every payments
+  // row carries the moment-of-posting allocation context (discount, waiver,
+  // pending before/after). Older rows have NULL for those — rendered as "—"
+  // via the canonical Money fallback. The receipt is now point-in-time
+  // truthful: a 3-month-old reprint shows exactly what the staff member saw
+  // when posting.
   const installmentRows = receipt.breakdown.map((item) => ({
     paymentId: item.paymentId,
     installmentLabel: item.installmentLabel,
     dueDate: item.dueDate,
     paid: item.amount,
+    discountAtPosting: item.discountAppliedAtPosting,
+    waiverAtPosting: item.waiverAppliedAtPosting,
+    pendingBefore: item.pendingBeforePosting,
+    pendingAfter: item.pendingAfterPosting,
   }));
   const breakdownTotal = installmentRows.reduce((sum, row) => sum + row.paid, 0);
   const totalPaid = breakdownTotal || receipt.totalAmount;
+  // Show the rich breakdown columns only if at least one row carries
+  // post-migration snapshot data. Legacy rows render the compact 3-column
+  // layout. This keeps reprints of pre-migration receipts honest.
+  const hasAllocationSnapshot = installmentRows.some(
+    (row) =>
+      row.pendingBefore !== null ||
+      row.pendingAfter !== null ||
+      (row.discountAtPosting ?? 0) > 0 ||
+      (row.waiverAtPosting ?? 0) > 0,
+  );
 
   return (
     <article
@@ -263,6 +278,56 @@ export function ReceiptDocumentV2({
           </p>
         </div>
 
+        {/* 2b. Receipt context — Posted by / Received by / Created at.
+            Always present so a printed reprint reads honestly: who handled the
+            cash, who entered it, and when. Falls back to "—" when a field is
+            blank (e.g. older receipts had no received_by). */}
+        {(receipt.createdByName || receipt.receivedBy || receipt.createdAt) ? (
+          <div
+            className="grid gap-1 rounded-md border border-dashed border-border bg-surface-2/60 px-3 py-2 text-[10px] uppercase tracking-wide text-muted-foreground sm:grid-cols-3"
+            data-receipt-context="v3"
+          >
+            <div>
+              <p>Posted by</p>
+              <p className="mt-0.5 text-xs normal-case font-medium text-foreground">
+                {receipt.createdByName ?? "—"}
+              </p>
+            </div>
+            <div>
+              <p>Received by</p>
+              <p className="mt-0.5 text-xs normal-case font-medium text-foreground">
+                {receipt.receivedBy ?? "—"}
+              </p>
+            </div>
+            <div>
+              <p>Posted at (IST)</p>
+              <p className="mt-0.5 text-xs normal-case font-medium text-foreground">
+                {formatDateTimeIst(receipt.createdAt)}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        {/* 2c. Close-out banner — non-cash write-off needs visual prominence.
+            A receipt where payment_mode = 'discount' is NOT cash that changed
+            hands; it's pending fees written off as a one-time courtesy. We
+            elevate this from a footnote in the totals into a full banner so
+            staff and parents never mistake it for a paid receipt. */}
+        {receipt.paymentMode === "discount" ? (
+          <div
+            className="rounded-md border border-purple-300 bg-purple-50 px-3 py-2 text-xs text-purple-900 dark:border-purple-700 dark:bg-purple-950 dark:text-purple-100"
+            role="note"
+          >
+            <p className="font-semibold uppercase tracking-wide text-[11px]">
+              Non-cash close-out
+            </p>
+            <p className="mt-0.5">
+              No money was received. The pending amount was written off as a one-time
+              discount. The receipt records this for the audit trail.
+            </p>
+          </div>
+        ) : null}
+
         {/* 3. Student strip — single row on A4, wraps on 80mm */}
         <section className="rounded-lg border border-border bg-card/95 p-3 text-xs">
           <div className="grid gap-1.5 sm:grid-cols-5 sm:gap-3">
@@ -289,32 +354,95 @@ export function ReceiptDocumentV2({
           </div>
         </section>
 
-        {/* 4. Installment table — 3 columns, no synthesized data */}
+        {/* 4. Installment table.
+            With allocation snapshot present (post-migration rows): full
+            breakdown — Installment / Due / Pending before / Discount /
+            Waiver / Paid / Balance after.
+            Legacy rows (pre-migration): compact 3-column layout. */}
         <section className="rounded-lg border border-border bg-card/95 p-3">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-surface-2 text-muted-foreground">
-              <tr>
-                <th className="px-2 py-2">{t("installmentColumn")}</th>
-                <th className="px-2 py-2 text-right">{t("v2DueDateColumn")}</th>
-                <th className="px-2 py-2 text-right">{t("v2PaidColumn")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {installmentRows.map((row) => (
-                <tr key={row.paymentId} className="border-t border-border">
-                  <td className="px-2 py-2 font-medium text-foreground">
-                    {row.installmentLabel}
-                  </td>
-                  <td className="px-2 py-2 text-right text-muted-foreground tabular-nums">
-                    {formatDate(row.dueDate)}
-                  </td>
-                  <td className="px-2 py-2 text-right font-semibold tabular-nums">
-                    {formatInr(row.paid)}
-                  </td>
+          {hasAllocationSnapshot ? (
+            <table className="w-full text-left text-[11px]">
+              <thead className="bg-surface-2 text-muted-foreground">
+                <tr>
+                  <th className="px-2 py-2">{t("installmentColumn")}</th>
+                  <th className="px-2 py-2 text-right">{t("v2DueDateColumn")}</th>
+                  <th className="px-2 py-2 text-right">Pending before</th>
+                  <th className="px-2 py-2 text-right">Discount</th>
+                  <th className="px-2 py-2 text-right">Waiver</th>
+                  <th className="px-2 py-2 text-right">{t("v2PaidColumn")}</th>
+                  <th className="px-2 py-2 text-right">Balance after</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {installmentRows.map((row) => (
+                  <tr key={row.paymentId} className="border-t border-border">
+                    <td className="px-2 py-2 font-medium text-foreground">
+                      {row.installmentLabel}
+                    </td>
+                    <td className="px-2 py-2 text-right text-muted-foreground tabular-nums">
+                      {formatDate(row.dueDate)}
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums">
+                      {row.pendingBefore !== null ? formatInr(row.pendingBefore) : "—"}
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums text-success-soft-foreground">
+                      {row.discountAtPosting && row.discountAtPosting > 0
+                        ? `−${formatInr(row.discountAtPosting)}`
+                        : "—"}
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums text-info-soft-foreground">
+                      {row.waiverAtPosting && row.waiverAtPosting > 0
+                        ? `−${formatInr(row.waiverAtPosting)}`
+                        : "—"}
+                    </td>
+                    <td className="px-2 py-2 text-right font-semibold tabular-nums">
+                      {formatInr(row.paid)}
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums">
+                      {row.pendingAfter !== null ? (
+                        <span
+                          className={
+                            row.pendingAfter === 0
+                              ? "font-medium text-success-soft-foreground"
+                              : "font-medium text-warning-soft-foreground"
+                          }
+                        >
+                          {formatInr(row.pendingAfter)}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <table className="w-full text-left text-xs">
+              <thead className="bg-surface-2 text-muted-foreground">
+                <tr>
+                  <th className="px-2 py-2">{t("installmentColumn")}</th>
+                  <th className="px-2 py-2 text-right">{t("v2DueDateColumn")}</th>
+                  <th className="px-2 py-2 text-right">{t("v2PaidColumn")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {installmentRows.map((row) => (
+                  <tr key={row.paymentId} className="border-t border-border">
+                    <td className="px-2 py-2 font-medium text-foreground">
+                      {row.installmentLabel}
+                    </td>
+                    <td className="px-2 py-2 text-right text-muted-foreground tabular-nums">
+                      {formatDate(row.dueDate)}
+                    </td>
+                    <td className="px-2 py-2 text-right font-semibold tabular-nums">
+                      {formatInr(row.paid)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </section>
 
         {/* 5. Totals block — single column, dense, scannable. */}
@@ -339,11 +467,9 @@ export function ReceiptDocumentV2({
           <p className="mt-1 text-xs text-muted-foreground">
             {t("paymentMode")}: {paymentModeLabel(receipt.paymentMode, t)}
             {receipt.referenceNumber ? ` · ${receipt.referenceNumber}` : ""}
-            {receipt.paymentMode === "discount" ? (
-              <span className="ml-1 font-medium text-purple-800 dark:text-purple-200">
-                · non-cash, written off
-              </span>
-            ) : null}
+            {/* The close-out treatment is now shown as a full banner above the
+                totals block (see section 2c), so the trailing footnote here is
+                no longer needed. */}
           </p>
 
           <div className="my-2 border-t border-dashed border-border" />
@@ -397,42 +523,62 @@ export function ReceiptDocumentV2({
               <h3 className="text-sm font-semibold text-foreground">
                 {t("conventionalDiscountHeading")}
               </h3>
-              {(() => {
-                const winningIndex = receipt.conventionalDiscountAssignments.findIndex(
-                  (row) => row.isWinningPolicy,
-                );
-                const winning =
-                  winningIndex >= 0
-                    ? receipt.conventionalDiscountAssignments[winningIndex]
-                    : receipt.conventionalDiscountAssignments[0];
-                if (!winning) return null;
-                return (
-                  <div className="mt-2 grid gap-1 text-xs sm:grid-cols-[1fr_auto_auto]">
+              {/* Show ALL active policies — a student may have up to two. The
+                  applied one (lowest resulting tuition) is marked "Applied"; the
+                  others are visible but greyed so the audit trail shows what
+                  was considered. */}
+              <ul className="mt-2 space-y-2">
+                {receipt.conventionalDiscountAssignments.map((row) => (
+                  <li
+                    key={row.policyCode}
+                    className={cn(
+                      "grid gap-1 rounded-md border px-2.5 py-1.5 text-xs sm:grid-cols-[1fr_auto_auto_auto]",
+                      row.isWinningPolicy
+                        ? "border-accent/40 bg-card"
+                        : "border-border bg-surface-2/40 opacity-80",
+                    )}
+                  >
                     <div>
-                      <p className="font-semibold text-foreground">{winning.policyDisplayName}</p>
+                      <p className="font-semibold text-foreground">{row.policyDisplayName}</p>
                       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                        {winning.policyCode}
+                        {row.policyCode}
                       </p>
                     </div>
                     <div>
                       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
                         {t("baselineTuition")}
                       </p>
-                      <p className="font-semibold text-muted-foreground line-through">
-                        {formatInr(winning.beforeTuitionAmount)}
+                      <p className="font-semibold text-muted-foreground line-through tabular-nums">
+                        {formatInr(row.beforeTuitionAmount)}
                       </p>
                     </div>
                     <div>
                       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
                         {t("resultingTuition")}
                       </p>
-                      <p className="font-semibold text-accent-soft-foreground">
-                        {formatInr(winning.resultingTuitionAmount)}
+                      <p
+                        className={cn(
+                          "font-semibold tabular-nums",
+                          row.isWinningPolicy ? "text-accent-soft-foreground" : "text-muted-foreground",
+                        )}
+                      >
+                        {formatInr(row.resultingTuitionAmount)}
                       </p>
                     </div>
-                  </div>
-                );
-              })()}
+                    <div className="self-center">
+                      {row.isWinningPolicy ? (
+                        <span className="inline-flex rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-accent-foreground">
+                          Applied
+                        </span>
+                      ) : (
+                        <span className="inline-flex rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          Not applied
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </section>
           ) : null}
 

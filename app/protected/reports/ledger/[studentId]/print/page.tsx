@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { formatInr } from "@/lib/helpers/currency";
-import { formatShortDate } from "@/lib/helpers/date";
+import { formatDateTimeIst, formatShortDate } from "@/lib/helpers/date";
 import { getReportsPageData, normalizeReportFilters } from "@/lib/reports/data";
 import { formatPaymentModeLabel } from "@/lib/config/fee-rules";
 import { requireStaffPermission } from "@/lib/supabase/session";
@@ -10,12 +10,7 @@ type PrintLedgerPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
+const formatDateTime = (value: string) => formatDateTimeIst(value);
 
 export default async function PrintLedgerPage({ params, searchParams }: PrintLedgerPageProps) {
   await requireStaffPermission("reports:view", { onDenied: "redirect" });

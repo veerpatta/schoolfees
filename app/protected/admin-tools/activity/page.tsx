@@ -4,6 +4,8 @@ import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { listActivity, activityKindTone, ACTIVITY_KINDS, type ActivityKind } from "@/lib/activity/events";
+import { formatInr } from "@/lib/helpers/currency";
+import { formatDateTimeIst } from "@/lib/helpers/date";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/lib/supabase/session";
 import { cn } from "@/lib/utils";
 
@@ -36,14 +38,7 @@ function localizedActivityKindLabel(kind: string, t: ActivityTranslator): string
   return kind;
 }
 
-function formatWhen(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
-}
+const formatWhen = (iso: string) => formatDateTimeIst(iso, iso);
 
 function payloadDescription(
   payload: Record<string, unknown>,
@@ -54,7 +49,7 @@ function payloadDescription(
     parts.push(t("activityPayloadReceipt", { number: payload.receiptNumber }));
   }
   if (typeof payload.amount === "number") {
-    parts.push(`₹${payload.amount.toLocaleString("en-IN")}`);
+    parts.push(formatInr(payload.amount));
   }
   if (typeof payload.exportType === "string") parts.push(payload.exportType);
   if (typeof payload.outcome === "string") {

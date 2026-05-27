@@ -12,8 +12,10 @@ import { SavedViewsTabs } from "@/components/data-table/saved-views-tabs";
 import { SummaryRow, SummaryCell } from "@/components/data-table/summary-row";
 import { Button } from "@/components/ui/button";
 import type { SavedView } from "@/lib/data-table/saved-views";
+import { MoneyWithDefinition } from "@/components/ui/money-with-definition";
+import type { MoneyTermKey } from "@/lib/money/glossary";
 import { formatInr } from "@/lib/helpers/currency";
-import { formatShortDate } from "@/lib/helpers/date";
+import { formatShortDate, formatTodayBadge } from "@/lib/helpers/date";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { cn } from "@/lib/utils";
 import {
@@ -201,15 +203,18 @@ function filtersFromUrl(): { view: OfficeWorkbookView; filters: FilterState } {
 
 function SummaryCards({ summary, t }: { summary: OfficeWorkbookSummary; t: TxnTranslator }) {
   const [showMore, setShowMore] = useState(false);
-  const top = [
+  // Top row: the four "what is the money state" KPIs. Discounts and Late-fee
+  // waived used to be buried under "More totals" but they are first-class
+  // signals for money clarity — promoting them keeps the audit visible.
+  const top: Array<{ key: string; label: string; value: number | string; termKey?: MoneyTermKey }> = [
     { key: "students", label: t("summaryStudents"), value: summary.studentCount },
-    { key: "totalDue", label: t("summaryTotalDue"), value: formatInr(summary.totalDue) },
-    { key: "outstanding", label: t("summaryOutstanding"), value: formatInr(summary.totalOutstanding) },
-    { key: "totalPaid", label: t("summaryTotalPaid"), value: formatInr(summary.totalPaid) },
+    { key: "totalDue", label: t("summaryTotalDue"), value: summary.totalDue, termKey: "totalDue" },
+    { key: "outstanding", label: t("summaryOutstanding"), value: summary.totalOutstanding, termKey: "outstanding" },
+    { key: "totalPaid", label: t("summaryTotalPaid"), value: summary.totalPaid, termKey: "totalPaid" },
+    { key: "discounts", label: t("summaryDiscounts"), value: summary.totalDiscount, termKey: "discountTotal" },
+    { key: "lateFeeWaived", label: t("summaryLateFeeWaived"), value: summary.totalLateFeeWaived, termKey: "lateFeeWaived" },
   ];
   const more = [
-    { key: "discounts", label: t("summaryDiscounts"), value: formatInr(summary.totalDiscount) },
-    { key: "lateFeeWaived", label: t("summaryLateFeeWaived"), value: formatInr(summary.totalLateFeeWaived) },
     { key: "transportStudents", label: t("summaryTransportStudents"), value: summary.transportStudentCount },
     { key: "tuitionTotal", label: t("summaryTuitionTotal"), value: formatInr(summary.tuitionFeeTotal) },
     { key: "transportTotal", label: t("summaryTransportTotal"), value: formatInr(summary.transportFeeTotal) },
@@ -218,11 +223,23 @@ function SummaryCards({ summary, t }: { summary: OfficeWorkbookSummary; t: TxnTr
   ];
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         {top.map((c) => (
           <div key={c.key} className="rounded-xl border border-border bg-surface-2 px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{c.label}</p>
-            <p className="mt-1.5 text-base font-semibold text-foreground">{c.value}</p>
+            {c.termKey ? (
+              <MoneyWithDefinition
+                termKey={c.termKey}
+                label={c.label}
+                value={typeof c.value === "number" ? c.value : null}
+                size="lg"
+                layout="column"
+              />
+            ) : (
+              <>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{c.label}</p>
+                <p className="mt-1.5 text-base font-semibold text-foreground">{c.value}</p>
+              </>
+            )}
           </div>
         ))}
       </div>
@@ -568,12 +585,7 @@ function PaginationControls({
 // ---------------------------------------------------------------------------
 
 function TodayStrip({ snapshot, t }: { snapshot: TodaySnapshot; t: TxnTranslator }) {
-  const today = new Intl.DateTimeFormat("en-IN", {
-    timeZone: "Asia/Kolkata",
-    day: "numeric",
-    month: "short",
-    weekday: "short",
-  }).format(new Date());
+  const today = formatTodayBadge(new Date());
   const modes: Array<{ key: string; label: string; value: number }> = [
     { key: "cash", label: t("todayStripModeCash"), value: snapshot.cashTotal },
     { key: "upi", label: t("todayStripModeUpi"), value: snapshot.upiTotal },

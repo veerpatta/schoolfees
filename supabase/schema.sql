@@ -403,6 +403,17 @@ create table if not exists public.payments (
   installment_id uuid not null,
   amount integer not null check (amount > 0),
   notes text,
+  -- Allocation snapshot — see migration 20260527000000_persist_payment_allocation_snapshot.sql.
+  -- These columns freeze the moment-of-posting context so receipts/transactions
+  -- can answer "where did this money go?" forever, even after policy changes.
+  discount_applied_at_posting integer not null default 0
+    check (discount_applied_at_posting >= 0),
+  waiver_applied_at_posting integer not null default 0
+    check (waiver_applied_at_posting >= 0),
+  pending_before_posting integer
+    check (pending_before_posting is null or pending_before_posting >= 0),
+  pending_after_posting integer
+    check (pending_after_posting is null or pending_after_posting >= 0),
   created_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
   constraint payments_receipt_fk

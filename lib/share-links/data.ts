@@ -203,10 +203,15 @@ export async function getParentShareView(studentId: string) {
     ? [classRef.class_name, classRef.section, classRef.stream_name].filter(Boolean).join(" ")
     : "Unknown class";
 
-  const [financialsResult, receiptsResult] = await Promise.all([
+  const [financialsResult, receiptsResult, installmentsResult] = await Promise.all([
     supabase
       .from("v_workbook_student_financials")
-      .select("outstanding_amount, total_paid, total_due, next_due_label, next_due_date, next_due_amount")
+      .select(
+        // Expanded to include discount + late-fee disclosure for the parent
+        // view. Parents see total due, total paid, outstanding AND why those
+        // numbers are what they are (discount applied, late-fee waived).
+        "outstanding_amount, total_paid, total_due, next_due_label, next_due_date, next_due_amount, discount_amount, late_fee_total, late_fee_waiver_amount",
+      )
       .eq("student_id", studentId)
       .maybeSingle(),
     supabase
@@ -215,6 +220,13 @@ export async function getParentShareView(studentId: string) {
       .eq("student_id", studentId)
       .order("payment_date", { ascending: false })
       .limit(50),
+    supabase
+      .from("v_workbook_installment_balances")
+      .select(
+        "installment_id, installment_no, installment_label, due_date, base_charge, paid_amount, pending_amount, final_late_fee, balance_status",
+      )
+      .eq("student_id", studentId)
+      .order("installment_no", { ascending: true }),
   ]);
 
   type FinancialRow = {
@@ -224,6 +236,9 @@ export async function getParentShareView(studentId: string) {
     next_due_label: string | null;
     next_due_date: string | null;
     next_due_amount: number | null;
+    discount_amount: number | null;
+    late_fee_total: number | null;
+    late_fee_waiver_amount: number | null;
   };
   const financialRow = (financialsResult.data as FinancialRow | null) ?? null;
   const receiptRows = (receiptsResult.data ?? []) as Array<{
@@ -233,6 +248,18 @@ export async function getParentShareView(studentId: string) {
     total_amount: number;
     payment_mode: string;
   }>;
+  type InstallmentRow = {
+    installment_id: string;
+    installment_no: number;
+    installment_label: string;
+    due_date: string;
+    base_charge: number;
+    paid_amount: number;
+    pending_amount: number;
+    final_late_fee: number;
+    balance_status: "paid" | "partial" | "overdue" | "pending" | "waived";
+  };
+  const installmentRows = (installmentsResult.data ?? []) as InstallmentRow[];
 
   const member: ParentViewMember = {
     studentId,
@@ -258,7 +285,21 @@ export async function getParentShareView(studentId: string) {
       nextDueLabel: financialRow?.next_due_label ?? null,
       nextDueDate: financialRow?.next_due_date ?? null,
       nextDueAmount: financialRow?.next_due_amount ?? null,
+      discountAmount: financialRow?.discount_amount ?? 0,
+      lateFeeTotal: financialRow?.late_fee_total ?? 0,
+      lateFeeWaived: financialRow?.late_fee_waiver_amount ?? 0,
     },
+    installments: installmentRows.map((row) => ({
+      installmentId: row.installment_id,
+      installmentNo: row.installment_no,
+      installmentLabel: row.installment_label,
+      dueDate: row.due_date,
+      baseCharge: row.base_charge,
+      paidAmount: row.paid_amount,
+      pendingAmount: row.pending_amount,
+      finalLateFee: row.final_late_fee,
+      balanceStatus: row.balance_status,
+    })),
     sessionLabel: classRef?.session_label ?? "",
   };
 }

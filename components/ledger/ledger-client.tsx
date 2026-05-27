@@ -9,12 +9,14 @@ import { AutoSubmitForm } from "@/components/office/auto-submit-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MoneyWithDefinition } from "@/components/ui/money-with-definition";
 import {
   INITIAL_LEDGER_ADJUSTMENT_ACTION_STATE,
   type LedgerAdjustmentActionState,
   type LedgerPageData,
 } from "@/lib/ledger/types";
 import { formatInr } from "@/lib/helpers/currency";
+import { formatDateTimeIst, formatMediumDate } from "@/lib/helpers/date";
 
 const selectClassName =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
@@ -29,19 +31,9 @@ const adjustmentTypeOptions: Array<{ value: string; label: string }> = [
   { value: "writeoff", label: "Write-off" },
 ];
 
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Asia/Kolkata",
-  }).format(new Date(value));
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-  }).format(new Date(value));
-}
+// Canonical date helpers; no local Intl.DateTimeFormat per money-clarity rules.
+const formatDateTime = (value: string) => formatDateTimeIst(value);
+const formatDate = (value: string) => formatMediumDate(value);
 
 function AdjustmentNotice({ state }: { state: LedgerAdjustmentActionState }) {
   if (!state.message) {
@@ -138,11 +130,18 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
               value={formatInr(selectedStudent.totalPayments)}
               hint="Original posted payments only"
             />
-            <MetricCard
-              title="Adjustment net"
-              value={formatInr(selectedStudent.totalAdjustmentNet)}
-              hint="Positive reduces due, negative increases due"
-            />
+            <div className="rounded-xl border border-border bg-card p-4">
+              <MoneyWithDefinition
+                termKey="adjustmentNet"
+                label="Net correction"
+                value={selectedStudent.totalAdjustmentNet}
+                size="lg"
+                layout="column"
+              />
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Positive (+) reduces what the student owes. Negative (−) increases it. Tap the label for the full definition.
+              </p>
+            </div>
             <MetricCard
               title="Adjustments"
               value={selectedStudent.adjustments.length.toString()}
@@ -213,13 +212,13 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
                 <table className="w-full min-w-[760px] text-left text-sm">
                   <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
-                      <th className="px-4 py-3">Posted on</th>
+                      <th className="px-4 py-3">Posted on (IST)</th>
                       <th className="px-4 py-3">Receipt</th>
                       <th className="px-4 py-3">Installment</th>
-                      <th className="px-4 py-3">Payment</th>
+                      <th className="px-4 py-3">Amount received</th>
                       <th className="px-4 py-3">Mode / ref</th>
                       <th className="px-4 py-3">Counter notes</th>
-                      <th className="px-4 py-3">Linked adjustments</th>
+                      <th className="px-4 py-3">Linked corrections</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -251,7 +250,19 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
                                 {payment.adjustmentCount} entry{payment.adjustmentCount > 1 ? "ies" : ""}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                Net impact: {formatInr(payment.adjustmentNetDelta)}
+                                Net correction:{" "}
+                                <span
+                                  className={
+                                    payment.adjustmentNetDelta > 0
+                                      ? "font-semibold text-success-soft-foreground"
+                                      : payment.adjustmentNetDelta < 0
+                                        ? "font-semibold text-destructive"
+                                        : "text-muted-foreground"
+                                  }
+                                >
+                                  {payment.adjustmentNetDelta > 0 ? "+" : ""}
+                                  {formatInr(payment.adjustmentNetDelta)}
+                                </span>
                               </p>
                             </div>
                           )}
@@ -391,10 +402,10 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
                 <table className="w-full min-w-[760px] text-left text-sm">
                   <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
-                      <th className="px-4 py-3">Added on</th>
+                      <th className="px-4 py-3">Added on (IST)</th>
                       <th className="px-4 py-3">Linked payment</th>
                       <th className="px-4 py-3">Category</th>
-                      <th className="px-4 py-3">Impact</th>
+                      <th className="px-4 py-3">Impact on due</th>
                       <th className="px-4 py-3">Reason</th>
                       <th className="px-4 py-3">Added by</th>
                       <th className="px-4 py-3">Notes</th>
@@ -411,8 +422,20 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
                           </p>
                         </td>
                         <td className="px-4 py-3 capitalize">{adjustment.adjustmentType}</td>
-                        <td className="px-4 py-3 font-medium text-foreground">
-                          {adjustment.amountDelta > 0 ? "Positive (+)" : "Negative (-)"} {formatInr(adjustment.amountDelta)}
+                        <td className="px-4 py-3 font-medium">
+                          <span
+                            className={
+                              adjustment.amountDelta > 0
+                                ? "text-success-soft-foreground"
+                                : "text-destructive"
+                            }
+                          >
+                            {adjustment.amountDelta > 0 ? "+" : ""}
+                            {formatInr(adjustment.amountDelta)}
+                          </span>
+                          <span className="ml-1 text-xs text-muted-foreground">
+                            {adjustment.amountDelta > 0 ? "reduces due" : "increases due"}
+                          </span>
                         </td>
                         <td className="px-4 py-3">{adjustment.reason}</td>
                         <td className="px-4 py-3">

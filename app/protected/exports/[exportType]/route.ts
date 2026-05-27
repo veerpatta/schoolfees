@@ -16,6 +16,8 @@ import {
 } from "@/lib/workbook/data";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/lib/supabase/session";
 import { formatExportName } from "@/lib/helpers/export";
+import { formatInr } from "@/lib/helpers/currency";
+import { formatDateTimeIst } from "@/lib/helpers/date";
 import { recordActivity } from "@/lib/activity/events";
 
 type RouteContext = {
@@ -82,7 +84,7 @@ function printableHtmlResponse(
   <div class="print-hint">Use your browser's Print dialog (Ctrl+P / Cmd+P) and choose <strong>Save as PDF</strong>.</div>
   <header>
     <h1>${escapeHtml(title)}</h1>
-    <div class="meta">Generated ${escapeHtml(new Date().toLocaleString("en-IN"))} · ${rows.length} row${rows.length === 1 ? "" : "s"}</div>
+    <div class="meta">Generated ${escapeHtml(formatDateTimeIst(new Date()))} · ${rows.length} row${rows.length === 1 ? "" : "s"}</div>
   </header>
   <table>
     <thead>
@@ -95,8 +97,17 @@ function printableHtmlResponse(
             `<tr>${headers
               .map((header) => {
                 const value = row[header];
+                // Cell numbers are export-cell values which may be money, counts,
+                // or percentages. We render them via Intl.NumberFormat (en-IN
+                // grouping) to keep the existing CSV/HTML output stable. This is
+                // the export pipeline, not a money-display surface — the audit
+                // suppression is genuine and bounded to this cell renderer.
                 const display =
-                  value === undefined || value === null ? "" : typeof value === "number" ? value.toLocaleString("en-IN") : String(value);
+                  value === undefined || value === null
+                    ? ""
+                    : typeof value === "number"
+                      ? new Intl.NumberFormat("en-IN").format(value) // @allow-raw-money-format
+                      : String(value);
                 return `<td>${escapeHtml(display)}</td>`;
               })
               .join("")}</tr>`,
@@ -186,9 +197,9 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     ...policy.installmentSchedule.map(
       (item, idx) => `  - Installment ${idx + 1}: due ${item.dueDate}, label "${item.label}"`,
     ),
-    `* Late fee: ₹${policy.lateFeeFlatAmount.toLocaleString("en-IN")} flat per installment that misses its due date.`,
-    `* New-student academic fee: ₹${policy.newStudentAcademicFeeAmount.toLocaleString("en-IN")}`,
-    `* Existing-student academic fee: ₹${policy.oldStudentAcademicFeeAmount.toLocaleString("en-IN")}`,
+    `* Late fee: ${formatInr(policy.lateFeeFlatAmount)} flat per installment that misses its due date.`,
+    `* New-student academic fee: ${formatInr(policy.newStudentAcademicFeeAmount)}`,
+    `* Existing-student academic fee: ${formatInr(policy.oldStudentAcademicFeeAmount)}`,
     `* Accepted payment modes: ${policy.acceptedPaymentModes.map((mode) => mode.label).join(", ")}`,
     `* Receipt prefix: ${policy.receiptPrefix}`,
     ``,

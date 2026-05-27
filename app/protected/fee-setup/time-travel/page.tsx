@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatInr } from "@/lib/helpers/currency";
+import { formatDateTimeIst } from "@/lib/helpers/date";
 import {
   getClassLabelMap,
   getFeeSetupSnapshotAt,
@@ -24,15 +25,7 @@ function todayIso(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
-function formatDateTime(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString("en-IN", {
-    timeZone: "Asia/Kolkata",
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
+const formatDateTime = (value: string) => formatDateTimeIst(value, value);
 
 function formatNumberCell(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) {

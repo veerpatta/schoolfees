@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { roleLabels, staffRoles, type StaffRole } from "@/lib/auth/roles";
+import { formatDateTimeIst } from "@/lib/helpers/date";
 import type {
   StaffAccountRecord,
   StaffFormActionState,
@@ -47,21 +48,9 @@ const textAreaClassName =
   "flex min-h-[84px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
 function formatTimestamp(value: string | null) {
-  if (!value) {
-    return "Not yet";
-  }
-
-  const parsed = new Date(value);
-
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Asia/Kolkata",
-  }).format(parsed);
+  if (!value) return "Not yet";
+  // Pass the raw value back as fallback so weird strings aren't mangled to "—".
+  return formatDateTimeIst(value, value);
 }
 
 function ActionNotice({ state }: { state: StaffFormActionState }) {

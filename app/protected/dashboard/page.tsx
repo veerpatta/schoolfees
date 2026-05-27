@@ -30,6 +30,7 @@ import { CountUp } from "@/components/ui/count-up";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { LoadingBlock } from "@/components/ui/loading-skeleton";
 import { Money } from "@/components/ui/money";
+import { MoneyGlossaryLink } from "@/components/ui/money-glossary";
 import { Notice } from "@/components/ui/notice";
 import { RateGauge } from "@/components/ui/rate-gauge";
 import { Section } from "@/components/ui/section";
@@ -51,7 +52,7 @@ import type {
   DashboardTrendPoint,
 } from "@/lib/dashboard/summary";
 import { formatInr } from "@/lib/helpers/currency";
-import { formatShortDate } from "@/lib/helpers/date";
+import { formatShortDate, formatTimeIst } from "@/lib/helpers/date";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
@@ -100,12 +101,7 @@ function alertIcon(tone: DashboardAlert["tone"]) {
 
 function formatUpdatedAt(iso: string): string {
   try {
-    return new Intl.DateTimeFormat("en-IN", {
-      timeZone: "Asia/Kolkata",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    }).format(new Date(iso));
+    return formatTimeIst(iso, "");
   } catch {
     return "";
   }
@@ -231,12 +227,7 @@ function MobileDashboardHero({
   todayDelta: KpiDelta | null;
   t: DashboardTranslator;
 }) {
-  const todayLabel = new Intl.DateTimeFormat("en-IN", {
-    timeZone: "Asia/Kolkata",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date());
+  const todayLabel = formatShortDate(new Date());
 
   return (
     <div
@@ -1951,6 +1942,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 tone={aboveFold.currentInstallment.status === "overdue" ? "warning" : "neutral"}
               />
             ) : null}
+            <MoneyGlossaryLink />
           </div>
         }
       />

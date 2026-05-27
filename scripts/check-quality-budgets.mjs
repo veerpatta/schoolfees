@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 
 const budgets = JSON.parse(await readFile("quality/office-quality-budgets.json", "utf8"));
 
@@ -32,3 +33,17 @@ if (failures.length > 0) {
 }
 
 console.log("Quality budgets passed.");
+
+// Money-formatting clarity gate — every money figure must flow through the
+// canonical helpers in lib/helpers/currency.ts + lib/helpers/date.ts.
+// scripts/audit-money-formatting.mjs exits non-zero on violation; we run it
+// as a sub-step so the quality-budget check is the single CI gate for both
+// source-size and money-formatting health.
+const moneyAudit = spawnSync(process.execPath, ["scripts/audit-money-formatting.mjs"], {
+  stdio: "inherit",
+});
+
+if (moneyAudit.status !== 0) {
+  console.error("\nMoney-formatting audit failed — see violations above.");
+  process.exit(moneyAudit.status ?? 1);
+}

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatPaymentModeLabel } from "@/lib/config/fee-rules";
 import { formatInr } from "@/lib/helpers/currency";
-import { formatShortDate } from "@/lib/helpers/date";
+import { formatDateTimeIst, formatShortDate } from "@/lib/helpers/date";
 import type { FinanceControlsActionState } from "@/lib/finance-controls/types";
 import {
   statusLabelForCashDeposit,
@@ -33,13 +33,7 @@ const selectClassName =
 const textAreaClassName =
   "flex min-h-[96px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Asia/Kolkata",
-  }).format(new Date(value));
-}
+const formatDateTime = (value: string) => formatDateTimeIst(value);
 
 type FinanceWorkflowAction = (
   previous: FinanceControlsActionState,

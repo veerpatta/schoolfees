@@ -8,6 +8,7 @@ import { SummaryRow, SummaryCell } from "@/components/data-table/summary-row";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { OfficeNotice } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
+import { MoneyGlossaryLink } from "@/components/ui/money-glossary";
 import { cn } from "@/lib/utils";
 import { DefaulterFilters } from "@/components/defaulters/defaulter-filters";
 import { BulkWhatsappProvider } from "@/components/defaulters/bulk-whatsapp-provider";
@@ -221,6 +222,7 @@ export default async function DefaultersPage({
             <Button asChild size="sm" variant="outline">
               <Link href={withSession("/protected/exports/defaulters")}>{t("exportAction")}</Link>
             </Button>
+            <MoneyGlossaryLink />
           </div>
         }
       />

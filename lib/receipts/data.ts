@@ -58,6 +58,14 @@ type ReceiptPaymentRow = {
   id: string;
   amount: number;
   notes: string | null;
+  // Allocation snapshot columns added by migration
+  // 20260527000000_persist_payment_allocation_snapshot.sql. Optional here so
+  // the code keeps working pre-migration; once applied, every newly posted
+  // row carries them.
+  discount_applied_at_posting?: number | null;
+  waiver_applied_at_posting?: number | null;
+  pending_before_posting?: number | null;
+  pending_after_posting?: number | null;
   installment_ref: PaymentInstallmentRow | PaymentInstallmentRow[] | null;
 };
 
@@ -289,7 +297,12 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     supabase
       .from("payments")
       .select(
-        "id, amount, notes, installment_ref:installments(installment_no, installment_label, due_date, class_ref:classes(session_label))",
+        // Allocation snapshot columns from migration
+        // 20260527000000_persist_payment_allocation_snapshot.sql freeze the
+        // moment-of-posting context (discount, waiver, pending before/after)
+        // onto every payments row. Older rows have NULL for these — UI
+        // renders that via <Money fallback="—" />.
+        "id, amount, notes, discount_applied_at_posting, waiver_applied_at_posting, pending_before_posting, pending_after_posting, installment_ref:installments(installment_no, installment_label, due_date, class_ref:classes(session_label))",
       )
       .eq("receipt_id", receipt.id)
       .order("created_at", { ascending: true }),
@@ -362,6 +375,10 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
         dueDate: installment.due_date,
         amount: row.amount,
         notes: row.notes,
+        discountAppliedAtPosting: row.discount_applied_at_posting ?? null,
+        waiverAppliedAtPosting: row.waiver_applied_at_posting ?? null,
+        pendingBeforePosting: row.pending_before_posting ?? null,
+        pendingAfterPosting: row.pending_after_posting ?? null,
       };
     })
     .filter((value): value is ReceiptBreakdownItem => value !== null)

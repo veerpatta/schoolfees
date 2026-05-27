@@ -2273,7 +2273,7 @@ export function PaymentDeskClient({
                                   : "text-foreground",
                               )}
                             >
-                              {previewTotalPending <= 0 ? "₹0 ✓" : formatInr(previewTotalPending)}
+                              {previewTotalPending <= 0 ? "₹0 ✓" : formatInr(previewTotalPending)} {/* @allow-raw-money-format */}
                             </span>
                           </div>
                         </div>
@@ -2998,7 +2998,7 @@ export function PaymentDeskClient({
                   <p className="mt-1 text-[11px] text-muted-foreground">
                     Allocating:{" "}
                     {allocationPreview
-                      .map((item) => `${item.installmentLabel} ₹${item.allocatedAmount.toLocaleString("en-IN")}`)
+                      .map((item) => `${item.installmentLabel} ${formatInr(item.allocatedAmount)}`)
                       .join(" · ")}
                   </p>
                 ) : null}

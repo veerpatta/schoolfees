@@ -6,6 +6,7 @@ import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
 import { schoolProfile } from "@/lib/config/school";
+import { formatDateTimeIst } from "@/lib/helpers/date";
 import { getRecentConfigChangeLog } from "@/lib/fees/change-log";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import {
@@ -36,14 +37,7 @@ function toneForBatchStatus(status: string) {
 }
 
 function formatDateTime(value: string | null) {
-  if (!value) {
-    return "Not applied";
-  }
-
-  return new Date(value).toLocaleString("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  return formatDateTimeIst(value, "Not applied");
 }
 
 export default async function SettingsPage() {

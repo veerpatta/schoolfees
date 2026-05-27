@@ -24,7 +24,7 @@ import {
   type ReportKey,
 } from "@/lib/reports/types";
 import { formatInr } from "@/lib/helpers/currency";
-import { formatShortDate } from "@/lib/helpers/date";
+import { formatDateTimeIst, formatShortDate } from "@/lib/helpers/date";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
 import { getSetupWizardData } from "@/lib/setup/data";
@@ -37,12 +37,7 @@ type ReportsPageProps = {
 const selectClassName =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
+const formatDateTime = (value: string) => formatDateTimeIst(value);
 
 function buildReportHref(
   filters: ReportFilters,
