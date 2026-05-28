@@ -12,6 +12,7 @@ import { MoneyGlossaryLink } from "@/components/ui/money-glossary";
 import { cn } from "@/lib/utils";
 import { DefaulterFilters } from "@/components/defaulters/defaulter-filters";
 import { DefaulterFilterRehydrator } from "@/components/defaulters/defaulter-filter-rehydrator";
+import { MissingDuesBanner } from "@/components/shared/missing-dues-banner";
 import { BulkWhatsappProvider } from "@/components/defaulters/bulk-whatsapp-provider";
 import { DefaultersWorkspace } from "@/components/defaulters/defaulters-workspace";
 import { getDefaultersPageData } from "@/lib/defaulters/data";
@@ -232,6 +233,12 @@ export default async function DefaultersPage({
       />
 
       <OfficeNotice tone="info">{t("officeNotice")}</OfficeNotice>
+
+      {/* Audit 1.14 — surface the missing-dues signal as a single banner above
+          the list so office staff see it before scrolling. The per-student
+          cards below remain for follow-up detail. */}
+      <MissingDuesBanner missingCount={data.missingDuesRows.length} />
+
 
       <SectionCard
         title={t("filtersTitle")}

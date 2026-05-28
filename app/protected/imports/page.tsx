@@ -1,5 +1,6 @@
 import { WorkflowGuard } from "@/components/office/office-ui";
 import { StudentImportWorkflow } from "@/components/imports/student-import-workflow";
+import { MissingDuesBanner } from "@/components/shared/missing-dues-banner";
 import { createEmptyImportPageData, getStudentImportPageData } from "@/lib/import/data";
 import { getDuplicateAuditSummary } from "@/lib/import/duplicate-audit";
 import { getStudentImportWorkflowReadiness } from "@/lib/import/readiness";
@@ -64,8 +65,20 @@ export default async function ImportsPage({ searchParams }: ImportsPageProps) {
     }
   }
 
+  // Audit 1.13 — when a commit completed with a ledger-sync error, surface it
+  // as a persistent banner above the workflow so staff don't miss it. The
+  // commit redirects with `?error=Students imported, but dues sync needs
+  // attention: …`; we re-render that here in a non-dismissable banner with a
+  // Fee Setup CTA.
+  const ledgerSyncErrorMessage =
+    resolvedSearchParams?.error?.trim() &&
+    resolvedSearchParams.error.includes("dues sync needs attention")
+      ? resolvedSearchParams.error.trim()
+      : null;
+
   return (
     <div className="space-y-6">
+      <MissingDuesBanner ledgerSyncError={ledgerSyncErrorMessage} />
       {importDataError ? (
         <div className="rounded-xl border bg-warning-soft px-4 py-3 text-sm text-warning-soft-foreground">
           Import data could not be loaded safely: {importDataError}
