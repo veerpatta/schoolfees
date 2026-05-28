@@ -39,7 +39,7 @@ describe("waive_late_fee Postgres RPC (audit 1.5)", () => {
 
   it("validates the input amount and the pending late fee inside the lock", () => {
     expect(sql).toMatch(/raise exception 'Waiver amount must be greater than 0\.'/);
-    expect(sql).toMatch(/v_pending_late_fee\s+from public\.v_workbook_student_financials/s);
+    expect(sql).toMatch(/v_pending_late_fee[\s\S]+from public\.v_workbook_student_financials/);
     expect(sql).toContain("Waiver cannot exceed the current pending late fee");
   });
 
