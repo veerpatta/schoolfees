@@ -193,17 +193,27 @@ export class PaymentPostingRpcError extends Error {
   }
 }
 
+export type DuplicatePaymentKind = "near-duplicate" | "daily-amount";
+
 export class DuplicatePaymentWarning extends Error {
   receiptId: string;
   receiptNumber: string;
+  kind: DuplicatePaymentKind;
 
-  constructor(receipt: { id: string; receiptNumber: string }) {
-    super(
-      "A similar payment was just recorded. Open the latest receipt or start a new payment if this is intentional.",
-    );
+  constructor(
+    receipt: { id: string; receiptNumber: string },
+    options: { kind?: DuplicatePaymentKind; amount?: number; paymentDate?: string } = {},
+  ) {
+    const kind: DuplicatePaymentKind = options.kind ?? "near-duplicate";
+    const message =
+      kind === "daily-amount"
+        ? `A payment of ₹${(options.amount ?? 0).toLocaleString("en-IN")} was already posted for this student on ${options.paymentDate ?? "the same date"}. Continue anyway only if this is genuinely a separate payment.`
+        : "A similar payment was just recorded. Open the latest receipt or start a new payment if this is intentional.";
+    super(message);
     this.name = "DuplicatePaymentWarning";
     this.receiptId = receipt.id;
     this.receiptNumber = receipt.receiptNumber;
+    this.kind = kind;
   }
 }
 
@@ -1470,6 +1480,12 @@ export async function postStudentPayment(payload: {
   receivedBy: string;
   clientRequestId: string;
   sessionLabel?: string | null;
+  /**
+   * Audit 1.4 — When true, the same-student/date/amount soft-duplicate check
+   * is bypassed. Staff must have seen and dismissed the prompt before this
+   * flag is set. The 60-second near-duplicate check is always applied.
+   */
+  acknowledgeDailyDuplicate?: boolean;
 }) {
   const policy = payload.sessionLabel
     ? await getFeePolicyForSession(payload.sessionLabel)
@@ -1502,7 +1518,25 @@ export async function postStudentPayment(payload: {
   });
 
   if (duplicateReceipt) {
-    throw new DuplicatePaymentWarning(duplicateReceipt);
+    throw new DuplicatePaymentWarning(duplicateReceipt, { kind: "near-duplicate" });
+  }
+
+  // Audit 1.4 — broader same-day same-amount soft check. Caught even when the
+  // amount or reference differs from the most recent post.
+  if (!payload.acknowledgeDailyDuplicate) {
+    const dailyDuplicate = await findLikelyDailyDuplicateReceipt({
+      studentId: payload.studentId,
+      paymentDate: payload.paymentDate,
+      paymentAmount: payload.paymentAmount,
+    });
+
+    if (dailyDuplicate) {
+      throw new DuplicatePaymentWarning(dailyDuplicate, {
+        kind: "daily-amount",
+        amount: payload.paymentAmount,
+        paymentDate: payload.paymentDate,
+      });
+    }
   }
 
   const supabase = await createClient();
@@ -1586,6 +1620,53 @@ async function findReceiptByClientRequestId(payload: {
     lateFeeWaivedApplied: 0,
     remainingBalance: financialState?.pending_amount ?? null,
   };
+}
+
+/**
+ * Audit 1.4 — Soft daily-amount duplicate check.
+ *
+ * Detects another receipt for the same (student_id, payment_date, total_amount)
+ * regardless of payment mode or reference number, with no 60-second cutoff.
+ * A cashier who fat-fingers an amount or pastes a different UPI reference on
+ * the same student/day/amount can still trigger this.
+ *
+ * Surfaced as a soft warning (DuplicatePaymentWarning with kind: "daily-amount")
+ * that staff can explicitly acknowledge via the acknowledgeDailyDuplicate flag
+ * on postStudentPayment.
+ */
+async function findLikelyDailyDuplicateReceipt(payload: {
+  studentId: string;
+  paymentDate: string;
+  paymentAmount: number;
+}) {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("receipts")
+      .select("id, receipt_number")
+      .eq("student_id", payload.studentId)
+      .eq("payment_date", payload.paymentDate)
+      .eq("total_amount", payload.paymentAmount)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (error) {
+      return null;
+    }
+
+    const row = (data ?? [])[0] as { id?: string; receipt_number?: string } | undefined;
+
+    if (!row?.id || !row.receipt_number) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      receiptNumber: row.receipt_number,
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function findLikelyDuplicateReceipt(payload: {

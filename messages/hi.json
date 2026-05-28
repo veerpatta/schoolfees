@@ -736,6 +736,7 @@
     "duplicateLatestReceiptPrefix": "पिछली रसीद: ",
     "duplicateOpenLatest": "पिछली रसीद खोलें",
     "duplicateStartNew": "नया भुगतान शुरू करें",
+    "duplicateContinueAnyway": "फिर भी जारी रखें",
     "modeSheetTitle": "भुगतान का तरीका",
     "modeSheetCloseAria": "भुगतान तरीका बंद करें",
     "modeSelectFallback": "तरीका चुनें",

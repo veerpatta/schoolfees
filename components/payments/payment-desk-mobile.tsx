@@ -301,6 +301,10 @@ export function PaymentDeskClient({
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
+  // Audit 1.4 — set when the staffer clicks "Continue anyway" on a daily-amount
+  // duplicate prompt. Persists for one resubmit, then resets on the next
+  // success or after the user clears the form.
+  const [acknowledgeDailyDuplicate, setAcknowledgeDailyDuplicate] = useState(false);
   const [isLockedAfterSuccess, setIsLockedAfterSuccess] = useState(false);
   const [lastPrintMode, setLastPrintMode] = useState<"yes" | "no">("no");
   const [mounted, setMounted] = useState(false);
@@ -1135,6 +1139,9 @@ export function PaymentDeskClient({
       setIsSuccessOpen(true);
       setIsDuplicateOpen(false);
       setIsLockedAfterSuccess(true);
+      // Audit 1.4 — reset the daily-duplicate ack so the next payment goes
+      // through the soft prompt again rather than silently bypassing.
+      setAcknowledgeDailyDuplicate(false);
       setFormError(null);
       return;
     }
@@ -1650,6 +1657,7 @@ export function PaymentDeskClient({
     setIsLockedAfterSuccess(false);
     setIsSuccessOpen(false);
     setIsDuplicateOpen(false);
+    setAcknowledgeDailyDuplicate(false);
     setStudentSearchQuery("");
     setSelectedStudentId("");
     setSelectedStudent(null);
@@ -2766,6 +2774,11 @@ export function PaymentDeskClient({
                 <input type="hidden" name="studentId" value={selectedStudentId} />
                 <input type="hidden" name="sessionLabel" value={data.sessionLabel} />
                 <input type="hidden" name="clientRequestId" value={clientRequestId} />
+                <input
+                  type="hidden"
+                  name="acknowledgeDailyDuplicate"
+                  value={acknowledgeDailyDuplicate ? "true" : "false"}
+                />
 
                 {studentSummaryLoading ? (
                   <p className="rounded-md bg-info-soft px-2 py-1 text-xs text-info-soft-foreground">Loading dues...</p>
@@ -3079,7 +3092,23 @@ export function PaymentDeskClient({
                       message={visibleActionState.message}
                       receiptId={visibleActionState.receiptId ?? ""}
                       receiptNumber={visibleActionState.receiptNumber}
-                      onCollectAnother={handleCollectAnotherPayment}
+                      kind={visibleActionState.duplicateKind ?? "near-duplicate"}
+                      onCollectAnother={() => {
+                        setAcknowledgeDailyDuplicate(false);
+                        handleCollectAnotherPayment();
+                      }}
+                      onContinueAnyway={() => {
+                        setAcknowledgeDailyDuplicate(true);
+                        setIsDuplicateOpen(false);
+                        setDismissedActionStateKey(actionStateKey);
+                        // Resubmit the existing form values (the user already
+                        // saw and explicitly confirmed the daily-amount prompt).
+                        const form = document.getElementById(formId) as HTMLFormElement | null;
+                        if (form) {
+                          fastPostRequestedRef.current = true;
+                          form.requestSubmit();
+                        }
+                      }}
                     />,
                     document.body,
                   )

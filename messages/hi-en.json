@@ -736,6 +736,7 @@
     "duplicateLatestReceiptPrefix": "Pichhli receipt: ",
     "duplicateOpenLatest": "Pichhli receipt kholo",
     "duplicateStartNew": "Naya payment shuru karo",
+    "duplicateContinueAnyway": "Phir bhi continue karo",
     "modeSheetTitle": "Payment ka tareeka",
     "modeSheetCloseAria": "Payment mode band karo",
     "modeSelectFallback": "Tareeka chuno",

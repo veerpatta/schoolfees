@@ -123,6 +123,7 @@ function toActionStateError(error: unknown, clientRequestId?: string | null): Pa
       clientRequestId: clientRequestId ?? null,
       remainingBalance: null,
       diagnostic: null,
+      duplicateKind: error.kind,
     };
   }
 
@@ -189,6 +190,11 @@ export async function submitPaymentEntryAction(
       );
     }
 
+    // Audit 1.4 — client sets acknowledgeDailyDuplicate=true after the staffer
+    // explicitly confirms "this is a separate payment" on the duplicate sheet.
+    const acknowledgeDailyDuplicate =
+      (formData.get("acknowledgeDailyDuplicate") ?? "").toString() === "true";
+
     const receipt = await postStudentPayment({
       studentId,
       sessionLabel,
@@ -201,6 +207,7 @@ export async function submitPaymentEntryAction(
       remarks: (formData.get("remarks") ?? "").toString().trim() || null,
       receivedBy,
       clientRequestId,
+      acknowledgeDailyDuplicate,
     });
     const resolvedSessionLabel = student.classSessionLabel || sessionLabel;
 

@@ -736,6 +736,7 @@
     "duplicateLatestReceiptPrefix": "Latest receipt: ",
     "duplicateOpenLatest": "Open latest receipt",
     "duplicateStartNew": "Start new payment",
+    "duplicateContinueAnyway": "Continue anyway",
     "modeSheetTitle": "Payment Mode",
     "modeSheetCloseAria": "Close payment mode",
     "modeSelectFallback": "Select mode",

@@ -1,6 +1,8 @@
 import type { PaymentMode } from "@/lib/db/types";
 import type { OfficeSyncOutcome } from "@/lib/system-sync/office-sync";
 
+export type DuplicatePaymentKind = "near-duplicate" | "daily-amount";
+
 export type PaymentEntryActionState = {
   status: "idle" | "error" | "success" | "duplicate";
   message: string | null;
@@ -18,6 +20,8 @@ export type PaymentEntryActionState = {
   remainingBalance?: number | null;
   diagnostic?: PaymentPostingDiagnostic | null;
   syncOutcome?: OfficeSyncOutcome | null;
+  /** Audit 1.4 — distinguish near-duplicate (hard) from daily-amount (soft override). */
+  duplicateKind?: DuplicatePaymentKind | null;
 };
 
 export const INITIAL_PAYMENT_ENTRY_ACTION_STATE: PaymentEntryActionState = {
