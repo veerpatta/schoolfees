@@ -41,13 +41,13 @@ describe("post_payment cleanup migration (audit 1.29 + 1.30)", () => {
     // plain nulls.
     const paymentsInsert = sql.slice(sql.indexOf("insert into public.payments"));
     const paymentsValues = paymentsInsert.slice(0, paymentsInsert.indexOf(");"));
-    expect(paymentsValues).toMatch(/, ?\n\s+null,/);
+    expect(paymentsValues).toMatch(/,\s+null,/);
     expect(paymentsValues).not.toContain("p_remarks");
 
     // receipt_adjustments inserts also null the notes column.
     const adjustmentsBlock = sql.slice(sql.indexOf("insert into public.receipt_adjustments"));
-    expect(adjustmentsBlock).toMatch(/'Payment Desk quick discount', null/);
-    expect(adjustmentsBlock).toMatch(/'Payment Desk late fee waiver', null/);
+    expect(adjustmentsBlock).toMatch(/'Payment Desk quick discount',\s*null/);
+    expect(adjustmentsBlock).toMatch(/'Payment Desk late fee waiver',\s*null/);
   });
 
   it("preserves audit 1.3 (idempotency re-check) inside the unique_violation handler", () => {
