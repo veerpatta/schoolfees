@@ -456,3 +456,109 @@ export async function getDefaultersPageData(
   console.log(`[defaulters-page-data] loaded in ${Date.now() - _t0}ms`);
   return result;
 }
+
+/**
+ * Audit 1.7 — Returns every defaulter row that matches the supplied filters,
+ * without pagination, so the "Download this view" button on the Defaulters
+ * page exports exactly what's on screen. Sorted by outstanding-then-name so
+ * spreadsheets are deterministic.
+ *
+ * The returned row shape is intentionally narrower than the page-data row —
+ * we don't need heat, contact summaries, or family rollups in the XLSX.
+ */
+export type DefaulterExportRow = {
+  studentId: string;
+  admissionNo: string;
+  fullName: string;
+  classLabel: string;
+  fatherName: string | null;
+  fatherPhone: string | null;
+  transportRouteLabel: string;
+  totalPending: number;
+  overdueAmount: number;
+  lateFeeTotal: number;
+  nextDueDate: string | null;
+  nextDueAmount: number;
+  statusLabel: string;
+  daysOverdue: number;
+};
+
+export async function getDefaulterExportRows(
+  filters: DefaulterFilters,
+  sessionLabel?: string,
+): Promise<DefaulterExportRow[]> {
+  const policy = await getFeePolicySummary();
+  const resolvedSessionLabel = sessionLabel ?? policy.academicSessionLabel;
+
+  const [financialRows, overdueInstallmentRows] = await Promise.all([
+    getWorkbookStudentFinancials({
+      classId: filters.classId || undefined,
+      sessionLabel: resolvedSessionLabel,
+    }),
+    getWorkbookInstallmentRows({
+      classId: filters.classId || undefined,
+      overdueOnly: true,
+      pendingOnly: true,
+      sessionLabel: resolvedSessionLabel,
+    }),
+  ]);
+
+  const minimumPendingAmount = parseMinimumPendingAmount(filters.minPendingAmount);
+  const normalizedSearch = (filters.searchQuery ?? "").trim().toLowerCase();
+  const today = toDateKey();
+  const overdueByStudent = new Map<string, typeof overdueInstallmentRows>();
+  overdueInstallmentRows
+    .filter((row) => (filters.transportRouteId ? row.transportRouteId === filters.transportRouteId : true))
+    .forEach((row) => {
+      overdueByStudent.set(row.studentId, [
+        ...(overdueByStudent.get(row.studentId) ?? []),
+        row,
+      ]);
+    });
+
+  return financialRows
+    .filter((row) =>
+      filters.transportRouteId ? row.transportRouteId === filters.transportRouteId : true,
+    )
+    .filter((row) => row.outstandingAmount > 0)
+    .filter((row) => row.outstandingAmount >= minimumPendingAmount)
+    .filter((row) =>
+      filters.overdue === "overdue"
+        ? calculateOverdueBaseAmount(overdueByStudent.get(row.studentId) ?? []) > 0
+        : true,
+    )
+    .filter((row) => {
+      if (!normalizedSearch) {
+        return true;
+      }
+      return [
+        row.studentName,
+        row.admissionNo,
+        row.fatherName ?? "",
+        row.fatherPhone ?? "",
+        row.classLabel,
+      ].some((value) => value.toLowerCase().includes(normalizedSearch));
+    })
+    .map((row) => ({
+      studentId: row.studentId,
+      admissionNo: row.admissionNo,
+      fullName: row.studentName,
+      classLabel: row.classLabel,
+      fatherName: row.fatherName,
+      fatherPhone: row.fatherPhone,
+      transportRouteLabel: row.transportRouteName ?? "No Transport",
+      totalPending: row.outstandingAmount,
+      overdueAmount: calculateOverdueBaseAmount(overdueByStudent.get(row.studentId) ?? []),
+      lateFeeTotal: row.lateFeeTotal,
+      nextDueDate: row.nextDueDate ?? null,
+      nextDueAmount: row.nextDueAmount ?? 0,
+      statusLabel: row.statusLabel,
+      daysOverdue: calculateDaysOverdue(row.nextDueDate, today),
+    }))
+    .sort((left, right) => {
+      if (right.totalPending !== left.totalPending) {
+        return right.totalPending - left.totalPending;
+      }
+      return left.fullName.localeCompare(right.fullName);
+    });
+}

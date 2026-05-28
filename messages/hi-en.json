@@ -85,6 +85,7 @@
     "description": "{session} ke liye phone-ready bakaya soochi. Sabse adhik jokhim sabse upar.",
     "listedCount": "{totalRows} mein se {visibleStart}-{visibleEnd} dikhaye gaye",
     "exportAction": "Export",
+    "exportFilteredAction": "Yeh view download karein",
     "officeNotice": "Is screen ka upyog keval call aur anusaran ke liye karein. Bhugtan Bhugtan Counter se lein.",
     "filtersTitle": "Filter",
     "filtersDescription": "Anusaran soochi ko office team ke liye sankshipt rakhein.",

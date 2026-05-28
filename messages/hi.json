@@ -85,6 +85,7 @@
     "description": "{session} के लिए फ़ोन-तैयार बकाया सूची। उच्चतम जोखिम सबसे ऊपर।",
     "listedCount": "{totalRows} में से {visibleStart}-{visibleEnd} दिखाए गए",
     "exportAction": "निर्यात",
+    "exportFilteredAction": "यह दृश्य डाउनलोड करें",
     "officeNotice": "इस स्क्रीन का उपयोग केवल कॉल और अनुसरण के लिए करें। भुगतान भुगतान काउंटर से लें।",
     "filtersTitle": "छानें",
     "filtersDescription": "अनुसरण सूची को कार्यालय टीम के लिए संक्षिप्त रखें।",

@@ -156,6 +156,37 @@ export default async function DefaultersPage({
     return `/protected/defaulters${qs ? `?${qs}` : ""}`;
   };
 
+  // Audit 1.7 — "Download this view" forwards the active filters so the export
+  // matches exactly what's on screen.
+  const buildExportHref = (format: "xlsx" | "pdf") => {
+    const search = new URLSearchParams();
+    search.set("session", viewSession.sessionLabel);
+    search.set("format", format);
+    if (filters.classId) {
+      search.set("classId", filters.classId);
+    }
+    if (filters.transportRouteId) {
+      search.set("transportRouteId", filters.transportRouteId);
+    }
+    if (filters.overdue === "overdue") {
+      search.set("overdue", "overdue");
+    }
+    if (filters.minPendingAmount && /^\d+$/.test(filters.minPendingAmount)) {
+      search.set("minPendingAmount", filters.minPendingAmount);
+    }
+    if (filters.searchQuery) {
+      search.set("query", filters.searchQuery);
+    }
+    return `/protected/exports/defaulters?${search.toString()}`;
+  };
+
+  const hasActiveFilters =
+    filters.classId !== EMPTY_DEFAULTER_FILTERS.classId ||
+    filters.transportRouteId !== EMPTY_DEFAULTER_FILTERS.transportRouteId ||
+    filters.overdue !== EMPTY_DEFAULTER_FILTERS.overdue ||
+    filters.minPendingAmount !== EMPTY_DEFAULTER_FILTERS.minPendingAmount ||
+    filters.searchQuery !== EMPTY_DEFAULTER_FILTERS.searchQuery;
+
   const buildPageHref = (nextPage: number) => {
     const search = new URLSearchParams();
     if (resolvedSearchParams?.session) {
@@ -220,7 +251,9 @@ export default async function DefaultersPage({
               tone="accent"
             />
             <Button asChild size="sm" variant="outline">
-              <Link href={withSession("/protected/exports/defaulters")}>{t("exportAction")}</Link>
+              <Link href={buildExportHref("xlsx")}>
+                {hasActiveFilters ? t("exportFilteredAction") : t("exportAction")}
+              </Link>
             </Button>
             <MoneyGlossaryLink />
           </div>

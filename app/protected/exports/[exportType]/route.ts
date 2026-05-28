@@ -2,6 +2,11 @@ import type { NextRequest } from "next/server";
 
 import { getOfficeWorkbookData } from "@/lib/transactions/dues";
 import type { OfficeWorkbookView } from "@/lib/transactions/workbook";
+import { getDefaulterExportRows } from "@/lib/defaulters/data";
+import {
+  EMPTY_DEFAULTER_FILTERS,
+  type DefaulterFilters,
+} from "@/lib/defaulters/types";
 import { getStudents, getStudentFormOptions } from "@/lib/students/data";
 import {
   getConventionalDiscountPolicies,
@@ -428,6 +433,44 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
   });
 }
 
+const DEFAULTER_FILTER_PARAMS = [
+  "classId",
+  "transportRouteId",
+  "overdue",
+  "minPendingAmount",
+  "query",
+] as const;
+
+function hasDefaulterFilterParams(request: NextRequest): boolean {
+  return DEFAULTER_FILTER_PARAMS.some((name) =>
+    (request.nextUrl.searchParams.get(name) ?? "").trim().length > 0,
+  );
+}
+
+function parseDefaulterFiltersFromQuery(request: NextRequest): DefaulterFilters {
+  const uuidPattern =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const get = (key: string) => (request.nextUrl.searchParams.get(key) ?? "").trim();
+
+  const rawClassId = get("classId");
+  const rawRouteId = get("transportRouteId");
+  const rawOverdue = get("overdue");
+  const rawMinPending = get("minPendingAmount");
+  const rawQuery = get("query");
+
+  return {
+    classId: uuidPattern.test(rawClassId) ? rawClassId : EMPTY_DEFAULTER_FILTERS.classId,
+    transportRouteId: uuidPattern.test(rawRouteId)
+      ? rawRouteId
+      : EMPTY_DEFAULTER_FILTERS.transportRouteId,
+    overdue: rawOverdue === "overdue" ? "overdue" : EMPTY_DEFAULTER_FILTERS.overdue,
+    minPendingAmount: /^\d+$/.test(rawMinPending)
+      ? rawMinPending
+      : EMPTY_DEFAULTER_FILTERS.minPendingAmount,
+    searchQuery: rawQuery.slice(0, 80) || EMPTY_DEFAULTER_FILTERS.searchQuery,
+  };
+}
+
 export async function GET(request: NextRequest, context: RouteContext) {
   const staff = await getAuthenticatedStaff();
   if (!staff) {
@@ -523,6 +566,36 @@ export async function GET(request: NextRequest, context: RouteContext) {
           "Overdue without late fee": student.overdueAmount,
           "Late fee": student.pendingLateFeeAmount,
         })),
+    );
+  }
+
+  // Audit 1.7 — when the Defaulters page passes filter params, export exactly
+  // what's on screen using getDefaulterExportRows. Falls back to the unfiltered
+  // workbook below if no filter params are present (preserves existing
+  // /protected/exports/defaulters quick-link behaviour).
+  if (exportType === "defaulters" && hasDefaulterFilterParams(request)) {
+    const filters = parseDefaulterFiltersFromQuery(request);
+    const rows = await getDefaulterExportRows(filters, resolvedSessionLabel);
+
+    return rowsResponse(
+      format,
+      filenameBase,
+      exportTitle,
+      rows.map((row) => ({
+        "Student": row.fullName,
+        "SR no": row.admissionNo,
+        "Class": row.classLabel,
+        "Father": row.fatherName ?? "",
+        "Phone": row.fatherPhone ?? "",
+        "Route": row.transportRouteLabel,
+        "Total pending": row.totalPending,
+        "Overdue base": row.overdueAmount,
+        "Late fee total": row.lateFeeTotal,
+        "Next due date": row.nextDueDate ?? "",
+        "Next due amount": row.nextDueAmount,
+        "Status": row.statusLabel,
+        "Days overdue": row.daysOverdue,
+      })),
     );
   }
 

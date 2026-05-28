@@ -85,6 +85,7 @@
     "description": "Phone-ready overdue list for {session}. Highest risk appears first.",
     "listedCount": "{visibleStart}-{visibleEnd} of {totalRows} listed",
     "exportAction": "Export",
+    "exportFilteredAction": "Download this view",
     "officeNotice": "Use this screen for calls and follow-up only. Collect payments from Payment Desk.",
     "filtersTitle": "Filters",
     "filtersDescription": "Keep the follow-up list narrow enough for the office team to act on.",
