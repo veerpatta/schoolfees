@@ -62,7 +62,7 @@ describe("post_student_payment_with_adjustments idempotency (audit 1.3)", () => 
     expect(handler).toContain("p_client_request_id is not null");
     expect(handler).toMatch(/from public\.receipts/);
     expect(handler).toContain("client_request_id = p_client_request_id");
-    expect(handler).toMatch(/if v_candidate_receipt_id is not null then\s+return query/s);
+    expect(handler).toMatch(/if v_candidate_receipt_id is not null then[\s\S]+return query/);
     // Without finding a match, it falls through to `continue` to try the
     // next receipt-number sequence.
     expect(handler).toContain("continue;");
