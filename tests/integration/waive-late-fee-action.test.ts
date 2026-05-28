@@ -4,7 +4,6 @@ import { hasRolePermission, type StaffRole } from "@/lib/auth/roles";
 
 const requireStaffPermission = vi.fn();
 const createAdminClient = vi.fn();
-const upsertStudentFeeOverride = vi.fn();
 const syncAfterStudentChange = vi.fn();
 const recordActivity = vi.fn();
 
@@ -18,10 +17,6 @@ vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient,
 }));
 
-vi.mock("@/lib/fees/data", () => ({
-  upsertStudentFeeOverride,
-}));
-
 vi.mock("@/lib/system-sync/finance-sync", () => ({
   syncAfterStudentChange,
 }));
@@ -32,52 +27,21 @@ vi.mock("@/lib/activity/events", () => ({
 
 const STUDENT_ID = "00000000-0000-4000-8000-000000000111";
 
-function buildAdminClient({
-  studentRow = { id: STUDENT_ID } as Record<string, unknown> | null,
-  financialRow = {
-    outstanding_amount: 5000,
-    late_fee_total: 1000,
-    pending_late_fee_amount: 1000,
-  } as Record<string, unknown> | null,
-  overrideRow = null as Record<string, unknown> | null,
-} = {}) {
-  return {
-    from: vi.fn((table: string) => {
-      if (table === "students") {
-        return {
-          select: () => ({
-            eq: () => ({
-              maybeSingle: () =>
-                Promise.resolve({ data: studentRow, error: null }),
-            }),
-          }),
-        };
-      }
-      if (table === "v_workbook_student_financials") {
-        return {
-          select: () => ({
-            eq: () => ({
-              maybeSingle: () =>
-                Promise.resolve({ data: financialRow, error: null }),
-            }),
-          }),
-        };
-      }
-      if (table === "student_fee_overrides") {
-        return {
-          select: () => ({
-            eq: () => ({
-              eq: () => ({
-                maybeSingle: () =>
-                  Promise.resolve({ data: overrideRow, error: null }),
-              }),
-            }),
-          }),
-        };
-      }
-      throw new Error(`Unexpected table: ${table}`);
-    }),
-  };
+type RpcRow = {
+  ok: boolean;
+  message: string | null;
+  new_waiver_amount: number | null;
+  added_amount: number | null;
+};
+
+function buildAdminClient(rpcRow: RpcRow | { error: { message: string } }) {
+  const rpc = vi.fn(() => {
+    if ("error" in rpcRow) {
+      return Promise.resolve({ data: null, error: rpcRow.error });
+    }
+    return Promise.resolve({ data: [rpcRow], error: null });
+  });
+  return { rpc, from: vi.fn() };
 }
 
 function setStaff(role: StaffRole) {
@@ -105,16 +69,22 @@ function makeFormData(overrides: Record<string, string> = {}) {
   return formData;
 }
 
-describe("waiveLateFeeAction — RBAC + write path", () => {
+describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    upsertStudentFeeOverride.mockResolvedValue(undefined);
     syncAfterStudentChange.mockResolvedValue(undefined);
     recordActivity.mockResolvedValue(undefined);
-    createAdminClient.mockReturnValue(buildAdminClient());
+    createAdminClient.mockReturnValue(
+      buildAdminClient({
+        ok: true,
+        message: "Waiver applied.",
+        new_waiver_amount: 500,
+        added_amount: 500,
+      }),
+    );
   });
 
-  it("admin can waive: writes student_fee_overrides.late_fee_waiver_amount with reason and triggers sync", async () => {
+  it("admin can waive: invokes the waive_late_fee RPC with the studentId/amount/remarks and triggers sync", async () => {
     setStaff("admin");
     const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
       await import("@/app/protected/payments/waive-late-fee-actions");
@@ -126,13 +96,16 @@ describe("waiveLateFeeAction — RBAC + write path", () => {
 
     expect(result.status).toBe("success");
     expect(result.newWaiverAmount).toBe(500);
-    expect(upsertStudentFeeOverride).toHaveBeenCalledTimes(1);
-    const upsertArg = upsertStudentFeeOverride.mock.calls[0][0];
-    expect(upsertArg.lateFeeWaiverAmount).toBe(500);
-    expect(upsertArg.studentId).toBe(STUDENT_ID);
-    expect(upsertArg.reason).toContain("Waive late fee 500");
-    expect(upsertArg.reason).toContain("admin@example.com");
-    expect(upsertArg.reason).toContain("Family emergency");
+
+    const adminClient = createAdminClient.mock.results[0]?.value;
+    expect(adminClient.rpc).toHaveBeenCalledWith("waive_late_fee", {
+      p_student_id: STUDENT_ID,
+      p_amount: 500,
+      p_remarks: "Family emergency, principal approval.",
+      p_session_label: null,
+      p_client_request_id: null,
+    });
+
     expect(syncAfterStudentChange).toHaveBeenCalledWith(STUDENT_ID);
     expect(recordActivity).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -159,8 +132,9 @@ describe("waiveLateFeeAction — RBAC + write path", () => {
     );
 
     expect(result.status).toBe("success");
-    expect(upsertStudentFeeOverride).toHaveBeenCalledTimes(1);
-    expect(upsertStudentFeeOverride.mock.calls[0][0].lateFeeWaiverAmount).toBe(500);
+    const adminClient = createAdminClient.mock.results[0]?.value;
+    expect(adminClient.rpc).toHaveBeenCalledTimes(1);
+    expect(adminClient.rpc.mock.calls[0][0]).toBe("waive_late_fee");
   });
 
   it.each(["teacher", "fee_collector", "view_only"] as const)(
@@ -176,15 +150,13 @@ describe("waiveLateFeeAction — RBAC + write path", () => {
       );
 
       expect(result.status).toBe("error");
-      expect(upsertStudentFeeOverride).not.toHaveBeenCalled();
+      expect(createAdminClient).not.toHaveBeenCalled();
       expect(syncAfterStudentChange).not.toHaveBeenCalled();
-      // The role itself is denied at the permission layer — that is the
-      // truth we assert. The catch-all error string is incidental.
       expect(hasRolePermission(role, "payments:waive_late_fee")).toBe(false);
     },
   );
 
-  it("rejects when reason is shorter than 4 characters", async () => {
+  it("rejects when reason is shorter than 4 characters (input guard runs before any RPC call)", async () => {
     setStaff("accountant");
     const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
       await import("@/app/protected/payments/waive-late-fee-actions");
@@ -196,11 +168,20 @@ describe("waiveLateFeeAction — RBAC + write path", () => {
 
     expect(result.status).toBe("error");
     expect(result.message).toMatch(/at least 4 characters/i);
-    expect(upsertStudentFeeOverride).not.toHaveBeenCalled();
+    expect(createAdminClient).not.toHaveBeenCalled();
   });
 
-  it("rejects when waiver amount exceeds pending late fee", async () => {
+  it("surfaces RPC validation rejections (e.g. amount exceeds pending late fee)", async () => {
     setStaff("accountant");
+    createAdminClient.mockReturnValue(
+      buildAdminClient({
+        ok: false,
+        message: "Waiver cannot exceed the current pending late fee (1000).",
+        new_waiver_amount: 0,
+        added_amount: 0,
+      }),
+    );
+
     const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
       await import("@/app/protected/payments/waive-late-fee-actions");
 
@@ -211,20 +192,20 @@ describe("waiveLateFeeAction — RBAC + write path", () => {
 
     expect(result.status).toBe("error");
     expect(result.message).toMatch(/cannot exceed/i);
-    expect(upsertStudentFeeOverride).not.toHaveBeenCalled();
+    expect(syncAfterStudentChange).not.toHaveBeenCalled();
   });
 
-  it("rejects when there is no pending late fee", async () => {
+  it("surfaces RPC rejection when there is no pending late fee", async () => {
     setStaff("accountant");
     createAdminClient.mockReturnValue(
       buildAdminClient({
-        financialRow: {
-          outstanding_amount: 5000,
-          late_fee_total: 0,
-          pending_late_fee_amount: 0,
-        },
+        ok: false,
+        message: "This student has no pending late fee to waive.",
+        new_waiver_amount: null,
+        added_amount: null,
       }),
     );
+
     const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
       await import("@/app/protected/payments/waive-late-fee-actions");
 
@@ -235,32 +216,20 @@ describe("waiveLateFeeAction — RBAC + write path", () => {
 
     expect(result.status).toBe("error");
     expect(result.message).toMatch(/no pending late fee/i);
-    expect(upsertStudentFeeOverride).not.toHaveBeenCalled();
+    expect(syncAfterStudentChange).not.toHaveBeenCalled();
   });
 
-  it("adds the new waiver on top of an existing override (additive)", async () => {
+  it("returns the additive new_waiver_amount the RPC computed under the lock", async () => {
     setStaff("accountant");
     createAdminClient.mockReturnValue(
       buildAdminClient({
-        overrideRow: {
-          id: "override-1",
-          discount_amount: 1500,
-          reason: "Prior note: scholarship.",
-          notes: null,
-          custom_tuition_fee_amount: null,
-          custom_transport_fee_amount: null,
-          custom_books_fee_amount: null,
-          custom_admission_activity_misc_fee_amount: null,
-          custom_other_fee_heads: null,
-          custom_late_fee_flat_amount: null,
-          other_adjustment_head: null,
-          other_adjustment_amount: null,
-          late_fee_waiver_amount: 300,
-          student_type_override: null,
-          transport_applies_override: null,
-        },
+        ok: true,
+        message: "Waiver applied.",
+        new_waiver_amount: 700,
+        added_amount: 400,
       }),
     );
+
     const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
       await import("@/app/protected/payments/waive-late-fee-actions");
 
@@ -271,12 +240,13 @@ describe("waiveLateFeeAction — RBAC + write path", () => {
 
     expect(result.status).toBe("success");
     expect(result.newWaiverAmount).toBe(700);
-    const upsertArg = upsertStudentFeeOverride.mock.calls[0][0];
-    expect(upsertArg.lateFeeWaiverAmount).toBe(700);
-    // Existing discount preserved — we are not editing other fields.
-    expect(upsertArg.discountAmount).toBe(1500);
-    // Reason is appended, never replaced.
-    expect(upsertArg.reason).toContain("Prior note: scholarship.");
-    expect(upsertArg.reason).toContain("Waive late fee 400");
+    expect(recordActivity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          waivedAmount: 400,
+          newWaiverTotal: 700,
+        }),
+      }),
+    );
   });
 });

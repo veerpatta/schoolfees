@@ -71,6 +71,20 @@ function noLikelyDuplicateClient() {
   };
 }
 
+// Audit 1.4 — findLikelyDailyDuplicateReceipt runs an additional query after
+// the 60-second near-duplicate check. The terminal method is .limit() (not
+// .is()), and it returns [] when there is no daily duplicate.
+function noLikelyDailyDuplicateClient() {
+  return {
+    from: vi.fn(() => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+    })),
+  };
+}
+
 function duplicateReceiptQuery() {
   return {
     select: vi.fn().mockReturnThis(),
@@ -142,6 +156,7 @@ describe("payment submit preflight", () => {
       .mockResolvedValueOnce(clientWithRpc([4], rpc))
       .mockResolvedValueOnce(clientWithRpc([], rpc))
       .mockResolvedValueOnce(noLikelyDuplicateClient())
+      .mockResolvedValueOnce(noLikelyDailyDuplicateClient())
       .mockResolvedValueOnce({ rpc });
 
     const { postStudentPayment } = await import("@/lib/payments/data");
@@ -252,6 +267,7 @@ describe("payment submit preflight", () => {
       .mockResolvedValueOnce(clientWithRpc([4], rpc))
       .mockResolvedValueOnce(clientWithRpc([], rpc))
       .mockResolvedValueOnce(noLikelyDuplicateClient())
+      .mockResolvedValueOnce(noLikelyDailyDuplicateClient())
       .mockResolvedValueOnce({ rpc });
 
     const { postStudentPayment } = await import("@/lib/payments/data");
@@ -400,6 +416,7 @@ describe("payment submit preflight", () => {
       .mockResolvedValueOnce(clientWithRpc([4], rpc))
       .mockResolvedValueOnce(clientWithRpc([], rpc))
       .mockResolvedValueOnce(noLikelyDuplicateClient())
+      .mockResolvedValueOnce(noLikelyDailyDuplicateClient())
       .mockResolvedValueOnce({ rpc });
 
     const { postStudentPayment } = await import("@/lib/payments/data");
