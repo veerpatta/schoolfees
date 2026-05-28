@@ -634,11 +634,20 @@ export async function GET(request: NextRequest, context: RouteContext) {
   }
 
   if (workbook.view === "student_dues" || workbook.view === "defaulters") {
+    // Audit 1.26 — sort by outstanding desc so the spreadsheet matches the
+    // heat-ordered Defaulters page rather than the workbook's natural order.
+    // Fallback: alphabetical by name as the deterministic tiebreaker.
+    const sortedRows = [...workbook.rows].sort((left, right) => {
+      if (right.outstandingAmount !== left.outstandingAmount) {
+        return right.outstandingAmount - left.outstandingAmount;
+      }
+      return left.studentName.localeCompare(right.studentName);
+    });
     return rowsResponse(
       format,
       filenameBase,
       exportTitle,
-      workbook.rows.map((row) => ({
+      sortedRows.map((row) => ({
         "Student": row.studentName,
         "SR no": row.admissionNo,
         "Class": row.classLabel,
