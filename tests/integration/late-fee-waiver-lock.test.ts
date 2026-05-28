@@ -69,11 +69,20 @@ describe("waiveLateFeeAction calls the RPC (audit 1.5)", () => {
     "utf8",
   );
 
-  it("calls the waive_late_fee RPC instead of doing a separate read-then-write", () => {
-    expect(source).toContain('admin.rpc("waive_late_fee"');
+  it("calls the waive_late_fee RPC via the user-JWT client (audit 1.5 hotfix)", () => {
+    // Hotfix — the RPC's in-DB `has_permission` guard requires auth.uid()
+    // is not null, which fails under service-role. The action now uses
+    // createClient (user JWT). requireStaffPermission still gates upstream.
+    expect(source).toContain('supabase.rpc("waive_late_fee"');
+    expect(source).not.toContain('admin.rpc("waive_late_fee"');
     expect(source).toContain("p_student_id: studentId");
     expect(source).toContain("p_amount: amount");
     expect(source).toContain("p_remarks: reason");
+  });
+
+  it("imports createClient (user JWT) — never the service-role admin client", () => {
+    expect(source).toContain('from "@/lib/supabase/server"');
+    expect(source).not.toContain('from "@/lib/supabase/admin"');
   });
 
   it("no longer reads v_workbook_student_financials separately before writing", () => {

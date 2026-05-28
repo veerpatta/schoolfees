@@ -76,3 +76,31 @@ describe("submitPaymentEntryAction passes acknowledgeDailyDuplicate (audit 1.4)"
     expect(source).toContain("duplicateKind: error.kind");
   });
 });
+
+describe("DuplicateReceiptSheet Continue-anyway path (audit 1.4 hotfix)", () => {
+  // React state updates do NOT flush to the DOM before a synchronous
+  // form.requestSubmit(). The Continue-anyway handler must imperatively
+  // set the hidden input's DOM value to "true" before submitting so
+  // FormData snapshots the acknowledged flag.
+  const source = readFileSync(
+    join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+    "utf8",
+  );
+
+  it("imperatively writes acknowledgeDailyDuplicate=true into the hidden input before form.requestSubmit()", () => {
+    const handlerStart = source.indexOf("onContinueAnyway={()");
+    expect(handlerStart).toBeGreaterThan(0);
+    // Slice forward generously — the handler ends inside the JSX, but any
+    // window large enough captures both the DOM write and the submit call.
+    const handler = source.slice(handlerStart, handlerStart + 3000);
+    expect(handler).toContain('input[name="acknowledgeDailyDuplicate"]');
+    expect(handler).toMatch(/ackInput\.value\s*=\s*"true"/);
+    const writeIdx = handler.indexOf('ackInput.value = "true"');
+    // The hidden-input write must come before the form.requestSubmit() call.
+    // Search for the call site after the imperative write so we skip the
+    // comment mention earlier in the block.
+    const submitIdx = handler.indexOf("form.requestSubmit()", writeIdx);
+    expect(writeIdx).toBeGreaterThan(0);
+    expect(submitIdx).toBeGreaterThan(writeIdx);
+  });
+});

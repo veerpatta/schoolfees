@@ -4,7 +4,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 
 import { recordActivity } from "@/lib/activity/events";
 import { syncAfterStudentChange } from "@/lib/system-sync/finance-sync";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 export type WaiveLateFeeActionState = {
@@ -87,9 +87,16 @@ export async function waiveLateFeeAction(
       };
     }
 
-    const admin = createAdminClient();
+    // Audit 1.5 hotfix — call the RPC via the user-JWT supabase client
+    // (createClient), NOT the service-role admin client. The waive_late_fee
+    // RPC's first guard is `public.has_permission('payments:waive_late_fee')`,
+    // which requires `auth.uid() is not null`. Under a service-role JWT,
+    // auth.uid() is null and every waiver would raise "You do not have
+    // permission to waive late fees." Staff RBAC is already enforced upstream
+    // by requireStaffPermission() — the RPC's in-DB check is defense-in-depth.
+    const supabase = await createClient();
 
-    const { data: rpcRows, error: rpcError } = await admin.rpc("waive_late_fee", {
+    const { data: rpcRows, error: rpcError } = await supabase.rpc("waive_late_fee", {
       p_student_id: studentId,
       p_amount: amount,
       p_remarks: reason,

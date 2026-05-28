@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hasRolePermission, type StaffRole } from "@/lib/auth/roles";
 
 const requireStaffPermission = vi.fn();
-const createAdminClient = vi.fn();
+const createClient = vi.fn();
 const syncAfterStudentChange = vi.fn();
 const recordActivity = vi.fn();
 
@@ -13,8 +13,8 @@ vi.mock("@/lib/supabase/session", () => ({
   requireStaffPermission,
 }));
 
-vi.mock("@/lib/supabase/admin", () => ({
-  createAdminClient,
+vi.mock("@/lib/supabase/server", () => ({
+  createClient,
 }));
 
 vi.mock("@/lib/system-sync/finance-sync", () => ({
@@ -34,7 +34,7 @@ type RpcRow = {
   added_amount: number | null;
 };
 
-function buildAdminClient(rpcRow: RpcRow | { error: { message: string } }) {
+function buildSupabaseClient(rpcRow: RpcRow | { error: { message: string } }) {
   const rpc = vi.fn(() => {
     if ("error" in rpcRow) {
       return Promise.resolve({ data: null, error: rpcRow.error });
@@ -74,8 +74,8 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
     vi.clearAllMocks();
     syncAfterStudentChange.mockResolvedValue(undefined);
     recordActivity.mockResolvedValue(undefined);
-    createAdminClient.mockReturnValue(
-      buildAdminClient({
+    createClient.mockResolvedValue(
+      buildSupabaseClient({
         ok: true,
         message: "Waiver applied.",
         new_waiver_amount: 500,
@@ -97,7 +97,7 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
     expect(result.status).toBe("success");
     expect(result.newWaiverAmount).toBe(500);
 
-    const adminClient = createAdminClient.mock.results[0]?.value;
+    const adminClient = await createClient.mock.results[0]?.value;
     expect(adminClient.rpc).toHaveBeenCalledWith("waive_late_fee", {
       p_student_id: STUDENT_ID,
       p_amount: 500,
@@ -132,7 +132,7 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
     );
 
     expect(result.status).toBe("success");
-    const adminClient = createAdminClient.mock.results[0]?.value;
+    const adminClient = await createClient.mock.results[0]?.value;
     expect(adminClient.rpc).toHaveBeenCalledTimes(1);
     expect(adminClient.rpc.mock.calls[0][0]).toBe("waive_late_fee");
   });
@@ -150,7 +150,7 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
       );
 
       expect(result.status).toBe("error");
-      expect(createAdminClient).not.toHaveBeenCalled();
+      expect(createClient).not.toHaveBeenCalled();
       expect(syncAfterStudentChange).not.toHaveBeenCalled();
       expect(hasRolePermission(role, "payments:waive_late_fee")).toBe(false);
     },
@@ -168,13 +168,13 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
 
     expect(result.status).toBe("error");
     expect(result.message).toMatch(/at least 4 characters/i);
-    expect(createAdminClient).not.toHaveBeenCalled();
+    expect(createClient).not.toHaveBeenCalled();
   });
 
   it("surfaces RPC validation rejections (e.g. amount exceeds pending late fee)", async () => {
     setStaff("accountant");
-    createAdminClient.mockReturnValue(
-      buildAdminClient({
+    createClient.mockResolvedValue(
+      buildSupabaseClient({
         ok: false,
         message: "Waiver cannot exceed the current pending late fee (1000).",
         new_waiver_amount: 0,
@@ -197,8 +197,8 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
 
   it("surfaces RPC rejection when there is no pending late fee", async () => {
     setStaff("accountant");
-    createAdminClient.mockReturnValue(
-      buildAdminClient({
+    createClient.mockResolvedValue(
+      buildSupabaseClient({
         ok: false,
         message: "This student has no pending late fee to waive.",
         new_waiver_amount: null,
@@ -221,8 +221,8 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
 
   it("returns the additive new_waiver_amount the RPC computed under the lock", async () => {
     setStaff("accountant");
-    createAdminClient.mockReturnValue(
-      buildAdminClient({
+    createClient.mockResolvedValue(
+      buildSupabaseClient({
         ok: true,
         message: "Waiver applied.",
         new_waiver_amount: 700,

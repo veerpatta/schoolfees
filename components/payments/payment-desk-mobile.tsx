@@ -3098,13 +3098,27 @@ export function PaymentDeskClient({
                         handleCollectAnotherPayment();
                       }}
                       onContinueAnyway={() => {
+                        // Audit 1.4 hotfix — React state updates do NOT flush
+                        // to the DOM before a synchronous form.requestSubmit().
+                        // The hidden <input name="acknowledgeDailyDuplicate">
+                        // would still carry "false" when FormData snapshots,
+                        // and the server would re-throw the soft-duplicate
+                        // warning. Set the input's DOM value imperatively in
+                        // the same tick so the very next submit carries
+                        // acknowledgeDailyDuplicate=true. We still call
+                        // setAcknowledgeDailyDuplicate(true) so React's source
+                        // of truth matches the DOM for subsequent renders.
                         setAcknowledgeDailyDuplicate(true);
                         setIsDuplicateOpen(false);
                         setDismissedActionStateKey(actionStateKey);
-                        // Resubmit the existing form values (the user already
-                        // saw and explicitly confirmed the daily-amount prompt).
                         const form = document.getElementById(formId) as HTMLFormElement | null;
                         if (form) {
+                          const ackInput = form.querySelector<HTMLInputElement>(
+                            'input[name="acknowledgeDailyDuplicate"]',
+                          );
+                          if (ackInput) {
+                            ackInput.value = "true";
+                          }
                           fastPostRequestedRef.current = true;
                           form.requestSubmit();
                         }
