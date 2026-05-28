@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { MoneyGlossaryLink } from "@/components/ui/money-glossary";
 import { cn } from "@/lib/utils";
 import { DefaulterFilters } from "@/components/defaulters/defaulter-filters";
+import { DefaulterFilterRehydrator } from "@/components/defaulters/defaulter-filter-rehydrator";
 import { BulkWhatsappProvider } from "@/components/defaulters/bulk-whatsapp-provider";
 import { DefaultersWorkspace } from "@/components/defaulters/defaulters-workspace";
 import { getDefaultersPageData } from "@/lib/defaulters/data";
@@ -205,6 +206,9 @@ export default async function DefaultersPage({
 
   return (
     <div className="space-y-6">
+      {/* Audit 1.15 — sessionStorage-backed rehydrator so cross-module
+          navigation keeps the active filters in view. */}
+      <DefaulterFilterRehydrator filters={filters} sessionLabel={viewSession.sessionLabel} />
       <PageHeader
         eyebrow={t("eyebrow")}
         title={t("title")}
