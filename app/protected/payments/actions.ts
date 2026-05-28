@@ -14,6 +14,7 @@ import {
 } from "@/lib/payments/data";
 import type { PaymentEntryActionState } from "@/lib/payments/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
+import { revalidateAfterPaymentPosting } from "@/lib/system-sync/finance-revalidation";
 import {
   prepareDuesForStudentsAutomatically,
   revalidateSessionFinance,
@@ -212,6 +213,11 @@ export async function submitPaymentEntryAction(
     const resolvedSessionLabel = student.classSessionLabel || sessionLabel;
 
     revalidateSessionFinance(resolvedSessionLabel, [studentId]);
+    // Audit 1.8 — also path-revalidate Dashboard / Transactions / Receipts /
+    // Defaulters so they don't render a stale snapshot after a payment posts.
+    // revalidateSessionFinance only invalidates session: / student: tags;
+    // PAYMENT_AFFECTED_PATHS was orphaned before this fix.
+    revalidateAfterPaymentPosting([studentId]);
     const syncOutcome = buildSyncedOfficeSyncOutcome({
       sessionLabel: resolvedSessionLabel,
       affectedStudentIds: [studentId],

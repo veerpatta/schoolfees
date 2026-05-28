@@ -36,7 +36,11 @@ export async function GET(request: NextRequest) {
 
     return Response.json(
       { rows, notice: rows.length === 0 ? "No pending dues for selected payment date." : null },
-      { headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=120" } },
+      // Audit 1.10 — Payment Desk preview must never serve a stale snapshot.
+      // A 60s cache let an immediate second visit to the same student's
+      // Payment Desk show pre-payment dues, inviting over-collection. The
+      // student-summary endpoint can stay cached; the preview cannot.
+      { headers: { "Cache-Control": "private, no-store, must-revalidate" } },
     );
   } catch (error) {
     const friendlyError = toFriendlyPaymentPreviewError(error);
