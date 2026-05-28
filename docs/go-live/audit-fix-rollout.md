@@ -6,9 +6,9 @@ Live tracking for the migrations introduced by the audit fix phases. Production 
 
 | Phase | Migration | Source finding | Risk profile |
 |---|---|---|---|
-| 1 | `20260528100000_restore_receipt_idempotency_recheck.sql` | 1.3 — receipt-retry idempotency | Function-only change. Drops + recreates `post_student_payment_with_adjustments` with the same signature; adds a `client_request_id` re-query inside the `unique_violation` handler. No table or view changes. |
-| 1 | `20260528100100_waive_late_fee_advisory_lock.sql` | 1.5 — late-fee waiver advisory lock | New `waive_late_fee` RPC. No schema changes; only writes to `student_fee_overrides.late_fee_waiver_amount` and `reason`. |
-| 4 | `20260528101000_cleanup_post_payment_function.sql` | 1.29 + 1.30 — post-payment cleanup | Function-only change. Recreates `post_student_payment_with_adjustments` with: per-installment notes nulled (audit 1.29) + workbook snapshot cached in a temp table (audit 1.30). Compatible with Phase 1's audit-1.3 migration via `create or replace`. |
+| 1 | `20260528151701_restore_receipt_idempotency_recheck.sql` | 1.3 — receipt-retry idempotency | Function-only change. Drops + recreates `post_student_payment_with_adjustments` with the same signature; adds a `client_request_id` re-query inside the `unique_violation` handler. No table or view changes. |
+| 1 | `20260528151726_waive_late_fee_advisory_lock.sql` | 1.5 — late-fee waiver advisory lock | New `waive_late_fee` RPC. No schema changes; only writes to `student_fee_overrides.late_fee_waiver_amount` and `reason`. |
+| 4 | `20260528151933_cleanup_post_payment_function.sql` | 1.29 + 1.30 — post-payment cleanup | Function-only change. Recreates `post_student_payment_with_adjustments` with: per-installment notes nulled (audit 1.29) + workbook snapshot cached in a temp table (audit 1.30). Compatible with Phase 1's audit-1.3 migration via `create or replace`. |
 
 ## Per-migration rollout checklist
 
@@ -32,9 +32,9 @@ For each migration:
 
 ## Recommended application order
 
-1. Phase 1's `20260528100000_restore_receipt_idempotency_recheck.sql` (closes the idempotency race).
-2. Phase 1's `20260528100100_waive_late_fee_advisory_lock.sql` (introduces the new RPC; only affects waiver workflow).
-3. Phase 4's `20260528101000_cleanup_post_payment_function.sql` (note-stamp cleanup + snapshot caching; supersedes Phase 1's #1 if applied last).
+1. Phase 1's `20260528151701_restore_receipt_idempotency_recheck.sql` (closes the idempotency race).
+2. Phase 1's `20260528151726_waive_late_fee_advisory_lock.sql` (introduces the new RPC; only affects waiver workflow).
+3. Phase 4's `20260528151933_cleanup_post_payment_function.sql` (note-stamp cleanup + snapshot caching; supersedes Phase 1's #1 if applied last).
 
 If only the final state matters, applying #3 alone is sufficient — it carries audit 1.3 inside its own handler. Applying #1 then #3 is the safest path because it lets you verify the idempotency change in isolation first.
 

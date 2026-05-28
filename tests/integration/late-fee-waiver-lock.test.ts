@@ -20,7 +20,7 @@ describe("waive_late_fee Postgres RPC (audit 1.5)", () => {
   const repoRoot = process.cwd();
   const migrationPath = join(
     repoRoot,
-    "supabase/migrations/20260528100100_waive_late_fee_advisory_lock.sql",
+    "supabase/migrations/20260528151726_waive_late_fee_advisory_lock.sql",
   );
   const sql = readFileSync(migrationPath, "utf8");
 

@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const migrationPath = join(
   process.cwd(),
-  "supabase/migrations/20260528101000_cleanup_post_payment_function.sql",
+  "supabase/migrations/20260528151933_cleanup_post_payment_function.sql",
 );
 
 describe("post_payment cleanup migration (audit 1.29 + 1.30)", () => {

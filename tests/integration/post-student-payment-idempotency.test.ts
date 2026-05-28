@@ -23,7 +23,7 @@ describe("post_student_payment_with_adjustments idempotency (audit 1.3)", () => 
   const repoRoot = process.cwd();
   const migrationPath = join(
     repoRoot,
-    "supabase/migrations/20260528100000_restore_receipt_idempotency_recheck.sql",
+    "supabase/migrations/20260528151701_restore_receipt_idempotency_recheck.sql",
   );
   const earlierMigrationPath = join(
     repoRoot,
