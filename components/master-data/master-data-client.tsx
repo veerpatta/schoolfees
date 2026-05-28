@@ -327,7 +327,27 @@ export function MasterDataClient({
                     <Button type="submit">Save session</Button>
                   </div>
                 </form>
-                <form action={deleteSessionFormAction} className="mt-2">
+                <form
+                  action={deleteSessionFormAction}
+                  className="mt-2"
+                  onSubmit={(event) => {
+                    // Audit 1.23 — destructive action needs a typed confirmation
+                    // echoing the session label. Mirrors the live-switch UX.
+                    const typed = window.prompt(
+                      `Delete academic session "${session.session_label}"?\n\nThis is irreversible. Type the session label to confirm.`,
+                    );
+                    if (typed === null) {
+                      event.preventDefault();
+                      return;
+                    }
+                    if (typed.trim() !== session.session_label) {
+                      event.preventDefault();
+                      window.alert(
+                        `Confirmation did not match "${session.session_label}". Session not deleted.`,
+                      );
+                    }
+                  }}
+                >
                   <input type="hidden" name="sessionId" value={session.id} />
                   <Button type="submit" variant="outline">Delete session</Button>
                 </form>

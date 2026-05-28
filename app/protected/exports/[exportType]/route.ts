@@ -488,7 +488,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
     sessionLabel: requestedSessionLabel || null,
   });
   const filenameBase = `VPPS-${exportType}-${resolvedSessionLabel || "current"}`;
-  const filename = formatExportName(filenameBase, "xlsx");
+  // Audit 1.22 — match the recorded extension to the actual format so the
+  // dashboard recent-activity strip doesn't show ".xlsx" for a PDF download.
+  const extension = format === "pdf" ? "pdf" : "xlsx";
+  const filename = formatExportName(filenameBase, extension);
   const exportTitle = `${exportType.replace(/-/g, " ")} · ${resolvedSessionLabel || "current"}`;
 
   // Fire-and-forget activity log for the dashboard recent-activity strip.
