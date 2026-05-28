@@ -756,13 +756,25 @@ export async function saveStudentConventionalDiscountAssignments(payload: {
       );
   }
 
+  // Audit 1.24 — UUID-validate before sending into PostgREST's `.not("…", "in", …)`
+  // filter. Even though PostgREST escapes, raw concatenation of form-fed values
+  // into an IN-list expression is an avoidable risk. We also switch from the
+  // string `(uuid1,uuid2)` form to the array form so the supabase client
+  // serialises the values itself.
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const safePolicyIds = policyIds.filter((id) => uuidPattern.test(id));
+  const policyIdsForFilter =
+    safePolicyIds.length > 0
+      ? safePolicyIds
+      : ["00000000-0000-0000-0000-000000000000"];
+
   const { error: deactivateError } = await supabase
     .from("student_conventional_discount_assignments")
     .update({ is_active: false })
     .eq("student_id", payload.studentId)
     .eq("academic_session_label", academicSessionLabel)
     .eq("is_active", true)
-    .not("policy_id", "in", `(${policyIds.join(",") || "00000000-0000-0000-0000-000000000000"})`);
+    .not("policy_id", "in", `(${policyIdsForFilter.join(",")})`);
 
   if (deactivateError) {
     throw new Error(deactivateError.message);
