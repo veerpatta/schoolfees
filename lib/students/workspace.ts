@@ -1,11 +1,18 @@
 import "server-only";
 
 import type { PaymentMode } from "@/lib/db/types";
-import { getStudentFinancialSnapshot } from "@/lib/fees/data";
+import { getFeePolicySummary, getStudentFinancialSnapshot } from "@/lib/fees/data";
 import { getLedgerPageData } from "@/lib/ledger/data";
 import { createClient } from "@/lib/supabase/server";
 import { getStudentDetail } from "@/lib/students/data";
 import { getWorkbookInstallmentBalances } from "@/lib/workbook/data";
+
+export class WorkspaceContextError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WorkspaceContextError";
+  }
+}
 
 type StudentReceiptRow = {
   id: string;
@@ -129,8 +136,31 @@ export async function getFamilyWorkspaceData(familyGroupId: string) {
 
   const familyGroup = familyGroupResult.data;
 
+  let resolvedFallbackLabel: string | null = null;
+  if (!familyGroup) {
+    const memberLabel = members[0]?.academic_session_label?.trim();
+    if (memberLabel) {
+      resolvedFallbackLabel = memberLabel;
+    } else {
+      const policy = await getFeePolicySummary();
+      const policyLabel = policy.academicSessionLabel?.trim();
+      if (!policyLabel) {
+        throw new WorkspaceContextError(
+          `Unable to resolve academic session for family group ${familyGroupId}: no member label or active fee policy.`,
+        );
+      }
+      resolvedFallbackLabel = policyLabel;
+    }
+  }
+
   return {
-    familyGroup: familyGroup ?? { id: familyGroupId, name: "Family Group", academic_session_label: members[0]?.academic_session_label ?? "2026-27" },
+    familyGroup:
+      familyGroup ??
+      {
+        id: familyGroupId,
+        name: "Family Group",
+        academic_session_label: resolvedFallbackLabel!,
+      },
     students: activeWorkspaces,
   };
 }
