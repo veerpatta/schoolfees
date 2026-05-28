@@ -1296,9 +1296,9 @@ function ReceiptBulkPrintBar({
   const handlePrint = () => {
     if (overCap) {
       const proceed = window.confirm(
-        `${count} receipts selected. Browsers may block opening more than ${RECEIPT_BULK_PRINT_CAP} tabs at once. Open them in smaller batches?`,
+        `${count} receipts selected. Browsers may block opening more than ${RECEIPT_BULK_PRINT_CAP} tabs at once. Open all ${count} anyway? Cancel to split into batches.`,
       );
-      if (proceed) return;
+      if (!proceed) return;
     }
     for (const id of selectedIds) {
       const href = `/protected/receipts/${id}?session=${encodeURIComponent(sessionLabel)}`;

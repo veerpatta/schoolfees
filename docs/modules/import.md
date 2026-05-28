@@ -70,11 +70,21 @@ Operational caution:
 ## Conventional Discounts + Import Context
 
 Current conventional discount system is implemented and auditable via dedicated
-tables. Import behavior should remain conservative:
+tables. Import behavior is intentionally locked down:
 
-- do not silently assign complex family policies from ambiguous sheet data
-- prefer explicit assignment workflow where audit reasoning is visible
-- export/report support can include conventional discount student lists
+- The student import has **no** mapped fields for `conventionalPolicy1`,
+  `conventionalPolicy2`, `conventionalFamilyGroup`, or `conventionalPolicyNotes`.
+  Aliases like "Policy 1", "Family Group", or "Policy Notes" in an Excel header
+  row are ignored by the auto-mapper and rejected by the manual mapping form.
+- `buildImportStudentInput` always preserves the student's existing conventional
+  policy assignment on update, and writes empty on create. Sheet cells cannot
+  cause RTE (₹0 tuition), Staff Child (50%), or 3rd Child (₹6,000) to apply.
+- Policy assignments must go through the dedicated Conventional Discount
+  workflow so each application has an explicit audit-trail row.
+- Export/report support may still include conventional discount student lists.
+
+See audit finding 1.2 and `tests/integration/import-policy-isolation.test.ts`
+for the regression coverage.
 
 ## Anti-Patterns (Do Not Implement)
 
