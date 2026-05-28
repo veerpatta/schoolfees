@@ -98,6 +98,8 @@ export function Sheet({
     [onClose],
   );
 
+  const panelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!open) return;
     document.addEventListener("keydown", handleKey);
@@ -111,8 +113,81 @@ export function Sheet({
     return () => document.removeEventListener("keydown", handleKey);
   }, [open, handleKey, lockScroll]);
 
+  /* ---- Audit 1.16: manual focus trap + restore ----
+   * The sheet sets role="dialog" aria-modal="true" but did not trap Tab,
+   * did not move initial focus, and did not restore focus on close.
+   * Keyboard and screen-reader users could Tab into background content.
+   *
+   * We capture the previously-focused element on open, move focus into
+   * the sheet (first focusable element, falling back to the panel itself),
+   * cycle Tab/Shift+Tab between first and last focusable elements, and
+   * restore the original focus when the sheet closes.
+   */
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    if (typeof document === "undefined") return;
+
+    previouslyFocusedRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    const panel = panelRef.current;
+    if (panel) {
+      // Defer focus to after the panel renders.
+      const id = window.setTimeout(() => {
+        const focusables = panel.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusables.length > 0) {
+          focusables[0].focus();
+        } else {
+          panel.setAttribute("tabindex", "-1");
+          panel.focus();
+        }
+      }, 0);
+
+      const onTabKey = (event: KeyboardEvent) => {
+        if (event.key !== "Tab") return;
+        const focusables = Array.from(
+          panel.querySelectorAll<HTMLElement>(
+            'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          ),
+        ).filter((el) => el.offsetParent !== null);
+        if (focusables.length === 0) {
+          event.preventDefault();
+          return;
+        }
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement as HTMLElement | null;
+        if (event.shiftKey) {
+          if (active === first || !panel.contains(active)) {
+            event.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (active === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
+      };
+
+      document.addEventListener("keydown", onTabKey);
+      return () => {
+        window.clearTimeout(id);
+        document.removeEventListener("keydown", onTabKey);
+        const previous = previouslyFocusedRef.current;
+        if (previous && document.body.contains(previous)) {
+          previous.focus();
+        }
+      };
+    }
+    return undefined;
+  }, [open]);
+
   /* ---- Swipe-to-dismiss for bottom sheets ---- */
-  const panelRef = useRef<HTMLDivElement>(null);
   const [dragY, setDragY] = useState(0);
   const touchStartY = useRef<number | null>(null);
 
