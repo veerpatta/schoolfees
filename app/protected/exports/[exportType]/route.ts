@@ -590,7 +590,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         "Route": row.transportRouteLabel,
         "Total pending": row.totalPending,
         "Overdue base": row.overdueAmount,
-        "Late fee total": row.lateFeeTotal,
+        "Late fee": row.lateFeeTotal,
         "Next due date": row.nextDueDate ?? "",
         "Next due amount": row.nextDueAmount,
         "Status": row.statusLabel,
