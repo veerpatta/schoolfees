@@ -11,6 +11,7 @@ import { calculateOverdueBaseAmount } from "@/lib/fees/due-amounts";
 import {
   prepareDuesForStudentsAutomatically,
 } from "@/lib/system-sync/finance-sync";
+import { logError, logWarn } from "@/lib/observability/log";
 import { getWorkbookStudentFinancials } from "@/lib/workbook/data";
 import type {
   InstallmentBalanceItem,
@@ -482,14 +483,26 @@ export async function getPaymentDeskReadiness(payload: {
     ]);
     return await getPaymentDeskReadinessUncached({ ...payload, policy, hasActiveClass });
   } catch (error) {
-    console.warn("Payment Desk readiness check failed.", {
+    // Audit 1.11 — fail safe. Previously the catch returned
+    // `canPostPayments: payload.canWritePayments, blockingReason: null` which
+    // hid every gate (active class, fee policy) on a transient DB hiccup
+    // and showed the UI a green checkmark. Now we block posting and return
+    // a generic actionable blocking reason. RLS denials and missing-view
+    // errors no longer silently unlock the desk.
+    logWarn("payments.readiness.check_failed", {
       sessionLabel: payload.sessionLabel,
-      message: getErrorMessage(error),
+      cause: error,
     });
 
     return {
-      canPostPayments: payload.canWritePayments,
-      blockingReason: null,
+      canPostPayments: false,
+      blockingReason: {
+        title: "Readiness check failed",
+        detail:
+          "Could not confirm the Payment Desk is ready. Please retry; if it persists, ask an admin to check Fee Setup and System checks.",
+        actionLabel: "Retry",
+        actionHref: null,
+      },
       canRepairOrPrepareDues:
         payload.canWritePayments && payload.staffAppRole === "admin",
     };
@@ -703,7 +716,15 @@ async function getConventionalDiscountForStudent(
       })
       .filter((label): label is string => Boolean(label));
     return { amount, labels };
-  } catch {
+  } catch (error) {
+    // Audit 1.12 — surface the failure instead of swallowing it. Returning a
+    // zero-discount default on RLS/missing-view errors used to hide credit
+    // and discount state from the Payment Desk so the cashier saw full dues
+    // even when an unrefunded credit existed.
+    logError("payments.conventional_discount.lookup_failed", {
+      studentId,
+      cause: error,
+    });
     return { amount: 0, labels: [] };
   }
 }
@@ -720,11 +741,18 @@ async function getStudentFinancialState(studentId: string) {
       .maybeSingle();
 
     if (error) {
+      // Audit 1.12 — RLS denial or missing-view error used to silently
+      // collapse to null and hide the actual credit/overpaid state.
+      logError("payments.financial_state.lookup_failed", {
+        studentId,
+        cause: error,
+      });
       return null;
     }
 
     return (data ?? null) as StudentFinancialStateRow | null;
-  } catch {
+  } catch (error) {
+    logError("payments.financial_state.threw", { studentId, cause: error });
     return null;
   }
 }
