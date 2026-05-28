@@ -35,9 +35,17 @@ export async function GET(request: Request) {
     }
     return NextResponse.json({ breakdown });
   } catch (caught) {
-    console.error("[fee-breakdown] route failed", caught);
+    // Audit 1.28 — surface enough context for the Worklist Drawer to render
+    // an actionable error rather than a generic "Could not load…". When
+    // Phase 2's lib/observability/log lands on main, swap console.error for
+    // logError("defaulters.fee_breakdown.failed", { studentId, cause: caught }).
+    console.error("[fee-breakdown] route failed", { studentId, caught });
     return NextResponse.json(
-      { error: "Could not load fee breakdown" },
+      {
+        error: "Could not load fee breakdown",
+        studentId,
+        errorCode: "FEE_BREAKDOWN_FAILED",
+      },
       { status: 500 },
     );
   }
