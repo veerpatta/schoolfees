@@ -150,6 +150,28 @@ Root `proxy.ts` delegates to `lib/supabase/proxy.ts` for session refresh on ever
 
 `SUPABASE_SERVICE_ROLE_KEY` must never appear in `NEXT_PUBLIC_*` variables or be imported in browser code.
 
+**RPCs that gate on `public.has_permission(...)` MUST be called via the user-JWT supabase client (`createClient()` from `lib/supabase/server.ts`), NEVER the service-role admin client.** `has_permission` requires `auth.uid() is not null`, which is null under a service-role JWT — every call would raise "You do not have permission…". Server Actions enforce RBAC upstream via `requireStaffPermission()` and the in-RPC check is defense-in-depth. Affected RPCs: `post_student_payment_with_adjustments`, `waive_late_fee`, and anything else with `public.has_permission(...)` as its first guard.
+
+### Supabase MCP Migration Workflow — version mismatch trap
+
+**`mcp__supabase__apply_migration` generates its own `schema_migrations.version` from the wall-clock time at apply, not from the filename.** If you write `supabase/migrations/20260528100000_foo.sql` and apply it via the MCP, the remote table records (say) `20260528151701` — a different version. The Supabase Preview action / `supabase db push --dry-run` then fails with:
+
+```
+Remote migration versions not found in local migrations directory.
+```
+
+**Required workflow when applying migrations via the MCP:**
+
+1. Write the migration file with any sortable timestamp filename.
+2. Call `mcp__supabase__apply_migration({ name, query })`.
+3. Immediately call `mcp__supabase__list_migrations` and find the version that was just recorded for `name`.
+4. **`git mv`** the local file so its filename version matches the recorded version (`<recorded_version>_<name>.sql`).
+5. `grep` the repo for any tests / docs that hardcode the old filename and update them.
+
+The file CONTENTS stay byte-for-byte identical — only the filename's leading timestamp changes. This keeps the Supabase Preview check, the rollout doc, and the `supabase/migrations/` ordering all consistent with what's actually live in Postgres. PR #41 (commit `bfb5fee`) shows the pattern.
+
+Alternative: avoid the MCP for new migrations and use `supabase db push` from the CLI instead, which honors the filename version. The MCP is fine for applying urgent hotfixes when CLI access isn't handy, as long as the rename step is done in the same session.
+
 ### Fee Engine (Workbook Mode)
 
 The fee calculation engine is `workbook_v1`. Core lib files in `lib/fees/` (27 files) and `lib/workbook/`. Key DB objects:
