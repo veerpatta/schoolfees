@@ -1251,10 +1251,11 @@ function buildImportStudentInput(
   const existing = existingStudent ?? null;
   const useExisting = row.operation === "update" && existing !== null;
   const override = payload.overrides;
-  const hasConventionalPolicyMapping =
-    hasMappedValue(row, mapping, "conventionalPolicy1") ||
-    hasMappedValue(row, mapping, "conventionalPolicy2");
-  const hasConventionalNotesMapping = hasMappedValue(row, mapping, "conventionalPolicyNotes");
+  // Audit 1.2 — Conventional Discount policy + family-group + notes are NEVER
+  // applied from import payloads. Even if a legacy mapping or forced column
+  // slips through, the importer must preserve the existing assignment (for
+  // updates) or write empty defaults (for creates). Policy assignment lives
+  // exclusively in the Conventional Discount workflow.
 
   return {
     fullName: payload.fullName,
@@ -1325,22 +1326,16 @@ function buildImportStudentInput(
         ? existing?.overrideReason ?? `Imported from batch ${batchId} row ${row.rowIndex}`
         : payload.feeProfileReason ?? `Imported from batch ${batchId} row ${row.rowIndex}`,
     feeProfileNotes: row.reviewNote,
-    conventionalPolicyIds:
-      useExisting && !hasConventionalPolicyMapping
-        ? existing?.conventionalDiscountPolicyIds ?? []
-        : payload.conventionalDiscounts.policyIds,
+    // Audit 1.2 — preserve existing values on update; write empty on create.
+    // Never propagate payload.conventionalDiscounts.* — those are derived from
+    // sheet cells and must go through the explicit Conventional Discount UI.
+    conventionalPolicyIds: existing?.conventionalDiscountPolicyIds ?? [],
     conventionalDiscountReason:
-      useExisting && !hasConventionalNotesMapping
-        ? existing?.conventionalDiscountReason ?? `Imported from batch ${batchId} row ${row.rowIndex}`
-        : payload.conventionalDiscounts.notes ?? `Imported from batch ${batchId} row ${row.rowIndex}`,
-    conventionalDiscountNotes:
-      useExisting && !hasConventionalNotesMapping
-        ? existing?.conventionalDiscountNotes ?? null
-        : payload.conventionalDiscounts.notes,
+      existing?.conventionalDiscountReason ??
+      `Imported from batch ${batchId} row ${row.rowIndex}`,
+    conventionalDiscountNotes: existing?.conventionalDiscountNotes ?? null,
     conventionalDiscountFamilyGroup:
-      useExisting && !hasMappedValue(row, mapping, "conventionalFamilyGroup")
-        ? existing?.conventionalDiscountFamilyGroupLabel ?? null
-        : payload.conventionalDiscounts.familyGroup,
+      existing?.conventionalDiscountFamilyGroupLabel ?? null,
     conventionalDiscountManualOverrideReason:
       existing?.conventionalDiscountManualOverrideReason ?? null,
     notes:
