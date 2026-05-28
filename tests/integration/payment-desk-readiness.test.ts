@@ -65,8 +65,13 @@ describe("payment desk readiness", () => {
     expect(readiness.blockingReason).toBeNull();
   });
 
-  it("payment_desk_readiness_is_crash_isolated", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  it("payment_desk_readiness_fails_safe_on_crash (audit 1.11)", async () => {
+    // Audit 1.11 — the previous behaviour was to swallow readiness errors and
+    // return canPostPayments=true with no blocking reason, which hid the
+    // active-class / fee-policy gates on a transient DB hiccup. The fix
+    // closes the desk and surfaces a generic blocking reason so the cashier
+    // can retry instead of silently posting against missing dues.
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     getFeePolicyForSession.mockRejectedValue(new Error("fetch failed"));
     createClient.mockResolvedValue({
       from: vi.fn(() => makeClassesQuery({ throwError: new Error("fetch failed") })),
@@ -79,16 +84,12 @@ describe("payment desk readiness", () => {
       canWritePayments: true,
     });
 
-    expect(readiness.canPostPayments).toBe(true);
+    expect(readiness.canPostPayments).toBe(false);
+    expect(readiness.blockingReason?.title).toBe("Readiness check failed");
+    expect(readiness.blockingReason?.detail).toMatch(/retry|Fee Setup/i);
+    // Admins still get the repair affordance so they can recover.
     expect(readiness.canRepairOrPrepareDues).toBe(true);
-    expect(readiness.blockingReason).toBeNull();
-    expect(warn).toHaveBeenCalledWith(
-      "Payment Desk readiness check failed.",
-      expect.objectContaining({
-        sessionLabel: "TEST-2026-27",
-        message: "fetch failed",
-      }),
-    );
+    errorSpy.mockRestore();
   });
 
   it("payment_desk_readiness_blocks_when_policy_missing", async () => {
