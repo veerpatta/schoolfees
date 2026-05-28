@@ -444,11 +444,16 @@ async function loadPlan(): Promise<RegenerationPlan> {
       continue;
     }
 
-    const grossBaseBeforeDiscount = resolved.breakdown.grossBaseBeforeDiscount ??
-      (tuitionAmount + transportAmount + (resolved.breakdown.academicFeeAmount ?? 0) + (resolved.breakdown.otherAdjustmentAmount ?? 0));
-    if (grossBaseBeforeDiscount < discountAmount) {
+    // Audit 1.9 — Cap discount against the resolved annual total, not a
+    // hand-rolled sum. The previous fallback added only core heads and
+    // omitted books / custom-other heads, so a discount that legitimately
+    // applied to the full gross could be rejected, while a discount that
+    // genuinely exceeded the smaller gross could slip past the cap if the
+    // resolved breakdown surfaced a `grossBaseBeforeDiscount` lower than
+    // `annualTotal`. Comparing against annualTotal removes the ambiguity.
+    if (resolved.breakdown.annualTotal < discountAmount) {
       throw new Error(
-        `Discount for student ${studentLabel} exceeds the configured annual total.`,
+        `Discount for student ${studentLabel} (${discountAmount}) exceeds the configured annual total (${resolved.breakdown.annualTotal}).`,
       );
     }
 
@@ -466,12 +471,17 @@ async function loadPlan(): Promise<RegenerationPlan> {
           academicFeeDistribution: setupData.globalPolicy.academicFeeDistribution,
         })
       : null;
+    // Audit 1.9 — refuse to silently clamp a negative base to zero. If
+    // baseAmount has gone negative by this point, the upstream cap check
+    // missed something — surface it instead of zeroing unpaid installments.
+    if (!isWorkbook && baseAmount < 0) {
+      throw new Error(
+        `Computed base amount for student ${studentLabel} is negative (${baseAmount}). Refusing to zero unpaid installments.`,
+      );
+    }
     const baseAmounts = isWorkbook
       ? workbookCharges!.installmentCharges
-      : splitAcrossInstallments(
-          Math.max(baseAmount, 0),
-          setupData.globalPolicy.installmentCount,
-        );
+      : splitAcrossInstallments(baseAmount, setupData.globalPolicy.installmentCount);
     const transportAmounts = isWorkbook
       ? Array.from({ length: setupData.globalPolicy.installmentCount }, () => 0)
       : splitAcrossInstallments(
