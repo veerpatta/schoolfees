@@ -168,6 +168,30 @@ function markPaymentDeskStudentTiming(
   if (name === "summary_paint") performance.mark("vpps:payment-desk:summary_paint");
 }
 
+/**
+ * Audit 1.19 — differentiate transient (network/timeout/abort-like) failures
+ * from policy gaps (404/422 from the API surface). On a flaky mobile
+ * connection the cashier used to blame Fee Setup when a retry would resolve
+ * it. Now transient failures suggest a retry; policy gaps point at admin.
+ */
+function classifyPaymentSummaryError(error: unknown): string {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  const isTransient =
+    error instanceof TypeError ||
+    message.includes("failed to fetch") ||
+    message.includes("network") ||
+    message.includes("timeout") ||
+    message.includes("connection") ||
+    message.includes("offline");
+  if (isTransient) {
+    return "Connection problem loading dues. Tap Retry — if it keeps failing, ask admin to check Fee Setup.";
+  }
+  if (message.includes("policy") || message.includes("fee setup") || message.includes("not prepared")) {
+    return "Dues are not prepared for this student. Ask admin to check Fee Setup.";
+  }
+  return "Unable to load dues. Tap Retry or ask admin to check Fee Setup.";
+}
+
 function triggerHaptic(pattern: VibratePattern) {
   try {
     if (typeof navigator !== "undefined" && navigator.vibrate) {
@@ -725,7 +749,7 @@ export function PaymentDeskClient({
           if (error instanceof Error && error.name === "AbortError") return;
           setPreviewLoading(false);
           setPreviewUnavailable(true);
-          setPreviewNotice("Unable to load installment breakdown. Ask admin to check Fee Setup.");
+          setPreviewNotice(classifyPaymentSummaryError(error));
         });
       return () => {
         controller.abort();
@@ -812,10 +836,11 @@ export function PaymentDeskClient({
         setDateAwareBreakdown(null);
         prefetchCache.current.delete(prefetchKey);
         setStudentSummaryLoading(false);
-        setStudentSummaryNotice("Unable to load dues. Ask admin to check Fee Setup.");
+        const classified = classifyPaymentSummaryError(error);
+        setStudentSummaryNotice(classified);
         setPreviewUnavailable(true);
         setPreviewLoading(false);
-        setPreviewNotice("Unable to load dues. Ask admin to check Fee Setup.");
+        setPreviewNotice(classified);
       });
 
     return () => {
