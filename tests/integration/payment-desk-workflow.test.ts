@@ -545,7 +545,7 @@ describe("payment desk cashier workflow", () => {
     );
 
     expect(component).toContain("toast({");
-    expect(component).toContain("Receipt ${state.receiptNumber} posted");
+    expect(component).toContain('tToasts("receiptPostedTitle"');
     expect(component).toContain("triggerHaptic([40, 60, 40])");
     expect(component).toContain("triggerHaptic([20, 40, 20, 40, 20])");
     expect(component).toContain("triggerHaptic(10)");
