@@ -7,6 +7,9 @@ import { cacheSafeUnstableCache, getCacheSafeClient } from "@/lib/supabase/cache
 import { getWorkbookClassOptions, getWorkbookInstallmentRows, getWorkbookStudentFinancials } from "@/lib/workbook/data";
 import { getStudentFormOptions } from "@/lib/students/data";
 import { heatScore, type DefaulterContactSummary } from "@/lib/defaulters/cadence";
+import { classifyPaymentBehavior } from "@/lib/defaulters/behavior";
+import { getNoCallFlags, getContactSummariesForStudents } from "@/lib/defaulters/contacts";
+import type { PromiseStatus } from "@/lib/defaulters/types";
 
 import type {
   DefaulterFilters,
@@ -16,8 +19,6 @@ import type {
   DefaulterSummaryRow,
   DefaultersPageData,
 } from "./types";
-
-const DEFAULTERS_PAGE_SIZE = 100;
 
 type BaseDefaulterStudentRow = {
   id: string;
@@ -103,6 +104,29 @@ function toDateKey() {
   }).format(new Date());
 }
 
+/**
+ * Derives whether the parent kept or broke their last payment promise.
+ *   - kept    → there is a promise and a payment landed on/after the promise was made.
+ *   - broken  → the promised date has passed and no payment came after the promise.
+ *   - pending → promised, date not yet reached.
+ * Returns null when there's no promise on record (or payment history is hidden).
+ */
+function derivePromiseStatus(
+  summary: DefaulterContactSummary | null,
+  lastPaymentDate: string | null,
+  today: string,
+): PromiseStatus | null {
+  if (!summary || summary.lastOutcome !== "promised_pay") return null;
+  const promiseDate = summary.snoozeUntil; // yyyy-mm-dd the parent committed to
+  const promisedOn = summary.lastContactedAt?.slice(0, 10) ?? null; // when the promise was made
+  if (!promiseDate || !promisedOn) return null;
+
+  const paidSincePromise = Boolean(lastPaymentDate && lastPaymentDate >= promisedOn);
+  if (paidSincePromise) return "kept";
+  if (promiseDate < today) return "broken";
+  return "pending";
+}
+
 function calculateDaysOverdue(dueDate: string | null, today: string) {
   if (!dueDate || dueDate >= today) {
     return 0;
@@ -178,17 +202,20 @@ async function getActiveSessionStudents(filters: DefaulterFilters, sessionLabel:
 
 async function loadDefaulterFamilyMembers(studentIds: string[], sessionLabel: string) {
   const supabase = await createClient();
+  // Scope by session (not a giant student_id IN list — that would overflow the
+  // request URL for large defaulter sets) and filter to the candidate set in
+  // memory. visibleSiblingCount then means "siblings also in the defaulter list".
+  const wanted = new Set(studentIds);
   const { data, error } = await supabase
     .from("student_family_members")
     .select("student_id, family_group_id")
-    .in("student_id", studentIds)
     .eq("academic_session_label", sessionLabel);
 
   if (error || !data) {
     return new Map<string, { familyGroupId: string; visibleSiblingCount: number }>();
   }
 
-  const rows = data as FamilyMemberRow[];
+  const rows = (data as FamilyMemberRow[]).filter((row) => wanted.has(row.student_id));
   const visibleByFamily = new Map<string, number>();
 
   rows.forEach((row) => {
@@ -204,14 +231,6 @@ async function loadDefaulterFamilyMembers(studentIds: string[], sessionLabel: st
       },
     ]),
   );
-}
-
-function normalizePagination(pagination?: { page?: number; pageSize?: number }) {
-  const page = Math.max(1, Math.floor(pagination?.page ?? 1));
-  const pageSize = Math.min(150, Math.max(25, Math.floor(pagination?.pageSize ?? DEFAULTERS_PAGE_SIZE)));
-  const offset = (page - 1) * pageSize;
-
-  return { page, pageSize, offset };
 }
 
 function buildPagination(totalRows: number, page: number, pageSize: number, visibleCount: number): DefaultersPagination {
@@ -243,28 +262,47 @@ export async function getDefaultersPageData(
   const redactPaymentHistory = options?.redactPaymentHistory === true;
   const policy = await getFeePolicySummary();
   const resolvedSessionLabel = sessionLabel ?? policy.academicSessionLabel;
-  const pageInput = normalizePagination(pagination);
-  const [{ routeOptions }, classOptions, financialRows, overdueInstallmentRows, activeStudents] = await Promise.all([
-    getStudentFormOptions({ sessionLabel: resolvedSessionLabel }),
-    getWorkbookClassOptions(resolvedSessionLabel),
-    getWorkbookStudentFinancials({
-      classId: filters.classId || undefined,
-      sessionLabel: resolvedSessionLabel,
-    }),
-    getWorkbookInstallmentRows({
-      classId: filters.classId || undefined,
-      overdueOnly: true,
-      pendingOnly: true,
-      sessionLabel: resolvedSessionLabel,
-    }),
-    getActiveSessionStudents(filters, resolvedSessionLabel),
-  ]);
+  void pagination; // pagination is now handled client-side; kept for signature stability.
+  const [{ routeOptions }, classOptions, financialRows, overdueInstallmentRows, allInstallmentRows, activeStudents] =
+    await Promise.all([
+      getStudentFormOptions({ sessionLabel: resolvedSessionLabel }),
+      getWorkbookClassOptions(resolvedSessionLabel),
+      getWorkbookStudentFinancials({
+        classId: filters.classId || undefined,
+        sessionLabel: resolvedSessionLabel,
+      }),
+      getWorkbookInstallmentRows({
+        classId: filters.classId || undefined,
+        overdueOnly: true,
+        pendingOnly: true,
+        sessionLabel: resolvedSessionLabel,
+      }),
+      // All installments (incl. paid) — drives within-session payment-timing
+      // for the behavior classifier. Same broad-fetch-then-bucket pattern as
+      // overdue rows above.
+      getWorkbookInstallmentRows({
+        classId: filters.classId || undefined,
+        sessionLabel: resolvedSessionLabel,
+      }),
+      getActiveSessionStudents(filters, resolvedSessionLabel),
+    ]);
+
+  // Per-student paid-installment timing: on-time when the installment was fully
+  // cleared on or before its due date. Used only for behavior classification.
+  const paymentTimingByStudent = new Map<string, { onTime: number; late: number }>();
+  for (const inst of allInstallmentRows) {
+    if (inst.balanceStatus !== "paid") continue;
+    const bucket = paymentTimingByStudent.get(inst.studentId) ?? { onTime: 0, late: 0 };
+    const paidOnTime = !inst.lastPaymentDate || inst.lastPaymentDate <= inst.dueDate;
+    if (paidOnTime) bucket.onTime += 1;
+    else bucket.late += 1;
+    paymentTimingByStudent.set(inst.studentId, bucket);
+  }
 
   const minimumPendingAmount = parseMinimumPendingAmount(filters.minPendingAmount);
   const normalizedSearch = (filters.searchQuery ?? "").trim().toLowerCase();
   const today = toDateKey();
   const todayDate = new Date(`${today}T12:00:00+05:30`);
-  const contactSummaries = options?.contactSummaries;
   const overdueRowsByStudent = new Map<string, typeof overdueInstallmentRows>();
   overdueInstallmentRows
     .filter((row) => (filters.transportRouteId ? row.transportRouteId === filters.transportRouteId : true))
@@ -275,7 +313,8 @@ export async function getDefaultersPageData(
       ]);
     });
 
-  const rows = financialRows
+  // 1) Filter the financial rows down to the full candidate defaulter set.
+  const baseRows = financialRows
     .filter((row) =>
       filters.transportRouteId ? row.transportRouteId === filters.transportRouteId : true,
     )
@@ -298,58 +337,98 @@ export async function getDefaultersPageData(
         row.fatherPhone ?? "",
         row.classLabel,
       ].some((value) => value.toLowerCase().includes(normalizedSearch));
-    })
-    .map(
-      (row) => {
-        const daysOverdue = calculateDaysOverdue(row.nextDueDate, today);
-        const overdueAmount = calculateOverdueBaseAmount(overdueRowsByStudent.get(row.studentId) ?? []);
-        const defaulterScore = row.outstandingAmount + overdueAmount + daysOverdue * 100;
-        const heat = heatScore({
-          totalPending: row.outstandingAmount,
-          daysOverdue,
-          today: todayDate,
-          contact: contactSummaries?.get(row.studentId) ?? null,
-        });
+    });
 
-        return {
-          studentId: row.studentId,
-          classId: row.classId,
-          admissionNo: row.admissionNo,
-          fullName: row.studentName,
-          fatherName: row.fatherName,
-          fatherPhone: row.fatherPhone,
-          classLabel: row.classLabel,
-          studentStatusLabel: row.studentStatusLabel,
-          transportRouteId: row.transportRouteId,
-          transportRouteLabel: row.transportRouteName ?? "No Transport",
-          totalDue: row.totalDue,
-          totalPaid: row.totalPaid,
-          totalPending: row.outstandingAmount,
-          overdueAmount,
-          lateFee: row.lateFeeTotal,
-          discountApplied: row.discountAmount,
-          lateFeeWaived: row.lateFeeWaiverAmount,
-          overdueInstallments: row.overdueInstallmentCount,
-          openInstallments:
-            Number(row.inst1Pending > 0) +
-            Number(row.inst2Pending > 0) +
-            Number(row.inst3Pending > 0) +
-            Number(row.inst4Pending > 0),
-          nextDueAmount: row.nextDueAmount,
-          oldestDueDate: row.nextDueDate,
-          nextDueDate: row.nextDueDate,
-          lastPaymentDate: redactPaymentHistory ? null : row.lastPaymentDate,
-          followUpStatus: overdueAmount > 0 ? "overdue" : "pending",
+  // 2) Contact summaries, no-call flags, and family — for the WHOLE candidate
+  //    set, so heat, behavior segments, and the No-call tab are list-wide (not
+  //    just the visible page). Summaries are fetched here when not supplied so
+  //    the page needs a single pass.
+  const candidateIds = baseRows.map((row) => row.studentId);
+  const [contactSummaries, familyMembership, noCallFlags] = await Promise.all([
+    options?.contactSummaries
+      ? Promise.resolve(options.contactSummaries)
+      : candidateIds.length > 0
+        ? getContactSummariesForStudents(candidateIds, resolvedSessionLabel)
+        : Promise.resolve(new Map<string, DefaulterContactSummary>()),
+    candidateIds.length > 0
+      ? loadDefaulterFamilyMembers(candidateIds, resolvedSessionLabel)
+      : Promise.resolve(new Map<string, { familyGroupId: string; visibleSiblingCount: number }>()),
+    candidateIds.length > 0
+      ? getNoCallFlags(candidateIds, resolvedSessionLabel)
+      : Promise.resolve(new Map<string, { noCall: boolean; reason: string | null }>()),
+  ]);
+
+  // 3) Enrich every candidate (heat, behavior, promise status, no-call, family),
+  //    sort by heat, then rank.
+  const rows = baseRows
+    .map((row) => {
+      const daysOverdue = calculateDaysOverdue(row.nextDueDate, today);
+      const overdueAmount = calculateOverdueBaseAmount(overdueRowsByStudent.get(row.studentId) ?? []);
+      const defaulterScore = row.outstandingAmount + overdueAmount + daysOverdue * 100;
+      const summary = contactSummaries.get(row.studentId) ?? null;
+      const heat = heatScore({
+        totalPending: row.outstandingAmount,
+        daysOverdue,
+        today: todayDate,
+        contact: summary,
+      });
+      const lastPaymentDate = redactPaymentHistory ? null : row.lastPaymentDate;
+      const timing = paymentTimingByStudent.get(row.studentId) ?? { onTime: 0, late: 0 };
+      // Use the redacted value so a no-payments-view user can't infer payment
+      // activity from a "Kept promise" chip.
+      const promiseStatus = derivePromiseStatus(summary, lastPaymentDate, today);
+      const family = familyMembership.get(row.studentId);
+
+      return {
+        studentId: row.studentId,
+        classId: row.classId,
+        admissionNo: row.admissionNo,
+        fullName: row.studentName,
+        fatherName: row.fatherName,
+        fatherPhone: row.fatherPhone,
+        motherPhone: row.motherPhone,
+        classLabel: row.classLabel,
+        studentStatusLabel: row.studentStatusLabel,
+        transportRouteId: row.transportRouteId,
+        transportRouteLabel: row.transportRouteName ?? "No Transport",
+        totalDue: row.totalDue,
+        totalPaid: row.totalPaid,
+        totalPending: row.outstandingAmount,
+        overdueAmount,
+        lateFee: row.lateFeeTotal,
+        discountApplied: row.discountAmount,
+        lateFeeWaived: row.lateFeeWaiverAmount,
+        overdueInstallments: row.overdueInstallmentCount,
+        openInstallments:
+          Number(row.inst1Pending > 0) +
+          Number(row.inst2Pending > 0) +
+          Number(row.inst3Pending > 0) +
+          Number(row.inst4Pending > 0),
+        nextDueAmount: row.nextDueAmount,
+        oldestDueDate: row.nextDueDate,
+        nextDueDate: row.nextDueDate,
+        lastPaymentDate,
+        followUpStatus: overdueAmount > 0 ? "overdue" : "pending",
+        daysOverdue,
+        defaulterScore,
+        heat,
+        rank: 0,
+        paymentBehavior: classifyPaymentBehavior({
+          installmentsPaidOnTime: timing.onTime,
+          installmentsPaidLate: timing.late,
+          overdueInstallmentCount: row.overdueInstallmentCount,
           daysOverdue,
-          defaulterScore,
-          heat,
-          rank: 0,
-        } satisfies DefaulterSummaryRow;
-      },
-    )
+          noAnswerStreak: summary?.noAnswerStreak ?? 0,
+          brokenPromise: promiseStatus === "broken",
+        }),
+        promiseStatus,
+        noCall: noCallFlags.get(row.studentId)?.noCall ?? false,
+        familyGroupId: family?.familyGroupId ?? null,
+        familyVisibleSiblingCount: family?.visibleSiblingCount ?? 0,
+      } satisfies DefaulterSummaryRow;
+    })
     .sort((left, right) => {
-      // Primary: heat score (uses contact log). Falls back to defaulterScore
-      // when contact summaries weren't supplied (heat stays at base level).
+      // Primary: heat score (uses contact log). Falls back to defaulterScore.
       if (right.heat !== left.heat) {
         return right.heat - left.heat;
       }
@@ -365,24 +444,6 @@ export async function getDefaultersPageData(
       return left.fullName.localeCompare(right.fullName);
     })
     .map((row, index) => ({ ...row, rank: index + 1 }));
-
-  const pageRows = rows.slice(pageInput.offset, pageInput.offset + pageInput.pageSize);
-  const familyMembership =
-    pageRows.length > 0
-      ? await loadDefaulterFamilyMembers(
-          pageRows.map((row) => row.studentId),
-          resolvedSessionLabel,
-        )
-      : new Map<string, { familyGroupId: string; visibleSiblingCount: number }>();
-  const rowsWithFamilies = pageRows.map((row) => {
-    const family = familyMembership.get(row.studentId);
-
-    return {
-      ...row,
-      familyGroupId: family?.familyGroupId ?? null,
-      familyVisibleSiblingCount: family?.visibleSiblingCount ?? 0,
-    };
-  });
 
   const generatedStudentIds = new Set(financialRows.map((row) => row.studentId));
   const missingDuesRows = activeStudents.filter(
@@ -448,12 +509,15 @@ export async function getDefaultersPageData(
     classOptions,
     routeOptions,
     metrics,
-    rows: rowsWithFamilies,
-    pagination: buildPagination(rows.length, pageInput.page, pageInput.pageSize, rowsWithFamilies.length),
+    rows,
+    // The full filtered list is returned in one shot; the workspace paginates
+    // client-side so cadence/behavior/no-call filters stay list-wide + instant.
+    pagination: buildPagination(rows.length, 1, Math.max(rows.length, 1), rows.length),
     missingDuesRows,
     routeSummaryRows,
+    contactSummaries,
   };
-  console.log(`[defaulters-page-data] loaded in ${Date.now() - _t0}ms`);
+  console.log(`[defaulters-page-data] loaded ${rows.length} rows in ${Date.now() - _t0}ms`);
   return result;
 }
 
@@ -473,6 +537,7 @@ export type DefaulterExportRow = {
   classLabel: string;
   fatherName: string | null;
   fatherPhone: string | null;
+  motherPhone: string | null;
   transportRouteLabel: string;
   totalPending: number;
   overdueAmount: number;
@@ -546,6 +611,7 @@ export async function getDefaulterExportRows(
       classLabel: row.classLabel,
       fatherName: row.fatherName,
       fatherPhone: row.fatherPhone,
+      motherPhone: row.motherPhone,
       transportRouteLabel: row.transportRouteName ?? "No Transport",
       totalPending: row.outstandingAmount,
       overdueAmount: calculateOverdueBaseAmount(overdueByStudent.get(row.studentId) ?? []),

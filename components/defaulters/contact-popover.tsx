@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { VoiceNoteRecorder } from "@/components/defaulters/voice-note-recorder";
+import type { PhoneEntry } from "@/components/students/phone-chooser";
 import {
   logContactAction,
   type LogContactState,
@@ -19,6 +20,10 @@ type Props = {
   onClose: () => void;
   /** Pre-select an outcome (e.g. when the user picked Dispute from the card). */
   initialOutcome?: "reached" | "no_answer" | "promised_pay" | "dispute" | "other";
+  /** Parent numbers — when present, staff picks which one this attempt used. */
+  phoneEntries?: PhoneEntry[];
+  /** Default selected label ("Father"/"Mother"). */
+  defaultPhoneLabel?: string | null;
 };
 
 const CHANNELS = [
@@ -65,6 +70,8 @@ export function ContactPopover({
   open,
   onClose,
   initialOutcome = "reached",
+  phoneEntries = [],
+  defaultPhoneLabel = null,
 }: Props) {
   const t = useTranslations("Defaulters");
   const [state, formAction, pending] = useActionState(
@@ -72,10 +79,21 @@ export function ContactPopover({
     INITIAL_STATE,
   );
   const [outcome, setOutcome] = useState<typeof OUTCOMES[number]["value"]>(initialOutcome);
+  const [phoneLabel, setPhoneLabel] = useState<string | null>(
+    () => defaultPhoneLabel ?? phoneEntries[0]?.label ?? null,
+  );
 
   useEffect(() => {
-    if (open) setOutcome(initialOutcome);
-  }, [open, initialOutcome]);
+    if (open) {
+      setOutcome(initialOutcome);
+      setPhoneLabel(defaultPhoneLabel ?? phoneEntries[0]?.label ?? null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialOutcome, defaultPhoneLabel]);
+
+  const selectedPhone = phoneEntries.find((e) => e.label === phoneLabel)?.phone ?? null;
+  const labelText = (label: string) =>
+    label === "Father" ? t("phoneLabelFather") : label === "Mother" ? t("phoneLabelMother") : label;
 
   useEffect(() => {
     if (state.status === "success") onClose();
@@ -92,6 +110,37 @@ export function ContactPopover({
       <form action={formAction} className="space-y-5">
         <input type="hidden" name="studentId" value={studentId} />
         <input type="hidden" name="sessionLabel" value={sessionLabel} />
+        <input type="hidden" name="contactedPhone" value={selectedPhone ?? ""} />
+        <input type="hidden" name="phoneLabel" value={phoneLabel ?? ""} />
+
+        {phoneEntries.length > 1 ? (
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium text-foreground">
+              {t("popoverNumber")}
+            </legend>
+            <div className="grid grid-cols-2 gap-2">
+              {phoneEntries.map((entry) => (
+                <label
+                  key={entry.phone}
+                  className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-border p-3 text-sm text-foreground hover:bg-surface-2 has-[:checked]:border-accent has-[:checked]:bg-accent/5"
+                >
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="phoneChoice"
+                      value={entry.label}
+                      checked={phoneLabel === entry.label}
+                      onChange={() => setPhoneLabel(entry.label)}
+                      className="accent-accent"
+                    />
+                    {labelText(entry.label)}
+                  </span>
+                  <span className="font-mono text-xs text-muted-foreground">{entry.phone}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ) : null}
 
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium text-foreground">

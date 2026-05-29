@@ -2,6 +2,11 @@ import type {
   StudentClassOption,
   StudentRouteOption,
 } from "@/lib/students/types";
+import type { PaymentBehavior } from "@/lib/defaulters/behavior";
+import type { DefaulterContactSummary } from "@/lib/defaulters/cadence";
+
+/** Outcome of the parent's most recent payment promise. */
+export type PromiseStatus = "kept" | "broken" | "pending";
 
 export type DefaulterFilters = {
   classId: string;
@@ -28,6 +33,8 @@ export type DefaulterSummaryRow = {
   fullName: string;
   fatherName: string | null;
   fatherPhone: string | null;
+  /** Secondary number (typically the mother). Used for the "try another number" flow. */
+  motherPhone: string | null;
   classLabel: string;
   studentStatusLabel: "New" | "Old";
   transportRouteId: string | null;
@@ -51,6 +58,12 @@ export type DefaulterSummaryRow = {
   /** 0–100 heat score (money + age + promise + responsiveness + freshness). */
   heat: number;
   rank: number;
+  /** Payment temperament for filtering/badging. Attached for visible page rows. */
+  paymentBehavior?: PaymentBehavior;
+  /** Whether the parent kept/broke their last payment promise (null if none). */
+  promiseStatus?: PromiseStatus | null;
+  /** Admin-set "will pay anyway — don't call" flag for this session. */
+  noCall?: boolean;
   familyGroupId?: string | null;
   familyVisibleSiblingCount?: number;
 };
@@ -93,6 +106,8 @@ export type DefaultersPageData = {
   pagination: DefaultersPagination;
   missingDuesRows: MissingDuesWarningRow[];
   routeSummaryRows: RouteOutstandingSummaryRow[];
+  /** Per-student contact summaries for every returned row (drives client UI). */
+  contactSummaries: Map<string, DefaulterContactSummary>;
 };
 
 export const EMPTY_DEFAULTER_FILTERS: DefaulterFilters = {

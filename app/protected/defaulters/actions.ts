@@ -6,6 +6,7 @@ import { recordActivity } from "@/lib/activity/events";
 import { snoozeIso } from "@/lib/defaulters/cadence";
 import {
   insertDefaulterContact,
+  setNoCallFlag,
   type ContactChannel,
   type ContactOutcome,
 } from "@/lib/defaulters/contacts";
@@ -76,6 +77,8 @@ export async function logContactAction(
   const note = (formData.get("note") as string | null)?.trim() || null;
   const sessionLabel = formData.get("sessionLabel") as string | null;
   const voiceNotePath = (formData.get("voiceNotePath") as string | null)?.trim() || null;
+  const contactedPhone = (formData.get("contactedPhone") as string | null)?.trim() || null;
+  const phoneLabel = (formData.get("phoneLabel") as string | null)?.trim() || null;
 
   if (!studentId || !channel || !outcome || !sessionLabel) {
     return { status: "error", message: "Missing required fields." };
@@ -106,6 +109,8 @@ export async function logContactAction(
       snoozeUntil,
       note,
       voiceNotePath,
+      contactedPhone,
+      phoneLabel,
     });
   } catch (caught) {
     console.error("[defaulter-actions] insert contact failed", caught);
@@ -148,6 +153,10 @@ export type QuickLogArgs = {
   channel?: ContactChannel;
   /** When outcome=promised_pay, the promised yyyy-mm-dd. */
   promisedDate?: string | null;
+  /** The number actually dialed, when known. */
+  contactedPhone?: string | null;
+  /** Which stored number was used, e.g. "Father" / "Mother". */
+  phoneLabel?: string | null;
 };
 
 export type QuickLogResult = {
@@ -184,6 +193,8 @@ export async function quickLogContact(args: QuickLogArgs): Promise<QuickLogResul
       channel,
       outcome: args.outcome,
       snoozeUntil,
+      contactedPhone: args.contactedPhone ?? null,
+      phoneLabel: args.phoneLabel ?? null,
     });
   } catch (caught) {
     console.error("[defaulter-actions] quick-log insert failed", caught);
@@ -281,4 +292,64 @@ export async function logWhatsAppSendAttempts(
     ok: failures === 0,
     message: failures === 0 ? undefined : `${failures} of ${args.studentIds.length} could not be logged.`,
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/* No-call flag (admin-only) — "this parent will pay anyway, don't call"        */
+/* -------------------------------------------------------------------------- */
+
+export type SetNoCallArgs = {
+  studentId: string;
+  sessionLabel: string;
+  noCall: boolean;
+  reason?: string | null;
+};
+
+export async function setNoCallFlagAction(args: SetNoCallArgs): Promise<QuickLogResult> {
+  // Admin-only: students:write is held by admin alone (roles.ts + has_permission).
+  // The DB RLS policy enforces the same — this is the upstream guard.
+  let staffId: string | null = null;
+  try {
+    const staff = await requireStaffPermission("students:write");
+    staffId = (staff?.id as string | undefined) ?? null;
+  } catch {
+    return { ok: false, message: "Permission denied." };
+  }
+
+  if (!args.studentId || !args.sessionLabel) {
+    return { ok: false, message: "Missing student or session." };
+  }
+
+  try {
+    await setNoCallFlag({
+      studentId: args.studentId,
+      sessionLabel: args.sessionLabel,
+      noCall: args.noCall,
+      reason: args.reason ?? null,
+    });
+  } catch (caught) {
+    console.error("[defaulter-actions] set no-call flag failed", caught);
+    return {
+      ok: false,
+      message: caught instanceof Error ? caught.message : "Could not update flag.",
+    };
+  }
+
+  try {
+    await recordActivity({
+      userId: staffId,
+      kind: "defaulter_no_call_set",
+      refId: args.studentId,
+      payload: {
+        noCall: args.noCall,
+        reason: args.reason ?? null,
+        sessionLabel: args.sessionLabel,
+      },
+    });
+  } catch (caught) {
+    console.warn("[defaulter-actions] activity record failed", caught);
+  }
+
+  safeRevalidate(args.sessionLabel);
+  return { ok: true };
 }

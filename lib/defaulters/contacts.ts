@@ -1,7 +1,28 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import type { DefaulterContactSummary } from "@/lib/defaulters/cadence";
+import {
+  callWindowForHour,
+  pickBestCallWindow,
+  suggestPhoneLabel,
+  type CallWindow,
+  type DefaulterContactSummary,
+  type PhoneResponsiveness,
+} from "@/lib/defaulters/cadence";
+
+/** Hour-of-day (0–23) in Asia/Kolkata for an ISO timestamp. */
+function istHour(iso: string | null): number | null {
+  if (!iso) return null;
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const formatted = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).format(parsed);
+  const hour = Number(formatted);
+  return Number.isFinite(hour) ? hour : null;
+}
 
 export type ContactChannel = "call" | "whatsapp" | "sms" | "in_person" | "email";
 export type ContactOutcome = "reached" | "no_answer" | "promised_pay" | "dispute" | "other";
@@ -15,6 +36,10 @@ export type InsertContactArgs = {
   snoozeUntil?: string | null;
   note?: string | null;
   voiceNotePath?: string | null;
+  /** The number actually dialed/messaged, when known. */
+  contactedPhone?: string | null;
+  /** Which stored number was used, e.g. "Father" / "Mother". */
+  phoneLabel?: string | null;
 };
 
 type RawContactRow = {
@@ -36,6 +61,7 @@ type RawContactRow = {
     | "email"
     | null;
   voice_note_path: string | null;
+  phone_label: string | null;
 };
 
 export async function insertDefaulterContact(args: InsertContactArgs): Promise<void> {
@@ -51,6 +77,8 @@ export async function insertDefaulterContact(args: InsertContactArgs): Promise<v
       snooze_until: args.snoozeUntil ?? null,
       note: args.note ?? null,
       voice_note_path: args.voiceNotePath ?? null,
+      contacted_phone: args.contactedPhone ?? null,
+      phone_label: args.phoneLabel ?? null,
     });
   if (error) throw new Error(`Failed to log contact: ${error.message}`);
 }
@@ -132,16 +160,39 @@ export async function getContactSummariesForStudents(
 
   const supabase = await createClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from("defaulter_contacts")
-    .select("student_id, contacted_at, snooze_until, outcome, channel, voice_note_path")
-    .eq("session_label", sessionLabel)
-    .in("student_id", studentIds)
-    .order("contacted_at", { ascending: false });
+  const db = supabase as any;
+  // `phone_label` is additive (migration 20260529121602). Select it, but fall
+  // back to the legacy column set if the column isn't present yet so the page
+  // never breaks mid-rollout.
+  // Scope by session only (not a giant student_id IN list, which would blow the
+  // request-URL limit once the defaulter set is large) and filter to the
+  // requested students in memory. defaulter_contacts is session-scoped + small.
+  const wanted = new Set(studentIds);
+  let data: RawContactRow[] | null = null;
+  let error: { code?: string } | null = null;
+  {
+    const res = await db
+      .from("defaulter_contacts")
+      .select("student_id, contacted_at, snooze_until, outcome, channel, voice_note_path, phone_label")
+      .eq("session_label", sessionLabel)
+      .order("contacted_at", { ascending: false });
+    data = res.data as RawContactRow[] | null;
+    error = res.error as { code?: string } | null;
+    if (error && error.code === "42703") {
+      // Column not yet migrated — retry without phone_label.
+      const legacy = await db
+        .from("defaulter_contacts")
+        .select("student_id, contacted_at, snooze_until, outcome, channel, voice_note_path")
+        .eq("session_label", sessionLabel)
+        .order("contacted_at", { ascending: false });
+      data = (legacy.data as RawContactRow[] | null)?.map((r: RawContactRow) => ({ ...r, phone_label: null })) ?? null;
+      error = legacy.error as { code?: string } | null;
+    }
+  }
 
   if (error) {
     // 42P01 = relation does not exist — migration not yet applied.
-    if ((error as { code?: string }).code === "42P01") return new Map();
+    if (error.code === "42P01") return new Map();
     console.error("[contacts] summaries fetch failed", error);
     return new Map();
   }
@@ -150,9 +201,24 @@ export async function getContactSummariesForStudents(
   const counts = new Map<string, number>();
   const streaks = new Map<string, number>();
   const streakBroken = new Set<string>();
+  // Per-number bookkeeping, keyed by studentId then phone label.
+  const perNumber = new Map<string, Map<string, PhoneResponsiveness>>();
+  const numberStreakBroken = new Set<string>(); // `${studentId}::${label}`
+  // Reached-call time-of-day tally per student → best-time-to-call.
+  const callWindows = new Map<string, Partial<Record<CallWindow, number>>>();
 
   for (const row of (data ?? []) as RawContactRow[]) {
+    if (!wanted.has(row.student_id)) continue;
     counts.set(row.student_id, (counts.get(row.student_id) ?? 0) + 1);
+    if (row.outcome === "reached") {
+      const hour = istHour(row.contacted_at);
+      if (hour !== null) {
+        const window = callWindowForHour(hour);
+        const tally = callWindows.get(row.student_id) ?? {};
+        tally[window] = (tally[window] ?? 0) + 1;
+        callWindows.set(row.student_id, tally);
+      }
+    }
     if (!streakBroken.has(row.student_id)) {
       if (row.outcome === "no_answer") {
         streaks.set(row.student_id, (streaks.get(row.student_id) ?? 0) + 1);
@@ -170,16 +236,126 @@ export async function getContactSummariesForStudents(
         totalAttempts: 0,
       });
     }
+
+    // Per-number stats. Rows arrive most-recent first, so the first row per
+    // label is its latest attempt and the trailing no-answer streak ends there.
+    const label = row.phone_label?.trim();
+    if (label) {
+      let byLabel = perNumber.get(row.student_id);
+      if (!byLabel) {
+        byLabel = new Map<string, PhoneResponsiveness>();
+        perNumber.set(row.student_id, byLabel);
+      }
+      const stat =
+        byLabel.get(label) ??
+        ({ label, attempts: 0, reached: 0, noAnswerStreak: 0, lastReachedAt: null } satisfies PhoneResponsiveness);
+      stat.attempts += 1;
+      if (row.outcome === "reached") {
+        stat.reached += 1;
+        if (!stat.lastReachedAt) stat.lastReachedAt = row.contacted_at ?? null;
+      }
+      const streakKey = `${row.student_id}::${label}`;
+      if (!numberStreakBroken.has(streakKey)) {
+        if (row.outcome === "no_answer") {
+          stat.noAnswerStreak += 1;
+        } else if (row.outcome) {
+          numberStreakBroken.add(streakKey);
+        }
+      }
+      byLabel.set(label, stat);
+    }
   }
 
-  // Backfill streak / total now that we've scanned every row.
+  // Backfill streak / total + per-number suggestion now that every row is scanned.
   for (const [studentId, summary] of result.entries()) {
+    const byLabel = perNumber.get(studentId);
+    const perNumberObj = byLabel ? Object.fromEntries(byLabel) : undefined;
     result.set(studentId, {
       ...summary,
       noAnswerStreak: streaks.get(studentId) ?? 0,
       totalAttempts: counts.get(studentId) ?? 0,
+      perNumber: perNumberObj,
+      suggestedPhoneLabel: suggestPhoneLabel(perNumberObj),
+      bestCallWindow: pickBestCallWindow(callWindows.get(studentId) ?? {}),
     });
   }
 
   return result;
+}
+
+/* -------------------------------------------------------------------------- */
+/* No-call / "will pay anyway" flags (admin-only writes, per session)          */
+/* -------------------------------------------------------------------------- */
+
+export type NoCallFlag = {
+  noCall: boolean;
+  reason: string | null;
+};
+
+/**
+ * Returns the set of no-call flags for the given students in a session.
+ * Gracefully returns an empty Map if the table does not exist yet
+ * (pre-migration) so the Defaulters page never breaks during rollout.
+ */
+export async function getNoCallFlags(
+  studentIds: string[],
+  sessionLabel: string,
+): Promise<Map<string, NoCallFlag>> {
+  if (studentIds.length === 0) return new Map();
+
+  const supabase = await createClient();
+  // Session-scoped read + in-memory filter (the flags table is tiny and this
+  // avoids a request-URL-busting student_id IN list for large defaulter sets).
+  const wanted = new Set(studentIds);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from("student_collection_flags")
+    .select("student_id, no_call, reason")
+    .eq("session_label", sessionLabel);
+
+  if (error) {
+    if ((error as { code?: string }).code === "42P01") return new Map();
+    console.error("[contacts] no-call flags fetch failed", error);
+    return new Map();
+  }
+
+  const result = new Map<string, NoCallFlag>();
+  for (const row of (data ?? []) as Array<{
+    student_id: string;
+    no_call: boolean;
+    reason: string | null;
+  }>) {
+    if (!wanted.has(row.student_id)) continue;
+    result.set(row.student_id, { noCall: row.no_call, reason: row.reason ?? null });
+  }
+  return result;
+}
+
+export type SetNoCallFlagArgs = {
+  studentId: string;
+  sessionLabel: string;
+  noCall: boolean;
+  reason?: string | null;
+};
+
+/**
+ * Upserts the per-session no-call flag for a student. RLS gates the write on
+ * the admin-only `students:write` permission; the calling server action also
+ * enforces it upstream (defense in depth).
+ */
+export async function setNoCallFlag(args: SetNoCallFlagArgs): Promise<void> {
+  const supabase = await createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
+    .from("student_collection_flags")
+    .upsert(
+      {
+        student_id: args.studentId,
+        session_label: args.sessionLabel,
+        no_call: args.noCall,
+        reason: args.reason ?? null,
+      },
+      { onConflict: "student_id,session_label" },
+    );
+  if (error) throw new Error(`Failed to update no-call flag: ${error.message}`);
 }

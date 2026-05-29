@@ -74,19 +74,26 @@ describe("office performance guardrails", () => {
     }
   });
 
-  it("keeps Defaulters paginated at the server boundary", () => {
+  it("keeps Defaulters bounded: session-scoped fetch, single pass, client-side incremental render", () => {
     const defaultersData = readRepoFile("lib/defaulters/data.ts");
     const defaultersTypes = readRepoFile("lib/defaulters/types.ts");
     const defaultersPage = readRepoFile("app/protected/defaulters/page.tsx");
+    const defaultersWorkspace = readRepoFile("components/defaulters/defaulters-workspace.tsx");
 
+    // Pagination metadata type is retained (drives the listed-count badge).
     expect(defaultersTypes).toContain("export type DefaultersPagination");
-    expect(defaultersData).toContain("const DEFAULTERS_PAGE_SIZE = 100");
-    expect(defaultersData).toContain("[defaulters-page-data] loaded in");
-    expect(defaultersData).toContain("const pageRows = rows.slice");
+    expect(defaultersData).toContain("[defaulters-page-data] loaded");
     expect(defaultersData).toContain("pagination: buildPagination(");
-    expect(defaultersPage).toContain("normalizePage");
-    expect(defaultersPage).toContain("buildPageHref");
+    // The query is scoped to a single academic session (not every session).
+    expect(defaultersData).toContain("resolvedSessionLabel");
+    // Single pass: contact summaries are fetched once inside data.ts, so the
+    // page must not re-fetch them separately (the old two-pass pattern).
+    expect(defaultersPage).not.toContain("getContactSummariesForStudents");
+    expect(defaultersPage).toContain("data.contactSummaries");
     expect(defaultersPage).toContain("data.pagination.visibleStart");
+    // Filters are list-wide; the DOM stays light via client-side chunked render.
+    expect(defaultersWorkspace).toContain("RENDER_CHUNK");
+    expect(defaultersWorkspace).toContain("pagedRows");
   });
 
   it("scopes workbook reads to the active office session and visible receipts", () => {

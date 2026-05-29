@@ -16,6 +16,10 @@ type Props = {
   sessionLabel: string;
   /** Inferred from the last attempt; defaults to "call". */
   defaultChannel?: Channel;
+  /** The number currently selected on the card — outcomes attribute to it. */
+  activePhone?: string | null;
+  /** Label of the active number ("Father"/"Mother") for per-number learning. */
+  activeLabel?: string | null;
   /** Open the full-form sheet (for Dispute / Other / add note). */
   onOpenFullForm: () => void;
   /** Compact icon-only buttons (for desktop table cells). */
@@ -44,6 +48,8 @@ export function QuickLogButtons({
   studentId,
   sessionLabel,
   defaultChannel = "call",
+  activePhone = null,
+  activeLabel = null,
   onOpenFullForm,
   compact = false,
   onOptimisticLog,
@@ -82,6 +88,8 @@ export function QuickLogButtons({
       sessionLabel,
       outcome: "no_answer",
       channel: defaultChannel,
+      contactedPhone: activePhone,
+      phoneLabel: activeLabel,
     });
   }
 
@@ -91,6 +99,8 @@ export function QuickLogButtons({
       sessionLabel,
       outcome: "reached",
       channel: defaultChannel,
+      contactedPhone: activePhone,
+      phoneLabel: activeLabel,
     });
   }
 
@@ -101,6 +111,8 @@ export function QuickLogButtons({
       outcome: "promised_pay",
       channel: defaultChannel,
       promisedDate,
+      contactedPhone: activePhone,
+      phoneLabel: activeLabel,
     });
   }
 

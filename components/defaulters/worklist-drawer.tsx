@@ -1,20 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { History, Loader2, MessageSquare, Phone, Receipt } from "lucide-react";
+import { History, Loader2, MessageSquare, Receipt } from "lucide-react";
 
 import { Sheet } from "@/components/ui/sheet";
 import { Money } from "@/components/ui/money";
+import { BehaviorBadge } from "@/components/defaulters/behavior-badge";
+import { ContactNumbers } from "@/components/defaulters/contact-numbers";
 import { ContactStatusChip } from "@/components/defaulters/contact-status-chip";
 import { ContactPopover } from "@/components/defaulters/contact-popover";
 import { FeeBreakdownPanel } from "@/components/defaulters/fee-breakdown-panel";
 import { HeatChip } from "@/components/defaulters/heat-chip";
+import { NoCallToggle } from "@/components/defaulters/no-call-toggle";
+import { PromiseChip } from "@/components/defaulters/promise-chip";
 import {
   QuickLogButtons,
   type QuickLogKind,
 } from "@/components/defaulters/quick-log-buttons";
+import { buildStudentPhoneEntries } from "@/components/students/phone-chooser";
 import { VoiceNotePlayer } from "@/components/defaulters/voice-note-player";
 import { WhatsAppDraftModal } from "@/components/defaulters/whatsapp-draft-modal";
 import { formatInr } from "@/lib/helpers/currency";
@@ -58,12 +63,16 @@ type Props = {
   contactSummary?: DefaulterContactSummary | null;
   canPostPayments: boolean;
   canViewPaymentHistory: boolean;
+  canManageNoCall: boolean;
+  noCall: boolean;
   onOptimisticLog?: (
     kind: QuickLogKind,
     defaultChannel: DefaulterContactSummary["lastChannel"],
     promisedDate: string | null,
   ) => void;
   onLogRevert?: () => void;
+  onNoCallChange?: (noCall: boolean) => void;
+  onNoCallRevert?: (previous: boolean) => void;
 };
 
 export function WorklistDrawer({
@@ -74,8 +83,12 @@ export function WorklistDrawer({
   contactSummary,
   canPostPayments,
   canViewPaymentHistory,
+  canManageNoCall,
+  noCall,
   onOptimisticLog,
   onLogRevert,
+  onNoCallChange,
+  onNoCallRevert,
 }: Props) {
   const t = useTranslations("Defaulters");
   const [entries, setEntries] = useState<ContactEntry[] | null>(null);
@@ -83,6 +96,25 @@ export function WorklistDrawer({
   const [loading, setLoading] = useState(false);
   const [showFullForm, setShowFullForm] = useState(false);
   const [showWhatsApp, setShowWhatsApp] = useState(false);
+  const [activeLabel, setActiveLabel] = useState<string | null>(null);
+
+  const phoneEntries = useMemo(
+    () =>
+      row
+        ? buildStudentPhoneEntries({ fatherPhone: row.fatherPhone, motherPhone: row.motherPhone })
+        : [],
+    [row],
+  );
+
+  // Default the active number to the suggested one whenever the student changes.
+  const studentId = row?.studentId ?? null;
+  useEffect(() => {
+    if (!studentId) return;
+    const suggested = contactSummary?.suggestedPhoneLabel;
+    const match = suggested ? phoneEntries.find((e) => e.label === suggested) : undefined;
+    setActiveLabel((match ?? phoneEntries[0])?.label ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentId]);
 
   useEffect(() => {
     if (!open || !row) return;
@@ -124,6 +156,7 @@ export function WorklistDrawer({
   const defaultChannel =
     (contactSummary?.lastChannel as "call" | "whatsapp" | "sms" | "in_person" | "email" | null) ??
     "call";
+  const activePhone = phoneEntries.find((e) => e.label === activeLabel)?.phone ?? null;
 
   return (
     <>
@@ -170,16 +203,6 @@ export function WorklistDrawer({
             <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
               <dt className="text-muted-foreground">{t("tableFather")}</dt>
               <dd className="text-right text-foreground">{row.fatherName ?? "-"}</dd>
-              <dt className="text-muted-foreground">{t("tablePhone")}</dt>
-              <dd className="text-right text-foreground">
-                {row.fatherPhone ? (
-                  <a href={`tel:${row.fatherPhone}`} className="text-info-soft-foreground hover:underline">
-                    {row.fatherPhone}
-                  </a>
-                ) : (
-                  "-"
-                )}
-              </dd>
               <dt className="text-muted-foreground">{t("tableOldestDue")}</dt>
               <dd className="text-right text-foreground">
                 {row.oldestDueDate ? formatShortDate(row.oldestDueDate) : "-"}
@@ -196,9 +219,33 @@ export function WorklistDrawer({
               ) : null}
             </dl>
 
-            <div className="mt-3">
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
               <ContactStatusChip summary={contactSummary ?? null} />
+              <BehaviorBadge behavior={row.paymentBehavior} />
+              <PromiseChip status={row.promiseStatus} />
+              <NoCallToggle
+                studentId={row.studentId}
+                sessionLabel={sessionLabel}
+                noCall={noCall}
+                canManage={canManageNoCall}
+                onOptimisticChange={onNoCallChange}
+                onRevert={onNoCallRevert}
+              />
             </div>
+          </div>
+
+          {/* Pick the number to call, then log the outcome against it */}
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              {t("drawerCallNumber")}
+            </p>
+            <ContactNumbers
+              entries={phoneEntries}
+              activeLabel={activeLabel}
+              onSelect={(entry) => setActiveLabel(entry.label)}
+              summary={contactSummary ?? null}
+              stopPropagation={false}
+            />
           </div>
 
           {/* Primary actions */}
@@ -210,27 +257,26 @@ export function WorklistDrawer({
               studentId={row.studentId}
               sessionLabel={sessionLabel}
               defaultChannel={defaultChannel}
+              activePhone={activePhone}
+              activeLabel={activeLabel}
               onOpenFullForm={() => setShowFullForm(true)}
               onOptimisticLog={onOptimisticLog}
               onLogRevert={onLogRevert}
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            {row.fatherPhone ? (
-              <a
-                href={`tel:${row.fatherPhone}`}
-                className="inline-flex flex-col items-center justify-center gap-1 rounded-lg border border-success/30 bg-success-soft px-2 py-3 text-xs font-semibold text-success-soft-foreground"
-              >
-                <Phone className="size-4" aria-hidden="true" />
-                {t("drawerCall")}
-              </a>
-            ) : (
-              <span className="inline-flex flex-col items-center justify-center gap-1 rounded-lg border border-border bg-surface-2 px-2 py-3 text-xs font-medium text-muted-foreground">
-                <Phone className="size-4" aria-hidden="true" />
-                {t("drawerNoPhone")}
-              </span>
-            )}
+          {(contactSummary?.noAnswerStreak ?? 0) >= 3 ? (
+            <button
+              type="button"
+              onClick={() => setShowWhatsApp(true)}
+              className="flex w-full items-center gap-2 rounded-lg border border-success/40 bg-success-soft px-3 py-2.5 text-left text-sm font-medium text-success-soft-foreground hover:bg-success-soft/80"
+            >
+              <MessageSquare className="size-4 shrink-0" aria-hidden="true" />
+              {t("whatsappNudge", { count: contactSummary?.noAnswerStreak ?? 0 })}
+            </button>
+          ) : null}
+
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => setShowWhatsApp(true)}
@@ -341,6 +387,8 @@ export function WorklistDrawer({
         studentId={row.studentId}
         studentName={row.fullName}
         sessionLabel={sessionLabel}
+        phoneEntries={phoneEntries}
+        defaultPhoneLabel={activeLabel}
       />
 
       <WhatsAppDraftModal

@@ -9,21 +9,27 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 import {
+  BellOff,
   CheckCircle2,
   ChevronRight,
   Clock,
   Flame,
-  Phone,
+  MessageSquare,
   Snowflake,
 } from "lucide-react";
 
 import { BulkRowCheckbox } from "@/components/defaulters/bulk-whatsapp-provider";
+import { BehaviorBadge } from "@/components/defaulters/behavior-badge";
+import { ContactNumbers } from "@/components/defaulters/contact-numbers";
 import { ContactStatusChip } from "@/components/defaulters/contact-status-chip";
+import { PromiseChip } from "@/components/defaulters/promise-chip";
 import { FeeBreakdownPanel } from "@/components/defaulters/fee-breakdown-panel";
 import { HeatChip } from "@/components/defaulters/heat-chip";
+import { NoCallToggle } from "@/components/defaulters/no-call-toggle";
 import { QuickLogButtons, type QuickLogKind } from "@/components/defaulters/quick-log-buttons";
 import { WorklistDrawer } from "@/components/defaulters/worklist-drawer";
 import { ContactPopover } from "@/components/defaulters/contact-popover";
+import { buildStudentPhoneEntries, type PhoneEntry } from "@/components/students/phone-chooser";
 import { Money } from "@/components/ui/money";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { formatInr } from "@/lib/helpers/currency";
@@ -35,7 +41,29 @@ import {
   type CadenceCounts,
   type DefaulterContactSummary,
 } from "@/lib/defaulters/cadence";
+import { PAYMENT_BEHAVIORS, type PaymentBehavior } from "@/lib/defaulters/behavior";
 import type { DefaulterSummaryRow } from "@/lib/defaulters/types";
+
+type SortMode = "smart" | "dues";
+
+/** How many cards to render before "Show more" (keeps the mobile DOM light). */
+const RENDER_CHUNK = 60;
+/** No-answer streak at which we nudge staff to switch to WhatsApp. */
+const WHATSAPP_NUDGE_STREAK = 3;
+
+/** Pick the active phone entry for a row, defaulting to the suggested number. */
+function defaultActiveEntry(
+  entries: PhoneEntry[],
+  summary: DefaulterContactSummary | null,
+): PhoneEntry | null {
+  if (entries.length === 0) return null;
+  const suggested = summary?.suggestedPhoneLabel;
+  if (suggested) {
+    const match = entries.find((e) => e.label === suggested);
+    if (match) return match;
+  }
+  return entries[0];
+}
 
 type Props = {
   rows: DefaulterSummaryRow[];
@@ -46,6 +74,8 @@ type Props = {
   initialCadence: string;
   canPostPayments: boolean;
   canViewPaymentHistory: boolean;
+  /** Admin-only: can toggle the per-session no-call flag. */
+  canManageNoCall: boolean;
 };
 
 const DEFAULT_SUMMARY: DefaulterContactSummary = {
@@ -100,12 +130,17 @@ export function DefaultersWorkspace({
   initialCadence,
   canPostPayments,
   canViewPaymentHistory,
+  canManageNoCall,
 }: Props) {
   const t = useTranslations("Defaulters");
   const [activeStudentId, setActiveStudentId] = useState<string | null>(null);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [fullFormFor, setFullFormFor] = useState<DefaulterSummaryRow | null>(null);
   const [activeCadence, setActiveCadence] = useState<string>(initialCadence);
+  const [behaviorFilter, setBehaviorFilter] = useState<PaymentBehavior | "all">("all");
+  const [sortMode, setSortMode] = useState<SortMode>("smart");
+  /** Optimistic overrides for the no-call flag, keyed by studentId. */
+  const [noCallOverlay, setNoCallOverlay] = useState<Record<string, boolean>>({});
 
   /**
    * Local overlay on top of the server-supplied contact summaries — keyed by
@@ -114,10 +149,24 @@ export function DefaultersWorkspace({
    */
   const [overlay, setOverlay] = useState<Record<string, DefaulterContactSummary>>({});
 
-  // Reset overlay when the underlying server summaries change (page nav).
+  // Reset overlays when the underlying server data changes (page nav).
   useEffect(() => {
     setOverlay({});
-  }, [contactSummaries]);
+    setNoCallOverlay({});
+  }, [contactSummaries, rows]);
+
+  const effectiveNoCall = useCallback(
+    (row: DefaulterSummaryRow) => noCallOverlay[row.studentId] ?? row.noCall ?? false,
+    [noCallOverlay],
+  );
+
+  const handleNoCallChange = useCallback((studentId: string, noCall: boolean) => {
+    setNoCallOverlay((prev) => ({ ...prev, [studentId]: noCall }));
+  }, []);
+
+  const handleNoCallRevert = useCallback((studentId: string, previous: boolean) => {
+    setNoCallOverlay((prev) => ({ ...prev, [studentId]: previous }));
+  }, []);
 
   const effectiveSummaries: Record<string, DefaulterContactSummary> = useMemo(() => {
     const merged: Record<string, DefaulterContactSummary> = { ...contactSummaries };
@@ -138,22 +187,60 @@ export function DefaultersWorkspace({
     [rows, effectiveSummaries, today],
   );
 
+  // No-call students are kept out of the active call buckets and counted under
+  // their own segment, so the office never rings a parent the admin exempted.
   const cadenceCounts: CadenceCounts = useMemo(
     () =>
       tallyCadence(
-        rows.map((row) => effectiveSummaries[row.studentId] ?? DEFAULT_SUMMARY),
+        rows
+          .filter((row) => !effectiveNoCall(row))
+          .map((row) => effectiveSummaries[row.studentId] ?? DEFAULT_SUMMARY),
         today,
       ),
-    [rows, effectiveSummaries, today],
+    [rows, effectiveSummaries, effectiveNoCall, today],
   );
 
-  const visibleRows = useMemo(
-    () =>
-      activeCadence === "all"
-        ? rowsWithCadence
-        : rowsWithCadence.filter((r) => r.cadence === activeCadence),
-    [rowsWithCadence, activeCadence],
+  const noCallCount = useMemo(
+    () => rows.filter((row) => effectiveNoCall(row)).length,
+    [rows, effectiveNoCall],
   );
+
+  const visibleRows = useMemo(() => {
+    const bySegment =
+      activeCadence === "noCall"
+        ? rowsWithCadence.filter(({ row }) => effectiveNoCall(row))
+        : rowsWithCadence
+            .filter(({ row }) => !effectiveNoCall(row))
+            .filter(({ cadence }) => activeCadence === "all" || cadence === activeCadence);
+
+    const byBehavior =
+      behaviorFilter === "all"
+        ? bySegment
+        : bySegment.filter(({ row }) => row.paymentBehavior === behaviorFilter);
+
+    if (sortMode === "dues") {
+      return [...byBehavior].sort((a, b) => {
+        if (b.row.totalPending !== a.row.totalPending) {
+          return b.row.totalPending - a.row.totalPending;
+        }
+        return a.row.fullName.localeCompare(b.row.fullName);
+      });
+    }
+    // "smart" preserves the server-supplied heat ordering.
+    return byBehavior;
+  }, [rowsWithCadence, activeCadence, behaviorFilter, sortMode, effectiveNoCall]);
+
+  // Client-side incremental rendering: the server returns the whole list so
+  // filters stay list-wide, but we only paint a chunk at a time.
+  const [renderLimit, setRenderLimit] = useState(RENDER_CHUNK);
+  useEffect(() => {
+    setRenderLimit(RENDER_CHUNK);
+  }, [activeCadence, behaviorFilter, sortMode]);
+  const pagedRows = useMemo(
+    () => visibleRows.slice(0, renderLimit),
+    [visibleRows, renderLimit],
+  );
+  const hasMore = visibleRows.length > renderLimit;
 
   // Persist cadence to URL via shallow history update — no server re-render.
   const handleCadenceChange = useCallback((next: string) => {
@@ -220,8 +307,16 @@ export function DefaultersWorkspace({
     <div className="space-y-3">
       <CadenceTabs
         counts={cadenceCounts}
+        noCallCount={noCallCount}
         active={activeCadence}
         onSelect={handleCadenceChange}
+      />
+
+      <ControlBar
+        behaviorFilter={behaviorFilter}
+        onBehaviorChange={setBehaviorFilter}
+        sortMode={sortMode}
+        onSortChange={setSortMode}
       />
 
       {visibleRows.length === 0 ? (
@@ -232,27 +327,40 @@ export function DefaultersWorkspace({
         <>
           {/* ── Mobile card list (primary surface) ── */}
           <div className="space-y-2 lg:hidden">
-            {visibleRows.map(({ row }) => (
+            {pagedRows.map(({ row }) => (
               <DefaulterCard
                 key={row.studentId}
                 row={row}
                 summary={effectiveSummaries[row.studentId] ?? null}
                 sessionLabel={sessionLabel}
+                canManageNoCall={canManageNoCall}
+                noCall={effectiveNoCall(row)}
                 onOpenDrawer={() => openDrawer(row)}
                 onOpenFullForm={() => setFullFormFor(row)}
                 onOptimisticLog={(kind, defaultChannel, promisedDate) =>
                   handleQuickLog(row.studentId, kind, defaultChannel, promisedDate)
                 }
                 onLogRevert={() => handleQuickLogRevert(row.studentId)}
+                onNoCallChange={(next) => handleNoCallChange(row.studentId, next)}
+                onNoCallRevert={(previous) => handleNoCallRevert(row.studentId, previous)}
               />
             ))}
+            {hasMore ? (
+              <button
+                type="button"
+                onClick={() => setRenderLimit((n) => n + RENDER_CHUNK)}
+                className="w-full rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm font-semibold text-foreground hover:bg-surface-3"
+              >
+                {t("showMore", { count: visibleRows.length - renderLimit })}
+              </button>
+            ) : null}
           </div>
 
           {/* ── Desktop two-pane ── */}
           <div className="hidden gap-4 lg:grid lg:grid-cols-[minmax(340px,420px)_1fr]">
             <div className="rounded-xl border border-border bg-card overflow-hidden">
               <ul className="divide-y divide-border/60">
-                {visibleRows.map(({ row }) => {
+                {pagedRows.map(({ row }) => {
                   const summary = effectiveSummaries[row.studentId] ?? null;
                   const isActive = activeStudentId === row.studentId;
                   return (
@@ -284,14 +392,33 @@ export function DefaultersWorkspace({
                             </div>
                           </div>
                         </div>
-                        <div className="mt-1.5">
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                           <ContactStatusChip summary={summary} />
+                          <BehaviorBadge behavior={row.paymentBehavior} />
+                          <PromiseChip status={row.promiseStatus} />
+                          {effectiveNoCall(row) ? (
+                            <NoCallToggle
+                              studentId={row.studentId}
+                              sessionLabel={sessionLabel}
+                              noCall
+                              canManage={false}
+                            />
+                          ) : null}
                         </div>
                       </button>
                     </li>
                   );
                 })}
               </ul>
+              {hasMore ? (
+                <button
+                  type="button"
+                  onClick={() => setRenderLimit((n) => n + RENDER_CHUNK)}
+                  className="w-full border-t border-border px-4 py-3 text-sm font-semibold text-foreground hover:bg-surface-2"
+                >
+                  {t("showMore", { count: visibleRows.length - renderLimit })}
+                </button>
+              ) : null}
             </div>
 
             <div className="rounded-xl border border-border bg-card p-5">
@@ -301,12 +428,16 @@ export function DefaultersWorkspace({
                   summary={activeSummary}
                   sessionLabel={sessionLabel}
                   canPostPayments={canPostPayments}
+                  canManageNoCall={canManageNoCall}
+                  noCall={effectiveNoCall(activeRow)}
                   withSession={withSession}
                   onOpenFullForm={() => setFullFormFor(activeRow)}
                   onOptimisticLog={(kind, defaultChannel, promisedDate) =>
                     handleQuickLog(activeRow.studentId, kind, defaultChannel, promisedDate)
                   }
                   onLogRevert={() => handleQuickLogRevert(activeRow.studentId)}
+                  onNoCallChange={(next) => handleNoCallChange(activeRow.studentId, next)}
+                  onNoCallRevert={(previous) => handleNoCallRevert(activeRow.studentId, previous)}
                 />
               ) : (
                 <div className="flex h-full min-h-[400px] flex-col items-center justify-center text-center">
@@ -333,6 +464,8 @@ export function DefaultersWorkspace({
         contactSummary={activeSummary}
         canPostPayments={canPostPayments}
         canViewPaymentHistory={canViewPaymentHistory}
+        canManageNoCall={canManageNoCall}
+        noCall={activeRow ? effectiveNoCall(activeRow) : false}
         onOptimisticLog={(kind, defaultChannel, promisedDate) => {
           if (activeRow) {
             handleQuickLog(activeRow.studentId, kind, defaultChannel, promisedDate);
@@ -340,6 +473,12 @@ export function DefaultersWorkspace({
         }}
         onLogRevert={() => {
           if (activeRow) handleQuickLogRevert(activeRow.studentId);
+        }}
+        onNoCallChange={(next) => {
+          if (activeRow) handleNoCallChange(activeRow.studentId, next);
+        }}
+        onNoCallRevert={(previous) => {
+          if (activeRow) handleNoCallRevert(activeRow.studentId, previous);
         }}
       />
 
@@ -350,6 +489,11 @@ export function DefaultersWorkspace({
           sessionLabel={sessionLabel}
           open={Boolean(fullFormFor)}
           onClose={() => setFullFormFor(null)}
+          phoneEntries={buildStudentPhoneEntries({
+            fatherPhone: fullFormFor.fatherPhone,
+            motherPhone: fullFormFor.motherPhone,
+          })}
+          defaultPhoneLabel={effectiveSummaries[fullFormFor.studentId]?.suggestedPhoneLabel ?? null}
         />
       ) : null}
     </div>
@@ -360,15 +504,18 @@ export function DefaultersWorkspace({
 /* Cadence tabs — fully client-controlled, instant filter                      */
 /* -------------------------------------------------------------------------- */
 
-const CADENCE_TABS: { value: Cadence | "all"; i18nKey: string; Icon: typeof Flame }[] = [
+type TabValue = Cadence | "all" | "noCall";
+
+const CADENCE_TABS: { value: TabValue; i18nKey: string; Icon: typeof Flame }[] = [
   { value: "now", i18nKey: "triageTabNow", Icon: Flame },
   { value: "soon", i18nKey: "triageTabSoon", Icon: Clock },
   { value: "later", i18nKey: "triageTabLater", Icon: Snowflake },
   { value: "done", i18nKey: "triageTabDone", Icon: CheckCircle2 },
   { value: "all", i18nKey: "triageTabAll", Icon: Flame },
+  { value: "noCall", i18nKey: "triageTabNoCall", Icon: BellOff },
 ];
 
-const CADENCE_TONE: Record<Cadence | "all", { active: string; inactive: string; badge: string }> = {
+const CADENCE_TONE: Record<TabValue, { active: string; inactive: string; badge: string }> = {
   now: {
     active: "bg-destructive text-destructive-foreground shadow-sm",
     inactive: "text-destructive hover:bg-destructive/10",
@@ -394,14 +541,21 @@ const CADENCE_TONE: Record<Cadence | "all", { active: string; inactive: string; 
     inactive: "text-muted-foreground hover:bg-card/60 hover:text-foreground",
     badge: "bg-muted text-muted-foreground",
   },
+  noCall: {
+    active: "bg-muted text-foreground shadow-sm",
+    inactive: "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+    badge: "bg-muted text-muted-foreground",
+  },
 };
 
 function CadenceTabs({
   counts,
+  noCallCount,
   active,
   onSelect,
 }: {
   counts: CadenceCounts;
+  noCallCount: number;
   active: string;
   onSelect: (next: string) => void;
 }) {
@@ -415,11 +569,18 @@ function CadenceTabs({
       aria-label={t("triageNavLabel")}
     >
       {CADENCE_TABS.map((tab) => {
-        const count = tab.value === "all" ? total : counts[tab.value as Cadence] ?? 0;
+        // Hide the No-call tab entirely when no parent is exempted.
+        if (tab.value === "noCall" && noCallCount === 0) return null;
+        const count =
+          tab.value === "all"
+            ? total
+            : tab.value === "noCall"
+              ? noCallCount
+              : counts[tab.value as Cadence] ?? 0;
         const isActive =
           active === tab.value ||
           (tab.value === "now" && (active === "all" || active === ""));
-        const tone = CADENCE_TONE[tab.value as Cadence | "all"];
+        const tone = CADENCE_TONE[tab.value as TabValue];
         const Icon = tab.Icon;
         return (
           <button
@@ -451,6 +612,85 @@ function CadenceTabs({
 }
 
 /* -------------------------------------------------------------------------- */
+/* Control bar — behavior filter + sort toggle (client-side, instant)           */
+/* -------------------------------------------------------------------------- */
+
+const BEHAVIOR_CHIPS: { value: PaymentBehavior | "all"; i18nKey: string }[] = [
+  { value: "all", i18nKey: "behaviorChipAll" },
+  ...PAYMENT_BEHAVIORS.map((b) => ({
+    value: b,
+    i18nKey:
+      b === "reliable"
+        ? "behaviorReliable"
+        : b === "delays_but_pays"
+          ? "behaviorDelaysButPays"
+          : b === "chronic"
+            ? "behaviorChronic"
+            : b === "non_responsive"
+              ? "behaviorNonResponsive"
+              : "behaviorNew",
+  })),
+];
+
+function ControlBar({
+  behaviorFilter,
+  onBehaviorChange,
+  sortMode,
+  onSortChange,
+}: {
+  behaviorFilter: PaymentBehavior | "all";
+  onBehaviorChange: (next: PaymentBehavior | "all") => void;
+  sortMode: SortMode;
+  onSortChange: (next: SortMode) => void;
+}) {
+  const t = useTranslations("Defaulters");
+  return (
+    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 no-scrollbar md:mx-0 md:px-0">
+        {BEHAVIOR_CHIPS.map((chip) => {
+          const isActive = behaviorFilter === chip.value;
+          return (
+            <button
+              key={chip.value}
+              type="button"
+              onClick={() => onBehaviorChange(chip.value)}
+              className={cn(
+                "shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                isActive
+                  ? "border-accent bg-accent text-accent-foreground"
+                  : "border-border bg-surface-2 text-foreground hover:bg-surface-3",
+              )}
+            >
+              {t(chip.i18nKey)}
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex shrink-0 items-center gap-1 self-start rounded-lg border border-border bg-surface-2 p-0.5 md:self-auto">
+        <span className="px-1.5 text-[11px] font-medium text-muted-foreground">{t("sortLabel")}</span>
+        {(["smart", "dues"] as const).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => onSortChange(mode)}
+            aria-pressed={sortMode === mode}
+            title={mode === "smart" ? t("sortSmartHint") : t("sortDuesHint")}
+            className={cn(
+              "rounded-md px-2 py-1 text-xs font-medium transition-colors",
+              sortMode === mode
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {mode === "smart" ? t("sortSmart") : t("sortDues")}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* Mobile card                                                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -458,6 +698,8 @@ type CardProps = {
   row: DefaulterSummaryRow;
   summary: DefaulterContactSummary | null;
   sessionLabel: string;
+  canManageNoCall: boolean;
+  noCall: boolean;
   onOpenDrawer: () => void;
   onOpenFullForm: () => void;
   onOptimisticLog: (
@@ -466,20 +708,34 @@ type CardProps = {
     promisedDate: string | null,
   ) => void;
   onLogRevert: () => void;
+  onNoCallChange: (noCall: boolean) => void;
+  onNoCallRevert: (previous: boolean) => void;
 };
 
 function DefaulterCard({
   row,
   summary,
   sessionLabel,
+  canManageNoCall,
+  noCall,
   onOpenDrawer,
   onOpenFullForm,
   onOptimisticLog,
   onLogRevert,
+  onNoCallChange,
+  onNoCallRevert,
 }: CardProps) {
   const t = useTranslations("Defaulters");
   const defaultChannel =
     (summary?.lastChannel as "call" | "whatsapp" | "sms" | "in_person" | "email" | null) ?? "call";
+  const entries = useMemo(
+    () => buildStudentPhoneEntries({ fatherPhone: row.fatherPhone, motherPhone: row.motherPhone }),
+    [row.fatherPhone, row.motherPhone],
+  );
+  const [activeLabel, setActiveLabel] = useState<string | null>(
+    () => defaultActiveEntry(entries, summary)?.label ?? null,
+  );
+  const activePhone = entries.find((e) => e.label === activeLabel)?.phone ?? null;
 
   return (
     <div
@@ -514,17 +770,6 @@ function DefaulterCard({
                 admissionNo: row.admissionNo,
               })}
             </p>
-            {row.fatherPhone ? (
-              <a
-                href={`tel:${row.fatherPhone}`}
-                onClick={(event) => event.stopPropagation()}
-                className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-info-soft-foreground hover:underline"
-                data-row-action="true"
-              >
-                <Phone className="size-3" aria-hidden="true" />
-                {row.fatherPhone}
-              </a>
-            ) : null}
           </div>
         </div>
         <div className="shrink-0 text-right">
@@ -540,15 +785,44 @@ function DefaulterCard({
         </div>
       </div>
 
-      <div className="mt-2">
-        <ContactStatusChip summary={summary} />
+      {/* Tappable parent numbers + best-number suggestion */}
+      <div className="mt-2.5">
+        <ContactNumbers
+          entries={entries}
+          activeLabel={activeLabel}
+          onSelect={(entry) => setActiveLabel(entry.label)}
+          summary={summary}
+        />
       </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <ContactStatusChip summary={summary} />
+        <BehaviorBadge behavior={row.paymentBehavior} />
+        <PromiseChip status={row.promiseStatus} />
+        <NoCallToggle
+          studentId={row.studentId}
+          sessionLabel={sessionLabel}
+          noCall={noCall}
+          canManage={canManageNoCall}
+          onOptimisticChange={onNoCallChange}
+          onRevert={onNoCallRevert}
+        />
+      </div>
+
+      {(summary?.noAnswerStreak ?? 0) >= WHATSAPP_NUDGE_STREAK ? (
+        <p className="mt-2 inline-flex items-center gap-1 rounded-md bg-success-soft/60 px-2 py-1 text-[11px] font-medium text-success-soft-foreground">
+          <MessageSquare className="size-3" aria-hidden="true" />
+          {t("whatsappNudge", { count: summary?.noAnswerStreak ?? 0 })}
+        </p>
+      ) : null}
 
       <div className="mt-3">
         <QuickLogButtons
           studentId={row.studentId}
           sessionLabel={sessionLabel}
           defaultChannel={defaultChannel}
+          activePhone={activePhone}
+          activeLabel={activeLabel}
           onOpenFullForm={onOpenFullForm}
           onOptimisticLog={onOptimisticLog}
           onLogRevert={onLogRevert}
@@ -567,6 +841,8 @@ type DetailProps = {
   summary: DefaulterContactSummary | null;
   sessionLabel: string;
   canPostPayments: boolean;
+  canManageNoCall: boolean;
+  noCall: boolean;
   withSession: (href: string) => string;
   onOpenFullForm: () => void;
   onOptimisticLog: (
@@ -575,6 +851,8 @@ type DetailProps = {
     promisedDate: string | null,
   ) => void;
   onLogRevert: () => void;
+  onNoCallChange: (noCall: boolean) => void;
+  onNoCallRevert: (previous: boolean) => void;
 };
 
 function DesktopDetailPane({
@@ -582,14 +860,31 @@ function DesktopDetailPane({
   summary,
   sessionLabel,
   canPostPayments,
+  canManageNoCall,
+  noCall,
   withSession,
   onOpenFullForm,
   onOptimisticLog,
   onLogRevert,
+  onNoCallChange,
+  onNoCallRevert,
 }: DetailProps) {
   const t = useTranslations("Defaulters");
   const defaultChannel =
     (summary?.lastChannel as "call" | "whatsapp" | "sms" | "in_person" | "email" | null) ?? "call";
+  const entries = useMemo(
+    () => buildStudentPhoneEntries({ fatherPhone: row.fatherPhone, motherPhone: row.motherPhone }),
+    [row.fatherPhone, row.motherPhone],
+  );
+  const [activeLabel, setActiveLabel] = useState<string | null>(
+    () => defaultActiveEntry(entries, summary)?.label ?? null,
+  );
+  // Re-default the active number when the selected student changes.
+  useEffect(() => {
+    setActiveLabel(defaultActiveEntry(entries, summary)?.label ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [row.studentId]);
+  const activePhone = entries.find((e) => e.label === activeLabel)?.phone ?? null;
 
   return (
     <div className="flex h-full flex-col gap-5">
@@ -616,10 +911,33 @@ function DesktopDetailPane({
           </span>
         </div>
 
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
           <ContactStatusChip summary={summary} />
+          <BehaviorBadge behavior={row.paymentBehavior} />
+          <PromiseChip status={row.promiseStatus} />
+          <NoCallToggle
+            studentId={row.studentId}
+            sessionLabel={sessionLabel}
+            noCall={noCall}
+            canManage={canManageNoCall}
+            onOptimisticChange={onNoCallChange}
+            onRevert={onNoCallRevert}
+          />
         </div>
       </header>
+
+      <section className="space-y-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          {t("drawerCallNumber")}
+        </p>
+        <ContactNumbers
+          entries={entries}
+          activeLabel={activeLabel}
+          onSelect={(entry) => setActiveLabel(entry.label)}
+          summary={summary}
+          stopPropagation={false}
+        />
+      </section>
 
       <section className="space-y-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -629,25 +947,15 @@ function DesktopDetailPane({
           studentId={row.studentId}
           sessionLabel={sessionLabel}
           defaultChannel={defaultChannel}
+          activePhone={activePhone}
+          activeLabel={activeLabel}
           onOpenFullForm={onOpenFullForm}
           onOptimisticLog={onOptimisticLog}
           onLogRevert={onLogRevert}
         />
       </section>
 
-      <section className="grid grid-cols-3 gap-2">
-        {row.fatherPhone ? (
-          <a
-            href={`tel:${row.fatherPhone}`}
-            className="rounded-lg border border-success/30 bg-success-soft px-3 py-2.5 text-center text-sm font-semibold text-success-soft-foreground"
-          >
-            {t("drawerCall")} · {row.fatherPhone}
-          </a>
-        ) : (
-          <span className="rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-center text-sm text-muted-foreground">
-            {t("drawerNoPhone")}
-          </span>
-        )}
+      <section className="grid grid-cols-2 gap-2">
         <Link
           href={withSession(`/protected/students/${row.studentId}`)}
           className="rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-center text-sm font-semibold text-foreground"

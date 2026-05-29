@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
@@ -17,7 +16,6 @@ import { BulkWhatsappProvider } from "@/components/defaulters/bulk-whatsapp-prov
 import { DefaultersWorkspace } from "@/components/defaulters/defaulters-workspace";
 import { getDefaultersPageData } from "@/lib/defaulters/data";
 import { type DefaulterContactSummary } from "@/lib/defaulters/cadence";
-import { getContactSummariesForStudents } from "@/lib/defaulters/contacts";
 import { listWhatsappTemplates } from "@/lib/whatsapp-templates/data";
 import {
   EMPTY_DEFAULTER_FILTERS,
@@ -73,11 +71,6 @@ function normalizeFilters(
   };
 }
 
-function normalizePage(value: string | string[] | undefined) {
-  const parsed = Number(asString(value));
-  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1;
-}
-
 export default async function DefaultersPage({
   searchParams,
 }: DefaultersPageProps) {
@@ -85,37 +78,26 @@ export default async function DefaultersPage({
   const t = await getTranslations("Defaulters");
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const filters = normalizeFilters(resolvedSearchParams);
-  const page = normalizePage(resolvedSearchParams?.page);
   const viewSession = await resolveViewSession({
     searchParamSession: asString(resolvedSearchParams?.session),
     cookieSession: await getViewSessionCookie(),
   });
   const canPostPayments = hasStaffPermission(staff, "payments:write");
   const canViewPaymentHistory = hasStaffPermission(staff, "payments:view");
+  // No-call flag is admin-only; students:write is held by admin alone.
+  const canManageNoCall = hasStaffPermission(staff, "students:write");
 
-  // First load financial rows so we know which students need a contact summary
-  // — then re-compute heat with summaries in hand. Two-pass keeps the heavy
-  // financial query simple while letting the score reflect contact history.
-  const initialData = await getDefaultersPageData(
-    filters,
-    viewSession.sessionLabel,
-    { page },
-    { redactPaymentHistory: !canViewPaymentHistory },
-  );
-
-  const studentIds = initialData.rows.map((r) => r.studentId);
-  const contactSummaries = await getContactSummariesForStudents(
-    studentIds,
-    viewSession.sessionLabel,
-  );
-
-  // Re-rank with heat scores informed by contact history.
+  // Single pass: getDefaultersPageData fetches contact summaries internally for
+  // the whole candidate set, ranks by heat, enriches every row (behavior,
+  // promise status, no-call), and returns the full list. The workspace then
+  // filters + paginates client-side so cadence/behavior/no-call stay list-wide.
   const data = await getDefaultersPageData(
     filters,
     viewSession.sessionLabel,
-    { page },
-    { redactPaymentHistory: !canViewPaymentHistory, contactSummaries },
+    undefined,
+    { redactPaymentHistory: !canViewPaymentHistory },
   );
+  const contactSummaries = data.contactSummaries;
 
   const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
   const whatsappTemplates = await listWhatsappTemplates({ onlyActive: true });
@@ -188,37 +170,6 @@ export default async function DefaultersPage({
     filters.overdue !== EMPTY_DEFAULTER_FILTERS.overdue ||
     filters.minPendingAmount !== EMPTY_DEFAULTER_FILTERS.minPendingAmount ||
     filters.searchQuery !== EMPTY_DEFAULTER_FILTERS.searchQuery;
-
-  const buildPageHref = (nextPage: number) => {
-    const search = new URLSearchParams();
-    if (resolvedSearchParams?.session) {
-      search.set("session", asString(resolvedSearchParams.session));
-    }
-    if (resolvedSearchParams?.classId) {
-      search.set("classId", asString(resolvedSearchParams.classId));
-    }
-    if (resolvedSearchParams?.transportRouteId) {
-      search.set("transportRouteId", asString(resolvedSearchParams.transportRouteId));
-    }
-    if (resolvedSearchParams?.query) {
-      search.set("query", asString(resolvedSearchParams.query));
-    }
-    if (resolvedSearchParams?.overdue) {
-      search.set("overdue", asString(resolvedSearchParams.overdue));
-    }
-    if (resolvedSearchParams?.minPendingAmount) {
-      search.set("minPendingAmount", asString(resolvedSearchParams.minPendingAmount));
-    }
-    if (resolvedSearchParams?.cadence) {
-      search.set("cadence", asString(resolvedSearchParams.cadence));
-    }
-    if (nextPage > 1) {
-      search.set("page", String(nextPage));
-    }
-
-    const qs = search.toString();
-    return `/protected/defaulters${qs ? `?${qs}` : ""}`;
-  };
 
   const isActive = (chip: { value: string }) => {
     if (chip.value === "all") {
@@ -397,48 +348,14 @@ export default async function DefaultersPage({
               initialCadence={initialCadence}
               canPostPayments={canPostPayments}
               canViewPaymentHistory={canViewPaymentHistory}
+              canManageNoCall={canManageNoCall}
             />
           </div>
 
-          <SummaryRow sticky={false} hint={t("summaryPageLabel", { page: data.pagination.page })}>
+          <SummaryRow sticky={false} hint={t("summaryDefaulters")}>
             <SummaryCell label={t("summaryDefaulters")} value={String(data.pagination.totalRows)} />
             <SummaryCell label={t("summaryTotalPending")} value={formatInr(data.metrics.totalPending)} />
           </SummaryRow>
-
-          {data.pagination.hasPreviousPage || data.pagination.hasNextPage ? (
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm">
-              <span className="text-muted-foreground">
-                {t("paginationShowing", {
-                  start: data.pagination.visibleStart,
-                  end: data.pagination.visibleEnd,
-                  total: data.pagination.totalRows,
-                })}
-              </span>
-              <div className="flex items-center gap-2">
-                <Button asChild size="sm" variant="outline" aria-disabled={!data.pagination.hasPreviousPage}>
-                  <Link
-                    href={buildPageHref(Math.max(1, data.pagination.page - 1))}
-                    className={!data.pagination.hasPreviousPage ? "pointer-events-none opacity-50" : undefined}
-                  >
-                    <ChevronLeft className="size-4" />
-                    {t("previousPage")}
-                  </Link>
-                </Button>
-                <span className="min-w-16 text-center text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                  {t("summaryPageLabel", { page: data.pagination.page })}
-                </span>
-                <Button asChild size="sm" variant="outline" aria-disabled={!data.pagination.hasNextPage}>
-                  <Link
-                    href={buildPageHref(data.pagination.page + 1)}
-                    className={!data.pagination.hasNextPage ? "pointer-events-none opacity-50" : undefined}
-                  >
-                    {t("nextPage")}
-                    <ChevronRight className="size-4" />
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          ) : null}
         </BulkWhatsappProvider>
       </SectionCard>
 

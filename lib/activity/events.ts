@@ -9,6 +9,7 @@ export const ACTIVITY_KINDS = [
   "student_view",
   "export_downloaded",
   "defaulter_contacted",
+  "defaulter_no_call_set",
   "import_committed",
 ] as const;
 
@@ -21,6 +22,7 @@ const KIND_LABEL: Record<ActivityKind, string> = {
   student_view: "Student viewed",
   export_downloaded: "Export downloaded",
   defaulter_contacted: "Defaulter contacted",
+  defaulter_no_call_set: "No-call flag changed",
   import_committed: "Import committed",
 };
 
@@ -31,6 +33,7 @@ const KIND_TONE: Record<ActivityKind, "success" | "info" | "warning" | "muted"> 
   student_view: "muted",
   export_downloaded: "info",
   defaulter_contacted: "info",
+  defaulter_no_call_set: "warning",
   import_committed: "warning",
 };
 

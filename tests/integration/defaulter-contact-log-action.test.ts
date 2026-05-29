@@ -14,14 +14,15 @@ vi.mock("@/lib/supabase/session", () => ({
 }));
 vi.mock("@/lib/defaulters/contacts", () => ({
   insertDefaulterContact: vi.fn().mockResolvedValue(undefined),
+  setNoCallFlag: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/lib/activity/events", () => ({
   recordActivity: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { logContactAction } from "@/app/protected/defaulters/actions";
+import { logContactAction, setNoCallFlagAction } from "@/app/protected/defaulters/actions";
 import { requireStaffPermission } from "@/lib/supabase/session";
-import { insertDefaulterContact } from "@/lib/defaulters/contacts";
+import { insertDefaulterContact, setNoCallFlag } from "@/lib/defaulters/contacts";
 
 function makeFormData(fields: Record<string, string>): FormData {
   const fd = new FormData();
@@ -127,5 +128,57 @@ describe("logContactAction", () => {
     );
     expect(result.status).toBe("error");
     expect(result.message).toBe("DB write failed");
+  });
+
+  it("forwards the dialed number and label for per-number learning", async () => {
+    await logContactAction(
+      { status: "idle" },
+      makeFormData({ ...BASE_FIELDS, contactedPhone: "9876543210", phoneLabel: "Mother" }),
+    );
+    const args = (insertDefaulterContact as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(args.contactedPhone).toBe("9876543210");
+    expect(args.phoneLabel).toBe("Mother");
+  });
+});
+
+describe("setNoCallFlagAction (admin-only)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("gates on the admin-only students:write permission", async () => {
+    await setNoCallFlagAction({
+      studentId: "student-uuid-001",
+      sessionLabel: "2026-27",
+      noCall: true,
+    });
+    expect(requireStaffPermission).toHaveBeenCalledWith("students:write");
+  });
+
+  it("writes the flag when permitted", async () => {
+    const result = await setNoCallFlagAction({
+      studentId: "student-uuid-001",
+      sessionLabel: "2026-27",
+      noCall: true,
+      reason: "Pays every year on their own",
+    });
+    expect(result.ok).toBe(true);
+    expect(setNoCallFlag).toHaveBeenCalledOnce();
+    const args = (setNoCallFlag as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(args).toMatchObject({ studentId: "student-uuid-001", sessionLabel: "2026-27", noCall: true });
+  });
+
+  it("denies and never writes when the permission check throws", async () => {
+    (requireStaffPermission as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error("Forbidden"),
+    );
+    const result = await setNoCallFlagAction({
+      studentId: "student-uuid-001",
+      sessionLabel: "2026-27",
+      noCall: true,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.message).toBe("Permission denied.");
+    expect(setNoCallFlag).not.toHaveBeenCalled();
   });
 });

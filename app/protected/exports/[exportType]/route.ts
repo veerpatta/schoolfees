@@ -590,6 +590,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         "Class": row.classLabel,
         "Father": row.fatherName ?? "",
         "Phone": row.fatherPhone ?? "",
+        "Alternate phone": row.motherPhone ?? "",
         "Route": row.transportRouteLabel,
         "Total pending": row.totalPending,
         "Overdue base": row.overdueAmount,

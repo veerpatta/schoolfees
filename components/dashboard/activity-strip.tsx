@@ -26,6 +26,7 @@ const ACTIVITY_KIND_I18N: Record<ActivityKind, string> = {
   student_view: "kindStudentView",
   export_downloaded: "kindExportDownloaded",
   defaulter_contacted: "kindDefaulterContacted",
+  defaulter_no_call_set: "kindDefaulterNoCall",
   import_committed: "kindImportCommitted",
 };
 

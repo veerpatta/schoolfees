@@ -34,7 +34,88 @@ export type DefaulterContactSummary = {
   noAnswerStreak?: number;
   /** Total contact attempts recorded for this student in the session. */
   totalAttempts?: number;
+  /**
+   * Per-number responsiveness, keyed by phone label ("Father" / "Mother").
+   * Drives the "which number answers" suggestion. Absent when no per-number
+   * attribution has been logged yet (legacy rows store no label).
+   */
+  perNumber?: Record<string, PhoneResponsiveness>;
+  /**
+   * The phone label the worklist suggests trying next, or null when there's no
+   * signal (never contacted, or no per-number attribution recorded). Computed
+   * from `perNumber`; see `suggestPhoneLabel`.
+   */
+  suggestedPhoneLabel?: string | null;
+  /**
+   * The time-of-day band when this parent has historically answered, derived
+   * from past `reached` outcomes. Null until there's a clear pattern.
+   */
+  bestCallWindow?: CallWindow | null;
 };
+
+/** Coarse time-of-day bands (Asia/Kolkata) for the best-time-to-call hint. */
+export type CallWindow = "morning" | "afternoon" | "evening" | "night";
+
+/** Responsiveness stats for a single stored number within the session. */
+export type PhoneResponsiveness = {
+  /** The phone label, e.g. "Father" or "Mother". */
+  label: string;
+  /** Total attempts recorded against this number. */
+  attempts: number;
+  /** Attempts whose outcome was `reached`. */
+  reached: number;
+  /** Trailing run of `no_answer` outcomes ending at the most recent attempt. */
+  noAnswerStreak: number;
+  /** ISO timestamp of the most recent `reached` against this number, or null. */
+  lastReachedAt: string | null;
+};
+
+/**
+ * Picks the best number to try next from per-number responsiveness. Pure.
+ *
+ * Priority:
+ *   1. The number with the most recent `reached` outcome (someone picked up).
+ *   2. Otherwise the highest answer-rate number with at least one attempt.
+ *   3. Otherwise the number with the shortest no-answer streak.
+ * Ties fall back to the supplied `preferredOrder` (e.g. Father before Mother).
+ *
+ * Returns null when there is no per-number signal at all.
+ */
+export function suggestPhoneLabel(
+  perNumber: Record<string, PhoneResponsiveness> | undefined,
+  preferredOrder: readonly string[] = ["Father", "Mother"],
+): string | null {
+  if (!perNumber) return null;
+  const stats = Object.values(perNumber).filter((s) => s.attempts > 0);
+  if (stats.length === 0) return null;
+
+  const orderIndex = (label: string) => {
+    const idx = preferredOrder.indexOf(label);
+    return idx === -1 ? preferredOrder.length : idx;
+  };
+
+  // 1) Most recent reached wins.
+  const reachedStats = stats.filter((s) => s.lastReachedAt);
+  if (reachedStats.length > 0) {
+    return reachedStats.sort((a, b) => {
+      const at = a.lastReachedAt ?? "";
+      const bt = b.lastReachedAt ?? "";
+      if (at !== bt) return bt.localeCompare(at);
+      return orderIndex(a.label) - orderIndex(b.label);
+    })[0].label;
+  }
+
+  // 2) Best answer-rate; 3) shortest no-answer streak; then preferred order.
+  return stats.sort((a, b) => {
+    const ar = a.reached / a.attempts;
+    const br = b.reached / b.attempts;
+    if (ar !== br) return br - ar;
+    if (a.noAnswerStreak !== b.noAnswerStreak) {
+      return a.noAnswerStreak - b.noAnswerStreak;
+    }
+    return orderIndex(a.label) - orderIndex(b.label);
+  })[0].label;
+}
 
 /**
  * Returns the cadence bucket for a single student. Pure — no IO.
@@ -196,6 +277,37 @@ export function heatScore(input: HeatInput): number {
 
   const score = moneyWeight + ageWeight + promiseWeight + responsivenessAdj + freshness;
   return clamp(score, 0, 100);
+}
+
+/** Maps an Asia/Kolkata hour (0–23) to a coarse call window. */
+export function callWindowForHour(hour: number): CallWindow {
+  if (hour >= 5 && hour < 12) return "morning";
+  if (hour >= 12 && hour < 17) return "afternoon";
+  if (hour >= 17 && hour < 22) return "evening";
+  return "night";
+}
+
+/**
+ * Picks the dominant call window from a tally of `reached` outcomes, or null
+ * when there isn't enough signal (fewer than `minReached` answered calls).
+ */
+export function pickBestCallWindow(
+  counts: Partial<Record<CallWindow, number>>,
+  minReached = 2,
+): CallWindow | null {
+  const order: CallWindow[] = ["morning", "afternoon", "evening", "night"];
+  let best: CallWindow | null = null;
+  let bestCount = 0;
+  let total = 0;
+  for (const window of order) {
+    const count = counts[window] ?? 0;
+    total += count;
+    if (count > bestCount) {
+      bestCount = count;
+      best = window;
+    }
+  }
+  return total >= minReached ? best : null;
 }
 
 export type HeatLevel = "cold" | "warm" | "hot" | "blazing";
