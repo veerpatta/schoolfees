@@ -65,6 +65,8 @@ function receipt(overrides: Partial<ReceiptDetail> = {}): ReceiptDetail {
         pendingAfterPosting: null,
       },
     ],
+    installmentStatus: [],
+    previousReceipts: [],
     conventionalDiscountAssignments: [],
     ...overrides,
   };
@@ -95,9 +97,15 @@ describe("ReceiptDocumentV2 — simplified layout", () => {
     expect(html).toContain("Amount in Words");
     // Signature
     expect(html).toContain("Authorised Signature");
-    // Fee detail disclosure (screen-only)
-    expect(html).toContain("Fee detail");
-    expect(html).toContain('data-receipt-fee-detail="v2"');
+    // Annual fee summary is now printed in the body (no longer a screen-only
+    // disclosure) — total expected for the year is prominent.
+    expect(html).toContain("Fee summary");
+    expect(html).toContain("Total expected this year");
+    // Payment progress block
+    expect(html).toContain("Paid so far");
+    expect(html).toContain("Remaining");
+    // The old screen-only fee-detail disclosure is gone.
+    expect(html).not.toContain('data-receipt-fee-detail="v2"');
   });
 
   it("never prints 'Today' on the receipt body (so reprints from the past stay honest)", () => {
@@ -115,12 +123,76 @@ describe("ReceiptDocumentV2 — simplified layout", () => {
     expect(html).toContain('data-receipt-layout="v2"');
   });
 
-  it("keeps the Fee detail disclosure off the print path via @media print CSS", () => {
+  it("prints on A4 (the receipt is now a full page, not an 80mm thermal slip)", () => {
     const html = renderToStaticMarkup(<ReceiptDocumentV2 t={t} receipt={receipt()} />);
-    // The Fee detail block exists in the markup but is `display: none` when
-    // printing. Office staff still see it on screen for reference.
-    expect(html).toContain('[data-receipt-fee-detail="v2"] {');
-    expect(html).toContain("display: none !important;");
+    expect(html).toContain("size: A4;");
+    expect(html).not.toContain("size: 80mm auto;");
+  });
+
+  it("shows every installment with a green tick when paid or the amount still due", () => {
+    const html = renderToStaticMarkup(
+      <ReceiptDocumentV2
+        t={t}
+        receipt={receipt({
+          installmentStatus: [
+            {
+              installmentNo: 1,
+              label: "Installment 1",
+              dueDate: "2026-04-20",
+              expected: 3000,
+              paid: 3000,
+              pending: 0,
+              lateFee: 0,
+              status: "paid",
+            },
+            {
+              installmentNo: 2,
+              label: "Installment 2",
+              dueDate: "2026-07-20",
+              expected: 3000,
+              paid: 0,
+              pending: 3000,
+              lateFee: 0,
+              status: "overdue",
+            },
+          ],
+        })}
+      />,
+    );
+    expect(html).toContain("Installment status");
+    // Installment 2 still owes money — the due amount is surfaced.
+    expect(html).toContain("due");
+  });
+
+  it("renders discount, late fee, and late-fee waiver as separate signed lines", () => {
+    const html = renderToStaticMarkup(
+      <ReceiptDocumentV2
+        t={t}
+        receipt={receipt({ discountAmount: 1000, lateFeeAmount: 500, lateFeeWaived: 200 })}
+      />,
+    );
+    expect(html).toContain("Discount");
+    expect(html).toContain("Late fee");
+    expect(html).toContain("Late fee waived");
+    // Signed amounts: discount/waiver are negative, applied late fee is positive.
+    expect(html).toContain("−₹1,000");
+    expect(html).toContain("+₹500");
+    expect(html).toContain("−₹200");
+  });
+
+  it("lists previous receipts for the student when present", () => {
+    const html = renderToStaticMarkup(
+      <ReceiptDocumentV2
+        t={t}
+        receipt={receipt({
+          previousReceipts: [
+            { id: "r0", receiptNumber: "SVP-OLD-001", paymentDate: "2026-04-22", totalAmount: 3000 },
+          ],
+        })}
+      />,
+    );
+    expect(html).toContain("Previous receipts");
+    expect(html).toContain("SVP-OLD-001");
   });
 });
 

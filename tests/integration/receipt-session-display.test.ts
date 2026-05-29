@@ -104,6 +104,7 @@ function studentReceiptsQuery() {
       data: [
         {
           id: "receipt-1",
+          receipt_number: "SVP20260420-0001",
           total_amount: 1000,
           payment_date: "2026-04-20",
           created_at: "2026-04-20T04:30:00.000Z",
@@ -132,6 +133,13 @@ function conventionalAssignmentsQuery() {
   };
 }
 
+function installmentBalancesQuery() {
+  return {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+  };
+}
+
 describe("receipt session display", () => {
   it("shows the paid installment session instead of the student's current session", async () => {
     let receiptsCalls = 0;
@@ -146,6 +154,9 @@ describe("receipt session display", () => {
         if (table === "receipt_adjustments") return adjustmentsQuery();
         if (table === "student_conventional_discount_assignments") {
           return conventionalAssignmentsQuery();
+        }
+        if (table === "v_workbook_installment_balances") {
+          return installmentBalancesQuery();
         }
         throw new Error(`Unexpected table ${table}`);
       }),

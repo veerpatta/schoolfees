@@ -10,16 +10,21 @@ function readRepoFile(path: string) {
 }
 
 describe("receipt print and loading UX", () => {
-  it("keeps the receipt print document constrained for thermal reprints", () => {
+  it("prints the receipt as a full A4 page with the rich fee detail visible", () => {
     // The actual print CSS now lives in the V2 layout body; the legacy
-    // receipt-document.tsx is a thin shim that always renders V2.
+    // receipt-document.tsx is a thin shim that always renders V2. The receipt
+    // moved from an 80mm thermal slip to a full A4 page so the annual fee
+    // summary, installment status, and previous receipts all print.
     const receiptDocument = readRepoFile("components/receipts/receipt-document-v2.tsx");
 
     expect(receiptDocument).toContain("receipt-print-page");
     expect(receiptDocument).toContain("receipt-body");
     expect(receiptDocument).toContain("@page");
-    expect(receiptDocument).toContain("max-width: 80mm");
-    expect(receiptDocument).toContain("font-size: 11px");
+    expect(receiptDocument).toContain("size: A4;");
+    // The thermal constraints are gone, and the fee detail is no longer hidden
+    // from print.
+    expect(receiptDocument).not.toContain("max-width: 80mm");
+    expect(receiptDocument).not.toContain('[data-receipt-fee-detail="v2"]');
     expect(receiptDocument).toContain("nav, aside, .no-print");
     expect(receiptDocument).toContain("print-color-adjust: exact");
   });

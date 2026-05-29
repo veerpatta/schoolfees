@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { CheckCircle2 } from "lucide-react";
 
 import { schoolProfile } from "@/lib/config/school";
 import { formatInr } from "@/lib/helpers/currency";
@@ -172,8 +173,8 @@ export function ReceiptDocumentV2({
     >
       <style>{`
         ${embedPageStyles ? `@page {
-          size: 80mm auto;
-          margin: 4mm;
+          size: A4;
+          margin: 12mm;
         }` : ""}
 
         .receipt-print-page {
@@ -187,15 +188,7 @@ export function ReceiptDocumentV2({
           }
 
           .receipt-body {
-            max-width: 80mm;
             margin: 0 auto;
-            font-size: 11px;
-            line-height: 1.4;
-          }
-
-          /* Fee detail disclosure is screen-only; never printed. */
-          [data-receipt-fee-detail="v2"] {
-            display: none !important;
           }
 
           .receipt-print-page table {
@@ -354,12 +347,216 @@ export function ReceiptDocumentV2({
           </div>
         </section>
 
+        {/* 3b. Annual fee summary — total expected for the session and the full
+            break-up. Discount, late fee, and late-fee waiver are each shown on
+            their own explicitly-signed, colour-coded line so the figures read
+            honestly to anyone who sees the receipt. */}
+        <section className="rounded-lg border border-border bg-card/95 p-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <h3 className="text-sm font-semibold text-foreground">
+              Fee summary — {receipt.sessionLabel}
+            </h3>
+            <div className="text-right">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                Total expected this year
+              </p>
+              <p className="text-lg font-semibold tabular-nums text-foreground">
+                {formatInr(receipt.totalDue)}
+              </p>
+            </div>
+          </div>
+          <table className="mt-2 w-full text-left text-xs">
+            <tbody>
+              {receipt.feeSummary
+                .filter((item) => item.amount > 0 && !/discount|late fee/i.test(item.label))
+                .map((item) => (
+                  <tr key={item.label} className="border-t border-border first:border-t-0">
+                    <td className="px-2 py-1.5">{localizedFeeLabel(item.label, t)}</td>
+                    <td className="px-2 py-1.5 text-right font-medium tabular-nums">
+                      {formatInr(item.amount)}
+                    </td>
+                  </tr>
+                ))}
+              {receipt.discountAmount > 0 ? (
+                <tr className="border-t border-border">
+                  <td className="px-2 py-1.5 text-success-soft-foreground">Discount</td>
+                  <td className="px-2 py-1.5 text-right font-medium tabular-nums text-success-soft-foreground">
+                    −{formatInr(receipt.discountAmount)}
+                  </td>
+                </tr>
+              ) : null}
+              {receipt.lateFeeAmount > 0 ? (
+                <tr className="border-t border-border">
+                  <td className="px-2 py-1.5 text-destructive">Late fee</td>
+                  <td className="px-2 py-1.5 text-right font-medium tabular-nums text-destructive">
+                    +{formatInr(receipt.lateFeeAmount)}
+                  </td>
+                </tr>
+              ) : null}
+              {receipt.lateFeeWaived > 0 ? (
+                <tr className="border-t border-border">
+                  <td className="px-2 py-1.5 text-success-soft-foreground">Late fee waived</td>
+                  <td className="px-2 py-1.5 text-right font-medium tabular-nums text-success-soft-foreground">
+                    −{formatInr(receipt.lateFeeWaived)}
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </section>
+
+        {/* 3c. Conventional discount audit — moved out of the old screen-only
+            disclosure so it prints. Shows every active policy; the winning one
+            (lowest resulting tuition) is marked Applied. */}
+        {receipt.conventionalDiscountAssignments.length > 0 ? (
+          <section className="rounded-md border border-accent/25 bg-accent-soft/40 px-3 py-2">
+            <h3 className="text-sm font-semibold text-foreground">
+              {t("conventionalDiscountHeading")}
+            </h3>
+            <ul className="mt-2 space-y-2">
+              {receipt.conventionalDiscountAssignments.map((row) => (
+                <li
+                  key={row.policyCode}
+                  className={cn(
+                    "grid gap-1 rounded-md border px-2.5 py-1.5 text-xs sm:grid-cols-[1fr_auto_auto_auto]",
+                    row.isWinningPolicy
+                      ? "border-accent/40 bg-card"
+                      : "border-border bg-surface-2/40 opacity-80",
+                  )}
+                >
+                  <div>
+                    <p className="font-semibold text-foreground">{row.policyDisplayName}</p>
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {row.policyCode}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {t("baselineTuition")}
+                    </p>
+                    <p className="font-semibold text-muted-foreground line-through tabular-nums">
+                      {formatInr(row.beforeTuitionAmount)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {t("resultingTuition")}
+                    </p>
+                    <p
+                      className={cn(
+                        "font-semibold tabular-nums",
+                        row.isWinningPolicy ? "text-accent-soft-foreground" : "text-muted-foreground",
+                      )}
+                    >
+                      {formatInr(row.resultingTuitionAmount)}
+                    </p>
+                  </div>
+                  <div className="self-center">
+                    {row.isWinningPolicy ? (
+                      <span className="inline-flex rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-accent-foreground">
+                        Applied
+                      </span>
+                    ) : (
+                      <span className="inline-flex rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        Not applied
+                      </span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {/* 3d. Payment progress — paid so far / this receipt / remaining. */}
+        <section className="grid grid-cols-3 gap-2">
+          <div className="rounded-lg border border-border bg-surface-2 p-3 text-center">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Paid so far</p>
+            <p className="mt-1 text-base font-semibold tabular-nums text-foreground">
+              {formatInr(receipt.totalPaidToDate)}
+            </p>
+          </div>
+          <div className="rounded-lg border border-border bg-surface-2 p-3 text-center">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">This receipt</p>
+            <p className="mt-1 text-base font-semibold tabular-nums text-foreground">
+              {formatInr(totalPaid)}
+            </p>
+          </div>
+          <div className="rounded-lg border border-border bg-surface-2 p-3 text-center">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Remaining</p>
+            <p
+              className={cn(
+                "mt-1 text-base font-semibold tabular-nums",
+                receipt.outstandingAfterReceipt === 0
+                  ? "text-success-soft-foreground"
+                  : "text-warning-soft-foreground",
+              )}
+            >
+              {formatInr(receipt.outstandingAfterReceipt)}
+            </p>
+          </div>
+        </section>
+
+        {/* 3e. Installment status — every installment in the session with a
+            green tick when fully cleared, or the amount still due when not.
+            Live current standing (not a point-in-time snapshot). */}
+        {receipt.installmentStatus.length > 0 ? (
+          <section className="rounded-lg border border-border bg-card/95 p-3">
+            <h3 className="text-sm font-semibold text-foreground">Installment status</h3>
+            <table className="mt-2 w-full text-left text-[11px]">
+              <thead className="bg-surface-2 text-muted-foreground">
+                <tr>
+                  <th className="px-2 py-2">Installment</th>
+                  <th className="px-2 py-2 text-right">Due date</th>
+                  <th className="px-2 py-2 text-right">Expected</th>
+                  <th className="px-2 py-2 text-right">Paid</th>
+                  <th className="px-2 py-2 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {receipt.installmentStatus.map((row) => {
+                  const cleared = row.status === "paid" || row.pending <= 0;
+                  return (
+                    <tr key={row.installmentNo} className="border-t border-border">
+                      <td className="px-2 py-2 font-medium text-foreground">{row.label}</td>
+                      <td className="px-2 py-2 text-right text-muted-foreground tabular-nums">
+                        {formatDate(row.dueDate)}
+                      </td>
+                      <td className="px-2 py-2 text-right tabular-nums">{formatInr(row.expected)}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{formatInr(row.paid)}</td>
+                      <td className="px-2 py-2 text-right">
+                        {cleared ? (
+                          <span className="inline-flex items-center justify-end gap-1 font-medium text-success-soft-foreground">
+                            <CheckCircle2 className="size-3.5" aria-hidden="true" /> Paid
+                          </span>
+                        ) : (
+                          <span
+                            className={cn(
+                              "font-medium tabular-nums",
+                              row.status === "overdue"
+                                ? "text-destructive"
+                                : "text-warning-soft-foreground",
+                            )}
+                          >
+                            {formatInr(row.pending)} due
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </section>
+        ) : null}
+
         {/* 4. Installment table.
             With allocation snapshot present (post-migration rows): full
             breakdown — Installment / Due / Pending before / Discount /
             Waiver / Paid / Balance after.
             Legacy rows (pre-migration): compact 3-column layout. */}
         <section className="rounded-lg border border-border bg-card/95 p-3">
+          <h3 className="mb-2 text-sm font-semibold text-foreground">What this receipt paid</h3>
           {hasAllocationSnapshot ? (
             <table className="w-full text-left text-[11px]">
               <thead className="bg-surface-2 text-muted-foreground">
@@ -496,6 +693,25 @@ export function ReceiptDocumentV2({
           </p>
         </section>
 
+        {/* 5b. Previous receipts — context for anyone reading this receipt. */}
+        {receipt.previousReceipts.length > 0 ? (
+          <section className="rounded-lg border border-border bg-card/95 p-3 text-xs">
+            <h3 className="text-sm font-semibold text-foreground">Previous receipts</h3>
+            <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+              {receipt.previousReceipts.map((item) => (
+                <li
+                  key={item.id}
+                  className="flex items-center justify-between gap-2 rounded border border-border bg-surface-2/60 px-2 py-1 tabular-nums"
+                >
+                  <span className="font-medium text-foreground">{item.receiptNumber}</span>
+                  <span className="text-muted-foreground">{formatDate(item.paymentDate)}</span>
+                  <span className="font-semibold text-foreground">{formatInr(item.totalAmount)}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
         {/* 6. Signature */}
         <footer className="flex items-end justify-between gap-4 pt-2 text-xs text-muted-foreground">
           <div>
@@ -506,96 +722,6 @@ export function ReceiptDocumentV2({
             {t("authorisedSignature")}
           </div>
         </footer>
-
-        {/* 7. Fee detail disclosure — screen-only, never printed. Office
-            staff who need the full fee breakup can expand on screen. */}
-        <details
-          className="rounded-lg border border-dashed border-border bg-surface-2 px-3 py-2 text-xs"
-          data-receipt-fee-detail="v2"
-        >
-          <summary className="cursor-pointer text-sm font-medium text-foreground">
-            {t("v2FeeDetailSummary")}
-          </summary>
-          <p className="mt-1 text-[10px] text-muted-foreground">{t("v2FeeDetailHint")}</p>
-
-          {receipt.conventionalDiscountAssignments.length > 0 ? (
-            <section className="mt-3 rounded-md border border-accent/25 bg-accent-soft/40 px-3 py-2">
-              <h3 className="text-sm font-semibold text-foreground">
-                {t("conventionalDiscountHeading")}
-              </h3>
-              {/* Show ALL active policies — a student may have up to two. The
-                  applied one (lowest resulting tuition) is marked "Applied"; the
-                  others are visible but greyed so the audit trail shows what
-                  was considered. */}
-              <ul className="mt-2 space-y-2">
-                {receipt.conventionalDiscountAssignments.map((row) => (
-                  <li
-                    key={row.policyCode}
-                    className={cn(
-                      "grid gap-1 rounded-md border px-2.5 py-1.5 text-xs sm:grid-cols-[1fr_auto_auto_auto]",
-                      row.isWinningPolicy
-                        ? "border-accent/40 bg-card"
-                        : "border-border bg-surface-2/40 opacity-80",
-                    )}
-                  >
-                    <div>
-                      <p className="font-semibold text-foreground">{row.policyDisplayName}</p>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                        {row.policyCode}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                        {t("baselineTuition")}
-                      </p>
-                      <p className="font-semibold text-muted-foreground line-through tabular-nums">
-                        {formatInr(row.beforeTuitionAmount)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                        {t("resultingTuition")}
-                      </p>
-                      <p
-                        className={cn(
-                          "font-semibold tabular-nums",
-                          row.isWinningPolicy ? "text-accent-soft-foreground" : "text-muted-foreground",
-                        )}
-                      >
-                        {formatInr(row.resultingTuitionAmount)}
-                      </p>
-                    </div>
-                    <div className="self-center">
-                      {row.isWinningPolicy ? (
-                        <span className="inline-flex rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-accent-foreground">
-                          Applied
-                        </span>
-                      ) : (
-                        <span className="inline-flex rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                          Not applied
-                        </span>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
-          <section className="mt-3">
-            <h3 className="text-sm font-semibold text-foreground">{t("feeBreakup")}</h3>
-            <table className="mt-2 w-full text-left text-[11px]">
-              <tbody>
-                {receipt.feeSummary.map((item) => (
-                  <tr key={item.label} className="border-t border-border first:border-t-0">
-                    <td className="px-2 py-1.5">{localizedFeeLabel(item.label, t)}</td>
-                    <td className="px-2 py-1.5 text-right font-medium tabular-nums">{formatInr(item.amount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
-        </details>
       </div>
     </article>
   );

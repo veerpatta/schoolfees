@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ChevronRight,
   CreditCard,
@@ -298,6 +299,142 @@ function StudentHeader({ row }: { row: OfficeWorkbookStudentRow }) {
 }
 
 // ---------------------------------------------------------------------------
+// Mobile student card
+//
+// Desktop tables use a hover/click `RowActionsMenu` dropdown + expand chevron.
+// On mobile those were missing entirely — the card was a bare `<Link>` with no
+// way to take payment, print a statement, or close a balance. This card brings
+// parity: tap the body to open the student, tap an inline action button for a
+// row action, tap "Details" to expand the same breakdown the desktop row shows.
+//
+// The whole card is a `role="button"` div (NOT an `<a>`) so action buttons and
+// the expand toggle can live inside it without invalid nested-anchor markup.
+// Anything inside a `data-row-action="true"` region stops propagation so its
+// taps never trigger the card-level navigation.
+// ---------------------------------------------------------------------------
+
+function MobileActionButtons({ actions }: { actions: RowAction[] }) {
+  if (actions.length === 0) return null;
+  return (
+    <div
+      className="mt-3 flex flex-wrap gap-2"
+      data-row-action="true"
+      onClick={(event) => event.stopPropagation()}
+    >
+      {actions.map((action, index) => {
+        if (action.type === "node") {
+          return (
+            <div key={index} className="min-w-[8rem] flex-1">
+              {action.node}
+            </div>
+          );
+        }
+        if (action.type === "link") {
+          return (
+            <Button
+              key={index}
+              asChild
+              size="sm"
+              variant="outline"
+              className="h-9 min-w-[8rem] flex-1 gap-1.5"
+            >
+              <Link
+                href={action.href}
+                target={action.external ? "_blank" : undefined}
+                rel={action.external ? "noreferrer" : undefined}
+              >
+                {action.icon}
+                {action.label}
+              </Link>
+            </Button>
+          );
+        }
+        return (
+          <Button
+            key={index}
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-9 min-w-[8rem] flex-1 gap-1.5"
+            onClick={action.onClick}
+          >
+            {action.icon}
+            {action.label}
+          </Button>
+        );
+      })}
+    </div>
+  );
+}
+
+function MobileStudentCard({
+  href,
+  row,
+  rightSlot,
+  metaSlot,
+  actions,
+  detail,
+}: {
+  href: string;
+  row: OfficeWorkbookStudentRow;
+  rightSlot: ReactNode;
+  metaSlot?: ReactNode;
+  actions: RowAction[];
+  detail?: ReactNode;
+}) {
+  const router = useRouter();
+  const [expanded, setExpanded] = useState(false);
+  const navigate = () => router.push(href);
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={(event) => {
+        const target = event.target as HTMLElement | null;
+        if (target && target.closest('[data-row-action="true"]')) return;
+        navigate();
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        const target = event.target as HTMLElement | null;
+        if (target && target.closest('[data-row-action="true"]')) return;
+        event.preventDefault();
+        navigate();
+      }}
+      className="cursor-pointer px-4 py-3.5 transition-colors hover:bg-surface-2/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <StudentHeader row={row} />
+        <div className="shrink-0 text-right">{rightSlot}</div>
+      </div>
+      {metaSlot ? <div className="mt-2">{metaSlot}</div> : null}
+
+      <MobileActionButtons actions={actions} />
+
+      {detail ? (
+        <div data-row-action="true" onClick={(event) => event.stopPropagation()}>
+          <button
+            type="button"
+            onClick={() => setExpanded((value) => !value)}
+            aria-expanded={expanded}
+            className="mt-2 inline-flex min-h-9 items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ChevronRight className={cn("size-3.5 transition-transform", expanded && "rotate-90")} />
+            {expanded ? "Hide details" : "Details"}
+          </button>
+          {expanded ? (
+            <div className="mt-1 grid grid-cols-2 gap-3 rounded-lg border border-border bg-surface-2/40 p-3">
+              {detail}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Installment tracker table
 // ---------------------------------------------------------------------------
 
@@ -319,32 +456,68 @@ export function InstallmentTrackerTable({
         ) : (
           <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
             {rows.map((row) => (
-              <Link
+              <MobileStudentCard
                 key={`tracker-mobile-${row.studentId}`}
                 href={withSession(`/protected/students/${row.studentId}`)}
-                className="block px-4 py-3.5 transition-colors hover:bg-surface-2/40"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <StudentHeader row={row} />
-                  <div className="shrink-0 text-right">
+                row={row}
+                rightSlot={
+                  <>
                     <Money value={row.outstandingAmount} size="lg" />
                     {row.nextDueAmount !== null && row.nextDueAmount > 0 && (
                       <p className="mt-0.5 text-[11px] text-warning">
                         Next: {formatInr(row.nextDueAmount)}
                       </p>
                     )}
+                  </>
+                }
+                metaSlot={
+                  <div className="flex items-center justify-between gap-2">
+                    <InstallmentChips
+                      values={[row.inst1Pending, row.inst2Pending, row.inst3Pending, row.inst4Pending]}
+                      paidCount={row.paidInstallmentCount}
+                    />
+                    <ValueStatePill tone={getStatusTone(row.statusLabel)} className="normal-case tracking-normal">
+                      {row.duesStatus === "missing_dues" ? "Dues not prepared" : row.statusLabel || "-"}
+                    </ValueStatePill>
                   </div>
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <InstallmentChips
-                    values={[row.inst1Pending, row.inst2Pending, row.inst3Pending, row.inst4Pending]}
-                    paidCount={row.paidInstallmentCount}
-                  />
-                  <ValueStatePill tone={getStatusTone(row.statusLabel)} className="normal-case tracking-normal">
-                    {row.duesStatus === "missing_dues" ? "Dues not prepared" : row.statusLabel || "-"}
-                  </ValueStatePill>
-                </div>
-              </Link>
+                }
+                actions={[
+                  {
+                    type: "link",
+                    href: withSession(`/protected/payments?studentId=${row.studentId}`),
+                    label: "Take payment",
+                    icon: <CreditCard className="size-3.5" aria-hidden="true" />,
+                  },
+                  {
+                    type: "link",
+                    href: withSession(`/protected/students/${row.studentId}/statement`),
+                    label: "Statement",
+                    icon: <FileText className="size-3.5" aria-hidden="true" />,
+                  },
+                ]}
+                detail={
+                  <>
+                    <DetailItem label="Inst 1" value={formatInr(row.inst1Pending)} />
+                    <DetailItem label="Inst 2" value={formatInr(row.inst2Pending)} />
+                    <DetailItem label="Inst 3" value={formatInr(row.inst3Pending)} />
+                    <DetailItem label="Inst 4" value={formatInr(row.inst4Pending)} />
+                    <DetailItem label="Late fee" value={formatInr(row.lateFeeTotal)} />
+                    <DetailItem label="Waiver" value={formatInr(row.lateFeeWaiverAmount)} />
+                    <DetailItem label="Discount" value={formatInr(row.discountAmount)} />
+                    <DetailItem
+                      label="Next due"
+                      value={
+                        row.nextDueDate
+                          ? `${formatShortDate(row.nextDueDate)} · ${formatInr(row.nextDueAmount ?? 0)}`
+                          : "—"
+                      }
+                    />
+                    <DetailItem label="Last payment" value={formatOptionalDate(row.lastPaymentDate)} />
+                    <DetailItem label="Father" value={row.fatherName ?? "—"} />
+                    <DetailItem label="Phone" value={<PhoneLink phone={row.fatherPhone} />} />
+                  </>
+                }
+              />
             ))}
           </div>
         )}
@@ -495,25 +668,80 @@ export function StudentDuesTable({
           <MobileEmpty label="No students found for statement view." />
         ) : (
           <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
-            {rows.map((row) => (
-              <Link
-                key={row.studentId}
-                href={withSession(`/protected/students/${row.studentId}`)}
-                className="block px-4 py-3.5 transition-colors hover:bg-surface-2/40"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <StudentHeader row={row} />
-                  <div className="shrink-0 text-right">
-                    <Money value={row.outstandingAmount} size="lg" />
-                    <p className="mt-0.5 text-[10px] text-muted-foreground">outstanding</p>
-                  </div>
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs text-muted-foreground tabular-nums">
-                  <span>Paid: {formatInr(row.totalPaid)}</span>
-                  <span>Total: {formatInr(row.totalDue)}</span>
-                </div>
-              </Link>
-            ))}
+            {rows.map((row) => {
+              const nextDue = formatRelativeDue(row.nextDueDate);
+              return (
+                <MobileStudentCard
+                  key={row.studentId}
+                  href={withSession(`/protected/students/${row.studentId}`)}
+                  row={row}
+                  rightSlot={
+                    <>
+                      <Money value={row.outstandingAmount} size="lg" />
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">outstanding</p>
+                    </>
+                  }
+                  metaSlot={
+                    <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs text-muted-foreground tabular-nums">
+                      <span>Paid: {formatInr(row.totalPaid)}</span>
+                      <span>Total: {formatInr(row.totalDue)}</span>
+                      {row.duesStatus !== "missing_dues" && row.nextDueDate ? (
+                        <span
+                          className={cn(
+                            "col-span-2",
+                            nextDue.tone === "danger" && "text-destructive",
+                            nextDue.tone === "warning" && "text-warning",
+                          )}
+                        >
+                          Next: {formatShortDate(row.nextDueDate)} · {formatInr(row.nextDueAmount ?? 0)} · {nextDue.text}
+                        </span>
+                      ) : null}
+                    </div>
+                  }
+                  actions={[
+                    {
+                      type: "link",
+                      href: withSession(`/protected/payments?studentId=${row.studentId}`),
+                      label: "Take payment",
+                      icon: <CreditCard className="size-3.5" aria-hidden="true" />,
+                    },
+                    {
+                      type: "link",
+                      href: withSession(`/protected/students/${row.studentId}/statement`),
+                      label: "Statement",
+                      icon: <Printer className="size-3.5" aria-hidden="true" />,
+                    },
+                    ...(canCloseBalance && row.outstandingAmount > 0
+                      ? ([
+                          {
+                            type: "button",
+                            onClick: () => setCloseTarget(row),
+                            label: "Close balance",
+                            icon: <Scissors className="size-3.5" aria-hidden="true" />,
+                          },
+                        ] as RowAction[])
+                      : []),
+                  ]}
+                  detail={
+                    <>
+                      <DetailItem label="Tuition" value={formatInr(row.tuitionFee)} />
+                      <DetailItem label="Transport" value={formatInr(row.transportFee)} />
+                      <DetailItem label="Academic" value={formatInr(row.academicFee)} />
+                      <DetailItem
+                        label={row.otherAdjustmentHead ? row.otherAdjustmentHead : "Other adj."}
+                        value={formatInr(row.otherAdjustmentAmount)}
+                      />
+                      <DetailItem label="Discount" value={formatInr(row.discountAmount)} />
+                      <DetailItem label="Late fee" value={formatInr(row.lateFeeTotal)} />
+                      <DetailItem label="Waiver" value={formatInr(row.lateFeeWaiverAmount)} />
+                      <DetailItem label="Father" value={row.fatherName ?? "—"} />
+                      <DetailItem label="Phone" value={<PhoneLink phone={row.fatherPhone} />} />
+                      <DetailItem label="Last payment" value={formatOptionalDate(row.lastPaymentDate)} />
+                    </>
+                  }
+                />
+              );
+            })}
           </div>
         )}
       </div>
@@ -690,27 +918,84 @@ export function ClassRegisterTable({
         ) : (
           <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
             {rows.map((row) => (
-              <Link
+              <MobileStudentCard
                 key={row.studentId}
                 href={withSession(`/protected/students/${row.studentId}`)}
-                className="block px-4 py-3.5 transition-colors hover:bg-surface-2/40"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <StudentHeader row={row} />
-                  <div className="shrink-0 text-right">
+                row={row}
+                rightSlot={
+                  <>
                     <Money value={row.outstandingAmount} size="lg" />
                     <p className="mt-0.5 text-[10px] text-muted-foreground">outstanding</p>
+                  </>
+                }
+                metaSlot={
+                  <div className="flex items-center gap-2">
+                    <ValueStatePill tone={getStatusTone(row.statusLabel)} className="normal-case tracking-normal">
+                      {row.duesStatus === "missing_dues" ? "Dues not prepared" : row.statusLabel || "-"}
+                    </ValueStatePill>
+                    {row.transportRouteName && (
+                      <span className="text-[11px] text-muted-foreground">{row.transportRouteName}</span>
+                    )}
                   </div>
-                </div>
-                <div className="mt-2 flex items-center gap-2">
-                  <ValueStatePill tone={getStatusTone(row.statusLabel)} className="normal-case tracking-normal">
-                    {row.duesStatus === "missing_dues" ? "Dues not prepared" : row.statusLabel || "-"}
-                  </ValueStatePill>
-                  {row.transportRouteName && (
-                    <span className="text-[11px] text-muted-foreground">{row.transportRouteName}</span>
-                  )}
-                </div>
-              </Link>
+                }
+                actions={[
+                  {
+                    type: "link",
+                    href: withSession(`/protected/payments?studentId=${row.studentId}`),
+                    label: "Take payment",
+                    icon: <CreditCard className="size-3.5" aria-hidden="true" />,
+                  },
+                  {
+                    type: "link",
+                    href: withSession(`/protected/students/${row.studentId}/statement`),
+                    label: "Statement",
+                    icon: <FileText className="size-3.5" aria-hidden="true" />,
+                  },
+                ]}
+                detail={
+                  <>
+                    <DetailItem label="Total due" value={formatInr(row.totalDue)} />
+                    <DetailItem label="Paid" value={formatInr(row.totalPaid)} />
+                    <DetailItem label="Discount" value={formatInr(row.discountAmount)} />
+                    <DetailItem label="Late fee waived" value={formatInr(row.lateFeeWaiverAmount)} />
+                    <DetailItem label="Tuition" value={formatInr(row.tuitionFee)} />
+                    <DetailItem label="Transport" value={formatInr(row.transportFee)} />
+                    <DetailItem label="Academic" value={formatInr(row.academicFee)} />
+                    <DetailItem
+                      label={row.otherAdjustmentHead ? row.otherAdjustmentHead : "Other adj."}
+                      value={formatInr(row.otherAdjustmentAmount)}
+                    />
+                    <DetailItem
+                      label="Next due"
+                      value={
+                        row.nextDueDate
+                          ? `${formatShortDate(row.nextDueDate)} · ${formatInr(row.nextDueAmount ?? 0)}`
+                          : "—"
+                      }
+                    />
+                    <DetailItem label="Last payment" value={formatOptionalDate(row.lastPaymentDate)} />
+                    <DetailItem label="Student status" value={row.studentStatusLabel} />
+                    <DetailItem label="SR no" value={row.admissionNo} />
+                    {row.receiptHistory.length > 0 && (
+                      <div className="col-span-2">
+                        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                          Recent receipts
+                        </span>
+                        <div className="mt-1 grid grid-cols-1 gap-1 text-xs text-foreground">
+                          {row.receiptHistory.map((item) => (
+                            <div
+                              key={`${row.studentId}-${item.receiptNumber}`}
+                              className="rounded border border-border bg-card px-2 py-1 tabular-nums"
+                            >
+                              {item.receiptNumber} · {formatShortDate(item.paymentDate)} · {formatInr(item.totalAmount)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                }
+              />
             ))}
           </div>
         )}
@@ -887,14 +1172,12 @@ export function DefaultersTable({
             {rows.map((row) => {
               const nextDue = formatRelativeDue(row.nextDueDate);
               return (
-                <Link
+                <MobileStudentCard
                   key={row.studentId}
                   href={withSession(`/protected/students/${row.studentId}`)}
-                  className="block px-4 py-3.5 transition-colors hover:bg-surface-2/40"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <StudentHeader row={row} />
-                    <div className="shrink-0 text-right">
+                  row={row}
+                  rightSlot={
+                    <>
                       <Money value={row.outstandingAmount} size="lg" />
                       <p
                         className={cn(
@@ -906,12 +1189,57 @@ export function DefaultersTable({
                       >
                         {nextDue.text}
                       </p>
+                    </>
+                  }
+                  metaSlot={
+                    <div className="text-xs text-muted-foreground">
+                      {row.fatherName ?? "—"} · <PhoneLink phone={row.fatherPhone} />
                     </div>
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {row.fatherName ?? "—"} · <PhoneLink phone={row.fatherPhone} />
-                  </div>
-                </Link>
+                  }
+                  actions={[
+                    {
+                      type: "link",
+                      href: withSession(`/protected/payments?studentId=${row.studentId}`),
+                      label: "Take payment",
+                      icon: <CreditCard className="size-3.5" aria-hidden="true" />,
+                    },
+                    ...(row.fatherPhone
+                      ? ([
+                          {
+                            type: "link",
+                            href: `tel:${row.fatherPhone}`,
+                            label: "Call",
+                            icon: <Phone className="size-3.5" aria-hidden="true" />,
+                          },
+                        ] as RowAction[])
+                      : []),
+                    {
+                      type: "link",
+                      href: withSession(`/protected/students/${row.studentId}/statement`),
+                      label: "Statement",
+                      icon: <Printer className="size-3.5" aria-hidden="true" />,
+                    },
+                  ]}
+                  detail={
+                    <>
+                      <DetailItem label="Total due" value={formatInr(row.totalDue)} />
+                      <DetailItem label="Paid" value={formatInr(row.totalPaid)} />
+                      <DetailItem label="Late fee" value={formatInr(row.lateFeeTotal)} />
+                      <DetailItem label="Waiver" value={formatInr(row.lateFeeWaiverAmount)} />
+                      <DetailItem label="Discount" value={formatInr(row.discountAmount)} />
+                      <DetailItem label="Route" value={row.transportRouteName ?? "No transport"} />
+                      <DetailItem
+                        label="Next due"
+                        value={
+                          row.nextDueDate
+                            ? `${formatShortDate(row.nextDueDate)} · ${formatInr(row.nextDueAmount ?? 0)}`
+                            : "—"
+                        }
+                      />
+                      <DetailItem label="SR no" value={row.admissionNo} />
+                    </>
+                  }
+                />
               );
             })}
           </div>

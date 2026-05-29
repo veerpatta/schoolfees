@@ -64,6 +64,8 @@ function receipt(overrides: Partial<ReceiptDetail> = {}): ReceiptDetail {
         notes: null,
       },
     ],
+    installmentStatus: [],
+    previousReceipts: [],
     conventionalDiscountAssignments: [],
     ...overrides,
   };

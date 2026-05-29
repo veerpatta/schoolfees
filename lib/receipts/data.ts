@@ -8,6 +8,8 @@ import type {
   ReceiptBreakdownItem,
   ReceiptDetail,
   ReceiptFeeSummaryItem,
+  ReceiptHistoryItem,
+  ReceiptInstallmentStatusItem,
   ReceiptListItem,
 } from "@/lib/receipts/types";
 
@@ -86,9 +88,23 @@ type ReceiptDetailRow = {
 
 type HistoricalReceiptRow = {
   id: string;
+  receipt_number: string;
   total_amount: number;
   payment_date: string;
   created_at: string;
+};
+
+type WorkbookInstallmentBalanceRow = {
+  installment_no: number;
+  installment_label: string;
+  session_label: string;
+  due_date: string;
+  total_charge: number;
+  paid_amount: number;
+  applied_amount: number;
+  pending_amount: number;
+  final_late_fee: number;
+  balance_status: string;
 };
 
 type ReceiptAdjustmentRow = {
@@ -201,6 +217,52 @@ function buildFeeSummary(
   ];
 }
 
+function normalizeBalanceStatus(
+  status: string,
+  pending: number,
+): ReceiptInstallmentStatusItem["status"] {
+  const normalized = status?.toLowerCase();
+  if (normalized === "paid" || pending <= 0) return "paid";
+  if (normalized === "overdue") return "overdue";
+  if (normalized === "partial") return "partial";
+  return "pending";
+}
+
+/**
+ * `v_workbook_installment_balances` emits more than one row per installment
+ * number (duplicate label variants — see docs/ui-refresh/mobile-and-bugs-punchlist.md
+ * P0-2). Collapse to one row per `installment_no`, keeping the longer (more
+ * descriptive) label, and sort by installment number.
+ */
+function buildInstallmentStatus(
+  rows: WorkbookInstallmentBalanceRow[],
+): ReceiptInstallmentStatusItem[] {
+  const byInstallment = new Map<number, WorkbookInstallmentBalanceRow>();
+
+  for (const row of rows) {
+    const existing = byInstallment.get(row.installment_no);
+    if (!existing || (row.installment_label?.length ?? 0) > (existing.installment_label?.length ?? 0)) {
+      byInstallment.set(row.installment_no, row);
+    }
+  }
+
+  return [...byInstallment.values()]
+    .map((row) => {
+      const pending = row.pending_amount ?? 0;
+      return {
+        installmentNo: row.installment_no,
+        label: row.installment_label,
+        dueDate: row.due_date,
+        expected: row.total_charge ?? 0,
+        paid: row.applied_amount ?? row.paid_amount ?? 0,
+        pending,
+        lateFee: row.final_late_fee ?? 0,
+        status: normalizeBalanceStatus(row.balance_status, pending),
+      };
+    })
+    .sort((left, right) => left.installmentNo - right.installmentNo);
+}
+
 export async function getReceiptsPage(
   searchQuery: string,
   pagination: { page: number; pageSize: number },
@@ -293,6 +355,7 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     { data: studentReceiptsRaw, error: studentReceiptsError },
     { data: receiptAdjustmentsRaw, error: receiptAdjustmentsError },
     { data: conventionalAssignmentsRaw, error: conventionalAssignmentsError },
+    { data: installmentBalancesRaw, error: installmentBalancesError },
   ] = await Promise.all([
     supabase
       .from("payments")
@@ -318,7 +381,7 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
       .maybeSingle(),
     supabase
       .from("receipts")
-      .select("id, total_amount, payment_date, created_at")
+      .select("id, receipt_number, total_amount, payment_date, created_at")
       .eq("student_id", receipt.student_id)
       .order("payment_date", { ascending: true })
       .order("created_at", { ascending: true }),
@@ -333,6 +396,12 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
       )
       .eq("student_id", receipt.student_id)
       .eq("is_active", true),
+    supabase
+      .from("v_workbook_installment_balances")
+      .select(
+        "installment_no, installment_label, session_label, due_date, total_charge, paid_amount, applied_amount, pending_amount, final_late_fee, balance_status",
+      )
+      .eq("student_id", receipt.student_id),
   ]);
 
   if (paymentsError) {
@@ -357,6 +426,10 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
 
   if (conventionalAssignmentsError && !conventionalAssignmentsError.message.includes("does not exist")) {
     throw new Error(`Unable to load conventional discount receipt context: ${conventionalAssignmentsError.message}`);
+  }
+
+  if (installmentBalancesError && !installmentBalancesError.message.includes("does not exist")) {
+    throw new Error(`Unable to load installment balances receipt context: ${installmentBalancesError.message}`);
   }
 
   const breakdown: ReceiptBreakdownItem[] = ((paymentsRaw ?? []) as ReceiptPaymentRow[])
@@ -433,6 +506,19 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     return winner;
   }, null)?.id ?? null;
 
+  const previousReceipts: ReceiptHistoryItem[] = receiptsBeforeCurrent.map((row) => ({
+    id: row.id,
+    receiptNumber: row.receipt_number,
+    paymentDate: row.payment_date,
+    totalAmount: row.total_amount,
+  }));
+
+  const installmentStatus: ReceiptInstallmentStatusItem[] = buildInstallmentStatus(
+    ((installmentBalancesRaw ?? []) as WorkbookInstallmentBalanceRow[]).filter(
+      (row) => row.session_label === sessionLabel,
+    ),
+  );
+
   const conventionalDiscountAssignments: ConventionalDiscountAssignmentSummary[] =
     conventionalDiscountRows.map((row) => {
       const policy = toSingleRecord(row.policy_ref);
@@ -482,6 +568,8 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     lateFeeAmount: adjustmentTotals.receiptLateFeeAmount,
     lateFeeWaived: adjustmentTotals.receiptLateFeeWaived,
     breakdown,
+    installmentStatus,
+    previousReceipts,
     conventionalDiscountAssignments,
   };
 }

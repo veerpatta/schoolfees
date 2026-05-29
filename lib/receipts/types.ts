@@ -37,6 +37,33 @@ export type ReceiptFeeSummaryItem = {
   amount: number;
 };
 
+/**
+ * Live, per-installment status for the whole academic session — sourced from
+ * `v_workbook_installment_balances`. Unlike `ReceiptBreakdownItem` (which is the
+ * frozen moment-of-posting snapshot for installments THIS receipt touched), this
+ * reflects the student's current standing across every installment so the
+ * receipt can show a green tick when an installment is fully cleared or the
+ * amount still due when it isn't.
+ */
+export type ReceiptInstallmentStatusItem = {
+  installmentNo: number;
+  label: string;
+  dueDate: string;
+  expected: number;
+  paid: number;
+  pending: number;
+  lateFee: number;
+  status: "paid" | "partial" | "overdue" | "pending";
+};
+
+/** A prior receipt for the same student, shown for context on the receipt. */
+export type ReceiptHistoryItem = {
+  id: string;
+  receiptNumber: string;
+  paymentDate: string;
+  totalAmount: number;
+};
+
 export type ConventionalDiscountAssignmentSummary = {
   assignmentId: string;
   policyCode: string;
@@ -82,5 +109,7 @@ export type ReceiptDetail = {
   lateFeeAmount: number;
   lateFeeWaived: number;
   breakdown: ReceiptBreakdownItem[];
+  installmentStatus: ReceiptInstallmentStatusItem[];
+  previousReceipts: ReceiptHistoryItem[];
   conventionalDiscountAssignments: ConventionalDiscountAssignmentSummary[];
 };
