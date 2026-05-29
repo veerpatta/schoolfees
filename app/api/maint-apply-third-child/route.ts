@@ -11,11 +11,10 @@ export const maxDuration = 300;
 const SESSION_LABEL = "2026-27";
 
 /**
- * One-time maintenance: regenerate dues for the current 3rd-child recipients so
- * the conventional discount is reflected in their installments (the workbook
- * reads installments.amount_due, which only changes on regeneration). The
- * assignments were already applied by the earlier pass; this finishes the dues
- * regeneration that timed out. Admin-gated; remove after running.
+ * One-time maintenance: regenerate dues for current 3rd-child recipients so the
+ * conventional discount reflects in their installments. Processes each student
+ * individually so one failure doesn't abort the rest, and reports per-student
+ * errors. Admin-gated; remove after running.
  */
 export async function GET(_request: NextRequest) {
   const staff = await requireStaffPermission("students:write");
@@ -51,13 +50,27 @@ export async function GET(_request: NextRequest) {
     ...new Set((assignmentsRaw ?? []).map((row) => (row as { student_id: string }).student_id)),
   ];
 
-  if (studentIds.length > 0) {
-    await prepareDuesForStudentsAutomatically({
-      studentIds,
-      sessionLabel: SESSION_LABEL,
-      reason: "Backfill: regenerate dues for 3rd-child recipients",
-    });
+  const succeeded: string[] = [];
+  const failed: Array<{ studentId: string; error: string }> = [];
+
+  for (const studentId of studentIds) {
+    try {
+      await prepareDuesForStudentsAutomatically({
+        studentIds: [studentId],
+        sessionLabel: SESSION_LABEL,
+        reason: "Backfill: regenerate dues for 3rd-child recipient",
+      });
+      succeeded.push(studentId);
+    } catch (err) {
+      failed.push({ studentId, error: err instanceof Error ? err.message : String(err) });
+    }
   }
 
-  return Response.json({ ok: true, recipientsRepriced: studentIds.length, studentIds });
+  return Response.json({
+    ok: failed.length === 0,
+    total: studentIds.length,
+    succeeded: succeeded.length,
+    failedCount: failed.length,
+    failed,
+  });
 }
