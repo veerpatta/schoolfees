@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   useCallback,
   useEffect,
@@ -23,7 +22,6 @@ import { BehaviorBadge } from "@/components/defaulters/behavior-badge";
 import { ContactNumbers } from "@/components/defaulters/contact-numbers";
 import { ContactStatusChip } from "@/components/defaulters/contact-status-chip";
 import { PromiseChip } from "@/components/defaulters/promise-chip";
-import { FeeBreakdownPanel } from "@/components/defaulters/fee-breakdown-panel";
 import { HeatChip } from "@/components/defaulters/heat-chip";
 import { NoCallToggle } from "@/components/defaulters/no-call-toggle";
 import { QuickLogButtons, type QuickLogKind } from "@/components/defaulters/quick-log-buttons";
@@ -31,7 +29,6 @@ import { WorklistDrawer } from "@/components/defaulters/worklist-drawer";
 import { ContactPopover } from "@/components/defaulters/contact-popover";
 import { buildStudentPhoneEntries, type PhoneEntry } from "@/components/students/phone-chooser";
 import { Money } from "@/components/ui/money";
-import { appendSessionParam } from "@/lib/navigation/session-href";
 import { formatInr } from "@/lib/helpers/currency";
 import { cn } from "@/lib/utils";
 import {
@@ -50,6 +47,19 @@ type SortMode = "smart" | "dues";
 const RENDER_CHUNK = 60;
 /** No-answer streak at which we nudge staff to switch to WhatsApp. */
 const WHATSAPP_NUDGE_STREAK = 3;
+
+/** Detect lg breakpoint (≥1024px) for side-sheet selection. */
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    setIsDesktop(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return isDesktop;
+}
 
 /** Pick the active phone entry for a row, defaulting to the suggested number. */
 function defaultActiveEntry(
@@ -134,8 +144,9 @@ export function DefaultersWorkspace({
 }: Props) {
   const t = useTranslations("Defaulters");
   const [activeStudentId, setActiveStudentId] = useState<string | null>(null);
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [fullFormFor, setFullFormFor] = useState<DefaulterSummaryRow | null>(null);
+  const isDesktop = useIsDesktop();
   const [activeCadence, setActiveCadence] = useState<string>(initialCadence);
   const [behaviorFilter, setBehaviorFilter] = useState<PaymentBehavior | "all">("all");
   const [sortMode, setSortMode] = useState<SortMode>("smart");
@@ -285,11 +296,6 @@ export function DefaultersWorkspace({
     [],
   );
 
-  const withSession = useCallback(
-    (href: string) => appendSessionParam(href, sessionLabel),
-    [sessionLabel],
-  );
-
   const activeRow = useMemo(
     () => rows.find((row) => row.studentId === activeStudentId) ?? null,
     [rows, activeStudentId],
@@ -300,7 +306,7 @@ export function DefaultersWorkspace({
 
   function openDrawer(row: DefaulterSummaryRow) {
     setActiveStudentId(row.studentId);
-    setMobileDrawerOpen(true);
+    setDrawerOpen(true);
   }
 
   return (
@@ -325,7 +331,7 @@ export function DefaultersWorkspace({
         </p>
       ) : (
         <>
-          {/* ── Mobile card list (primary surface) ── */}
+          {/* ── Mobile card list ── */}
           <div className="space-y-2 lg:hidden">
             {pagedRows.map(({ row }) => (
               <DefaulterCard
@@ -356,109 +362,36 @@ export function DefaultersWorkspace({
             ) : null}
           </div>
 
-          {/* ── Desktop two-pane ── */}
-          <div className="hidden gap-4 lg:grid lg:grid-cols-[minmax(340px,420px)_1fr]">
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
-              <ul className="divide-y divide-border/60">
-                {pagedRows.map(({ row }) => {
-                  const summary = effectiveSummaries[row.studentId] ?? null;
-                  const isActive = activeStudentId === row.studentId;
-                  return (
-                    <li key={row.studentId}>
-                      <button
-                        type="button"
-                        onClick={() => setActiveStudentId(row.studentId)}
-                        className={cn(
-                          "w-full px-4 py-3 text-left transition-colors hover:bg-surface-2",
-                          isActive && "bg-accent/10 ring-1 ring-inset ring-accent",
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate font-semibold text-foreground">
-                              {row.fullName}
-                            </p>
-                            <p className="truncate text-xs text-muted-foreground">
-                              {t("studentMetaLine", {
-                                classLabel: row.classLabel,
-                                admissionNo: row.admissionNo,
-                              })}
-                            </p>
-                          </div>
-                          <div className="shrink-0 text-right">
-                            <Money value={row.totalPending} size="sm" tone="warning" />
-                            <div className="mt-1">
-                              <HeatChip score={row.heat} iconOnly />
-                            </div>
-                          </div>
-                        </div>
-                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                          <ContactStatusChip summary={summary} />
-                          <BehaviorBadge behavior={row.paymentBehavior} />
-                          <PromiseChip status={row.promiseStatus} />
-                          {effectiveNoCall(row) ? (
-                            <NoCallToggle
-                              studentId={row.studentId}
-                              sessionLabel={sessionLabel}
-                              noCall
-                              canManage={false}
-                            />
-                          ) : null}
-                        </div>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-              {hasMore ? (
-                <button
-                  type="button"
-                  onClick={() => setRenderLimit((n) => n + RENDER_CHUNK)}
-                  className="w-full border-t border-border px-4 py-3 text-sm font-semibold text-foreground hover:bg-surface-2"
-                >
-                  {t("showMore", { count: visibleRows.length - renderLimit })}
-                </button>
-              ) : null}
-            </div>
-
-            <div className="rounded-xl border border-border bg-card p-5">
-              {activeRow ? (
-                <DesktopDetailPane
-                  row={activeRow}
-                  summary={activeSummary}
+          {/* ── Desktop compact list — click row to open detail sheet ── */}
+          <div className="hidden rounded-xl border border-border bg-card overflow-hidden lg:block">
+            <ul className="divide-y divide-border/60">
+              {pagedRows.map(({ row }) => (
+                <DesktopListRow
+                  key={row.studentId}
+                  row={row}
+                  summary={effectiveSummaries[row.studentId] ?? null}
                   sessionLabel={sessionLabel}
-                  canPostPayments={canPostPayments}
-                  canManageNoCall={canManageNoCall}
-                  noCall={effectiveNoCall(activeRow)}
-                  withSession={withSession}
-                  onOpenFullForm={() => setFullFormFor(activeRow)}
-                  onOptimisticLog={(kind, defaultChannel, promisedDate) =>
-                    handleQuickLog(activeRow.studentId, kind, defaultChannel, promisedDate)
-                  }
-                  onLogRevert={() => handleQuickLogRevert(activeRow.studentId)}
-                  onNoCallChange={(next) => handleNoCallChange(activeRow.studentId, next)}
-                  onNoCallRevert={(previous) => handleNoCallRevert(activeRow.studentId, previous)}
+                  noCall={effectiveNoCall(row)}
+                  onClick={() => openDrawer(row)}
                 />
-              ) : (
-                <div className="flex h-full min-h-[400px] flex-col items-center justify-center text-center">
-                  <ChevronRight className="size-8 text-muted-foreground" aria-hidden="true" />
-                  <p className="mt-2 text-sm font-medium text-foreground">
-                    {t("desktopPickStudent")}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t("desktopPickHint")}
-                  </p>
-                </div>
-              )}
-            </div>
+              ))}
+            </ul>
+            {hasMore ? (
+              <button
+                type="button"
+                onClick={() => setRenderLimit((n) => n + RENDER_CHUNK)}
+                className="w-full border-t border-border px-4 py-3 text-sm font-semibold text-foreground hover:bg-surface-2"
+              >
+                {t("showMore", { count: visibleRows.length - renderLimit })}
+              </button>
+            ) : null}
           </div>
         </>
       )}
 
-      {/* Mobile drawer */}
       <WorklistDrawer
-        open={mobileDrawerOpen}
-        onClose={() => setMobileDrawerOpen(false)}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
         row={activeRow}
         sessionLabel={sessionLabel}
         contactSummary={activeSummary}
@@ -466,6 +399,7 @@ export function DefaultersWorkspace({
         canViewPaymentHistory={canViewPaymentHistory}
         canManageNoCall={canManageNoCall}
         noCall={activeRow ? effectiveNoCall(activeRow) : false}
+        side={isDesktop ? "right" : "bottom"}
         onOptimisticLog={(kind, defaultChannel, promisedDate) => {
           if (activeRow) {
             handleQuickLog(activeRow.studentId, kind, defaultChannel, promisedDate);
@@ -833,157 +767,93 @@ function DefaulterCard({
 }
 
 /* -------------------------------------------------------------------------- */
-/* Desktop detail pane                                                          */
+/* Desktop compact list row                                                     */
 /* -------------------------------------------------------------------------- */
 
-type DetailProps = {
+type DesktopListRowProps = {
   row: DefaulterSummaryRow;
   summary: DefaulterContactSummary | null;
   sessionLabel: string;
-  canPostPayments: boolean;
-  canManageNoCall: boolean;
   noCall: boolean;
-  withSession: (href: string) => string;
-  onOpenFullForm: () => void;
-  onOptimisticLog: (
-    kind: QuickLogKind,
-    defaultChannel: DefaulterContactSummary["lastChannel"],
-    promisedDate: string | null,
-  ) => void;
-  onLogRevert: () => void;
-  onNoCallChange: (noCall: boolean) => void;
-  onNoCallRevert: (previous: boolean) => void;
+  onClick: () => void;
 };
 
-function DesktopDetailPane({
-  row,
-  summary,
-  sessionLabel,
-  canPostPayments,
-  canManageNoCall,
-  noCall,
-  withSession,
-  onOpenFullForm,
-  onOptimisticLog,
-  onLogRevert,
-  onNoCallChange,
-  onNoCallRevert,
-}: DetailProps) {
+function DesktopListRow({ row, summary, sessionLabel, noCall, onClick }: DesktopListRowProps) {
   const t = useTranslations("Defaulters");
-  const defaultChannel =
-    (summary?.lastChannel as "call" | "whatsapp" | "sms" | "in_person" | "email" | null) ?? "call";
-  const entries = useMemo(
-    () => buildStudentPhoneEntries({ fatherPhone: row.fatherPhone, motherPhone: row.motherPhone }),
-    [row.fatherPhone, row.motherPhone],
-  );
-  const [activeLabel, setActiveLabel] = useState<string | null>(
-    () => defaultActiveEntry(entries, summary)?.label ?? null,
-  );
-  // Re-default the active number when the selected student changes.
-  useEffect(() => {
-    setActiveLabel(defaultActiveEntry(entries, summary)?.label ?? null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [row.studentId]);
-  const activePhone = entries.find((e) => e.label === activeLabel)?.phone ?? null;
-
   return (
-    <div className="flex h-full flex-col gap-5">
-      <header className="border-b border-border pb-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="text-xl font-semibold tracking-tight text-foreground">{row.fullName}</h3>
-            <p className="text-sm text-muted-foreground">
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        className="w-full px-4 py-3 text-left transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+      >
+        <div className="flex items-center gap-4">
+          {/* Checkbox — stop propagation so it doesn't open the drawer */}
+          <span
+            className="shrink-0"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <BulkRowCheckbox
+              studentId={row.studentId}
+              ariaLabel={t("selectAriaLabel", { name: row.fullName })}
+            />
+          </span>
+
+          {/* Student identity */}
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-semibold text-foreground">{row.fullName}</p>
+            <p className="truncate text-xs text-muted-foreground">
               {t("studentMetaLine", { classLabel: row.classLabel, admissionNo: row.admissionNo })}
             </p>
           </div>
-          <HeatChip score={row.heat} />
+
+          {/* Status chips — hidden on smaller desktop, shown at xl */}
+          <div className="hidden shrink-0 items-center gap-1.5 xl:flex">
+            <ContactStatusChip summary={summary} />
+            <BehaviorBadge behavior={row.paymentBehavior} />
+            <PromiseChip status={row.promiseStatus} />
+            {noCall ? (
+              <NoCallToggle
+                studentId={row.studentId}
+                sessionLabel={sessionLabel}
+                noCall
+                canManage={false}
+              />
+            ) : null}
+          </div>
+
+          {/* Amount + heat */}
+          <div className="shrink-0 text-right">
+            <Money value={row.totalPending} size="sm" tone="warning" />
+            {row.overdueAmount > 0 ? (
+              <p className="text-[11px] font-medium text-destructive">
+                {t("overdueAmountChip", { amount: formatInr(row.overdueAmount) })}
+              </p>
+            ) : null}
+            <div className="mt-1">
+              <HeatChip score={row.heat} iconOnly />
+            </div>
+          </div>
+
+          <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <Money value={row.totalPending} size="xl" tone="warning" />
-          {row.overdueAmount > 0 ? (
-            <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
-              {t("overdueAmountChip", { amount: formatInr(row.overdueAmount) })}
-            </span>
-          ) : null}
-          <span className="text-xs text-muted-foreground">
-            {t("daysOverdueLabel", { count: row.daysOverdue })}
-          </span>
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        {/* Chips row for lg–xl (below xl they're hidden above) */}
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-8 xl:hidden">
           <ContactStatusChip summary={summary} />
           <BehaviorBadge behavior={row.paymentBehavior} />
           <PromiseChip status={row.promiseStatus} />
-          <NoCallToggle
-            studentId={row.studentId}
-            sessionLabel={sessionLabel}
-            noCall={noCall}
-            canManage={canManageNoCall}
-            onOptimisticChange={onNoCallChange}
-            onRevert={onNoCallRevert}
-          />
+          {noCall ? (
+            <NoCallToggle
+              studentId={row.studentId}
+              sessionLabel={sessionLabel}
+              noCall
+              canManage={false}
+            />
+          ) : null}
         </div>
-      </header>
-
-      <section className="space-y-2">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-          {t("drawerCallNumber")}
-        </p>
-        <ContactNumbers
-          entries={entries}
-          activeLabel={activeLabel}
-          onSelect={(entry) => setActiveLabel(entry.label)}
-          summary={summary}
-          stopPropagation={false}
-        />
-      </section>
-
-      <section className="space-y-2">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-          {t("drawerLogAttempt")}
-        </p>
-        <QuickLogButtons
-          studentId={row.studentId}
-          sessionLabel={sessionLabel}
-          defaultChannel={defaultChannel}
-          activePhone={activePhone}
-          activeLabel={activeLabel}
-          onOpenFullForm={onOpenFullForm}
-          onOptimisticLog={onOptimisticLog}
-          onLogRevert={onLogRevert}
-        />
-      </section>
-
-      <section className="grid grid-cols-2 gap-2">
-        <Link
-          href={withSession(`/protected/students/${row.studentId}`)}
-          className="rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-center text-sm font-semibold text-foreground"
-        >
-          {t("viewAction")}
-        </Link>
-        {canPostPayments ? (
-          <Link
-            href={withSession(
-              `/protected/payments?studentId=${row.studentId}${row.classId ? `&classId=${row.classId}` : ""}`,
-            )}
-            className="rounded-lg border border-accent bg-accent px-3 py-2.5 text-center text-sm font-semibold text-accent-foreground"
-          >
-            {t("collectAction")}
-          </Link>
-        ) : null}
-      </section>
-
-      <section>
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
-          <dt className="text-muted-foreground">{t("tableFather")}</dt>
-          <dd className="text-right text-foreground">{row.fatherName ?? "-"}</dd>
-          <dt className="text-muted-foreground">{t("tableRoute")}</dt>
-          <dd className="text-right text-foreground">{row.transportRouteLabel}</dd>
-        </dl>
-      </section>
-
-      <FeeBreakdownPanel studentId={row.studentId} sessionLabel={sessionLabel} />
-    </div>
+      </button>
+    </li>
   );
 }

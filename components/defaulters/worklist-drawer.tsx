@@ -65,6 +65,7 @@ type Props = {
   canViewPaymentHistory: boolean;
   canManageNoCall: boolean;
   noCall: boolean;
+  side?: "bottom" | "right";
   onOptimisticLog?: (
     kind: QuickLogKind,
     defaultChannel: DefaulterContactSummary["lastChannel"],
@@ -85,6 +86,7 @@ export function WorklistDrawer({
   canViewPaymentHistory,
   canManageNoCall,
   noCall,
+  side = "bottom",
   onOptimisticLog,
   onLogRevert,
   onNoCallChange,
@@ -169,6 +171,8 @@ export function WorklistDrawer({
           admissionNo: row.admissionNo,
         })}
         size="full"
+        side={side}
+        className={side === "right" ? "!max-w-lg" : undefined}
       >
         <div className="space-y-5">
           {/* Dues + heat summary */}
