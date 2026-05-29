@@ -8,6 +8,12 @@ const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,
+  // @react-pdf/renderer (with its pdfkit/fontkit deps) loads binary font-metric
+  // data at runtime. Bundling it breaks Vercel's serverless file tracing (the
+  // .afm data gets dropped → renderToBuffer throws and the fee-pdf routes 500).
+  // Marking it external makes Next require it from node_modules so Vercel traces
+  // the whole package, including its data files.
+  serverExternalPackages: ["@react-pdf/renderer"],
   images: {
     formats: ["image/avif", "image/webp"],
   },

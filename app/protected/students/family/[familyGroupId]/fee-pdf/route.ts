@@ -24,17 +24,24 @@ export async function GET(
   }
 
   const sessionLabel = familyGroup.academic_session_label ?? "";
-  const buffer = await renderFeeStatementPdf({
-    students: pdfStudents,
-    sessionLabel,
-    title: "Family fee statement",
-  });
 
-  return new Response(new Uint8Array(buffer), {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="family-fee-statement-${familyGroupId}.pdf"`,
-      "Cache-Control": "no-store",
-    },
-  });
+  try {
+    const buffer = await renderFeeStatementPdf({
+      students: pdfStudents,
+      sessionLabel,
+      title: "Family fee statement",
+    });
+
+    return new Response(new Uint8Array(buffer), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `inline; filename="family-fee-statement-${familyGroupId}.pdf"`,
+        "Cache-Control": "no-store",
+      },
+    });
+  } catch (error) {
+    console.error("[family-fee-pdf] render failed for family", familyGroupId, error);
+    const detail = error instanceof Error ? error.message : String(error);
+    return new Response(`Could not generate the family fee PDF: ${detail}`, { status: 500 });
+  }
 }

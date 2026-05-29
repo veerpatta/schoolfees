@@ -236,6 +236,138 @@ export async function linkSiblingsAction(
   };
 }
 
+/**
+ * One-tap link for a phone-detected ("suspected") sibling group: links every
+ * member of the student's suspected group into a single family for the session.
+ * This replaces the old "confirm sibling group" page — staff confirm directly
+ * from the profile. Kept explicit (a tap) rather than automatic-on-view so the
+ * 3rd-child discount is never applied silently.
+ */
+export async function linkSuspectedSiblingsAction(
+  _previous: LinkSiblingActionState,
+  formData: FormData,
+): Promise<LinkSiblingActionState> {
+  await requireStaffPermission("students:write");
+
+  const studentId = (formData.get("studentId") ?? "").toString().trim();
+  const sessionLabel = (formData.get("sessionLabel") ?? "").toString().trim();
+
+  if (!studentId || !sessionLabel) {
+    return { status: "error", message: "Missing student or session for linking.", familyGroupId: null };
+  }
+
+  const supabase = await createClient();
+
+  const { data: groupRows, error: groupError } = await supabase
+    .from("v_student_sibling_groups")
+    .select("student_ids, phone_match, father_name_match")
+    .overlaps("student_ids", [studentId])
+    .eq("session_label", sessionLabel)
+    .limit(1);
+
+  if (groupError) {
+    return { status: "error", message: `Unable to load suspected siblings: ${groupError.message}`, familyGroupId: null };
+  }
+
+  const group = (groupRows ?? [])[0] as
+    | { student_ids: string[] | null; phone_match: string[] | null; father_name_match: boolean | null }
+    | undefined;
+  const memberIds = [...new Set(group?.student_ids ?? [])].filter(Boolean);
+
+  if (memberIds.length < 2) {
+    return { status: "error", message: "No suspected siblings to link for this student.", familyGroupId: null };
+  }
+
+  // Reuse any existing family group these students already belong to (across
+  // sessions), otherwise create one.
+  const { data: existingRaw } = await supabase
+    .from("student_family_members")
+    .select("family_group_id, student_id")
+    .in("student_id", memberIds);
+  const existing = (existingRaw ?? []) as FamilyMemberLookupRow[];
+  let familyGroupId = existing[0]?.family_group_id ?? null;
+
+  const { data: studentRowsRaw } = await supabase
+    .from("students")
+    .select("id, father_name, primary_phone, secondary_phone")
+    .in("id", memberIds);
+  const studentRows = (studentRowsRaw ?? []) as Array<{
+    id: string;
+    father_name: string | null;
+    primary_phone: string | null;
+    secondary_phone: string | null;
+  }>;
+  const guardianPhone = group?.phone_match?.[0] ?? null;
+  const guardianName = studentRows.find((r) => r.father_name?.trim())?.father_name?.trim() ?? null;
+
+  if (!familyGroupId) {
+    const familyLabel = `Family ${guardianPhone ?? studentId.slice(0, 8)} ${studentId.slice(0, 6)}`;
+    const { data: familyGroupRaw, error: insertGroupError } = await supabase
+      .from("student_family_groups")
+      .insert({
+        academic_session_label: sessionLabel,
+        family_label: familyLabel,
+        guardian_name: guardianName,
+        guardian_phone: guardianPhone,
+        notes: "Linked from suspected siblings on the student profile.",
+      })
+      .select("id")
+      .single();
+
+    if (insertGroupError || !familyGroupRaw) {
+      return {
+        status: "error",
+        message: `Unable to create family group: ${insertGroupError?.message ?? "Unknown error"}`,
+        familyGroupId: null,
+      };
+    }
+    familyGroupId = (familyGroupRaw as { id: string }).id;
+  }
+
+  const alreadyMember = new Set(existing.map((row) => row.student_id));
+  const toInsert = memberIds
+    .filter((id) => !alreadyMember.has(id))
+    .map((id, index) => ({
+      family_group_id: familyGroupId as string,
+      student_id: id,
+      academic_session_label: sessionLabel,
+      sibling_order: index + 1,
+      is_policy_candidate: false,
+      manual_order_override: false,
+      notes: "Linked from suspected siblings on the student profile.",
+    }));
+
+  if (toInsert.length > 0) {
+    const { error: insertMembersError } = await supabase
+      .from("student_family_members")
+      .upsert(toInsert, {
+        onConflict: "family_group_id,student_id,academic_session_label",
+        ignoreDuplicates: true,
+      });
+    if (insertMembersError) {
+      return { status: "error", message: `Unable to link siblings: ${insertMembersError.message}`, familyGroupId };
+    }
+  }
+
+  const thirdChildResult = await applyThirdChildPolicyForFamilyGroup(familyGroupId, {
+    academicSessionLabel: sessionLabel,
+  });
+  if (thirdChildResult?.affectedStudentIds.length) {
+    await prepareDuesForStudentsAutomatically({
+      studentIds: thirdChildResult.affectedStudentIds,
+      sessionLabel,
+      reason: "Suspected siblings linked",
+    });
+  }
+
+  revalidatePath("/protected/students");
+  for (const id of memberIds) {
+    revalidatePath(`/protected/students/${id}`);
+  }
+
+  return { status: "success", message: `Linked ${memberIds.length} students as a family.`, familyGroupId };
+}
+
 export type UnlinkSiblingActionState = {
   status: "idle" | "success" | "error";
   message: string | null;

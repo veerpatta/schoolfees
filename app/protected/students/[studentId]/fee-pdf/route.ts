@@ -22,18 +22,25 @@ export async function GET(
   }
 
   const sessionLabel = workspace.financialSnapshot?.policy.academicSessionLabel ?? "";
-  const buffer = await renderFeeStatementPdf({
-    students: [pdfStudent],
-    sessionLabel,
-    title: `Fee statement: ${pdfStudent.fullName}`,
-  });
 
-  const fileName = `fee-statement-${(pdfStudent.admissionNo || studentId).replace(/[^a-z0-9-]/gi, "_")}.pdf`;
-  return new Response(new Uint8Array(buffer), {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="${fileName}"`,
-      "Cache-Control": "no-store",
-    },
-  });
+  try {
+    const buffer = await renderFeeStatementPdf({
+      students: [pdfStudent],
+      sessionLabel,
+      title: `Fee statement: ${pdfStudent.fullName}`,
+    });
+
+    const fileName = `fee-statement-${(pdfStudent.admissionNo || studentId).replace(/[^a-z0-9-]/gi, "_")}.pdf`;
+    return new Response(new Uint8Array(buffer), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `inline; filename="${fileName}"`,
+        "Cache-Control": "no-store",
+      },
+    });
+  } catch (error) {
+    console.error("[fee-pdf] render failed for student", studentId, error);
+    const detail = error instanceof Error ? error.message : String(error);
+    return new Response(`Could not generate the fee PDF: ${detail}`, { status: 500 });
+  }
 }

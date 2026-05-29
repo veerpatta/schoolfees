@@ -3,6 +3,7 @@ import { formatInr } from "@/lib/helpers/currency";
 import { Section } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
 import { LinkSiblingTrigger } from "@/components/students/link-sibling-trigger";
+import { LinkSuspectedSiblingsButton } from "@/components/students/link-suspected-siblings-button";
 import { UnlinkSiblingTrigger } from "@/components/students/unlink-sibling-trigger";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import type { StudentFamilyMemberDetail } from "@/lib/students/data";
@@ -201,6 +202,13 @@ export function StudentFamilyPanel({
                 </Link>
               </Button>
             </>
+          ) : null}
+          {confidence === "suspected" && !familyGroupId && canLinkSibling ? (
+            <LinkSuspectedSiblingsButton
+              studentId={studentId}
+              sessionLabel={sessionLabel}
+              count={members.length}
+            />
           ) : null}
           {linkSiblingTrigger}
         </div>
