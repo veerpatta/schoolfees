@@ -14,7 +14,7 @@ export async function GET(
   try {
     await requireStaffPermission("students:view");
 
-    const workspace = await getStudentWorkspaceData(studentId);
+    const workspace = await getStudentWorkspaceData(studentId, { skipCache: true });
     // Dynamic import so any module-init failure surfaces here (caught below)
     // instead of crashing the function at load time with an opaque 500.
     const { renderFeeStatementPdf, toFeePdfStudent } = await import(

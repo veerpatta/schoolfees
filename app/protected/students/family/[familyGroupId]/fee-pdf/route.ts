@@ -14,7 +14,7 @@ export async function GET(
   try {
     await requireStaffPermission("students:view");
 
-    const { familyGroup, students } = await getFamilyWorkspaceData(familyGroupId);
+    const { familyGroup, students } = await getFamilyWorkspaceData(familyGroupId, { skipCache: true });
     const { renderFeeStatementPdf, toFeePdfStudent } = await import(
       "@/lib/students/fee-statement-pdf"
     );

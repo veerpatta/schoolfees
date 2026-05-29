@@ -1978,7 +1978,16 @@ async function getStudentFinancialSnapshotUncached(
 
 export async function getStudentFinancialSnapshot(
   studentId: string,
+  options: { skipCache?: boolean } = {},
 ): Promise<StudentFinancialSnapshot | null> {
+  // The uncached body uses cookie-based Supabase clients. `unstable_cache`
+  // forbids reading cookies inside its scope — which throws a hard 500 in a
+  // Route Handler on a cold (cache-miss) student. Callers that run outside a
+  // render (e.g. the fee-pdf route handlers) pass skipCache so the body runs
+  // directly, where reading cookies is allowed.
+  if (options.skipCache) {
+    return getStudentFinancialSnapshotUncached(studentId);
+  }
   return cacheSafeUnstableCache(
     async () => getStudentFinancialSnapshotUncached(studentId),
     ["student-financial-snapshot", studentId],

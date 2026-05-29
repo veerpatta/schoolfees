@@ -45,12 +45,15 @@ function paymentModeLabel(mode: StudentReceiptRow["payment_mode"]) {
   return "Cash";
 }
 
-export async function getStudentWorkspaceData(studentId: string) {
+export async function getStudentWorkspaceData(
+  studentId: string,
+  options: { skipCache?: boolean } = {},
+) {
   const supabase = await createClient();
   const [student, financialSnapshot, ledgerData, receiptsResult, installmentBalances] =
     await Promise.all([
       getStudentDetail(studentId),
-      getStudentFinancialSnapshot(studentId),
+      getStudentFinancialSnapshot(studentId, options),
       getLedgerPageData({
         searchQuery: "",
         studentId,
@@ -91,7 +94,10 @@ export async function getStudentWorkspaceData(studentId: string) {
   };
 }
 
-export async function getFamilyWorkspaceData(familyGroupId: string) {
+export async function getFamilyWorkspaceData(
+  familyGroupId: string,
+  options: { skipCache?: boolean } = {},
+) {
   const supabase = await createClient();
   const { data: members, error: membersError } = await supabase
     .from("student_family_members")
@@ -114,7 +120,7 @@ export async function getFamilyWorkspaceData(familyGroupId: string) {
     Promise.all(
       studentIds.map(async (studentId) => {
         try {
-          const workspace = await getStudentWorkspaceData(studentId);
+          const workspace = await getStudentWorkspaceData(studentId, options);
           return workspace;
         } catch (err) {
           console.error(`Error loading workspace for student ${studentId}`, err);
