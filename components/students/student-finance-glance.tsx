@@ -158,7 +158,7 @@ export function StudentFinanceGlance({
             </p>
             <ul className="mt-1.5 space-y-1 text-sm">
               <li className="flex justify-between">
-                <span className="text-muted-foreground">Paid till now</span>
+                <span className="text-muted-foreground">Paid (cash)</span>
                 <span className="font-mono font-semibold text-success-soft-foreground tabular-nums">
                   {formatInr(totalPaid)}
                 </span>

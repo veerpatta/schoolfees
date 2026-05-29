@@ -22,6 +22,8 @@ function member(overrides: Partial<StudentFamilyMemberDetail>): StudentFamilyMem
       totalDue: 1000,
       totalPaid: 0,
       outstanding: 1000,
+      discountCloseouts: 0,
+      lateFeeWaiver: 0,
     },
     ...overrides,
   };
@@ -47,7 +49,7 @@ describe("family flow links", () => {
     expect(html).not.toContain(`/protected/payments/family/${familyGroupId}`);
   });
 
-  it("keeps the session when sending suspected siblings to confirmation", () => {
+  it("no longer links suspected siblings to the removed Families page", () => {
     const html = renderToStaticMarkup(
       <StudentFamilyPanel
         studentId={selfStudentId}
@@ -61,6 +63,9 @@ describe("family flow links", () => {
       />,
     );
 
-    expect(html).toContain(`/protected/students/families?search=${selfStudentId}&amp;session=${sessionLabel}`);
+    // The "Confirm Sibling Group" flow and its Families route are gone; siblings
+    // are linked/unlinked directly on the profile instead.
+    expect(html).not.toContain("/protected/students/families");
+    expect(html).toContain("Suspected Siblings");
   });
 });

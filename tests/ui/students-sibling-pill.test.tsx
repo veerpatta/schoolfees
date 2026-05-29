@@ -72,14 +72,14 @@ function student(overrides: Partial<StudentListItem> = {}): StudentListItem {
 }
 
 describe("students sibling pill", () => {
-  it("renders a confirmed family pill with a family route link", () => {
+  it("renders an informational sibling pill that never links to the removed Families page", () => {
     const html = renderWithIntl(
       <StudentListTable
         students={[
           student({
             siblingPill: {
               siblingCount: 2,
-              href: "/protected/students/families?group=family-1",
+              href: "/protected/students/student-1",
               confidence: "confirmed",
             },
           }),
@@ -92,7 +92,8 @@ describe("students sibling pill", () => {
     );
 
     expect(html).toContain("+2 sibling");
-    expect(html).toContain("/protected/students/families?group=family-1&amp;session=TEST-2026-27");
+    // The pill is no longer a link to the Families page (which has been removed).
+    expect(html).not.toContain("/protected/students/families");
   });
 
   it("does not render a sibling pill when the student has no group", () => {

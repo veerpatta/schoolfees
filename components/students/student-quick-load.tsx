@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet } from "@/components/ui/sheet";
 import { appendSessionParam } from "@/lib/navigation/session-href";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { isPendingAdmissionNo } from "@/lib/students/constants";
 import { cn } from "@/lib/utils";
 import type { SavedView } from "@/lib/data-table/saved-views";
@@ -75,6 +76,10 @@ export function StudentQuickLoad({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [srBannerDismissed, setSrBannerDismissed] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  // Bulk-select is a desktop/office workflow only. On mobile the checkboxes
+  // and the floating bulk-edit bar are hidden (they overlapped the FAB and
+  // crowded the row), so selection is gated behind a desktop media query.
+  const isDesktop = useMediaQuery("(min-width: 768px)");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const toggleSelection = useCallback((studentId: string) => {
     setSelectedIds((previous) =>
@@ -683,7 +688,7 @@ export function StudentQuickLoad({
               returnTo={returnTo}
               session={initialFilters.sessionLabel}
               lastViewedByUser={lastViewedByUser}
-              selection={canWrite ? {
+              selection={canWrite && isDesktop ? {
                 selectedIds,
                 onToggle: toggleSelection,
                 onToggleAll: toggleAllSelection,
@@ -715,7 +720,7 @@ export function StudentQuickLoad({
         </Link>
       )}
 
-      {canWrite ? (
+      {canWrite && isDesktop ? (
         <BulkStudentEditBar
           selectedIds={selectedIds}
           classOptions={classOptions}
