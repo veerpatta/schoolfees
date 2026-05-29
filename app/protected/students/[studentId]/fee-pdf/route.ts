@@ -43,8 +43,7 @@ export async function GET(
     });
   } catch (error) {
     console.error("[fee-pdf] failed for student", studentId, error);
-    const detail = error instanceof Error ? `${error.message}\n${error.stack ?? ""}` : String(error);
-    return new Response(`FEE_PDF_ERROR: ${detail}`, {
+    return new Response("Could not generate the fee PDF. Please try again.", {
       status: 500,
       headers: { "Content-Type": "text/plain" },
     });

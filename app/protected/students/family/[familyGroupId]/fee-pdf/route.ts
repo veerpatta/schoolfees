@@ -42,8 +42,7 @@ export async function GET(
     });
   } catch (error) {
     console.error("[family-fee-pdf] failed for family", familyGroupId, error);
-    const detail = error instanceof Error ? `${error.message}\n${error.stack ?? ""}` : String(error);
-    return new Response(`FAMILY_FEE_PDF_ERROR: ${detail}`, {
+    return new Response("Could not generate the family fee PDF. Please try again.", {
       status: 500,
       headers: { "Content-Type": "text/plain" },
     });
