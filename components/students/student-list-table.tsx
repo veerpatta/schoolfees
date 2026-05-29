@@ -18,6 +18,26 @@ import { appendSessionParam } from "@/lib/navigation/session-href";
 import { StudentStatusBadge } from "@/components/students/student-status-badge";
 import { StudentRowCollectButton } from "@/components/students/student-row-collect-button";
 
+/**
+ * Idempotent hover/focus prefetch for student-profile rows. Rows navigate via
+ * `router.push` (not <Link>), so Next.js doesn't auto-prefetch the profile RSC
+ * payload — without this, every row click pays a full cold server round trip.
+ * Warming on first hover/focus/touch makes opening a profile feel instant.
+ * Mirrors useHoverPrefetch in components/admin/sidebar-nav.tsx.
+ */
+function useRowPrefetch() {
+  const router = useRouter();
+  const warmed = React.useRef<Set<string>>(new Set());
+  return React.useCallback(
+    (href: string) => {
+      if (warmed.current.has(href)) return;
+      warmed.current.add(href);
+      router.prefetch(href);
+    },
+    [router],
+  );
+}
+
 type StudentsTranslator = ReturnType<typeof useTranslations<"Students">>;
 
 type StudentListTableProps = {
@@ -193,6 +213,8 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
   const showCollect = canWrite && student.status === "active" && student.outstandingAmount > 0 && student.duesStatus === "generated";
 
   const router = useRouter();
+  const warmRow = useRowPrefetch();
+  const prefetchRow = () => warmRow(studentHref);
   const handleRowOpen = (event: React.MouseEvent<HTMLElement>) => {
     if (event.defaultPrevented) return;
     const target = event.target as HTMLElement | null;
@@ -214,6 +236,9 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
       aria-label={t("openStudentAria", { name: student.fullName })}
       onClick={handleRowOpen}
       onKeyDown={handleRowKey}
+      onMouseEnter={prefetchRow}
+      onFocus={prefetchRow}
+      onTouchStart={prefetchRow}
       className="group relative flex cursor-pointer flex-col gap-2 pl-6 pr-3 py-3.5 transition-all hover:bg-surface-2/50 active:bg-surface-2 border-b border-border/40 focus-visible:outline-none focus-visible:bg-surface-2"
       style={{ contentVisibility: "auto", containIntrinsicSize: "0 96px" } as React.CSSProperties}
     >
@@ -314,6 +339,7 @@ export const StudentListTable = React.memo(function StudentListTable({
 }: StudentListTableProps) {
   const t = useTranslations("Students");
   const router = useRouter();
+  const warmRow = useRowPrefetch();
   const withSession = (href: string) => appendSessionParam(href, session);
   const selectedIdSet = React.useMemo(
     () => new Set(selection?.selectedIds ?? []),
@@ -411,6 +437,12 @@ export const StudentListTable = React.memo(function StudentListTable({
                   if (target && target.closest('[data-row-action="true"]')) return;
                   router.push(withSession(`/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`));
                 }}
+                onMouseEnter={() =>
+                  warmRow(withSession(`/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`))
+                }
+                onFocus={() =>
+                  warmRow(withSession(`/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`))
+                }
               >
                 {selection && canWrite ? (
                   <td className="w-10 px-3 py-3.5" data-row-action="true" onClick={(event) => event.stopPropagation()}>
