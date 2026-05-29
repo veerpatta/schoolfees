@@ -1,6 +1,5 @@
 import type { NextRequest } from "next/server";
 
-import { renderFeeStatementPdf, toFeePdfStudent } from "@/lib/students/fee-statement-pdf";
 import { getStudentWorkspaceData } from "@/lib/students/workspace";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
@@ -11,19 +10,23 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ studentId: string }> },
 ) {
-  await requireStaffPermission("students:view");
   const { studentId } = await params;
-
-  const workspace = await getStudentWorkspaceData(studentId);
-  const pdfStudent = toFeePdfStudent(workspace);
-
-  if (!pdfStudent) {
-    return new Response("Fee statement is not available for this student yet.", { status: 404 });
-  }
-
-  const sessionLabel = workspace.financialSnapshot?.policy.academicSessionLabel ?? "";
-
   try {
+    await requireStaffPermission("students:view");
+
+    const workspace = await getStudentWorkspaceData(studentId);
+    // Dynamic import so any module-init failure surfaces here (caught below)
+    // instead of crashing the function at load time with an opaque 500.
+    const { renderFeeStatementPdf, toFeePdfStudent } = await import(
+      "@/lib/students/fee-statement-pdf"
+    );
+    const pdfStudent = toFeePdfStudent(workspace);
+
+    if (!pdfStudent) {
+      return new Response("Fee statement is not available for this student yet.", { status: 404 });
+    }
+
+    const sessionLabel = workspace.financialSnapshot?.policy.academicSessionLabel ?? "";
     const buffer = await renderFeeStatementPdf({
       students: [pdfStudent],
       sessionLabel,
@@ -39,8 +42,11 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("[fee-pdf] render failed for student", studentId, error);
-    const detail = error instanceof Error ? error.message : String(error);
-    return new Response(`Could not generate the fee PDF: ${detail}`, { status: 500 });
+    console.error("[fee-pdf] failed for student", studentId, error);
+    const detail = error instanceof Error ? `${error.message}\n${error.stack ?? ""}` : String(error);
+    return new Response(`FEE_PDF_ERROR: ${detail}`, {
+      status: 500,
+      headers: { "Content-Type": "text/plain" },
+    });
   }
 }

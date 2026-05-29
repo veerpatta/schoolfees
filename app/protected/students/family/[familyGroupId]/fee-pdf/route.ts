@@ -1,6 +1,5 @@
 import type { NextRequest } from "next/server";
 
-import { renderFeeStatementPdf, toFeePdfStudent } from "@/lib/students/fee-statement-pdf";
 import { getFamilyWorkspaceData } from "@/lib/students/workspace";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
@@ -11,21 +10,23 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ familyGroupId: string }> },
 ) {
-  await requireStaffPermission("students:view");
   const { familyGroupId } = await params;
-
-  const { familyGroup, students } = await getFamilyWorkspaceData(familyGroupId);
-  const pdfStudents = students
-    .map((workspace) => toFeePdfStudent(workspace))
-    .filter((student): student is NonNullable<typeof student> => student !== null);
-
-  if (pdfStudents.length === 0) {
-    return new Response("No printable fee data for this family.", { status: 404 });
-  }
-
-  const sessionLabel = familyGroup.academic_session_label ?? "";
-
   try {
+    await requireStaffPermission("students:view");
+
+    const { familyGroup, students } = await getFamilyWorkspaceData(familyGroupId);
+    const { renderFeeStatementPdf, toFeePdfStudent } = await import(
+      "@/lib/students/fee-statement-pdf"
+    );
+    const pdfStudents = students
+      .map((workspace) => toFeePdfStudent(workspace))
+      .filter((student): student is NonNullable<typeof student> => student !== null);
+
+    if (pdfStudents.length === 0) {
+      return new Response("No printable fee data for this family.", { status: 404 });
+    }
+
+    const sessionLabel = familyGroup.academic_session_label ?? "";
     const buffer = await renderFeeStatementPdf({
       students: pdfStudents,
       sessionLabel,
@@ -40,8 +41,11 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("[family-fee-pdf] render failed for family", familyGroupId, error);
-    const detail = error instanceof Error ? error.message : String(error);
-    return new Response(`Could not generate the family fee PDF: ${detail}`, { status: 500 });
+    console.error("[family-fee-pdf] failed for family", familyGroupId, error);
+    const detail = error instanceof Error ? `${error.message}\n${error.stack ?? ""}` : String(error);
+    return new Response(`FAMILY_FEE_PDF_ERROR: ${detail}`, {
+      status: 500,
+      headers: { "Content-Type": "text/plain" },
+    });
   }
 }
