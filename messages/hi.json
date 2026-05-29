@@ -714,11 +714,11 @@
     "routeProgressDescription": "सबसे ज्यादा बकाया वाले ट्रांसपोर्ट रूट पहले।",
     "classFeePositionTitle": "क्लास-वार फीस स्थिति",
     "classFeePositionDescription": "सबसे ज्यादा बकाया वाली क्लास पहले।",
-    "morningBriefTodayNone": "आज: अभी कोई वसूली नहीं।",
-    "morningBriefTodayCount": "आज: {amount} वसूल हुए, {count, plural, =1 {# रसीद} other {# रसीदों}} में।",
-    "morningBriefPendingTotal": "पूरे स्कूल में {amount} अभी भी बकाया।",
-    "morningBriefInstallmentOverdue": "{label} ओवरड्यू है ({dueDate} थी)।",
-    "morningBriefInstallmentDueToday": "{label} की तारीख आज है।"
+    "morningBriefAllClear": "सभी किस्तें समय पर — आज कुछ भी वसूलने को बाकी नहीं।",
+    "morningBriefFollowUpOverdue": "{label} ओवरड्यू है — {count, plural, =1 {# छात्र} other {# छात्रों}} से {amount} का फ़ॉलो-अप करें।",
+    "morningBriefFollowUpDueToday": "{label} की तारीख आज है — {count, plural, =1 {# छात्र} other {# छात्रों}} से {amount} का फ़ॉलो-अप करें।",
+    "morningBriefFollowUpInstallment": "{label} ({dueDate} तक) से पहले {count, plural, =1 {# छात्र} other {# छात्रों}} से {amount} का फ़ॉलो-अप करें।",
+    "morningBriefFollowUp": "{count, plural, =1 {# छात्र} other {# छात्रों}} से {amount} बकाया का फ़ॉलो-अप करें।"
   },
   "Payments": {
     "eyebrow": "भुगतान",

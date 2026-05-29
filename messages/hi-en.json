@@ -714,11 +714,11 @@
     "routeProgressDescription": "Sabse zyada baaki wale transport routes pehle.",
     "classFeePositionTitle": "Class-wise fees position",
     "classFeePositionDescription": "Sabse zyada baaki wali classes pehle.",
-    "morningBriefTodayNone": "Aaj: abhi koi vasooli nahi.",
-    "morningBriefTodayCount": "Aaj: {amount} vasool hue, {count, plural, =1 {# receipt} other {# receipts}} mein.",
-    "morningBriefPendingTotal": "Poore school mein {amount} abhi bhi baaki.",
-    "morningBriefInstallmentOverdue": "{label} overdue hai ({dueDate} thi).",
-    "morningBriefInstallmentDueToday": "{label} ki date aaj hai."
+    "morningBriefAllClear": "Sabhi installments on track — aaj kuch bhi chase karne ko baaki nahi.",
+    "morningBriefFollowUpOverdue": "{label} overdue hai — {count, plural, =1 {# student} other {# students}} se {amount} ka follow-up karein.",
+    "morningBriefFollowUpDueToday": "{label} ki date aaj hai — {count, plural, =1 {# student} other {# students}} se {amount} ka follow-up karein.",
+    "morningBriefFollowUpInstallment": "{label} ({dueDate} tak) se pehle {count, plural, =1 {# student} other {# students}} se {amount} ka follow-up karein.",
+    "morningBriefFollowUp": "{count, plural, =1 {# student} other {# students}} se {amount} pending ka follow-up karein."
   },
   "Payments": {
     "eyebrow": "Payments",

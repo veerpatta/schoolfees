@@ -17,64 +17,64 @@ import type { DashboardCurrentInstallment } from "@/lib/dashboard/data";
 
 export type MorningBriefTranslator = (
   key:
-    | "morningBriefTodayNone"
-    | "morningBriefTodayCount"
-    | "morningBriefPendingTotal"
-    | "morningBriefInstallmentOverdue"
-    | "morningBriefInstallmentDueToday",
+    | "morningBriefAllClear"
+    | "morningBriefFollowUpOverdue"
+    | "morningBriefFollowUpDueToday"
+    | "morningBriefFollowUpInstallment"
+    | "morningBriefFollowUp",
   values?: Record<string, string | number>,
 ) => string;
 
 export type MorningBriefInput = {
   kpis: DashboardKpis;
   currentInstallment?: DashboardCurrentInstallment | null;
-  /** Optional pending Q1-style label; pages can pass a custom phrase. */
-  pendingPhrase?: string;
+  /** Students still carrying a balance — names the follow-up count. */
+  followUpCount?: number;
   /** Translator scoped to the Dashboard namespace. */
   t: MorningBriefTranslator;
 };
 
+/**
+ * Builds the one-line brief as a *next action*, not a recap. The Today and
+ * Pending KPI cards already show the raw numbers right below this line, so the
+ * brief earns its space by telling the office what to do next.
+ */
 export function composeMorningBrief({
   kpis,
   currentInstallment,
-  pendingPhrase,
+  followUpCount,
   t,
 }: MorningBriefInput): string {
-  const parts: string[] = [];
-
-  if (kpis.todaysCollection > 0 || kpis.receiptsToday > 0) {
-    parts.push(
-      t("morningBriefTodayCount", {
-        amount: formatInr(kpis.todaysCollection),
-        count: kpis.receiptsToday,
-      }),
-    );
-  } else {
-    parts.push(t("morningBriefTodayNone"));
+  // Nothing outstanding (or no students to chase) → positive confirmation.
+  if (kpis.totalPending <= 0 || !followUpCount || followUpCount <= 0) {
+    return t("morningBriefAllClear");
   }
 
-  if (pendingPhrase) {
-    parts.push(pendingPhrase);
-  } else if (kpis.totalPending > 0) {
-    parts.push(
-      t("morningBriefPendingTotal", { amount: formatInr(kpis.totalPending) }),
-    );
-  }
+  const amount = formatInr(kpis.totalPending);
+  const count = followUpCount;
 
   if (currentInstallment) {
     if (currentInstallment.status === "overdue") {
-      parts.push(
-        t("morningBriefInstallmentOverdue", {
-          label: currentInstallment.label,
-          dueDate: currentInstallment.dueDate,
-        }),
-      );
-    } else if (currentInstallment.status === "due_today") {
-      parts.push(
-        t("morningBriefInstallmentDueToday", { label: currentInstallment.label }),
-      );
+      return t("morningBriefFollowUpOverdue", {
+        label: currentInstallment.label,
+        count,
+        amount,
+      });
     }
+    if (currentInstallment.status === "due_today") {
+      return t("morningBriefFollowUpDueToday", {
+        label: currentInstallment.label,
+        count,
+        amount,
+      });
+    }
+    return t("morningBriefFollowUpInstallment", {
+      label: currentInstallment.label,
+      dueDate: currentInstallment.dueDate,
+      count,
+      amount,
+    });
   }
 
-  return parts.join(" ");
+  return t("morningBriefFollowUp", { count, amount });
 }

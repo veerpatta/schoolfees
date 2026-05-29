@@ -28,46 +28,43 @@ const t = createTranslator({
 }) as unknown as MorningBriefTranslator;
 
 describe("composeMorningBrief", () => {
-  it("greets a quiet morning when nothing is collected and nothing pending", () => {
+  it("confirms an all-clear morning when nothing is pending", () => {
     const text = composeMorningBrief({ kpis: { ...ZERO_KPIS }, t });
-    expect(text).toContain("Today: no collections yet.");
+    expect(text).toBe("All installments on track — nothing to chase today.");
   });
 
-  it("composes the collected line with pluralization", () => {
-    const oneReceipt = composeMorningBrief({
-      kpis: { ...ZERO_KPIS, todaysCollection: 10_000, receiptsToday: 1 },
-      t,
-    });
-    expect(oneReceipt).toMatch(/1 receipt(?!s)/);
-
-    const many = composeMorningBrief({
-      kpis: { ...ZERO_KPIS, todaysCollection: 84_200, receiptsToday: 12 },
-      t,
-    });
-    expect(many).toMatch(/12 receipts/);
-  });
-
-  it("uses the caller's curated pending phrase when supplied", () => {
+  it("confirms all-clear when there is pending money but no students to chase", () => {
     const text = composeMorningBrief({
-      kpis: { ...ZERO_KPIS, totalPending: 1_000_000 },
-      pendingPhrase: "47 students still owe Q1.",
+      kpis: { ...ZERO_KPIS, totalPending: 50_000 },
+      followUpCount: 0,
       t,
     });
-    expect(text).toContain("47 students still owe Q1.");
-    expect(text).not.toMatch(/still pending across the school/);
+    expect(text).toMatch(/nothing to chase today/);
   });
 
-  it("falls back to total pending when no curated phrase is supplied", () => {
+  it("frames the brief as a follow-up action with the pending amount and student count", () => {
     const text = composeMorningBrief({
       kpis: { ...ZERO_KPIS, totalPending: 1_234_500 },
+      followUpCount: 47,
       t,
     });
-    expect(text).toMatch(/still pending across the school/);
+    expect(text).toMatch(/Follow up with 47 students/);
+    expect(text).toMatch(/₹12,34,500/);
   });
 
-  it("appends a curated installment status when one is current", () => {
+  it("pluralizes the student count", () => {
+    const text = composeMorningBrief({
+      kpis: { ...ZERO_KPIS, totalPending: 1_000 },
+      followUpCount: 1,
+      t,
+    });
+    expect(text).toMatch(/1 student(?!s)/);
+  });
+
+  it("names the installment and overdue status in the action", () => {
     const overdue = composeMorningBrief({
-      kpis: { ...ZERO_KPIS },
+      kpis: { ...ZERO_KPIS, totalPending: 100_000 },
+      followUpCount: 5,
       currentInstallment: {
         label: "Q1",
         dueDate: "20-04-2026",
@@ -76,9 +73,11 @@ describe("composeMorningBrief", () => {
       t,
     });
     expect(overdue).toMatch(/Q1 is overdue/);
+    expect(overdue).toMatch(/follow up with 5 students/i);
 
-    const today = composeMorningBrief({
-      kpis: { ...ZERO_KPIS },
+    const dueToday = composeMorningBrief({
+      kpis: { ...ZERO_KPIS, totalPending: 100_000 },
+      followUpCount: 5,
       currentInstallment: {
         label: "Q2",
         dueDate: "20-07-2026",
@@ -86,18 +85,29 @@ describe("composeMorningBrief", () => {
       },
       t,
     });
-    expect(today).toMatch(/Q2 is due today\./);
+    expect(dueToday).toMatch(/Q2 is due today/);
+  });
+
+  it("includes the due date for an upcoming installment", () => {
+    const text = composeMorningBrief({
+      kpis: { ...ZERO_KPIS, totalPending: 100_000 },
+      followUpCount: 5,
+      currentInstallment: {
+        label: "Q3",
+        dueDate: "20-10-2026",
+        status: "upcoming",
+      },
+      t,
+    });
+    expect(text).toMatch(/before Q3 \(due 20-10-2026\)/);
   });
 
   it("never produces an LLM-style hallucination — output is a deterministic concat", () => {
-    const a = composeMorningBrief({
-      kpis: { ...ZERO_KPIS, todaysCollection: 5000, receiptsToday: 1 },
+    const input = {
+      kpis: { ...ZERO_KPIS, totalPending: 5000 },
+      followUpCount: 3,
       t,
-    });
-    const b = composeMorningBrief({
-      kpis: { ...ZERO_KPIS, todaysCollection: 5000, receiptsToday: 1 },
-      t,
-    });
-    expect(a).toBe(b);
+    } as const;
+    expect(composeMorningBrief({ ...input })).toBe(composeMorningBrief({ ...input }));
   });
 });

@@ -714,11 +714,11 @@
     "routeProgressDescription": "Transport routes ordered by highest pending balance.",
     "classFeePositionTitle": "Class-wise fee position",
     "classFeePositionDescription": "Sorted by highest pending amount.",
-    "morningBriefTodayNone": "Today: no collections yet.",
-    "morningBriefTodayCount": "Today: {amount} collected across {count, plural, =1 {# receipt} other {# receipts}}.",
-    "morningBriefPendingTotal": "{amount} still pending across the school.",
-    "morningBriefInstallmentOverdue": "{label} is overdue (due {dueDate}).",
-    "morningBriefInstallmentDueToday": "{label} is due today."
+    "morningBriefAllClear": "All installments on track — nothing to chase today.",
+    "morningBriefFollowUpOverdue": "{label} is overdue — follow up with {count, plural, =1 {# student} other {# students}} for {amount}.",
+    "morningBriefFollowUpDueToday": "{label} is due today — follow up with {count, plural, =1 {# student} other {# students}} for {amount}.",
+    "morningBriefFollowUpInstallment": "Follow up with {count, plural, =1 {# student} other {# students}} for {amount} before {label} (due {dueDate}).",
+    "morningBriefFollowUp": "Follow up with {count, plural, =1 {# student} other {# students}} for {amount} pending."
   },
   "Payments": {
     "eyebrow": "Payments",

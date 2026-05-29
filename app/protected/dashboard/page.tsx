@@ -214,6 +214,7 @@ function MobileDashboardHero({
   updatedAt,
   currentInstallmentLabel,
   todayDelta,
+  sessionLabel,
   t,
 }: {
   collected: number;
@@ -225,21 +226,31 @@ function MobileDashboardHero({
   updatedAt: string;
   currentInstallmentLabel?: string;
   todayDelta: KpiDelta | null;
+  sessionLabel?: string;
   t: DashboardTranslator;
 }) {
   const todayLabel = formatShortDate(new Date());
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+  const updatedLabel = formatUpdatedAt(updatedAt);
 
   return (
     <div
       className="sm:hidden -mx-4 bg-card border-b border-border"
-      aria-label={t("dashboardSummaryAria", { when: formatUpdatedAt(updatedAt) })}
+      aria-label={t("dashboardSummaryAria", { when: updatedLabel })}
     >
       <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          {t("todayLabel", { date: todayLabel })}
-        </p>
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            {t("todayLabel", { date: todayLabel })}
+          </p>
+          {updatedLabel ? (
+            <p className="text-[10px] text-muted-foreground/70">
+              {t("updatedAt", { when: updatedLabel })}
+            </p>
+          ) : null}
+        </div>
         {currentInstallmentLabel ? (
-          <span className="rounded-full bg-accent-soft px-2.5 py-0.5 text-[10px] font-semibold text-accent-soft-foreground">
+          <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-0.5 text-[10px] font-semibold text-accent-soft-foreground">
             {currentInstallmentLabel}
           </span>
         ) : null}
@@ -278,6 +289,7 @@ function MobileDashboardHero({
             value: pending,
             tone: "warning" as const,
             subtext: t("studentsCount", { count: followUpCount }),
+            href: "/protected/defaulters",
           },
           {
             key: "overdue",
@@ -285,6 +297,7 @@ function MobileDashboardHero({
             value: overdueAmount,
             tone: "danger" as const,
             subtext: t("withoutLateFee"),
+            href: "/protected/defaulters",
           },
           {
             key: "receipts",
@@ -293,12 +306,14 @@ function MobileDashboardHero({
             tone: "neutral" as const,
             subtext: t("postedToday"),
             isCount: true,
+            href: "/protected/transactions?view=collection_today",
           },
         ].map((stat, index) => (
-          <div
+          <Link
             key={stat.key}
+            href={withSession(stat.href)}
             className={cn(
-              "flex flex-col items-center justify-center px-2 py-3 text-center",
+              "flex flex-col items-center justify-center px-2 py-3 text-center transition-colors active:bg-surface-2",
               index < 2 && "border-r border-border",
             )}
           >
@@ -315,6 +330,7 @@ function MobileDashboardHero({
                   value={stat.value}
                   size="lg"
                   tone={stat.tone}
+                  compact
                   className="text-base font-bold"
                 />
               )}
@@ -322,7 +338,7 @@ function MobileDashboardHero({
             <p className="mt-0.5 text-[9px] text-muted-foreground">
               {stat.subtext}
             </p>
-          </div>
+          </Link>
         ))}
       </div>
     </div>
@@ -508,35 +524,19 @@ function MobileSecondaryKpis({ kpis, t }: { kpis: DashboardKpis; t: DashboardTra
  */
 function MobileQuickActions({
   canWriteStudents,
-  canPostPayments,
   sessionLabel,
   t,
 }: {
   canWriteStudents: boolean;
-  canPostPayments: boolean;
   sessionLabel?: string;
   t: DashboardTranslator;
 }) {
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
+  // The primary "Open Payment Desk" action lives in the sticky FAB (bottom-right,
+  // md:hidden) so it stays reachable while scrolling — no duplicate CTA here.
   return (
     <div className="sm:hidden space-y-2.5">
-      {canPostPayments ? (
-        <Button
-          asChild
-          variant="accent"
-          className="h-14 w-full justify-between rounded-2xl px-5 text-base font-semibold shadow-sm"
-        >
-          <Link href={withSession("/protected/payments")}>
-            <span className="flex items-center gap-2.5">
-              <BadgeIndianRupee className="size-5" aria-hidden="true" />
-              {t("openPaymentDesk")}
-            </span>
-            <ArrowRight className="size-5" aria-hidden="true" />
-          </Link>
-        </Button>
-      ) : null}
-
       <div className="grid grid-cols-3 gap-2">
         {canWriteStudents ? (
           <Button
@@ -1961,6 +1961,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       <MorningBrief
         sentence={composeMorningBrief({
           kpis: aboveFold.kpis,
+          followUpCount: aboveFold.studentsWithPending,
           currentInstallment: aboveFold.currentInstallment
             ? {
                 label: aboveFold.currentInstallment.label,
@@ -2036,6 +2037,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           updatedAt={aboveFold.generatedAt}
           currentInstallmentLabel={aboveFold.currentInstallment?.label}
           todayDelta={todayDelta}
+          sessionLabel={viewSession.sessionLabel}
           t={t}
         />
 
@@ -2074,7 +2076,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
         <MobileQuickActions
           canWriteStudents={canWriteStudents}
-          canPostPayments={canPostPayments}
           sessionLabel={viewSession.sessionLabel}
           t={t}
         />

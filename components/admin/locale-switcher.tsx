@@ -37,14 +37,14 @@ export function LocaleSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="inline-flex h-10 items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-semibold text-foreground transition-colors hover:bg-surface-2 focus-ring disabled:opacity-60"
+        className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-surface px-2 py-1.5 text-sm font-semibold text-foreground transition-colors hover:bg-surface-2 focus-ring disabled:opacity-60 md:h-10 md:px-3"
         aria-label={t("label")}
         disabled={isSwitching}
       >
         <Globe className="size-4 text-muted-foreground" aria-hidden="true" />
-        <span>{pillLabel[locale]}</span>
+        <span className="hidden md:inline">{pillLabel[locale]}</span>
         <ChevronDown
-          className="size-3.5 text-muted-foreground"
+          className="hidden size-3.5 text-muted-foreground md:block"
           aria-hidden="true"
         />
       </DropdownMenuTrigger>
