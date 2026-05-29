@@ -7,7 +7,7 @@ import { StudentAboutPanel } from "@/components/students/student-about-panel";
 import { StudentDangerZone } from "@/components/students/student-danger-zone";
 import { StudentIdentityStrip } from "@/components/students/student-identity-strip";
 import { StudentQuickReference } from "@/components/students/student-quick-reference";
-import { ParentShareLinkCard } from "@/components/students/parent-share-link-card";
+import { ShareFeeWhatsApp } from "@/components/students/share-fee-whatsapp";
 import { StudentReceiptsPanel } from "@/components/students/student-receipts-panel";
 import { StudentStatCards } from "@/components/students/student-stat-cards";
 import { StudentStickyHeader } from "@/components/students/student-sticky-header";
@@ -28,8 +28,6 @@ import {
 import { formatInr } from "@/lib/helpers/currency";
 import { formatDateTimeIst, formatShortDate } from "@/lib/helpers/date";
 import { recordActivity } from "@/lib/activity/events";
-import { getPublicSiteUrl } from "@/lib/env";
-import { listStudentShareLinks } from "@/lib/share-links/data";
 import { getStudentDeletionSafety, getStudentFamilyMembersDetail } from "@/lib/students/data";
 import { getStudentWorkspaceData } from "@/lib/students/workspace";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
@@ -87,11 +85,10 @@ export default async function StudentDetailPage({
   // policy session label from the workspace snapshot, so it gets chained after
   // — but the round trips that were previously 4-deep now collapse to 2-deep,
   // with the heavy workspace fetch and the two side loaders overlapping.
-  const [workspaceResult, deletionSafetyResult, shareLinksResult] =
+  const [workspaceResult, deletionSafetyResult] =
     await Promise.all([
       getStudentWorkspaceData(resolvedParams.studentId),
       getStudentDeletionSafety(resolvedParams.studentId).catch(() => null),
-      listStudentShareLinks(resolvedParams.studentId).catch(() => []),
     ]);
   const { student, financialSnapshot, ledger, receipts, installmentBalances } =
     workspaceResult;
@@ -112,8 +109,6 @@ export default async function StudentDetailPage({
   );
 
   const deletionSafety = deletionSafetyResult;
-  const shareLinks = shareLinksResult;
-  const publicSiteUrl = getPublicSiteUrl();
 
   // Fire-and-forget student view event after the response is sent — keeps
   // it off the critical path entirely.
@@ -824,21 +819,14 @@ export default async function StudentDetailPage({
               primaryPhone: student.fatherPhone ?? student.motherPhone ?? null,
             }}
           />
-          {canEditStudent ? (
-            <ParentShareLinkCard
-              studentId={student.id}
-              baseUrl={publicSiteUrl}
-              initialLinks={shareLinks.map((link) => ({
-                id: link.id,
-                token: link.token,
-                expiresAt: link.expiresAt,
-                revokedAt: link.revokedAt,
-                createdAt: link.createdAt,
-                viewCount: link.viewCount,
-                lastViewedAt: link.lastViewedAt,
-              }))}
-            />
-          ) : null}
+          <ShareFeeWhatsApp
+            studentId={student.id}
+            studentName={student.fullName}
+            familyGroupId={familyMembersDetail.familyGroupId}
+            fatherPhone={student.fatherPhone}
+            motherPhone={student.motherPhone}
+            pendingAmount={outstandingAmount}
+          />
         </aside>
       </div>
 

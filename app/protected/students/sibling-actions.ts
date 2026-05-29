@@ -24,6 +24,13 @@ type FamilyMemberLookupRow = {
   student_id: string;
 };
 
+/**
+ * Manually link two students as siblings. The link is resolved across all
+ * academic sessions (membership is keyed by student, not session), so once a
+ * family is linked it persists into future sessions; staff can unlink anytime.
+ * A membership row is still written for the current session for audit + the
+ * year-scoped 3rd-child discount.
+ */
 export async function linkSiblingsAction(
   _previous: LinkSiblingActionState,
   formData: FormData,
@@ -72,11 +79,12 @@ export async function linkSiblingsAction(
     };
   }
 
+  // Resolve any existing family membership across ALL sessions so the link
+  // persists across years and re-linking reuses the same family group.
   const { data: memberRowsRaw, error: membersLookupError } = await supabase
     .from("student_family_members")
     .select("family_group_id, student_id")
-    .in("student_id", [studentId, siblingStudentId])
-    .eq("academic_session_label", sessionLabel);
+    .in("student_id", [studentId, siblingStudentId]);
 
   if (membersLookupError) {
     return {
@@ -89,7 +97,10 @@ export async function linkSiblingsAction(
   const memberRows = (memberRowsRaw ?? []) as FamilyMemberLookupRow[];
   const existingByStudent = new Map<string, string>();
   for (const row of memberRows) {
-    existingByStudent.set(row.student_id, row.family_group_id);
+    // First non-null wins; a student should only ever sit in one family group.
+    if (!existingByStudent.has(row.student_id)) {
+      existingByStudent.set(row.student_id, row.family_group_id);
+    }
   }
 
   const studentFamilyId = existingByStudent.get(studentId) ?? null;
@@ -99,7 +110,7 @@ export async function linkSiblingsAction(
     return {
       status: "error",
       message:
-        "Both students are already in different confirmed family groups. Open Students > Families to merge them.",
+        "Both students are already linked into different families. Unlink one of them first, then link.",
       familyGroupId: studentFamilyId,
     };
   }
@@ -147,6 +158,8 @@ export async function linkSiblingsAction(
     createdNewGroup = true;
   }
 
+  // Insert membership rows for the current session for whichever student is not
+  // already a member. `upsert` with ignoreDuplicates keeps re-links idempotent.
   const toInsert: Array<{
     family_group_id: string;
     student_id: string;
@@ -183,7 +196,10 @@ export async function linkSiblingsAction(
   if (toInsert.length > 0) {
     const { error: insertMembersError } = await supabase
       .from("student_family_members")
-      .insert(toInsert);
+      .upsert(toInsert, {
+        onConflict: "family_group_id,student_id,academic_session_label",
+        ignoreDuplicates: true,
+      });
 
     if (insertMembersError) {
       return {
@@ -208,7 +224,6 @@ export async function linkSiblingsAction(
   }
 
   revalidatePath("/protected/students");
-  revalidatePath("/protected/students/families");
   revalidatePath(`/protected/students/${studentId}`);
   revalidatePath(`/protected/students/${siblingStudentId}`);
 
@@ -221,174 +236,86 @@ export async function linkSiblingsAction(
   };
 }
 
-export type ConfirmSiblingGroupActionState = {
+export type UnlinkSiblingActionState = {
   status: "idle" | "success" | "error";
   message: string | null;
-  familyGroupId: string | null;
 };
 
-export const INITIAL_CONFIRM_SIBLING_GROUP_ACTION_STATE: ConfirmSiblingGroupActionState = {
+export const INITIAL_UNLINK_SIBLING_ACTION_STATE: UnlinkSiblingActionState = {
   status: "idle",
   message: null,
-  familyGroupId: null,
 };
 
-type SiblingGroupViewRow = {
-  group_key: string;
-  session_label: string;
-  student_ids: string[] | null;
-  student_count: number;
-  phone_match: string[] | null;
-  father_name_match: boolean | null;
-  confidence: "confirmed" | "suspected";
-  existing_family_group_id: string | null;
-};
-
-type FamilyStudentRow = {
-  id: string;
-  admission_no: string;
-  full_name: string;
-  father_name: string | null;
-};
-
-export async function confirmSiblingGroupAction(
-  _previous: ConfirmSiblingGroupActionState,
+/**
+ * Remove a student from its family group across all sessions. If fewer than
+ * two distinct students remain, the now-empty family group is deleted. The
+ * 3rd-child discount is recomputed for the remaining members.
+ */
+export async function unlinkSiblingAction(
+  _previous: UnlinkSiblingActionState,
   formData: FormData,
-): Promise<ConfirmSiblingGroupActionState> {
+): Promise<UnlinkSiblingActionState> {
   await requireStaffPermission("students:write");
 
-  const groupKey = (formData.get("groupKey") ?? "").toString().trim();
+  const studentId = (formData.get("studentId") ?? "").toString().trim();
+  const familyGroupId = (formData.get("familyGroupId") ?? "").toString().trim();
   const sessionLabel = (formData.get("sessionLabel") ?? "").toString().trim();
 
-  if (!groupKey) {
-    return {
-      status: "error",
-      message: "Select a sibling group before confirming.",
-      familyGroupId: null,
-    };
+  if (!studentId || !familyGroupId) {
+    return { status: "error", message: "Missing student or family reference for unlink." };
   }
 
   const supabase = await createClient();
-  let groupQuery = supabase
-    .from("v_student_sibling_groups")
-    .select(
-      "group_key, session_label, student_ids, student_count, phone_match, father_name_match, confidence, existing_family_group_id",
-    )
-    .eq("group_key", groupKey);
+
+  const { error: deleteError } = await supabase
+    .from("student_family_members")
+    .delete()
+    .eq("family_group_id", familyGroupId)
+    .eq("student_id", studentId);
+
+  if (deleteError) {
+    return { status: "error", message: `Unable to unlink sibling: ${deleteError.message}` };
+  }
+
+  // Determine the distinct students remaining in the group across all sessions.
+  const { data: remainingRaw, error: remainingError } = await supabase
+    .from("student_family_members")
+    .select("student_id")
+    .eq("family_group_id", familyGroupId);
+
+  if (remainingError) {
+    return { status: "error", message: `Unlinked, but cleanup check failed: ${remainingError.message}` };
+  }
+
+  const remainingStudentIds = [
+    ...new Set(((remainingRaw ?? []) as Array<{ student_id: string }>).map((row) => row.student_id)),
+  ];
+
+  const affected = new Set<string>([studentId]);
+
+  if (remainingStudentIds.length < 2) {
+    // A single (or empty) group is no longer a family — remove it (membership
+    // rows cascade) so no stale "family of one" lingers.
+    await supabase.from("student_family_groups").delete().eq("id", familyGroupId);
+    for (const id of remainingStudentIds) affected.add(id);
+  } else if (sessionLabel) {
+    // Recompute the 3rd-child discount for the slimmer family.
+    const thirdChildResult = await applyThirdChildPolicyForFamilyGroup(familyGroupId, {
+      academicSessionLabel: sessionLabel,
+    });
+    for (const id of thirdChildResult?.affectedStudentIds ?? []) affected.add(id);
+  }
 
   if (sessionLabel) {
-    groupQuery = groupQuery.eq("session_label", sessionLabel);
-  }
-
-  const { data: groupRowRaw, error: groupError } = await groupQuery.maybeSingle();
-
-  if (groupError) {
-    return {
-      status: "error",
-      message: `Unable to confirm this family: ${groupError.message}`,
-      familyGroupId: null,
-    };
-  }
-
-  const groupRow = (groupRowRaw ?? null) as SiblingGroupViewRow | null;
-  const studentIds = groupRow?.student_ids ?? [];
-
-  if (!groupRow || groupRow.student_count < 2 || studentIds.length < 2) {
-    return {
-      status: "error",
-      message: "This sibling group is no longer available.",
-      familyGroupId: null,
-    };
-  }
-
-  if (groupRow.existing_family_group_id) {
-    return {
-      status: "success",
-      message: "This family was already confirmed.",
-      familyGroupId: groupRow.existing_family_group_id,
-    };
-  }
-
-  const { data: studentRowsRaw, error: studentsError } = await supabase
-    .from("students")
-    .select("id, admission_no, full_name, father_name")
-    .in("id", studentIds);
-
-  if (studentsError) {
-    return {
-      status: "error",
-      message: `Unable to load children before confirming: ${studentsError.message}`,
-      familyGroupId: null,
-    };
-  }
-
-  const studentRows = (studentRowsRaw ?? []) as FamilyStudentRow[];
-  const guardianName = groupRow.father_name_match
-    ? (studentRows.find((row) => row.father_name?.trim())?.father_name ?? null)
-    : null;
-  const guardianPhone = groupRow.phone_match?.[0] ?? null;
-  const familyLabel = `Family ${guardianPhone ?? groupRow.group_key.slice(0, 8)} ${groupRow.group_key.slice(0, 6)}`;
-
-  const { data: familyGroupRaw, error: insertGroupError } = await supabase
-    .from("student_family_groups")
-    .insert({
-      academic_session_label: groupRow.session_label,
-      family_label: familyLabel,
-      guardian_name: guardianName,
-      guardian_phone: guardianPhone,
-      notes: "Confirmed from Students > Families sibling detection.",
-    })
-    .select("id")
-    .single();
-
-  if (insertGroupError) {
-    return {
-      status: "error",
-      message: `Unable to save the family group: ${insertGroupError.message}`,
-      familyGroupId: null,
-    };
-  }
-
-  const familyGroup = familyGroupRaw as { id: string };
-  const { error: insertMembersError } = await supabase.from("student_family_members").insert(
-    studentIds.map((studentId, index) => ({
-      family_group_id: familyGroup.id,
-      student_id: studentId,
-      academic_session_label: groupRow.session_label,
-      sibling_order: index + 1,
-      is_policy_candidate: false,
-      manual_order_override: false,
-      notes: "Confirmed from sibling phone detection.",
-    })),
-  );
-
-  if (insertMembersError) {
-    return {
-      status: "error",
-      message: `Family group was created, but children could not be linked: ${insertMembersError.message}`,
-      familyGroupId: familyGroup.id,
-    };
-  }
-
-  const thirdChildResult = await applyThirdChildPolicyForFamilyGroup(familyGroup.id, {
-    academicSessionLabel: groupRow.session_label,
-  });
-  if (thirdChildResult?.affectedStudentIds.length) {
     await prepareDuesForStudentsAutomatically({
-      studentIds: thirdChildResult.affectedStudentIds,
-      sessionLabel: groupRow.session_label,
-      reason: "Sibling policy updated",
+      studentIds: [...affected],
+      sessionLabel,
+      reason: "Sibling unlinked manually",
     });
   }
 
   revalidatePath("/protected/students");
-  revalidatePath("/protected/students/families");
-  revalidatePath("/protected/payments");
-  revalidatePath("/protected/defaulters");
+  revalidatePath(`/protected/students/${studentId}`);
 
-  return {
-    status: "success",
-    message: "Family confirmed. The sibling pill will now link to this family.",
-    familyGroupId: familyGroup.id,
-  };
+  return { status: "success", message: "Sibling unlinked." };
 }

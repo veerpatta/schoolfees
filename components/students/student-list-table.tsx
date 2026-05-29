@@ -117,23 +117,19 @@ function discountLabelHint(label: string, t: StudentsTranslator) {
   return t("discountHintGeneric", { label });
 }
 
-function SiblingPill({ student, session, t }: { student: StudentListItem; session?: string; t: StudentsTranslator }) {
+function SiblingPill({ student, t }: { student: StudentListItem; session?: string; t: StudentsTranslator }) {
   if (!student.siblingPill || student.siblingPill.siblingCount < 1) {
     return null;
   }
 
+  // Informational only — the row itself opens the profile, where siblings are
+  // viewed and managed. (Previously this linked to the removed Families page,
+  // which caused taps to navigate away from the student profile.)
   return (
-    <Link
-      href={appendSessionParam(student.siblingPill.href, session)}
-      onClick={(event) => {
-        event.stopPropagation();
-      }}
-    >
-      <Badge variant="soft" className="flex items-center gap-1 bg-info-soft text-info-soft-foreground border-none px-2 py-0.5 text-[11px] font-medium rounded-full">
-        <Users className="h-3 w-3" />
-        {t("siblingPillSuffix", { count: student.siblingPill.siblingCount })}
-      </Badge>
-    </Link>
+    <Badge variant="soft" className="flex items-center gap-1 bg-info-soft text-info-soft-foreground border-none px-2 py-0.5 text-[11px] font-medium rounded-full">
+      <Users className="h-3 w-3" />
+      {t("siblingPillSuffix", { count: student.siblingPill.siblingCount })}
+    </Badge>
   );
 }
 
@@ -179,8 +175,6 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
   session,
   canWrite,
   lastViewedAt,
-  isSelected,
-  onToggleSelection,
   t,
 }: {
   student: StudentListItem;
@@ -188,8 +182,6 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
   session?: string;
   canWrite: boolean;
   lastViewedAt?: string | null;
-  isSelected?: boolean;
-  onToggleSelection?: (studentId: string) => void;
   t: StudentsTranslator;
 }) {
   const withSession = (href: string) => appendSessionParam(href, session);
@@ -197,6 +189,8 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
   const studentHref = withSession(
     `/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`,
   );
+  const contactPhone = student.fatherPhone || student.motherPhone;
+  const showCollect = canWrite && student.status === "active" && student.outstandingAmount > 0 && student.duesStatus === "generated";
 
   const router = useRouter();
   const handleRowOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -220,8 +214,8 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
       aria-label={t("openStudentAria", { name: student.fullName })}
       onClick={handleRowOpen}
       onKeyDown={handleRowKey}
-      className="group relative flex cursor-pointer items-center gap-3 pl-6 pr-3 py-4 transition-all hover:bg-surface-2/50 active:bg-surface-2 border-b border-border/40 focus-visible:outline-none focus-visible:bg-surface-2"
-      style={{ contentVisibility: "auto", containIntrinsicSize: "0 80px" } as React.CSSProperties}
+      className="group relative flex cursor-pointer flex-col gap-2 pl-6 pr-3 py-3.5 transition-all hover:bg-surface-2/50 active:bg-surface-2 border-b border-border/40 focus-visible:outline-none focus-visible:bg-surface-2"
+      style={{ contentVisibility: "auto", containIntrinsicSize: "0 96px" } as React.CSSProperties}
     >
       {/* Visual Dues Indicator Strip */}
       <div className={cn(
@@ -235,82 +229,76 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
           : "bg-warning"
       )} />
 
-      {onToggleSelection && canWrite ? (
-        <span data-row-action="true" className="shrink-0" onClick={(event) => event.stopPropagation()}>
-          <input
-            type="checkbox"
-            aria-label={t("selectStudentAria", { name: student.fullName })}
-            checked={isSelected ?? false}
-            onChange={() => onToggleSelection(student.id)}
-            className="size-5 accent-primary"
-          />
-        </span>
-      ) : null}
+      {/* Top tier: identity (left) + outstanding (right) */}
+      <div className="flex items-start gap-3">
+        <StudentAvatar photoPath={student.photoPath} fullName={student.fullName} size="sm" />
 
-      <StudentAvatar photoPath={student.photoPath} fullName={student.fullName} size="sm" />
-
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-sm font-semibold text-foreground break-words">
-            {student.fullName}
-          </span>
-          {srNoMissing ? (
-            <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[9px] font-medium text-warning-soft-foreground flex items-center gap-0.5">
-              <ShieldAlert className="h-2.5 w-2.5" />
-              {t("srMissingBadge")}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="min-w-0 truncate text-sm font-semibold text-foreground">
+              {student.fullName}
             </span>
-          ) : null}
-          <span data-row-action="true" className="inline-flex">
+            {student.status !== "active" && (
+              <StudentStatusBadge status={student.status} />
+            )}
+          </div>
+
+          <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+            {srNoMissing ? (
+              <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[9px] font-medium text-warning-soft-foreground flex items-center gap-0.5">
+                <ShieldAlert className="h-2.5 w-2.5" />
+                {t("srMissingBadge")}
+              </span>
+            ) : null}
             <SiblingPill student={student} session={session} t={t} />
-          </span>
-          <DataQualityFlags student={student} t={t} />
-          {student.status !== "active" && (
-            <StudentStatusBadge status={student.status} />
-          )}
+            <DataQualityFlags student={student} t={t} />
+          </div>
+
+          <p className="text-xs text-muted-foreground mt-1 truncate">
+            {t("classLineWithSr", { class: student.classLabel, sr: student.admissionNo || t("tableSrPending") })}
+          </p>
+          {lastViewedAt ? (
+            <p className="text-[10px] text-muted-foreground/70 mt-0.5 truncate">
+              {t("lastViewedByYou", { when: timeAgoShort(lastViewedAt) ?? t("lastViewedFallback") })}
+            </p>
+          ) : null}
+          {contactPhone ? (
+            <p className="text-xs text-muted-foreground mt-1">
+              <a
+                href={`tel:${contactPhone}`}
+                data-row-action="true"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 hover:underline"
+              >
+                <Phone className="h-3 w-3" />
+                <span>{contactPhone}</span>
+              </a>
+            </p>
+          ) : null}
         </div>
-        <p className="text-xs text-muted-foreground mt-1">
-          {t("classLineWithSr", { class: student.classLabel, sr: student.admissionNo || t("tableSrPending") })}
-        </p>
-        {lastViewedAt ? (
-          <p className="text-[10px] text-muted-foreground/70 mt-0.5">
-            {t("lastViewedByYou", { when: timeAgoShort(lastViewedAt) ?? t("lastViewedFallback") })}
-          </p>
-        ) : null}
-        {(student.fatherPhone || student.motherPhone) && (
-          <p className="text-xs text-muted-foreground mt-1">
-            <a
-              href={`tel:${student.fatherPhone || student.motherPhone}`}
-              data-row-action="true"
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1 hover:underline"
-            >
-              <Phone className="h-3 w-3" />
-              <span>{student.fatherPhone || student.motherPhone}</span>
-            </a>
-          </p>
-        )}
+
+        <div className="flex shrink-0 items-start gap-1 text-right">
+          <OutstandingCell student={student} t={t} />
+          <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground/40 transition group-hover:text-muted-foreground" aria-hidden="true" />
+        </div>
       </div>
 
-      <div className="shrink-0 text-right">
-        <OutstandingCell student={student} t={t} />
-      </div>
-
-      {canWrite && (
-        <span
+      {/* Action tier: Collect sits on its own row so it never crowds the name */}
+      {showCollect ? (
+        <div
           data-row-action="true"
           onClick={(event) => event.stopPropagation()}
-          className="shrink-0"
+          className="flex justify-end"
         >
           <StudentRowCollectButton
             studentId={student.id}
             studentLabel={student.fullName}
             classLabel={student.classLabel}
             variant="primary"
+            size="sm"
           />
-        </span>
-      )}
-
-      <ChevronRight className="size-4 shrink-0 text-muted-foreground/40 transition group-hover:text-muted-foreground" aria-hidden="true" />
+        </div>
+      ) : null}
     </li>
   );
 });
@@ -368,8 +356,6 @@ export const StudentListTable = React.memo(function StudentListTable({
             session={session}
             canWrite={canWrite}
             lastViewedAt={lastViewedByUser?.[student.id] ?? null}
-            isSelected={selectedIdSet.has(student.id)}
-            onToggleSelection={selection ? selection.onToggle : undefined}
             t={t}
           />
         ))}

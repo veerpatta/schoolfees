@@ -7,7 +7,6 @@ import {
   Edit2,
   Fingerprint,
   GraduationCap,
-  MessageCircle,
   Phone,
   Printer,
   User,
@@ -16,23 +15,13 @@ import {
 import { StudentStatusBadge } from "@/components/students/student-status-badge";
 import { StudentRowCollectButton } from "@/components/students/student-row-collect-button";
 import { StudentAvatar } from "@/components/students/student-avatar";
+import { StudentContactActions } from "@/components/students/student-contact-actions";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatMediumDate } from "@/lib/helpers/date";
 import type { StudentStatus } from "@/lib/db/types";
 import { cn } from "@/lib/utils";
-
-function buildWhatsAppLink(phone: string, message: string): string | null {
-  const digits = phone.replace(/\D+/g, "");
-  if (digits.length < 10) return null;
-  const withCountry = digits.length === 10 ? `91${digits}` : digits;
-  return `https://wa.me/${withCountry}?text=${encodeURIComponent(message)}`;
-}
-
-function buildTelLink(phone: string): string {
-  return `tel:${phone.replace(/[^\d+]/g, "")}`;
-}
 
 type StudentIdentityStripProps = {
   student: {
@@ -126,19 +115,7 @@ function NextActionStrip({
   returnTo,
   encodedReturnTo,
 }: NextActionStripProps) {
-  const callTarget = student.fatherPhone || student.motherPhone;
-  const callLabel = student.fatherPhone
-    ? student.fatherName
-      ? `Call ${student.fatherName.split(/\s+/)[0]}`
-      : "Call Father"
-    : student.motherPhone
-      ? "Call Mother"
-      : null;
-  const dueMessage = outstandingAmount > 0
-    ? `Namaste${student.fatherName ? ` ${student.fatherName}` : ""}, this is a fee reminder for ${student.fullName} (${student.classLabel}, SR ${student.admissionNo}). Pending dues are ${formatInr(outstandingAmount)}. Please contact the school office.`
-    : `Namaste${student.fatherName ? ` ${student.fatherName}` : ""}, all fees are settled for ${student.fullName} (${student.classLabel}). Thank you.`;
-  const whatsappHref = callTarget ? buildWhatsAppLink(callTarget, dueMessage) : null;
-
+  const hasPhone = Boolean(student.fatherPhone || student.motherPhone);
   const isActive = student.status === "active";
   const chips: Array<{ key: string; node: React.ReactNode }> = [];
 
@@ -160,16 +137,19 @@ function NextActionStrip({
     });
   }
 
-  if (callTarget && callLabel) {
+  if (hasPhone) {
     chips.push({
-      key: "call",
+      key: "contact",
       node: (
-        <Button asChild size="sm" variant="outline" className="h-8 gap-1.5 px-3 text-xs">
-          <a href={buildTelLink(callTarget)}>
-            <Phone className="h-3.5 w-3.5" />
-            <span>{callLabel}</span>
-          </a>
-        </Button>
+        <StudentContactActions
+          fullName={student.fullName}
+          classLabel={student.classLabel}
+          admissionNo={student.admissionNo}
+          fatherName={student.fatherName}
+          fatherPhone={student.fatherPhone}
+          motherPhone={student.motherPhone}
+          outstandingAmount={outstandingAmount}
+        />
       ),
     });
   }
@@ -188,20 +168,6 @@ function NextActionStrip({
     });
   }
 
-  if (whatsappHref) {
-    chips.push({
-      key: "whatsapp",
-      node: (
-        <Button asChild size="sm" variant="outline" className="h-8 gap-1.5 px-3 text-xs">
-          <a href={whatsappHref} target="_blank" rel="noreferrer">
-            <MessageCircle className="h-3.5 w-3.5" />
-            <span>WhatsApp dues</span>
-          </a>
-        </Button>
-      ),
-    });
-  }
-
   if (chips.length === 0) {
     return null;
   }
@@ -209,7 +175,7 @@ function NextActionStrip({
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2 no-print">
       {chips.map((chip) => (
-        <div key={chip.key}>{chip.node}</div>
+        <div key={chip.key} className="flex flex-wrap items-center gap-2">{chip.node}</div>
       ))}
     </div>
   );
@@ -241,7 +207,10 @@ export function StudentIdentityStrip({
     info: "bg-info-soft text-info-soft-foreground border-info/20",
     neutral: "bg-surface-2 text-foreground border-border",
   } as const;
-  const contactPhone = student.fatherPhone || student.motherPhone;
+  const phoneEntries = [
+    student.fatherPhone?.trim() ? { label: "Father", phone: student.fatherPhone.trim() } : null,
+    student.motherPhone?.trim() ? { label: "Mother", phone: student.motherPhone.trim() } : null,
+  ].filter((entry): entry is { label: string; phone: string } => entry !== null);
   const nextDueText =
     nextDueLabel && outstandingAmount > 0
       ? `${nextDueLabel}${nextDueAmount !== null && nextDueAmount > 0 ? ` - ${formatInr(nextDueAmount)}` : ""}`
@@ -387,7 +356,24 @@ export function StudentIdentityStrip({
                 <Phone className="h-3.5 w-3.5" />
                 Phone
               </dt>
-              <dd className="mt-1 truncate text-sm font-semibold text-foreground">{contactPhone || "-"}</dd>
+              {phoneEntries.length === 0 ? (
+                <dd className="mt-1 truncate text-sm font-semibold text-foreground">-</dd>
+              ) : (
+                <dd className="mt-1 space-y-0.5">
+                  {phoneEntries.map((entry) => (
+                    <a
+                      key={entry.phone}
+                      href={`tel:${entry.phone.replace(/[^\d+]/g, "")}`}
+                      className="flex items-center justify-between gap-2 text-sm font-semibold text-foreground hover:underline"
+                    >
+                      <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                        {entry.label}
+                      </span>
+                      <span className="truncate font-mono">{entry.phone}</span>
+                    </a>
+                  ))}
+                </dd>
+              )}
             </div>
           </dl>
         </div>

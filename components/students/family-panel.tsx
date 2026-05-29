@@ -3,6 +3,7 @@ import { formatInr } from "@/lib/helpers/currency";
 import { Section } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
 import { LinkSiblingTrigger } from "@/components/students/link-sibling-trigger";
+import { UnlinkSiblingTrigger } from "@/components/students/unlink-sibling-trigger";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import type { StudentFamilyMemberDetail } from "@/lib/students/data";
 
@@ -66,6 +67,8 @@ export function StudentFamilyPanel({
   const totalOutstanding = members.reduce((sum, m) => sum + (m.financials?.outstanding ?? 0), 0);
   const totalDue = members.reduce((sum, m) => sum + (m.financials?.totalDue ?? 0), 0);
   const totalPaid = members.reduce((sum, m) => sum + (m.financials?.totalPaid ?? 0), 0);
+  const totalDiscountCloseouts = members.reduce((sum, m) => sum + (m.financials?.discountCloseouts ?? 0), 0);
+  const totalLateFeeWaiver = members.reduce((sum, m) => sum + (m.financials?.lateFeeWaiver ?? 0), 0);
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
   return (
@@ -121,13 +124,23 @@ export function StudentFamilyPanel({
                     SR {member.admissionNo} • {member.classLabel}
                   </p>
                 </div>
-                <div className="text-right">
-                  <span className={`text-xs font-semibold ${isPending ? "text-review" : "text-success"}`}>
-                    {member.financials ? formatInr(member.financials.outstanding) : "₹0"} {/* @allow-raw-money-format */}
-                  </span>
-                  <p className="text-[10px] text-muted-foreground uppercase">
-                    {isPending ? "Pending" : "Paid"}
-                  </p>
+                <div className="flex items-center gap-2">
+                  <div className="text-right">
+                    <span className={`text-xs font-semibold ${isPending ? "text-review" : "text-success"}`}>
+                      {member.financials ? formatInr(member.financials.outstanding) : "₹0"} {/* @allow-raw-money-format */}
+                    </span>
+                    <p className="text-[10px] text-muted-foreground uppercase">
+                      {isPending ? "Pending" : "Paid"}
+                    </p>
+                  </div>
+                  {canLinkSibling && familyGroupId && !member.isSelf ? (
+                    <UnlinkSiblingTrigger
+                      studentId={member.id}
+                      familyGroupId={familyGroupId}
+                      sessionLabel={sessionLabel}
+                      memberLabel={member.fullName}
+                    />
+                  ) : null}
                 </div>
               </div>
             );
@@ -142,9 +155,21 @@ export function StudentFamilyPanel({
             <span className="font-medium text-foreground">{formatInr(totalDue)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Total Paid:</span>
+            <span className="text-muted-foreground">Total Paid (cash):</span>
             <span className="font-medium text-foreground">{formatInr(totalPaid)}</span>
           </div>
+          {totalDiscountCloseouts > 0 ? (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Closed as discount:</span>
+              <span className="font-medium text-success-soft-foreground">−{formatInr(totalDiscountCloseouts)}</span>
+            </div>
+          ) : null}
+          {totalLateFeeWaiver > 0 ? (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Late-fee waived:</span>
+              <span className="font-medium text-success-soft-foreground">−{formatInr(totalLateFeeWaiver)}</span>
+            </div>
+          ) : null}
           <div className="flex justify-between border-t border-border pt-1 text-sm font-semibold">
             <span className="text-foreground">Outstanding Dues:</span>
             <span className={totalOutstanding > 0 ? "text-review" : "text-success"}>
@@ -155,7 +180,7 @@ export function StudentFamilyPanel({
 
         {/* Action Buttons */}
         <div className="grid gap-2">
-          {confidence === "confirmed" && familyGroupId ? (
+          {familyGroupId ? (
             <>
               <Button asChild size="sm" variant="outline" className="w-full">
                 <Link
@@ -176,13 +201,7 @@ export function StudentFamilyPanel({
                 </Link>
               </Button>
             </>
-          ) : (
-            <Button asChild size="sm" variant="outline" className="w-full">
-              <Link href={withSession(`/protected/students/families?search=${encodeURIComponent(studentId)}`)}>
-                Confirm Sibling Group
-              </Link>
-            </Button>
-          )}
+          ) : null}
           {linkSiblingTrigger}
         </div>
       </div>

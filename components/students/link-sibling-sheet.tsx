@@ -11,7 +11,7 @@ import { toast } from "@/components/ui/toast";
 import {
   INITIAL_LINK_SIBLING_ACTION_STATE,
   linkSiblingsAction,
-} from "@/app/protected/students/families/actions";
+} from "@/app/protected/students/sibling-actions";
 import type { PaymentStudentIndexItem } from "@/lib/payments/types";
 import { cn } from "@/lib/utils";
 

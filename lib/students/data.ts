@@ -227,13 +227,10 @@ function buildSiblingPill(group: SiblingGroupViewRow, studentId: string): Studen
     return null;
   }
 
-  const href = group.existing_family_group_id
-    ? `/protected/students/families?group=${encodeURIComponent(group.existing_family_group_id)}`
-    : `/protected/students/families?suspect=${encodeURIComponent(group.group_key)}`;
-
   return {
     siblingCount,
-    href,
+    // The pill is informational; siblings are managed on the student profile.
+    href: `/protected/students/${studentId}`,
     confidence: group.confidence,
   };
 }
@@ -263,18 +260,12 @@ async function getStudentSiblingPills(
     { data: matchingMembersRaw, error: matchingMembersError },
   ] = await Promise.all([
     query,
-    (() => {
-      let memberQuery = supabase
-        .from("student_family_members")
-        .select("family_group_id, student_id, academic_session_label")
-        .in("student_id", studentIds);
-
-      if (sessionLabel) {
-        memberQuery = memberQuery.eq("academic_session_label", sessionLabel);
-      }
-
-      return memberQuery;
-    })(),
+    // Membership is resolved across ALL sessions so manually-linked siblings
+    // persist into future sessions (the link is per-student, not per-session).
+    supabase
+      .from("student_family_members")
+      .select("family_group_id, student_id, academic_session_label")
+      .in("student_id", studentIds),
   ]);
 
   if (error) {
@@ -312,8 +303,9 @@ async function getStudentSiblingPills(
         membersByFamily.set(row.family_group_id, [...(membersByFamily.get(row.family_group_id) ?? []), row]);
       });
 
-      membersByFamily.forEach((members, familyGroupId) => {
-        if (members.length < 2) {
+      membersByFamily.forEach((members) => {
+        const distinctStudentCount = new Set(members.map((row) => row.student_id)).size;
+        if (distinctStudentCount < 2) {
           return;
         }
 
@@ -323,8 +315,10 @@ async function getStudentSiblingPills(
           }
 
           map.set(member.student_id, {
-            siblingCount: members.filter((row) => row.student_id !== member.student_id).length,
-            href: `/protected/students/families?group=${encodeURIComponent(familyGroupId)}`,
+            siblingCount: new Set(
+              members.filter((row) => row.student_id !== member.student_id).map((row) => row.student_id),
+            ).size,
+            href: `/protected/students/${member.student_id}`,
             confidence: "confirmed",
           });
         });
@@ -1459,6 +1453,8 @@ export type StudentFamilyMemberDetail = {
     totalDue: number;
     totalPaid: number;
     outstanding: number;
+    discountCloseouts: number;
+    lateFeeWaiver: number;
   } | null;
 };
 
@@ -1472,43 +1468,52 @@ export async function getStudentFamilyMembersDetail(
 }> {
   const supabase = await createClient();
 
-  // 1. Check if student has a confirmed family group
-  const { data: confirmedGroupRow } = await supabase
+  // 1. Check if the student is in a confirmed family group. Resolve membership
+  //    across ALL sessions (the link is per-student, not per-session) so a
+  //    linked sibling shows up in every session. We deliberately avoid
+  //    `.maybeSingle()` here: a student can have membership rows in more than
+  //    one session, and `.maybeSingle()` throws on multiple rows — which the
+  //    caller swallows, making siblings silently disappear.
+  const { data: ownMembershipRows } = await supabase
     .from("student_family_members")
     .select("family_group_id")
-    .eq("student_id", studentId)
-    .eq("academic_session_label", sessionLabel)
-    .maybeSingle();
+    .eq("student_id", studentId);
 
   let targetStudentIds: string[] = [studentId];
   let familyGroupId: string | null = null;
   let confidence: "confirmed" | "suspected" | null = null;
 
-  if (confirmedGroupRow) {
-    familyGroupId = confirmedGroupRow.family_group_id;
+  const ownFamilyGroupId = (ownMembershipRows ?? [])[0]?.family_group_id ?? null;
+
+  if (ownFamilyGroupId) {
+    familyGroupId = ownFamilyGroupId;
     confidence = "confirmed";
     const { data: allConfirmedMembers } = await supabase
       .from("student_family_members")
       .select("student_id")
-      .eq("family_group_id", familyGroupId)
-      .eq("academic_session_label", sessionLabel);
+      .eq("family_group_id", familyGroupId);
 
     if (allConfirmedMembers && allConfirmedMembers.length > 0) {
-      targetStudentIds = allConfirmedMembers.map((m) => m.student_id);
+      targetStudentIds = [...new Set(allConfirmedMembers.map((m) => m.student_id))];
     }
   } else {
-    // 2. If not confirmed, check if suspected sibling group exists
-    const { data: suspectedGroupRow } = await supabase
+    // 2. If not linked, surface a phone-detected suspected sibling group for the
+    //    current session (informational only; staff link explicitly). Use
+    //    array-pick instead of `.maybeSingle()` to tolerate edge duplicates.
+    const { data: suspectedGroupRows } = await supabase
       .from("v_student_sibling_groups")
       .select("student_ids, confidence, existing_family_group_id")
       .overlaps("student_ids", [studentId])
       .eq("session_label", sessionLabel)
-      .maybeSingle();
+      .limit(1);
 
+    const suspectedGroupRow = (suspectedGroupRows ?? [])[0];
     if (suspectedGroupRow && suspectedGroupRow.student_ids) {
-      targetStudentIds = suspectedGroupRow.student_ids;
-      confidence = suspectedGroupRow.confidence as "confirmed" | "suspected";
-      familyGroupId = suspectedGroupRow.existing_family_group_id;
+      targetStudentIds = [...new Set(suspectedGroupRow.student_ids as string[])];
+      // Only "confirmed" when a real membership row exists (handled above);
+      // a phone match is always "suspected" here.
+      confidence = "suspected";
+      familyGroupId = null;
     }
   }
 
@@ -1529,16 +1534,28 @@ export async function getStudentFamilyMembersDetail(
   // 4. Fetch financial status from v_workbook_student_financials or v_student_financial_state
   const { data: financials } = await supabase
     .from("v_workbook_student_financials")
-    .select("student_id, total_due, total_paid, outstanding_amount")
+    .select(
+      "student_id, total_due, total_paid, outstanding_amount, total_discount_closeouts, waiver_applied1, waiver_applied2, waiver_applied3, waiver_applied4",
+    )
     .in("student_id", targetStudentIds);
 
-  const financialsMap = new Map<string, { totalDue: number; totalPaid: number; outstanding: number }>();
+  const financialsMap = new Map<
+    string,
+    { totalDue: number; totalPaid: number; outstanding: number; discountCloseouts: number; lateFeeWaiver: number }
+  >();
   if (financials) {
     financials.forEach((f) => {
+      const waiver =
+        (f.waiver_applied1 ?? 0) +
+        (f.waiver_applied2 ?? 0) +
+        (f.waiver_applied3 ?? 0) +
+        (f.waiver_applied4 ?? 0);
       financialsMap.set(f.student_id, {
         totalDue: f.total_due,
         totalPaid: f.total_paid,
         outstanding: f.outstanding_amount,
+        discountCloseouts: f.total_discount_closeouts ?? 0,
+        lateFeeWaiver: waiver,
       });
     });
   }
