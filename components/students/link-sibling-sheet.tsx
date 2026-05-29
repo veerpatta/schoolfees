@@ -8,10 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet } from "@/components/ui/sheet";
 import { toast } from "@/components/ui/toast";
-import {
-  INITIAL_LINK_SIBLING_ACTION_STATE,
-  linkSiblingsAction,
-} from "@/app/protected/students/sibling-actions";
+import { linkSiblingsAction } from "@/app/protected/students/sibling-actions";
+import { INITIAL_LINK_SIBLING_ACTION_STATE } from "@/app/protected/students/sibling-action-state";
 import type { PaymentStudentIndexItem } from "@/lib/payments/types";
 import { cn } from "@/lib/utils";
 

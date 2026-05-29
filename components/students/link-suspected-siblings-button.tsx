@@ -5,10 +5,8 @@ import { Loader2, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
-import {
-  INITIAL_LINK_SIBLING_ACTION_STATE,
-  linkSuspectedSiblingsAction,
-} from "@/app/protected/students/sibling-actions";
+import { linkSuspectedSiblingsAction } from "@/app/protected/students/sibling-actions";
+import { INITIAL_LINK_SIBLING_ACTION_STATE } from "@/app/protected/students/sibling-action-state";
 
 type LinkSuspectedSiblingsButtonProps = {
   studentId: string;

@@ -6,18 +6,10 @@ import { applyThirdChildPolicyForFamilyGroup } from "@/lib/fees/conventional-dis
 import { prepareDuesForStudentsAutomatically } from "@/lib/system-sync/finance-sync";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaffPermission } from "@/lib/supabase/session";
-
-export type LinkSiblingActionState = {
-  status: "idle" | "success" | "error";
-  message: string | null;
-  familyGroupId: string | null;
-};
-
-export const INITIAL_LINK_SIBLING_ACTION_STATE: LinkSiblingActionState = {
-  status: "idle",
-  message: null,
-  familyGroupId: null,
-};
+import type {
+  LinkSiblingActionState,
+  UnlinkSiblingActionState,
+} from "@/app/protected/students/sibling-action-state";
 
 type FamilyMemberLookupRow = {
   family_group_id: string;
@@ -367,16 +359,6 @@ export async function linkSuspectedSiblingsAction(
 
   return { status: "success", message: `Linked ${memberIds.length} students as a family.`, familyGroupId };
 }
-
-export type UnlinkSiblingActionState = {
-  status: "idle" | "success" | "error";
-  message: string | null;
-};
-
-export const INITIAL_UNLINK_SIBLING_ACTION_STATE: UnlinkSiblingActionState = {
-  status: "idle",
-  message: null,
-};
 
 /**
  * Remove a student from its family group across all sessions. If fewer than

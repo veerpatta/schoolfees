@@ -5,10 +5,8 @@ import { Loader2, Unlink, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
-import {
-  INITIAL_UNLINK_SIBLING_ACTION_STATE,
-  unlinkSiblingAction,
-} from "@/app/protected/students/sibling-actions";
+import { unlinkSiblingAction } from "@/app/protected/students/sibling-actions";
+import { INITIAL_UNLINK_SIBLING_ACTION_STATE } from "@/app/protected/students/sibling-action-state";
 
 type UnlinkSiblingTriggerProps = {
   /** The member being removed from the family. */
