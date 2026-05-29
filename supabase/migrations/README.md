@@ -17,7 +17,7 @@ also the order Supabase applies them.
    supabase migration new <short_snake_case_name>
    ```
 4. **After adding a migration, update this index** so the next person (or
-   agent) can find it without grepping 65 files.
+   agent) can find it without grepping the whole directory.
 
 ## Migration index (grouped by feature)
 

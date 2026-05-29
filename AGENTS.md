@@ -78,11 +78,13 @@ Operational boundaries:
 - `Exports` is top-level XLSX download center
 - `Admin Tools` contains rare setup/config/troubleshooting tasks
 
-Default role landing:
+Default role landing (5 roles; see `lib/auth/roles.ts`):
 
 - `admin` -> `Dashboard`
 - `accountant` -> `Payment Desk`
-- `read_only_staff` -> `Dashboard`
+- `teacher` -> `Students`
+- `fee_collector` -> `Defaulters`
+- `view_only` -> `Dashboard`
 
 ## Non-Goals
 
@@ -121,6 +123,9 @@ Live receipt prefix: `SVP`
 Use `TEST-2026-27` for all ongoing testing and debugging.
 
 ## Active School Policy Defaults (AY 2026-27)
+
+Quick reference. Canonical source: `docs/product/school-rules.md` +
+`lib/config/fee-rules.ts` — change values there first.
 
 - late fee: `₹1000`
 - installment due dates: `20-04-2026`, `20-07-2026`, `20-10-2026`, `20-01-2027`
@@ -169,7 +174,7 @@ Keep this section for high-signal implementation entry points only.
 - `app/protected/transactions/*`
 - `app/protected/defaulters/page.tsx`
 - `app/protected/exports/*`
-- `app/protected/advanced/page.tsx`
+- `app/protected/admin-tools/page.tsx`
 - `lib/config/navigation.ts`
 - `lib/config/fee-rules.ts`
 - `lib/fees/policy.ts`

@@ -33,8 +33,10 @@ Internal office/accounts fee-management app for **Shri Veer Patta Senior Seconda
 - `docs/maps/*`: folder, database, module, legacy route, and danger-zone maps
 - `docs/design/*`: design system notes
 - `docs/workflows/*`: current operational workflows
-- `docs/history/*`: historical UAT/import plans and previews
-- `docs/plans/*`, `docs/specs/*`, `docs/samples/*`: implementation planning and samples
+- `docs/i18n/*`: translation/dictionary status
+- `docs/samples/*`: sample data files (e.g. import test CSV)
+- `i18n/`, `messages/`: locale config and Hindi/Hinglish/English dictionaries
+- `hooks/`: shared client React hooks
 
 ## Module ownership quick map
 - Dashboard: analytics/read-only shortcuts

@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Internal fee-management admin app for **Shri Veer Patta Senior Secondary School (VPPS)**. One school, one tenant — not a parent portal, not public self-service, not multi-school SaaS. Audience is office staff, accounts team, and school admins.
 
-**Production status:** Live since AY 2026-27 with 479 students and 136+ payments loaded. All core workflows are operational.
+**Production status:** Live since AY 2026-27 with real student and payment data. All core workflows are operational.
 
 ## Commands
 
@@ -64,7 +64,7 @@ All payment/receipt records are **append-only**. Corrections use a separate `pay
 
 ### RBAC
 
-Three roles defined in `lib/auth/roles.ts`: `admin`, `accountant`, `read_only_staff`. Enforced in the app layer via `requireAuthenticatedStaff()` in `lib/supabase/session.ts` and by Supabase RLS. Default landing routes: `admin`/`read_only_staff` → Dashboard; `accountant` → Payment Desk. Navigation item visibility is permission-driven via `lib/config/navigation.ts`.
+Five roles defined in `lib/auth/roles.ts`: `admin`, `accountant`, `teacher`, `fee_collector`, `view_only` (legacy aliases `read_only_staff`→`view_only` and `defaulter_followup`→`fee_collector` still resolve). Enforced in the app layer via `requireAuthenticatedStaff()` in `lib/supabase/session.ts` and by Supabase RLS. Default landing routes (`getDefaultProtectedHref()`): `admin`/`view_only` → Dashboard; `accountant` → Payment Desk; `teacher` → Students; `fee_collector` → Defaulters. Navigation item visibility is permission-driven via `lib/config/navigation.ts`.
 
 ### Module Structure
 
@@ -113,7 +113,8 @@ All staff workspace modules live under `app/protected/`, each with a parallel th
 - Admin tools: `app/protected/admin-tools` (+ legacy redirect from `/protected/advanced`)
 - Session: `lib/session` (active session, switcher, cookie, resolver)
 - System sync: `lib/system-sync` (finance revalidation, office sync, health checks)
-- Database: `supabase/schema.sql`, `supabase/migrations/` (73 migrations)
+- i18n: `i18n/` (locale config), `messages/` (en / hi / hi-en dictionaries), `hooks/` (shared client hooks)
+- Database: `supabase/schema.sql`, `supabase/migrations/`
 
 ### Key Domain Files
 
@@ -134,7 +135,7 @@ All staff workspace modules live under `app/protected/`, each with a parallel th
 - `lib/env.ts` — env var accessors that throw on missing or placeholder values.
 - `lib/db/types.ts` — generated Supabase database types.
 - `supabase/schema.sql` — canonical DB schema.
-- `supabase/migrations/` — ordered migration history (73 files).
+- `supabase/migrations/` — ordered migration history.
 
 ### Supabase Client Pattern
 
@@ -174,7 +175,7 @@ Alternative: avoid the MCP for new migrations and use `supabase db push` from th
 
 ### Fee Engine (Workbook Mode)
 
-The fee calculation engine is `workbook_v1`. Core lib files in `lib/fees/` (27 files) and `lib/workbook/`. Key DB objects:
+The fee calculation engine is `workbook_v1`. Core lib files in `lib/fees/` and `lib/workbook/`. Key DB objects:
 - `v_workbook_student_financials` — per-student financial projection (materialized view)
 - `v_workbook_installment_balances` — installment-level balances (materialized view)
 - `v_student_financial_state` — pending vs credit/refund projection
@@ -279,12 +280,12 @@ Canonical values (from `docs/product/school-rules.md` and `lib/config/fee-rules.
 ```
 docs/product/       # Project context, MVP scope, school rules, roadmap
 docs/modules/       # Per-module guides (import, payment-desk, exports, etc.)
-docs/maps/          # Folder map, database map, legacy routes, danger zones
-docs/go-live/       # Go-live runbooks and audit trails
-docs/specs/         # Implementation specs
-docs/workflows/     # Operational workflow docs
-docs/plans/         # Implementation plans
-docs/quality/       # Quality and phase checklists
+docs/maps/          # Folder map, database map, module map, legacy routes, danger zones
+docs/workflows/     # Operational workflow docs (test data, production ops)
 docs/design/        # Design system notes
-docs/history/       # Historical UAT/import plans
+docs/i18n/          # Translation/dictionary status
+docs/samples/       # Sample data files (e.g. import test CSV)
 ```
+
+Finished one-time plans, specs, go-live runbooks, and audit/UAT reports are
+intentionally not kept in the tree — they live in git history.

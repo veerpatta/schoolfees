@@ -9,14 +9,27 @@
 - defaulters + exports as top-level daily modules
 - conventional discount policy support with auditability
 
-## Implemented in Current Branch
+## Implemented (Shipped)
+
+Foundational:
 
 - top-level daily nav aligned to office workflow
 - payment-date-aware preview/posting alignment
 - student financial state projection for pending vs credit/refund
-- conventional discount policy data model and limits
+- conventional discount policy data model and limits (RTE, Staff Child, 3rd Child)
 - payment desk idempotency/locking guardrails
 - receipt-number ambiguity fix in payment posting path
+
+Recent (post go-live):
+
+- bilingual UI: instant Hindi / Hinglish / English language switching (i18n)
+- money-clarity pass: single canonical currency formatter, glossary, per-installment
+  breakdown, payment allocation snapshot
+- dashboard analytics revamp + mobile UX overhaul across hot pages
+- richer A4 receipt + WhatsApp fee-PDF share; student mobile overhaul; sibling
+  link/delink
+- defaulters follow-up: multi-number call learning, behavior segments, no-call flag
+- 5-role RBAC matrix rebalanced; financial-risk/UX/workflow audit findings closed
 
 ## Live Production (Current)
 
@@ -31,8 +44,7 @@
 ## Planned Next
 
 0. Monitor production stability and address any live-data edge cases.
-1. dashboard chart polish and readability improvements
-2. richer exports and report packaging
-3. follow-up/call notes flow for defaulters
-4. role-specific hardening of advanced screens
-5. staging deployment and release checklist refinement
+1. richer exports and report packaging
+2. continued dashboard chart polish and readability improvements
+3. role-specific hardening of admin/config screens
+4. staging deployment and release checklist refinement

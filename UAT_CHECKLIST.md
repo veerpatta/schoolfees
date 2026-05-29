@@ -5,9 +5,6 @@
 Ongoing verification checklist for TEST-2026-27 after fee setup, payment desk,
 student, import, or finance-facing changes.
 
-This is not the historical pre-go-live plan. For that record, see
-`docs/history/uat-test-plan.md`.
-
 ## Always Use TEST-2026-27
 
 - Use only test students with TEST-prefixed admission/SR values.

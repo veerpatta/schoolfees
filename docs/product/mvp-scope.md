@@ -52,7 +52,6 @@ Unless explicitly requested, keep these out of MVP:
 - complex fee-rule engines for many custom schools
 - mobile-app-first redesign
 - BI-style analytics beyond practical admin reporting
-- PDF receipt generation (printable HTML view exists; server-side PDF is not built)
 - automated fee-payment reconciliation with bank statements
 
 ## Import Scope Position
@@ -77,7 +76,9 @@ The app is live. Core MVP scope is delivered and in daily use:
 - exports for office XLSX downloads
 - conventional discount assignments (RTE, Staff Child, 3rd Child)
 - bulk student import with validation and audit trail
-- role-based access (admin, accountant, read-only)
+- role-based access (5-role RBAC matrix)
+- printable A4 receipts + WhatsApp fee-PDF share
+- bilingual UI (Hindi / Hinglish / English, instant switching)
 
 The `TEST-2026-27` session is maintained for ongoing debugging and testing.
 All production data lives in `2026-27`.

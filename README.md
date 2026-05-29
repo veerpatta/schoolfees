@@ -66,11 +66,13 @@ Top-level daily areas:
 - `Exports`
 - `Admin Tools`
 
-Role landing defaults:
+Role landing defaults (5 roles; see `lib/auth/roles.ts`):
 
 - `admin` -> `Dashboard`
 - `accountant` -> `Payment Desk`
-- `read_only_staff` -> `Dashboard`
+- `teacher` -> `Students`
+- `fee_collector` -> `Defaulters`
+- `view_only` -> `Dashboard`
 
 ### Production vs Staging deployment
 
@@ -130,20 +132,9 @@ Analytics-first overview with collection and follow-up signals:
 
 ### Conventional discount policies (implemented)
 
-- `RTE`: tuition becomes `₹0`
-- `Staff Child`: tuition becomes `50%`
-- `3rd Child Policy`: tuition becomes `₹6000`
-
-Rules documented and enforced by current model:
-
-- applies to tuition only
-- other fee heads remain unchanged unless explicitly configured later
-- max **2 active conventional policies** per student per academic year
-- if multiple policies apply, compute candidate tuition values and use the
-  lowest
-- assignments are academic-year scoped and auditable
-- family/sibling grouping exists for 3rd-child support
-- policy assignment after payment can create pending or credit/refund impact
+RTE, Staff Child, and 3rd Child Policy — tuition-only, year-scoped, auditable,
+max 2 active per student/year. Full outcomes and rules:
+see [`docs/product/school-rules.md`](docs/product/school-rules.md).
 
 ### Payment Desk
 
@@ -207,18 +198,10 @@ Rare setup/troubleshooting/configuration area:
 
 ## 6) Active AY 2026-27 values (current live policy intent)
 
-- active session: `2026-27`
-- late fee: `₹1000` (flat)
-- due dates:
-  - `20-04-2026`
-  - `20-07-2026`
-  - `20-10-2026`
-  - `20-01-2027`
-- new student academic fee: `₹1100`
-- existing/old student academic fee: `₹500`
-- Class 12 Science annual tuition default: `₹38000`
-- receipt prefix: `SVP`
-- books excluded from workbook-mode calculation unless explicitly changed
+Active session `2026-27`, receipt prefix `SVP`. Canonical fee defaults (late fee,
+due dates, academic/tuition fees, payment modes, books exclusion) live in
+[`docs/product/school-rules.md`](docs/product/school-rules.md) +
+`lib/config/fee-rules.ts`. Update those first.
 
 ## 7) Important safety/accounting rules
 
@@ -232,7 +215,7 @@ Rare setup/troubleshooting/configuration area:
 
 ```bash
 npm install
-cp .env.local.example .env.local
+cp .env.example .env.local
 npm run dev
 ```
 
@@ -265,7 +248,7 @@ Mumbai is the only active Supabase backend for this app. The legacy regional
 backend was deleted after migration, and no rollback target is kept in this
 repo or MCP configuration.
 
-Run schema changes through `supabase/migrations/*` — 65 migrations applied.
+Run schema changes through `supabase/migrations/*`.
 See `supabase/README.md` and `supabase/migrations/README.md` for the full
 indexed migration history grouped by feature area.
 
@@ -306,7 +289,6 @@ Detailed guides:
 
 - `PRODUCTION_OPERATIONS_CHECKLIST.md`
 - `UAT_CHECKLIST.md`
-- `docs/history/uat-test-plan.md`
 - `docs/workflows/test-data-setup.md`
 - `docs/workflows/production-operations-guide.md`
 

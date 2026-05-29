@@ -49,11 +49,13 @@ Primary top-level modules:
 7. `Exports`
 8. `Admin Tools`
 
-Role landing defaults:
+Role landing defaults (5 roles; see `lib/auth/roles.ts`):
 
 - `admin` -> `Dashboard`
 - `accountant` -> `Payment Desk`
-- `read_only_staff` -> `Dashboard`
+- `teacher` -> `Students`
+- `fee_collector` -> `Defaulters`
+- `view_only` -> `Dashboard`
 
 ## Module Responsibilities
 
@@ -138,37 +140,12 @@ Rare/config-only area:
 - settings/system checks
 - import history
 
-## Active AY 2026-27 Policy Values
+## Active Policy Values & Conventional Discounts
 
-- session: `2026-27`
-- late fee: `₹1000` (flat)
-- installment due dates:
-  - `20-04-2026`
-  - `20-07-2026`
-  - `20-10-2026`
-  - `20-01-2027`
-- new student academic fee: `₹1100`
-- existing student academic fee: `₹500`
-- class 12 science annual tuition default: `₹38000`
-- receipt prefix: `SVP`
-- books excluded from workbook-mode fee calculation by default
-
-## Conventional Discount Policies (Current)
-
-Current policy set:
-
-- RTE -> tuition = 0
-- Staff Child -> tuition = 50%
-- 3rd Child Policy -> tuition = 6000
-
-Rules:
-
-- tuition-only impact
-- max 2 active conventional policies/student/year
-- lowest candidate tuition wins
-- manual override remains separate
-- year-scoped + auditable assignments
-- family grouping support for sibling logic
+Canonical source: **`docs/product/school-rules.md`** + **`lib/config/fee-rules.ts`**.
+This covers AY 2026-27 fee defaults (late fee, due dates, academic/tuition fees,
+receipt prefix, payment modes) and the conventional discount policies (RTE, Staff
+Child, 3rd Child) with their rules. Update those first; do not restate values here.
 
 ## Architecture Decisions (Current)
 
