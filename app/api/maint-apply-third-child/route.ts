@@ -1,21 +1,21 @@
 import type { NextRequest } from "next/server";
 
-import { applyThirdChildPolicyForFamilyGroup } from "@/lib/fees/conventional-discounts";
 import { prepareDuesForStudentsAutomatically } from "@/lib/system-sync/finance-sync";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 const SESSION_LABEL = "2026-27";
 
 /**
- * One-time maintenance: re-run the 3rd-child policy for every family group in
- * the active session. The SQL backfill of suspected siblings created the family
- * groups but did not apply the year-scoped 3rd-child discount; this brings the
- * already-linked 3+ families in line with what link/unlink now do automatically.
- * Admin-gated; remove after running.
+ * One-time maintenance: regenerate dues for the current 3rd-child recipients so
+ * the conventional discount is reflected in their installments (the workbook
+ * reads installments.amount_due, which only changes on regeneration). The
+ * assignments were already applied by the earlier pass; this finishes the dues
+ * regeneration that timed out. Admin-gated; remove after running.
  */
 export async function GET(_request: NextRequest) {
   const staff = await requireStaffPermission("students:write");
@@ -24,56 +24,40 @@ export async function GET(_request: NextRequest) {
   }
 
   const supabase = createAdminClient();
-  const { data: groupsRaw, error } = await supabase
-    .from("student_family_groups")
+  const { data: policyRow } = await supabase
+    .from("conventional_discount_policies")
     .select("id")
-    .eq("academic_session_label", SESSION_LABEL);
+    .eq("academic_session_label", SESSION_LABEL)
+    .eq("code", "third_child")
+    .maybeSingle();
+
+  const policyId = (policyRow as { id: string } | null)?.id;
+  if (!policyId) {
+    return Response.json({ ok: false, error: "third_child policy not found" }, { status: 500 });
+  }
+
+  const { data: assignmentsRaw, error } = await supabase
+    .from("student_conventional_discount_assignments")
+    .select("student_id")
+    .eq("academic_session_label", SESSION_LABEL)
+    .eq("policy_id", policyId)
+    .eq("is_active", true);
 
   if (error) {
     return Response.json({ ok: false, error: error.message }, { status: 500 });
   }
 
-  const groupIds = (groupsRaw ?? []).map((row) => (row as { id: string }).id);
-  const results: Array<{ familyGroupId: string; recipientStudentId: string | null; affected: number }> = [];
-  const studentsToReprice = new Set<string>();
+  const studentIds = [
+    ...new Set((assignmentsRaw ?? []).map((row) => (row as { student_id: string }).student_id)),
+  ];
 
-  for (const familyGroupId of groupIds) {
-    try {
-      const result = await applyThirdChildPolicyForFamilyGroup(familyGroupId, {
-        academicSessionLabel: SESSION_LABEL,
-      });
-      if (result) {
-        results.push({
-          familyGroupId,
-          recipientStudentId: result.recipientStudentId,
-          affected: result.affectedStudentIds.length,
-        });
-        // Only families that actually got a recipient (3+) change fees; still
-        // reprice affected members so removals/re-applies settle correctly.
-        if (result.recipientStudentId) {
-          for (const id of result.affectedStudentIds) studentsToReprice.add(id);
-        }
-      }
-    } catch (err) {
-      results.push({ familyGroupId, recipientStudentId: null, affected: -1 });
-      console.error("[maint-apply-third-child] failed for", familyGroupId, err);
-    }
-  }
-
-  if (studentsToReprice.size > 0) {
+  if (studentIds.length > 0) {
     await prepareDuesForStudentsAutomatically({
-      studentIds: [...studentsToReprice],
+      studentIds,
       sessionLabel: SESSION_LABEL,
-      reason: "Backfill: apply 3rd-child policy to linked families",
+      reason: "Backfill: regenerate dues for 3rd-child recipients",
     });
   }
 
-  const recipients = results.filter((r) => r.recipientStudentId).length;
-  return Response.json({
-    ok: true,
-    familyGroupsProcessed: groupIds.length,
-    familiesWithThirdChildRecipient: recipients,
-    studentsRepriced: studentsToReprice.size,
-    results,
-  });
+  return Response.json({ ok: true, recipientsRepriced: studentIds.length, studentIds });
 }
