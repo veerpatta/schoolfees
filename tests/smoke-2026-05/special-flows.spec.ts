@@ -4,8 +4,9 @@ import path from "node:path";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import * as XLSX from "xlsx";
 
+type SmokeStudent = { id?: string; admissionNo?: string; fullName?: string };
+
 const TEST_SESSION = "TEST-2026-27";
-const TODAY = "2026-05-26";
 const reportRoot = path.resolve("docs/smoke-reports/2026-05");
 const screenshotDir = path.join(reportRoot, "screenshots");
 const exportDir = path.join(reportRoot, "exports");
@@ -65,10 +66,10 @@ async function discoverTestStudent(request: APIRequestContext) {
   const response = await request.get(`/protected/students/index?purpose=paymentDesk&session=${encodeURIComponent(TEST_SESSION)}`);
   if (!response.ok()) return null;
   const payload = await response.json();
-  const students = Array.isArray(payload.students) ? payload.students : [];
+  const students: SmokeStudent[] = Array.isArray(payload.students) ? payload.students : [];
   return (
-    students.find((student: any) => String(student.admissionNo ?? "").toUpperCase().startsWith("TEST-")) ??
-    students.find((student: any) => /TEST/i.test(`${student.admissionNo ?? ""} ${student.fullName ?? ""}`)) ??
+    students.find((student) => String(student.admissionNo ?? "").toUpperCase().startsWith("TEST-")) ??
+    students.find((student) => /TEST/i.test(`${student.admissionNo ?? ""} ${student.fullName ?? ""}`)) ??
     null
   );
 }
@@ -175,7 +176,7 @@ async function importDryRunSmoke(page: Page, findings: Finding[]) {
   const templatePath = path.resolve("tests/smoke-2026-05/import-template.xlsx");
   await templateDownload.saveAs(templatePath);
   const workbook = XLSX.readFile(templatePath);
-  const listRows = workbook.Sheets["Current Lists"] ? (XLSX.utils.sheet_to_json(workbook.Sheets["Current Lists"], { header: 1 }) as any[][]) : [];
+  const listRows = workbook.Sheets["Current Lists"] ? (XLSX.utils.sheet_to_json(workbook.Sheets["Current Lists"], { header: 1 }) as unknown[][]) : [];
   const classLabel = String(listRows[1]?.[0] ?? "").trim();
   const routeLabel = String(listRows[1]?.[1] ?? "").trim();
   workbook.Sheets["Fill Students Here"] = XLSX.utils.aoa_to_sheet([
@@ -207,7 +208,7 @@ async function importDryRunSmoke(page: Page, findings: Finding[]) {
   }
 }
 
-async function paymentSmoke(page: Page, request: APIRequestContext, testStudent: any, findings: Finding[]) {
+async function paymentSmoke(page: Page, request: APIRequestContext, testStudent: SmokeStudent | null, findings: Finding[]) {
   if (!testStudent?.id || !String(testStudent.admissionNo ?? "").toUpperCase().startsWith("TEST-")) {
     findings.push({
       severity: "P0",
@@ -243,13 +244,13 @@ async function paymentSmoke(page: Page, request: APIRequestContext, testStudent:
     await page.waitForTimeout(500);
   }
   await page.getByRole("button", { name: /^cash$/i }).first().click().catch(() => null);
-  const before = await request.get(`/protected/transactions/data?view=receipts&session=${encodeURIComponent(TEST_SESSION)}&query=${encodeURIComponent(testStudent.admissionNo)}`);
+  const before = await request.get(`/protected/transactions/data?view=receipts&session=${encodeURIComponent(TEST_SESSION)}&query=${encodeURIComponent(testStudent.admissionNo ?? "")}`);
   const beforeRows = before.ok() ? ((await before.json()).rows ?? []) : [];
   await page.getByRole("button", { name: /review receipt/i }).first().click();
   await page.waitForTimeout(5_000);
   const shot = await screenshot(page, "payment-after-cash-post");
   const pageText = await page.locator("body").innerText().catch(() => "");
-  const after = await request.get(`/protected/transactions/data?view=receipts&session=${encodeURIComponent(TEST_SESSION)}&query=${encodeURIComponent(testStudent.admissionNo)}`);
+  const after = await request.get(`/protected/transactions/data?view=receipts&session=${encodeURIComponent(TEST_SESSION)}&query=${encodeURIComponent(testStudent.admissionNo ?? "")}`);
   const afterRows = after.ok() ? ((await after.json()).rows ?? []) : [];
   await appendResult({ type: "payment", student: testStudent, beforeCount: beforeRows.length, afterCount: afterRows.length, pageText: pageText.slice(0, 500) });
   if (!/SVP/i.test(pageText) || afterRows.length <= beforeRows.length) {

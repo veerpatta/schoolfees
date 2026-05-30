@@ -202,5 +202,5 @@ describe("staff RBAC matrix", () => {
 // Compile-time guarantee that the test imports stay aligned with the
 // type exports they verify. (Vitest doesn't need this at runtime; it
 // protects against rename drift.)
-type _StaffRoleProbe = StaffRole;
-type _StaffPermissionProbe = StaffPermission;
+export type _StaffRoleProbe = StaffRole;
+export type _StaffPermissionProbe = StaffPermission;

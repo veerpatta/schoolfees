@@ -76,16 +76,13 @@ export function logInfo(event: string, payload?: LogPayload): void {
   if (IS_PRODUCTION && process.env.VPPS_OBSERVABILITY_VERBOSE !== "1") {
     return;
   }
-  // eslint-disable-next-line no-console
   console.log(`[info] ${event}`, sanitisePayload(payload));
 }
 
 export function logWarn(event: string, payload?: LogPayload): void {
-  // eslint-disable-next-line no-console
   console.warn(`[warn] ${event}`, sanitisePayload(payload));
 }
 
 export function logError(event: string, payload?: LogPayload): void {
-  // eslint-disable-next-line no-console
   console.error(`[error] ${event}`, sanitisePayload(payload));
 }

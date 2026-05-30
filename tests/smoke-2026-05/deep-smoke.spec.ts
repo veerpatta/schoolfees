@@ -1,11 +1,28 @@
 import { appendFile, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { expect, test, type APIRequestContext, type Page, type TestInfo } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type ConsoleMessage,
+  type Page,
+  type Response as PlaywrightResponse,
+  type TestInfo,
+} from "@playwright/test";
 import * as XLSX from "xlsx";
 
+type SmokeStudent = { id?: string; admissionNo?: string; fullName?: string };
+type SmokeIds = {
+  testSessionAvailable: boolean;
+  testStudent?: SmokeStudent;
+  fallbackStudent?: SmokeStudent;
+  familyGroupId?: string;
+  receiptId?: string;
+  promotionRunId?: string;
+};
+
 const TEST_SESSION = "TEST-2026-27";
-const TODAY = "2026-05-26";
 const reportRoot = path.resolve("docs/smoke-reports/2026-05");
 const screenshotDir = path.join(reportRoot, "screenshots");
 const exportDir = path.join(reportRoot, "exports");
@@ -201,11 +218,11 @@ async function auditRoute(page: Page, testInfo: TestInfo, route: string, finding
   const networkErrors: string[] = [];
   const pageErrors: string[] = [];
 
-  const onConsole = (message: any) => {
+  const onConsole = (message: ConsoleMessage) => {
     if (message.type() === "error" || /hydration|react.*key|act\(/i.test(message.text())) consoleErrors.push(message.text());
   };
   const onPageError = (error: Error) => pageErrors.push(error.message);
-  const onResponse = (response: any) => {
+  const onResponse = (response: PlaywrightResponse) => {
     if (response.status() >= 400) networkErrors.push(`${response.status()} ${response.url()}`);
   };
 
@@ -354,17 +371,17 @@ async function auditRoute(page: Page, testInfo: TestInfo, route: string, finding
 }
 
 async function discoverIds(request: APIRequestContext, page: Page) {
-  const ids: any = { testSessionAvailable: false };
+  const ids: SmokeIds = { testSessionAvailable: false };
   await page.goto(withSession("/protected/dashboard"), { waitUntil: "networkidle" });
   ids.testSessionAvailable = (await page.getByText(TEST_SESSION).count().catch(() => 0)) > 0;
 
   const studentsResponse = await request.get(`/protected/students/index?purpose=paymentDesk&session=${encodeURIComponent(TEST_SESSION)}`);
   if (studentsResponse.ok()) {
     const payload = await studentsResponse.json();
-    const students = Array.isArray(payload.students) ? payload.students : [];
+    const students: SmokeStudent[] = Array.isArray(payload.students) ? payload.students : [];
     ids.testStudent =
-      students.find((student: any) => String(student.admissionNo ?? "").toUpperCase().startsWith("TEST-")) ??
-      students.find((student: any) => /TEST/i.test(`${student.admissionNo ?? ""} ${student.fullName ?? ""}`));
+      students.find((student) => String(student.admissionNo ?? "").toUpperCase().startsWith("TEST-")) ??
+      students.find((student) => /TEST/i.test(`${student.admissionNo ?? ""} ${student.fullName ?? ""}`));
     ids.fallbackStudent = ids.testStudent ?? students[0];
   }
 
@@ -377,9 +394,9 @@ async function discoverIds(request: APIRequestContext, page: Page) {
   const receiptsResponse = await request.get(`/protected/transactions/data?view=receipts&session=${encodeURIComponent(TEST_SESSION)}&query=SVP`);
   if (receiptsResponse.ok()) {
     const payload = await receiptsResponse.json();
-    const rows = Array.isArray(payload.rows) ? payload.rows : [];
-    const row = rows.find((candidate: any) => /SVP/i.test(String(candidate.receiptNumber ?? ""))) ?? rows[0];
-    ids.receiptId = row?.receiptId ?? row?.id;
+    const rows: Array<Record<string, unknown>> = Array.isArray(payload.rows) ? payload.rows : [];
+    const row = rows.find((candidate) => /SVP/i.test(String(candidate.receiptNumber ?? ""))) ?? rows[0];
+    ids.receiptId = (row?.receiptId ?? row?.id) as string | undefined;
   }
 
   await page.goto(withSession("/protected/admin-tools/promotion"), { waitUntil: "networkidle" });
@@ -480,7 +497,7 @@ async function runImportDryRun(page: Page, findings: Finding[]) {
   const templatePath = path.resolve("tests/smoke-2026-05/import-template.xlsx");
   await templateDownload.saveAs(templatePath);
   const workbook = XLSX.readFile(templatePath);
-  const listRows = workbook.Sheets["Current Lists"] ? (XLSX.utils.sheet_to_json(workbook.Sheets["Current Lists"], { header: 1 }) as any[][]) : [];
+  const listRows = workbook.Sheets["Current Lists"] ? (XLSX.utils.sheet_to_json(workbook.Sheets["Current Lists"], { header: 1 }) as unknown[][]) : [];
   const classLabel = String(listRows[1]?.[0] ?? "").trim();
   const routeLabel = String(listRows[1]?.[1] ?? "").trim();
   workbook.Sheets["Fill Students Here"] = XLSX.utils.aoa_to_sheet([
@@ -509,7 +526,7 @@ async function runImportDryRun(page: Page, findings: Finding[]) {
   }
 }
 
-async function runPaymentWritePath(page: Page, request: APIRequestContext, testStudent: any, findings: Finding[]) {
+async function runPaymentWritePath(page: Page, request: APIRequestContext, testStudent: SmokeStudent | null, findings: Finding[]) {
   if (!testStudent?.id || !String(testStudent.admissionNo ?? "").toUpperCase().startsWith("TEST-")) {
     findings.push({
       severity: "P0",
@@ -530,7 +547,7 @@ async function runPaymentWritePath(page: Page, request: APIRequestContext, testS
   await screenshot(page, "payment-preview-upi-before-cash-post");
   await page.keyboard.press("Escape").catch(() => null);
   await page.getByRole("button", { name: /^cash$/i }).first().click().catch(() => null);
-  const before = await request.get(`/protected/transactions/data?view=receipts&session=${encodeURIComponent(TEST_SESSION)}&query=${encodeURIComponent(testStudent.admissionNo)}`);
+  const before = await request.get(`/protected/transactions/data?view=receipts&session=${encodeURIComponent(TEST_SESSION)}&query=${encodeURIComponent(testStudent.admissionNo ?? "")}`);
   const beforePayload = before.ok() ? await before.json() : { rows: [] };
   const beforeCount = Array.isArray(beforePayload.rows) ? beforePayload.rows.length : 0;
   await page.getByRole("button", { name: /review receipt/i }).click();
@@ -549,7 +566,7 @@ async function runPaymentWritePath(page: Page, request: APIRequestContext, testS
       risk: "Cashier cannot trust the posting/receipt confirmation path.",
     });
   }
-  const after = await request.get(`/protected/transactions/data?view=receipts&session=${encodeURIComponent(TEST_SESSION)}&query=${encodeURIComponent(testStudent.admissionNo)}`);
+  const after = await request.get(`/protected/transactions/data?view=receipts&session=${encodeURIComponent(TEST_SESSION)}&query=${encodeURIComponent(testStudent.admissionNo ?? "")}`);
   const afterPayload = after.ok() ? await after.json() : { rows: [] };
   const afterRows = Array.isArray(afterPayload.rows) ? afterPayload.rows : [];
   if (afterRows.length <= beforeCount) {
@@ -642,7 +659,7 @@ test("deep route and workflow smoke", async ({ page, request }, testInfo) => {
         });
       });
       if (process.env.SMOKE_ALLOW_TEST_PAYMENT === "1") {
-        await runPaymentWritePath(page, request, ids.testStudent, findings).catch(async (error) => {
+        await runPaymentWritePath(page, request, ids.testStudent ?? null, findings).catch(async (error) => {
           findings.push({
             severity: "P0",
             title: "Payment Desk TEST write-path failed during smoke",

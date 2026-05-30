@@ -400,10 +400,6 @@ function buildClassLabel(value: {
   return parts.join(" - ");
 }
 
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
-}
-
 async function getPaymentDeskReadinessUncached(payload: {
   sessionLabel: string;
   staffAppRole: StaffRole;

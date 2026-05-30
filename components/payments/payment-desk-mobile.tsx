@@ -1211,6 +1211,7 @@ export function PaymentDeskClient({
     state,
     clientRequestId,
     dismissedActionStateKey,
+    tToasts,
   ]);
 
   useEffect(() => {
