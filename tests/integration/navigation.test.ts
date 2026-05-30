@@ -96,17 +96,29 @@ describe("office navigation", () => {
     });
   });
 
-  it("keeps Session Health admin-only inside Admin Tools", () => {
-    const item = advancedHubSections
-      .flatMap((section) => section.items)
-      .find((entry) => entry.label === "Session Health");
-
-    expect(item?.requiredPermission).toBe("fees:write");
-    expect(item?.href).toBe("/protected/admin-tools/session-health");
+  it("keeps Session Health reachable from Admin Tools via route meta", () => {
+    // Session Health is no longer a separate hub card — it is reached from the
+    // live System Status card at the top of Admin Tools. The route still maps
+    // back to Admin Tools and stays admin-only on the page itself.
     expect(getProtectedRouteMeta("/protected/admin-tools/session-health")).toMatchObject({
       href: "/protected/admin-tools",
       label: "Session Health",
     });
+  });
+
+  it("groups Admin Tools into task-named sections without dead or hidden cards", () => {
+    const titles = advancedHubSections.map((section) => section.title);
+    expect(titles).toContain("Year & Sessions");
+    expect(titles).toContain("Money Controls");
+    // The retired first-time setup and the hidden Fee Data Troubleshooting
+    // section must not reappear.
+    expect(titles).not.toContain("System Readiness");
+    expect(titles).not.toContain("Fee Data Troubleshooting");
+
+    const refunds = advancedHubSections
+      .flatMap((section) => section.items)
+      .find((entry) => entry.label === "Refunds");
+    expect(refunds?.href).toBe("/protected/finance-controls");
   });
 
   it("keeps Fee Setup visible in the simplified primary navigation", () => {
@@ -145,11 +157,7 @@ describe("office navigation", () => {
     });
   });
 
-  it("uses plain admin labels for setup, lists, and settings", () => {
-    expect(getProtectedRouteMeta("/protected/setup")).toMatchObject({
-      href: "/protected/admin-tools",
-      label: "First-time Setup",
-    });
+  it("uses plain admin labels for lists and settings", () => {
     expect(getProtectedRouteMeta("/protected/master-data")).toMatchObject({
       href: "/protected/admin-tools",
       label: "School Lists",

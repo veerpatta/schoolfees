@@ -46,19 +46,31 @@ export default async function SettingsPage() {
     getFeePolicySummary(),
     getRecentConfigChangeLog(),
   ]);
-  const serviceRoleConfigured = Boolean(
-    getOptionalEnvVar("SUPABASE_SERVICE_ROLE_KEY"),
-  );
+  const serviceRoleConfigured = Boolean(getOptionalEnvVar("SUPABASE_SERVICE_ROLE_KEY"));
   const deploymentEnvironment = getRuntimeEnvironmentLabel();
   const resolvedSiteUrl = getSiteUrl();
   const explicitSiteUrlConfigured = hasExplicitSiteUrl();
   const productionEnvironment = isVercelProductionEnvironment();
-  const policyNotes = [
-    `Academic session is ${policy.academicSessionLabel}.`,
-    `Receipt prefix is ${policy.receiptPrefix}.`,
-    `Late fee default is Rs ${policy.lateFeeFlatAmount}.`,
-    `Installment due dates are ${policy.installmentSchedule.map((item) => item.dueDateLabel).join(", ")}.`,
-    `Accepted payment modes are ${policy.acceptedPaymentModes.map((item) => item.label).join(", ")}.`,
+
+  const identityRows = [
+    { label: "School name", value: schoolProfile.name },
+    { label: "Address", value: schoolProfile.address || "Not set" },
+    { label: "Phone", value: schoolProfile.phone || "Not set" },
+    { label: "Email", value: schoolProfile.email || "Not set" },
+    { label: "Receipt prefix", value: policy.receiptPrefix },
+  ] as const;
+
+  const policyRows = [
+    { label: "Academic session", value: policy.academicSessionLabel },
+    { label: "Late fee", value: `Rs ${policy.lateFeeFlatAmount}` },
+    {
+      label: "Installment due dates",
+      value: policy.installmentSchedule.map((item) => item.dueDateLabel).join(", "),
+    },
+    {
+      label: "Payment modes",
+      value: policy.acceptedPaymentModes.map((item) => item.label).join(", "),
+    },
   ] as const;
 
   const readinessChecks = [
@@ -78,15 +90,11 @@ export default async function SettingsPage() {
     },
     {
       label: "Production HTTPS URL",
-      value:
-        productionEnvironment && !isConfiguredSiteUrlSecure()
-          ? "Needs HTTPS"
-          : "OK",
+      value: productionEnvironment && !isConfiguredSiteUrlSecure() ? "Needs HTTPS" : "OK",
       detail:
         "Production should use an HTTPS NEXT_PUBLIC_SITE_URL, not a localhost or protocol-less fallback.",
       healthy:
-        !productionEnvironment ||
-        (explicitSiteUrlConfigured && isConfiguredSiteUrlSecure()),
+        !productionEnvironment || (explicitSiteUrlConfigured && isConfiguredSiteUrlSecure()),
     },
     {
       label: "Public sign-up path",
@@ -108,8 +116,8 @@ export default async function SettingsPage() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Settings"
-        title="System checks and policy notes"
-        description="Use this page to confirm the internal admin app is configured safely and still matches the active school policy."
+        title="School settings"
+        description="One place to see how the school is configured. Edit fee policy in Fee Setup and school lists in Master Data — this page links you straight there."
         actions={
           <StatusBadge
             label={staff.appRole === "admin" ? "Admin access" : "Read-only access"}
@@ -118,116 +126,52 @@ export default async function SettingsPage() {
         }
       />
 
-      <section className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-surface-2 p-4 text-sm text-foreground">
-          This page is restricted to roles with settings access. It shows deployment readiness and active policy notes only.
-        </div>
-        <div className="rounded-2xl border border-border bg-surface-2 p-4 text-sm text-foreground">
-          Current defaults stay aligned to the canonical school policy: session {policy.academicSessionLabel}, late fee Rs {policy.lateFeeFlatAmount}, due dates {policy.installmentSchedule.map((item) => item.dueDateLabel).join(", ")}.
-        </div>
-      </section>
+      <SectionCard
+        title="School identity"
+        description="Shown on receipts and statements. Set via deployment configuration so printed documents stay stable across the year."
+      >
+        <ul className="grid gap-3 md:grid-cols-2">
+          {identityRows.map((row) => (
+            <li
+              key={row.label}
+              className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm text-foreground"
+            >
+              <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                {row.label}
+              </span>
+              <p className="mt-1 break-words font-medium text-foreground">{row.value}</p>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-xs text-muted-foreground">
+          The receipt prefix is part of the active fee policy and can be changed in Fee Setup.
+        </p>
+      </SectionCard>
 
       <SectionCard
-        title="Before Real Data"
-        description="Use dummy data first, then confirm the real AY 2026-27 setup before production entry."
+        title="Fee policy"
+        description="The active academic-year policy. Edit these in Fee Setup so preview, publish, and audit logging stay attached."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button asChild size="sm" variant="outline">
-              <Link href="/protected/fee-setup">Fee Setup</Link>
+            <Button asChild size="sm">
+              <Link href="/protected/fee-setup">Edit in Fee Setup</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link href="/protected/students">Students</Link>
-            </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link href="/protected/imports">Student Imports</Link>
+              <Link href="/protected/master-data">School lists</Link>
             </Button>
           </div>
         }
       >
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-xl border bg-warning-soft px-4 py-3 text-sm leading-6 text-warning-soft-foreground">
-            Use TEST-2026-27 for trial runs. Do not post test payments against real students.
-          </div>
-          <div className="rounded-xl border bg-info-soft px-4 py-3 text-sm leading-6 text-info-soft-foreground">
-            Fee Setup owns school-wide defaults. Students owns student-specific records and
-            overrides.
-          </div>
-          <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm leading-6 text-foreground">
-            Manual UAT docs: <code>docs/history/uat-test-plan.md</code>,{" "}
-            <code>docs/test-data-setup.md</code>, and{" "}
-            <code>docs/before-real-data-checklist.md</code>.
-          </div>
-        </div>
-      </SectionCard>
-
-      <section className="grid gap-5 lg:grid-cols-2">
-        <SectionCard
-          title="Deployment profile"
-          description="These values define how the app should behave in production."
-        >
-          <ul className="space-y-3 text-sm leading-6 text-foreground">
-            <li className="rounded-xl border border-border bg-surface-2 px-4 py-3">
-              School: {schoolProfile.name}
-            </li>
-            <li className="rounded-xl border border-border bg-surface-2 px-4 py-3">
-              Mode: {schoolProfile.appMode}
-            </li>
-            <li className="rounded-xl border border-border bg-surface-2 px-4 py-3">
-              Audience: {schoolProfile.staffAudience}
-            </li>
-            <li className="rounded-xl border border-border bg-surface-2 px-4 py-3">
-              Runtime environment: {deploymentEnvironment}
-            </li>
-            <li className="rounded-xl border border-border bg-surface-2 px-4 py-3">
-              Resolved site URL: {resolvedSiteUrl}
-            </li>
-          </ul>
-        </SectionCard>
-
-        <SectionCard
-          title="Deployment checks"
-          description="These checks are based on the current environment variables only. Secret values are never shown."
-        >
-          <ul className="space-y-3 text-sm leading-6 text-foreground">
-            {readinessChecks.map((check) => (
-              <li
-                key={check.label}
-                className="rounded-xl border border-border bg-surface-2 px-4 py-3"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-semibold text-foreground">
-                    {check.label}
-                  </span>
-                  <StatusBadge
-                    label={check.value}
-                    tone={toneForStatus(check.healthy)}
-                  />
-                </div>
-                <p className="mt-2 text-muted-foreground">{check.detail}</p>
-              </li>
-            ))}
-          </ul>
-        </SectionCard>
-      </section>
-
-      <SectionCard
-        title="Role model"
-        description="Unknown or missing role mappings still resolve to the least-privileged role instead of admin."
-      >
-        <RolePreview title={null} description={null} />
-      </SectionCard>
-
-      <SectionCard
-        title="Current policy notes"
-        description="This shell should stay aligned with the active school defaults."
-      >
-        <ul className="space-y-3 text-sm leading-6 text-foreground">
-          {policyNotes.map((note) => (
+        <ul className="grid gap-3 md:grid-cols-2">
+          {policyRows.map((row) => (
             <li
-              key={note}
-              className="rounded-xl border border-border bg-surface-2 px-4 py-3"
+              key={row.label}
+              className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm text-foreground"
             >
-              {note}
+              <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                {row.label}
+              </span>
+              <p className="mt-1 break-words font-medium text-foreground">{row.value}</p>
             </li>
           ))}
         </ul>
@@ -287,7 +231,7 @@ export default async function SettingsPage() {
                       Cancels: <strong>{batch.summary.installmentsToCancel}</strong>
                     </div>
                     <div className="rounded-lg border border-border bg-card px-3 py-2">
-                  Rows kept for review: <strong>{batch.blockedInstallmentCount}</strong>
+                      Rows kept for review: <strong>{batch.blockedInstallmentCount}</strong>
                     </div>
                   </div>
                 ) : null}
@@ -302,6 +246,41 @@ export default async function SettingsPage() {
           </div>
         )}
       </SectionCard>
+
+      <details className="group rounded-2xl border border-border bg-card">
+        <summary className="flex cursor-pointer items-center justify-between px-5 py-4 text-sm font-semibold text-foreground">
+          <span>System &amp; deployment health (advanced)</span>
+          <span className="text-xs font-normal text-muted-foreground group-open:hidden">Show</span>
+          <span className="hidden text-xs font-normal text-muted-foreground group-open:inline">
+            Hide
+          </span>
+        </summary>
+        <div className="space-y-5 border-t border-border px-5 py-5">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm text-foreground">
+              School: {schoolProfile.name} · Mode: {schoolProfile.appMode} · Audience:{" "}
+              {schoolProfile.staffAudience}
+            </div>
+            <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm text-foreground">
+              Runtime: {deploymentEnvironment} · Site URL: {resolvedSiteUrl}
+            </div>
+          </div>
+
+          <ul className="space-y-3 text-sm leading-6 text-foreground">
+            {readinessChecks.map((check) => (
+              <li key={check.label} className="rounded-xl border border-border bg-surface-2 px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-semibold text-foreground">{check.label}</span>
+                  <StatusBadge label={check.value} tone={toneForStatus(check.healthy)} />
+                </div>
+                <p className="mt-2 text-muted-foreground">{check.detail}</p>
+              </li>
+            ))}
+          </ul>
+
+          <RolePreview title="Role model" description="Unknown or missing roles resolve to the least-privileged role." />
+        </div>
+      </details>
     </div>
   );
 }

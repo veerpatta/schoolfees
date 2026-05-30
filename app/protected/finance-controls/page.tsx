@@ -13,7 +13,6 @@ import type { FinanceControlsActionState } from "@/lib/finance-controls/types";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 import {
-  submitCollectionCloseAction,
   submitCorrectionReviewAction,
   submitRefundWorkflowAction,
 } from "./actions";
@@ -47,7 +46,7 @@ export default async function FinanceControlsPage({ searchParams }: FinanceContr
       <PageHeader
         eyebrow="Finance"
         title="Finance controls"
-        description="Daily close, refund approvals, correction review visibility, cashier totals, and a day-book export in one office workflow."
+        description="Automatic day close, refund approvals, correction review visibility, cashier totals, and a day-book export in one office workflow."
         actions={
           <div className="flex flex-wrap gap-2">
             <StatusBadge
@@ -81,7 +80,7 @@ export default async function FinanceControlsPage({ searchParams }: FinanceContr
       </section>
 
       <div className="rounded-2xl border border-border bg-surface-2 px-4 py-3 text-sm leading-6 text-foreground">
-        Selected day: {data.selectedDate}. Cash deposit status, refund approvals, and correction review rows all stay visible without changing the original receipts.
+        Selected day: {data.selectedDate}. The day close runs automatically overnight; refund approvals and correction review rows stay visible without changing the original receipts.
       </div>
 
       <FinanceControlsClient
@@ -90,7 +89,6 @@ export default async function FinanceControlsPage({ searchParams }: FinanceContr
         canApprove={canApprove}
         initialActionState={INITIAL_FINANCE_CONTROLS_ACTION_STATE}
         actions={{
-          submitCollectionCloseAction,
           submitRefundWorkflowAction,
           submitCorrectionReviewAction,
         }}

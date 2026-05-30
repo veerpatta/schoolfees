@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Plus, X, Calendar, BadgeIndianRupee, School, Bus, ClipboardList, Tag, ChevronDown } from "lucide-react";
@@ -87,10 +88,6 @@ type FeeSetupClientProps = {
   initialMasterDataState: MasterDataActionState;
   initialSelectedSessionLabel?: string;
   actions: {
-    createSessionAction: MasterDataActionFn;
-    updateSessionAction: MasterDataActionFn;
-    deleteSessionAction: MasterDataActionFn;
-    copySessionAction: MasterDataActionFn;
     createClassAction: MasterDataActionFn;
     updateClassAction: MasterDataActionFn;
     deleteClassAction: MasterDataActionFn;
@@ -476,13 +473,10 @@ export function FeeSetupClient({
   const [activeSection, setActiveSection] = useState<FeeSetupSectionId>("basic");
   const [dirtySections, setDirtySections] = useState<Set<FeeSetupSectionId>>(new Set());
   const [saveState, setSaveState] = useState(initialState);
-  const [sessionState, setSessionState] = useState(initialMasterDataState);
   const [classState, setClassState] = useState(initialMasterDataState);
   const [routeState, setRouteState] = useState(initialMasterDataState);
   const [classSearch, setClassSearch] = useState("");
   const [routeSearch, setRouteSearch] = useState("");
-  const [newSessionLabel, setNewSessionLabel] = useState("");
-  const [copyTargetSessionLabel, setCopyTargetSessionLabel] = useState("");
   const [newClassName, setNewClassName] = useState("");
   const [newRouteName, setNewRouteName] = useState("");
   const [newRouteCode, setNewRouteCode] = useState("");
@@ -830,7 +824,6 @@ export function FeeSetupClient({
             }
           >
             <div className="space-y-4">
-              <ActionNotice state={sessionState} />
               <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge label={t("liveSessionBadge", { label: currentSessionLabel })} tone="good" />
                 {selectedSessionLabel && selectedSessionLabel !== currentSessionLabel ? (
@@ -847,85 +840,15 @@ export function FeeSetupClient({
                 </div>
               ) : null}
 
-              {canEdit ? (
-                <div className="grid gap-4 xl:grid-cols-2">
-                  <form
-                    className="rounded-2xl border border-border bg-surface-2 p-4"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      const formData = new FormData(event.currentTarget);
-                      runSupportAction(actions.copySessionAction, sessionState, formData, setSessionState, {
-                        onSuccess: () => setCopyTargetSessionLabel(""),
-                      });
-                    }}
-                  >
-                    <p className="text-sm font-semibold text-foreground">{t("copyPreviousYearTitle")}</p>
-                    <div className="mt-3 grid gap-3 md:grid-cols-2">
-                      <div>
-                        <Label htmlFor="source-session-label">{t("copyFromLabel")}</Label>
-                        <select
-                          id="source-session-label"
-                          name="sourceSessionLabel"
-                          defaultValue={selectedSessionLabel}
-                          className={`${selectClassName} mt-2`}
-                        >
-                          {sessionRows.map((item) => (
-                            <option key={item.id} value={item.session_label}>
-                              {item.session_label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <Label htmlFor="target-session-label">{t("newAcademicYearLabel")}</Label>
-                        <Input
-                          id="target-session-label"
-                          name="targetSessionLabel"
-                          value={copyTargetSessionLabel}
-                          onChange={(event) => setCopyTargetSessionLabel(event.target.value)}
-                          placeholder="TEST-2026-27"
-                          className="mt-2"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <Button type="submit" className="mt-4" variant="outline" disabled={isSupportingPending}>
-                      {t("copyPreviousYearButton")}
-                    </Button>
-                  </form>
-
-                  <form
-                    className="rounded-2xl border border-border bg-surface-2 p-4"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      const formData = new FormData(event.currentTarget);
-                      runSupportAction(actions.createSessionAction, sessionState, formData, setSessionState, {
-                        onSuccess: () => setNewSessionLabel(""),
-                      });
-                    }}
-                  >
-                    <p className="text-sm font-semibold text-foreground">{t("createNewYearTitle")}</p>
-                    <div className="mt-3">
-                      <Label htmlFor="new-session-label">{t("academicYearLabel")}</Label>
-                      <Input
-                        id="new-session-label"
-                        name="sessionLabel"
-                        value={newSessionLabel}
-                        onChange={(event) => setNewSessionLabel(event.target.value)}
-                        placeholder="TEST-2026-27"
-                        className="mt-2"
-                        required
-                      />
-                    </div>
-                    <input type="hidden" name="sessionStatus" value="active" />
-                    <input type="hidden" name="isCurrentSession" value="no" />
-                    <input type="hidden" name="sessionNotes" value="" />
-                    <Button type="submit" className="mt-4" disabled={isSupportingPending}>
-                      {t("createNewYearButton")}
-                    </Button>
-                  </form>
-                </div>
-              ) : null}
+              <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm leading-6 text-muted-foreground">
+                {t("manageYearsMovedNotice")}{" "}
+                <Link
+                  href="/protected/admin-tools/promotion"
+                  className="font-semibold text-accent underline-offset-2 hover:underline"
+                >
+                  {t("manageYearsMovedLink")}
+                </Link>
+              </div>
 
               <AdvancedDetails
                 title={t("advancedYearTitle")}
@@ -951,7 +874,6 @@ export function FeeSetupClient({
                         </tr>
                       ) : (
                         sessionRows.map((item) => {
-                          const formId = `session-row-${item.id}`;
                           const snapshot = data.policySnapshots.find(
                             (policy) => policy.academicSessionLabel === item.session_label,
                           );
@@ -959,27 +881,7 @@ export function FeeSetupClient({
                           return (
                             <tr key={item.id} className="border-t border-border align-top">
                               <td className="px-4 py-3">
-                                <form
-                                  id={formId}
-                                  onSubmit={(event) => {
-                                    event.preventDefault();
-                                    runSupportAction(
-                                      actions.updateSessionAction,
-                                      sessionState,
-                                      new FormData(event.currentTarget),
-                                      setSessionState,
-                                    );
-                                  }}
-                                >
-                                  <input type="hidden" name="sessionId" value={item.id} />
-                                  <input type="hidden" name="isCurrentSession" value={item.is_current ? "yes" : "no"} />
-                                  <input type="hidden" name="sessionNotes" value={item.notes ?? ""} />
-                                  <Input
-                                    name="sessionLabel"
-                                    defaultValue={item.session_label}
-                                    disabled={!canEdit}
-                                  />
-                                </form>
+                                <span className="font-medium text-foreground">{item.session_label}</span>
                                 <div className="mt-2 flex flex-wrap gap-2">
                                   {item.session_label === currentSessionLabel ? (
                                     <StatusBadge label={t("badgeLive")} tone="good" />
@@ -989,18 +891,12 @@ export function FeeSetupClient({
                                   ) : null}
                                 </div>
                               </td>
-                              <td className="px-4 py-3">
-                                <select
-                                  form={formId}
-                                  name="sessionStatus"
-                                  defaultValue={item.status}
-                                  className={selectClassName}
-                                  disabled={!canEdit}
-                                >
-                                  <option value="active">{t("statusActive")}</option>
-                                  <option value="inactive">{t("statusInactive")}</option>
-                                  <option value="archived">{t("statusArchived")}</option>
-                                </select>
+                              <td className="px-4 py-3 text-muted-foreground">
+                                {item.status === "active"
+                                  ? t("statusActive")
+                                  : item.status === "inactive"
+                                    ? t("statusInactive")
+                                    : t("statusArchived")}
                               </td>
                               <td className="px-4 py-3 text-muted-foreground">
                                 {snapshot ? (
@@ -1022,60 +918,13 @@ export function FeeSetupClient({
                                 {formatDateTime(snapshot?.updatedAt ?? item.updated_at, t("notSavedYet"))}
                               </td>
                               <td className="px-4 py-3">
-                                <div className="flex flex-wrap gap-2">
-                                  <Button
-                                    type="button"
-                                    variant={item.session_label === selectedSessionLabel ? "default" : "outline"}
-                                    onClick={() => switchSession(item.session_label)}
-                                  >
-                                    {t("workOnThisYear")}
-                                  </Button>
-                                  {canEdit ? (
-                                    <>
-                                      <Button type="submit" form={formId} variant="outline" disabled={isSupportingPending}>
-                                        {t("saveSessionRow")}
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        disabled={isSupportingPending || item.status === "archived"}
-                                        onClick={() => {
-                                          const formData = new FormData();
-                                          formData.set("sessionId", item.id);
-                                          formData.set("sessionLabel", item.session_label);
-                                          formData.set("sessionStatus", "archived");
-                                          formData.set("isCurrentSession", item.is_current ? "yes" : "no");
-                                          formData.set("sessionNotes", item.notes ?? "");
-                                          runSupportAction(
-                                            actions.updateSessionAction,
-                                            sessionState,
-                                            formData,
-                                            setSessionState,
-                                          );
-                                        }}
-                                      >
-                                        {t("archiveOldSession")}
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        disabled={isSupportingPending}
-                                        onClick={() => {
-                                          const formData = new FormData();
-                                          formData.set("sessionId", item.id);
-                                          runSupportAction(
-                                            actions.deleteSessionAction,
-                                            sessionState,
-                                            formData,
-                                            setSessionState,
-                                          );
-                                        }}
-                                      >
-                                        {t("deleteUnusedSession")}
-                                      </Button>
-                                    </>
-                                  ) : null}
-                                </div>
+                                <Button
+                                  type="button"
+                                  variant={item.session_label === selectedSessionLabel ? "default" : "outline"}
+                                  onClick={() => switchSession(item.session_label)}
+                                >
+                                  {t("workOnThisYear")}
+                                </Button>
                               </td>
                             </tr>
                           );

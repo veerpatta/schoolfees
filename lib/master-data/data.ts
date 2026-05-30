@@ -184,113 +184,6 @@ async function saveActivePolicy(policy: PolicyRow, payload: {
   }
 }
 
-async function ensureSessionNotReferenced(sessionLabel: string) {
-  const supabase = await createClient();
-  const [
-    { data: classRows, count: classCount, error: classError },
-    { count: policyCount, error: policyError },
-  ] =
-    await Promise.all([
-      supabase
-        .from("classes")
-        .select("id", { count: "exact" })
-        .eq("session_label", sessionLabel),
-      supabase
-        .from("fee_policy_configs")
-        .select("id", { head: true, count: "exact" })
-        .eq("academic_session_label", sessionLabel),
-    ]);
-
-  if (classError) {
-    throw new Error(classError.message);
-  }
-
-  if (policyError) {
-    throw new Error(policyError.message);
-  }
-
-  if ((policyCount ?? 0) > 0) {
-    throw new Error(
-      "This session already has saved fee-policy snapshots and cannot be deleted. Archive it instead.",
-    );
-  }
-
-  const classIds = ((classRows ?? []) as Array<{ id: string }>).map((row) => row.id);
-
-  if ((classCount ?? 0) === 0 || classIds.length === 0) {
-    return;
-  }
-
-  const [
-    { data: studentRows, count: studentCount, error: studentError },
-    { data: installmentRows, count: installmentCount, error: installmentError },
-    { count: classDefaultCount, error: classDefaultError },
-  ] = await Promise.all([
-    supabase
-      .from("students")
-      .select("id", { count: "exact" })
-      .in("class_id", classIds),
-    supabase
-      .from("installments")
-      .select("id", { count: "exact" })
-      .in("class_id", classIds),
-    supabase
-      .from("fee_settings")
-      .select("id", { head: true, count: "exact" })
-      .in("class_id", classIds),
-  ]);
-
-  if (studentError) {
-    throw new Error(studentError.message);
-  }
-
-  if (installmentError) {
-    throw new Error(installmentError.message);
-  }
-
-  if (classDefaultError) {
-    throw new Error(classDefaultError.message);
-  }
-
-  const studentIds = ((studentRows ?? []) as Array<{ id: string }>).map((row) => row.id);
-  const installmentIds = ((installmentRows ?? []) as Array<{ id: string }>).map((row) => row.id);
-  const receiptCountResult =
-    studentIds.length > 0
-      ? await supabase
-          .from("receipts")
-          .select("id", { head: true, count: "exact" })
-          .in("student_id", studentIds)
-      : { count: 0, error: null };
-  const paymentCountResult =
-    installmentIds.length > 0
-      ? await supabase
-          .from("payments")
-          .select("id", { head: true, count: "exact" })
-          .in("installment_id", installmentIds)
-      : { count: 0, error: null };
-
-  if (receiptCountResult.error) {
-    throw new Error(receiptCountResult.error.message);
-  }
-
-  if (paymentCountResult.error) {
-    throw new Error(paymentCountResult.error.message);
-  }
-
-  if (
-    (classCount ?? 0) > 0 ||
-    (classDefaultCount ?? 0) > 0 ||
-    (studentCount ?? 0) > 0 ||
-    (installmentCount ?? 0) > 0 ||
-    (receiptCountResult.count ?? 0) > 0 ||
-    (paymentCountResult.count ?? 0) > 0
-  ) {
-    throw new Error(
-      "This session has saved setup, student, installment, receipt, or payment history and cannot be deleted. Archive it instead.",
-    );
-  }
-}
-
 async function ensureClassNotReferenced(classId: string) {
   const supabase = await createClient();
 
@@ -651,7 +544,7 @@ export async function deleteAcademicSession(sessionId: string) {
   const supabase = await createClient();
   const { data: session, error: sessionError } = await supabase
     .from("academic_sessions")
-    .select("id, session_label")
+    .select("id, session_label, created_at")
     .eq("id", sessionId)
     .maybeSingle();
 
@@ -664,16 +557,103 @@ export async function deleteAcademicSession(sessionId: string) {
   }
 
   if (normalizeKey(session.session_label) === normalizeKey(await getActiveSessionLabel())) {
-    throw new Error("Current session cannot be deleted. Mark another session current first.");
+    throw new Error("The live session cannot be deleted. Mark another session current first.");
   }
 
-  await ensureSessionNotReferenced(session.session_label as string);
-
-  const { error } = await supabase.from("academic_sessions").delete().eq("id", sessionId);
+  // The DB function re-checks every guard (recent, not live, zero payments) and
+  // performs the cascading delete atomically in FK-safe order. Append-only
+  // payment/receipt rows are never touched — if any exist, it raises.
+  const { error } = await supabase.rpc("delete_academic_session_safe", {
+    p_session_id: sessionId,
+  });
 
   if (error) {
     throw new Error(error.message);
   }
+}
+
+/**
+ * A session created within the last 30 days that holds no posted payments or
+ * receipts can be deleted as a mistake. Used to decide whether to show the
+ * Delete control in Admin Tools.
+ */
+export async function listDeletableSessions(): Promise<
+  Array<{ id: string; sessionLabel: string; createdAt: string }>
+> {
+  const supabase = await createClient();
+  const activeLabel = await getActiveSessionLabel();
+  const cutoffIso = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: recentSessions, error: recentError } = await supabase
+    .from("academic_sessions")
+    .select("id, session_label, created_at, is_current")
+    .gte("created_at", cutoffIso)
+    .order("created_at", { ascending: false });
+
+  if (recentError) {
+    throw new Error(recentError.message);
+  }
+
+  const candidates = ((recentSessions ?? []) as Array<{
+    id: string;
+    session_label: string;
+    created_at: string;
+    is_current: boolean;
+  }>).filter(
+    (row) => !row.is_current && normalizeKey(row.session_label) !== normalizeKey(activeLabel),
+  );
+
+  const deletable: Array<{ id: string; sessionLabel: string; createdAt: string }> = [];
+
+  for (const candidate of candidates) {
+    const { data: classRows, error: classError } = await supabase
+      .from("classes")
+      .select("id")
+      .eq("session_label", candidate.session_label);
+
+    if (classError) {
+      throw new Error(classError.message);
+    }
+
+    const classIds = ((classRows ?? []) as Array<{ id: string }>).map((row) => row.id);
+
+    let hasMoney = false;
+    if (classIds.length > 0) {
+      const { data: studentRows, error: studentError } = await supabase
+        .from("students")
+        .select("id")
+        .in("class_id", classIds);
+
+      if (studentError) {
+        throw new Error(studentError.message);
+      }
+
+      const studentIds = ((studentRows ?? []) as Array<{ id: string }>).map((row) => row.id);
+
+      if (studentIds.length > 0) {
+        const { count: receiptCount, error: receiptError } = await supabase
+          .from("receipts")
+          .select("id", { head: true, count: "exact" })
+          .in("student_id", studentIds);
+
+        if (receiptError) {
+          throw new Error(receiptError.message);
+        }
+
+        hasMoney = (receiptCount ?? 0) > 0;
+      }
+    }
+
+    if (!hasMoney) {
+      deletable.push({
+        id: candidate.id,
+        sessionLabel: candidate.session_label,
+        createdAt: candidate.created_at,
+      });
+    }
+  }
+
+  return deletable;
 }
 
 export async function copyAcademicSessionSetup(payload: {
@@ -783,6 +763,52 @@ export async function copyAcademicSessionSetup(payload: {
 
     if (copyPolicyError) {
       throw new Error(copyPolicyError.message);
+    }
+  }
+
+  // Copy session-scoped conventional discount policies (RTE / Staff Child /
+  // 3rd Child). These are year-scoped rows; the new session starts with the
+  // same policy shape, editable later. Per-student assignments are NOT copied —
+  // those must stay explicit (matches the import rule).
+  const { data: sourceDiscountPoliciesRaw, error: sourceDiscountPoliciesError } = await supabase
+    .from("conventional_discount_policies")
+    .select(
+      "code, display_name, calculation_type, fixed_tuition_amount, percentage, is_active, sort_order",
+    )
+    .eq("academic_session_label", sourceSessionLabel);
+
+  if (sourceDiscountPoliciesError) {
+    throw new Error(sourceDiscountPoliciesError.message);
+  }
+
+  const sourceDiscountPolicies = (sourceDiscountPoliciesRaw ?? []) as Array<{
+    code: string;
+    display_name: string;
+    calculation_type: string;
+    fixed_tuition_amount: number | null;
+    percentage: number | null;
+    is_active: boolean;
+    sort_order: number;
+  }>;
+
+  if (sourceDiscountPolicies.length > 0) {
+    const { error: copyDiscountPoliciesError } = await supabase
+      .from("conventional_discount_policies")
+      .insert(
+        sourceDiscountPolicies.map((row) => ({
+          academic_session_label: targetSessionLabel,
+          code: row.code,
+          display_name: row.display_name,
+          calculation_type: row.calculation_type,
+          fixed_tuition_amount: row.fixed_tuition_amount,
+          percentage: row.percentage,
+          is_active: row.is_active,
+          sort_order: row.sort_order,
+        })),
+      );
+
+    if (copyDiscountPoliciesError) {
+      throw new Error(copyDiscountPoliciesError.message);
     }
   }
 

@@ -6,12 +6,15 @@ import { SectionCard } from "@/components/admin/section-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getNextAcademicSessionLabel } from "@/lib/config/fee-rules";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatDateTimeIst } from "@/lib/helpers/date";
+import { listDeletableSessions } from "@/lib/master-data/data";
 import { listPromotionRuns } from "@/lib/promotion/data";
+import { getActiveSessionLabel } from "@/lib/session/active";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
-import { createPromotionPreviewAction } from "./actions";
+import { createPromotionPreviewAction, deleteSessionByMistakeAction } from "./actions";
 
 type Props = {
   searchParams?: Promise<{
@@ -26,7 +29,18 @@ export default async function PromotionIndexPage({ searchParams }: Props) {
   const t = await getTranslations("AdminTools");
   await requireStaffPermission("students:write", { onDenied: "redirect" });
   const resolved = searchParams ? await searchParams : undefined;
-  const runs = await listPromotionRuns(25);
+  const [runs, activeSessionLabel, deletableSessions] = await Promise.all([
+    listPromotionRuns(25),
+    getActiveSessionLabel(),
+    listDeletableSessions(),
+  ]);
+
+  let suggestedTargetLabel = "";
+  try {
+    suggestedTargetLabel = getNextAcademicSessionLabel(activeSessionLabel);
+  } catch {
+    suggestedTargetLabel = "";
+  }
 
   const runStatusLabel = (status: string) =>
     status === "preview"
@@ -66,6 +80,7 @@ export default async function PromotionIndexPage({ searchParams }: Props) {
               id="sourceSessionLabel"
               name="sourceSessionLabel"
               placeholder="2026-27"
+              defaultValue={activeSessionLabel}
               className="mt-2 h-10"
               required
             />
@@ -76,6 +91,7 @@ export default async function PromotionIndexPage({ searchParams }: Props) {
               id="targetSessionLabel"
               name="targetSessionLabel"
               placeholder="2027-28"
+              defaultValue={suggestedTargetLabel}
               className="mt-2 h-10"
               required
             />
@@ -86,6 +102,47 @@ export default async function PromotionIndexPage({ searchParams }: Props) {
           </div>
         </form>
       </SectionCard>
+
+      {deletableSessions.length > 0 ? (
+        <SectionCard
+          title={t("promotionDeleteTitle")}
+          description={t("promotionDeleteDescription")}
+        >
+          <ul className="divide-y divide-border">
+            {deletableSessions.map((session) => (
+              <li
+                key={session.id}
+                className="flex flex-wrap items-end justify-between gap-3 py-3"
+              >
+                <div>
+                  <p className="font-semibold text-foreground">{session.sessionLabel}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("promotionDeleteCreated", { when: formatDateTime(session.createdAt) })}
+                  </p>
+                </div>
+                <form action={deleteSessionByMistakeAction} className="flex items-end gap-2">
+                  <input type="hidden" name="sessionId" value={session.id} />
+                  <div>
+                    <Label htmlFor={`delete-confirm-${session.id}`} className="text-xs">
+                      {t("promotionDeleteConfirmLabel")}
+                    </Label>
+                    <Input
+                      id={`delete-confirm-${session.id}`}
+                      name="confirmation"
+                      placeholder="DELETE"
+                      className="mt-1 h-9 w-32"
+                      required
+                    />
+                  </div>
+                  <Button type="submit" variant="destructive" className="h-9">
+                    {t("promotionDeleteButton")}
+                  </Button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
+      ) : null}
 
       <SectionCard
         title={t("promotionRecentTitle")}

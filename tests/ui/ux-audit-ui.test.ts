@@ -149,7 +149,13 @@ describe("read-only UX audit implementation", () => {
     expect(advanced).not.toContain("Align year with Fee Setup");
     expect(advanced).not.toContain("Fix Payment Desk dues");
     expect(advanced).not.toContain("Refresh Dashboard totals");
-    expect(navigation).toContain('requiredPermission: "fees:write"');
+    // Session Health is reached from the live System Status card now, not a
+    // separate hub item — but its reconcile action stays fees:write gated.
+    const sessionHealthActions = readRepoFile(
+      "app/protected/admin-tools/session-health/actions.ts",
+    );
+    expect(sessionHealthActions).toContain('requireStaffPermission("fees:write")');
+    expect(navigation).not.toContain('title: "System Readiness"');
   });
 
   it("uses office-friendly wording on daily pages", () => {

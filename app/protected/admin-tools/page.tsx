@@ -172,7 +172,7 @@ export default async function AdvancedPage({ searchParams }: AdvancedPageProps) 
       ...section,
       items: section.items.filter((item) => hasStaffPermission(staff, item.requiredPermission)),
     }))
-    .filter((section) => section.items.length > 0 && section.title !== "Fee Data Troubleshooting");
+    .filter((section) => section.items.length > 0);
 
   return (
     <div className="space-y-6">

@@ -12,14 +12,6 @@ import { formatPaymentModeLabel } from "@/lib/config/fee-rules";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatDateTimeIst, formatShortDate } from "@/lib/helpers/date";
 import type { FinanceControlsActionState } from "@/lib/finance-controls/types";
-import {
-  statusLabelForCashDeposit,
-  statusLabelForClosure,
-  statusLabelForReconciliation,
-  statusToneForCashDeposit,
-  statusToneForClosure,
-  statusToneForReconciliation,
-} from "@/lib/finance-controls/display";
 import type {
   FinanceControlsPageData,
   FinanceCorrectionReviewRow,
@@ -43,7 +35,6 @@ type FinanceWorkflowAction = (
 type FinanceFormAction = (formData: FormData) => void | Promise<void>;
 
 type FinanceWorkflowActions = {
-  submitCollectionCloseAction: FinanceWorkflowAction;
   submitRefundWorkflowAction: FinanceWorkflowAction;
   submitCorrectionReviewAction: FinanceWorkflowAction;
 };
@@ -284,143 +275,37 @@ function ReceivedBySection({ data }: { data: FinanceControlsPageData }) {
   );
 }
 
-function DayCloseSection({
-  data,
-  canWrite,
-  canApprove,
-  state,
-  formAction,
-  pending,
-}: {
-  data: FinanceControlsPageData;
-  canWrite: boolean;
-  canApprove: boolean;
-  state: FinanceControlsActionState;
-  formAction: FinanceFormAction;
-  pending: boolean;
-}) {
+function DayCloseSection({ data }: { data: FinanceControlsPageData }) {
   const closure = data.closure;
   const summary = closure?.summarySnapshot ?? data.summary;
+  const isClosed = closure?.status === "closed";
 
   return (
     <SectionCard
-      title="Day close and reconciliation"
-      description="Save the selected day, capture the cash-deposit status, then approve and close it once the office checks are complete."
+      title="Day close"
+      description="Days close automatically overnight — this is a read-only snapshot of that day's collections. No manual approval or reconciliation step is required."
       actions={
-        closure ? (
-          <div className="flex flex-wrap gap-2">
-            <StatusBadge label={statusLabelForClosure(closure.status)} tone={statusToneForClosure(closure.status)} />
-            <StatusBadge
-              label={statusLabelForCashDeposit(closure.cashDepositStatus)}
-              tone={statusToneForCashDeposit(closure.cashDepositStatus)}
-            />
-            <StatusBadge
-              label={statusLabelForReconciliation(closure.reconciliationStatus)}
-              tone={statusToneForReconciliation(closure.reconciliationStatus)}
-            />
-          </div>
-        ) : (
-          <StatusBadge label="No close saved yet" tone="warning" />
-        )
+        <StatusBadge
+          label={isClosed ? "Closed automatically" : "Awaiting overnight close"}
+          tone={isClosed ? "good" : "neutral"}
+        />
       }
     >
-      <ActionNotice state={state} />
-
-      <form action={formAction} className="space-y-4">
-        <input type="hidden" name="paymentDate" value={data.selectedDate} />
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <div>
-            <Label htmlFor="cash-deposit-status">Cash deposit status</Label>
-            <select
-              id="cash-deposit-status"
-              name="cashDepositStatus"
-              defaultValue={closure?.cashDepositStatus ?? "pending"}
-              className={`${selectClassName} mt-2`}
-              disabled={!canWrite && !canApprove}
-            >
-              <option value="pending">Pending</option>
-              <option value="deposited">Deposited</option>
-              <option value="carried_forward">Carried forward</option>
-              <option value="not_applicable">Not applicable</option>
-            </select>
-          </div>
-          <div>
-            <Label htmlFor="reconciliation-status">Reconciliation status</Label>
-            <select
-              id="reconciliation-status"
-              name="reconciliationStatus"
-              defaultValue={closure?.reconciliationStatus ?? "pending"}
-              className={`${selectClassName} mt-2`}
-              disabled={!canWrite && !canApprove}
-            >
-              <option value="pending">Pending</option>
-              <option value="in_review">In review</option>
-              <option value="cleared">Cleared</option>
-              <option value="issue_found">Issue found</option>
-            </select>
-          </div>
-          <div className="xl:col-span-2">
-            <Label htmlFor="bank-deposit-reference">Bank deposit reference</Label>
-            <Input
-              id="bank-deposit-reference"
-              name="bankDepositReference"
-              defaultValue={closure?.bankDepositReference ?? ""}
-              placeholder="Deposit slip / UTR / bank reference"
-              className="mt-2"
-              disabled={!canWrite && !canApprove}
-            />
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="close-note">Daily close confirmation note</Label>
-          <textarea
-            id="close-note"
-            name="closeNote"
-            defaultValue={closure?.closeNote ?? ""}
-            className={`${textAreaClassName} mt-2`}
-            placeholder="Confirm cash deposit, reconciliation checks, or follow-up items."
-            disabled={!canWrite && !canApprove}
-          />
-        </div>
-
-        <div className="rounded-xl border border-border bg-surface-2 px-4 py-4 text-sm text-foreground">
-          <p className="font-semibold text-foreground">Captured for {formatShortDate(data.selectedDate)}</p>
-          <p className="mt-1">
-            Receipts: {summary.receiptCount}. Refund requests: {summary.refundRequestCount}. Processed refund outflow:{" "}
-            {formatInr(summary.refundProcessedTotal)}. Cash deposit status:{" "}
-            {statusLabelForCashDeposit(summary.cashDepositStatus ?? "pending")}.
+      <div className="rounded-xl border border-border bg-surface-2 px-4 py-4 text-sm text-foreground">
+        <p className="font-semibold text-foreground">{formatShortDate(data.selectedDate)}</p>
+        <p className="mt-1">
+          Collections: {formatInr(summary.receiptTotal)} across {summary.receiptCount} receipt
+          {summary.receiptCount === 1 ? "" : "s"}. Processed refunds:{" "}
+          {formatInr(summary.refundProcessedTotal)}. Net cash: {formatInr(summary.netCashTotal)}.
+        </p>
+        {closure?.closedAt ? (
+          <p className="mt-1 text-muted-foreground">Closed {formatDateTime(closure.closedAt)}.</p>
+        ) : (
+          <p className="mt-1 text-muted-foreground">
+            Today&apos;s totals finalize after midnight; the snapshot appears here automatically.
           </p>
-          <p className="mt-1">
-            Pending reconciliation: {statusLabelForReconciliation(summary.reconciliationStatus ?? "pending")}.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" name="workflowAction" value="save_draft" disabled={!canWrite || pending}>
-            {pending ? "Saving..." : "Save draft"}
-          </Button>
-          {canApprove ? (
-            <>
-              <Button type="submit" name="workflowAction" value="approve_close" disabled={pending}>
-                Approve and close
-              </Button>
-              {closure ? (
-                <Button
-                  type="submit"
-                  name="workflowAction"
-                  value="mark_reconciled"
-                  variant="outline"
-                  disabled={pending}
-                >
-                  Update reconciliation
-                </Button>
-              ) : null}
-            </>
-          ) : null}
-        </div>
-      </form>
+        )}
+      </div>
     </SectionCard>
   );
 }
@@ -821,10 +706,6 @@ export function FinanceControlsClient({
   initialActionState,
   actions,
 }: FinanceControlsClientProps) {
-  const [closeState, closeFormAction, closePending] = useActionState(
-    actions.submitCollectionCloseAction,
-    initialActionState,
-  );
   const [refundState, refundFormAction, refundPending] = useActionState(
     actions.submitRefundWorkflowAction,
     initialActionState,
@@ -839,14 +720,7 @@ export function FinanceControlsClient({
       <CollectionCloseSummary data={data} />
       <ModeTotalsSection data={data} />
       <ReceivedBySection data={data} />
-      <DayCloseSection
-        data={data}
-        canWrite={canWrite}
-        canApprove={canApprove}
-        state={closeState}
-        formAction={closeFormAction}
-        pending={closePending}
-      />
+      <DayCloseSection data={data} />
       <DayBookSection data={data} />
       <RefundRequestsSection
         data={data}

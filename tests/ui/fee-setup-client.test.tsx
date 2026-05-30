@@ -141,10 +141,6 @@ describe("FeeSetupClient", () => {
           initialMasterDataState={{ status: "idle", message: "" }}
           initialSelectedSessionLabel="TEST-2026-27"
           actions={{
-            createSessionAction: noopMasterDataAction,
-            updateSessionAction: noopMasterDataAction,
-            deleteSessionAction: noopMasterDataAction,
-            copySessionAction: noopMasterDataAction,
             createClassAction: noopMasterDataAction,
             updateClassAction: noopMasterDataAction,
             deleteClassAction: noopMasterDataAction,

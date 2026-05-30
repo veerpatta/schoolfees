@@ -1,5 +1,6 @@
 import "server-only";
 
+import { copyAcademicSessionSetup } from "@/lib/master-data/data";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import { prepareDuesForStudentsAutomatically } from "@/lib/system-sync/finance-sync";
@@ -350,6 +351,30 @@ export async function createPromotionPreview(payload: {
   }
 
   const supabase = await createClient();
+
+  // Professional transfer: if the target session does not exist yet, create it
+  // by copying the source session's setup — classes, fee policy, conventional
+  // discount policies, and per-class fee settings. Routes are global and shared
+  // automatically. All copied values stay editable in Fee Setup afterwards.
+  const { data: existingTargetSession, error: existingTargetSessionError } = await supabase
+    .from("academic_sessions")
+    .select("id")
+    .ilike("session_label", targetSession)
+    .maybeSingle();
+
+  if (existingTargetSessionError) {
+    throw new Error(`Unable to check target session: ${existingTargetSessionError.message}`);
+  }
+
+  if (!existingTargetSession) {
+    // Creating the next session writes academic_sessions / fee_policy_configs /
+    // classes / fee_settings rows, which RLS gates on settings:write.
+    await requireStaffPermission("settings:write");
+    await copyAcademicSessionSetup({
+      sourceSessionLabel: sourceSession,
+      targetSessionLabel: targetSession,
+    });
+  }
 
   const [sourceClassesResult, targetClassesResult] = await Promise.all([
     supabase

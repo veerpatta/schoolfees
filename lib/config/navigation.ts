@@ -1,5 +1,4 @@
 import {
-  Activity,
   ActivitySquare,
   BadgeIndianRupee,
   BarChart3,
@@ -8,7 +7,6 @@ import {
   ClipboardList,
   FileSpreadsheet,
   FolderCog,
-  ListChecks,
   MessageCircle,
   ScrollText,
   Settings2,
@@ -200,12 +198,6 @@ const routeMetaItems: Array<
     href: "/protected/admin-tools",
     label: "Admin Tools",
     description: "Rare setup, staff access, corrections, and troubleshooting.",
-  },
-  {
-    match: "/protected/setup",
-    href: "/protected/admin-tools",
-    label: "First-time Setup",
-    description: "First-time go-live preparation, readiness, and completion review.",
   },
   {
     match: "/protected/master-data",
@@ -434,7 +426,41 @@ export type AdvancedHubSection = {
 
 export const advancedHubSections: readonly AdvancedHubSection[] = [
   {
-    title: "Staff & Permissions",
+    title: "Year & Sessions",
+    description: "Move into the next academic year and clean up sessions made by mistake.",
+    items: [
+      {
+        href: "/protected/admin-tools/promotion",
+        label: "Transfer to Next Session",
+        description:
+          "Create next year by copying classes, fees, and discount policies, then promote students. Roll back or delete a session made by mistake.",
+        icon: UsersRound,
+        requiredPermission: "students:write",
+      },
+    ],
+  },
+  {
+    title: "Money Controls",
+    description: "Refunds, the automatic day close, and correction review.",
+    items: [
+      {
+        href: "/protected/finance-controls",
+        label: "Refunds",
+        description: "Request, approve, and process refunds. Processing posts a reversal to the ledger.",
+        icon: BadgeIndianRupee,
+        requiredPermission: "finance:view",
+      },
+      {
+        href: "/protected/finance-controls",
+        label: "Day Close & Corrections",
+        description: "Read the automatic day-close snapshot, day-book totals, and correction review.",
+        icon: ClipboardList,
+        requiredPermission: "finance:view",
+      },
+    ],
+  },
+  {
+    title: "People & Access",
     description: "Internal staff accounts, roles, and password controls.",
     items: [
       {
@@ -447,22 +473,16 @@ export const advancedHubSections: readonly AdvancedHubSection[] = [
     ],
   },
   {
-    title: "School Settings",
-    description: "School settings and system checks.",
+    title: "School Configuration",
+    description: "School settings and the lists every module reads from.",
     items: [
       {
         href: "/protected/settings",
-        label: "App Settings",
-        description: "School settings, system checks, and change history.",
+        label: "School Settings",
+        description: "School identity, active fee policy summary, and system health in one place.",
         icon: Settings2,
         requiredPermission: "settings:view",
       },
-    ],
-  },
-  {
-    title: "School Lists",
-    description: "Sessions, classes, routes, and payment lists.",
-    items: [
       {
         href: "/protected/master-data",
         label: "School Lists",
@@ -473,73 +493,8 @@ export const advancedHubSections: readonly AdvancedHubSection[] = [
     ],
   },
   {
-    title: "Corrections & Day Close",
-    description: "Finance-office review, refunds, and close controls.",
-    items: [
-      {
-        href: "/protected/finance-controls",
-        label: "Day Close & Corrections",
-        description: "Review day-book totals, refund work, correction review, and close controls.",
-        icon: ClipboardList,
-        requiredPermission: "finance:view",
-      },
-    ],
-  },
-  {
-    title: "Import History",
-    description: "Spreadsheet upload history and row review.",
-    items: [
-      {
-        href: "/protected/imports",
-        label: "Import History",
-        description: "Review spreadsheet uploads, row results, and saved batches.",
-        icon: UsersRound,
-        requiredPermission: "imports:view",
-      },
-    ],
-  },
-  {
-    title: "Fee Data Troubleshooting",
-    description: "Review session dues health and reconcile routine gaps.",
-    items: [
-      {
-        href: "/protected/admin-tools/session-health",
-        label: "Session Health",
-        description: "Review every academic session and reconcile missing dues.",
-        icon: Activity,
-        requiredPermission: "fees:write",
-      },
-    ],
-  },
-  {
-    title: "System Readiness",
-    description: "First-time go-live preparation and completion review.",
-    items: [
-      {
-        href: "/protected/setup",
-        label: "First-time Setup",
-        description: "Prepare the school for go-live, confirm readiness, and complete setup once.",
-        icon: ListChecks,
-        requiredPermission: "settings:write",
-      },
-    ],
-  },
-  {
-    title: "Parent Outreach",
-    description: "Pre-canned WhatsApp message templates for defaulters and receipts.",
-    items: [
-      {
-        href: "/protected/admin-tools/whatsapp-templates",
-        label: "WhatsApp templates",
-        description: "Manage message templates with placeholders used in bulk WhatsApp drafts.",
-        icon: MessageCircle,
-        requiredPermission: "settings:view",
-      },
-    ],
-  },
-  {
-    title: "Activity Audit",
-    description: "Read-only feed of recent staff actions across the workspace.",
+    title: "History & Audit",
+    description: "Read-only records of activity, imports, and outreach templates.",
     items: [
       {
         href: "/protected/admin-tools/activity",
@@ -548,18 +503,19 @@ export const advancedHubSections: readonly AdvancedHubSection[] = [
         icon: ActivitySquare,
         requiredPermission: "settings:view",
       },
-    ],
-  },
-  {
-    title: "Year-End",
-    description: "Annual class promotion and credit carry-forward tools.",
-    items: [
       {
-        href: "/protected/admin-tools/promotion",
-        label: "Class promotion",
-        description: "Build a preview, apply it, and roll back if needed. Carries credit balances forward.",
-        icon: UsersRound,
-        requiredPermission: "students:write",
+        href: "/protected/imports",
+        label: "Import History",
+        description: "Review spreadsheet uploads, row results, and saved batches.",
+        icon: FileSpreadsheet,
+        requiredPermission: "imports:view",
+      },
+      {
+        href: "/protected/admin-tools/whatsapp-templates",
+        label: "WhatsApp templates",
+        description: "Manage message templates with placeholders used in bulk WhatsApp drafts.",
+        icon: MessageCircle,
+        requiredPermission: "settings:view",
       },
     ],
   },

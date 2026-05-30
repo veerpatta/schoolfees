@@ -69,7 +69,7 @@ describe("Admin Tools page resilience", () => {
     expect(html).toContain("Admin Tools");
     expect(html).toContain("Automatic sync is on");
     // Hub link tiles still render even though the health card is suspended.
-    expect(html).toContain("Class promotion");
+    expect(html).toContain("Transfer to Next Session");
     expect(html).toContain("WhatsApp templates");
   });
 
