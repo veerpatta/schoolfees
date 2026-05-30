@@ -14,16 +14,12 @@ import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/sessi
 import { saveWorkbookFeeSetupAction } from "./actions";
 import type { MasterDataActionState } from "@/app/protected/master-data/actions";
 import {
-  copySessionAction,
   createClassAction,
   createRouteAction,
-  createSessionAction,
   deleteClassAction,
   deleteRouteAction,
-  deleteSessionAction,
   updateClassAction,
   updateRouteAction,
-  updateSessionAction,
 } from "@/app/protected/master-data/actions";
 
 const INITIAL_MASTER_DATA_ACTION_STATE: MasterDataActionState = {
@@ -78,10 +74,6 @@ export default async function FeeSetupPage({ searchParams }: FeeSetupPageProps) 
         initialMasterDataState={INITIAL_MASTER_DATA_ACTION_STATE}
         initialSelectedSessionLabel={viewSession.sessionLabel}
         actions={{
-          createSessionAction,
-          updateSessionAction,
-          deleteSessionAction,
-          copySessionAction,
           createClassAction,
           updateClassAction,
           deleteClassAction,

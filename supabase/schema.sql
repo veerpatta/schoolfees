@@ -5816,3 +5816,180 @@ select cron.schedule(
   '*/2 * * * *',
   $$select public.refresh_workbook_materialized_views_if_requested();$$
 );
+
+-- Safe deletion of a mistakenly-created academic session (see migration
+-- 20260530055333_delete_academic_session_safe.sql). Hard-deletes scaffolding
+-- only when the session is recent (<=30 days), not live, and has zero posted
+-- payments/receipts; otherwise raises. Append-only rows are never touched.
+create or replace function public.delete_academic_session_safe(p_session_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, private
+as $$
+declare
+  v_label text;
+  v_is_current boolean;
+  v_created_at timestamptz;
+  v_payment_count integer;
+  v_receipt_count integer;
+begin
+  if not public.has_permission('settings:write') then
+    raise exception 'You do not have permission to delete academic sessions.';
+  end if;
+
+  select session_label, is_current, created_at
+  into v_label, v_is_current, v_created_at
+  from public.academic_sessions
+  where id = p_session_id;
+
+  if v_label is null then
+    raise exception 'Academic session not found.';
+  end if;
+
+  if v_is_current or lower(v_label) = lower(public.active_session_label()) then
+    raise exception 'The live session cannot be deleted. Mark another session current first.';
+  end if;
+
+  if v_created_at < now() - interval '30 days' then
+    raise exception 'Only sessions created in the last 30 days can be deleted. Archive this session instead.';
+  end if;
+
+  select count(*) into v_receipt_count
+  from public.receipts r
+  join public.students s on s.id = r.student_id
+  join public.classes c on c.id = s.class_id
+  where c.session_label = v_label;
+
+  select count(*) into v_payment_count
+  from public.payments p
+  join public.installments i on i.id = p.installment_id
+  join public.classes c on c.id = i.class_id
+  where c.session_label = v_label;
+
+  if v_payment_count > 0 or v_receipt_count > 0 then
+    raise exception 'This session has posted payments or receipts and cannot be deleted. Archive it instead.';
+  end if;
+
+  delete from public.students s
+  using public.classes c
+  where s.class_id = c.id
+    and c.session_label = v_label;
+
+  delete from public.fee_settings fs
+  using public.classes c
+  where fs.class_id = c.id
+    and c.session_label = v_label;
+
+  delete from public.conventional_discount_policies
+  where academic_session_label = v_label;
+
+  delete from public.student_family_groups
+  where academic_session_label = v_label;
+
+  delete from public.classes
+  where session_label = v_label;
+
+  delete from public.fee_policy_configs
+  where academic_session_label = v_label;
+
+  delete from public.academic_sessions
+  where id = p_session_id;
+end;
+$$;
+
+revoke all on function public.delete_academic_session_safe(uuid) from public;
+revoke all on function public.delete_academic_session_safe(uuid) from anon;
+grant execute on function public.delete_academic_session_safe(uuid) to authenticated;
+
+-- Refund processing posts reversal payment_adjustments so refunds move money in
+-- the financial projection (see migration
+-- 20260530055404_process_refund_with_adjustment.sql). Caps each payment by its
+-- net refundable headroom to prevent cumulative over-refund.
+create or replace function public.process_refund_with_adjustment(p_refund_request_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, private
+as $$
+declare
+  v_status public.refund_request_status;
+  v_receipt_id uuid;
+  v_student_id uuid;
+  v_amount integer;
+  v_remaining integer;
+  v_alloc integer;
+  pay record;
+begin
+  if not public.has_permission('finance:write') then
+    raise exception 'You do not have permission to process refunds.';
+  end if;
+
+  select status, receipt_id, student_id, requested_amount
+  into v_status, v_receipt_id, v_student_id, v_amount
+  from public.refund_requests
+  where id = p_refund_request_id
+  for update;
+
+  if not found then
+    raise exception 'Refund request not found.';
+  end if;
+
+  if v_status <> 'approved' then
+    raise exception 'Only approved refund requests can be processed.';
+  end if;
+
+  v_remaining := v_amount;
+
+  for pay in
+    select
+      p.id,
+      p.installment_id,
+      (
+        p.amount
+        + coalesce(
+            (
+              select sum(a.amount_delta)
+              from public.payment_adjustments as a
+              where a.payment_id = p.id
+            ),
+            0
+          )
+      )::integer as available
+    from public.payments as p
+    where p.receipt_id = v_receipt_id
+      and p.student_id = v_student_id
+    order by available desc, p.id
+  loop
+    exit when v_remaining <= 0;
+    continue when pay.available <= 0;
+
+    v_alloc := least(v_remaining, pay.available);
+
+    insert into public.payment_adjustments (
+      payment_id, student_id, installment_id, adjustment_type, amount_delta, reason, notes
+    )
+    values (
+      pay.id, v_student_id, pay.installment_id, 'reversal', -v_alloc,
+      'Refund processed',
+      'refund_request:' || p_refund_request_id::text
+    );
+
+    v_remaining := v_remaining - v_alloc;
+  end loop;
+
+  if v_remaining > 0 then
+    raise exception 'Refund amount exceeds the remaining refundable balance on this receipt.';
+  end if;
+
+  update public.refund_requests
+  set status = 'processed',
+      processed_at = now(),
+      processed_by = auth.uid()
+  where id = p_refund_request_id;
+end;
+$$;
+
+revoke all on function public.process_refund_with_adjustment(uuid) from public;
+revoke all on function public.process_refund_with_adjustment(uuid) from anon;
+grant execute on function public.process_refund_with_adjustment(uuid) to authenticated;

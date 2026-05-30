@@ -128,6 +128,24 @@ export default async function PromotionDetailPage({ params, searchParams }: Prop
         </p>
       </SectionCard>
 
+      <SectionCard
+        title={t("promotionEditCopiedTitle")}
+        description={t("promotionEditCopiedDescription", { target: run.targetSessionLabel })}
+      >
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link href={`/protected/fee-setup?session=${encodeURIComponent(run.targetSessionLabel)}`}>
+              {t("promotionEditFeePolicy")}
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href={`/protected/fee-setup?session=${encodeURIComponent(run.targetSessionLabel)}`}>
+              {t("promotionEditDiscounts")}
+            </Link>
+          </Button>
+        </div>
+      </SectionCard>
+
       {isPreview ? (
         <SectionCard
           title={t("promotionApplyTitle")}

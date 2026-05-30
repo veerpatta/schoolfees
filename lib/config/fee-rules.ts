@@ -54,6 +54,19 @@ export function getAcademicSessionStartYear(academicSessionLabel: string) {
   return parseAcademicSessionLabel(academicSessionLabel).startYear;
 }
 
+/**
+ * Given a session label (e.g. `2026-27` or `TEST-2026-27`), return the next
+ * academic year's label preserving any test prefix (`2027-28` /
+ * `TEST-2027-28`). Used to auto-suggest the target of a year-end transfer.
+ */
+export function getNextAcademicSessionLabel(academicSessionLabel: string) {
+  const { prefix, startYear } = parseAcademicSessionLabel(academicSessionLabel);
+  const nextStartYear = startYear + 1;
+  const nextEndSuffix = (nextStartYear + 1).toString().slice(-2);
+  const core = `${nextStartYear}-${nextEndSuffix}`;
+  return prefix ? `${prefix}-${core}` : core;
+}
+
 export function isTestAcademicSessionLabel(academicSessionLabel: string) {
   const { prefix } = parseAcademicSessionLabel(academicSessionLabel);
   return TEST_SESSION_PREFIXES.has(prefix);

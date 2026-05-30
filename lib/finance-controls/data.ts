@@ -690,6 +690,10 @@ export async function getFinanceControlsPageData(
   });
 
   const corrections = adjustmentsRaw
+    // Refund-originated reversals already show in the Refunds panel and the day
+    // book — exclude them from the manual correction-review queue so a processed
+    // refund does not also look like an unreviewed correction.
+    .filter((row) => !(row.adjustment_type === "reversal" && (row.notes ?? "").startsWith("refund_request:")))
     .map((row) => mapAdjustmentRow(row, reviewMap, userNameMap))
     .filter((row): row is FinanceCorrectionReviewRow => row !== null);
 

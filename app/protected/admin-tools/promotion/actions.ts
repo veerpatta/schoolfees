@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { deleteAcademicSession } from "@/lib/master-data/data";
 import {
   applyPromotionRun,
   createPromotionPreview,
@@ -10,6 +11,7 @@ import {
   updatePromotionEntryDecision,
   type PromotionEntryDecision,
 } from "@/lib/promotion/data";
+import { requireStaffPermission } from "@/lib/supabase/session";
 
 function asString(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
@@ -91,6 +93,36 @@ export async function rollbackPromotionRunAction(formData: FormData) {
       error instanceof Error ? error.message : "Unable to roll back promotion.";
     redirect(`/protected/admin-tools/promotion/${runId}?error=${encodeURIComponent(message)}`);
   }
+}
+
+export async function deleteSessionByMistakeAction(formData: FormData) {
+  const sessionId = asString(formData.get("sessionId"));
+  const confirmation = asString(formData.get("confirmation"));
+
+  if (!sessionId) {
+    redirect(
+      `/protected/admin-tools/promotion?error=${encodeURIComponent("Session id is required.")}`,
+    );
+  }
+
+  if (confirmation !== "DELETE") {
+    redirect(
+      `/protected/admin-tools/promotion?error=${encodeURIComponent("Type DELETE to confirm removing the session created by mistake.")}`,
+    );
+  }
+
+  try {
+    await requireStaffPermission("settings:write");
+    await deleteAcademicSession(sessionId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to delete session.";
+    redirect(`/protected/admin-tools/promotion?error=${encodeURIComponent(message)}`);
+  }
+
+  revalidatePath("/protected/admin-tools/promotion");
+  redirect(
+    `/protected/admin-tools/promotion?notice=${encodeURIComponent("Session deleted. Its classes, fee setup, and copied policies were removed.")}`,
+  );
 }
 
 export async function updatePromotionEntryDecisionAction(formData: FormData) {

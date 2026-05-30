@@ -2,8 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { getFinanceControlsPageData } from "@/lib/finance-controls/data";
-import type { CashDepositStatus, PaymentMode, ReconciliationStatus, RefundRequestStatus } from "@/lib/db/types";
+import type { PaymentMode, RefundRequestStatus } from "@/lib/db/types";
 import { createClient } from "@/lib/supabase/server";
 import type { FinanceControlsActionState } from "@/lib/finance-controls/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
@@ -57,36 +56,6 @@ function parseAmount(value: FormDataEntryValue | null, label: string) {
   return numeric;
 }
 
-function parseCashDepositStatus(value: FormDataEntryValue | null): CashDepositStatus {
-  const normalized = (value ?? "").toString().trim();
-
-  if (
-    normalized === "pending" ||
-    normalized === "deposited" ||
-    normalized === "carried_forward" ||
-    normalized === "not_applicable"
-  ) {
-    return normalized;
-  }
-
-  throw new Error("Cash deposit status is invalid.");
-}
-
-function parseReconciliationStatus(value: FormDataEntryValue | null): ReconciliationStatus {
-  const normalized = (value ?? "").toString().trim();
-
-  if (
-    normalized === "pending" ||
-    normalized === "in_review" ||
-    normalized === "cleared" ||
-    normalized === "issue_found"
-  ) {
-    return normalized;
-  }
-
-  throw new Error("Reconciliation status is invalid.");
-}
-
 function parseRefundMethod(value: FormDataEntryValue | null): PaymentMode {
   const normalized = (value ?? "").toString().trim();
 
@@ -121,9 +90,6 @@ function parseWorkflowAction(value: FormDataEntryValue | null) {
   const normalized = (value ?? "").toString().trim();
 
   if (
-    normalized === "save_draft" ||
-    normalized === "approve_close" ||
-    normalized === "mark_reconciled" ||
     normalized === "request_refund" ||
     normalized === "approve_refund" ||
     normalized === "reject_refund" ||
@@ -161,112 +127,6 @@ function revalidateFinanceSurface() {
   revalidatePath("/protected/defaulters");
   revalidatePath("/protected/reports");
   revalidatePath("/protected");
-}
-
-export async function submitCollectionCloseAction(
-  _previous: FinanceControlsActionState,
-  formData: FormData,
-): Promise<FinanceControlsActionState> {
-  try {
-    const workflowAction = parseWorkflowAction(formData.get("workflowAction"));
-    const paymentDate = parseDate(formData.get("paymentDate"), "Payment date");
-    const cashDepositStatus = parseCashDepositStatus(formData.get("cashDepositStatus"));
-    const reconciliationStatus = parseReconciliationStatus(
-      formData.get("reconciliationStatus"),
-    );
-    const bankDepositReference = parseOptionalString(formData.get("bankDepositReference"));
-    const closeNote = parseOptionalString(formData.get("closeNote"));
-    const staff =
-      workflowAction === "save_draft"
-        ? await requireStaffPermission("finance:write")
-        : await requireStaffPermission("finance:approve");
-
-    const snapshot = await getFinanceControlsPageData(paymentDate);
-    const existingClose = snapshot.closure;
-    const nextStatus =
-      workflowAction === "save_draft"
-        ? existingClose?.status === "closed"
-          ? "reopened"
-          : "pending_approval"
-        : workflowAction === "approve_close"
-          ? "closed"
-          : existingClose?.status ?? "pending_approval";
-
-    if (workflowAction === "mark_reconciled" && !existingClose) {
-      throw new Error("Save a day close before updating reconciliation.");
-    }
-
-    const summarySnapshot = {
-      ...snapshot.summary,
-      closeStatus: nextStatus,
-      cashDepositStatus,
-      reconciliationStatus,
-    };
-
-    const supabase = await createClient();
-    const { data: existingCloseRaw, error: existingCloseError } =
-      workflowAction === "mark_reconciled"
-        ? await supabase
-            .from("collection_closures")
-            .select("approved_at, approved_by, closed_at, closed_by")
-            .eq("payment_date", paymentDate)
-            .maybeSingle()
-        : { data: null, error: null };
-
-    if (existingCloseError) {
-      throw new Error(existingCloseError.message);
-    }
-
-    const payload = {
-      payment_date: paymentDate,
-      status: nextStatus,
-      cash_deposit_status: cashDepositStatus,
-      reconciliation_status: reconciliationStatus,
-      bank_deposit_reference: bankDepositReference,
-      close_note: closeNote,
-      summary_snapshot: summarySnapshot,
-      approved_at:
-        workflowAction === "approve_close"
-          ? new Date().toISOString()
-          : existingCloseRaw?.approved_at ?? null,
-      approved_by:
-        workflowAction === "approve_close"
-          ? staff.id
-          : existingCloseRaw?.approved_by ?? null,
-      closed_at:
-        workflowAction === "approve_close"
-          ? new Date().toISOString()
-          : existingCloseRaw?.closed_at ?? null,
-      closed_by:
-        workflowAction === "approve_close"
-          ? staff.id
-          : existingCloseRaw?.closed_by ?? null,
-    };
-
-    const { error } = await supabase.from("collection_closures").upsert(payload, {
-      onConflict: "payment_date",
-    });
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    revalidateFinanceSurface();
-
-    if (workflowAction === "approve_close") {
-      return toSuccess(
-        `Day close approved for ${paymentDate}. ${reconciliationStatus === "cleared" ? "Reconciliation marked cleared." : "Reconciliation still needs follow-up if cash or bank deposit is incomplete."}`,
-      );
-    }
-
-    return toSuccess(
-      existingClose?.status === "closed"
-        ? `Day close reopened for ${paymentDate}.`
-        : `Day close saved for ${paymentDate} and sent for approval.`,
-    );
-  } catch (error) {
-    return toActionStateError(error);
-  }
 }
 
 export async function submitRefundWorkflowAction(
@@ -353,6 +213,25 @@ export async function submitRefundWorkflowAction(
       throw new Error("Only approved refund requests can be processed.");
     }
 
+    // Processing a refund moves real money: the RPC posts reversal
+    // payment_adjustments against the receipt's payments and flips the status to
+    // processed, atomically. This is what makes the refund show up in the
+    // student ledger, Transactions, and the financial projection.
+    if (workflowAction === "process_refund") {
+      const { error: processError } = await supabase.rpc("process_refund_with_adjustment", {
+        p_refund_request_id: refundRequestId,
+      });
+
+      if (processError) {
+        throw new Error(processError.message);
+      }
+
+      revalidateFinanceSurface();
+      return toSuccess(
+        `Refund processed for ${(existingRaw as { receipt_ref?: { receipt_number?: string } | null }).receipt_ref?.receipt_number ?? "the receipt"}. A reversal was posted to the student ledger.`,
+      );
+    }
+
     const updatePayload: Record<string, unknown> = {
       status: refundStatus,
       approval_note: approvalNote,
@@ -362,11 +241,6 @@ export async function submitRefundWorkflowAction(
     if (workflowAction === "approve_refund") {
       updatePayload.approved_at = new Date().toISOString();
       updatePayload.approved_by = staff.id;
-    }
-
-    if (workflowAction === "process_refund") {
-      updatePayload.processed_at = new Date().toISOString();
-      updatePayload.processed_by = staff.id;
     }
 
     const { error } = await supabase
@@ -384,11 +258,7 @@ export async function submitRefundWorkflowAction(
       return toSuccess("Refund request approved.");
     }
 
-    if (workflowAction === "reject_refund") {
-      return toSuccess("Refund request rejected.");
-    }
-
-    return toSuccess("Refund request marked as processed.");
+    return toSuccess("Refund request rejected.");
   } catch (error) {
     return toActionStateError(error);
   }
