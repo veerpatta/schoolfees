@@ -7,7 +7,7 @@ import {
   EMPTY_DEFAULTER_FILTERS,
   type DefaulterFilters,
 } from "@/lib/defaulters/types";
-import { getStudents, getStudentFormOptions } from "@/lib/students/data";
+import { getAllStudents, getStudentFormOptions } from "@/lib/students/data";
 import {
   getConventionalDiscountPolicies,
   getFeePolicySummary,
@@ -697,7 +697,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
   }
 
   if (exportType === "all-students") {
-    const rows = await getStudents({
+    const rows = await getAllStudents({
       query: "",
       sessionLabel: resolvedSessionLabel,
       classId: "",
@@ -724,7 +724,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
   }
 
   if (exportType === "conventional-discount-students") {
-    const students = await getStudents({
+    const students = await getAllStudents({
       query: "",
       sessionLabel: resolvedSessionLabel,
       classId: "",
@@ -804,6 +804,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
     view,
     classId: "",
     sessionLabel: resolvedSessionLabel,
+    // Exports must contain every row, not just the first workbook page.
+    exportAll: true,
   });
 
   if (workbook.view === "receipts" || workbook.view === "transactions") {

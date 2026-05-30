@@ -1047,6 +1047,26 @@ export async function getStudents(filters: StudentListFilters) {
   return result.students;
 }
 
+/**
+ * Fetch EVERY student matching the filters across all pages — for exports,
+ * where a page cap would silently drop rows. getStudents() stays page-bounded
+ * for interactive surfaces (search/command palette); this walks all pages.
+ */
+export async function getAllStudents(filters: StudentListFilters) {
+  const pageSize = 100;
+  const first = await getStudentsPage(filters, { page: 1, pageSize });
+  const all = [...first.students];
+  const totalPages = Math.max(1, Math.ceil((first.totalCount ?? all.length) / pageSize));
+
+  for (let page = 2; page <= totalPages; page += 1) {
+    const next = await getStudentsPage(filters, { page, pageSize });
+    if (next.students.length === 0) break;
+    all.push(...next.students);
+  }
+
+  return all;
+}
+
 async function getStudentDetailUncached(studentId: string): Promise<StudentDetail | null> {
   const supabase = await getCacheSafeClient();
   const policy = await getFeePolicySummary();
