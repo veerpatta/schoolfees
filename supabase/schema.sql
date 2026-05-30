@@ -5689,14 +5689,38 @@ end;
 $$;
 
 -- Trigger refresh function
+-- Synchronous best-effort refresh on each financial write, with a 2-min cron
+-- backstop: if the inline concurrent refresh is skipped under write contention
+-- (lock_not_available) or errors, the queue is marked pending so
+-- refresh_workbook_materialized_views_if_requested() (the */2 cron) re-refreshes
+-- and clears it. Happy path is instant; worst-case catch-up is <=2 min.
+-- See migration 20260530073353_refresh_backstop_on_skip.sql.
 create or replace function public.trigger_refresh_financial_views()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
 as $$
 begin
-  perform public.queue_workbook_materialized_view_refresh();
+  perform set_config('lock_timeout', '2s', true);
+
+  begin
+    perform public.refresh_financial_materialized_views(true);
+  exception
+    when lock_not_available then
+      update public.workbook_materialized_view_refresh_queue
+        set pending = true,
+            requested_at = now(),
+            request_count = coalesce(request_count, 0) + 1
+      where queue_key = 'workbook';
+    when others then
+      update public.workbook_materialized_view_refresh_queue
+        set pending = true,
+            requested_at = now(),
+            request_count = coalesce(request_count, 0) + 1
+      where queue_key = 'workbook';
+      raise warning 'financial mat-view refresh deferred to 2-min backstop: %', sqlerrm;
+  end;
+
   return null;
 end;
 $$;

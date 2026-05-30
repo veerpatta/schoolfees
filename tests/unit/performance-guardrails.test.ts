@@ -64,14 +64,19 @@ describe("office performance guardrails", () => {
       expect(source).toContain("idx_v_workbook_financials_session_status");
       expect(source).toContain("idx_v_workbook_installments_session");
       expect(source).toContain("workbook_materialized_view_refresh_queue");
-      expect(source).toContain("queue_workbook_materialized_view_refresh");
-      expect(source).toContain("perform public.queue_workbook_materialized_view_refresh()");
       expect(source).toContain("refresh_workbook_materialized_views_if_requested");
       expect(source).toContain("refresh_financial_materialized_views(true)");
       expect(source).toContain("cron.schedule");
       expect(source).toContain("'*/2 * * * *'");
       expect(source).not.toContain("perform public.refresh_financial_materialized_views(false)");
     }
+
+    // The Tier 3 migration introduced the async queue trigger. The live schema
+    // (and 20260530073353_refresh_backstop_on_skip) has since evolved to a
+    // synchronous refresh with the queue + 2-min cron kept as a self-healing
+    // backstop when a contended refresh is skipped.
+    expect(migration).toContain("queue_workbook_materialized_view_refresh");
+    expect(schema).toContain("deferred to 2-min backstop");
   });
 
   it("keeps Defaulters bounded: session-scoped fetch, single pass, client-side incremental render", () => {
