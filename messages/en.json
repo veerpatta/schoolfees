@@ -404,7 +404,7 @@
     "itemReceiptRegister": "Receipt register",
     "itemReceiptRegisterDetail": "Saved receipt records for office accounts.",
     "itemAiContextBundle": "Full AI context",
-    "itemAiContextBundleDetail": "Multi-sheet workbook with students, installments, payments, classes, routes, discounts, defaulters and a README. Large file — may take 10–20 seconds to generate.",
+    "itemAiContextBundleDetail": "Complete multi-sheet workbook: every student (all statuses), installments, payments, adjustments, refunds, classes, routes, discounts, defaulters, plus a README explaining the data. Large file — may take 10–20 seconds to generate.",
     "formatXlsx": "XLSX",
     "formatPdf": "PDF"
   },

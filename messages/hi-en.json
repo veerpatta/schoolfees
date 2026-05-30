@@ -404,7 +404,7 @@
     "itemReceiptRegister": "Raseed panji",
     "itemReceiptRegisterDetail": "Office khaaton ke liye saheje gaye raseed records.",
     "itemAiContextBundle": "Poorn AI context",
-    "itemAiContextBundleDetail": "Vidyarthi, kistein, bhugtan, kakshayein, route, chhoot, bakayedaar aur README ke saath bahu-sheet workbook. Badi file — banaane mein 10–20 second lag sakte hain.",
+    "itemAiContextBundleDetail": "Poorn bahu-sheet workbook: sabhi vidyarthi (sabhi sthiti), kistein, bhugtan, samayojan, refund, kakshayein, route, chhoot, bakayedaar, aur data samjhaane waala README. Badi file — banaane mein 10–20 second lag sakte hain.",
     "formatXlsx": "XLSX",
     "formatPdf": "PDF"
   },

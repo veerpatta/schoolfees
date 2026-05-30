@@ -20,6 +20,7 @@ import {
   getWorkbookTransactions,
 } from "@/lib/workbook/data";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/lib/supabase/session";
+import { createClient } from "@/lib/supabase/server";
 import { formatExportName } from "@/lib/helpers/export";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatDateTimeIst } from "@/lib/helpers/date";
@@ -149,34 +150,103 @@ async function rowsResponse(
 async function aiContextBundleResponse(filename: string, sessionLabel: string) {
   const XLSX = await import("xlsx");
 
+  // Source the roster from the workbook financials view (ALL statuses, not
+  // paginated) so the Students sheet is complete and every SR no referenced by
+  // Installments / Payments / Adjustments / Refunds resolves. getStudents() is
+  // page-capped (100 rows) and active-only — wrong for a full AI snapshot.
   const [
     policy,
     masterData,
-    students,
+    financials,
     installments,
     transactions,
-    financials,
     discountPolicies,
   ] = await Promise.all([
     getFeePolicySummary(),
     getMasterDataOptions(),
-    getStudents({
-      query: "",
-      sessionLabel,
-      classId: "",
-      transportRouteId: "",
-      status: "active",
-    }),
+    getWorkbookStudentFinancials({ sessionLabel }),
     getWorkbookInstallmentRows({ sessionLabel }),
     getWorkbookTransactions({ sessionLabel }),
-    getWorkbookStudentFinancials({ sessionLabel, activeOnly: true }),
     getConventionalDiscountPolicies(sessionLabel),
   ]);
 
+  const allStudentIds = financials.map((row) => row.studentId);
+
   const discountAssignments = await getStudentConventionalDiscountAssignments({
     academicSessionLabel: sessionLabel,
-    studentIds: students.map((row) => row.id),
+    studentIds: allStudentIds,
   });
+
+  // Per-student conventional discount labels (derived from assignments so they
+  // cover every status, not just the active list).
+  const discountLabelsByStudent = new Map<string, string[]>();
+  for (const assignment of discountAssignments) {
+    if (!assignment.isActive) continue;
+    const labels = discountLabelsByStudent.get(assignment.studentId) ?? [];
+    labels.push(assignment.policy.displayName);
+    discountLabelsByStudent.set(assignment.studentId, labels);
+  }
+
+  // Append-only corrections and refunds, session-scoped via the student set.
+  // These read under the caller's JWT; lower roles without finance:view simply
+  // get empty sheets (RLS), which is acceptable degradation.
+  const supabase = await createClient();
+  const [adjustmentsResult, refundsResult] = await Promise.all([
+    allStudentIds.length > 0
+      ? supabase
+          .from("payment_adjustments")
+          .select(
+            "id, student_id, adjustment_type, amount_delta, reason, notes, created_at, installment_ref:installments(installment_label), payment_ref:payments(receipt_ref:receipts(receipt_number))",
+          )
+          .in("student_id", allStudentIds)
+          .order("created_at", { ascending: true })
+      : Promise.resolve({ data: [], error: null }),
+    allStudentIds.length > 0
+      ? supabase
+          .from("refund_requests")
+          .select(
+            "id, student_id, refund_date, requested_amount, refund_method, refund_reference, reason, notes, status, created_at, approved_at, processed_at, receipt_ref:receipts(receipt_number)",
+          )
+          .in("student_id", allStudentIds)
+          .order("created_at", { ascending: true })
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  const adjustments = (adjustmentsResult.data ?? []) as Array<{
+    id: string;
+    student_id: string;
+    adjustment_type: string;
+    amount_delta: number;
+    reason: string;
+    notes: string | null;
+    created_at: string;
+    installment_ref: { installment_label: string } | { installment_label: string }[] | null;
+    payment_ref:
+      | { receipt_ref: { receipt_number: string } | { receipt_number: string }[] | null }
+      | { receipt_ref: { receipt_number: string } | { receipt_number: string }[] | null }[]
+      | null;
+  }>;
+  const refunds = (refundsResult.data ?? []) as Array<{
+    id: string;
+    student_id: string;
+    refund_date: string;
+    requested_amount: number;
+    refund_method: string;
+    refund_reference: string | null;
+    reason: string;
+    notes: string | null;
+    status: string;
+    created_at: string;
+    approved_at: string | null;
+    processed_at: string | null;
+    receipt_ref: { receipt_number: string } | { receipt_number: string }[] | null;
+  }>;
+
+  const firstOf = <T,>(value: T | T[] | null | undefined): T | null =>
+    Array.isArray(value) ? value[0] ?? null : value ?? null;
+
+  const studentIndex = new Map(financials.map((row) => [row.studentId, row]));
+  const activeCount = financials.filter((row) => row.recordStatus === "active").length;
 
   const generatedAt = new Date().toISOString();
 
@@ -218,34 +288,62 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     ``,
     `FINANCIAL IMMUTABILITY`,
     `Payment and receipt rows are append-only. Corrections happen in the`,
-    `payment_adjustments table with audit trail. Never assume a receipt has`,
-    `been edited in place.`,
+    `payment_adjustments table (Adjustments sheet) with an audit trail. Never`,
+    `assume a receipt has been edited in place.`,
+    ``,
+    `MONEY & DEFINITIONS (read this to avoid miscounting)`,
+    `All amounts are integer Indian Rupees (₹), no paise. There are THREE`,
+    `distinct reductions — do NOT conflate them:`,
+    `  1. Conventional / tuition discount — reduces the base fee a student owes.`,
+    `     Shown per student in Students."Discount (tuition)" and in the Discounts`,
+    `     sheet. It lowers "Total due", it is NOT a payment.`,
+    `  2. Discount close-out (a receipt with mode = "discount") — an administrative`,
+    `     write-off that clears a pending balance. It is NOT cash and is`,
+    `     deliberately EXCLUDED from "Total paid" / collection figures. It appears`,
+    `     in Payments with Mode = "discount".`,
+    `  3. Late-fee waiver — waives the late fee only (never the base fee). Shown`,
+    `     in Students."Late-fee waiver" and Installments."Late fee (waiver)".`,
+    `"Total paid" = real cash receipts + adjustments, capped per installment. It`,
+    `EXCLUDES tuition discounts and discount-mode write-offs. So`,
+    `Total due - Total paid is NOT always Outstanding when a write-off exists —`,
+    `trust the "Outstanding" column, which already nets everything.`,
+    `A "processed" refund posts a negative reversal in the Adjustments sheet,`,
+    `which reduces that student's applied/paid amount.`,
     ``,
     `SHEET GLOSSARY`,
-    `* Students          — active student list with class, route, phone, status.`,
+    `* Students          — EVERY student in the session (active, inactive, AND`,
+    `                      graduated — see the Status column), with class, route,`,
+    `                      phones, full fee breakdown, discount, waiver, dues.`,
     `* Installments      — per-student per-installment expected/paid/pending/late fee.`,
     `* Payments          — every receipt with mode, reference, total amount.`,
+    `* Adjustments       — append-only corrections/reversals (refunds, write-offs,`,
+    `                      corrections) with signed amount_delta and reason.`,
+    `* Refunds           — refund requests with status (pending/approved/processed).`,
     `* Classes           — class master with sort order and session label.`,
     `* Routes            — transport route master with codes.`,
     `* Discounts         — conventional discount policies + every active assignment.`,
-    `* Defaulters        — current outstanding follow-up list (students with pending > 0).`,
+    `* Defaulters        — outstanding follow-up list (students with pending > 0).`,
     `* Sessions          — session metadata (current, fee plan summary).`,
     ``,
     `HOW TO INTERPRET THIS WORKBOOK`,
-    `When the model needs a specific student's full picture, join Students,`,
-    `Installments, and Payments by admission_no (SR no). Defaulters is just a`,
-    `filtered view (outstanding > 0). Treat all amounts as canonical only as`,
-    `of the snapshot time above; live state may have moved since.`,
+    `Join every sheet by "SR no" (admission number) — it is the stable student`,
+    `key and appears on Students, Installments, Payments, Adjustments, Refunds,`,
+    `and Defaulters. The Students sheet is complete (all statuses), so any SR no`,
+    `you see elsewhere will resolve there. Defaulters is just a filtered view`,
+    `(outstanding > 0). Treat all amounts as canonical only as of the snapshot`,
+    `time above; live state may have moved since.`,
     ``,
     `Counts in this snapshot:`,
-    `  Students:            ${students.length}`,
-    `  Installments rows:   ${installments.length}`,
-    `  Payments:            ${transactions.length}`,
-    `  Classes:             ${masterData.classOptions.length}`,
-    `  Routes:              ${masterData.routeOptions.length}`,
-    `  Discount policies:   ${discountPolicies.length}`,
-    `  Discount assignments:${discountAssignments.length}`,
-    `  Defaulters:          ${financials.filter((row) => row.outstandingAmount > 0).length}`,
+    `  Students (all statuses): ${financials.length}  (active: ${activeCount})`,
+    `  Installments rows:       ${installments.length}`,
+    `  Payments:                ${transactions.length}`,
+    `  Adjustments:             ${adjustments.length}`,
+    `  Refunds:                 ${refunds.length}`,
+    `  Classes:                 ${masterData.classOptions.length}`,
+    `  Routes:                  ${masterData.routeOptions.length}`,
+    `  Discount policies:       ${discountPolicies.length}`,
+    `  Discount assignments:    ${discountAssignments.length}`,
+    `  Defaulters:              ${financials.filter((row) => row.outstandingAmount > 0).length}`,
   ];
 
   const workbook = XLSX.utils.book_new();
@@ -259,20 +357,30 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
   XLSX.utils.book_append_sheet(
     workbook,
     XLSX.utils.json_to_sheet(
-      students.map((row) => ({
+      financials.map((row) => ({
         "SR no": row.admissionNo,
-        "Student": row.fullName,
+        "Student": row.studentName,
         "Class": row.classLabel,
-        "Route": row.transportRouteLabel,
-        "Phone": row.fatherPhone ?? "",
-        "Status": row.status,
+        "Status": row.recordStatus,
         "Student type": row.studentStatusLabel,
-        "Conventional discounts": row.conventionalDiscountLabels.join(", "),
+        "Route": row.transportRouteName ?? "",
+        "Father phone": row.fatherPhone ?? "",
+        "Mother phone": row.motherPhone ?? "",
+        "Tuition fee": row.tuitionFee,
+        "Transport fee": row.transportFee,
+        "Academic fee": row.academicFee,
+        "Discount (tuition)": row.discountAmount,
+        "Gross before discount": row.grossBaseBeforeDiscount,
+        "Late-fee waiver (annual)": row.lateFeeWaiverAmount,
+        "Late fee charged (total)": row.lateFeeTotal,
         "Total due": row.totalDue,
         "Total paid": row.totalPaid,
         "Outstanding": row.outstandingAmount,
-        "Overdue (no late fee)": row.overdueAmount,
-        "Pending late fee": row.pendingLateFeeAmount,
+        "Conventional discounts": (discountLabelsByStudent.get(row.studentId) ?? []).join(", "),
+        "Next due label": row.nextDueLabel ?? "",
+        "Next due date": row.nextDueDate ?? "",
+        "Next due amount": row.nextDueAmount ?? 0,
+        "Last payment date": row.lastPaymentDate ?? "",
         "Status label": row.statusLabel,
       })),
     ),
@@ -328,6 +436,90 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
   XLSX.utils.book_append_sheet(
     workbook,
     XLSX.utils.json_to_sheet(
+      adjustments.length > 0
+        ? adjustments.map((row) => {
+            const student = studentIndex.get(row.student_id);
+            const installment = firstOf(row.installment_ref);
+            const payment = firstOf(row.payment_ref);
+            const receipt = payment ? firstOf(payment.receipt_ref) : null;
+            return {
+              "Date": row.created_at.slice(0, 10),
+              "SR no": student?.admissionNo ?? "",
+              "Student": student?.studentName ?? "",
+              "Class": student?.classLabel ?? "",
+              "Receipt number": receipt?.receipt_number ?? "",
+              "Installment": installment?.installment_label ?? "",
+              "Adjustment type": row.adjustment_type,
+              "Amount delta (₹, signed)": row.amount_delta,
+              "Reason": row.reason,
+              "Notes": row.notes ?? "",
+            };
+          })
+        : [
+            {
+              "Date": "",
+              "SR no": "",
+              "Student": "",
+              "Class": "",
+              "Receipt number": "",
+              "Installment": "",
+              "Adjustment type": "",
+              "Amount delta (₹, signed)": "",
+              "Reason": "No adjustments in this session (or insufficient permission to read them).",
+              "Notes": "",
+            },
+          ],
+    ),
+    "Adjustments",
+  );
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.json_to_sheet(
+      refunds.length > 0
+        ? refunds.map((row) => {
+            const student = studentIndex.get(row.student_id);
+            const receipt = firstOf(row.receipt_ref);
+            return {
+              "Refund date": row.refund_date,
+              "SR no": student?.admissionNo ?? "",
+              "Student": student?.studentName ?? "",
+              "Class": student?.classLabel ?? "",
+              "Receipt number": receipt?.receipt_number ?? "",
+              "Requested amount": row.requested_amount,
+              "Method": row.refund_method,
+              "Reference": row.refund_reference ?? "",
+              "Status": row.status,
+              "Reason": row.reason,
+              "Requested at": row.created_at,
+              "Approved at": row.approved_at ?? "",
+              "Processed at": row.processed_at ?? "",
+            };
+          })
+        : [
+            {
+              "Refund date": "",
+              "SR no": "",
+              "Student": "",
+              "Class": "",
+              "Receipt number": "",
+              "Requested amount": "",
+              "Method": "",
+              "Reference": "",
+              "Status": "",
+              "Reason": "No refund requests in this session (or insufficient permission to read them).",
+              "Requested at": "",
+              "Approved at": "",
+              "Processed at": "",
+            },
+          ],
+    ),
+    "Refunds",
+  );
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.json_to_sheet(
       masterData.classOptions.map((row) => ({
         "Class label": row.label,
         "Session": row.sessionLabel,
@@ -350,7 +542,6 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     "Routes",
   );
 
-  const studentIndex = new Map(students.map((row) => [row.id, row]));
   const discountRows: Array<Record<string, string | number>> = [];
   discountPolicies.forEach((policyRow) => {
     discountRows.push({
@@ -379,7 +570,7 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
       "Percentage": "",
       "Active": assignment.isActive ? "yes" : "no",
       "SR no": student?.admissionNo ?? "",
-      "Student": student?.fullName ?? "",
+      "Student": student?.studentName ?? "",
       "Family group": assignment.familyGroupLabel ?? "",
       "Manual override": assignment.isManualOverride ? "yes" : "no",
       "Reason": assignment.reason ?? "",
