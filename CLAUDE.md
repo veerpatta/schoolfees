@@ -93,13 +93,22 @@ All staff workspace modules live under `app/protected/`, each with a parallel th
 | Receipts | `/protected/receipts` | Receipt lookup and reprint |
 | Reports | `/protected/reports` | Report views and student ledger |
 | Ledger | `/protected/ledger` | Ledger display |
-| Finance Controls | `/protected/finance-controls` | Day-close and finance corrections |
+| Finance Controls | `/protected/finance-controls` | Automatic day-close view (read-only), refunds, and correction review |
 | Master Data | `/protected/master-data` | School lists (sessions, classes, routes) |
 | Staff Management | `/protected/staff` | Staff accounts and RBAC |
 | Session Switcher | `/protected/session` | Academic session switching |
-| Settings | `/protected/settings` | App settings |
-| Setup | `/protected/setup` | First-time setup wizard |
+| Settings | `/protected/settings` | School Settings hub (identity + fee-policy summary + system health) |
+| Setup | `/protected/setup` | Retired — redirects to Admin Tools (first-time setup removed) |
 | Fee Structure | `/protected/fee-structure` | Fee structure display |
+
+**Admin Tools sub-features:** Transfer to Next Session (year-end rollover —
+copies classes/fee policy/discount policies, promotes students, carries credit;
+plus ≤30-day zero-payment session delete), Refunds (posts ledger reversals),
+Session Health, Activity feed, WhatsApp templates.
+
+**Automation:** Day close runs automatically via a nightly cron
+(`/api/cron/auto-day-close`); refunds processed in Finance Controls post a
+`reversal` `payment_adjustment` so they move money in the projection.
 
 ### Where to Look
 

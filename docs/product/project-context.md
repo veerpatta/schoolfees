@@ -131,14 +131,15 @@ Top-level office XLSX center:
 
 ### Admin Tools
 
-Rare/config-only area:
+Rare/config-only area (first-time setup retired — school is live):
 
-- first-time setup
-- master data
+- Transfer to Next Session (year-end rollover + ≤30-day session delete)
+- Refunds (post ledger reversals)
+- master data / school lists
 - staff and permissions
-- day close/corrections
-- settings/system checks
-- import history
+- automatic day close (read-only) / correction review
+- School Settings (identity + fee-policy summary + system health)
+- import history, activity feed, WhatsApp templates
 
 ## Active Policy Values & Conventional Discounts
 

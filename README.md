@@ -1,326 +1,366 @@
-# Shri Veer Patta Senior Secondary School Fee Management App
+<div align="center">
 
-Internal fee-management web app for one school:
-**Shri Veer Patta Senior Secondary School (VPPS / Veer Patta School)**.
+# 🏫 VPPS Fee Management
 
-## 1) What this app is
+### Internal fee-office platform for **Shri Veer Patta Senior Secondary School**
 
-This is an **internal office/accounts/admin** system for daily fee work:
+*One school · one tenant · built for the office, accounts team, and admins — not parents, not the public.*
 
-- student master maintenance
-- fee setup by academic year
-- automated dues/installment projections
-- quick payment collection and receipt printing
-- defaulters follow-up
-- exports for office reporting
+[![Next.js](https://img.shields.io/badge/Next.js-16.2-000000?logo=next.js&logoColor=white)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19.2-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20RLS-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![Vitest](https://img.shields.io/badge/Vitest-777%20passing-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev/)
+[![Deployed on Vercel](https://img.shields.io/badge/Vercel-live-000000?logo=vercel&logoColor=white)](https://schoolfees-two.vercel.app)
 
-It is built to gradually replace workbook/Excel operations with safer, faster,
-audit-ready workflows only.
+🔗 **Live app:** [schoolfees-two.vercel.app](https://schoolfees-two.vercel.app) · 📦 **Repo:** [github.com/veerpatta/schoolfees](https://github.com/veerpatta/schoolfees)
 
-## Read First Before Product Decisions
+</div>
 
-1. `AGENTS.md`
-2. `docs/product/project-context.md`
-3. `docs/product/mvp-scope.md`
-4. `docs/product/school-rules.md`
-5. `docs/modules/import.md`
-6. `docs/product/roadmap.md`
-7. `PRODUCTION_OPERATIONS_CHECKLIST.md`
-8. `UAT_CHECKLIST.md`
+---
 
-## 2) What this app is not
+## ✨ TL;DR
 
-- not a parent portal
-- not a public self-service fee app
-- not a multi-school SaaS platform
+> A fast, **append-only, audit-ready** fee desk that replaces the office Excel workbook.
+> Staff maintain **Students** and **Fee Setup**; everything else — dues, dashboards,
+> defaulters, receipts, exports — derives automatically. Money records are **immutable**;
+> corrections flow through adjustments. It's **production-live** for AY 2026-27 with real data. 🟢
 
-## 3) Core product philosophy
+| | |
+|---|---|
+| 🎯 **Audience** | Office staff, accounts team, school admins (internal only) |
+| 🧾 **Core job** | Collect fees, print receipts, track dues, chase defaulters |
+| 🔒 **Promise** | Posted payments/receipts are never edited in place |
+| 🔄 **Magic** | Change a fee → unpaid dues update everywhere, no manual sync |
+| ☁️ **Stack** | Next.js 16 (App Router) · Supabase (Postgres + RLS, Mumbai) · Vercel |
 
-### Source of truth
+---
 
-**Students + Fee Setup are the operational source of truth.**
+## 🧭 Table of Contents
 
-Everything else (Dashboard, pending dues, Payment Desk, Defaulters, Exports,
-Transactions) should update from those two areas without staff doing manual
-syncs.
+- [🏗️ Architecture](#️-architecture)
+- [🔑 The one rule: Source of Truth](#-the-one-rule-source-of-truth)
+- [🧩 Modules](#-modules)
+- [👥 Roles & Access](#-roles--access)
+- [💰 Financial integrity (read this)](#-financial-integrity-read-this)
+- [🔁 Year-end: Transfer to Next Session](#-year-end-transfer-to-next-session)
+- [🤖 Automation (cron)](#-automation-cron)
+- [📤 Exports (incl. the AI bundle)](#-exports-incl-the-ai-bundle)
+- [🧮 Fee engine internals](#-fee-engine-internals)
+- [🚀 Quick start](#-quick-start)
+- [🔧 Environment variables](#-environment-variables)
+- [🗄️ Database & migrations](#️-database--migrations)
+- [✅ Quality gates](#-quality-gates)
+- [🛡️ Hard safety rules](#️-hard-safety-rules)
+- [📚 Docs map](#-docs-map)
 
-### Accounting safety
+---
 
-- posted **payments and receipts are permanent records**
-- do not directly edit/delete posted payments or receipts
-- corrections should be explicit via adjustments/refunds/credits/withdraw style
-  entries
-- fee setup changes after payment must not rewrite paid history; they should
-  surface pending impact or credit/refund impact instead
+## 🏗️ Architecture
 
-## 4) Main navigation (current)
+```mermaid
+flowchart TB
+    subgraph Browser["🧑‍💼 Office Browser (PWA)"]
+        UI["shadcn/ui · Tailwind · React 19"]
+    end
 
-Top-level daily areas:
+    subgraph Vercel["▲ Vercel (Next.js 16 App Router)"]
+        RSC["React Server Components"]
+        SA["Server Actions"]
+        API["Route Handlers /api"]
+        CRON["⏰ Vercel Cron"]
+    end
 
-- `Dashboard`
-- `Students`
-- `Fee Setup`
-- `Payment Desk`
-- `Transactions`
-- `Defaulters`
-- `Exports`
-- `Admin Tools`
+    subgraph Supabase["🟢 Supabase · Mumbai (ap-south-1)"]
+        AUTH["Auth (JWT)"]
+        PG[("Postgres + RLS")]
+        RPC["SECURITY DEFINER RPCs"]
+        MV["Materialized views\n(financial projection)"]
+        PGCRON["pg_cron */2"]
+    end
 
-Role landing defaults (5 roles; see `lib/auth/roles.ts`):
-
-- `admin` -> `Dashboard`
-- `accountant` -> `Payment Desk`
-- `teacher` -> `Students`
-- `fee_collector` -> `Defaulters`
-- `view_only` -> `Dashboard`
-
-### Production vs Staging deployment
-
-Production runs with `APP_MODE=production` and reads/writes the `public` schema.
-Staging can run with `APP_MODE=test` and reads/writes isolated operational tables
-in the `test` schema while shared setup catalogues remain read-only references.
-
-Quality guardrails:
-
-```bash
-npm run quality:budgets
+    UI -->|navigation / forms| RSC
+    UI -->|mutations| SA
+    UI -->|data fetch| API
+    RSC --> PG
+    SA --> RPC
+    API --> PG
+    RPC --> PG
+    PG --> MV
+    PGCRON --> MV
+    CRON -->|nightly backup · auto day-close| API
+    AUTH -. row-level security .-> PG
 ```
 
-The offline fallback is read-only. Payments and receipts still require server confirmation.
+**Why it's shaped like this**
 
-See [Test Environment Isolation](docs/test-environment-isolation.md) for setup,
-the one-time TEST-data migration script, and the longer-term separate Supabase
-project option.
+- 🧠 **Server-first** — RSC + Server Actions keep logic and secrets on the server; the browser only renders.
+- 🔐 **Two-layer auth** — app-layer guards (`requireStaffPermission`) *and* Postgres RLS. Defense in depth.
+- ⚡ **Read/write split** — writes hit live RPCs; heavy dashboards read pre-computed **materialized views** kept fresh on every write (with a 2-min cron backstop, see [Automation](#-automation-cron)).
 
-## 5) Current feature summary
+---
 
-### Dashboard
+## 🔑 The one rule: Source of Truth
 
-Analytics-first overview with collection and follow-up signals:
+> **Students + Fee Setup are canonical. Everything else derives from them — automatically.**
 
-- expected / collected / pending / collection percentage
-- active student count
-- refund/credit due snapshot (where available)
-- receipts today/month
-- class-wise pending analysis
-- top defaulters, recent payments, and attention cards
+```mermaid
+flowchart LR
+    A["👨‍🎓 Students"] --> R{{"♻️ Dues\nregeneration"}}
+    B["📋 Fee Setup\n(fees · fee heads · dates)"] --> R
+    R --> I["🧾 Installments\n(unpaid rows only)"]
+    I --> MV["📊 Materialized views"]
+    MV --> D["📈 Dashboard"]
+    MV --> DF["📞 Defaulters"]
+    MV --> EX["📤 Exports"]
+    MV --> TX["📚 Transactions"]
+    PD["💵 Payment Desk"] -->|live snapshot| I
+    style R fill:#fde68a,stroke:#d97706,color:#000
+    style I fill:#bbf7d0,stroke:#16a34a,color:#000
+```
 
-### Students
+- Edit a fee, fee head, or due date → only **unpaid** installments are rebuilt (paid rows are frozen — see [safety](#-financial-integrity-read-this)).
+- The **Payment Desk** always previews/posts against a **live** allocation snapshot, so collection is never stale.
+- Dashboards/exports refresh on every write; worst-case catch-up is **≤ 2 minutes**.
 
-- student master list, add, edit, detail
-- automatic pending SR generation when SR is blank
-- session-aware class filtering
-- automatic dues preparation after add/edit/import
-- route changes refresh dues scope
-- new vs existing academic fee behavior
-- student-specific fee exceptions/overrides
-- conventional discount assignment support
-- bulk add and bulk update import workflow
-- return-to-filter behavior from detail/edit pages
+---
 
-### Fee Setup
+## 🧩 Modules
 
-- academic year setup
-- class-wise annual tuition
-- route-wise annual transport fees
-- installment due dates
-- flat late fee
-- new/existing academic fee
-- Preview Changes + Publish Fee Setup workflow
-- applies safe updates to unpaid/future rows
-- paid/partial/adjusted rows are protected and surfaced for review
+All staff modules live under `app/protected/` with a parallel three-layer shape:
+`app/protected/<module>` (routes) + `components/<module>` (UI) + `lib/<module>` (domain logic).
 
-### Conventional discount policies (implemented)
+| | Module | Route | What it does |
+|---|---|---|---|
+| 📊 | **Dashboard** | `/protected/dashboard` | Read-only analytics: collected, pending, %, class-wise, top defaulters |
+| 👨‍🎓 | **Students** | `/protected/students` | Student master + per-student fee exceptions & discounts |
+| 📋 | **Fee Setup** | `/protected/fee-setup` | Yearly policy: tuition, transport, due dates, late fee, fee heads |
+| 💵 | **Payment Desk** | `/protected/payments` | The **only** place payments are posted; prints receipts |
+| 📚 | **Transactions** | `/protected/transactions` | Read-only receipts, dues, ledger, class register |
+| 📞 | **Defaulters** | `/protected/defaulters` | Daily call list with smart heat ranking & follow-up |
+| 📤 | **Exports** | `/protected/exports` | XLSX download center + AI context bundle |
+| 🛠️ | **Admin Tools** | `/protected/admin-tools` | Year transfer, refunds, day-close, settings, staff, audit |
+| 🧾 | **Receipts** | `/protected/receipts` | Lookup & reprint (A4) |
+| 💳 | **Finance Controls** | `/protected/finance-controls` | Auto day-close view, refunds, correction review |
+| 🗂️ | **Master Data** | `/protected/master-data` | Sessions, classes, routes, fee heads, payment modes |
+| 👮 | **Staff** | `/protected/staff` | Accounts & RBAC |
+| 📥 | **Imports** | `/protected/imports` | Staged student import (upload → map → dry-run → commit) |
 
-RTE, Staff Child, and 3rd Child Policy — tuition-only, year-scoped, auditable,
-max 2 active per student/year. Full outcomes and rules:
-see [`docs/product/school-rules.md`](docs/product/school-rules.md).
+---
 
-### Payment Desk
+## 👥 Roles & Access
 
-Cashier-speed payment flow:
+Five roles (`lib/auth/roles.ts`). Navigation visibility and landing routes are permission-driven.
 
-- class-first filtering
-- student selection with SR support
-- selected-student dues view
-- quick amount options + manual amount
-- payment confirmation and receipt success
-- print/open receipt and “Collect Another Payment” flow
-- idempotency + locking safeguards on posting
-- reference number is optional for all modes (soft reminder where relevant)
-- missing-dues fallback preparation + diagnostics
-- pending vs credit/refund impact visibility from student financial state
+| Role | 🏠 Lands on | Can do |
+|---|---|---|
+| 👑 `admin` | Dashboard | Everything |
+| 🧮 `accountant` | Payment Desk | Collect, refunds, finance controls, reports |
+| 🍎 `teacher` | Students | Students, dues, defaulters (read payments) |
+| 📞 `fee_collector` | Defaulters | Follow-up + student reads |
+| 👀 `view_only` | Dashboard | Read-only |
 
-### Transactions
+> Legacy aliases still resolve: `read_only_staff → view_only`, `defaulter_followup → fee_collector`.
 
-Read-only record center:
+---
 
-- receipts
-- student dues
-- class register
-- installment/dues tracking
-- compact filters and context-preserving back-links
+## 💰 Financial integrity (read this)
 
-### Defaulters
+Money is **append-only**. `payments` and `receipts` are never updated or deleted — Postgres triggers physically block it. Corrections happen as new `payment_adjustments` rows with an audit trail. Refunds post a **reversal** adjustment.
 
-Daily follow-up workspace:
+### The three reductions — never conflate them 🧠
 
-- ranking by pending amount and overdue behavior
-- current working scoring direction: `pending_amount + days_overdue * 100`
-- phone-ready list with class/route/search filters
-- auto-updates based on current date context
+```mermaid
+flowchart TD
+    F["Annual fee a student owes"]
+    F -->|"1️⃣ tuition discount\n(RTE / staff child / 3rd child)"| F2["Lower base due"]
+    F2 -->|"collect cash"| P["Total paid 💵"]
+    F2 -->|"2️⃣ discount close-out\n(write-off, mode='discount')"| W["Pending cleared\n❗NOT counted as paid"]
+    LF["Late fee (₹1,000 flat)"] -->|"3️⃣ late-fee waiver"| LF2["Reduced/zero late fee"]
+    style P fill:#bbf7d0,stroke:#16a34a,color:#000
+    style W fill:#fecaca,stroke:#dc2626,color:#000
+```
 
-### Exports
+| # | Reduction | Affects | Counted as paid? |
+|---|---|---|---|
+| 1️⃣ | **Tuition discount** | lowers the base fee | ❌ no |
+| 2️⃣ | **Discount close-out** (write-off) | clears pending balance | ❌ **no** |
+| 3️⃣ | **Late-fee waiver** | waives late fee only | ❌ no |
 
-Top-level XLSX download center:
+**The "paid" formula** (per installment, in the projection view):
 
-- students exports
-- fees/dues exports
-- payments exports
-- conventional discount student export
-- office-friendly file labels and headers
+```text
+applied_amount = max( real_cash_payments + payment_adjustments , 0 )
+total_paid     = Σ applied_amount          # excludes discount-mode receipts & tuition discounts
+```
 
-### Receipts / print
+So `Total due − Total paid` is **not** always `Outstanding` when a write-off exists — always trust the `Outstanding` column, which nets everything. ✅
 
-- school branding-aware receipt page
-- A4 print layout support
-- transaction return links where applicable
+---
 
-### Admin Tools
+## 🔁 Year-end: Transfer to Next Session
 
-Rare setup/troubleshooting/configuration area:
+One click in **Admin Tools → Transfer to Next Session** rolls the school forward.
 
-- first-time setup
-- school lists/master data
-- staff and permissions
-- day close/corrections and finance controls
-- system checks and import history
+```mermaid
+sequenceDiagram
+    actor Admin
+    participant T as Transfer flow
+    participant DB as Supabase
+    Admin->>T: From 2026-27 → To 2027-28
+    T->>DB: Create session + copy classes, fee policy,<br/>discount policies, fee settings
+    T->>DB: Build promotion preview (Class N → N+1)
+    Admin->>T: Review & Apply ✅
+    T->>DB: Promote students, carry credit forward
+    Note over Admin,DB: 🧯 Roll back anytime · 🗑️ delete a<br/>≤30-day, zero-payment session by mistake
+```
 
-## 6) Active AY 2026-27 values (current live policy intent)
+- 📋 Copies classes, fee policy, **conventional discount policies**, and per-class fee settings — all editable afterwards.
+- 🚌 Transport routes are global, shared across years automatically.
+- 🗑️ A session created **by mistake** can be hard-deleted within **30 days** *only if it has zero posted payments/receipts* (immutability-safe).
 
-Active session `2026-27`, receipt prefix `SVP`. Canonical fee defaults (late fee,
-due dates, academic/tuition fees, payment modes, books exclusion) live in
-[`docs/product/school-rules.md`](docs/product/school-rules.md) +
-`lib/config/fee-rules.ts`. Update those first.
+---
 
-## 7) Important safety/accounting rules
+## 🤖 Automation (cron)
 
-- never rewrite posted payment/receipt history
-- keep append-only chronology for receipts, payments, payment adjustments,
-  audit logs
-- use explicit correction records, not silent edits
-- keep technical complexity hidden from day-to-day office screens where possible
+No manual buttons. The system keeps itself in sync and closed.
 
-## 8) Quick local setup
+| ⏰ Job | Schedule | What it does |
+|---|---|---|
+| 🌙 Nightly backup | `0 18 * * *` UTC (23:30 IST) | CSV dump of core tables → Supabase Storage |
+| 🔒 Auto day-close | `30 18 * * *` UTC (00:00 IST) | Snapshots yesterday's collections → `collection_closures` (read-only, no approval) |
+| ♻️ Mat-view refresh | `*/2 * * * *` (pg_cron) | Backstop that re-refreshes financial views if a write-time refresh was skipped |
+
+> Day close is **fully automatic** — staff never tap a button. Finance Controls shows it read-only.
+
+---
+
+## 📤 Exports (incl. the AI bundle)
+
+Every export streams **all rows** (no page caps) as XLSX. 🧾
+
+- 👨‍🎓 All students · 📊 Class-wise dues · 📞 Defaulters · 🧾 Receipt register · 🎁 Conventional-discount students
+- 🤖 **AI context bundle** — a single workbook designed to feed an LLM:
+  `_README` (data dictionary) · Students (all statuses) · Installments · Payments · **Adjustments** · **Refunds** · Classes · Routes · Discounts · Defaulters · Sessions. Every sheet joins on **SR no**.
+
+---
+
+## 🧮 Fee engine internals
+
+Engine: **`workbook_v1`** (`lib/fees/`, `lib/workbook/`).
+
+| Object | Role |
+|---|---|
+| `v_workbook_student_financials` | Per-student projection (materialized) |
+| `v_workbook_installment_balances` | Installment-level balances (materialized) |
+| `v_student_financial_state` | Pending vs credit/refund projection |
+| `preview_workbook_payment_allocation` | Date-aware **live** preview RPC |
+| `post_student_payment` | Posting RPC (idempotency + advisory locks) |
+| `process_refund_with_adjustment` | Posts reversal adjustments for a refund |
+| `delete_academic_session_safe` | Guarded ≤30-day, zero-payment session delete |
+
+📐 Canonical fee rules: [`docs/product/school-rules.md`](docs/product/school-rules.md) + [`lib/config/fee-rules.ts`](lib/config/fee-rules.ts).
+
+---
+
+## 🚀 Quick start
 
 ```bash
+git clone https://github.com/veerpatta/schoolfees.git
+cd schoolfees
 npm install
-cp .env.example .env.local
-npm run dev
+cp .env.example .env.local   # fill in Supabase keys
+npm run dev                  # → http://localhost:3000
 ```
 
-Open `http://localhost:3000`.
+### Common commands
 
-## 9) Environment variables
+```bash
+npm run dev          # 🔥 dev server
+npm run check        # ✅ lint + typecheck
+npm run test         # 🧪 vitest (777 tests)
+npm run build        # 📦 production build
+npx vitest run tests/integration/payment-desk-workflow.test.ts   # single file
+```
 
-Required runtime env:
+---
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-- `NEXT_PUBLIC_SITE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY` (server-only)
-- `NEXT_PUBLIC_SCHOOL_NAME`
-- `APP_MODE` (`production` for live/public schema, `test` for isolated test schema)
-- `OPENAI_MODEL` (optional, defaults to `gpt-5.5` in `lib/config/openai.ts`)
+## 🔧 Environment variables
 
-Bootstrap script env (staff seeding):
+Copy `.env.example` → `.env.local`.
 
-- `BOOTSTRAP_MAIN_ADMIN_PASSWORD`
-- `BOOTSTRAP_ACCOUNTS_PASSWORD`
-- `BOOTSTRAP_STAFF_PASSWORD`
+| Variable | Required | Notes |
+|---|:---:|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | ✅ | Anon / publishable key |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | **Server-only** — never in browser/`NEXT_PUBLIC_*` |
+| `NEXT_PUBLIC_SITE_URL` | ✅ | Prod domain (`http://localhost:3000` locally) |
+| `NEXT_PUBLIC_SCHOOL_NAME` | ✅ | `Shri Veer Patta Senior Secondary School` |
+| `NEXT_PUBLIC_APP_MODE` | ✅ | `internal-admin` |
+| `CRON_SECRET` | ✅ (prod) | Authorizes Vercel cron routes |
+| `BOOTSTRAP_*_PASSWORD` | ⚙️ | One-time staff seeding only |
 
-## 10) Supabase
+---
 
-**Live project:** `vgqyilgstjvgohrsiwkb` — ap-south-1 (Mumbai)
-**URL:** `https://vgqyilgstjvgohrsiwkb.supabase.co`
+## 🗄️ Database & migrations
 
-Mumbai is the only active Supabase backend for this app. The legacy regional
-backend was deleted after migration, and no rollback target is kept in this
-repo or MCP configuration.
-
-Run schema changes through `supabase/migrations/*`.
-See `supabase/README.md` and `supabase/migrations/README.md` for the full
-indexed migration history grouped by feature area.
-
-To add a new migration:
+**Project:** `vgqyilgstjvgohrsiwkb` · Supabase **Mumbai (ap-south-1)**.
 
 ```bash
 supabase migration new <short_snake_case_name>
-# edit the generated file
+# edit supabase/migrations/<timestamp>_<name>.sql
 supabase db push
 ```
 
-## 11) Common commands
+- Canonical schema: [`supabase/schema.sql`](supabase/schema.sql) · ordered history: [`supabase/migrations/`](supabase/migrations).
+- ⚠️ Applying via the Supabase MCP renames the version from wall-clock time — rename the local file to match (see [`CLAUDE.md`](CLAUDE.md)).
 
-```bash
-npm run dev
-npm run lint
-npm run typecheck
-npm run test
-npm run build
-node scripts/verify-phase1-migrations.mjs
-node scripts/verify-required-sessions.mjs
+---
+
+## ✅ Quality gates
+
+Run before every PR (`AGENTS.md` order): **`typecheck → lint → test → build`**.
+
+```
+✔ tsc --noEmit        clean
+✔ eslint .            0 errors / 0 warnings
+✔ vitest run          777 / 777 passing
+✔ next build          green
 ```
 
-## 12) Testing / Production rules
+Test layout: `tests/unit` (pure/domain) · `tests/integration` (workflows) · `tests/ui` (routes/components).
 
-- never modify the live AY `2026-27` session for testing
-- use `TEST-2026-27` for all ongoing testing and debugging
-- use dummy names/SR values only:
-  - `Test Student 001`
-  - `Test Student 002`
-  - `TEST-SR-001`
-  - `TEST-SR-002`
-- do not post test payments against real students
-- rotate shared admin passwords whenever staff access changes
-- do not store real passwords in repo/docs/prompts
+---
 
-Detailed guides:
+## 🛡️ Hard safety rules
 
-- `PRODUCTION_OPERATIONS_CHECKLIST.md`
-- `UAT_CHECKLIST.md`
-- `docs/workflows/test-data-setup.md`
-- `docs/workflows/production-operations-guide.md`
+1. 🚫 Never edit/delete posted `payments` or `receipts` — correct via `payment_adjustments`.
+2. 🔑 `SUPABASE_SERVICE_ROLE_KEY` stays server-only.
+3. 🙅 Public signup stays disabled after bootstrap.
+4. 💵 No payment-posting path outside the Payment Desk.
+5. 🟥 **`2026-27` is live production data** — use `TEST-2026-27` for all testing; never post test payments against real students.
+6. 📋 Fee Setup publish must preview impact and protect paid/partial/adjusted rows.
 
-## 13) Current roadmap / pivot
+---
 
-See `docs/product/roadmap.md`.
+## 📚 Docs map
 
-Short version:
+| Path | What's inside |
+|---|---|
+| [`docs/product/`](docs/product) | Project context, MVP scope, **school rules**, roadmap |
+| [`docs/modules/`](docs/modules) | Per-module guides (import, payment-desk, exports, …) |
+| [`docs/maps/`](docs/maps) | Folder map, database map, module map, danger zones |
+| [`docs/workflows/`](docs/workflows) | Test-data setup, production operations |
+| [`CLAUDE.md`](CLAUDE.md) / [`AGENTS.md`](AGENTS.md) | Contributor + agent guide |
+| [`PRODUCTION_OPERATIONS_CHECKLIST.md`](PRODUCTION_OPERATIONS_CHECKLIST.md) · [`UAT_CHECKLIST.md`](UAT_CHECKLIST.md) | Go-live & UAT |
 
-- current pivot: automation-first, office-friendly daily modules, faster Payment
-  Desk, stronger analytics, top-level Defaulters + Exports, conventional
-  discount support
-- next: production stability monitoring, UI polish, richer exports,
-  follow-up notes, print tuning, role-specific hardening
+---
 
-## 14) Known operational notes
+<div align="center">
 
-Implemented in current branch:
+**Internal software for Shri Veer Patta Senior Secondary School.** Not for public distribution.
 
-- `/protected` role redirect now resolves by role and avoids self-loop behavior
-- academic session parser accepts `2026-27`, `TEST-2026-27`, `UAT-2026-27`,
-  `DEMO-2026-27`
-- import row upsert requires `batch_id`, avoiding null batch inserts
-- dashboard student counting is not limited to workbook row presence
-- class activity logic uses `classes.status` instead of legacy `is_active`
-- payment preview and posting now align on date-aware workbook snapshot
-- payment posting includes idempotency/locking protections
-- receipt number ambiguity in `post_student_payment` addressed
-- `v_student_financial_state` supports pending vs credit/refund projection
-- conventional discount policy tables + assignment model added
+Built with ❤️ for the fee office · maintained with append-only discipline 🔒
 
-Pending browser/production verification in some environments:
-
-- print layout tuning per printer/browser combination
-- full end-to-end role-by-role smoke checks after every migration batch
+</div>

@@ -31,6 +31,23 @@ Recent (post go-live):
 - defaulters follow-up: multi-number call learning, behavior segments, no-call flag
 - 5-role RBAC matrix rebalanced; financial-risk/UX/workflow audit findings closed
 
+Admin Tools revamp + launch hardening:
+
+- single **Transfer to Next Session** flow (creates next session, copies classes +
+  fee policy + discount policies, promotes students, carries credit, rollback)
+- ≤30-day, zero-payment **safe session delete** (`delete_academic_session_safe`)
+- **fully automatic day close** via nightly cron (no manual approval); cash/bank
+  reconciliation retired
+- **refunds wired to the ledger** (`process_refund_with_adjustment` posts a
+  reversal adjustment, with cumulative over-refund guard)
+- consolidated **School Settings** hub; first-time setup wizard removed (redirects)
+- Admin Tools hub regrouped into task-named sections (no dead/hidden cards)
+- **self-healing materialized-view refresh** backstop (write-time refresh + 2-min
+  cron catch-up)
+- exports stream **all rows** (no page caps); **AI context bundle** export with
+  README + Adjustments/Refunds sheets
+- clean lint (0 errors/warnings); 777 tests green
+
 ## Live Production (Current)
 
 - App is live with real 2026-27 student and fee data.

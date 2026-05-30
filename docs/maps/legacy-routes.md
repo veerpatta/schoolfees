@@ -11,7 +11,7 @@ Do not remove or rename them without a separate route-compatibility review.
 | `/protected/receipts` | `/protected/transactions` | `navigation.ts` alias entry; the root route still serves receipt search/reprint UI. |
 | `/protected/ledger` | `/protected/transactions` | `navigation.ts` alias entry; the root route still serves legacy ledger UI. |
 | `/protected/advanced` | `/protected/admin-tools` | File redirect: `app/protected/advanced/page.tsx`. |
-| `/protected/setup` | `/protected/admin-tools` | `navigation.ts` metadata target for the first-time setup workspace. |
+| `/protected/setup` | `/protected/admin-tools` | Redirect: first-time setup retired; `app/protected/setup/page.tsx` redirects to Admin Tools. |
 | `/protected/master-data` | `/protected/admin-tools` | `navigation.ts` metadata target for school setup lists. |
 | `/protected/finance-controls` | `/protected/admin-tools` | `navigation.ts` metadata target for finance controls. |
 
