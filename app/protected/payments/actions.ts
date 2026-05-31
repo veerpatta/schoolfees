@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 
 import type { PaymentMode } from "@/lib/db/types";
 import { recordActivity } from "@/lib/activity/events";
@@ -152,6 +153,8 @@ export async function submitPaymentEntryAction(
   formData: FormData,
 ): Promise<PaymentEntryActionState> {
   let clientRequestId: string | null = null;
+  const _t0 = Date.now();
+  let _tBeforePost = _t0;
   try {
     const rawClientRequestId = formData.get("clientRequestId");
     if (rawClientRequestId) {
@@ -196,6 +199,7 @@ export async function submitPaymentEntryAction(
     const acknowledgeDailyDuplicate =
       (formData.get("acknowledgeDailyDuplicate") ?? "").toString() === "true";
 
+    _tBeforePost = Date.now();
     const receipt = await postStudentPayment({
       studentId,
       sessionLabel,
@@ -210,6 +214,13 @@ export async function submitPaymentEntryAction(
       clientRequestId,
       acknowledgeDailyDuplicate,
     });
+    const _tAfterPost = Date.now();
+    // Coarse latency split so a slow post is attributable from the Vercel logs:
+    // `pre` = auth + validation + student/policy reads before posting,
+    // `post` = postStudentPayment (preflight reads + duplicate checks + RPC).
+    console.log(
+      `[payment-post] ok total=${_tAfterPost - _t0}ms pre=${_tBeforePost - _t0}ms post=${_tAfterPost - _tBeforePost}ms`,
+    );
     const resolvedSessionLabel = student.classSessionLabel || sessionLabel;
 
     revalidateSessionFinance(resolvedSessionLabel, [studentId]);
@@ -222,29 +233,37 @@ export async function submitPaymentEntryAction(
       sessionLabel: resolvedSessionLabel,
       affectedStudentIds: [studentId],
     });
-    await publishOfficeSyncEvent({
-      sessionLabel: resolvedSessionLabel,
-      entityType: "payment",
-      entityId: receipt.receiptId,
-      action: "posted",
-      affectedStudentIds: [studentId],
-      metadata: {
-        receiptNumber: receipt.receiptNumber,
-        status: syncOutcome.status,
-      },
-    });
 
-    await recordActivity({
-      userId: (staffSession?.id as string | undefined) ?? null,
-      kind: "payment_posted",
-      refId: receipt.receiptId,
-      payload: {
-        studentId,
-        receiptNumber: receipt.receiptNumber,
-        amount: paymentAmount,
-        paymentMode,
+    // The office-sync event and activity log are best-effort, non-critical
+    // bookkeeping. Awaiting them added two sequential Mumbai round-trips to the
+    // cashier's perceived posting latency for no user-visible benefit. Run them
+    // via after() so they execute after the response is sent; both already
+    // swallow their own errors, so a post-response failure is harmless.
+    after(async () => {
+      await publishOfficeSyncEvent({
         sessionLabel: resolvedSessionLabel,
-      },
+        entityType: "payment",
+        entityId: receipt.receiptId,
+        action: "posted",
+        affectedStudentIds: [studentId],
+        metadata: {
+          receiptNumber: receipt.receiptNumber,
+          status: syncOutcome.status,
+        },
+      });
+
+      await recordActivity({
+        userId: (staffSession?.id as string | undefined) ?? null,
+        kind: "payment_posted",
+        refId: receipt.receiptId,
+        payload: {
+          studentId,
+          receiptNumber: receipt.receiptNumber,
+          amount: paymentAmount,
+          paymentMode,
+          sessionLabel: resolvedSessionLabel,
+        },
+      });
     });
 
     return {
@@ -266,6 +285,9 @@ export async function submitPaymentEntryAction(
       syncOutcome,
     };
   } catch (error) {
+    console.log(
+      `[payment-post] fail total=${Date.now() - _t0}ms pre=${_tBeforePost - _t0}ms`,
+    );
     return toActionStateError(error, clientRequestId);
   }
 }
