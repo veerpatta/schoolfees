@@ -1,11 +1,14 @@
-"use client";
-
 /**
  * Sticky summary row — pin a totals bar to the bottom of a list page so
  * "totals you care about" stay visible as the table scrolls.
  *
  * Caller composes children freely. We just provide consistent styling,
  * sticky behavior, and density-aware padding.
+ *
+ * No "use client": this is a purely presentational component (props -> JSX,
+ * no hooks/state/handlers). Dropping the directive lets the defaulters server
+ * page render it server-side (out of that route's client bundle) while it still
+ * composes fine inside its client-component callers.
  */
 
 import { type ReactNode } from "react";
