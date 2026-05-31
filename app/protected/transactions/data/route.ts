@@ -6,6 +6,7 @@ import { resolveOfficeWorkbookView } from "@/lib/transactions/workbook";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/lib/supabase/session";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
+import { ServerTimer } from "@/lib/observability/timing";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -33,7 +34,9 @@ function normalizePage(value: string | null) {
 }
 
 export async function GET(request: NextRequest) {
-  const staff = await getAuthenticatedStaff();
+  // Phase 0 perf instrumentation — see lib/observability/timing.ts.
+  const timer = new ServerTimer("transactions/data");
+  const staff = await timer.measure("auth", () => getAuthenticatedStaff());
 
   if (!staff) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -66,27 +69,37 @@ export async function GET(request: NextRequest) {
   ).trim();
 
   const sessionCookie = await getViewSessionCookie();
-  const viewSession = await resolveViewSession({
-    searchParamSession: sessionParam,
-    cookieSession: sessionCookie,
-  });
+  const viewSession = await timer.measure("resolveViewSession", () =>
+    resolveViewSession({
+      searchParamSession: sessionParam,
+      cookieSession: sessionCookie,
+    }),
+  );
 
-  const workbook = await getOfficeWorkbookData({
-    view,
-    classId,
-    fromDate,
-    paymentMode,
-    page,
-    routeId,
-    searchQuery,
-    sessionLabel: viewSession.sessionLabel,
-    toDate,
-    // Skip the financial enrichment pass for display — saves one DB round-trip.
-    // currentOutstanding / currentTotalPaid are only needed in CSV exports.
-    skipFinancials: true,
-  });
+  const workbook = await timer.measure("workbook", () =>
+    getOfficeWorkbookData({
+      view,
+      classId,
+      fromDate,
+      paymentMode,
+      page,
+      routeId,
+      searchQuery,
+      sessionLabel: viewSession.sessionLabel,
+      toDate,
+      // Skip the financial enrichment pass for display — saves one DB round-trip.
+      // currentOutstanding / currentTotalPaid are only needed in CSV exports.
+      skipFinancials: true,
+    }),
+  );
 
-  return NextResponse.json(workbook, {
-    headers: { "cache-control": "no-store" },
-  });
+  timer.flush();
+
+  // Server-Timing is added only when instrumentation is enabled (preview /
+  // PERF_TIMING=1); production responses stay byte-for-byte unchanged.
+  const headers: Record<string, string> = { "cache-control": "no-store" };
+  const serverTiming = timer.header();
+  if (serverTiming) headers["Server-Timing"] = serverTiming;
+
+  return NextResponse.json(workbook, { headers });
 }

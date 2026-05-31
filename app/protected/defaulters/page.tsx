@@ -91,16 +91,21 @@ export default async function DefaultersPage({
   // the whole candidate set, ranks by heat, enriches every row (behavior,
   // promise status, no-call), and returns the full list. The workspace then
   // filters + paginates client-side so cadence/behavior/no-call stay list-wide.
-  const data = await getDefaultersPageData(
-    filters,
-    viewSession.sessionLabel,
-    undefined,
-    { redactPaymentHistory: !canViewPaymentHistory },
-  );
+  // The defaulters list and the WhatsApp template list are independent reads —
+  // fetch them concurrently rather than chaining the templates after the
+  // (heavier) defaulters query.
+  const [data, whatsappTemplates] = await Promise.all([
+    getDefaultersPageData(
+      filters,
+      viewSession.sessionLabel,
+      undefined,
+      { redactPaymentHistory: !canViewPaymentHistory },
+    ),
+    listWhatsappTemplates({ onlyActive: true }),
+  ]);
   const contactSummaries = data.contactSummaries;
 
   const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
-  const whatsappTemplates = await listWhatsappTemplates({ onlyActive: true });
 
   const initialCadence = asString(resolvedSearchParams?.cadence) || "now";
 

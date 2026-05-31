@@ -54,6 +54,7 @@ import type {
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate, formatTimeIst } from "@/lib/helpers/date";
 import { appendSessionParam } from "@/lib/navigation/session-href";
+import { ServerTimer } from "@/lib/observability/timing";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
 import {
@@ -1890,17 +1891,42 @@ type DashboardPageProps = {
 };
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
-  const t = await getTranslations("Dashboard");
-  const staff = await requireStaffPermission("dashboard:view", { onDenied: "redirect" });
-  const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const viewSession = await resolveViewSession({
-    searchParamSession: resolvedSearchParams?.session,
-    cookieSession: await getViewSessionCookie(),
-  });
-  const aboveFold = await getDashboardAboveFoldData({
-    staffRole: staff.appRole,
-    sessionLabel: viewSession.sessionLabel,
-  });
+  // Phase 0 perf instrumentation: per-call server timing (auth + each data
+  // loader) so later phases can attribute a TTFB change to a specific cause.
+  // No-op unless on a Vercel preview or PERF_TIMING=1.
+  const timer = new ServerTimer("dashboard");
+  // Auth gate — must resolve before any protected data is fetched.
+  const staff = await timer.measure("auth", () =>
+    requireStaffPermission("dashboard:view", { onDenied: "redirect" }),
+  );
+  // Translations, the search params, and the session cookie are independent of
+  // each other and of the auth result — load them concurrently instead of in
+  // series.
+  const [t, resolvedSearchParams, cookieSession] = await Promise.all([
+    getTranslations("Dashboard"),
+    searchParams,
+    getViewSessionCookie(),
+  ]);
+  const viewSession = await timer.measure("resolveViewSession", () =>
+    resolveViewSession({
+      searchParamSession: resolvedSearchParams?.session,
+      cookieSession,
+    }),
+  );
+  // aboveFold (needs the resolved session) and today's activity counts (need
+  // only staff.id) are independent reads — run them concurrently rather than
+  // chaining one after the other.
+  const [aboveFold, todayActivityCounts] = await Promise.all([
+    timer.measure("aboveFold", () =>
+      getDashboardAboveFoldData({
+        staffRole: staff.appRole,
+        sessionLabel: viewSession.sessionLabel,
+      }),
+    ),
+    typeof staff?.id === "string"
+      ? timer.measure("todayActivityCounts", () => getTodayActivityCounts(staff.id))
+      : Promise.resolve({}),
+  ]);
   const canWriteStudents = hasStaffPermission(staff, "students:write");
   const canPostPayments = hasStaffPermission(staff, "payments:write");
   const canAutoPrepareDues = hasStaffPermission(staff, "fees:write");
@@ -1918,10 +1944,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     aboveFold.kpis.todaysCollection,
   );
 
-  const todayActivityCounts =
-    typeof staff?.id === "string"
-      ? await getTodayActivityCounts(staff.id)
-      : {};
+  timer.flush();
 
   return (
     <div className="space-y-4 sm:space-y-7">
