@@ -46,18 +46,17 @@ export class ServerTimer {
     }
   }
 
-  /** Record a duration measured elsewhere (e.g. a single leg of a Promise.all). */
-  mark(name: string, dur: number): void {
-    if (!ENABLED) return;
-    this.entries.push({ name, dur });
-  }
-
   private totalMs(): number {
     return performance.now() - this.start;
   }
 
-  /** `Server-Timing` header value for route handlers that can set headers. */
+  /**
+   * `Server-Timing` header value for route handlers that can set headers.
+   * Returns an empty string when disabled so callers can skip the header
+   * entirely and leave production responses byte-for-byte unchanged.
+   */
   header(): string {
+    if (!ENABLED) return "";
     return [
       ...this.entries.map((e) => `${e.name};dur=${e.dur.toFixed(1)}`),
       `total;dur=${this.totalMs().toFixed(1)}`,

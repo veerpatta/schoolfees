@@ -55,13 +55,11 @@ describe("ServerTimer", () => {
     expect(header).toContain("total;dur=");
   });
 
-  it("omits per-call entries from the header when disabled", async () => {
+  it("returns an empty header when disabled so production responses are unchanged", async () => {
     const { ServerTimer } = await loadTimer({ PERF_TIMING: undefined, VERCEL_ENV: undefined });
     const timer = new ServerTimer("dashboard");
     await timer.measure("auth", async () => undefined);
-    const header = timer.header();
-    expect(header).not.toContain("auth;dur=");
-    expect(header).toContain("total;dur=");
+    expect(timer.header()).toBe("");
   });
 
   it("flushes one greppable [perf] line tagged with region when enabled", async () => {

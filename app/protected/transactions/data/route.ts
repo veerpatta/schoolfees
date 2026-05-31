@@ -95,10 +95,11 @@ export async function GET(request: NextRequest) {
 
   timer.flush();
 
-  return NextResponse.json(workbook, {
-    headers: {
-      "cache-control": "no-store",
-      "Server-Timing": timer.header(),
-    },
-  });
+  // Server-Timing is added only when instrumentation is enabled (preview /
+  // PERF_TIMING=1); production responses stay byte-for-byte unchanged.
+  const headers: Record<string, string> = { "cache-control": "no-store" };
+  const serverTiming = timer.header();
+  if (serverTiming) headers["Server-Timing"] = serverTiming;
+
+  return NextResponse.json(workbook, { headers });
 }
