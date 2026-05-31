@@ -316,6 +316,17 @@ supabase db push
 - Canonical schema: [`supabase/schema.sql`](supabase/schema.sql) · ordered history: [`supabase/migrations/`](supabase/migrations).
 - ⚠️ Applying via the Supabase MCP renames the version from wall-clock time — rename the local file to match (see [`CLAUDE.md`](CLAUDE.md)).
 
+### 🔎 Operational verifiers
+
+Read-only health checks (need Supabase env vars; see [`scripts/README.md`](scripts/README.md) for the full list):
+
+```bash
+node scripts/verify-phase1-migrations.mjs   # phase-1 session-sync migration/readiness check
+node scripts/verify-required-sessions.mjs   # confirms required academic sessions exist
+node scripts/verify-live-fee-health.mjs     # production fee-health verification
+node scripts/verify-live-sync-health.mjs    # system sync verification
+```
+
 ---
 
 ## ✅ Quality gates
