@@ -86,8 +86,10 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
 
   it("admin can waive: invokes the waive_late_fee RPC with the studentId/amount/remarks and triggers sync", async () => {
     setStaff("admin");
-    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+    const { waiveLateFeeAction } =
       await import("@/app/protected/payments/waive-late-fee-actions");
+    const { INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await import("@/app/protected/payments/waive-late-fee-action-state");
 
     const result = await waiveLateFeeAction(
       INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
@@ -123,8 +125,10 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
 
   it("accountant can waive (same path as admin)", async () => {
     setStaff("accountant");
-    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+    const { waiveLateFeeAction } =
       await import("@/app/protected/payments/waive-late-fee-actions");
+    const { INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await import("@/app/protected/payments/waive-late-fee-action-state");
 
     const result = await waiveLateFeeAction(
       INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
@@ -141,8 +145,10 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
     "%s cannot waive — requireStaffPermission rejects before any write",
     async (role) => {
       setStaff(role);
-      const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      const { waiveLateFeeAction } =
         await import("@/app/protected/payments/waive-late-fee-actions");
+      const { INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+        await import("@/app/protected/payments/waive-late-fee-action-state");
 
       const result = await waiveLateFeeAction(
         INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
@@ -158,8 +164,10 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
 
   it("rejects when reason is shorter than 4 characters (input guard runs before any RPC call)", async () => {
     setStaff("accountant");
-    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+    const { waiveLateFeeAction } =
       await import("@/app/protected/payments/waive-late-fee-actions");
+    const { INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await import("@/app/protected/payments/waive-late-fee-action-state");
 
     const result = await waiveLateFeeAction(
       INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
@@ -182,8 +190,10 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
       }),
     );
 
-    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+    const { waiveLateFeeAction } =
       await import("@/app/protected/payments/waive-late-fee-actions");
+    const { INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await import("@/app/protected/payments/waive-late-fee-action-state");
 
     const result = await waiveLateFeeAction(
       INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
@@ -206,8 +216,10 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
       }),
     );
 
-    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+    const { waiveLateFeeAction } =
       await import("@/app/protected/payments/waive-late-fee-actions");
+    const { INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await import("@/app/protected/payments/waive-late-fee-action-state");
 
     const result = await waiveLateFeeAction(
       INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
@@ -230,8 +242,10 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
       }),
     );
 
-    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+    const { waiveLateFeeAction } =
       await import("@/app/protected/payments/waive-late-fee-actions");
+    const { INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await import("@/app/protected/payments/waive-late-fee-action-state");
 
     const result = await waiveLateFeeAction(
       INITIAL_WAIVE_LATE_FEE_ACTION_STATE,

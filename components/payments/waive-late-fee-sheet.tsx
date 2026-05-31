@@ -10,10 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Sheet } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
-import {
-  INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
-  waiveLateFeeAction,
-} from "@/app/protected/payments/waive-late-fee-actions";
+import { waiveLateFeeAction } from "@/app/protected/payments/waive-late-fee-actions";
+import { INITIAL_WAIVE_LATE_FEE_ACTION_STATE } from "@/app/protected/payments/waive-late-fee-action-state";
 import { formatInr } from "@/lib/helpers/currency";
 
 type WaiveLateFeeSheetProps = {

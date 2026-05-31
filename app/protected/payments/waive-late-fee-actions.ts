@@ -6,18 +6,11 @@ import { recordActivity } from "@/lib/activity/events";
 import { syncAfterStudentChange } from "@/lib/system-sync/finance-sync";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaffPermission } from "@/lib/supabase/session";
-
-export type WaiveLateFeeActionState = {
-  status: "idle" | "success" | "error";
-  message: string | null;
-  newWaiverAmount: number | null;
-};
-
-export const INITIAL_WAIVE_LATE_FEE_ACTION_STATE: WaiveLateFeeActionState = {
-  status: "idle",
-  message: null,
-  newWaiverAmount: null,
-};
+// A "use server" module may export only async functions. The action-state type
+// and INITIAL_* constant live in a plain sibling module; re-exporting the type
+// here is fine (types are erased at build), but the const must not be exported
+// from this file or every Payment Desk server-action POST 500s.
+import type { WaiveLateFeeActionState } from "./waive-late-fee-action-state";
 
 type WaiveLateFeeRpcRow = {
   ok: boolean;
