@@ -1,6 +1,11 @@
+// Goes at REPO ROOT: next.config.ts  (REPLACES the existing file)
+// Only two things changed vs. your current file:
+//   1. added the `withSentryConfig` import
+//   2. wrapped the final export with withSentryConfig(...)
 import type { NextConfig } from "next";
 import bundleAnalyzer from "@next/bundle-analyzer";
 import createNextIntlPlugin from "next-intl/plugin";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
@@ -49,4 +54,30 @@ const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
 });
 
-export default withBundleAnalyzer(withNextIntl(nextConfig));
+export default withSentryConfig(
+  withBundleAnalyzer(withNextIntl(nextConfig)),
+  {
+    org: "veer-patta-school",
+    project: "schoolfees",
+
+    // EU data region — your Sentry org lives on de.sentry.io.
+    sentryUrl: "https://de.sentry.io/",
+
+    // Auth token for uploading source maps (readable stack traces).
+    // Set SENTRY_AUTH_TOKEN in Vercel + CI. If absent, the build still
+    // succeeds — it just skips the source-map upload.
+    authToken: process.env.SENTRY_AUTH_TOKEN,
+
+    // Upload a wider set of source maps for nicer stack traces.
+    widenClientFileUpload: true,
+
+    // Only print upload logs in CI.
+    silent: !process.env.CI,
+
+    // Strip Sentry SDK logger statements from the client bundle (smaller bundle).
+    disableLogger: true,
+
+    // Auto-instrument Vercel Cron Monitors (you have crons in vercel.json).
+    automaticVercelMonitors: true,
+  },
+);
