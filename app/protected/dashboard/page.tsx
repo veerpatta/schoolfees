@@ -54,6 +54,7 @@ import type {
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate, formatTimeIst } from "@/lib/helpers/date";
 import { appendSessionParam } from "@/lib/navigation/session-href";
+import { ServerTimer } from "@/lib/observability/timing";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
 import {
@@ -1890,17 +1891,27 @@ type DashboardPageProps = {
 };
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  // Phase 0 perf instrumentation: per-call server timing (auth + each data
+  // loader) so later phases can attribute a TTFB change to a specific cause.
+  // No-op unless on a Vercel preview or PERF_TIMING=1.
+  const timer = new ServerTimer("dashboard");
   const t = await getTranslations("Dashboard");
-  const staff = await requireStaffPermission("dashboard:view", { onDenied: "redirect" });
+  const staff = await timer.measure("auth", () =>
+    requireStaffPermission("dashboard:view", { onDenied: "redirect" }),
+  );
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const viewSession = await resolveViewSession({
-    searchParamSession: resolvedSearchParams?.session,
-    cookieSession: await getViewSessionCookie(),
-  });
-  const aboveFold = await getDashboardAboveFoldData({
-    staffRole: staff.appRole,
-    sessionLabel: viewSession.sessionLabel,
-  });
+  const viewSession = await timer.measure("resolveViewSession", async () =>
+    resolveViewSession({
+      searchParamSession: resolvedSearchParams?.session,
+      cookieSession: await getViewSessionCookie(),
+    }),
+  );
+  const aboveFold = await timer.measure("aboveFold", () =>
+    getDashboardAboveFoldData({
+      staffRole: staff.appRole,
+      sessionLabel: viewSession.sessionLabel,
+    }),
+  );
   const canWriteStudents = hasStaffPermission(staff, "students:write");
   const canPostPayments = hasStaffPermission(staff, "payments:write");
   const canAutoPrepareDues = hasStaffPermission(staff, "fees:write");
@@ -1920,8 +1931,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   const todayActivityCounts =
     typeof staff?.id === "string"
-      ? await getTodayActivityCounts(staff.id)
+      ? await timer.measure("todayActivityCounts", () => getTodayActivityCounts(staff.id))
       : {};
+
+  timer.flush();
 
   return (
     <div className="space-y-4 sm:space-y-7">
