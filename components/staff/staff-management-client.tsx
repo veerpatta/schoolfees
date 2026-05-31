@@ -111,6 +111,9 @@ function CreateStaffForm({
             id="newStaffEmail"
             name="email"
             type="email"
+            // Prevent Chrome from autofilling the signed-in admin's own email
+            // into the "create new staff" field.
+            autoComplete="off"
             className="mt-2"
             placeholder="staff@vpps.co.in"
             required
@@ -138,6 +141,8 @@ function CreateStaffForm({
             id="newStaffPassword"
             name="password"
             type="password"
+            // "new-password" stops the browser injecting the admin's saved password.
+            autoComplete="new-password"
             className="mt-2"
             placeholder="Leave blank to generate"
           />

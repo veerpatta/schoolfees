@@ -33,5 +33,10 @@ export default getRequestConfig(async () => {
   return {
     locale,
     messages,
+    // Explicit IST keeps next-intl date/time formatting deterministic between
+    // server and client. Without it next-intl falls back to the runtime's zone
+    // (ENVIRONMENT_FALLBACK), which can cause SSR/CSR markup mismatches. VPPS is
+    // a single India-based school, so Asia/Kolkata is the correct display zone.
+    timeZone: "Asia/Kolkata",
   };
 });

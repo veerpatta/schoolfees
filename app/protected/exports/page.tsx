@@ -137,6 +137,10 @@ export default async function ExportsPage({ searchParams }: ExportsPageProps) {
             key={group.titleKey}
             title={t(group.titleKey)}
             description={t("groupChooseHint")}
+            // The Analysis group holds a single tile with a long description. With
+            // 4 groups in a 3-col grid it would otherwise strand in a 1/3-width
+            // cell and wrap one word per line — span the full row instead.
+            className={group.titleKey === "groupAnalysis" ? "lg:col-span-3" : undefined}
           >
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-1">
               {group.items.map((item) => {
@@ -148,16 +152,20 @@ export default async function ExportsPage({ searchParams }: ExportsPageProps) {
                 return (
                   <div
                     key={item.key}
-                    className="group flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-4 hover:border-border-strong transition-all"
+                    // flex-wrap + a text min-width lets the action buttons drop
+                    // onto their own line when the card column is narrow (3-col
+                    // grid on smaller laptops), instead of squeezing the
+                    // description into a one-word-per-line sliver.
+                    className="group flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-border bg-card px-4 py-4 hover:border-border-strong transition-all"
                   >
                     <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl", styles.bg)}>
                       <IconComponent className={cn("size-5", styles.icon)} />
                     </div>
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-[10rem] flex-1">
                       <p className="font-semibold text-foreground text-sm">{t(item.labelKey)}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{t(item.detailKey)}</p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="ml-auto flex shrink-0 items-center gap-2">
                       <Link
                         href={xlsxHref}
                         className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-3"

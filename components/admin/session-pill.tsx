@@ -278,7 +278,7 @@ export function SessionPill({
       <DropdownMenuTrigger
         type="button"
         className={cn(
-          "inline-flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-surface-2 focus-ring",
+          "inline-flex h-9 shrink-0 cursor-pointer list-none items-center gap-1.5 whitespace-nowrap rounded-md border border-border bg-surface px-2.5 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-surface-2 focus-ring",
           displayIsTest && "border-fuchsia-500 text-fuchsia-700",
           isTransitioning && "opacity-75",
         )}

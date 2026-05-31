@@ -35,7 +35,7 @@ export function CommandTrigger({ className }: CommandTriggerProps) {
       title="Open command palette"
       aria-label="Open command palette (Ctrl/Cmd + K)"
       className={cn(
-        "hidden items-center gap-2 rounded-md border border-border bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-surface hover:text-foreground focus-ring md:inline-flex",
+        "hidden shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-border bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-surface hover:text-foreground focus-ring md:inline-flex",
         className,
       )}
     >

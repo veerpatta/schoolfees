@@ -62,7 +62,7 @@ export function AppTopBar({ staffEmail, staffRole, sessionPill, localeSwitcher }
           <CommandTrigger />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {sessionPill}
           <StatusBadge label={roleLabel} tone="neutral" iconless />
           {localeSwitcher}

@@ -75,7 +75,6 @@ type PaymentRefRow = {
     due_date: string;
   }[]
     | null;
-  student_ref: StudentRow | StudentRow[] | null;
 };
 
 type PaymentAdjustmentRow = {
@@ -411,7 +410,8 @@ function mapAdjustmentRow(
 ): FinanceCorrectionReviewRow | null {
   const payment = toSingleRecord(row.payment_ref);
   const receipt = payment ? toSingleRecord(payment.receipt_ref) : null;
-  const student = payment ? toSingleRecord(payment.student_ref) : null;
+  // Student is derived via the receipt embed (payments has no direct FK to students).
+  const student = receipt ? toSingleRecord(receipt.student_ref) : null;
   const installment = payment ? toSingleRecord(payment.installment_ref) : null;
   const classRef = student ? toSingleRecord(student.class_ref) : null;
 
@@ -597,7 +597,13 @@ export async function getFinanceControlsPageData(
     supabase
       .from("payment_adjustments")
       .select(
-        "id, payment_id, adjustment_type, amount_delta, reason, notes, created_at, created_by, payment_ref:payments(amount, receipt_ref:receipts(id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, created_by, student_ref:students(id, full_name, admission_no, class_ref:classes(class_name, section, stream_name))), installment_ref:installments(installment_label, due_date), student_ref:students(id, full_name, admission_no, class_ref:classes(class_name, section, stream_name)))",
+        // NOTE: `payments` has no direct FK to `students` (only composite FKs to
+        // receipts/installments — see schema.sql `public.payments`), so PostgREST
+        // cannot embed `students` directly under `payments`. Derive the student
+        // through `receipt_ref` instead: the composite FK guarantees
+        // payments.student_id == receipts.student_id, and receipts → students is a
+        // real single-column FK.
+        "id, payment_id, adjustment_type, amount_delta, reason, notes, created_at, created_by, payment_ref:payments(amount, receipt_ref:receipts(id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, created_by, student_ref:students(id, full_name, admission_no, class_ref:classes(class_name, section, stream_name))), installment_ref:installments(installment_label, due_date))",
       )
       .gte("created_at", `${selectedDate}T00:00:00.000Z`)
       .lt("created_at", `${nextDate}T00:00:00.000Z`)

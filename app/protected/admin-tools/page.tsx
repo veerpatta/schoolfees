@@ -205,7 +205,7 @@ export default async function AdvancedPage({ searchParams }: AdvancedPageProps) 
 
                 return (
                   <Link
-                    key={item.href}
+                    key={`${item.href}-${item.label}`}
                     href={withSession(item.href)}
                     className="group flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-4 transition-all hover:border-border-strong hover:bg-surface-2 active:scale-[0.99]"
                   >
