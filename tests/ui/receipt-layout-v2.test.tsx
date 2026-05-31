@@ -1,23 +1,14 @@
 import React from "react";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 
-import { ReceiptDocument, type ReceiptTranslator } from "@/components/receipts/receipt-document";
+import { ReceiptDocument } from "@/components/receipts/receipt-document";
 import { ReceiptDocumentV2 } from "@/components/receipts/receipt-document-v2";
+import { createBilingualReceiptTranslator } from "@/lib/i18n/bilingual-receipt";
 import type { ReceiptDetail } from "@/lib/receipts/types";
 
-const messages = JSON.parse(
-  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
-);
-
-const t = createTranslator({
-  locale: "en",
-  messages,
-  namespace: "Receipts",
-}) as unknown as ReceiptTranslator;
+// Parent-facing receipts always render English + Devanagari Hindi together.
+const t = createBilingualReceiptTranslator();
 
 function receipt(overrides: Partial<ReceiptDetail> = {}): ReceiptDetail {
   return {
@@ -106,6 +97,11 @@ describe("ReceiptDocumentV2 — simplified layout", () => {
     expect(html).toContain("Remaining");
     // The old screen-only fee-detail disclosure is gone.
     expect(html).not.toContain('data-receipt-fee-detail="v2"');
+    // Bilingual: the Devanagari Hindi line renders alongside English.
+    expect(html).toContain("शुल्क रसीद"); // Fee Receipt
+    expect(html).toContain("रसीद संख्या"); // Receipt No
+    expect(html).toContain("शुल्क सारांश"); // Fee summary
+    expect(html).toContain('lang="hi"');
   });
 
   it("never prints 'Today' on the receipt body (so reprints from the past stay honest)", () => {
@@ -172,8 +168,8 @@ describe("ReceiptDocumentV2 — simplified layout", () => {
       />,
     );
     expect(html).toContain("Discount");
-    expect(html).toContain("Late fee");
-    expect(html).toContain("Late fee waived");
+    expect(html).toContain("Late Fee");
+    expect(html).toContain("Late Fee Waived");
     // Signed amounts: discount/waiver are negative, applied late fee is positive.
     expect(html).toContain("−₹1,000");
     expect(html).toContain("+₹500");

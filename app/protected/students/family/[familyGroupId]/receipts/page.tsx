@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { ReceiptDocument } from "@/components/receipts/receipt-document";
 import { FamilyReceiptsBatchActions } from "@/components/students/family-receipts-batch-actions";
+import { createBilingualReceiptTranslator } from "@/lib/i18n/bilingual-receipt";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { FAMILY_REPRINT_RECEIPT_LIMIT, getFamilyReceiptsBundle } from "@/lib/receipts/family";
 import { requireStaffPermission } from "@/lib/supabase/session";
@@ -22,7 +22,7 @@ export default async function FamilyReceiptsBatchPage({
   params,
   searchParams,
 }: FamilyReceiptsPageProps) {
-  const t = await getTranslations("Receipts");
+  const t = createBilingualReceiptTranslator();
   await requireStaffPermission("receipts:print", { onDenied: "redirect" });
   const resolvedParams = await params;
   const resolvedSearch = searchParams ? await searchParams : undefined;

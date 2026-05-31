@@ -1,22 +1,12 @@
 import React from "react";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 
-import { ReceiptDocument, type ReceiptTranslator } from "@/components/receipts/receipt-document";
+import { ReceiptDocument } from "@/components/receipts/receipt-document";
+import { createBilingualReceiptTranslator } from "@/lib/i18n/bilingual-receipt";
 import type { ReceiptDetail } from "@/lib/receipts/types";
 
-const messages = JSON.parse(
-  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
-);
-
-const t = createTranslator({
-  locale: "en",
-  messages,
-  namespace: "Receipts",
-}) as unknown as ReceiptTranslator;
+const t = createBilingualReceiptTranslator();
 
 function receipt(overrides: Partial<ReceiptDetail> = {}): ReceiptDetail {
   return {

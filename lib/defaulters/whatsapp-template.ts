@@ -29,7 +29,13 @@ export const DEFAULT_WHATSAPP_TEMPLATE = [
   "Gentle reminder: school fees of {amount} are pending for {className} ({dueLabel}).",
   "Kindly clear at your earliest convenience — feel free to call the fee office for any clarification.",
   "",
-  "Regards,",
+  "— — —",
+  "",
+  "नमस्ते,",
+  "",
+  "सूचना: {className} के लिए {studentName} की {amount} फीस बकाया है। कृपया शीघ्र जमा करें — किसी भी सहायता के लिए विद्यालय कार्यालय से संपर्क करें।",
+  "",
+  "Regards / सादर,",
   "{schoolName}",
 ].join("\n");
 

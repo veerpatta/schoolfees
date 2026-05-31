@@ -14,6 +14,14 @@ const nextConfig: NextConfig = {
   // Marking it external makes Next require it from node_modules so Vercel traces
   // the whole package, including its data files.
   serverExternalPackages: ["@react-pdf/renderer"],
+  // The fee-statement PDF registers a Devanagari TTF (public/fonts) at runtime
+  // for the Hindi half of every bilingual label. Vercel's serverless tracer
+  // does not see the file path passed to Font.register, so include the fonts
+  // explicitly for both fee-pdf routes or the Hindi text 500s in production.
+  outputFileTracingIncludes: {
+    "/protected/students/[studentId]/fee-pdf": ["./public/fonts/**"],
+    "/protected/students/family/[familyGroupId]/fee-pdf": ["./public/fonts/**"],
+  },
   images: {
     formats: ["image/avif", "image/webp"],
   },

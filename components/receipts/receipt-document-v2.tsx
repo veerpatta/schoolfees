@@ -4,33 +4,94 @@ import { CheckCircle2 } from "lucide-react";
 import { schoolProfile } from "@/lib/config/school";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatDateTimeIst, formatMediumDate } from "@/lib/helpers/date";
+import { amountInWordsHindi } from "@/lib/helpers/amount-in-words-hi";
+import { localizedFeeLabel } from "@/lib/fees/fee-label";
 import type { ReceiptDetail } from "@/lib/receipts/types";
 import { cn } from "@/lib/utils";
 
-import type { ReceiptTranslator } from "@/components/receipts/receipt-document";
+import type {
+  BilingualReceiptTranslator,
+  ReceiptTranslator,
+} from "@/lib/i18n/bilingual-receipt";
 
 /**
- * Simplified, point-in-time receipt layout.
+ * Simplified, point-in-time receipt layout — now fully bilingual.
  *
- * Hierarchy:
- *   1. School header (logo + name + address / phone / email + receipt number)
- *   2. Payment date subtitle (anchors every figure on the receipt)
- *   3. Student strip (name / SR / class / father / phone)
- *   4. Installment table (Installment / Due date / Paid — that's it)
- *   5. Totals block (Total Paid / mode line / Balance Due / In words)
- *   6. Signature line
- *   7. (Screen only) Fee detail disclosure — not printed
+ * Every label renders English with the Devanagari Hindi underneath (muted),
+ * because this is a parent-facing document: a parent always sees both
+ * languages, regardless of which UI locale the staff member is using. The
+ * translator is locale-independent (see `createBilingualReceiptTranslator`).
  *
- * Label policy: every figure references the receipt's payment date, not
- * the current calendar day. No "Today" / "Paid Today" wording. A reprinted
- * receipt from 3 months ago reads honestly without any new translator
- * branch — the labels are time-neutral.
+ * Numeric figures and dates stay in Latin digits — only labels and the
+ * amount-in-words line are translated, matching how Indian fee receipts read.
  */
 
 // All money rendered via formatInr; all dates via the canonical helpers.
-// Use formatMediumDate so the receipt date matches every other screen's date
-// format. No local Intl.DateTimeFormat — clarity audit forbids it.
 const formatDate = (value: string) => formatMediumDate(value);
+
+/**
+ * Renders an English string with its Hindi translation stacked underneath in a
+ * muted block. The Hindi line is suppressed when it is identical to English
+ * (e.g. an untranslated dynamic fee-head label) so nothing is duplicated.
+ */
+function BiText({
+  en,
+  hi,
+  hiClassName,
+}: {
+  en: string;
+  hi: string;
+  hiClassName?: string;
+}) {
+  return (
+    <>
+      {en}
+      {hi && hi !== en ? (
+        <span
+          className={cn(
+            "block font-normal normal-case tracking-normal text-muted-foreground",
+            hiClassName,
+          )}
+          lang="hi"
+        >
+          {hi}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
+/** Bilingual label resolved from a translator key. */
+function BiKey({
+  t,
+  k,
+  values,
+  suffix,
+  hiClassName,
+}: {
+  t: BilingualReceiptTranslator;
+  k: string;
+  values?: Record<string, string | number>;
+  /** Appended to both languages (e.g. " — {session}"). */
+  suffix?: string;
+  hiClassName?: string;
+}) {
+  const sfx = suffix ?? "";
+  return (
+    <BiText
+      en={`${t.en(k, values)}${sfx}`}
+      hi={`${t.hi(k, values)}${sfx}`}
+      hiClassName={hiClassName}
+    />
+  );
+}
+
+/** Compact inline "English / हिंदी" — for tight spots like status pills. */
+function biSlash(t: BilingualReceiptTranslator, k: string): string {
+  const en = t.en(k);
+  const hi = t.hi(k);
+  return hi && hi !== en ? `${en} / ${hi}` : en;
+}
 
 function wordsBelowThousand(value: number): string {
   const ones = [
@@ -73,6 +134,7 @@ function wordsBelowThousand(value: number): string {
   return parts.join(" ");
 }
 
+/** English amount-in-words. `t` is a single-locale translator (use `bt.en`). */
 function amountInWords(value: number, t: ReceiptTranslator) {
   const amount = Math.max(Math.round(value), 0);
   if (amount === 0) return t("rupeesZero");
@@ -97,31 +159,17 @@ function amountInWords(value: number, t: ReceiptTranslator) {
   return `${parts.join(" ")} ${t("rupeesSuffix")}`;
 }
 
-function localizedFeeLabel(rawLabel: string, t: ReceiptTranslator) {
-  const normalized = rawLabel.toLowerCase();
-  if (normalized.includes("tuition")) return t("feeLabelTuition");
-  if (normalized.includes("transport")) return t("feeLabelTransport");
-  if (normalized.includes("academic")) return t("feeLabelAcademic");
-  if (normalized.includes("late")) return t("feeLabelLate");
-  if (normalized.includes("discount") || normalized.includes("waiver")) {
-    return t("feeLabelDiscount");
-  }
-  if (normalized.includes("book")) return t("feeLabelBooks");
-  if (normalized === "other fees") return t("feeLabelOther");
-  return rawLabel;
-}
-
-function paymentModeLabel(value: ReceiptDetail["paymentMode"], t: ReceiptTranslator) {
+function paymentModeText(value: ReceiptDetail["paymentMode"], t: ReceiptTranslator) {
   if (value === "upi") return t("paymentModeUpi");
   if (value === "bank_transfer") return t("paymentModeBankTransfer");
   if (value === "cheque") return t("paymentModeCheque");
-  if (value === "discount") return "Discount";
+  if (value === "discount") return t("discount");
   return t("paymentModeCash");
 }
 
 type ReceiptDocumentV2Props = {
   receipt: ReceiptDetail;
-  t: ReceiptTranslator;
+  t: BilingualReceiptTranslator;
   className?: string;
   mode?: "print" | "draft" | "saved";
   embedPageStyles?: boolean;
@@ -137,12 +185,6 @@ export function ReceiptDocumentV2({
   const isDraft = mode === "draft";
   const isSaved = mode === "saved";
 
-  // Per-installment rows. After migration 20260527000000, every payments
-  // row carries the moment-of-posting allocation context (discount, waiver,
-  // pending before/after). Older rows have NULL for those — rendered as "—"
-  // via the canonical Money fallback. The receipt is now point-in-time
-  // truthful: a 3-month-old reprint shows exactly what the staff member saw
-  // when posting.
   const installmentRows = receipt.breakdown.map((item) => ({
     paymentId: item.paymentId,
     installmentLabel: item.installmentLabel,
@@ -155,15 +197,17 @@ export function ReceiptDocumentV2({
   }));
   const breakdownTotal = installmentRows.reduce((sum, row) => sum + row.paid, 0);
   const totalPaid = breakdownTotal || receipt.totalAmount;
-  // Show the rich breakdown columns only if at least one row carries
-  // post-migration snapshot data. Legacy rows render the compact 3-column
-  // layout. This keeps reprints of pre-migration receipts honest.
   const hasAllocationSnapshot = installmentRows.some(
     (row) =>
       row.pendingBefore !== null ||
       row.pendingAfter !== null ||
       (row.discountAtPosting ?? 0) > 0 ||
       (row.waiverAtPosting ?? 0) > 0,
+  );
+
+  // Earliest still-unpaid installment due date — anchors the "what's next" line.
+  const nextDue = receipt.installmentStatus.find(
+    (row) => row.status !== "paid" && row.pending > 0,
   );
 
   return (
@@ -207,7 +251,7 @@ export function ReceiptDocumentV2({
           className="pointer-events-none absolute inset-0 hidden items-center justify-center text-center text-5xl font-semibold uppercase text-foreground/10 sm:flex print:flex"
           aria-hidden="true"
         >
-          {t("draftWatermark")}
+          {t.en("draftWatermark")}
         </div>
       ) : null}
 
@@ -239,22 +283,26 @@ export function ReceiptDocumentV2({
                   {schoolProfile.email}
                 </p>
               ) : null}
-              <p className="mt-1 text-xs font-medium text-foreground">{t("feeReceiptHeading")}</p>
+              <p className="mt-1 text-xs font-medium text-foreground">
+                {t.en("feeReceiptHeading")} · <span lang="hi">{t.hi("feeReceiptHeading")}</span>
+              </p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t("receiptNo")}</p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              <BiKey t={t} k="receiptNo" />
+            </p>
             <p className="text-base font-semibold text-foreground">
-              {isDraft ? t("draftReceiptNumberPlaceholder") : receipt.receiptNumber}
+              {isDraft ? t.en("draftReceiptNumberPlaceholder") : receipt.receiptNumber}
             </p>
             {isDraft ? (
               <span className="mt-1 inline-flex rounded bg-warning-soft px-2 py-0.5 text-[10px] font-semibold text-warning-soft-foreground">
-                {t("draftLabel")}
+                {t.en("draftLabel")}
               </span>
             ) : null}
             {isSaved ? (
               <span className="mt-1 inline-flex rounded bg-success-soft px-2 py-0.5 text-[10px] font-semibold text-success-soft-foreground">
-                {t("savedLabel", { number: receipt.receiptNumber })}
+                {t.en("savedLabel", { number: receipt.receiptNumber })}
               </span>
             ) : null}
           </div>
@@ -263,37 +311,36 @@ export function ReceiptDocumentV2({
         {/* 2. Payment date — explicit subtitle. Anchors every figure below. */}
         <div className="flex items-baseline justify-between gap-3 px-1">
           <p className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">{t("paymentDateLabel")}:</span>{" "}
+            <span className="font-medium text-foreground">
+              {t.en("paymentDateLabel")} / <span lang="hi">{t.hi("paymentDateLabel")}</span>:
+            </span>{" "}
             {formatDate(receipt.paymentDate)}
           </p>
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-            {t("sessionLabelText", { session: receipt.sessionLabel })}
+            {t.en("sessionLabelText", { session: receipt.sessionLabel })}
           </p>
         </div>
 
-        {/* 2b. Receipt context — Posted by / Received by / Created at.
-            Always present so a printed reprint reads honestly: who handled the
-            cash, who entered it, and when. Falls back to "—" when a field is
-            blank (e.g. older receipts had no received_by). */}
+        {/* 2b. Receipt context — Posted by / Received by / Posted at. */}
         {(receipt.createdByName || receipt.receivedBy || receipt.createdAt) ? (
           <div
             className="grid gap-1 rounded-md border border-dashed border-border bg-surface-2/60 px-3 py-2 text-[10px] uppercase tracking-wide text-muted-foreground sm:grid-cols-3"
             data-receipt-context="v3"
           >
             <div>
-              <p>Posted by</p>
+              <p><BiKey t={t} k="postedByLabel" /></p>
               <p className="mt-0.5 text-xs normal-case font-medium text-foreground">
                 {receipt.createdByName ?? "—"}
               </p>
             </div>
             <div>
-              <p>Received by</p>
+              <p><BiKey t={t} k="receivedBy" /></p>
               <p className="mt-0.5 text-xs normal-case font-medium text-foreground">
                 {receipt.receivedBy ?? "—"}
               </p>
             </div>
             <div>
-              <p>Posted at (IST)</p>
+              <p><BiKey t={t} k="postedAtIstLabel" /></p>
               <p className="mt-0.5 text-xs normal-case font-medium text-foreground">
                 {formatDateTimeIst(receipt.createdAt)}
               </p>
@@ -301,23 +348,17 @@ export function ReceiptDocumentV2({
           </div>
         ) : null}
 
-        {/* 2c. Close-out banner — non-cash write-off needs visual prominence.
-            A receipt where payment_mode = 'discount' is NOT cash that changed
-            hands; it's pending fees written off as a one-time courtesy. We
-            elevate this from a footnote in the totals into a full banner so
-            staff and parents never mistake it for a paid receipt. */}
+        {/* 2c. Close-out banner — non-cash write-off needs visual prominence. */}
         {receipt.paymentMode === "discount" ? (
           <div
             className="rounded-md border border-purple-300 bg-purple-50 px-3 py-2 text-xs text-purple-900 dark:border-purple-700 dark:bg-purple-950 dark:text-purple-100"
             role="note"
           >
             <p className="font-semibold uppercase tracking-wide text-[11px]">
-              Non-cash close-out
+              {t.en("nonCashCloseoutTitle")} · <span lang="hi">{t.hi("nonCashCloseoutTitle")}</span>
             </p>
-            <p className="mt-0.5">
-              No money was received. The pending amount was written off as a one-time
-              discount. The receipt records this for the audit trail.
-            </p>
+            <p className="mt-0.5">{t.en("nonCashCloseoutBody")}</p>
+            <p className="mt-0.5" lang="hi">{t.hi("nonCashCloseoutBody")}</p>
           </div>
         ) : null}
 
@@ -325,40 +366,47 @@ export function ReceiptDocumentV2({
         <section className="rounded-lg border border-border bg-card/95 p-3 text-xs">
           <div className="grid gap-1.5 sm:grid-cols-5 sm:gap-3">
             <div>
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t("studentName")}</p>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                <BiKey t={t} k="studentName" />
+              </p>
               <p className="font-semibold text-foreground">{receipt.studentFullName}</p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t("srNo")}</p>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                <BiKey t={t} k="srNo" />
+              </p>
               <p className="font-medium">{receipt.admissionNo}</p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t("classFieldLabel")}</p>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                <BiKey t={t} k="classFieldLabel" />
+              </p>
               <p className="font-medium">{receipt.classLabel}</p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t("fatherName")}</p>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                <BiKey t={t} k="fatherName" />
+              </p>
               <p className="font-medium">{receipt.fatherName || "—"}</p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t("phone")}</p>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                <BiKey t={t} k="phone" />
+              </p>
               <p className="font-medium">{receipt.fatherPhone || "—"}</p>
             </div>
           </div>
         </section>
 
-        {/* 3b. Annual fee summary — total expected for the session and the full
-            break-up. Discount, late fee, and late-fee waiver are each shown on
-            their own explicitly-signed, colour-coded line so the figures read
-            honestly to anyone who sees the receipt. */}
+        {/* 3b. Annual fee summary — total expected + full break-up. */}
         <section className="rounded-lg border border-border bg-card/95 p-3">
           <div className="flex items-baseline justify-between gap-3">
             <h3 className="text-sm font-semibold text-foreground">
-              Fee summary — {receipt.sessionLabel}
+              <BiKey t={t} k="feeSummaryHeading" suffix={` — ${receipt.sessionLabel}`} hiClassName="text-xs" />
             </h3>
             <div className="text-right">
               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                Total expected this year
+                <BiKey t={t} k="totalExpectedThisYear" />
               </p>
               <p className="text-lg font-semibold tabular-nums text-foreground">
                 {formatInr(receipt.totalDue)}
@@ -371,7 +419,12 @@ export function ReceiptDocumentV2({
                 .filter((item) => item.amount > 0 && !/discount|late fee/i.test(item.label))
                 .map((item) => (
                   <tr key={item.label} className="border-t border-border first:border-t-0">
-                    <td className="px-2 py-1.5">{localizedFeeLabel(item.label, t)}</td>
+                    <td className="px-2 py-1.5">
+                      <BiText
+                        en={localizedFeeLabel(item.label, t.en)}
+                        hi={localizedFeeLabel(item.label, t.hi)}
+                      />
+                    </td>
                     <td className="px-2 py-1.5 text-right font-medium tabular-nums">
                       {formatInr(item.amount)}
                     </td>
@@ -379,7 +432,9 @@ export function ReceiptDocumentV2({
                 ))}
               {receipt.discountAmount > 0 ? (
                 <tr className="border-t border-border">
-                  <td className="px-2 py-1.5 text-success-soft-foreground">Discount</td>
+                  <td className="px-2 py-1.5 text-success-soft-foreground">
+                    <BiKey t={t} k="discount" />
+                  </td>
                   <td className="px-2 py-1.5 text-right font-medium tabular-nums text-success-soft-foreground">
                     −{formatInr(receipt.discountAmount)}
                   </td>
@@ -387,7 +442,9 @@ export function ReceiptDocumentV2({
               ) : null}
               {receipt.lateFeeAmount > 0 ? (
                 <tr className="border-t border-border">
-                  <td className="px-2 py-1.5 text-destructive">Late fee</td>
+                  <td className="px-2 py-1.5 text-destructive">
+                    <BiKey t={t} k="lateFee" />
+                  </td>
                   <td className="px-2 py-1.5 text-right font-medium tabular-nums text-destructive">
                     +{formatInr(receipt.lateFeeAmount)}
                   </td>
@@ -395,7 +452,9 @@ export function ReceiptDocumentV2({
               ) : null}
               {receipt.lateFeeWaived > 0 ? (
                 <tr className="border-t border-border">
-                  <td className="px-2 py-1.5 text-success-soft-foreground">Late fee waived</td>
+                  <td className="px-2 py-1.5 text-success-soft-foreground">
+                    <BiKey t={t} k="lateFeeWaived" />
+                  </td>
                   <td className="px-2 py-1.5 text-right font-medium tabular-nums text-success-soft-foreground">
                     −{formatInr(receipt.lateFeeWaived)}
                   </td>
@@ -405,13 +464,11 @@ export function ReceiptDocumentV2({
           </table>
         </section>
 
-        {/* 3c. Conventional discount audit — moved out of the old screen-only
-            disclosure so it prints. Shows every active policy; the winning one
-            (lowest resulting tuition) is marked Applied. */}
+        {/* 3c. Conventional discount audit. */}
         {receipt.conventionalDiscountAssignments.length > 0 ? (
           <section className="rounded-md border border-accent/25 bg-accent-soft/40 px-3 py-2">
             <h3 className="text-sm font-semibold text-foreground">
-              {t("conventionalDiscountHeading")}
+              <BiKey t={t} k="conventionalDiscountHeading" hiClassName="text-xs" />
             </h3>
             <ul className="mt-2 space-y-2">
               {receipt.conventionalDiscountAssignments.map((row) => (
@@ -432,7 +489,7 @@ export function ReceiptDocumentV2({
                   </div>
                   <div>
                     <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                      {t("baselineTuition")}
+                      <BiKey t={t} k="baselineTuition" />
                     </p>
                     <p className="font-semibold text-muted-foreground line-through tabular-nums">
                       {formatInr(row.beforeTuitionAmount)}
@@ -440,7 +497,7 @@ export function ReceiptDocumentV2({
                   </div>
                   <div>
                     <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                      {t("resultingTuition")}
+                      <BiKey t={t} k="resultingTuition" />
                     </p>
                     <p
                       className={cn(
@@ -454,11 +511,11 @@ export function ReceiptDocumentV2({
                   <div className="self-center">
                     {row.isWinningPolicy ? (
                       <span className="inline-flex rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-accent-foreground">
-                        Applied
+                        {biSlash(t, "appliedStatus")}
                       </span>
                     ) : (
                       <span className="inline-flex rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                        Not applied
+                        {biSlash(t, "notAppliedStatus")}
                       </span>
                     )}
                   </div>
@@ -471,19 +528,25 @@ export function ReceiptDocumentV2({
         {/* 3d. Payment progress — paid so far / this receipt / remaining. */}
         <section className="grid grid-cols-3 gap-2">
           <div className="rounded-lg border border-border bg-surface-2 p-3 text-center">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Paid so far</p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              <BiKey t={t} k="paidSoFar" />
+            </p>
             <p className="mt-1 text-base font-semibold tabular-nums text-foreground">
               {formatInr(receipt.totalPaidToDate)}
             </p>
           </div>
           <div className="rounded-lg border border-border bg-surface-2 p-3 text-center">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">This receipt</p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              <BiKey t={t} k="thisReceiptLabel" />
+            </p>
             <p className="mt-1 text-base font-semibold tabular-nums text-foreground">
               {formatInr(totalPaid)}
             </p>
           </div>
           <div className="rounded-lg border border-border bg-surface-2 p-3 text-center">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Remaining</p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              <BiKey t={t} k="remainingLabel" />
+            </p>
             <p
               className={cn(
                 "mt-1 text-base font-semibold tabular-nums",
@@ -497,20 +560,20 @@ export function ReceiptDocumentV2({
           </div>
         </section>
 
-        {/* 3e. Installment status — every installment in the session with a
-            green tick when fully cleared, or the amount still due when not.
-            Live current standing (not a point-in-time snapshot). */}
+        {/* 3e. Installment status — live current standing. */}
         {receipt.installmentStatus.length > 0 ? (
           <section className="rounded-lg border border-border bg-card/95 p-3">
-            <h3 className="text-sm font-semibold text-foreground">Installment status</h3>
+            <h3 className="text-sm font-semibold text-foreground">
+              <BiKey t={t} k="installmentStatusHeading" hiClassName="text-xs" />
+            </h3>
             <table className="mt-2 w-full text-left text-[11px]">
               <thead className="bg-surface-2 text-muted-foreground">
                 <tr>
-                  <th className="px-2 py-2">Installment</th>
-                  <th className="px-2 py-2 text-right">Due date</th>
-                  <th className="px-2 py-2 text-right">Expected</th>
-                  <th className="px-2 py-2 text-right">Paid</th>
-                  <th className="px-2 py-2 text-right">Status</th>
+                  <th className="px-2 py-2"><BiKey t={t} k="installmentColumn" /></th>
+                  <th className="px-2 py-2 text-right"><BiKey t={t} k="v2DueDateColumn" /></th>
+                  <th className="px-2 py-2 text-right"><BiKey t={t} k="expectedColumn" /></th>
+                  <th className="px-2 py-2 text-right"><BiKey t={t} k="v2PaidColumn" /></th>
+                  <th className="px-2 py-2 text-right"><BiKey t={t} k="statusColumn" /></th>
                 </tr>
               </thead>
               <tbody>
@@ -527,7 +590,7 @@ export function ReceiptDocumentV2({
                       <td className="px-2 py-2 text-right">
                         {cleared ? (
                           <span className="inline-flex items-center justify-end gap-1 font-medium text-success-soft-foreground">
-                            <CheckCircle2 className="size-3.5" aria-hidden="true" /> Paid
+                            <CheckCircle2 className="size-3.5" aria-hidden="true" /> {biSlash(t, "paidStatus")}
                           </span>
                         ) : (
                           <span
@@ -538,7 +601,7 @@ export function ReceiptDocumentV2({
                                 : "text-warning-soft-foreground",
                             )}
                           >
-                            {formatInr(row.pending)} due
+                            {t.en("amountDueStatus", { amount: formatInr(row.pending) })}
                           </span>
                         )}
                       </td>
@@ -550,24 +613,22 @@ export function ReceiptDocumentV2({
           </section>
         ) : null}
 
-        {/* 4. Installment table.
-            With allocation snapshot present (post-migration rows): full
-            breakdown — Installment / Due / Pending before / Discount /
-            Waiver / Paid / Balance after.
-            Legacy rows (pre-migration): compact 3-column layout. */}
+        {/* 4. What this receipt paid. */}
         <section className="rounded-lg border border-border bg-card/95 p-3">
-          <h3 className="mb-2 text-sm font-semibold text-foreground">What this receipt paid</h3>
+          <h3 className="mb-2 text-sm font-semibold text-foreground">
+            <BiKey t={t} k="whatThisReceiptPaidHeading" hiClassName="text-xs" />
+          </h3>
           {hasAllocationSnapshot ? (
             <table className="w-full text-left text-[11px]">
               <thead className="bg-surface-2 text-muted-foreground">
                 <tr>
-                  <th className="px-2 py-2">{t("installmentColumn")}</th>
-                  <th className="px-2 py-2 text-right">{t("v2DueDateColumn")}</th>
-                  <th className="px-2 py-2 text-right">Pending before</th>
-                  <th className="px-2 py-2 text-right">Discount</th>
-                  <th className="px-2 py-2 text-right">Waiver</th>
-                  <th className="px-2 py-2 text-right">{t("v2PaidColumn")}</th>
-                  <th className="px-2 py-2 text-right">Balance after</th>
+                  <th className="px-2 py-2"><BiKey t={t} k="installmentColumn" /></th>
+                  <th className="px-2 py-2 text-right"><BiKey t={t} k="v2DueDateColumn" /></th>
+                  <th className="px-2 py-2 text-right"><BiKey t={t} k="pendingBefore" /></th>
+                  <th className="px-2 py-2 text-right"><BiKey t={t} k="discount" /></th>
+                  <th className="px-2 py-2 text-right"><BiKey t={t} k="waiverColumn" /></th>
+                  <th className="px-2 py-2 text-right"><BiKey t={t} k="v2PaidColumn" /></th>
+                  <th className="px-2 py-2 text-right"><BiKey t={t} k="balanceAfterColumn" /></th>
                 </tr>
               </thead>
               <tbody>
@@ -618,9 +679,9 @@ export function ReceiptDocumentV2({
             <table className="w-full text-left text-xs">
               <thead className="bg-surface-2 text-muted-foreground">
                 <tr>
-                  <th className="px-2 py-2">{t("installmentColumn")}</th>
-                  <th className="px-2 py-2 text-right">{t("v2DueDateColumn")}</th>
-                  <th className="px-2 py-2 text-right">{t("v2PaidColumn")}</th>
+                  <th className="px-2 py-2"><BiKey t={t} k="installmentColumn" /></th>
+                  <th className="px-2 py-2 text-right"><BiKey t={t} k="v2DueDateColumn" /></th>
+                  <th className="px-2 py-2 text-right"><BiKey t={t} k="v2PaidColumn" /></th>
                 </tr>
               </thead>
               <tbody>
@@ -646,9 +707,11 @@ export function ReceiptDocumentV2({
         <section className="rounded-lg border border-border bg-surface-2 p-3 text-sm">
           <div className="flex items-baseline justify-between gap-3">
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-              {receipt.paymentMode === "discount"
-                ? t("v2ClosedAsDiscount")
-                : t("v2TotalPaid")}
+              {receipt.paymentMode === "discount" ? (
+                <BiKey t={t} k="v2ClosedAsDiscount" />
+              ) : (
+                <BiKey t={t} k="v2TotalPaid" />
+              )}
             </p>
             <p
               className={cn(
@@ -662,18 +725,18 @@ export function ReceiptDocumentV2({
             </p>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            {t("paymentMode")}: {paymentModeLabel(receipt.paymentMode, t)}
+            <span className="font-medium">
+              {t.en("paymentMode")} / <span lang="hi">{t.hi("paymentMode")}</span>:
+            </span>{" "}
+            {paymentModeText(receipt.paymentMode, t.en)} / <span lang="hi">{paymentModeText(receipt.paymentMode, t.hi)}</span>
             {receipt.referenceNumber ? ` · ${receipt.referenceNumber}` : ""}
-            {/* The close-out treatment is now shown as a full banner above the
-                totals block (see section 2c), so the trailing footnote here is
-                no longer needed. */}
           </p>
 
           <div className="my-2 border-t border-dashed border-border" />
 
           <div className="flex items-baseline justify-between gap-3">
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-              {t("v2BalanceDue")}
+              <BiKey t={t} k="v2BalanceDue" />
             </p>
             <p
               className={cn(
@@ -687,16 +750,55 @@ export function ReceiptDocumentV2({
             </p>
           </div>
 
+          {/* Amount in words — both languages, for legal clarity. */}
           <p className="mt-3 text-xs">
-            <span className="font-semibold">{t("amountInWords")}:</span>{" "}
-            {amountInWords(totalPaid, t)}
+            <span className="font-semibold">{t.en("amountInWords")}:</span>{" "}
+            {amountInWords(totalPaid, t.en)}
           </p>
+          <p className="mt-0.5 text-xs" lang="hi">
+            <span className="font-semibold">{t.hi("amountInWords")}:</span>{" "}
+            {amountInWordsHindi(totalPaid)}
+          </p>
+
+          {/* What's next — one plain-language bilingual line. */}
+          <div className="mt-3 border-t border-dashed border-border pt-2 text-xs">
+            {receipt.outstandingAfterReceipt > 0 ? (
+              <>
+                <p className="font-medium text-warning-soft-foreground">
+                  {nextDue
+                    ? t.en("balanceDuePayBy", {
+                        amount: formatInr(receipt.outstandingAfterReceipt),
+                        date: formatDate(nextDue.dueDate),
+                      })
+                    : t.en("balanceDuePayByNoDate", {
+                        amount: formatInr(receipt.outstandingAfterReceipt),
+                      })}
+                </p>
+                <p className="font-medium text-warning-soft-foreground" lang="hi">
+                  {nextDue
+                    ? t.hi("balanceDuePayBy", {
+                        amount: formatInr(receipt.outstandingAfterReceipt),
+                        date: formatDate(nextDue.dueDate),
+                      })
+                    : t.hi("balanceDuePayByNoDate", {
+                        amount: formatInr(receipt.outstandingAfterReceipt),
+                      })}
+                </p>
+              </>
+            ) : (
+              <p className="font-medium text-success-soft-foreground">
+                {t.en("allDuesClearedLine")} · <span lang="hi">{t.hi("allDuesClearedLine")}</span>
+              </p>
+            )}
+          </div>
         </section>
 
         {/* 5b. Previous receipts — context for anyone reading this receipt. */}
         {receipt.previousReceipts.length > 0 ? (
           <section className="rounded-lg border border-border bg-card/95 p-3 text-xs">
-            <h3 className="text-sm font-semibold text-foreground">Previous receipts</h3>
+            <h3 className="text-sm font-semibold text-foreground">
+              <BiKey t={t} k="previousReceiptsHeading" hiClassName="text-xs" />
+            </h3>
             <ul className="mt-2 grid gap-1 sm:grid-cols-2">
               {receipt.previousReceipts.map((item) => (
                 <li
@@ -715,11 +817,13 @@ export function ReceiptDocumentV2({
         {/* 6. Signature */}
         <footer className="flex items-end justify-between gap-4 pt-2 text-xs text-muted-foreground">
           <div>
-            <p className="font-medium text-foreground">{t("officialReceiptStatement")}</p>
-            <p>{t("keepRecordsStatement")}</p>
+            <p className="font-medium text-foreground">{t.en("officialReceiptStatement")}</p>
+            <p className="font-medium text-foreground" lang="hi">{t.hi("officialReceiptStatement")}</p>
+            <p>{t.en("keepRecordsStatement")}</p>
+            <p lang="hi">{t.hi("keepRecordsStatement")}</p>
           </div>
           <div className="min-w-48 border-t border-border-strong pt-2 text-center">
-            {t("authorisedSignature")}
+            <BiKey t={t} k="authorisedSignature" />
           </div>
         </footer>
       </div>

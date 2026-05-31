@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Printer, ExternalLink, AlertTriangle, Loader2 } from "lucide-react";
 
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { ReceiptDocument } from "@/components/receipts/receipt-document";
 import { ReceiptShareActions } from "@/components/receipts/receipt-share-actions";
+import { createBilingualReceiptTranslator } from "@/lib/i18n/bilingual-receipt";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import type { ReceiptDetail } from "@/lib/receipts/types";
 import type { WhatsappTemplate } from "@/lib/whatsapp-templates/types";
@@ -41,6 +42,8 @@ export function ReceiptPreviewSheet({
   whatsappTemplates = [],
 }: ReceiptPreviewSheetProps) {
   const t = useTranslations("Receipts");
+  // Parent-facing document → always bilingual, independent of the UI locale.
+  const receiptT = useMemo(() => createBilingualReceiptTranslator(), []);
   const [state, setState] = useState<FetchState>(
     initialReceipt ? { status: "ready", receipt: initialReceipt } : { status: "idle" },
   );
@@ -123,7 +126,7 @@ export function ReceiptPreviewSheet({
         ) : null}
 
         {state.status === "ready" ? (
-          <ReceiptDocument receipt={state.receipt} mode="saved" density="compact" t={t} />
+          <ReceiptDocument receipt={state.receipt} mode="saved" density="compact" t={receiptT} />
         ) : null}
 
         <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-end gap-2 border-t border-border bg-card px-4 py-3 mobile-safe-bottom-padding sm:-mx-5 sm:px-5">

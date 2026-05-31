@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { ReceiptDocument } from "@/components/receipts/receipt-document";
 import { ReceiptPrintActions } from "@/components/receipts/receipt-print-actions";
 import { ReceiptShareActions } from "@/components/receipts/receipt-share-actions";
+import { createBilingualReceiptTranslator } from "@/lib/i18n/bilingual-receipt";
 import { getReceiptDetail } from "@/lib/receipts/data";
 import { listWhatsappTemplates } from "@/lib/whatsapp-templates/data";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
@@ -76,7 +77,7 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
         className="no-print"
       />
 
-      <ReceiptDocument receipt={receipt} t={t} />
+      <ReceiptDocument receipt={receipt} t={createBilingualReceiptTranslator()} />
     </div>
   );
 }

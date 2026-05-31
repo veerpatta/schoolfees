@@ -1,23 +1,20 @@
 import type { ReceiptDetail } from "@/lib/receipts/types";
 import { ReceiptDocumentV2 } from "@/components/receipts/receipt-document-v2";
+import type { BilingualReceiptTranslator } from "@/lib/i18n/bilingual-receipt";
 
 /**
- * Translator function used by ReceiptDocument and ReceiptDocumentV2.
- * Compatible with both `getTranslations("Receipts")` (server) and
- * `useTranslations("Receipts")` (client) — both return a callable with
- * this shape.
+ * Re-exported for call sites and tests. The receipt itself is fed a
+ * locale-independent BILINGUAL translator (English + Devanagari Hindi); this
+ * single-locale shape is the building block (`bt.en` / `bt.hi`).
  */
-export type ReceiptTranslator = (
-  key: string,
-  values?: Record<string, string | number>,
-) => string;
+export type { ReceiptTranslator } from "@/lib/i18n/bilingual-receipt";
 
 type ReceiptDocumentMode = "print" | "draft" | "saved";
 
 type ReceiptDocumentProps = {
   receipt: ReceiptDetail;
-  /** Translator scoped to the Receipts namespace. Required. */
-  t: ReceiptTranslator;
+  /** Bilingual translator (English + Hindi). Required. Always renders both. */
+  t: BilingualReceiptTranslator;
   className?: string;
   mode?: ReceiptDocumentMode;
   /**

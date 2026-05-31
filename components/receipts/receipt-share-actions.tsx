@@ -28,7 +28,16 @@ const DEFAULT_BODY = [
   "",
   "Thank you for your prompt payment.",
   "",
-  "Regards,",
+  "— — —",
+  "",
+  "नमस्ते,",
+  "",
+  "{{studentName}} ({{className}}) की आपकी फीस प्राप्त हो गई है।",
+  "रसीद संख्या: {{receiptNumber}}, राशि: {{amount}}।",
+  "",
+  "समय पर भुगतान के लिए धन्यवाद।",
+  "",
+  "Regards / सादर,",
   "{{schoolName}}",
 ].join("\n");
 
