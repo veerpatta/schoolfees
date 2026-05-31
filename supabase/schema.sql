@@ -612,9 +612,6 @@ on public.installments (created_by);
 create index if not exists idx_installments_updated_by
 on public.installments (updated_by);
 
-create index if not exists idx_receipts_student_payment_date
-on public.receipts (student_id, payment_date desc);
-
 create index if not exists idx_receipts_student_payment_date_created_at
 on public.receipts (student_id, payment_date desc, created_at desc);
 
@@ -634,9 +631,6 @@ create unique index if not exists receipts_student_client_request_id_unique
 on public.receipts (student_id, client_request_id)
 where client_request_id is not null;
 
-create index if not exists idx_payments_installment
-on public.payments (installment_id, created_at desc);
-
 create index if not exists idx_payments_student_created_at
 on public.payments (student_id, created_at desc);
 
@@ -648,9 +642,6 @@ on public.payments (installment_id, student_id);
 
 create index if not exists idx_payments_created_by
 on public.payments (created_by);
-
-create index if not exists idx_payment_adjustments_payment
-on public.payment_adjustments (payment_id, created_at desc);
 
 create index if not exists idx_payment_adjustments_student
 on public.payment_adjustments (student_id, created_at desc);
@@ -696,6 +687,12 @@ on public.audit_logs (table_name, record_id, created_at desc);
 
 create index if not exists idx_audit_logs_changed_by
 on public.audit_logs (changed_by, created_at desc);
+
+-- Backs loadAuditTrailUpTo (fee-setup time-travel): WHERE table_name = $1
+-- ORDER BY created_at DESC. idx_audit_logs_record can't serve this because
+-- record_id sits between table_name and created_at.
+create index if not exists idx_audit_logs_table_created
+on public.audit_logs (table_name, created_at desc);
 
 create index if not exists idx_students_created_by
 on public.students (created_by);
