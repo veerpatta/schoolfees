@@ -1,7 +1,3 @@
-// Goes at REPO ROOT: next.config.ts  (REPLACES the existing file)
-// Only two things changed vs. your current file:
-//   1. added the `withSentryConfig` import
-//   2. wrapped the final export with withSentryConfig(...)
 import type { NextConfig } from "next";
 import bundleAnalyzer from "@next/bundle-analyzer";
 import createNextIntlPlugin from "next-intl/plugin";
@@ -13,6 +9,14 @@ const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,
+  // Expose the Vercel deploy environment to the browser. Vercel only provides
+  // the server-side VERCEL_ENV automatically, so without this the client-side
+  // Sentry SDK always falls back to "development" and prod browser errors can't
+  // be filtered by environment. Inlined at build time; undefined locally → the
+  // client config's "development" fallback applies.
+  env: {
+    NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV,
+  },
   // @react-pdf/renderer (with its pdfkit/fontkit deps) loads binary font-metric
   // data at runtime. Bundling it breaks Vercel's serverless file tracing (the
   // .afm data gets dropped → renderToBuffer throws and the fee-pdf routes 500).
