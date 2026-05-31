@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -211,13 +212,22 @@ export function MobilePaymentFlowSheet({
   const studentPickerSwipe = useSwipeDown(onBackToClassPicker);
   const paymentEntrySwipe = useSwipeDown(onBackToStudentPicker);
 
+  // Portal the sheet to <body> so its z-index is evaluated in the body
+  // stacking context, not trapped inside the Payment Desk page tree. Without
+  // this, the fixed bottom navigation bar (rendered higher in the shell) paints
+  // over the sheet's bottom action button on mobile. This mirrors how
+  // ConfirmReceiptSheet and SuccessReceiptSheet already escape via createPortal.
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
+
   if (view === null) return null;
+  if (!mounted) return null;
 
   const selectedClassLabel = classOptions.find((classOption) => classOption.id === selectedClassId)?.label ?? "All classes";
   const showTodayReceiptWarning = latestReceiptToday && latestReceiptToday.id !== dismissedTodayReceiptId;
   const disablePaymentActions = isLockedAfterSuccess || !canPost;
 
-  return (
+  const sheet = (
     <div className="fixed inset-0 z-[45] md:hidden">
       {view !== "payment-entry" ? (
         <div className="absolute inset-0 bg-black/40" onClick={onClose} />
@@ -1037,4 +1047,6 @@ export function MobilePaymentFlowSheet({
       ) : null}
     </div>
   );
+
+  return createPortal(sheet, document.body);
 }

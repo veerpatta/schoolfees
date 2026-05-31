@@ -306,6 +306,18 @@ export function toFriendlyPaymentPostingError(error: unknown) {
     return "Selected student belongs to another session. Align the working session with Fee Setup before posting.";
   }
 
+  // A Postgres-level "permission denied for function/schema/relation" (SQLSTATE
+  // 42501) is an infrastructure/grant misconfiguration, NOT a staff RBAC denial.
+  // The Server Action already enforced payments:write via requireStaffPermission
+  // before reaching this RPC, so the caller demonstrably has posting access.
+  // Surfacing this as "you don't have permission" hides the real problem (e.g. a
+  // missing EXECUTE grant on a private helper, which broke posting school-wide in
+  // May 2026). Route it to the database-update message instead. This branch must
+  // precede the generic "permission" check below, since this text also matches it.
+  if (normalized.includes("42501") || normalized.includes("permission denied for")) {
+    return "Payment posting needs a database update. Ask an admin to open Admin Tools > System checks.";
+  }
+
   if (normalized.includes("permission") || normalized.includes("not have permission")) {
     return "You do not have permission to post payments.";
   }

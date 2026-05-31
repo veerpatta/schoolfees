@@ -1,0 +1,24 @@
+-- Fix: Payment Desk posting fails for every staff user with
+--   "permission denied for function normalize_workbook_class_label"
+--   (surfaced to staff as the misleading "You do not have permission to post payments.").
+--
+-- Root cause (regression timeline):
+--   * 20260425100000_workbook_preview_function_grants granted EXECUTE on BOTH
+--     private.workbook_installment_snapshot AND its helper
+--     private.normalize_workbook_class_label to `authenticated`.
+--   * 20260523164957_harden_supabase_function_surface revoked EXECUTE from
+--     `authenticated` on every private function and re-granted only `service_role`.
+--   * 20260526100000 / 20260527033430 restored the `authenticated` grant on
+--     workbook_installment_snapshot, but NOT on normalize_workbook_class_label.
+--
+-- Effect: preview_workbook_payment_allocation is SECURITY DEFINER, so it runs the
+-- snapshot -> normalize chain as the function owner and dues display correctly.
+-- post_student_payment_with_adjustments is NOT SECURITY DEFINER, so it runs the
+-- same chain as `authenticated`, which lacks EXECUTE on normalize_workbook_class_label,
+-- and every posting attempt aborts before any row is written.
+--
+-- normalize_workbook_class_label is a pure IMMUTABLE string-mapping helper (no table
+-- access, no side effects); granting EXECUTE to `authenticated` is safe and simply
+-- restores the original, intended grant that the hardening pass dropped.
+
+grant execute on function private.normalize_workbook_class_label(text, text) to authenticated;
