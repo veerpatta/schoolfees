@@ -275,6 +275,7 @@ Canonical values (from `docs/product/school-rules.md` and `lib/config/fee-rules.
 - Class 12 Science annual tuition default: ₹38,000
 - Receipt prefix: `SVP`
 - Payment modes: Cash, UPI, Bank transfer, Cheque
+- Reference number is **optional for all payment modes** (the Payment Desk no longer collects it). `post_student_payment_with_adjustments` does not require a reference for UPI/bank transfer/cheque — see migration `20260602042112_drop_payment_reference_requirement.sql`.
 - Books excluded from workbook fee calculation by default
 
 ### Conventional Discount Policies
