@@ -32,6 +32,7 @@
   ],
   "exclude": [
     "node_modules",
+    "supabase/functions",
     "tests/smoke-2026-05",
     "docs/smoke-reports"
   ]

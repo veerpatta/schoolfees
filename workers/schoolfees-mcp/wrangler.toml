@@ -1,0 +1,8 @@
+name = "schoolfees-live-mcp"
+main = "worker.mjs"
+compatibility_date = "2026-06-11"
+preview_urls = false
+
+[vars]
+SCHOOLFEES_MCP_DEFAULT_SESSION = "2026-27"
+SCHOOLFEES_MCP_SUPABASE_SCHEMA = "public"
