@@ -7,16 +7,18 @@ import { Check, Copy, MessageSquare } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
+import { UpiQrCode } from "@/components/payments/upi-qr-code";
 import { schoolProfile } from "@/lib/config/school";
 import { formatInr } from "@/lib/helpers/currency";
 import { composeDefaulterDraft } from "@/lib/defaulters/whatsapp-template";
 import { buildWaMeLink } from "@/lib/whatsapp-templates/render";
+import { buildStudentFeeUpiPayment } from "@/lib/payments/upi";
 import { logWhatsAppSendAttempts } from "@/app/protected/defaulters/actions";
 import type { DefaulterSummaryRow } from "@/lib/defaulters/types";
 
 type RowSubset = Pick<
   DefaulterSummaryRow,
-  "fullName" | "classLabel" | "totalPending" | "oldestDueDate" | "overdueAmount"
+  "admissionNo" | "fullName" | "classLabel" | "totalPending" | "oldestDueDate" | "overdueAmount"
 > & {
   fatherPhone?: string | null;
 };
@@ -50,6 +52,10 @@ export function WhatsAppDraftModal({
       : row.oldestDueDate
         ? t("whatsappDueLabel", { date: row.oldestDueDate })
         : t("whatsappTotalDues");
+  const upiPayment = buildStudentFeeUpiPayment({
+    admissionNo: row.admissionNo,
+    amount: row.totalPending,
+  });
 
   const draft = composeDefaulterDraft({
     studentName: row.fullName,
@@ -57,6 +63,8 @@ export function WhatsAppDraftModal({
     outstandingAmount: row.totalPending,
     dueLabel,
     schoolName: schoolProfile.shortName,
+    paymentLink: upiPayment.uri,
+    paymentReference: upiPayment.displayReference,
   });
 
   function handleCopy() {
@@ -102,6 +110,24 @@ export function WhatsAppDraftModal({
         <pre className="whitespace-pre-wrap rounded-lg border border-border bg-surface-2 p-4 font-sans text-sm leading-relaxed text-foreground">
           {draft}
         </pre>
+
+        <div className="grid gap-3 rounded-lg border border-border bg-surface-2 p-3 sm:grid-cols-[auto,1fr] sm:items-center">
+          <UpiQrCode
+            value={upiPayment.uri}
+            alt={t("upiQrAlt", { name: row.fullName })}
+            className="mx-auto size-36 rounded-md border border-border bg-white p-2"
+          />
+          <div className="space-y-1 text-sm">
+            <p className="font-semibold text-foreground">{t("upiQrTitle")}</p>
+            <p className="text-muted-foreground">
+              {t("upiQrDescription", {
+                amount: formatInr(upiPayment.amount),
+                reference: upiPayment.displayReference,
+              })}
+            </p>
+            <p className="break-all text-xs text-muted-foreground">{upiPayment.uri}</p>
+          </div>
+        </div>
 
         <div className="grid grid-cols-2 gap-2">
           <Button

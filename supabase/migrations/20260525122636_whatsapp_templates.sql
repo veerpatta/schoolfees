@@ -62,9 +62,12 @@ values
     'Namaste {{fatherName}} ji,' || E'\n\n' ||
     'Gentle reminder: school fees of {{pending}} are pending for {{studentName}} ({{className}}).' || E'\n' ||
     'Kindly clear at your earliest convenience by {{dueDate}} — feel free to call the fee office for any clarification.' || E'\n\n' ||
+    'UPI payment link: {{paymentLink}}' || E'\n' ||
+    'Reference: {{paymentReference}}' || E'\n' ||
+    'After payment, please share the UPI screenshot/UTR. Receipt will be posted from Payment Desk after office verification.' || E'\n\n' ||
     'Regards,' || E'\n' ||
     'Shri Veer Patta Senior Secondary School',
-    '{studentName,className,pending,dueDate,fatherName}',
+    '{studentName,className,pending,dueDate,fatherName,paymentLink,paymentReference}',
     'reminder'
   ),
   (
@@ -72,9 +75,12 @@ values
     'Namaste {{fatherName}} ji,' || E'\n\n' ||
     'This is a final reminder regarding pending school fees of {{pending}} for {{studentName}} ({{className}}). The amount was due on {{dueDate}}.' || E'\n\n' ||
     'Please settle the dues at the earliest, or visit the fee office to discuss an installment plan.' || E'\n\n' ||
+    'UPI payment link: {{paymentLink}}' || E'\n' ||
+    'Reference: {{paymentReference}}' || E'\n' ||
+    'After payment, please share the UPI screenshot/UTR. Receipt will be posted from Payment Desk after office verification.' || E'\n\n' ||
     'Regards,' || E'\n' ||
     'Shri Veer Patta Senior Secondary School',
-    '{studentName,className,pending,dueDate,fatherName}',
+    '{studentName,className,pending,dueDate,fatherName,paymentLink,paymentReference}',
     'final_reminder'
   ),
   (

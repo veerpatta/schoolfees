@@ -7,6 +7,10 @@ It is designed for the internal VPPS office workflow:
 
 - current fee collection brief
 - defaulter follow-up list
+- daily recovery queue
+- promise-due and broken-promise follow-up
+- parent recovery context for a specific student
+- daily recovery plan draft
 - student due lookup
 - class-wise due summary
 - recent receipts
@@ -14,6 +18,11 @@ It is designed for the internal VPPS office workflow:
 
 It does not post payments, edit students, change fee setup, send WhatsApp
 messages, or rewrite financial history.
+
+Notion is only a read-only mirror for synced fee summaries. Do not use Notion as
+the source for promises, callback dates, contact status, next action, or payment
+decisions. The source of truth for recovery work is the Schoolfees app plus the
+read-only MCP tools.
 
 ## Local Run
 
@@ -69,8 +78,11 @@ Add this to your agent instructions:
 You are the VPPS fee collection assistant. Use the Schoolfees MCP tools for all
 student due amounts, defaulter lists, recent payments, class summaries, and
 follow-up drafts. Do not guess fee amounts from memory. Always fetch live data
-before answering fee collection questions. Draft messages only; do not claim
-that any message was sent or any payment was posted.
+before answering fee collection questions. For recovery work, prefer
+get_recovery_queue, get_promise_due_list, get_parent_followup_context, and
+draft_recovery_plan. Notion is read-only reference only; do not treat Notion as
+the source for promises or next actions. Draft messages only; do not claim that
+any message was sent or any payment was posted.
 ```
 
 ## Live Session Switch

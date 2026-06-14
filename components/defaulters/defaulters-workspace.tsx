@@ -8,13 +8,16 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 import {
+  AlertTriangle,
   BellOff,
   CheckCircle2,
   ChevronRight,
   Clock,
   Flame,
   MessageSquare,
+  PhoneOff,
   Snowflake,
+  Users,
 } from "lucide-react";
 
 import { BulkRowCheckbox } from "@/components/defaulters/bulk-whatsapp-provider";
@@ -38,6 +41,12 @@ import {
   type CadenceCounts,
   type DefaulterContactSummary,
 } from "@/lib/defaulters/cadence";
+import {
+  buildRecoveryDesk,
+  type RecoveryDesk,
+  type RecoveryDeskEntry,
+  type RecoveryLaneId,
+} from "@/lib/defaulters/recovery";
 import { PAYMENT_BEHAVIORS, type PaymentBehavior } from "@/lib/defaulters/behavior";
 import type { DefaulterSummaryRow } from "@/lib/defaulters/types";
 
@@ -189,6 +198,23 @@ export function DefaultersWorkspace({
 
   // Compute cadence + counts purely on the client.
   const today = useMemo(() => new Date(), []);
+  const recoveryRows = useMemo(
+    () =>
+      rows.map((row) => ({
+        ...row,
+        noCall: effectiveNoCall(row),
+      })),
+    [rows, effectiveNoCall],
+  );
+  const recoveryDesk = useMemo(
+    () =>
+      buildRecoveryDesk({
+        rows: recoveryRows,
+        contactSummaries: effectiveSummaries,
+        today,
+      }),
+    [recoveryRows, effectiveSummaries, today],
+  );
   const rowsWithCadence: { row: DefaulterSummaryRow; cadence: Cadence }[] = useMemo(
     () =>
       rows.map((row) => ({
@@ -311,6 +337,8 @@ export function DefaultersWorkspace({
 
   return (
     <div className="space-y-3">
+      <RecoveryDeskPanel desk={recoveryDesk} onOpenStudent={openDrawer} />
+
       <CadenceTabs
         counts={cadenceCounts}
         noCallCount={noCallCount}
@@ -431,6 +459,204 @@ export function DefaultersWorkspace({
         />
       ) : null}
     </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Daily recovery desk                                                         */
+/* -------------------------------------------------------------------------- */
+
+const RECOVERY_LANES: { id: RecoveryLaneId; i18nKey: string; Icon: typeof Flame }[] = [
+  { id: "brokenPromise", i18nKey: "recoveryLaneBrokenPromise", Icon: AlertTriangle },
+  { id: "promiseDue", i18nKey: "recoveryLanePromiseDue", Icon: Clock },
+  { id: "notResponding", i18nKey: "recoveryLaneNotResponding", Icon: PhoneOff },
+  { id: "highExposure", i18nKey: "recoveryLaneHighExposure", Icon: Flame },
+  { id: "familyExposure", i18nKey: "recoveryLaneFamilyExposure", Icon: Users },
+];
+
+function RecoveryDeskPanel({
+  desk,
+  onOpenStudent,
+}: {
+  desk: RecoveryDesk;
+  onOpenStudent: (row: DefaulterSummaryRow) => void;
+}) {
+  const t = useTranslations("Defaulters");
+  const previewRows = desk.nextBestRows.slice(0, 5);
+
+  return (
+    <section className="rounded-lg border border-border bg-card p-3 shadow-sm">
+      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">{t("recoveryDeskTitle")}</h2>
+          <p className="mt-0.5 max-w-3xl text-sm text-muted-foreground">
+            {t("recoveryDeskDescription")}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2 rounded-md border border-border bg-surface-2 px-3 py-2">
+          <span className="text-xs font-medium text-muted-foreground">
+            {t("recoveryMetricActive")}
+          </span>
+          <span className="text-lg font-semibold tabular-nums text-foreground">
+            {desk.metrics.activeRecoveryRows}
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-2 md:grid-cols-3">
+        <RecoveryMetric
+          label={t("recoveryMetricPromiseDue")}
+          value={desk.metrics.promiseDueRows.toString()}
+        />
+        <RecoveryMetric
+          label={t("recoveryMetricNoAnswer")}
+          value={desk.metrics.notRespondingRows.toString()}
+        />
+        <RecoveryMetric
+          label={t("recoveryMetricNoCall")}
+          value={desk.metrics.noCallRows.toString()}
+        />
+      </div>
+
+      <div className="mt-3 grid gap-2 md:grid-cols-6">
+        <RecoveryMetric
+          label={t("recoveryMetricRecoveryRate")}
+          value={t("recoveryRateValue", { rate: desk.metrics.recoveryRate })}
+        />
+        <RecoveryMetric
+          label={t("recoveryMetricPromiseKeptRate")}
+          value={
+            desk.metrics.promiseKeptRate === null
+              ? t("recoveryNoPromiseHistory")
+              : t("recoveryRateValue", { rate: desk.metrics.promiseKeptRate })
+          }
+        />
+        <RecoveryMetric
+          label={t("recoveryAging030")}
+          value={formatInr(desk.metrics.agingBuckets.currentTo30.pendingAmount)}
+          detail={t("recoveryAgingRows", {
+            count: desk.metrics.agingBuckets.currentTo30.rows,
+          })}
+        />
+        <RecoveryMetric
+          label={t("recoveryAging3160")}
+          value={formatInr(desk.metrics.agingBuckets.days31To60.pendingAmount)}
+          detail={t("recoveryAgingRows", {
+            count: desk.metrics.agingBuckets.days31To60.rows,
+          })}
+        />
+        <RecoveryMetric
+          label={t("recoveryAging6190")}
+          value={formatInr(desk.metrics.agingBuckets.days61To90.pendingAmount)}
+          detail={t("recoveryAgingRows", {
+            count: desk.metrics.agingBuckets.days61To90.rows,
+          })}
+        />
+        <RecoveryMetric
+          label={t("recoveryAging91Plus")}
+          value={formatInr(desk.metrics.agingBuckets.days91Plus.pendingAmount)}
+          detail={t("recoveryAgingRows", {
+            count: desk.metrics.agingBuckets.days91Plus.rows,
+          })}
+        />
+      </div>
+
+      <div className="mt-3 grid gap-2 lg:grid-cols-5">
+        {RECOVERY_LANES.map(({ id, i18nKey, Icon }) => {
+          const lane = desk.lanes[id];
+          return (
+            <div key={id} className="rounded-lg border border-border bg-surface-2 p-2">
+              <div className="flex items-center gap-2">
+                <Icon className="size-4 text-muted-foreground" aria-hidden="true" />
+                <p className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">
+                  {t(i18nKey)}
+                </p>
+                <span className="rounded-full bg-card px-2 py-0.5 text-xs font-semibold tabular-nums text-foreground">
+                  {lane.rows.length}
+                </span>
+              </div>
+              <div className="mt-2">
+                <Money value={lane.totalPending} size="sm" tone="warning" />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-3">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-foreground">{t("recoveryNextBestTitle")}</h3>
+          <span className="text-xs text-muted-foreground">
+            {formatInr(desk.metrics.activePendingAmount)}
+          </span>
+        </div>
+        {previewRows.length === 0 ? (
+          <p className="rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-muted-foreground">
+            {t("recoveryNextBestEmpty")}
+          </p>
+        ) : (
+          <div className="grid gap-2 lg:grid-cols-5">
+            {previewRows.map((entry) => (
+              <RecoveryRow
+                key={entry.row.studentId}
+                entry={entry}
+                onOpen={() => onOpenStudent(entry.row)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function RecoveryMetric({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-surface-2 px-3 py-2">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="mt-1 text-xl font-semibold tabular-nums text-foreground">{value}</p>
+      {detail ? <p className="mt-1 text-xs text-muted-foreground">{detail}</p> : null}
+    </div>
+  );
+}
+
+function RecoveryRow({ entry, onOpen }: { entry: RecoveryDeskEntry; onOpen: () => void }) {
+  const t = useTranslations("Defaulters");
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="min-h-28 rounded-lg border border-border bg-surface-2 p-2 text-left transition-colors hover:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-foreground">{entry.row.fullName}</p>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            {t("studentMetaLine", {
+              classLabel: entry.row.classLabel,
+              admissionNo: entry.row.admissionNo,
+            })}
+          </p>
+        </div>
+        <Money value={entry.row.totalPending} size="sm" tone="warning" />
+      </div>
+      <p className="mt-2 text-xs font-medium text-muted-foreground">
+        {t("recoveryPriorityScore", { score: entry.priorityScore })}
+      </p>
+      {entry.reasons.length > 0 ? (
+        <p className="mt-1 line-clamp-2 text-xs text-foreground">
+          {entry.reasons.slice(0, 3).join(" / ")}
+        </p>
+      ) : null}
+    </button>
   );
 }
 

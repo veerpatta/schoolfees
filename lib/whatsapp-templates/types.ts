@@ -38,6 +38,8 @@ export const KNOWN_PLACEHOLDERS: ReadonlyArray<{
   { token: "className", description: "Class label, e.g. Class 8 - A." },
   { token: "pending", description: "Total pending amount (formatted ₹)." },
   { token: "dueDate", description: "Oldest due date in DD-MM-YYYY form." },
+  { token: "paymentLink", description: "UPI pay link with the pending amount pre-filled." },
+  { token: "paymentReference", description: "Short UPI note/reference for office matching." },
   { token: "schoolName", description: "School short name." },
   { token: "receiptNumber", description: "Receipt number (receipt templates)." },
   { token: "amount", description: "Receipt amount in ₹ (receipt templates)." },

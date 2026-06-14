@@ -33,6 +33,8 @@ const PREVIEW_VARS: Record<string, string> = {
   className: "Class 8 - A",
   pending: "₹12,500", // @allow-raw-money-format — preview sample, not a money value
   dueDate: "20-04-2026",
+  paymentLink: "upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank&am=12500&cu=INR&tn=Fee%20ADM1234",
+  paymentReference: "Fee ADM1234",
   schoolName: "Shri Veer Patta",
   receiptNumber: "SVP-12345",
   amount: "₹6,250", // @allow-raw-money-format — preview sample, not a money value
@@ -51,6 +53,8 @@ const PLACEHOLDER_I18N: Record<string, string> = {
   className: "whatsappPlaceholderClassName",
   pending: "whatsappPlaceholderPending",
   dueDate: "whatsappPlaceholderDueDate",
+  paymentLink: "whatsappPlaceholderPaymentLink",
+  paymentReference: "whatsappPlaceholderPaymentReference",
   schoolName: "whatsappPlaceholderSchoolName",
   receiptNumber: "whatsappPlaceholderReceiptNumber",
   amount: "whatsappPlaceholderAmount",

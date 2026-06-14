@@ -66,6 +66,10 @@ export type DefaulterSummaryRow = {
   noCall?: boolean;
   familyGroupId?: string | null;
   familyVisibleSiblingCount?: number;
+  /** Promise reliability for the student/family in this session, 0-100. */
+  promiseKeptRate?: number | null;
+  promiseKeptCount?: number;
+  promiseBrokenCount?: number;
 };
 
 export type MissingDuesWarningRow = {

@@ -17,13 +17,16 @@ import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
+import { appendPaymentBlockIfMissing } from "@/lib/defaulters/whatsapp-template";
 import { buildWaMeLink, renderWhatsappTemplate } from "@/lib/whatsapp-templates/render";
 import type { WhatsappTemplate } from "@/lib/whatsapp-templates/types";
 import { schoolProfile } from "@/lib/config/school";
+import { buildStudentFeeUpiPayment } from "@/lib/payments/upi";
 import { logWhatsAppSendAttempts } from "@/app/protected/defaulters/actions";
 
 export type BulkWhatsappRow = {
   studentId: string;
+  admissionNo: string;
   fullName: string;
   fatherName: string | null;
   fatherPhone: string | null;
@@ -92,6 +95,10 @@ export function BulkWhatsappProvider({ rows, templates, children, sessionLabel }
   const previewVars = useMemo(() => {
     const sample = selectedRows[0] ?? rows[0];
     if (!sample) return {} as Record<string, string>;
+    const payment = buildStudentFeeUpiPayment({
+      admissionNo: sample.admissionNo,
+      amount: sample.totalPending,
+    });
     return {
       studentName: sample.fullName,
       fatherName: sample.fatherName ?? "Parent",
@@ -99,12 +106,17 @@ export function BulkWhatsappProvider({ rows, templates, children, sessionLabel }
       pending: formatInr(sample.totalPending),
       dueDate: sample.oldestDueDate ? formatShortDate(sample.oldestDueDate) : "—",
       schoolName: schoolProfile.shortName,
+      paymentLink: payment.uri,
+      paymentReference: payment.displayReference,
     } as Record<string, string>;
   }, [selectedRows, rows]);
 
   const preview = useMemo(() => {
     if (!activeTemplate) return "";
-    return renderWhatsappTemplate(activeTemplate.body, previewVars);
+    return appendPaymentBlockIfMissing(renderWhatsappTemplate(activeTemplate.body, previewVars), {
+      paymentLink: previewVars.paymentLink,
+      paymentReference: previewVars.paymentReference,
+    });
   }, [activeTemplate, previewVars]);
 
   const rowsWithoutPhone = selectedRows.filter((row) => !row.fatherPhone);
@@ -115,13 +127,22 @@ export function BulkWhatsappProvider({ rows, templates, children, sessionLabel }
     const sentIds: string[] = [];
     for (const row of sendableRows) {
       if (!row.fatherPhone) continue;
-      const text = renderWhatsappTemplate(activeTemplate.body, {
+      const payment = buildStudentFeeUpiPayment({
+        admissionNo: row.admissionNo,
+        amount: row.totalPending,
+      });
+      const text = appendPaymentBlockIfMissing(renderWhatsappTemplate(activeTemplate.body, {
         studentName: row.fullName,
         fatherName: row.fatherName ?? "Parent",
         className: row.classLabel,
         pending: formatInr(row.totalPending),
         dueDate: row.oldestDueDate ? formatShortDate(row.oldestDueDate) : "—",
         schoolName: schoolProfile.shortName,
+        paymentLink: payment.uri,
+        paymentReference: payment.displayReference,
+      }), {
+        paymentLink: payment.uri,
+        paymentReference: payment.displayReference,
       });
       window.open(buildWaMeLink(row.fatherPhone, text), "_blank", "noopener");
       sentIds.push(row.studentId);

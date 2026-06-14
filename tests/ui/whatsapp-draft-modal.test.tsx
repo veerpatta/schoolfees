@@ -36,6 +36,7 @@ function render(node: React.ReactElement): string {
 }
 
 const BASE_ROW = {
+  admissionNo: "ADM1234",
   fullName: "Arjun Singh",
   classLabel: "Class 10-A",
   totalPending: 12000,

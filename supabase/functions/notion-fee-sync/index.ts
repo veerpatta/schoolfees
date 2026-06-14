@@ -3,11 +3,10 @@
 import postgres from "npm:postgres@3.4.9";
 
 const NOTION_VERSION = "2022-06-28";
-const HUB_TITLE = "VPPS Fee Follow-up Hub";
+const HUB_TITLE = "VPPS Fee Read-only Mirror Hub";
 const STUDENT_DB_TITLE = "VPPS Fee Data Sync (Auto - Do Not Edit)";
 const DAILY_DB_TITLE = "VPPS Daily Fee Summary (Auto)";
-const TRACKER_DB_TITLE = "VPPS Fee Follow-up Tracker";
-const WARNING_TEXT = "Auto-synced from Schoolfees app. Read-only. Edits here will be overwritten.";
+const WARNING_TEXT = "Read-only mirror from the Schoolfees app. Use Defaulters in the app for promises, callbacks, and recovery follow-up.";
 const DEFAULT_SESSION = "TEST-2026-27";
 const STANDARD_CLASS_COLUMNS = [
   "PP3",
@@ -323,24 +322,6 @@ const dailyDbSchema: Record<string, unknown> = {
   ...Object.fromEntries(STANDARD_CLASS_COLUMNS.map((name) => [`Dues ${name}`, { number: { format: "rupee" } }])),
 };
 
-const trackerOwnedSchema: Record<string, unknown> = {
-  "Total Due": { number: { format: "rupee" } },
-  "Total Paid": { number: { format: "rupee" } },
-  "Total Pending": { number: { format: "rupee" } },
-  "Inst 1 Status": { select: { options: statusOptions() } },
-  "Inst 2 Status": { select: { options: statusOptions() } },
-  "Inst 3 Status": { select: { options: statusOptions() } },
-  "Inst 4 Status": { select: { options: statusOptions() } },
-  "Last Payment Date": { date: {} },
-  "Last Payment Amount": { number: { format: "rupee" } },
-  "Last Payment Mode": { select: {} },
-  Phone: { phone_number: {} },
-  Class: { select: {} },
-  "Sibling Count": { number: {} },
-  "Family Total Pending": { number: { format: "rupee" } },
-  "Last Synced": { date: {} },
-};
-
 function statusOptions() {
   return [
     { name: "Paid", color: "green" },
@@ -386,26 +367,6 @@ function studentProperties(student: any, family: any, syncedAt: string) {
     "Last Payment Amount": numberProp(student.last_payment_amount),
     "Last Payment Mode": student.last_payment_mode ? selectProp(student.last_payment_mode) : { select: null },
     "Last Receipt No": richText(student.last_receipt_no),
-    "Sibling Count": numberProp(family?.sibling_count ?? 1),
-    "Family Total Pending": numberProp(family?.family_total_pending ?? student.total_pending),
-    "Last Synced": dateProp(syncedAt),
-  };
-}
-
-function trackerProperties(student: any, family: any, syncedAt: string) {
-  return {
-    "Total Due": numberProp(student.total_annual_fees_due),
-    "Total Paid": numberProp(student.total_paid_to_date),
-    "Total Pending": numberProp(student.total_pending),
-    "Inst 1 Status": selectProp(student.inst1_status),
-    "Inst 2 Status": selectProp(student.inst2_status),
-    "Inst 3 Status": selectProp(student.inst3_status),
-    "Inst 4 Status": selectProp(student.inst4_status),
-    "Last Payment Date": dateProp(student.last_payment_date),
-    "Last Payment Amount": numberProp(student.last_payment_amount),
-    "Last Payment Mode": student.last_payment_mode ? selectProp(student.last_payment_mode) : { select: null },
-    Phone: phoneProp(student.phone),
-    Class: selectProp(student.class),
     "Sibling Count": numberProp(family?.sibling_count ?? 1),
     "Family Total Pending": numberProp(family?.family_total_pending ?? student.total_pending),
     "Last Synced": dateProp(syncedAt),
@@ -478,21 +439,6 @@ async function upsertPageByKey(notion: NotionClient, databaseId: string, keyProp
   }
   const created = await notion.createPage(databaseId, properties);
   return created.id;
-}
-
-async function findTrackerRow(notion: NotionClient, database: any, student: any) {
-  const properties = database.properties ?? {};
-  const attempts = [
-    ["Sync Key", `${student.session}:${student.student_id}`],
-    ["Student ID", student.student_id],
-    ["Family Key", student.family_key],
-  ].filter(([property, value]) => properties[property] && value);
-
-  for (const [property, value] of attempts) {
-    const row = await notion.queryByRichText(database.id, property, String(value));
-    if (row) return row;
-  }
-  return null;
 }
 
 async function readSyncData(sql: postgres.Sql, session: string, summaryDate: string) {
@@ -607,13 +553,6 @@ async function runSync(body: SyncBody, request: Request) {
     const hub = await ensureHub(notion);
     const studentDb = await ensureDatabase(notion, hub.id, STUDENT_DB_TITLE, studentDbSchema);
     const dailyDb = await ensureDatabase(notion, hub.id, DAILY_DB_TITLE, dailyDbSchema);
-    const trackerDb = await notion.findDatabaseByTitle(TRACKER_DB_TITLE);
-
-    if (trackerDb) {
-      await notion.updateDatabaseProperties(trackerDb.id, missingProperties(trackerDb, trackerOwnedSchema));
-    } else {
-      stats.warnings.push(`${TRACKER_DB_TITLE} was not found, so tracker refresh was skipped.`);
-    }
 
     for (const student of students) {
       try {
@@ -621,14 +560,6 @@ async function runSync(body: SyncBody, request: Request) {
         const key = `${student.session}:${student.student_id}`;
         await upsertPageByKey(notion, studentDb.id, "Sync Key", key, studentProperties(student, family, syncedAt));
         stats.studentsSynced += 1;
-
-        if (trackerDb) {
-          const trackerRow = await findTrackerRow(notion, trackerDb, student);
-          if (trackerRow) {
-            await notion.updatePage(trackerRow.id, trackerProperties(student, family, syncedAt));
-            stats.trackerRowsSynced += 1;
-          }
-        }
       } catch (error) {
         stats.errors.push(`Student ${student.student_id}: ${error instanceof Error ? error.message : String(error)}`);
       }

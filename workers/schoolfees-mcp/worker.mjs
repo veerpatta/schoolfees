@@ -61,6 +61,26 @@ const installmentFields = [
   "last_payment_date",
 ].join(", ");
 
+const contactFields = [
+  "student_id",
+  "contacted_at",
+  "snooze_until",
+  "outcome",
+  "channel",
+  "phone_label",
+].join(", ");
+
+const legacyContactFields = [
+  "student_id",
+  "contacted_at",
+  "snooze_until",
+  "outcome",
+  "channel",
+].join(", ");
+
+const HIGH_EXPOSURE_AMOUNT = 30000;
+const NOT_RESPONDING_STREAK = 3;
+
 function getDefaultSession(env) {
   return env.SCHOOLFEES_MCP_DEFAULT_SESSION || "2026-27";
 }
@@ -382,6 +402,162 @@ function rankDefaulters(rows) {
   });
 }
 
+function summarizeContactRows(rows, wantedStudentIds) {
+  const wanted = new Set(wantedStudentIds);
+  const result = new Map();
+  const counts = new Map();
+  const streaks = new Map();
+  const streakBroken = new Set();
+
+  for (const row of rows || []) {
+    if (!wanted.has(row.student_id)) continue;
+    counts.set(row.student_id, (counts.get(row.student_id) || 0) + 1);
+
+    if (!streakBroken.has(row.student_id)) {
+      if (row.outcome === "no_answer") {
+        streaks.set(row.student_id, (streaks.get(row.student_id) || 0) + 1);
+      } else if (row.outcome) {
+        streakBroken.add(row.student_id);
+      }
+    }
+
+    if (!result.has(row.student_id)) {
+      result.set(row.student_id, {
+        snoozeUntil: row.snooze_until || null,
+        lastContactedAt: row.contacted_at || null,
+        lastOutcome: row.outcome || null,
+        lastChannel: row.channel || null,
+        suggestedPhoneLabel: row.phone_label || null,
+        noAnswerStreak: 0,
+        totalAttempts: 0,
+      });
+    }
+  }
+
+  for (const [studentId, summary] of result.entries()) {
+    result.set(studentId, {
+      ...summary,
+      noAnswerStreak: streaks.get(studentId) || 0,
+      totalAttempts: counts.get(studentId) || 0,
+    });
+  }
+
+  return result;
+}
+
+async function getContactSummaries(env, sessionLabel, studentIds) {
+  if (studentIds.length === 0) return new Map();
+  try {
+    const rows = await supabaseGet(env, "defaulter_contacts", {
+      select: contactFields,
+      session_label: `eq.${sessionLabel}`,
+      order: "contacted_at.desc",
+      limit: MAX_ROWS,
+    });
+    return summarizeContactRows(rows, studentIds);
+  } catch (error) {
+    try {
+      const legacyRows = await supabaseGet(env, "defaulter_contacts", {
+        select: legacyContactFields,
+        session_label: `eq.${sessionLabel}`,
+        order: "contacted_at.desc",
+        limit: MAX_ROWS,
+      });
+      return summarizeContactRows(
+        (legacyRows || []).map((row) => ({ ...row, phone_label: null })),
+        studentIds,
+      );
+    } catch {
+      // Fall through to the graceful empty summary below.
+    }
+    console.warn("[schoolfees-mcp] contact summaries unavailable", error?.message || error);
+    return new Map();
+  }
+}
+
+async function getNoCallStudentIds(env, sessionLabel, studentIds) {
+  if (studentIds.length === 0) return new Set();
+  try {
+    const rows = await supabaseGet(env, "student_collection_flags", {
+      select: "student_id,no_call",
+      session_label: `eq.${sessionLabel}`,
+      no_call: "eq.true",
+      limit: MAX_ROWS,
+    });
+    const wanted = new Set(studentIds);
+    return new Set((rows || []).filter((row) => wanted.has(row.student_id)).map((row) => row.student_id));
+  } catch (error) {
+    console.warn("[schoolfees-mcp] no-call flags unavailable", error?.message || error);
+    return new Set();
+  }
+}
+
+function promiseState(summary, todayKey) {
+  if (summary?.lastOutcome !== "promised_pay" || !summary.snoozeUntil) return null;
+  if (summary.snoozeUntil < todayKey) return "broken";
+  if (summary.snoozeUntil === todayKey) return "due_today";
+  return "scheduled";
+}
+
+function recoveryReasons(row, summary, noCall, todayKey) {
+  const reasons = [];
+  const promise = promiseState(summary, todayKey);
+  if (noCall) reasons.push("No-call flag");
+  if (promise === "broken") reasons.push("Broken promise");
+  if (promise === "due_today") reasons.push("Promise due today");
+  if ((summary?.noAnswerStreak || 0) >= NOT_RESPONDING_STREAK) reasons.push("Repeated no-answer");
+  if (number(row.outstanding_amount) >= HIGH_EXPOSURE_AMOUNT) reasons.push("High exposure");
+  if (number(row.overdue_installment_count) > 0) reasons.push("Overdue balance");
+  if (reasons.length === 0) reasons.push("Pending balance");
+  return reasons;
+}
+
+function recoveryScore(row, summary, noCall, todayKey) {
+  if (noCall) return -1;
+  let score = number(row.overdue_installment_count) * 25;
+  const promise = promiseState(summary, todayKey);
+  if (promise === "broken") score += 90;
+  if (promise === "due_today") score += 60;
+  score += Math.min(35, Math.floor(number(row.outstanding_amount) / 5000));
+  if ((summary?.noAnswerStreak || 0) >= NOT_RESPONDING_STREAK) score += 25;
+  if (number(row.outstanding_amount) >= HIGH_EXPOSURE_AMOUNT) score += 20;
+  return score;
+}
+
+function buildRecoveryRows(financialRows, contactSummaries, noCallIds, { includeNoCall = false } = {}) {
+  const todayKey = todayIst();
+  return financialRows
+    .filter((row) => number(row.outstanding_amount) > 0)
+    .map((row) => {
+      const summary = contactSummaries.get(row.student_id) || null;
+      const noCall = noCallIds.has(row.student_id);
+      return {
+        ...mapFinancialRow(row),
+        noCall,
+        contactSummary: summary,
+        promiseState: promiseState(summary, todayKey),
+        recoveryReasons: recoveryReasons(row, summary, noCall, todayKey),
+        recoveryScore: recoveryScore(row, summary, noCall, todayKey),
+      };
+    })
+    .filter((row) => includeNoCall || !row.noCall)
+    .sort((left, right) => {
+      if (right.recoveryScore !== left.recoveryScore) return right.recoveryScore - left.recoveryScore;
+      if (right.outstandingAmount !== left.outstandingAmount) return right.outstandingAmount - left.outstandingAmount;
+      return left.studentName.localeCompare(right.studentName);
+    });
+}
+
+async function getRecoveryContext(env, sessionLabel) {
+  const financialRows = await getFinancialRows(env, { sessionLabel });
+  const studentIds = financialRows.map((row) => row.student_id).filter(Boolean);
+  const [contactSummaries, noCallIds] = await Promise.all([
+    getContactSummaries(env, sessionLabel, studentIds),
+    getNoCallStudentIds(env, sessionLabel, studentIds),
+  ]);
+  return { financialRows, contactSummaries, noCallIds };
+}
+
 async function getStudentIdsForSession(env, sessionLabel) {
   const rows = await supabaseGet(env, "students", {
     select: "id,class_ref:classes!inner(session_label,status)",
@@ -451,7 +627,7 @@ function toolResult(summary, structuredContent) {
 function createMcpServer(env) {
   const server = new McpServer({
     name: "schoolfees-collection-assistant",
-    version: "0.2.0",
+    version: "0.3.0",
   });
 
   const readOnly = {
@@ -582,6 +758,163 @@ function createMcpServer(env) {
           students,
         },
       );
+    },
+  );
+
+  server.registerTool(
+    "get_recovery_queue",
+    {
+      title: "Get Daily Recovery Queue",
+      description:
+        "Use this when the user asks for today's fee recovery call queue using pending dues, promise dates, no-answer streaks, and no-call flags from the app.",
+      inputSchema: {
+        sessionLabel: sessionSchema(env),
+        limit: limitSchema.default(25),
+        includeNoCall: z.boolean().default(false),
+      },
+      annotations: readOnly,
+    },
+    async ({ sessionLabel, limit, includeNoCall }) => {
+      const { financialRows, contactSummaries, noCallIds } = await getRecoveryContext(env, sessionLabel);
+      const rows = buildRecoveryRows(financialRows, contactSummaries, noCallIds, { includeNoCall })
+        .slice(0, limit)
+        .map((row, index) => ({ rank: index + 1, ...row }));
+
+      return toolResult(
+        `Prepared ${rows.length} recovery queue row(s) for ${sessionLabel}.`,
+        {
+          sessionLabel,
+          asOfDate: todayIst(),
+          includeNoCall,
+          rows,
+        },
+      );
+    },
+  );
+
+  server.registerTool(
+    "get_promise_due_list",
+    {
+      title: "Get Promise Due List",
+      description:
+        "Use this when the user asks which parents promised payment and should be followed up today or because the promised date has passed.",
+      inputSchema: {
+        sessionLabel: sessionSchema(env),
+        limit: limitSchema.default(25),
+      },
+      annotations: readOnly,
+    },
+    async ({ sessionLabel, limit }) => {
+      const { financialRows, contactSummaries, noCallIds } = await getRecoveryContext(env, sessionLabel);
+      const rows = buildRecoveryRows(financialRows, contactSummaries, noCallIds)
+        .filter((row) => row.promiseState === "broken" || row.promiseState === "due_today")
+        .slice(0, limit)
+        .map((row, index) => ({ rank: index + 1, ...row }));
+
+      return toolResult(
+        `Found ${rows.length} promise follow-up row(s) for ${sessionLabel}.`,
+        {
+          sessionLabel,
+          asOfDate: todayIst(),
+          rows,
+        },
+      );
+    },
+  );
+
+  server.registerTool(
+    "get_parent_followup_context",
+    {
+      title: "Get Parent Follow-Up Context",
+      description:
+        "Use this when the user asks what to say or do for a specific student's parent during recovery follow-up.",
+      inputSchema: {
+        sessionLabel: sessionSchema(env),
+        query: z
+          .string()
+          .min(1)
+          .max(80)
+          .describe("Student name, admission number, class label, or parent phone."),
+        limit: limitSchema.default(5),
+      },
+      annotations: readOnly,
+    },
+    async ({ sessionLabel, query, limit }) => {
+      const normalizedQuery = normalizeQuery(query);
+      const { financialRows, contactSummaries, noCallIds } = await getRecoveryContext(env, sessionLabel);
+      const recoveryRows = buildRecoveryRows(financialRows, contactSummaries, noCallIds, {
+        includeNoCall: true,
+      });
+      const matches = recoveryRows
+        .filter((row) =>
+          [
+            row.studentName,
+            row.admissionNo,
+            row.fatherName,
+            row.motherName,
+            row.fatherPhone,
+            row.motherPhone,
+            row.classLabel,
+          ].some((value) => String(value || "").toLowerCase().includes(normalizedQuery)),
+        )
+        .slice(0, limit);
+
+      const students = [];
+      for (const row of matches) {
+        students.push({
+          ...row,
+          installments: await getInstallmentRows(env, row.studentId),
+        });
+      }
+
+      return toolResult(
+        students.length === 0
+          ? `No matching recovery context found for "${query}" in ${sessionLabel}.`
+          : `Found ${students.length} recovery context row(s) for "${query}" in ${sessionLabel}.`,
+        {
+          sessionLabel,
+          query,
+          students,
+        },
+      );
+    },
+  );
+
+  server.registerTool(
+    "draft_recovery_plan",
+    {
+      title: "Draft Daily Recovery Plan",
+      description:
+        "Use this when the user wants a daily fee recovery plan grouped by broken promises, promises due, repeated no-answer, and high exposure.",
+      inputSchema: {
+        sessionLabel: sessionSchema(env),
+        limit: limitSchema.default(30),
+        language: z.enum(["english", "hinglish"]).default("hinglish"),
+      },
+      annotations: readOnly,
+    },
+    async ({ sessionLabel, limit, language }) => {
+      const { financialRows, contactSummaries, noCallIds } = await getRecoveryContext(env, sessionLabel);
+      const rows = buildRecoveryRows(financialRows, contactSummaries, noCallIds).slice(0, limit);
+      const groups = {
+        brokenPromises: rows.filter((row) => row.promiseState === "broken"),
+        promisesDueToday: rows.filter((row) => row.promiseState === "due_today"),
+        repeatedNoAnswer: rows.filter((row) => (row.contactSummary?.noAnswerStreak || 0) >= NOT_RESPONDING_STREAK),
+        highExposure: rows.filter((row) => row.outstandingAmount >= HIGH_EXPOSURE_AMOUNT),
+      };
+      const headline =
+        language === "english"
+          ? `Start with ${groups.brokenPromises.length} broken promise(s), then ${groups.promisesDueToday.length} promise due row(s), then repeated no-answer and high exposure accounts.`
+          : `Pehle ${groups.brokenPromises.length} broken promise, phir ${groups.promisesDueToday.length} promise due, uske baad no-answer aur high exposure accounts follow karein.`;
+
+      return toolResult(headline, {
+        sessionLabel,
+        asOfDate: todayIst(),
+        language,
+        headline,
+        groups,
+        nextBestRows: rows.slice(0, 10),
+      });
     },
   );
 

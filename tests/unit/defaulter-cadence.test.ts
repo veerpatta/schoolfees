@@ -6,7 +6,11 @@ import {
   tallyCadence,
   type DefaulterContactSummary,
 } from "@/lib/defaulters/cadence";
-import { composeDefaulterDraft, DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/defaulters/whatsapp-template";
+import {
+  appendPaymentBlockIfMissing,
+  composeDefaulterDraft,
+  DEFAULT_WHATSAPP_TEMPLATE,
+} from "@/lib/defaulters/whatsapp-template";
 
 const TODAY = new Date(Date.UTC(2026, 4, 24, 12, 0)); // 2026-05-24 noon UTC
 
@@ -146,6 +150,21 @@ describe("composeDefaulterDraft", () => {
     });
     expect(text).toBe("Hi A, you owe ₹100 for 10.");
   });
+  it("includes a UPI pay link when provided", () => {
+    const text = composeDefaulterDraft({
+      studentName: "A",
+      className: "10",
+      outstandingAmount: 8000,
+      dueLabel: "Q1",
+      schoolName: "VPPS",
+      paymentLink: "upi://pay?pa=school@bank&am=8000",
+      paymentReference: "Fee ADM1234",
+    });
+
+    expect(text).toContain("upi://pay?pa=school@bank&am=8000");
+    expect(text).toContain("Fee ADM1234");
+    expect(text).toContain("Payment Desk");
+  });
 });
 
 describe("DEFAULT_WHATSAPP_TEMPLATE", () => {
@@ -157,9 +176,33 @@ describe("DEFAULT_WHATSAPP_TEMPLATE", () => {
       "{amount}",
       "{dueLabel}",
       "{schoolName}",
+      "{paymentBlock}",
     ]);
     for (const placeholder of placeholders) {
       expect(known.has(placeholder)).toBe(true);
     }
+  });
+});
+
+describe("appendPaymentBlockIfMissing", () => {
+  it("adds UPI details when a saved template did not include them", () => {
+    const text = appendPaymentBlockIfMissing("Reminder body", {
+      paymentLink: "upi://pay?pa=school@bank&am=500",
+      paymentReference: "Fee ADM1",
+    });
+
+    expect(text).toContain("Reminder body");
+    expect(text).toContain("upi://pay?pa=school@bank&am=500");
+    expect(text).toContain("Fee ADM1");
+    expect(text).toContain("Payment Desk");
+  });
+
+  it("does not duplicate UPI details when the template already rendered the link", () => {
+    const text = appendPaymentBlockIfMissing("Pay upi://pay?pa=school@bank&am=500", {
+      paymentLink: "upi://pay?pa=school@bank&am=500",
+      paymentReference: "Fee ADM1",
+    });
+
+    expect(text.match(/upi:\/\/pay/g)).toHaveLength(1);
   });
 });

@@ -311,6 +311,7 @@ export default async function DefaultersPage({
         <BulkWhatsappProvider
           rows={data.rows.map((row) => ({
             studentId: row.studentId,
+            admissionNo: row.admissionNo,
             fullName: row.fullName,
             fatherName: row.fatherName,
             fatherPhone: row.fatherPhone,

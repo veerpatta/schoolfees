@@ -1141,6 +1141,7 @@ export function TransactionsClientShell({
             <BulkWhatsappProvider
               rows={(workbook.rows as OfficeWorkbookStudentRow[]).map<BulkWhatsappRow>((row) => ({
                 studentId: row.studentId,
+                admissionNo: row.admissionNo,
                 fullName: row.studentName,
                 fatherName: row.fatherName,
                 fatherPhone: row.fatherPhone,

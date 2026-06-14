@@ -8,8 +8,13 @@ import { getWorkbookClassOptions, getWorkbookInstallmentRows, getWorkbookStudent
 import { getStudentFormOptions } from "@/lib/students/data";
 import { heatScore, type DefaulterContactSummary } from "@/lib/defaulters/cadence";
 import { classifyPaymentBehavior } from "@/lib/defaulters/behavior";
-import { getNoCallFlags, getContactSummariesForStudents } from "@/lib/defaulters/contacts";
-import type { PromiseStatus } from "@/lib/defaulters/types";
+import {
+  getContactSummariesForStudents,
+  getNoCallFlags,
+  getPromiseReliabilityForStudents,
+  refreshDefaulterRecoveryState,
+} from "@/lib/defaulters/contacts";
+import { resolvePromiseStatus } from "@/lib/defaulters/promise-lifecycle";
 
 import type {
   DefaulterFilters,
@@ -102,29 +107,6 @@ function toDateKey() {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
-}
-
-/**
- * Derives whether the parent kept or broke their last payment promise.
- *   - kept    → there is a promise and a payment landed on/after the promise was made.
- *   - broken  → the promised date has passed and no payment came after the promise.
- *   - pending → promised, date not yet reached.
- * Returns null when there's no promise on record (or payment history is hidden).
- */
-function derivePromiseStatus(
-  summary: DefaulterContactSummary | null,
-  lastPaymentDate: string | null,
-  today: string,
-): PromiseStatus | null {
-  if (!summary || summary.lastOutcome !== "promised_pay") return null;
-  const promiseDate = summary.snoozeUntil; // yyyy-mm-dd the parent committed to
-  const promisedOn = summary.lastContactedAt?.slice(0, 10) ?? null; // when the promise was made
-  if (!promiseDate || !promisedOn) return null;
-
-  const paidSincePromise = Boolean(lastPaymentDate && lastPaymentDate >= promisedOn);
-  if (paidSincePromise) return "kept";
-  if (promiseDate < today) return "broken";
-  return "pending";
 }
 
 function calculateDaysOverdue(dueDate: string | null, today: string) {
@@ -344,7 +326,11 @@ export async function getDefaultersPageData(
   //    just the visible page). Summaries are fetched here when not supplied so
   //    the page needs a single pass.
   const candidateIds = baseRows.map((row) => row.studentId);
-  const [contactSummaries, familyMembership, noCallFlags] = await Promise.all([
+  if (candidateIds.length > 0) {
+    await refreshDefaulterRecoveryState(resolvedSessionLabel);
+  }
+  const [contactSummaries, familyMembership, noCallFlags, promiseReliability] =
+    await Promise.all([
     options?.contactSummaries
       ? Promise.resolve(options.contactSummaries)
       : candidateIds.length > 0
@@ -356,6 +342,18 @@ export async function getDefaultersPageData(
     candidateIds.length > 0
       ? getNoCallFlags(candidateIds, resolvedSessionLabel)
       : Promise.resolve(new Map<string, { noCall: boolean; reason: string | null }>()),
+    candidateIds.length > 0
+      ? getPromiseReliabilityForStudents(candidateIds, resolvedSessionLabel)
+      : Promise.resolve(
+          new Map<
+            string,
+            {
+              promiseKeptRate: number | null;
+              promiseKeptCount: number;
+              promiseBrokenCount: number;
+            }
+          >(),
+        ),
   ]);
 
   // 3) Enrich every candidate (heat, behavior, promise status, no-call, family),
@@ -376,8 +374,9 @@ export async function getDefaultersPageData(
       const timing = paymentTimingByStudent.get(row.studentId) ?? { onTime: 0, late: 0 };
       // Use the redacted value so a no-payments-view user can't infer payment
       // activity from a "Kept promise" chip.
-      const promiseStatus = derivePromiseStatus(summary, lastPaymentDate, today);
+      const promiseStatus = resolvePromiseStatus({ summary, lastPaymentDate, today });
       const family = familyMembership.get(row.studentId);
+      const reliability = promiseReliability.get(row.studentId);
 
       return {
         studentId: row.studentId,
@@ -425,6 +424,9 @@ export async function getDefaultersPageData(
         noCall: noCallFlags.get(row.studentId)?.noCall ?? false,
         familyGroupId: family?.familyGroupId ?? null,
         familyVisibleSiblingCount: family?.visibleSiblingCount ?? 0,
+        promiseKeptRate: reliability?.promiseKeptRate ?? null,
+        promiseKeptCount: reliability?.promiseKeptCount ?? 0,
+        promiseBrokenCount: reliability?.promiseBrokenCount ?? 0,
       } satisfies DefaulterSummaryRow;
     })
     .sort((left, right) => {

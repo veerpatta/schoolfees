@@ -292,6 +292,91 @@ export type NoCallFlag = {
   reason: string | null;
 };
 
+export async function refreshDefaulterRecoveryState(sessionLabel: string): Promise<void> {
+  const supabase = await createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any).rpc("refresh_defaulter_recovery_state", {
+    p_session_label: sessionLabel,
+  });
+
+  if (error) {
+    if ((error as { code?: string }).code === "42883") return;
+    if ((error as { code?: string }).code === "42P01") return;
+    console.error("[contacts] recovery state refresh failed", error);
+  }
+}
+
+export type PromiseReliability = {
+  promiseKeptCount: number;
+  promiseBrokenCount: number;
+  promiseKeptRate: number | null;
+};
+
+type RecoveryStateRow = {
+  student_id: string;
+  family_group_id: string | null;
+  promise_kept_count: number | null;
+  promise_broken_count: number | null;
+};
+
+function toPromiseReliability(kept: number, broken: number): PromiseReliability {
+  const total = kept + broken;
+  return {
+    promiseKeptCount: kept,
+    promiseBrokenCount: broken,
+    promiseKeptRate: total > 0 ? Math.round((kept / total) * 100) : null,
+  };
+}
+
+/**
+ * Returns per-row promise reliability. Family rows receive family-level totals
+ * so sibling promises influence the same parent follow-up score.
+ */
+export async function getPromiseReliabilityForStudents(
+  studentIds: string[],
+  sessionLabel: string,
+): Promise<Map<string, PromiseReliability>> {
+  if (studentIds.length === 0) return new Map();
+
+  const supabase = await createClient();
+  const wanted = new Set(studentIds);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from("defaulter_recovery_state")
+    .select("student_id, family_group_id, promise_kept_count, promise_broken_count")
+    .eq("session_label", sessionLabel);
+
+  if (error) {
+    if ((error as { code?: string }).code === "42P01") return new Map();
+    console.error("[contacts] recovery state fetch failed", error);
+    return new Map();
+  }
+
+  const rows = ((data ?? []) as RecoveryStateRow[]).filter((row) =>
+    wanted.has(row.student_id),
+  );
+  const familyTotals = new Map<string, { kept: number; broken: number }>();
+  for (const row of rows) {
+    if (!row.family_group_id) continue;
+    const current = familyTotals.get(row.family_group_id) ?? { kept: 0, broken: 0 };
+    current.kept += row.promise_kept_count ?? 0;
+    current.broken += row.promise_broken_count ?? 0;
+    familyTotals.set(row.family_group_id, current);
+  }
+
+  const result = new Map<string, PromiseReliability>();
+  for (const row of rows) {
+    const ownKept = row.promise_kept_count ?? 0;
+    const ownBroken = row.promise_broken_count ?? 0;
+    const familyTotal = row.family_group_id ? familyTotals.get(row.family_group_id) : null;
+    const kept = familyTotal ? familyTotal.kept : ownKept;
+    const broken = familyTotal ? familyTotal.broken : ownBroken;
+    result.set(row.student_id, toPromiseReliability(kept, broken));
+  }
+
+  return result;
+}
+
 /**
  * Returns the set of no-call flags for the given students in a session.
  * Gracefully returns an empty Map if the table does not exist yet
