@@ -11,13 +11,16 @@ import {
   AlertTriangle,
   BellOff,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   Clock,
   Flame,
   MessageSquare,
+  PhoneCall,
   PhoneOff,
   Snowflake,
   Users,
+  X,
 } from "lucide-react";
 
 import { BulkRowCheckbox } from "@/components/defaulters/bulk-whatsapp-provider";
@@ -30,10 +33,12 @@ import { NoCallToggle } from "@/components/defaulters/no-call-toggle";
 import { QuickLogButtons, type QuickLogKind } from "@/components/defaulters/quick-log-buttons";
 import { WorklistDrawer } from "@/components/defaulters/worklist-drawer";
 import { ContactPopover } from "@/components/defaulters/contact-popover";
+import { WhatsAppDraftModal } from "@/components/defaulters/whatsapp-draft-modal";
 import { buildStudentPhoneEntries, type PhoneEntry } from "@/components/students/phone-chooser";
 import { Money } from "@/components/ui/money";
 import { formatInr } from "@/lib/helpers/currency";
 import { cn } from "@/lib/utils";
+import { buildCollectorSession, type CollectorSession } from "@/lib/defaulters/collector";
 import {
   deriveCadence,
   tallyCadence,
@@ -160,6 +165,9 @@ export function DefaultersWorkspace({
   const [activeStudentId, setActiveStudentId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [fullFormFor, setFullFormFor] = useState<DefaulterSummaryRow | null>(null);
+  const [whatsAppFor, setWhatsAppFor] = useState<DefaulterSummaryRow | null>(null);
+  const [collectorOpen, setCollectorOpen] = useState(false);
+  const [collectorStudentId, setCollectorStudentId] = useState<string | null>(null);
   const isDesktop = useIsDesktop();
   const [activeCadence, setActiveCadence] = useState<string>(initialCadence);
   const [behaviorFilter, setBehaviorFilter] = useState<PaymentBehavior | "all">("all");
@@ -219,6 +227,10 @@ export function DefaultersWorkspace({
         today,
       }),
     [recoveryRows, effectiveSummaries, today],
+  );
+  const collectorSession = useMemo(
+    () => buildCollectorSession(recoveryDesk.nextBestRows, collectorStudentId),
+    [recoveryDesk.nextBestRows, collectorStudentId],
   );
   const preDueReminders = useMemo(
     () =>
@@ -349,9 +361,38 @@ export function DefaultersWorkspace({
     setDrawerOpen(true);
   }
 
+  function openCollector() {
+    setCollectorStudentId(recoveryDesk.nextBestRows[0]?.row.studentId ?? null);
+    setCollectorOpen(true);
+  }
+
   return (
     <div className="space-y-3">
-      <RecoveryDeskPanel desk={recoveryDesk} onOpenStudent={openDrawer} />
+      <RecoveryDeskPanel
+        desk={recoveryDesk}
+        onOpenStudent={openDrawer}
+        onStartCollector={openCollector}
+      />
+      {collectorOpen ? (
+        <CollectorModePanel
+          session={collectorSession}
+          sessionLabel={sessionLabel}
+          summaries={effectiveSummaries}
+          onClose={() => setCollectorOpen(false)}
+          onPrevious={(studentId) => setCollectorStudentId(studentId)}
+          onNext={(studentId) => setCollectorStudentId(studentId)}
+          onOpenStudent={openDrawer}
+          onOpenFullForm={setFullFormFor}
+          onOpenWhatsApp={setWhatsAppFor}
+          onOptimisticLog={(studentId, kind, defaultChannel, promisedDate) => {
+            handleQuickLog(studentId, kind, defaultChannel, promisedDate);
+            if (collectorSession.nextStudentId) {
+              setCollectorStudentId(collectorSession.nextStudentId);
+            }
+          }}
+          onLogRevert={handleQuickLogRevert}
+        />
+      ) : null}
       <PreDueReminderPanel reminders={preDueReminders} onOpenStudent={openDrawer} />
 
       <CadenceTabs
@@ -471,6 +512,16 @@ export function DefaultersWorkspace({
             motherPhone: fullFormFor.motherPhone,
           })}
           defaultPhoneLabel={effectiveSummaries[fullFormFor.studentId]?.suggestedPhoneLabel ?? null}
+        />
+      ) : null}
+
+      {whatsAppFor ? (
+        <WhatsAppDraftModal
+          row={whatsAppFor}
+          open={Boolean(whatsAppFor)}
+          onClose={() => setWhatsAppFor(null)}
+          sessionLabel={sessionLabel}
+          autoLogStudentId={whatsAppFor.studentId}
         />
       ) : null}
     </div>
@@ -601,9 +652,11 @@ const RECOVERY_LANES: { id: RecoveryLaneId; i18nKey: string; Icon: typeof Flame 
 function RecoveryDeskPanel({
   desk,
   onOpenStudent,
+  onStartCollector,
 }: {
   desk: RecoveryDesk;
   onOpenStudent: (row: DefaulterSummaryRow) => void;
+  onStartCollector: () => void;
 }) {
   const t = useTranslations("Defaulters");
   const previewRows = desk.nextBestRows.slice(0, 5);
@@ -617,13 +670,24 @@ function RecoveryDeskPanel({
             {t("recoveryDeskDescription")}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2 rounded-md border border-border bg-surface-2 px-3 py-2">
-          <span className="text-xs font-medium text-muted-foreground">
-            {t("recoveryMetricActive")}
-          </span>
-          <span className="text-lg font-semibold tabular-nums text-foreground">
-            {desk.metrics.activeRecoveryRows}
-          </span>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={onStartCollector}
+            disabled={desk.nextBestRows.length === 0}
+            className="inline-flex min-h-10 items-center gap-2 rounded-md bg-accent px-3 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <PhoneCall className="size-4" aria-hidden="true" />
+            {t("collectorModeStart")}
+          </button>
+          <div className="flex items-center gap-2 rounded-md border border-border bg-surface-2 px-3 py-2">
+            <span className="text-xs font-medium text-muted-foreground">
+              {t("recoveryMetricActive")}
+            </span>
+            <span className="text-lg font-semibold tabular-nums text-foreground">
+              {desk.metrics.activeRecoveryRows}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -730,6 +794,227 @@ function RecoveryDeskPanel({
           </div>
         )}
       </div>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Collector mode                                                              */
+/* -------------------------------------------------------------------------- */
+
+function CollectorModePanel({
+  session,
+  sessionLabel,
+  summaries,
+  onClose,
+  onPrevious,
+  onNext,
+  onOpenStudent,
+  onOpenFullForm,
+  onOpenWhatsApp,
+  onOptimisticLog,
+  onLogRevert,
+}: {
+  session: CollectorSession;
+  sessionLabel: string;
+  summaries: Record<string, DefaulterContactSummary>;
+  onClose: () => void;
+  onPrevious: (studentId: string) => void;
+  onNext: (studentId: string) => void;
+  onOpenStudent: (row: DefaulterSummaryRow) => void;
+  onOpenFullForm: (row: DefaulterSummaryRow) => void;
+  onOpenWhatsApp: (row: DefaulterSummaryRow) => void;
+  onOptimisticLog: (
+    studentId: string,
+    kind: QuickLogKind,
+    defaultChannel: DefaulterContactSummary["lastChannel"],
+    promisedDate: string | null,
+  ) => void;
+  onLogRevert: (studentId: string) => void;
+}) {
+  const t = useTranslations("Defaulters");
+  const current = session.current;
+  const row = current?.row ?? null;
+  const summary = row ? summaries[row.studentId] ?? null : null;
+  const defaultChannel =
+    (summary?.lastChannel as "call" | "whatsapp" | "sms" | "in_person" | "email" | null) ?? "call";
+  const entries = useMemo(
+    () =>
+      buildStudentPhoneEntries({
+        fatherPhone: row?.fatherPhone ?? null,
+        motherPhone: row?.motherPhone ?? null,
+      }),
+    [row?.fatherPhone, row?.motherPhone],
+  );
+  const [activeLabel, setActiveLabel] = useState<string | null>(
+    () => defaultActiveEntry(entries, summary)?.label ?? null,
+  );
+
+  useEffect(() => {
+    setActiveLabel(defaultActiveEntry(entries, summary)?.label ?? null);
+  }, [entries, summary, row?.studentId]);
+
+  const activePhone = entries.find((entry) => entry.label === activeLabel)?.phone ?? null;
+
+  return (
+    <section className="rounded-lg border border-accent/40 bg-card p-3 shadow-sm">
+      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base font-semibold text-foreground">{t("collectorModeTitle")}</h2>
+            <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">
+              {t("collectorModeProgress", {
+                position: session.position,
+                total: session.total,
+              })}
+            </span>
+          </div>
+          <p className="mt-0.5 max-w-3xl text-sm text-muted-foreground">
+            {t("collectorModeDescription")}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="inline-flex min-h-9 items-center gap-1.5 self-start rounded-md border border-border bg-surface-2 px-3 py-1.5 text-sm font-semibold text-foreground hover:bg-surface-3"
+        >
+          <X className="size-4" aria-hidden="true" />
+          {t("collectorModeClose")}
+        </button>
+      </div>
+
+      {!row || !current ? (
+        <p className="mt-3 rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-muted-foreground">
+          {t("collectorModeEmpty")}
+        </p>
+      ) : (
+        <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="min-w-0 rounded-lg border border-border bg-surface-2 p-3">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div className="min-w-0">
+                <p className="truncate text-lg font-semibold text-foreground">{row.fullName}</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {t("studentMetaLine", {
+                    classLabel: row.classLabel,
+                    admissionNo: row.admissionNo,
+                  })}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <ContactStatusChip summary={summary} />
+                  <BehaviorBadge behavior={row.paymentBehavior} />
+                  <PromiseChip status={row.promiseStatus} />
+                  <HeatChip score={row.heat} />
+                </div>
+              </div>
+              <div className="shrink-0 text-left md:text-right">
+                <Money value={row.totalPending} size="lg" tone="warning" />
+                {row.overdueAmount > 0 ? (
+                  <p className="text-xs font-medium text-destructive">
+                    {t("overdueAmountChip", { amount: formatInr(row.overdueAmount) })}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mt-3">
+              <ContactNumbers
+                entries={entries}
+                activeLabel={activeLabel}
+                onSelect={(entry) => setActiveLabel(entry.label)}
+                summary={summary}
+              />
+            </div>
+
+            {current.reasons.length > 0 ? (
+              <div className="mt-3 rounded-md border border-border bg-card px-3 py-2">
+                <p className="text-xs font-semibold text-muted-foreground">
+                  {t("collectorModeReasons")}
+                </p>
+                <p className="mt-1 text-sm text-foreground">
+                  {current.reasons.slice(0, 3).join(" / ")}
+                </p>
+              </div>
+            ) : null}
+
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              {activePhone ? (
+                <a
+                  href={`tel:${activePhone}`}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-foreground hover:bg-accent/90"
+                >
+                  <PhoneCall className="size-4" aria-hidden="true" />
+                  {t("collectorModeCall")}
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-muted-foreground"
+                >
+                  <PhoneOff className="size-4" aria-hidden="true" />
+                  {t("collectorModeNoPhone")}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => onOpenWhatsApp(row)}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-surface-3"
+              >
+                <MessageSquare className="size-4" aria-hidden="true" />
+                {t("collectorModeWhatsapp")}
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenStudent(row)}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-surface-3"
+              >
+                <ChevronRight className="size-4" aria-hidden="true" />
+                {t("collectorModeOpenDetails")}
+              </button>
+            </div>
+
+            <div className="mt-3">
+              <QuickLogButtons
+                studentId={row.studentId}
+                sessionLabel={sessionLabel}
+                defaultChannel={defaultChannel}
+                activePhone={activePhone}
+                activeLabel={activeLabel}
+                onOpenFullForm={() => onOpenFullForm(row)}
+                onOptimisticLog={(kind, channel, promisedDate) =>
+                  onOptimisticLog(row.studentId, kind, channel, promisedDate)
+                }
+                onLogRevert={() => onLogRevert(row.studentId)}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2 lg:w-44 lg:grid-cols-1">
+            <button
+              type="button"
+              disabled={!session.previousStudentId}
+              onClick={() => {
+                if (session.previousStudentId) onPrevious(session.previousStudentId);
+              }}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm font-semibold text-foreground hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <ChevronLeft className="size-4" aria-hidden="true" />
+              {t("collectorModePrevious")}
+            </button>
+            <button
+              type="button"
+              disabled={!session.nextStudentId}
+              onClick={() => {
+                if (session.nextStudentId) onNext(session.nextStudentId);
+              }}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm font-semibold text-foreground hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t("collectorModeNext")}
+              <ChevronRight className="size-4" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
