@@ -47,6 +47,11 @@ import {
   type RecoveryDeskEntry,
   type RecoveryLaneId,
 } from "@/lib/defaulters/recovery";
+import {
+  buildPreDueReminderList,
+  type PreDueReminderEntry,
+  type PreDueReminderList,
+} from "@/lib/defaulters/pre-due";
 import { PAYMENT_BEHAVIORS, type PaymentBehavior } from "@/lib/defaulters/behavior";
 import type { DefaulterSummaryRow } from "@/lib/defaulters/types";
 
@@ -215,6 +220,15 @@ export function DefaultersWorkspace({
       }),
     [recoveryRows, effectiveSummaries, today],
   );
+  const preDueReminders = useMemo(
+    () =>
+      buildPreDueReminderList({
+        rows: recoveryRows,
+        today,
+        windowDays: 14,
+      }),
+    [recoveryRows, today],
+  );
   const rowsWithCadence: { row: DefaulterSummaryRow; cadence: Cadence }[] = useMemo(
     () =>
       rows.map((row) => ({
@@ -338,6 +352,7 @@ export function DefaultersWorkspace({
   return (
     <div className="space-y-3">
       <RecoveryDeskPanel desk={recoveryDesk} onOpenStudent={openDrawer} />
+      <PreDueReminderPanel reminders={preDueReminders} onOpenStudent={openDrawer} />
 
       <CadenceTabs
         counts={cadenceCounts}
@@ -459,6 +474,115 @@ export function DefaultersWorkspace({
         />
       ) : null}
     </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Pre-due reminders                                                           */
+/* -------------------------------------------------------------------------- */
+
+function PreDueReminderPanel({
+  reminders,
+  onOpenStudent,
+}: {
+  reminders: PreDueReminderList;
+  onOpenStudent: (row: DefaulterSummaryRow) => void;
+}) {
+  const t = useTranslations("Defaulters");
+  const previewRows = reminders.entries.slice(0, 5);
+
+  return (
+    <section className="rounded-lg border border-border bg-card p-3 shadow-sm">
+      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">{t("preDueTitle")}</h2>
+          <p className="mt-0.5 max-w-3xl text-sm text-muted-foreground">
+            {t("preDueDescription")}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2 rounded-md border border-border bg-surface-2 px-3 py-2">
+          <span className="text-xs font-medium text-muted-foreground">
+            {t("preDueMetricTotal")}
+          </span>
+          <span className="text-lg font-semibold tabular-nums text-foreground">
+            {reminders.metrics.totalRows}
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-2 md:grid-cols-4">
+        <RecoveryMetric
+          label={t("preDueMetricToday")}
+          value={reminders.metrics.dueTodayRows.toString()}
+        />
+        <RecoveryMetric
+          label={t("preDueMetric7Days")}
+          value={reminders.metrics.next7DaysRows.toString()}
+        />
+        <RecoveryMetric
+          label={t("preDueMetric14Days")}
+          value={reminders.metrics.next14DaysRows.toString()}
+        />
+        <RecoveryMetric
+          label={t("preDueMetricAmount")}
+          value={formatInr(reminders.metrics.totalAmount)}
+        />
+      </div>
+
+      {previewRows.length === 0 ? (
+        <p className="mt-3 rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-muted-foreground">
+          {t("preDueEmpty")}
+        </p>
+      ) : (
+        <div className="mt-3 grid gap-2 lg:grid-cols-5">
+          {previewRows.map((entry) => (
+            <PreDueReminderRow
+              key={entry.row.studentId}
+              entry={entry}
+              onOpen={() => onOpenStudent(entry.row)}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PreDueReminderRow({
+  entry,
+  onOpen,
+}: {
+  entry: PreDueReminderEntry;
+  onOpen: () => void;
+}) {
+  const t = useTranslations("Defaulters");
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="min-h-28 rounded-lg border border-border bg-surface-2 p-2 text-left transition-colors hover:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-foreground">{entry.row.fullName}</p>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            {t("studentMetaLine", {
+              classLabel: entry.row.classLabel,
+              admissionNo: entry.row.admissionNo,
+            })}
+          </p>
+        </div>
+        <Money value={entry.row.nextDueAmount ?? 0} size="sm" tone="neutral" />
+      </div>
+      <p className="mt-2 text-xs font-medium text-muted-foreground">
+        {entry.daysUntilDue === 0
+          ? t("preDueDueToday")
+          : t("preDueDueInDays", { count: entry.daysUntilDue })}
+      </p>
+      <p className="mt-1 line-clamp-2 text-xs text-foreground">
+        {t("preDueRowAction")}
+      </p>
+    </button>
   );
 }
 

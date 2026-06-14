@@ -407,7 +407,18 @@
     "recoveryAging91Plus": "91+ days",
     "recoveryAgingRows": "{count} rows",
     "recoveryMetricPromiseKeptRate": "Promise kept",
-    "recoveryNoPromiseHistory": "-"
+    "recoveryNoPromiseHistory": "-",
+    "preDueTitle": "Pre-due reminders",
+    "preDueDescription": "???? 14 ??? ??? ??? installments. Overdue ???? ?? ???? reminder ?????.",
+    "preDueMetricTotal": "Upcoming",
+    "preDueMetricToday": "??",
+    "preDueMetric7Days": "7 ???",
+    "preDueMetric14Days": "14 ???",
+    "preDueMetricAmount": "Amount",
+    "preDueEmpty": "????? filters ?? ??? ??? upcoming reminder ???? ??.",
+    "preDueDueToday": "?? due",
+    "preDueDueInDays": "{count} ??? ??? due",
+    "preDueRowAction": "UPI link ?? ??? WhatsApp reminder ????? ?? ??? student ?????."
   },
   "Exports": {
     "eyebrow": "निर्यात",
