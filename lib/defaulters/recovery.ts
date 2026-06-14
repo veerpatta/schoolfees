@@ -85,6 +85,7 @@ function isPromiseDue(
   summary: DefaulterContactSummary | null,
   todayKey: string,
 ) {
+  if (row.promiseStatus === "kept") return false;
   if (row.promiseStatus === "broken") return true;
   if (summary?.lastOutcome !== "promised_pay" || !summary.snoozeUntil) return false;
   return summary.snoozeUntil <= todayKey;

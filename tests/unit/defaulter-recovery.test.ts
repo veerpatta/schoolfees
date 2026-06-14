@@ -138,6 +138,23 @@ describe("buildRecoveryDesk", () => {
     expect(desk.nextBestRows[0].reasons).toContain("Broken promise");
   });
 
+  it("keeps resolved kept promises out of the promise-due queue", () => {
+    const desk = build({
+      rows: [row("kept", { promiseStatus: "kept", heat: 45 })],
+      contactSummaries: {
+        kept: summary({
+          lastOutcome: "promised_pay",
+          snoozeUntil: "2026-05-20",
+          lastContactedAt: "2026-05-18T10:00:00Z",
+        }),
+      },
+    });
+
+    expect(desk.metrics.promiseDueRows).toBe(0);
+    expect(desk.lanes.promiseDue.rows).toEqual([]);
+    expect(desk.nextBestRows[0].reasons).not.toContain("Promise due");
+  });
+
   it("summarizes aging buckets by student count and pending amount", () => {
     const desk = build({
       rows: [

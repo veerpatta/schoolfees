@@ -86,6 +86,15 @@ begin
       exists (
         select 1
         from public.receipts r
+        join public.payments p
+          on p.receipt_id = r.id
+          and p.student_id = r.student_id
+        join public.installments i
+          on i.id = p.installment_id
+          and i.student_id = p.student_id
+        join public.classes
+          on classes.id = i.class_id
+          and classes.session_label = dc.session_label
         where r.student_id = dc.student_id
           and r.payment_date >= dc.contacted_at::date
       ) as paid_since_promise
@@ -98,6 +107,15 @@ begin
         or exists (
           select 1
           from public.receipts r
+          join public.payments p
+            on p.receipt_id = r.id
+            and p.student_id = r.student_id
+          join public.installments i
+            on i.id = p.installment_id
+            and i.student_id = p.student_id
+          join public.classes
+            on classes.id = i.class_id
+            and classes.session_label = dc.session_label
           where r.student_id = dc.student_id
             and r.payment_date >= dc.contacted_at::date
         )
@@ -176,6 +194,8 @@ comment on function public.refresh_defaulter_recovery_state(text, date) is
   'Resolves latest promised_pay contacts to kept/broken using receipts, then '
   'updates defaulter_recovery_state idempotently. Does not mutate '
   'defaulter_contacts.';
+
+grant execute on function public.refresh_defaulter_recovery_state(text, date) to authenticated;
 
 drop trigger if exists set_updated_at_on_defaulter_recovery_state
   on public.defaulter_recovery_state;

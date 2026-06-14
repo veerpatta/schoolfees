@@ -19,7 +19,14 @@ describe("defaulter recovery state migration", () => {
   it("provides a refresh function that resolves promises from receipts without mutating contacts", () => {
     expect(sql).toContain("refresh_defaulter_recovery_state");
     expect(sql).toContain("public.receipts");
+    expect(sql).toContain("public.payments");
+    expect(sql).toContain("public.installments");
+    expect(sql).toContain("classes.session_label = dc.session_label");
     expect(sql).toContain("promise_kept_count");
     expect(sql).toContain("promise_broken_count");
+  });
+
+  it("grants authenticated staff execute access to the refresh function", () => {
+    expect(sql).toContain("grant execute on function public.refresh_defaulter_recovery_state(text, date) to authenticated");
   });
 });

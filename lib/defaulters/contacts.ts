@@ -339,12 +339,12 @@ export async function getPromiseReliabilityForStudents(
   if (studentIds.length === 0) return new Map();
 
   const supabase = await createClient();
-  const wanted = new Set(studentIds);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("defaulter_recovery_state")
     .select("student_id, family_group_id, promise_kept_count, promise_broken_count")
-    .eq("session_label", sessionLabel);
+    .eq("session_label", sessionLabel)
+    .in("student_id", studentIds);
 
   if (error) {
     if ((error as { code?: string }).code === "42P01") return new Map();
@@ -352,9 +352,7 @@ export async function getPromiseReliabilityForStudents(
     return new Map();
   }
 
-  const rows = ((data ?? []) as RecoveryStateRow[]).filter((row) =>
-    wanted.has(row.student_id),
-  );
+  const rows = (data ?? []) as RecoveryStateRow[];
   const familyTotals = new Map<string, { kept: number; broken: number }>();
   for (const row of rows) {
     if (!row.family_group_id) continue;
