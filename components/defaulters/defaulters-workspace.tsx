@@ -561,7 +561,7 @@ function PreDueReminderPanel({
         </div>
       </div>
 
-      <div className="mt-3 grid gap-2 md:grid-cols-4">
+      <div className="mt-3 grid gap-2 grid-cols-2 md:grid-cols-4">
         <RecoveryMetric
           label={t("preDueMetricToday")}
           value={reminders.metrics.dueTodayRows.toString()}
@@ -585,7 +585,7 @@ function PreDueReminderPanel({
           {t("preDueEmpty")}
         </p>
       ) : (
-        <div className="mt-3 grid gap-2 lg:grid-cols-5">
+        <div className="mt-3 grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           {previewRows.map((entry) => (
             <PreDueReminderRow
               key={entry.row.studentId}
@@ -670,7 +670,7 @@ function RecoveryDeskPanel({
             {t("recoveryDeskDescription")}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={onStartCollector}
@@ -691,7 +691,7 @@ function RecoveryDeskPanel({
         </div>
       </div>
 
-      <div className="mt-3 grid gap-2 md:grid-cols-3">
+      <div className="mt-3 grid gap-2 grid-cols-3">
         <RecoveryMetric
           label={t("recoveryMetricPromiseDue")}
           value={desk.metrics.promiseDueRows.toString()}
@@ -706,7 +706,7 @@ function RecoveryDeskPanel({
         />
       </div>
 
-      <div className="mt-3 grid gap-2 md:grid-cols-6">
+      <div className="mt-3 grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-6">
         <RecoveryMetric
           label={t("recoveryMetricRecoveryRate")}
           value={t("recoveryRateValue", { rate: desk.metrics.recoveryRate })}
@@ -749,7 +749,7 @@ function RecoveryDeskPanel({
         />
       </div>
 
-      <div className="mt-3 grid gap-2 lg:grid-cols-5">
+      <div className="mt-3 grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         {RECOVERY_LANES.map(({ id, i18nKey, Icon }) => {
           const lane = desk.lanes[id];
           return (
@@ -783,7 +783,7 @@ function RecoveryDeskPanel({
             {t("recoveryNextBestEmpty")}
           </p>
         ) : (
-          <div className="grid gap-2 lg:grid-cols-5">
+          <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
             {previewRows.map((entry) => (
               <RecoveryRow
                 key={entry.row.studentId}
@@ -1031,7 +1031,7 @@ function RecoveryMetric({
   return (
     <div className="rounded-lg border border-border bg-surface-2 px-3 py-2">
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="mt-1 text-xl font-semibold tabular-nums text-foreground">{value}</p>
+      <p className="mt-1 text-lg font-semibold tabular-nums text-foreground sm:text-xl">{value}</p>
       {detail ? <p className="mt-1 text-xs text-muted-foreground">{detail}</p> : null}
     </div>
   );

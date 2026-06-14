@@ -11,6 +11,7 @@ It is designed for the internal VPPS office workflow:
 - promise-due and broken-promise follow-up
 - parent recovery context for a specific student
 - daily recovery plan draft
+- daily recovery digest for the morning follow-up task
 - student due lookup
 - class-wise due summary
 - recent receipts
@@ -46,29 +47,27 @@ http://127.0.0.1:4317/mcp
 
 ## Connect To ChatGPT Developer Mode
 
-For local testing, expose the local endpoint through an HTTPS tunnel:
-
-```powershell
-ngrok http 4317
-```
-
-Then connect the HTTPS URL with `/mcp` appended:
+Use the always-on Worker endpoint for ChatGPT. The plain `/mcp` endpoint accepts
+bearer-token clients, but ChatGPT custom MCP connectors do not reliably forward
+custom Authorization headers. For ChatGPT, use the token-in-path endpoint and
+set auth to `No Auth`:
 
 ```text
-https://YOUR-TUNNEL-DOMAIN.ngrok-free.app/mcp
+https://schoolfees-live-mcp.raj-39e.workers.dev/mcp/YOUR_PRIVATE_TOKEN
 ```
 
 In ChatGPT:
 
 1. Open Settings.
-2. Enable Developer Mode under Apps/Connectors advanced settings.
-3. Create an app/connector from a remote MCP server.
-4. Paste the HTTPS MCP URL.
-5. Refresh the app metadata after tool changes.
+2. Go to Apps & Connectors -> Advanced settings and enable Developer Mode.
+3. Create a custom MCP connector from a remote MCP server.
+4. Paste the token-in-path MCP URL above.
+5. Set authentication to `No Auth`.
+6. Save, then refresh/import tools.
 
-OpenAI's Apps SDK and MCP guidance use a remote MCP server to expose tools to
-ChatGPT. ChatGPT Developer Mode supports remote MCP servers over Streamable HTTP
-or SSE.
+OpenAI's Apps SDK docs describe connecting remote MCP servers in ChatGPT
+Developer Mode:
+<https://developers.openai.com/apps-sdk/deploy/connect-chatgpt>.
 
 ## Agent Instructions
 
@@ -79,27 +78,51 @@ You are the VPPS fee collection assistant. Use the Schoolfees MCP tools for all
 student due amounts, defaulter lists, recent payments, class summaries, and
 follow-up drafts. Do not guess fee amounts from memory. Always fetch live data
 before answering fee collection questions. For recovery work, prefer
-get_recovery_queue, get_promise_due_list, get_parent_followup_context, and
-draft_recovery_plan. Notion is read-only reference only; do not treat Notion as
-the source for promises or next actions. Draft messages only; do not claim that
-any message was sent or any payment was posted.
+daily_recovery_digest for the morning run, and use get_recovery_queue,
+get_promise_due_list, get_parent_followup_context, draft_recovery_plan, and
+prepare_followup_messages for follow-up questions. Notion is read-only
+reference only; do not treat Notion as the source for promises or next actions.
+Draft messages only; do not claim that any message was sent or any payment was
+posted.
 ```
 
 ## Live Session Switch
 
-The default is intentionally test-safe:
-
-```text
-SCHOOLFEES_MCP_DEFAULT_SESSION=TEST-2026-27
-```
-
-When you are ready to use live office collection data, set:
+The live Worker default is:
 
 ```text
 SCHOOLFEES_MCP_DEFAULT_SESSION=2026-27
 ```
 
-The MCP still allows the agent to pass an explicit `sessionLabel` per tool call.
+For local testing, use:
+
+```text
+SCHOOLFEES_MCP_DEFAULT_SESSION=TEST-2026-27
+```
+
+All tools still accept an explicit `sessionLabel`, including `2026-27`,
+`TEST-2026-27`, `UAT-2026-27`, and `DEMO-2026-27`.
+
+## Tool Surface
+
+```text
+today_fee_collection_brief
+list_defaulters_for_followup
+get_student_due_status
+get_class_due_summary
+get_recent_payments
+prepare_followup_messages
+get_recovery_queue
+get_promise_due_list
+get_parent_followup_context
+draft_recovery_plan
+daily_recovery_digest
+```
+
+Every tool is read-only. The draft-message tools include UPI intent link text
+for office convenience, but they do not send WhatsApp messages and do not post
+payments. Payment posting remains only in the Schoolfees Payment Desk after
+office verification.
 
 ## Optional Bearer Token
 
@@ -149,3 +172,7 @@ to send `SCHOOLFEES_MCP_TOKEN` as a bearer token.
 
 For ChatGPT Custom MCP, use the private `/mcp/YOUR_PRIVATE_TOKEN` URL with
 `No Auth`. Do not publish or share that full URL.
+
+If a tool call returns `Unauthorized`, the connector is probably using the plain
+`/mcp` URL or an auth setting. Switch to the token-in-path URL and `No Auth`,
+then refresh tools.
