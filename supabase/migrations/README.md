@@ -156,6 +156,17 @@ migration *does*. Filenames are listed without the `.sql` extension.
 
 ## Historical repair notes (keep for the record)
 
+The linked Supabase project records two early Notion sync migration versions
+that were applied remotely before their files were committed:
+
+- `20260612022538_notion_fee_sync_views_and_log`
+- `20260612022836_notion_fee_sync_cron`
+
+The repo keeps placeholder files for those exact versions so Supabase Preview
+and `supabase db push` can compare local vs remote migration history. The
+current idempotent Notion sync schema is in
+`20260612023000_notion_fee_sync`.
+
 Earlier repo history renamed three migrations to chronological timestamps:
 
 - `20260421113000` → `20260421054019`

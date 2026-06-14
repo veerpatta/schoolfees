@@ -29,6 +29,14 @@ create table if not exists public.notion_sync_log (
   created_at timestamptz not null default now()
 );
 
+alter table public.notion_sync_log
+  add column if not exists families_synced integer default 0,
+  add column if not exists daily_summaries_synced integer default 0,
+  add column if not exists tracker_rows_synced integer default 0,
+  add column if not exists errors_count integer default 0,
+  add column if not exists dry_run boolean default false,
+  add column if not exists created_at timestamptz default now();
+
 alter table public.notion_sync_log enable row level security;
 
 create or replace function private.prevent_notion_sync_log_mutation()
