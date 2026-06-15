@@ -123,6 +123,7 @@ type WorkbookFinancialRow = {
   other_adjustment_head: string | null;
   other_adjustment_amount: number;
   discount_amount: number;
+  base_charge_total: number;
   late_fee_total: number;
   late_fee_waiver_amount: number;
   total_due: number;
@@ -375,7 +376,7 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     supabase
       .from("v_workbook_student_financials")
       .select(
-        "student_id, session_label, student_status_label, tuition_fee, transport_fee, academic_fee, other_adjustment_head, other_adjustment_amount, discount_amount, late_fee_total, late_fee_waiver_amount, total_due, total_paid, outstanding_amount",
+        "student_id, session_label, student_status_label, tuition_fee, transport_fee, academic_fee, other_adjustment_head, other_adjustment_amount, discount_amount, base_charge_total, late_fee_total, late_fee_waiver_amount, total_due, total_paid, outstanding_amount",
       )
       .eq("student_id", receipt.student_id)
       .maybeSingle(),
@@ -559,7 +560,7 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
       lateFeeAmount: adjustmentTotals.receiptLateFeeAmount,
       lateFeeWaived: adjustmentTotals.receiptLateFeeWaived,
     }),
-    totalDue: financial?.total_due ?? totalPaidToDate,
+    totalDue: financial ? (financial.base_charge_total ?? (financial.total_due - financial.late_fee_total)) : totalPaidToDate,
     totalPaidBeforeReceipt,
     totalPaidToDate,
     outstandingAfterReceipt,

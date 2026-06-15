@@ -30,7 +30,7 @@ export function FamilyStatementDocument({
 
   // Calculate family totals
   const totalDue = students.reduce((sum, s) => {
-    return sum + s.installmentBalances.reduce((subSum, item) => subSum + item.totalCharge, 0);
+    return sum + s.installmentBalances.reduce((subSum, item) => subSum + item.baseCharge, 0);
   }, 0);
 
   const totalPaid = students.reduce((sum, s) => {

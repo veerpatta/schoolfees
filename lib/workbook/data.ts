@@ -156,6 +156,7 @@ export type WorkbookStudentFinancial = {
   grossBaseBeforeDiscount: number;
   discountAmount: number;
   lateFeeWaiverAmount: number;
+  baseChargeTotal: number;
   lateFeeTotal: number;
   totalDue: number;
   totalPaid: number;
@@ -329,6 +330,7 @@ function mapFinancialRow(row: WorkbookStudentFinancialRow): WorkbookStudentFinan
     grossBaseBeforeDiscount: row.gross_base_before_discount,
     discountAmount: row.discount_amount,
     lateFeeWaiverAmount: row.late_fee_waiver_amount,
+    baseChargeTotal: row.base_charge_total,
     lateFeeTotal: row.late_fee_total,
     totalDue: row.total_due,
     totalPaid: row.total_paid,

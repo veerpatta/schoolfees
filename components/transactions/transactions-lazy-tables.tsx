@@ -566,7 +566,7 @@ export function InstallmentTrackerTable({
                       <td className="px-4 py-3 text-right text-xs tabular-nums text-muted-foreground">
                         <span className="text-foreground">{formatInr(row.totalPaid)}</span>
                         <span className="mx-1">/</span>
-                        {formatInr(row.totalDue)}
+                        {formatInr(row.baseChargeTotal)}
                       </td>
                       <td className="px-4 py-3 text-right font-medium tabular-nums text-foreground">
                         {formatInr(row.outstandingAmount)}
@@ -684,7 +684,7 @@ export function StudentDuesTable({
                   metaSlot={
                     <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs text-muted-foreground tabular-nums">
                       <span>Paid: {formatInr(row.totalPaid)}</span>
-                      <span>Total: {formatInr(row.totalDue)}</span>
+                      <span>Total: {formatInr(row.baseChargeTotal)}</span>
                       {row.duesStatus !== "missing_dues" && row.nextDueDate ? (
                         <span
                           className={cn(
@@ -785,7 +785,7 @@ export function StudentDuesTable({
                       <td className="px-4 py-3 text-right text-xs tabular-nums text-muted-foreground">
                         <span className="text-foreground">{formatInr(row.totalPaid)}</span>
                         <span className="mx-1">/</span>
-                        {formatInr(row.totalDue)}
+                        {formatInr(row.baseChargeTotal)}
                       </td>
                       <td className="px-4 py-3 text-right font-medium tabular-nums text-foreground">
                         {formatInr(row.outstandingAmount)}
@@ -954,7 +954,7 @@ export function ClassRegisterTable({
                 ]}
                 detail={
                   <>
-                    <DetailItem label="Total due" value={formatInr(row.totalDue)} />
+                    <DetailItem label="Total due" value={formatInr(row.baseChargeTotal)} />
                     <DetailItem label="Paid" value={formatInr(row.totalPaid)} />
                     <DetailItem label="Discount" value={formatInr(row.discountAmount)} />
                     <DetailItem label="Late fee waived" value={formatInr(row.lateFeeWaiverAmount)} />
@@ -1083,7 +1083,7 @@ export function ClassRegisterTable({
                     {expanded && (
                       <ExpandedShell colSpan={colSpan + 1}>
                         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                          <DetailItem label="Total due" value={formatInr(row.totalDue)} />
+                          <DetailItem label="Total due" value={formatInr(row.baseChargeTotal)} />
                           <DetailItem label="Paid" value={formatInr(row.totalPaid)} />
                           <DetailItem label="Discount" value={formatInr(row.discountAmount)} />
                           <DetailItem label="Late fee waived" value={formatInr(row.lateFeeWaiverAmount)} />
@@ -1222,7 +1222,7 @@ export function DefaultersTable({
                   ]}
                   detail={
                     <>
-                      <DetailItem label="Total due" value={formatInr(row.totalDue)} />
+                      <DetailItem label="Total due" value={formatInr(row.baseChargeTotal)} />
                       <DetailItem label="Paid" value={formatInr(row.totalPaid)} />
                       <DetailItem label="Late fee" value={formatInr(row.lateFeeTotal)} />
                       <DetailItem label="Waiver" value={formatInr(row.lateFeeWaiverAmount)} />
@@ -1367,7 +1367,7 @@ export function DefaultersTable({
                     {expanded && (
                       <ExpandedShell colSpan={colSpan + 1}>
                         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                          <DetailItem label="Total due" value={formatInr(row.totalDue)} />
+                          <DetailItem label="Total due" value={formatInr(row.baseChargeTotal)} />
                           <DetailItem label="Paid" value={formatInr(row.totalPaid)} />
                           <DetailItem label="Late fee" value={formatInr(row.lateFeeTotal)} />
                           <DetailItem label="Waiver" value={formatInr(row.lateFeeWaiverAmount)} />

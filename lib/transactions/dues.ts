@@ -252,6 +252,7 @@ async function getBaseOfficeStudents(filters: OfficeWorkbookFilters) {
       grossBaseBeforeDiscount: 0,
       discountAmount: 0,
       lateFeeWaiverAmount: 0,
+      baseChargeTotal: 0,
       lateFeeTotal: 0,
       totalDue: 0,
       totalPaid: 0,
@@ -277,7 +278,7 @@ function buildSummary(rows: WorkbookStudentFinancial[]): OfficeWorkbookSummary {
   return rows.reduce(
     (acc, row) => {
       acc.studentCount += 1;
-      acc.totalDue += row.totalDue;
+      acc.totalDue += row.baseChargeTotal;
       acc.totalPaid += row.totalPaid;
       acc.totalOutstanding += row.outstandingAmount;
       acc.totalDiscount += row.discountAmount;

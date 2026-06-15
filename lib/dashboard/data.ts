@@ -51,7 +51,7 @@ export async function getRouteCollectionSummary(
   const { data, error } = await supabase
     .from("v_workbook_student_financials")
     .select(
-      "transport_route_id, transport_route_name, transport_route_code, total_due, total_paid, outstanding_amount",
+      "transport_route_id, transport_route_name, transport_route_code, base_charge_total, total_due, total_paid, outstanding_amount",
     )
     .eq("session_label", sessionLabel)
     .eq("record_status", "active");
@@ -66,6 +66,7 @@ export async function getRouteCollectionSummary(
     transport_route_id: string | null;
     transport_route_name: string | null;
     transport_route_code: string | null;
+    base_charge_total: number | null;
     total_due: number | null;
     total_paid: number | null;
     outstanding_amount: number | null;
@@ -85,7 +86,7 @@ export async function getRouteCollectionSummary(
       collectionRate: 0,
     };
     existing.studentCount += 1;
-    existing.expectedAmount += Number(row.total_due ?? 0);
+    existing.expectedAmount += Number(row.base_charge_total ?? 0);
     existing.collectedAmount += Number(row.total_paid ?? 0);
     existing.pendingAmount += Number(row.outstanding_amount ?? 0);
     map.set(key, existing);

@@ -16,7 +16,7 @@ export function MasterStatementDocument({
   }
 
   const feeHeads = buildFeeBreakupDisplayRows(financialSnapshot.resolvedBreakdown);
-  const totalDue = installmentBalances.reduce((sum, item) => sum + item.totalCharge, 0);
+  const totalDue = installmentBalances.reduce((sum, item) => sum + item.baseCharge, 0);
   const totalPaid = installmentBalances.reduce((sum, item) => sum + item.paidAmount, 0);
 
   return (

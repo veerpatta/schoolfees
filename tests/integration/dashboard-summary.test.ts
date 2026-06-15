@@ -51,6 +51,7 @@ function student(
     grossBaseBeforeDiscount: 1500,
     discountAmount: 0,
     lateFeeWaiverAmount: 0,
+    baseChargeTotal: 1500,
     lateFeeTotal: 0,
     totalDue: 1500,
     totalPaid: 0,
@@ -174,6 +175,7 @@ describe("dashboard summary", () => {
     const summary = buildDashboardSummary({
       financialRows: [
         student({
+          baseChargeTotal: 900,
           totalDue: 900,
           totalPaid: 900,
           outstandingAmount: 0,
@@ -240,6 +242,7 @@ describe("dashboard summary", () => {
           studentId: "student-1",
           classId: "class-1",
           classLabel: "Class 1",
+          baseChargeTotal: 1500,
           totalDue: 1500,
           totalPaid: 500,
           outstandingAmount: 1000,
@@ -251,6 +254,7 @@ describe("dashboard summary", () => {
           admissionNo: "SR-2",
           studentName: "Second Student",
           classLabel: "Class 2",
+          baseChargeTotal: 2000,
           totalDue: 2000,
           totalPaid: 0,
           outstandingAmount: 2000,

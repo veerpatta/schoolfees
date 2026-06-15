@@ -1555,7 +1555,7 @@ export async function getStudentFamilyMembersDetail(
   const { data: financials } = await supabase
     .from("v_workbook_student_financials")
     .select(
-      "student_id, total_due, total_paid, outstanding_amount, total_discount_closeouts, waiver_applied1, waiver_applied2, waiver_applied3, waiver_applied4",
+      "student_id, base_charge_total, total_due, total_paid, outstanding_amount, total_discount_closeouts, waiver_applied1, waiver_applied2, waiver_applied3, waiver_applied4",
     )
     .in("student_id", targetStudentIds);
 
@@ -1571,7 +1571,7 @@ export async function getStudentFamilyMembersDetail(
         (f.waiver_applied3 ?? 0) +
         (f.waiver_applied4 ?? 0);
       financialsMap.set(f.student_id, {
-        totalDue: f.total_due,
+        totalDue: f.base_charge_total ?? f.total_due,
         totalPaid: f.total_paid,
         outstanding: f.outstanding_amount,
         discountCloseouts: f.total_discount_closeouts ?? 0,

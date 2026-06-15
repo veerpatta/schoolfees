@@ -129,7 +129,7 @@ export async function getStudentFeeBreakdown(
   ).length;
 
   const headline: FeeBreakdownHeadline = {
-    totalDue: financial?.totalDue ?? installments.reduce((s, i) => s + i.totalCharge, 0),
+    totalDue: financial?.baseChargeTotal ?? installments.reduce((s, i) => s + i.baseCharge, 0),
     totalPaid: financial?.totalPaid ?? installments.reduce((s, i) => s + i.paidAmount, 0),
     outstanding:
       financial?.outstandingAmount ?? installments.reduce((s, i) => s + i.pendingAmount, 0),

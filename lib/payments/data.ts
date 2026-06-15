@@ -637,7 +637,7 @@ function summarizeStudent(
   conventionalDiscount: { amount: number; labels: string[] },
 ): SelectedStudentSummary {
   const pendingAmount = financialState?.pending_amount ?? financial.outstandingAmount;
-  const totalDue = financialState?.total_due ?? financial.totalDue;
+  const totalDue = financial.baseChargeTotal;
   const totalPaid = financialState?.total_paid ?? financial.totalPaid;
 
   return {

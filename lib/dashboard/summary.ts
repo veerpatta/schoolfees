@@ -161,7 +161,7 @@ function getCollectedFromInstallment(row: WorkbookInstallmentBalance) {
 export function buildDashboardSummary(input: DashboardSummaryInput) {
   const totalStudents = input.rawStudentCount ?? input.financialRows.length;
   const totalExpectedFees = input.financialRows.reduce(
-    (sum, row) => sum + row.totalDue,
+    (sum, row) => sum + row.baseChargeTotal,
     0,
   );
   const totalCollected = input.financialRows.reduce(
@@ -269,7 +269,7 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
 
     existing.classLabel = row.classLabel;
     existing.studentsWithGeneratedDues += 1;
-    existing.expectedAmount += row.totalDue;
+    existing.expectedAmount += row.baseChargeTotal;
     existing.collectedAmount += row.totalPaid;
     existing.pendingAmount += row.outstandingAmount;
     existing.overdueStudents += Number(row.statusLabel === "OVERDUE");

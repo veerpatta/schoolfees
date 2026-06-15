@@ -390,7 +390,7 @@ export async function getDefaultersPageData(
         studentStatusLabel: row.studentStatusLabel,
         transportRouteId: row.transportRouteId,
         transportRouteLabel: row.transportRouteName ?? "No Transport",
-        totalDue: row.totalDue,
+        totalDue: row.baseChargeTotal,
         totalPaid: row.totalPaid,
         totalPending: row.outstandingAmount,
         overdueAmount,

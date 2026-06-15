@@ -158,7 +158,7 @@ export async function GET(request: NextRequest) {
             row.fatherName ?? "",
             row.fatherPhone ?? "",
             row.transportRouteName ?? "No Transport",
-            row.totalDue,
+            row.baseChargeTotal,
             row.totalPaid,
             row.outstandingAmount,
             row.inst1Pending,
