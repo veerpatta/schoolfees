@@ -79,8 +79,8 @@ describe("source of truth audit fixes", () => {
     expect(defaultersData).toContain("getActiveSessionStudents");
     expect(defaultersData).toContain("missingDuesRows");
     expect(defaultersData).toContain("!generatedStudentIds.has(row.studentId)");
+    expect(defaultersPage).toContain("<MissingDuesBanner");
     expect(defaultersPage).toContain('t("missingDuesTitle")');
-    expect(defaultersPage).toContain('t("metricMissingDues")');
     expect(englishMessages.Defaulters.missingDuesTitle).toBe(
       "Students whose dues are not prepared",
     );

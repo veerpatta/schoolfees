@@ -79,7 +79,7 @@ describe("office performance guardrails", () => {
     expect(schema).toContain("deferred to 2-min backstop");
   });
 
-  it("keeps Defaulters bounded: session-scoped fetch, single pass, client-side incremental render", () => {
+  it("keeps Defaulters bounded: session-scoped fetch, single pass, short call queue render", () => {
     const defaultersData = readRepoFile("lib/defaulters/data.ts");
     const defaultersTypes = readRepoFile("lib/defaulters/types.ts");
     const defaultersPage = readRepoFile("app/protected/defaulters/page.tsx");
@@ -96,9 +96,10 @@ describe("office performance guardrails", () => {
     expect(defaultersPage).not.toContain("getContactSummariesForStudents");
     expect(defaultersPage).toContain("data.contactSummaries");
     expect(defaultersPage).toContain("data.pagination.visibleStart");
-    // Filters are list-wide; the DOM stays light via client-side chunked render.
-    expect(defaultersWorkspace).toContain("RENDER_CHUNK");
-    expect(defaultersWorkspace).toContain("pagedRows");
+    // Filters remain list-wide; the DOM stays light because the default view
+    // renders the already-ranked short call queue instead of the whole list.
+    expect(defaultersWorkspace).toContain("buildRecoveryDesk");
+    expect(defaultersWorkspace).toContain("recoveryDesk.nextBestRows");
   });
 
   it("scopes workbook reads to the active office session and visible receipts", () => {

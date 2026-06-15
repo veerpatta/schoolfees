@@ -67,21 +67,23 @@ describe("mobile UX roadmap implementation", () => {
   it("adds mobile WhatsApp follow-up and collapsible filters to Defaulters", () => {
     const defaulters = readRepoFile("app/protected/defaulters/page.tsx");
     const filters = readRepoFile("components/defaulters/defaulter-filters.tsx");
+    const workspace = readRepoFile("components/defaulters/defaulters-workspace.tsx");
     const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
       Defaulters: Record<string, string>;
     };
 
-    expect(filters).toContain("activeFilterCount");
-    // The toggle label now comes from the next-intl Defaulters namespace,
-    // but the activeFilterCount-driven branch still gates the rendered text.
-    expect(filters).toContain("activeFilterCount > 0");
-    expect(filters).toContain('t("filtersMobileToggleCount"');
-    expect(filters).toContain("open={activeFilterCount > 0}");
+    expect(defaulters).toContain("activeFilterCount");
+    expect(defaulters).toContain('t("callQueueFilterTitle"');
+    expect(defaulters).toContain('t("filtersMobileToggleCount"');
+    expect(filters).toContain("AutoSubmitForm");
+    expect(filters).not.toContain("Apply filters");
     expect(englishMessages.Defaulters.filtersMobileToggleCount).toContain("Filters");
-    // Mobile-first defaulters surface: workspace renders cards with a
-    // tap-to-open Worklist Drawer and 3-button quick log.
+    expect(englishMessages.Defaulters.callQueueDescription).toContain("Call queue");
+    // Mobile-first defaulters surface: workspace exposes a selected card,
+    // one-tap WhatsApp, quick log, and sticky next-student controls.
     expect(defaulters).toContain("DefaultersWorkspace");
-    expect(defaulters).toContain("defaulters-workspace");
+    expect(workspace).toContain("MobileNextBar");
+    expect(workspace).toContain("callQueueNextStudent");
   });
 
   it("uses a More overflow tab for the eight-module mobile workspace", () => {

@@ -16,6 +16,8 @@ import {
   heatLevel,
   type DefaulterContactSummary,
 } from "@/lib/defaulters/cadence";
+import { buildRecoveryDesk } from "@/lib/defaulters/recovery";
+import type { DefaulterSummaryRow } from "@/lib/defaulters/types";
 
 const TODAY_ISO = "2026-05-24";
 const TODAY = new Date("2026-05-24T12:00:00Z");
@@ -208,5 +210,79 @@ describe("heatLevel", () => {
     expect(heatLevel(74)).toBe("hot");
     expect(heatLevel(75)).toBe("blazing");
     expect(heatLevel(100)).toBe("blazing");
+  });
+});
+
+describe("call queue recovery desk", () => {
+  function row(
+    studentId: string,
+    totalPending: number,
+    extras: Partial<DefaulterSummaryRow> = {},
+  ) {
+    return {
+      studentId,
+      classId: "class-1",
+      admissionNo: `SR-${studentId}`,
+      fullName: `Student ${studentId}`,
+      fatherName: "Parent",
+      fatherPhone: "9000000000",
+      motherPhone: null,
+      classLabel: "Class 1",
+      studentStatusLabel: "Old",
+      transportRouteId: null,
+      transportRouteLabel: "-",
+      totalDue: 50000,
+      totalPaid: 50000 - totalPending,
+      totalPending,
+      overdueAmount: totalPending,
+      lateFee: 0,
+      discountApplied: 0,
+      lateFeeWaived: 0,
+      overdueInstallments: 1,
+      openInstallments: 1,
+      nextDueAmount: null,
+      oldestDueDate: "2026-04-20",
+      nextDueDate: null,
+      lastPaymentDate: null,
+      followUpStatus: "overdue",
+      daysOverdue: 30,
+      defaulterScore: totalPending,
+      heat: 50,
+      rank: 1,
+      paymentBehavior: "new",
+      promiseStatus: null,
+      noCall: false,
+      ...extras,
+    } satisfies DefaulterSummaryRow;
+  }
+
+  it("uses nextBestRows as the priority call queue", () => {
+    const desk = buildRecoveryDesk({
+      today: TODAY,
+      contactSummaries: {
+        due: s(TODAY_ISO, "2026-05-20T10:00:00Z", { lastOutcome: "promised_pay" }),
+      },
+      rows: [
+        row("quiet", 20000, { heat: 40 }),
+        row("due", 5000, { heat: 30, promiseStatus: "pending" }),
+      ],
+    });
+
+    expect(desk.nextBestRows[0].row.studentId).toBe("due");
+    expect(desk.nextBestRows[0].reasons).toContain("Promise due");
+  });
+
+  it("keeps no-call students out of the active call queue", () => {
+    const desk = buildRecoveryDesk({
+      today: TODAY,
+      contactSummaries: {},
+      rows: [
+        row("call", 10000),
+        row("skip", 100000, { noCall: true, heat: 100 }),
+      ],
+    });
+
+    expect(desk.nextBestRows.map((entry) => entry.row.studentId)).toEqual(["call"]);
+    expect(desk.metrics.noCallRows).toBe(1);
   });
 });
