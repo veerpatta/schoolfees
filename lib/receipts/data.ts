@@ -103,6 +103,7 @@ type WorkbookInstallmentBalanceRow = {
   total_charge: number;
   paid_amount: number;
   applied_amount: number;
+  discount_closeout_amount: number;
   pending_amount: number;
   final_late_fee: number;
   balance_status: string;
@@ -250,16 +251,25 @@ function buildInstallmentStatus(
 
   return [...byInstallment.values()]
     .map((row) => {
-      const pending = row.pending_amount ?? 0;
+      // Late fees are fines, not part of "expected" — so an installment is
+      // settled once its BASE charge is covered, regardless of any unpaid late
+      // fee. Pending and status therefore track the base charge only (mirrors
+      // the view's internal base_pending_amount). The late fee still surfaces
+      // separately in the fee summary and in the `lateFee` field below.
+      const applied = row.applied_amount ?? row.paid_amount ?? 0;
+      const basePending = Math.max(
+        0,
+        (row.base_charge ?? 0) - applied - (row.discount_closeout_amount ?? 0),
+      );
       return {
         installmentNo: row.installment_no,
         label: row.installment_label,
         dueDate: row.due_date,
         expected: row.base_charge ?? 0,
-        paid: row.applied_amount ?? row.paid_amount ?? 0,
-        pending,
+        paid: applied,
+        pending: basePending,
         lateFee: row.final_late_fee ?? 0,
-        status: normalizeBalanceStatus(row.balance_status, pending),
+        status: normalizeBalanceStatus(row.balance_status, basePending),
       };
     })
     .sort((left, right) => left.installmentNo - right.installmentNo);
@@ -401,7 +411,7 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     supabase
       .from("v_workbook_installment_balances")
       .select(
-        "installment_no, installment_label, session_label, due_date, base_charge, total_charge, paid_amount, applied_amount, pending_amount, final_late_fee, balance_status",
+        "installment_no, installment_label, session_label, due_date, base_charge, total_charge, paid_amount, applied_amount, discount_closeout_amount, pending_amount, final_late_fee, balance_status",
       )
       .eq("student_id", receipt.student_id),
   ]);
@@ -480,8 +490,9 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
       amountDelta: row.amount_delta,
     })),
   });
+  // Outstanding tracks base charges only — late fees are fines, not "expected".
   const outstandingAfterReceipt = Math.max(
-    (financial?.total_due ?? totalPaidToDate) - totalPaidToDate - adjustmentTotals.adjustmentsUpToCurrent,
+    (financial?.base_charge_total ?? totalPaidToDate) - totalPaidToDate - adjustmentTotals.adjustmentsUpToCurrent,
     0,
   );
   const sessionLabel = resolveReceiptSessionLabel({
@@ -520,6 +531,9 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
       (row) => row.session_label === sessionLabel,
     ),
   );
+  // Base-only outstanding (late fees excluded), summed from the per-installment
+  // base pending so the headline reconciles with the status table.
+  const baseOutstanding = installmentStatus.reduce((sum, item) => sum + item.pending, 0);
 
   const conventionalDiscountAssignments: ConventionalDiscountAssignmentSummary[] =
     conventionalDiscountRows.map((row) => {
@@ -565,7 +579,7 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     totalPaidBeforeReceipt,
     totalPaidToDate,
     outstandingAfterReceipt,
-    currentOutstanding: financial?.outstanding_amount ?? outstandingAfterReceipt,
+    currentOutstanding: financial ? baseOutstanding : outstandingAfterReceipt,
     discountAmount: adjustmentTotals.receiptDiscountAmount,
     lateFeeAmount: adjustmentTotals.receiptLateFeeAmount,
     lateFeeWaived: adjustmentTotals.receiptLateFeeWaived,
