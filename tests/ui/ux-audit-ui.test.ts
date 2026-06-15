@@ -53,6 +53,8 @@ describe("read-only UX audit implementation", () => {
     const transactions = readRepoFile("components/transactions/transactions-client-shell.tsx");
     const reports = readRepoFile("app/protected/reports/page.tsx");
     const defaulters = readRepoFile("components/defaulters/defaulter-filters.tsx");
+    const defaultersPage = readRepoFile("app/protected/defaulters/page.tsx");
+    const defaultersWorkspace = readRepoFile("components/defaulters/defaulters-workspace.tsx");
     const receipts = readRepoFile("app/protected/receipts/page.tsx");
     // Transactions filter labels now live in the Transactions namespace.
     const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
@@ -66,6 +68,8 @@ describe("read-only UX audit implementation", () => {
     expect(reports).not.toContain("Update view");
     expect(defaulters).toContain("AutoSubmitForm");
     expect(defaulters).not.toContain("Apply filters");
+    expect(defaultersPage).toContain("<details className=");
+    expect(defaultersWorkspace).toContain("callQueueWhatsappModeHint");
     expect(receipts).toContain("ReceiptsQuickLoad");
     expect(receipts).not.toContain(">Search</button>");
   });
@@ -220,8 +224,8 @@ describe("read-only UX audit implementation", () => {
     // Missing-dues rows now render as a responsive grid with a stable
     // missing- prefix per row (no separate mobile/desktop tables).
     expect(defaulters).toContain("missing-");
-    expect(englishMessages.Defaulters.description).toContain(
-      "Phone-ready overdue list for",
+    expect(englishMessages.Defaulters.callQueueDescription).toContain(
+      "Call queue for",
     );
     expect(englishMessages.Dashboard.todayCollection).toBe("Today collection");
     expect(dashboard).toContain("HeroKpis");

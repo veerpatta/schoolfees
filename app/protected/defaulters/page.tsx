@@ -3,12 +3,9 @@ import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
-import { SummaryRow, SummaryCell } from "@/components/data-table/summary-row";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { OfficeNotice } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
-import { MoneyGlossaryLink } from "@/components/ui/money-glossary";
-import { cn } from "@/lib/utils";
 import { DefaulterFilters } from "@/components/defaulters/defaulter-filters";
 import { DefaulterFilterRehydrator } from "@/components/defaulters/defaulter-filter-rehydrator";
 import { MissingDuesBanner } from "@/components/shared/missing-dues-banner";
@@ -37,7 +34,6 @@ type DefaultersPageProps = {
     page?: string | string[];
     query?: string | string[];
     session?: string | string[];
-    cadence?: string | string[];
   }>;
 };
 
@@ -84,16 +80,8 @@ export default async function DefaultersPage({
   });
   const canPostPayments = hasStaffPermission(staff, "payments:write");
   const canViewPaymentHistory = hasStaffPermission(staff, "payments:view");
-  // No-call flag is admin-only; students:write is held by admin alone.
   const canManageNoCall = hasStaffPermission(staff, "students:write");
 
-  // Single pass: getDefaultersPageData fetches contact summaries internally for
-  // the whole candidate set, ranks by heat, enriches every row (behavior,
-  // promise status, no-call), and returns the full list. The workspace then
-  // filters + paginates client-side so cadence/behavior/no-call stay list-wide.
-  // The defaulters list and the WhatsApp template list are independent reads —
-  // fetch them concurrently rather than chaining the templates after the
-  // (heavier) defaulters query.
   const [data, whatsappTemplates] = await Promise.all([
     getDefaultersPageData(
       filters,
@@ -107,46 +95,11 @@ export default async function DefaultersPage({
 
   const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
 
-  const initialCadence = asString(resolvedSearchParams?.cadence) || "now";
-
-  // Plain-object map for client component serialization.
   const contactSummariesObj: Record<string, DefaulterContactSummary> = {};
   for (const [id, summary] of contactSummaries.entries()) {
     contactSummariesObj[id] = summary;
   }
 
-  const buildFilterHref = (chip: { value: string }) => {
-    const search = new URLSearchParams();
-    if (resolvedSearchParams?.session) {
-      search.set("session", asString(resolvedSearchParams.session));
-    }
-    if (resolvedSearchParams?.classId) {
-      search.set("classId", asString(resolvedSearchParams.classId));
-    }
-    if (resolvedSearchParams?.transportRouteId) {
-      search.set("transportRouteId", asString(resolvedSearchParams.transportRouteId));
-    }
-    if (resolvedSearchParams?.query) {
-      search.set("query", asString(resolvedSearchParams.query));
-    }
-    if (resolvedSearchParams?.cadence) {
-      search.set("cadence", asString(resolvedSearchParams.cadence));
-    }
-
-    if (chip.value === "overdue") {
-      search.set("overdue", "overdue");
-    } else if (chip.value === "5000") {
-      search.set("minPendingAmount", "5000");
-    } else if (chip.value === "10000") {
-      search.set("minPendingAmount", "10000");
-    }
-
-    const qs = search.toString();
-    return `/protected/defaulters${qs ? `?${qs}` : ""}`;
-  };
-
-  // Audit 1.7 — "Download this view" forwards the active filters so the export
-  // matches exactly what's on screen.
   const buildExportHref = (format: "xlsx" | "pdf") => {
     const search = new URLSearchParams();
     search.set("session", viewSession.sessionLabel);
@@ -169,203 +122,118 @@ export default async function DefaultersPage({
     return `/protected/exports/defaulters?${search.toString()}`;
   };
 
-  const hasActiveFilters =
-    filters.classId !== EMPTY_DEFAULTER_FILTERS.classId ||
-    filters.transportRouteId !== EMPTY_DEFAULTER_FILTERS.transportRouteId ||
-    filters.overdue !== EMPTY_DEFAULTER_FILTERS.overdue ||
-    filters.minPendingAmount !== EMPTY_DEFAULTER_FILTERS.minPendingAmount ||
-    filters.searchQuery !== EMPTY_DEFAULTER_FILTERS.searchQuery;
-
-  const isActive = (chip: { value: string }) => {
-    if (chip.value === "all") {
-      return !filters.overdue && !filters.minPendingAmount;
-    }
-    if (chip.value === "overdue") {
-      return filters.overdue === "overdue";
-    }
-    if (chip.value === "5000") {
-      return filters.minPendingAmount === "5000";
-    }
-    if (chip.value === "10000") {
-      return filters.minPendingAmount === "10000";
-    }
-    return false;
-  };
+  const activeFilterCount = [
+    filters.searchQuery,
+    filters.classId,
+    filters.transportRouteId,
+    filters.overdue,
+    filters.minPendingAmount,
+  ].filter(Boolean).length;
 
   return (
-    <div className="space-y-6">
-      {/* Audit 1.15 — sessionStorage-backed rehydrator so cross-module
-          navigation keeps the active filters in view. */}
+    <div className="space-y-5">
       <DefaulterFilterRehydrator filters={filters} sessionLabel={viewSession.sessionLabel} />
       <PageHeader
         eyebrow={t("eyebrow")}
-        title={t("title")}
-        description={t("description", { session: viewSession.sessionLabel })}
+        title={t("callQueueTitle")}
+        description={t("callQueueDescription", { session: viewSession.sessionLabel })}
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge
-              label={t("listedCount", {
-                visibleStart: data.pagination.visibleStart,
-                visibleEnd: data.pagination.visibleEnd,
-                totalRows: data.pagination.totalRows,
-              })}
-              tone="accent"
-            />
-            <Button asChild size="sm" variant="outline">
-              <Link href={buildExportHref("xlsx")}>
-                {hasActiveFilters ? t("exportFilteredAction") : t("exportAction")}
-              </Link>
-            </Button>
-            <MoneyGlossaryLink />
-          </div>
+          <StatusBadge
+            label={t("listedCount", {
+              visibleStart: data.pagination.visibleStart,
+              visibleEnd: data.pagination.visibleEnd,
+              totalRows: data.pagination.totalRows,
+            })}
+            tone="accent"
+          />
         }
       />
 
       <OfficeNotice tone="info">{t("officeNotice")}</OfficeNotice>
-
-      {/* Audit 1.14 — surface the missing-dues signal as a single banner above
-          the list so office staff see it before scrolling. The per-student
-          cards below remain for follow-up detail. */}
       <MissingDuesBanner missingCount={data.missingDuesRows.length} />
 
+      <details className="rounded-xl border border-border bg-card shadow-sm">
+        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-foreground">
+          <span>{t("callQueueFilterTitle")}</span>
+          <span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+            {activeFilterCount > 0
+              ? t("filtersMobileToggleCount", { count: activeFilterCount })
+              : t("callQueueFilterClosed")}
+          </span>
+        </summary>
+        <div className="border-t border-border px-4 py-4">
+          <DefaulterFilters
+            filters={filters}
+            classOptions={data.classOptions}
+            routeOptions={data.routeOptions}
+            sessionLabel={viewSession.sessionLabel}
+          />
+        </div>
+      </details>
 
-      <SectionCard
-        title={t("filtersTitle")}
-        description={t("filtersDescription")}
+      <BulkWhatsappProvider
+        rows={data.rows.map((row) => ({
+          studentId: row.studentId,
+          admissionNo: row.admissionNo,
+          fullName: row.fullName,
+          fatherName: row.fatherName,
+          fatherPhone: row.fatherPhone,
+          classLabel: row.classLabel,
+          totalPending: row.totalPending,
+          oldestDueDate: row.oldestDueDate,
+        }))}
+        templates={whatsappTemplates}
+        sessionLabel={viewSession.sessionLabel}
       >
-        <DefaulterFilters
-          filters={filters}
-          classOptions={data.classOptions}
-          routeOptions={data.routeOptions}
+        <DefaultersWorkspace
+          rows={data.rows}
           sessionLabel={viewSession.sessionLabel}
+          contactSummaries={contactSummariesObj}
+          canPostPayments={canPostPayments}
+          canViewPaymentHistory={canViewPaymentHistory}
+          canManageNoCall={canManageNoCall}
+          exportHref={buildExportHref("xlsx")}
         />
-      </SectionCard>
-
-      {/* Compact metric strip (no horizontal scroll on lg+) */}
-      <section className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 snap-x no-scrollbar md:mx-0 md:px-0 md:grid md:grid-cols-2 md:overflow-visible xl:grid-cols-5">
-        <Metric
-          label={t("metricStudentsListed")}
-          value={String(data.metrics.totalStudents)}
-          hint={t("metricStudentsListedHint")}
-        />
-        <Metric
-          label={t("metricPendingAmount")}
-          value={formatInr(data.metrics.totalPending)}
-          hint={t("metricPendingAmountHint")}
-        />
-        <Metric
-          label={t("metricOverdueInstallments")}
-          value={String(data.metrics.overdueInstallments)}
-          hint={t("metricOverdueInstallmentsHint")}
-        />
-        <Metric
-          label={t("metricOpenInstallments")}
-          value={String(data.metrics.openInstallments)}
-          hint={t("metricOpenInstallmentsHint")}
-        />
-        <Metric
-          label={t("metricMissingDues")}
-          value={String(data.metrics.missingDuesStudents)}
-          hint={t("metricMissingDuesHint")}
-          tone="warning"
-        />
-      </section>
+      </BulkWhatsappProvider>
 
       {data.missingDuesRows.length > 0 ? (
-        <SectionCard
-          title={t("missingDuesTitle")}
-          description={t("missingDuesDescription")}
-        >
-          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {data.missingDuesRows.map((row) => (
-              <li
-                key={`missing-${row.studentId}`}
-                className="rounded-xl border border-warning/30 bg-warning-soft p-3 text-sm"
-              >
-                <p className="font-semibold text-warning-soft-foreground">{row.fullName}</p>
-                <p className="text-xs text-warning-soft-foreground">
-                  {t("studentMetaLineBullet", { classLabel: row.classLabel, admissionNo: row.admissionNo })}
-                </p>
-                <p className="mt-1 text-xs text-warning-soft-foreground">
-                  {t("tablePhone")}: {row.fatherPhone ?? "-"}
-                </p>
-                <Button asChild size="sm" variant="outline" className="mt-3">
-                  <Link
-                    href={withSession(
-                      `/protected/payments?studentId=${row.studentId}${row.classId ? `&classId=${row.classId}` : ""}`,
-                    )}
-                  >
-                    {t("missingDuesPrepareDues")}
-                  </Link>
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </SectionCard>
+        <details className="rounded-xl border border-warning/30 bg-warning-soft/40">
+          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-warning-soft-foreground">
+            {t("missingDuesTitle")}
+          </summary>
+          <div className="border-t border-warning/20 p-4">
+            <p className="mb-3 text-sm text-warning-soft-foreground">
+              {t("missingDuesDescription")}
+            </p>
+            <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {data.missingDuesRows.map((row) => (
+                <li
+                  key={`missing-${row.studentId}`}
+                  className="rounded-xl border border-warning/30 bg-card p-3 text-sm"
+                >
+                  <p className="font-semibold text-foreground">{row.fullName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("studentMetaLineBullet", { classLabel: row.classLabel, admissionNo: row.admissionNo })}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t("tablePhone")}: {row.fatherPhone ?? "-"}
+                  </p>
+                  <Button asChild size="sm" variant="outline" className="mt-3">
+                    <Link
+                      href={withSession(
+                        `/protected/payments?studentId=${row.studentId}${row.classId ? `&classId=${row.classId}` : ""}`,
+                      )}
+                    >
+                      {t("missingDuesPrepareDues")}
+                    </Link>
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </details>
       ) : null}
 
-      <SectionCard
-        title={t("listTitle")}
-        description={t("listDescription")}
-      >
-        <BulkWhatsappProvider
-          rows={data.rows.map((row) => ({
-            studentId: row.studentId,
-            admissionNo: row.admissionNo,
-            fullName: row.fullName,
-            fatherName: row.fatherName,
-            fatherPhone: row.fatherPhone,
-            classLabel: row.classLabel,
-            totalPending: row.totalPending,
-            oldestDueDate: row.oldestDueDate,
-          }))}
-          templates={whatsappTemplates}
-          sessionLabel={viewSession.sessionLabel}
-        >
-          <div className="space-y-4">
-            {/* Amount filter chips remain server-driven (they affect query) */}
-            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar md:mx-0 md:px-0">
-              {[
-                { i18nKey: "chipAll", value: "all" },
-                { i18nKey: "chipOverdueOnly", value: "overdue" },
-                { i18nKey: "chip5000Plus", value: "5000" },
-                { i18nKey: "chip10000Plus", value: "10000" },
-              ].map((chip) => (
-                <Link
-                  key={chip.value}
-                  href={buildFilterHref(chip)}
-                  className={cn(
-                    "shrink-0 rounded-full px-4 py-2 text-sm font-medium border transition-colors",
-                    isActive(chip)
-                      ? "bg-accent text-accent-foreground border-accent"
-                      : "bg-surface-2 text-foreground border-border hover:bg-surface-3",
-                  )}
-                >
-                  {t(chip.i18nKey)}
-                </Link>
-              ))}
-            </div>
-
-            {/* Cadence tabs + worklist — both client-side now, instant filter */}
-            <DefaultersWorkspace
-              rows={data.rows}
-              sessionLabel={viewSession.sessionLabel}
-              contactSummaries={contactSummariesObj}
-              initialCadence={initialCadence}
-              canPostPayments={canPostPayments}
-              canViewPaymentHistory={canViewPaymentHistory}
-              canManageNoCall={canManageNoCall}
-            />
-          </div>
-
-          <SummaryRow sticky={false} hint={t("summaryDefaulters")}>
-            <SummaryCell label={t("summaryDefaulters")} value={String(data.pagination.totalRows)} />
-            <SummaryCell label={t("summaryTotalPending")} value={formatInr(data.metrics.totalPending)} />
-          </SummaryRow>
-        </BulkWhatsappProvider>
-      </SectionCard>
-
-      {/* Route summary — keep for the owner / admin view, kill horizontal scroll */}
       <SectionCard
         title={t("routeTransportTitle")}
         description={t("routeTransportDescription")}
@@ -375,81 +243,50 @@ export default async function DefaultersPage({
             {t("routeTransportEmpty")}
           </p>
         ) : (
-          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {data.routeSummaryRows.map((row) => (
-              <li
-                key={`route-${row.routeId ?? row.routeLabel}`}
-                className="rounded-xl border border-border bg-card p-3 text-sm"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-semibold text-foreground">{row.routeLabel}</p>
-                  <span className="font-semibold text-foreground">{formatInr(row.totalPending)}</span>
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                  <p>{t("routeStudentsCount", { count: row.studentCount })}</p>
-                  <p>{t("routeOpenInstallmentsRow", { count: row.openInstallments })}</p>
-                  <p>{t("routeOverdueInstallmentsRow", { count: row.overdueInstallments })}</p>
-                  <p>
-                    {t("routeOldestDueDate")}: {row.oldestDueDate ? formatShortDate(row.oldestDueDate) : "-"}
-                  </p>
-                </div>
-                {row.routeId ? (
-                  <div className="mt-2 flex flex-wrap gap-3">
-                    <Link
-                      className="text-xs font-medium text-info-soft-foreground hover:underline"
-                      href={withSession(`/protected/defaulters?transportRouteId=${row.routeId}`)}
-                    >
-                      {t("routeOpenDefaulters")}
-                    </Link>
-                    <Link
-                      className="text-xs font-medium text-info-soft-foreground hover:underline"
-                      href={withSession(`/protected/students?transportRouteId=${row.routeId}`)}
-                    >
-                      {t("routeOpenStudents")}
-                    </Link>
+          <details>
+            <summary className="cursor-pointer list-none rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm font-semibold text-foreground">
+              {t("callQueueAllMatching")}
+            </summary>
+            <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {data.routeSummaryRows.map((row) => (
+                <li
+                  key={`route-${row.routeId ?? row.routeLabel}`}
+                  className="rounded-xl border border-border bg-card p-3 text-sm"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-semibold text-foreground">{row.routeLabel}</p>
+                    <span className="font-semibold text-foreground">{formatInr(row.totalPending)}</span>
                   </div>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+                  <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <p>{t("routeStudentsCount", { count: row.studentCount })}</p>
+                    <p>{t("routeOpenInstallmentsRow", { count: row.openInstallments })}</p>
+                    <p>{t("routeOverdueInstallmentsRow", { count: row.overdueInstallments })}</p>
+                    <p>
+                      {t("routeOldestDueDate")}: {row.oldestDueDate ? formatShortDate(row.oldestDueDate) : "-"}
+                    </p>
+                  </div>
+                  {row.routeId ? (
+                    <div className="mt-2 flex flex-wrap gap-3">
+                      <Link
+                        className="text-xs font-medium text-info-soft-foreground hover:underline"
+                        href={withSession(`/protected/defaulters?transportRouteId=${row.routeId}`)}
+                      >
+                        {t("routeOpenDefaulters")}
+                      </Link>
+                      <Link
+                        className="text-xs font-medium text-info-soft-foreground hover:underline"
+                        href={withSession(`/protected/students?transportRouteId=${row.routeId}`)}
+                      >
+                        {t("routeOpenStudents")}
+                      </Link>
+                    </div>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </details>
         )}
       </SectionCard>
-    </div>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  hint,
-  tone,
-}: {
-  label: string;
-  value: string;
-  hint: string;
-  tone?: "warning";
-}) {
-  const wrapper =
-    tone === "warning"
-      ? "rounded-lg border bg-warning-soft p-4 shrink-0 w-[70vw] snap-start md:w-auto"
-      : "rounded-lg border border-border bg-card p-4 shrink-0 w-[70vw] snap-start md:w-auto";
-  const labelCls =
-    tone === "warning"
-      ? "text-[11px] font-semibold uppercase tracking-[0.08em] text-warning-soft-foreground"
-      : "text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground";
-  const valueCls =
-    tone === "warning"
-      ? "mt-2 text-2xl font-semibold text-warning-soft-foreground"
-      : "mt-2 text-2xl font-semibold text-foreground";
-  const hintCls =
-    tone === "warning"
-      ? "mt-2 text-sm leading-6 text-warning-soft-foreground"
-      : "mt-2 text-sm leading-6 text-muted-foreground";
-  return (
-    <div className={wrapper}>
-      <p className={labelCls}>{label}</p>
-      <div className={valueCls}>{value}</div>
-      <p className={hintCls}>{hint}</p>
     </div>
   );
 }
