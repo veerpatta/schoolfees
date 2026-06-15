@@ -99,6 +99,7 @@ type WorkbookInstallmentBalanceRow = {
   installment_label: string;
   session_label: string;
   due_date: string;
+  base_charge: number;
   total_charge: number;
   paid_amount: number;
   applied_amount: number;
@@ -254,7 +255,7 @@ function buildInstallmentStatus(
         installmentNo: row.installment_no,
         label: row.installment_label,
         dueDate: row.due_date,
-        expected: row.total_charge ?? 0,
+        expected: row.base_charge ?? 0,
         paid: row.applied_amount ?? row.paid_amount ?? 0,
         pending,
         lateFee: row.final_late_fee ?? 0,
@@ -400,7 +401,7 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     supabase
       .from("v_workbook_installment_balances")
       .select(
-        "installment_no, installment_label, session_label, due_date, total_charge, paid_amount, applied_amount, pending_amount, final_late_fee, balance_status",
+        "installment_no, installment_label, session_label, due_date, base_charge, total_charge, paid_amount, applied_amount, pending_amount, final_late_fee, balance_status",
       )
       .eq("student_id", receipt.student_id),
   ]);

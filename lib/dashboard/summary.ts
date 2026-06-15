@@ -307,7 +307,7 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
       };
 
       existing.studentCount += 1;
-      existing.expectedAmount += row.totalCharge;
+      existing.expectedAmount += row.baseCharge;
       existing.collectedAmount += getCollectedFromInstallment(row);
       existing.pendingAmount += row.pendingAmount;
       existing.overdueAmount += row.balanceStatus === "overdue" ? calculateInstallmentBasePending(row) : 0;
