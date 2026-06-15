@@ -80,6 +80,11 @@ const legacyContactFields = [
 
 const HIGH_EXPOSURE_AMOUNT = 30000;
 const NOT_RESPONDING_STREAK = 3;
+const SCHOOL_UPI_PAYMENT_CONFIG = {
+  vpa: "shriveerpattassecsch.68347408@hdfcbank",
+  payeeName: "SHRI VEER PATTA S SEC SCH",
+  currency: "INR",
+};
 
 function getDefaultSession(env) {
   return env.SCHOOLFEES_MCP_DEFAULT_SESSION || "2026-27";
@@ -221,6 +226,35 @@ function money(value) {
 
 function number(value) {
   return Math.round(Number(value || 0));
+}
+
+function wholeRupees(value) {
+  return Math.max(0, Math.round(Number.isFinite(value) ? value : 0));
+}
+
+function paymentReference(admissionNo) {
+  const normalized = String(admissionNo || "").replace(/\s+/g, " ").trim() || "STUDENT";
+  return `Fee ${normalized}`.slice(0, 35);
+}
+
+function buildStudentFeeUpiPayment({ admissionNo, amount }) {
+  const roundedAmount = wholeRupees(Number(amount || 0));
+  const displayReference = paymentReference(admissionNo);
+  const params = new URLSearchParams({
+    pa: SCHOOL_UPI_PAYMENT_CONFIG.vpa,
+    pn: SCHOOL_UPI_PAYMENT_CONFIG.payeeName,
+    am: String(roundedAmount),
+    cu: SCHOOL_UPI_PAYMENT_CONFIG.currency,
+    tn: displayReference,
+  });
+
+  return {
+    uri: `upi://pay?${params.toString().replaceAll("+", "%20")}`,
+    displayReference,
+    payeeName: SCHOOL_UPI_PAYMENT_CONFIG.payeeName,
+    vpa: SCHOOL_UPI_PAYMENT_CONFIG.vpa,
+    amount: roundedAmount,
+  };
 }
 
 function todayIst() {
@@ -617,6 +651,176 @@ async function getRecentPayments(env, { sessionLabel, days = 7, limit = 20 }) {
     });
 }
 
+async function buildCollectionBrief(env, { sessionLabel, topDefaultersLimit = 10, recentPaymentsLimit = 10 }) {
+  const [financialRows, recentPayments] = await Promise.all([
+    getFinancialRows(env, { sessionLabel }),
+    getRecentPayments(env, { sessionLabel, days: 7, limit: recentPaymentsLimit }),
+  ]);
+  const summary = summarizeFinancialRows(financialRows);
+  const topDefaulters = rankDefaulters(
+    financialRows.filter((row) => number(row.outstanding_amount) > 0),
+  )
+    .slice(0, topDefaultersLimit)
+    .map(mapFinancialRow);
+
+  return {
+    sessionLabel,
+    asOfDate: todayIst(),
+    summary,
+    topDefaulters,
+    recentPayments,
+  };
+}
+
+async function buildRecoveryQueue(env, { sessionLabel, limit = 25, includeNoCall = false }) {
+  const { financialRows, contactSummaries, noCallIds } = await getRecoveryContext(env, sessionLabel);
+  const rows = buildRecoveryRows(financialRows, contactSummaries, noCallIds, { includeNoCall })
+    .slice(0, limit)
+    .map((row, index) => ({ rank: index + 1, ...row }));
+
+  return {
+    sessionLabel,
+    asOfDate: todayIst(),
+    includeNoCall,
+    rows,
+  };
+}
+
+async function buildPromiseDueList(env, { sessionLabel, limit = 25 }) {
+  const { financialRows, contactSummaries, noCallIds } = await getRecoveryContext(env, sessionLabel);
+  const rows = buildRecoveryRows(financialRows, contactSummaries, noCallIds)
+    .filter((row) => row.promiseState === "broken" || row.promiseState === "due_today")
+    .slice(0, limit)
+    .map((row, index) => ({ rank: index + 1, ...row }));
+
+  return {
+    sessionLabel,
+    asOfDate: todayIst(),
+    rows,
+  };
+}
+
+function buildRecoveryPlanFromRows({ sessionLabel, rows, language }) {
+  const groups = {
+    brokenPromises: rows.filter((row) => row.promiseState === "broken"),
+    promisesDueToday: rows.filter((row) => row.promiseState === "due_today"),
+    repeatedNoAnswer: rows.filter((row) => (row.contactSummary?.noAnswerStreak || 0) >= NOT_RESPONDING_STREAK),
+    highExposure: rows.filter((row) => row.outstandingAmount >= HIGH_EXPOSURE_AMOUNT),
+  };
+  const headline =
+    language === "english"
+      ? `Start with ${groups.brokenPromises.length} broken promise(s), then ${groups.promisesDueToday.length} promise due row(s), then repeated no-answer and high exposure accounts.`
+      : `Pehle ${groups.brokenPromises.length} broken promise, phir ${groups.promisesDueToday.length} promise due, uske baad no-answer aur high exposure accounts follow karein.`;
+
+  return {
+    sessionLabel,
+    asOfDate: todayIst(),
+    language,
+    headline,
+    groups,
+    nextBestRows: rows.slice(0, 10),
+  };
+}
+
+async function buildRecoveryPlan(env, { sessionLabel, limit = 30, language = "hinglish" }) {
+  const { financialRows, contactSummaries, noCallIds } = await getRecoveryContext(env, sessionLabel);
+  const rows = buildRecoveryRows(financialRows, contactSummaries, noCallIds).slice(0, limit);
+  return buildRecoveryPlanFromRows({ sessionLabel, rows, language });
+}
+
+function buildFollowupDraft(row, language) {
+  const payment = buildStudentFeeUpiPayment({
+    admissionNo: row.admissionNo,
+    amount: row.outstandingAmount,
+  });
+  const amount = money(row.outstandingAmount);
+  const dueText = row.nextDueDate ? ` Next due date: ${row.nextDueDate}.` : "";
+  const upiText =
+    ` UPI payment link: ${payment.uri}. UPI note/reference: ${payment.displayReference}. ` +
+    "After payment, please share the UPI screenshot/UTR. Receipt will be posted from Payment Desk after office verification.";
+  const text =
+    language === "english"
+      ? `Dear parent, this is a reminder from Shri Veer Patta Senior Secondary School. Pending fee for ${row.studentName} (${row.classLabel}) is ${amount}.${dueText}${upiText}`
+      : `Dear parent, Shri Veer Patta Senior Secondary School se fee reminder hai. ${row.studentName} (${row.classLabel}) ki pending fee ${amount} hai.${dueText}${upiText}`;
+
+  return {
+    studentId: row.studentId,
+    studentName: row.studentName,
+    admissionNo: row.admissionNo,
+    fatherName: row.fatherName,
+    phone: row.fatherPhone || row.motherPhone,
+    pendingAmount: row.outstandingAmount,
+    paymentLink: payment.uri,
+    paymentReference: payment.displayReference,
+    upi: payment,
+    draftMessage: text,
+  };
+}
+
+async function buildFollowupDrafts(
+  env,
+  { sessionLabel, minPendingAmount = 0, overdueOnly = false, limit = 10, language = "hinglish" },
+) {
+  const financialRows = await getFinancialRows(env, { sessionLabel });
+  const rows = rankDefaulters(
+    financialRows.filter((row) => {
+      if (number(row.outstanding_amount) <= 0) return false;
+      if (number(row.outstanding_amount) < minPendingAmount) return false;
+      if (overdueOnly && number(row.overdue_installment_count) === 0) return false;
+      return true;
+    }),
+  )
+    .slice(0, limit)
+    .map(mapFinancialRow);
+
+  return {
+    sessionLabel,
+    language,
+    drafts: rows.map((row) => buildFollowupDraft(row, language)),
+  };
+}
+
+async function buildDailyRecoveryDigest(
+  env,
+  { sessionLabel, language = "hinglish", recoveryLimit = 25, promiseLimit = 25, draftLimit = 10 },
+) {
+  const [collectionSummary, recoveryQueue, promisesDue, recoveryPlan, followUpDrafts] =
+    await Promise.all([
+      buildCollectionBrief(env, {
+        sessionLabel,
+        topDefaultersLimit: 10,
+        recentPaymentsLimit: 10,
+      }),
+      buildRecoveryQueue(env, { sessionLabel, limit: recoveryLimit, includeNoCall: false }),
+      buildPromiseDueList(env, { sessionLabel, limit: promiseLimit }),
+      buildRecoveryPlan(env, { sessionLabel, limit: recoveryLimit, language }),
+      buildFollowupDrafts(env, {
+        sessionLabel,
+        minPendingAmount: 0,
+        overdueOnly: false,
+        limit: draftLimit,
+        language,
+      }),
+    ]);
+
+  return {
+    sessionLabel,
+    asOfDate: todayIst(),
+    language,
+    collectionSummary,
+    recoveryQueue,
+    promisesDue,
+    recoveryPlan,
+    followUpDrafts,
+    safety: {
+      readOnly: true,
+      messagesSent: false,
+      paymentsPosted: false,
+      note: "Drafts only. Payment receipt posting stays in Payment Desk after office verification.",
+    },
+  };
+}
+
 function toolResult(summary, structuredContent) {
   return {
     content: [{ type: "text", text: summary }],
@@ -651,26 +855,15 @@ function createMcpServer(env) {
       annotations: readOnly,
     },
     async ({ sessionLabel, topDefaultersLimit, recentPaymentsLimit }) => {
-      const [financialRows, recentPayments] = await Promise.all([
-        getFinancialRows(env, { sessionLabel }),
-        getRecentPayments(env, { sessionLabel, days: 7, limit: recentPaymentsLimit }),
-      ]);
-      const summary = summarizeFinancialRows(financialRows);
-      const topDefaulters = rankDefaulters(
-        financialRows.filter((row) => number(row.outstanding_amount) > 0),
-      )
-        .slice(0, topDefaultersLimit)
-        .map(mapFinancialRow);
+      const brief = await buildCollectionBrief(env, {
+        sessionLabel,
+        topDefaultersLimit,
+        recentPaymentsLimit,
+      });
 
       return toolResult(
-        `${sessionLabel}: ${summary.pendingStudentCount} students have pending dues, total pending ${money(summary.totalOutstanding)}.`,
-        {
-          sessionLabel,
-          asOfDate: todayIst(),
-          summary,
-          topDefaulters,
-          recentPayments,
-        },
+        `${sessionLabel}: ${brief.summary.pendingStudentCount} students have pending dues, total pending ${money(brief.summary.totalOutstanding)}.`,
+        brief,
       );
     },
   );
@@ -775,19 +968,11 @@ function createMcpServer(env) {
       annotations: readOnly,
     },
     async ({ sessionLabel, limit, includeNoCall }) => {
-      const { financialRows, contactSummaries, noCallIds } = await getRecoveryContext(env, sessionLabel);
-      const rows = buildRecoveryRows(financialRows, contactSummaries, noCallIds, { includeNoCall })
-        .slice(0, limit)
-        .map((row, index) => ({ rank: index + 1, ...row }));
+      const queue = await buildRecoveryQueue(env, { sessionLabel, limit, includeNoCall });
 
       return toolResult(
-        `Prepared ${rows.length} recovery queue row(s) for ${sessionLabel}.`,
-        {
-          sessionLabel,
-          asOfDate: todayIst(),
-          includeNoCall,
-          rows,
-        },
+        `Prepared ${queue.rows.length} recovery queue row(s) for ${sessionLabel}.`,
+        queue,
       );
     },
   );
@@ -805,19 +990,11 @@ function createMcpServer(env) {
       annotations: readOnly,
     },
     async ({ sessionLabel, limit }) => {
-      const { financialRows, contactSummaries, noCallIds } = await getRecoveryContext(env, sessionLabel);
-      const rows = buildRecoveryRows(financialRows, contactSummaries, noCallIds)
-        .filter((row) => row.promiseState === "broken" || row.promiseState === "due_today")
-        .slice(0, limit)
-        .map((row, index) => ({ rank: index + 1, ...row }));
+      const promiseList = await buildPromiseDueList(env, { sessionLabel, limit });
 
       return toolResult(
-        `Found ${rows.length} promise follow-up row(s) for ${sessionLabel}.`,
-        {
-          sessionLabel,
-          asOfDate: todayIst(),
-          rows,
-        },
+        `Found ${promiseList.rows.length} promise follow-up row(s) for ${sessionLabel}.`,
+        promiseList,
       );
     },
   );
@@ -894,27 +1071,9 @@ function createMcpServer(env) {
       annotations: readOnly,
     },
     async ({ sessionLabel, limit, language }) => {
-      const { financialRows, contactSummaries, noCallIds } = await getRecoveryContext(env, sessionLabel);
-      const rows = buildRecoveryRows(financialRows, contactSummaries, noCallIds).slice(0, limit);
-      const groups = {
-        brokenPromises: rows.filter((row) => row.promiseState === "broken"),
-        promisesDueToday: rows.filter((row) => row.promiseState === "due_today"),
-        repeatedNoAnswer: rows.filter((row) => (row.contactSummary?.noAnswerStreak || 0) >= NOT_RESPONDING_STREAK),
-        highExposure: rows.filter((row) => row.outstandingAmount >= HIGH_EXPOSURE_AMOUNT),
-      };
-      const headline =
-        language === "english"
-          ? `Start with ${groups.brokenPromises.length} broken promise(s), then ${groups.promisesDueToday.length} promise due row(s), then repeated no-answer and high exposure accounts.`
-          : `Pehle ${groups.brokenPromises.length} broken promise, phir ${groups.promisesDueToday.length} promise due, uske baad no-answer aur high exposure accounts follow karein.`;
+      const plan = await buildRecoveryPlan(env, { sessionLabel, limit, language });
 
-      return toolResult(headline, {
-        sessionLabel,
-        asOfDate: todayIst(),
-        language,
-        headline,
-        groups,
-        nextBestRows: rows.slice(0, 10),
-      });
+      return toolResult(plan.headline, plan);
     },
   );
 
@@ -1016,44 +1175,48 @@ function createMcpServer(env) {
       annotations: readOnly,
     },
     async ({ sessionLabel, minPendingAmount, overdueOnly, limit, language }) => {
-      const financialRows = await getFinancialRows(env, { sessionLabel });
-      const rows = rankDefaulters(
-        financialRows.filter((row) => {
-          if (number(row.outstanding_amount) <= 0) return false;
-          if (number(row.outstanding_amount) < minPendingAmount) return false;
-          if (overdueOnly && number(row.overdue_installment_count) === 0) return false;
-          return true;
-        }),
-      )
-        .slice(0, limit)
-        .map(mapFinancialRow);
-
-      const drafts = rows.map((row) => {
-        const amount = money(row.outstandingAmount);
-        const dueText = row.nextDueDate ? ` Next due date: ${row.nextDueDate}.` : "";
-        const text =
-          language === "english"
-            ? `Dear parent, this is a reminder from Shri Veer Patta Senior Secondary School. Pending fee for ${row.studentName} (${row.classLabel}) is ${amount}.${dueText} Please clear it at the school office.`
-            : `Dear parent, Shri Veer Patta Senior Secondary School se fee reminder hai. ${row.studentName} (${row.classLabel}) ki pending fee ${amount} hai.${dueText} Kripya school office me jama kar dein.`;
-
-        return {
-          studentId: row.studentId,
-          studentName: row.studentName,
-          admissionNo: row.admissionNo,
-          fatherName: row.fatherName,
-          phone: row.fatherPhone || row.motherPhone,
-          pendingAmount: row.outstandingAmount,
-          draftMessage: text,
-        };
+      const draftPack = await buildFollowupDrafts(env, {
+        sessionLabel,
+        minPendingAmount,
+        overdueOnly,
+        limit,
+        language,
       });
 
       return toolResult(
-        `Prepared ${drafts.length} draft follow-up message(s). Nothing was sent.`,
-        {
-          sessionLabel,
-          language,
-          drafts,
-        },
+        `Prepared ${draftPack.drafts.length} draft follow-up message(s). Nothing was sent.`,
+        draftPack,
+      );
+    },
+  );
+
+  server.registerTool(
+    "daily_recovery_digest",
+    {
+      title: "Daily Recovery Digest",
+      description:
+        "Use this for the morning fee recovery automation. It bundles today's collection brief, recovery queue, promise follow-ups, recovery plan, and ready WhatsApp drafts with UPI intent links. It is read-only and never sends messages or posts payments.",
+      inputSchema: {
+        sessionLabel: sessionSchema(env),
+        language: z.enum(["english", "hinglish"]).default("hinglish"),
+        recoveryLimit: limitSchema.default(25),
+        promiseLimit: limitSchema.default(25),
+        draftLimit: limitSchema.default(10),
+      },
+      annotations: readOnly,
+    },
+    async ({ sessionLabel, language, recoveryLimit, promiseLimit, draftLimit }) => {
+      const digest = await buildDailyRecoveryDigest(env, {
+        sessionLabel,
+        language,
+        recoveryLimit,
+        promiseLimit,
+        draftLimit,
+      });
+
+      return toolResult(
+        `${sessionLabel}: daily recovery digest ready with ${digest.recoveryQueue.rows.length} queue row(s), ${digest.promisesDue.rows.length} promise follow-up row(s), and ${digest.followUpDrafts.drafts.length} draft message(s). Nothing was sent.`,
+        digest,
       );
     },
   );
