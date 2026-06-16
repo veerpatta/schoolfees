@@ -475,6 +475,8 @@
     "itemClassWiseDuesDetail": "Class totals and pending fee review.",
     "itemDefaulters": "Defaulters",
     "itemDefaultersDetail": "Follow-up list for pending and overdue dues.",
+    "itemPrevYearDues": "Previous-year dues",
+    "itemPrevYearDuesDetail": "Carried-forward 2025-26 balances: collected vs remaining.",
     "itemReceiptRegister": "Receipt register",
     "itemReceiptRegisterDetail": "Saved receipt records for office accounts.",
     "itemAiContextBundle": "Full AI context",

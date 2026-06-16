@@ -475,6 +475,8 @@
     "itemClassWiseDuesDetail": "कक्षा कुल और लंबित शुल्क समीक्षा।",
     "itemDefaulters": "बकायेदार",
     "itemDefaultersDetail": "लंबित और अतिदेय बकाया के लिए अनुसरण सूची।",
+    "itemPrevYearDues": "पिछले वर्ष का बकाया",
+    "itemPrevYearDuesDetail": "आगे लाया गया 2025-26 बकाया: वसूल बनाम शेष।",
     "itemReceiptRegister": "रसीद पंजी",
     "itemReceiptRegisterDetail": "कार्यालय खातों के लिए सहेजे गए रसीद रिकॉर्ड।",
     "itemAiContextBundle": "पूर्ण AI संदर्भ",

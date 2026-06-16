@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { getOfficeWorkbookData } from "@/lib/transactions/dues";
 import type { OfficeWorkbookView } from "@/lib/transactions/workbook";
 import { getDefaulterExportRows } from "@/lib/defaulters/data";
+import { getPrevYearDuesCollectionRows } from "@/lib/prev-year-dues/data";
 import {
   EMPTY_DEFAULTER_FILTERS,
   type DefaulterFilters,
@@ -719,6 +720,26 @@ export async function GET(request: NextRequest, context: RouteContext) {
         "Overdue without late fee": row.overdueAmount,
         "Late fee": row.pendingLateFeeAmount,
         "Conventional discounts": row.conventionalDiscountLabels.join(", "),
+      })),
+    );
+  }
+
+  if (exportType === "previous-year-dues") {
+    const rows = await getPrevYearDuesCollectionRows(resolvedSessionLabel);
+
+    return rowsResponse(
+      format,
+      filenameBase,
+      exportTitle,
+      rows.map((row) => ({
+        "SR no": row.admissionNo ?? "",
+        "Student": row.studentName,
+        "Class": row.classLabel,
+        "Phone": row.fatherPhone ?? "",
+        "Previous-year balance": row.oldBalance,
+        "Collected": row.collected,
+        "Remaining": row.remaining,
+        "Status": row.status,
       })),
     );
   }

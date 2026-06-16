@@ -437,6 +437,14 @@ export const advancedHubSections: readonly AdvancedHubSection[] = [
         icon: UsersRound,
         requiredPermission: "students:write",
       },
+      {
+        href: "/protected/admin-tools/prev-year-dues",
+        label: "Previous Year Dues",
+        description:
+          "Audit the carry-forward of unpaid prior-year tuition balances: matched, written-off, and applied rows, with reconciliation and rollback.",
+        icon: BadgeIndianRupee,
+        requiredPermission: "fees:view",
+      },
     ],
   },
   {

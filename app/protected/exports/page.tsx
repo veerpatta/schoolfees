@@ -49,6 +49,13 @@ const exportGroups = [
         icon: CircleAlert,
         tone: "danger" as const,
       },
+      {
+        key: "previous-year-dues",
+        labelKey: "itemPrevYearDues",
+        detailKey: "itemPrevYearDuesDetail",
+        icon: Layers,
+        tone: "warning" as const,
+      },
     ],
   },
   {
