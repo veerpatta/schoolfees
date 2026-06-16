@@ -42,6 +42,7 @@ function row(
     noCall: false,
     familyGroupId: null,
     familyVisibleSiblingCount: 0,
+    prevYearDuesAmount: 0,
     ...overrides,
   };
 }

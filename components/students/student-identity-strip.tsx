@@ -16,6 +16,7 @@ import { StudentStatusBadge } from "@/components/students/student-status-badge";
 import { StudentRowCollectButton } from "@/components/students/student-row-collect-button";
 import { StudentAvatar } from "@/components/students/student-avatar";
 import { StudentContactActions } from "@/components/students/student-contact-actions";
+import { OldBalanceChip } from "@/components/shared/old-balance-chip";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
@@ -36,6 +37,8 @@ type StudentIdentityStripProps = {
     photoPath?: string | null;
   };
   outstandingAmount: number;
+  /** Pending previous-year carry-forward balance. Renders an "Old balance" chip when > 0. */
+  prevYearDuesAmount: number;
   overdueAmount: number;
   pendingLateFeeAmount: number;
   creditBalance: number;
@@ -184,6 +187,7 @@ function NextActionStrip({
 export function StudentIdentityStrip({
   student,
   outstandingAmount,
+  prevYearDuesAmount,
   overdueAmount,
   pendingLateFeeAmount,
   creditBalance,
@@ -251,6 +255,7 @@ export function StudentIdentityStrip({
                     Student Ledger Profile
                   </p>
                   <StudentStatusBadge status={student.status} />
+                  <OldBalanceChip amount={prevYearDuesAmount} />
                 </div>
                 <h1 className="mt-1 font-display text-2xl font-semibold leading-tight tracking-tight text-foreground sm:text-3xl">
                   {student.fullName}

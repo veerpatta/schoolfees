@@ -15,6 +15,7 @@ import {
   refreshDefaulterRecoveryState,
 } from "@/lib/defaulters/contacts";
 import { resolvePromiseStatus } from "@/lib/defaulters/promise-lifecycle";
+import { CARRY_FORWARD_LABEL } from "@/lib/prev-year-dues/constants";
 
 import type {
   DefaulterFilters,
@@ -272,7 +273,18 @@ export async function getDefaultersPageData(
   // Per-student paid-installment timing: on-time when the installment was fully
   // cleared on or before its due date. Used only for behavior classification.
   const paymentTimingByStudent = new Map<string, { onTime: number; late: number }>();
+  // Pending previous-year carry-forward balance per student, keyed off the
+  // canonical carry-forward installment label. Drives the "Old balance" chip
+  // and the previous-year-dues filter. Carried over from allInstallmentRows
+  // (which includes paid rows) so we can read the live pending amount.
+  const prevYearDuesByStudent = new Map<string, number>();
   for (const inst of allInstallmentRows) {
+    if (inst.installmentLabel === CARRY_FORWARD_LABEL && inst.pendingAmount > 0) {
+      prevYearDuesByStudent.set(
+        inst.studentId,
+        (prevYearDuesByStudent.get(inst.studentId) ?? 0) + inst.pendingAmount,
+      );
+    }
     if (inst.balanceStatus !== "paid") continue;
     const bucket = paymentTimingByStudent.get(inst.studentId) ?? { onTime: 0, late: 0 };
     const paidOnTime = !inst.lastPaymentDate || inst.lastPaymentDate <= inst.dueDate;
@@ -306,6 +318,9 @@ export async function getDefaultersPageData(
       filters.overdue === "overdue"
         ? calculateOverdueBaseAmount(overdueRowsByStudent.get(row.studentId) ?? []) > 0
         : true,
+    )
+    .filter((row) =>
+      filters.prevYearDues === "prevYear" ? (prevYearDuesByStudent.get(row.studentId) ?? 0) > 0 : true,
     )
     .filter((row) => {
       if (!normalizedSearch) {
@@ -427,6 +442,7 @@ export async function getDefaultersPageData(
         promiseKeptRate: reliability?.promiseKeptRate ?? null,
         promiseKeptCount: reliability?.promiseKeptCount ?? 0,
         promiseBrokenCount: reliability?.promiseBrokenCount ?? 0,
+        prevYearDuesAmount: prevYearDuesByStudent.get(row.studentId) ?? 0,
       } satisfies DefaulterSummaryRow;
     })
     .sort((left, right) => {
@@ -557,7 +573,7 @@ export async function getDefaulterExportRows(
   const policy = await getFeePolicySummary();
   const resolvedSessionLabel = sessionLabel ?? policy.academicSessionLabel;
 
-  const [financialRows, overdueInstallmentRows] = await Promise.all([
+  const [financialRows, overdueInstallmentRows, prevYearDuesRows] = await Promise.all([
     getWorkbookStudentFinancials({
       classId: filters.classId || undefined,
       sessionLabel: resolvedSessionLabel,
@@ -568,7 +584,22 @@ export async function getDefaulterExportRows(
       pendingOnly: true,
       sessionLabel: resolvedSessionLabel,
     }),
+    // Only needed to honour the previous-year-dues filter so the export matches
+    // the on-screen list; skip the round-trip otherwise.
+    filters.prevYearDues === "prevYear"
+      ? getWorkbookInstallmentRows({
+          classId: filters.classId || undefined,
+          pendingOnly: true,
+          sessionLabel: resolvedSessionLabel,
+        })
+      : Promise.resolve([]),
   ]);
+
+  const prevYearDuesStudentIds = new Set(
+    prevYearDuesRows
+      .filter((row) => row.installmentLabel === CARRY_FORWARD_LABEL && row.pendingAmount > 0)
+      .map((row) => row.studentId),
+  );
 
   const minimumPendingAmount = parseMinimumPendingAmount(filters.minPendingAmount);
   const normalizedSearch = (filters.searchQuery ?? "").trim().toLowerCase();
@@ -593,6 +624,9 @@ export async function getDefaulterExportRows(
       filters.overdue === "overdue"
         ? calculateOverdueBaseAmount(overdueByStudent.get(row.studentId) ?? []) > 0
         : true,
+    )
+    .filter((row) =>
+      filters.prevYearDues === "prevYear" ? prevYearDuesStudentIds.has(row.studentId) : true,
     )
     .filter((row) => {
       if (!normalizedSearch) {

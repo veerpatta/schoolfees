@@ -30,6 +30,7 @@ type DefaultersPageProps = {
     classId?: string | string[];
     transportRouteId?: string | string[];
     overdue?: string | string[];
+    prevYearDues?: string | string[];
     minPendingAmount?: string | string[];
     page?: string | string[];
     query?: string | string[];
@@ -50,6 +51,7 @@ function normalizeFilters(
   const rawClassId = asString(params?.classId).trim();
   const rawRouteId = asString(params?.transportRouteId).trim();
   const rawOverdue = asString(params?.overdue).trim();
+  const rawPrevYearDues = asString(params?.prevYearDues).trim();
   const rawMinPendingAmount = asString(params?.minPendingAmount).trim();
   const rawSearchQuery = asString(params?.query).trim();
 
@@ -59,6 +61,8 @@ function normalizeFilters(
       ? rawRouteId
       : EMPTY_DEFAULTER_FILTERS.transportRouteId,
     overdue: rawOverdue === "overdue" ? "overdue" : EMPTY_DEFAULTER_FILTERS.overdue,
+    prevYearDues:
+      rawPrevYearDues === "prevYear" ? "prevYear" : EMPTY_DEFAULTER_FILTERS.prevYearDues,
     minPendingAmount:
       /^\d+$/.test(rawMinPendingAmount)
         ? rawMinPendingAmount
@@ -113,6 +117,9 @@ export default async function DefaultersPage({
     if (filters.overdue === "overdue") {
       search.set("overdue", "overdue");
     }
+    if (filters.prevYearDues === "prevYear") {
+      search.set("prevYearDues", "prevYear");
+    }
     if (filters.minPendingAmount && /^\d+$/.test(filters.minPendingAmount)) {
       search.set("minPendingAmount", filters.minPendingAmount);
     }
@@ -127,6 +134,7 @@ export default async function DefaultersPage({
     filters.classId,
     filters.transportRouteId,
     filters.overdue,
+    filters.prevYearDues,
     filters.minPendingAmount,
   ].filter(Boolean).length;
 

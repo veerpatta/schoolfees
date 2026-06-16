@@ -94,6 +94,19 @@ export async function DefaulterFilters({
       </div>
 
       <div>
+        <Label htmlFor="prevYearDues">{t("filterPrevYearDuesLabel")}</Label>
+        <select
+          id="prevYearDues"
+          name="prevYearDues"
+          defaultValue={filters.prevYearDues}
+          className={selectClassName}
+        >
+          <option value="">{t("filterPrevYearDuesAll")}</option>
+          <option value="prevYear">{t("filterPrevYearDuesOnly")}</option>
+        </select>
+      </div>
+
+      <div>
         <Label htmlFor="minPendingAmount">{t("filterMinPendingLabel")}</Label>
         <Input
           id="minPendingAmount"

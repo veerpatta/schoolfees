@@ -41,6 +41,7 @@ function entry(studentId: string): RecoveryDeskEntry {
       noCall: false,
       familyGroupId: null,
       familyVisibleSiblingCount: 0,
+      prevYearDuesAmount: 0,
     } satisfies DefaulterSummaryRow,
     summary: null,
     cadence: "now",

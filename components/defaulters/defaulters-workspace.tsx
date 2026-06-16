@@ -21,6 +21,7 @@ import { HeatChip } from "@/components/defaulters/heat-chip";
 import { NoCallToggle } from "@/components/defaulters/no-call-toggle";
 import { PromiseChip } from "@/components/defaulters/promise-chip";
 import { QuickLogButtons, type QuickLogKind } from "@/components/defaulters/quick-log-buttons";
+import { OldBalanceChip } from "@/components/shared/old-balance-chip";
 import { WhatsAppDraftModal } from "@/components/defaulters/whatsapp-draft-modal";
 import { WorklistDrawer } from "@/components/defaulters/worklist-drawer";
 import { buildStudentPhoneEntries, type PhoneEntry } from "@/components/students/phone-chooser";
@@ -560,6 +561,7 @@ function CallQueueRow({
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 <ContactStatusChip summary={summary} />
                 <PromiseChip status={row.promiseStatus} />
+                <OldBalanceChip amount={row.prevYearDuesAmount} label={t("oldBalanceLabel")} />
                 {noCall ? (
                   <NoCallToggle
                     studentId={row.studentId}
@@ -745,6 +747,7 @@ function SelectedStudentPanel({
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <ContactStatusChip summary={summary} />
         <PromiseChip status={row.promiseStatus} />
+        <OldBalanceChip amount={row.prevYearDuesAmount} label={t("oldBalanceLabel")} />
         <NoCallToggle
           studentId={row.studentId}
           sessionLabel={sessionLabel}

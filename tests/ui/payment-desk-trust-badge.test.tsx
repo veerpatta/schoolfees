@@ -29,6 +29,7 @@ const STUDENT = {
   totalPending: 12000,
   overdueAmount: 0,
   creditBalance: 0,
+  oldBalanceAmount: 0,
   nextDueDate: "2026-07-20",
   nextDueAmount: 6000,
 };

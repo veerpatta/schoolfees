@@ -19,6 +19,7 @@ import { Notice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
 import { buildFeeBreakupDisplayRows } from "@/lib/fees/display-breakdown";
 import { getDefaultAcademicSessionLabel } from "@/lib/config/fee-rules";
+import { CARRY_FORWARD_LABEL } from "@/lib/prev-year-dues/constants";
 import { cn } from "@/lib/utils";
 import {
   calculateInstallmentBasePending,
@@ -129,6 +130,13 @@ export default async function StudentDetailPage({
   const canViewLedger = hasStaffPermission(staff, "ledger:view");
   const canShowDangerZone = staff.appRole === "admin" && canEditStudent && deletionSafety;
   const outstandingAmount = installmentBalances.reduce((sum, row) => sum + row.pendingAmount, 0);
+  const prevYearDuesAmount = installmentBalances.reduce(
+    (sum, row) =>
+      row.installmentLabel === CARRY_FORWARD_LABEL && row.pendingAmount > 0
+        ? sum + row.pendingAmount
+        : sum,
+    0,
+  );
   const overdueAmount = calculateOverdueBaseAmount(installmentBalances);
   const pendingLateFeeAmount = calculatePendingLateFeeAmount(installmentBalances);
 
@@ -723,6 +731,7 @@ export default async function StudentDetailPage({
       <StudentIdentityStrip
         student={student}
         outstandingAmount={outstandingAmount}
+        prevYearDuesAmount={prevYearDuesAmount}
         overdueAmount={overdueAmount}
         pendingLateFeeAmount={effectivePendingLateFeeAmount}
         creditBalance={financialSnapshot?.creditBalance ?? 0}

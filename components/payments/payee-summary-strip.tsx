@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 
 import { StatusBadge } from "@/components/admin/status-badge";
+import { OldBalanceChip } from "@/components/shared/old-balance-chip";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { formatInr } from "@/lib/helpers/currency";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,8 @@ type PayeeSummaryStripProps = {
     totalPending: number;
     overdueAmount: number;
     creditBalance: number;
+    /** Pending previous-year carry-forward balance (allocated first). 0 when none. */
+    oldBalanceAmount: number;
     nextDueDate: string | null;
     nextDueAmount: number | null;
   };
@@ -45,6 +48,7 @@ export function PayeeSummaryStrip({
   const hasRiskPills =
     student.overdueAmount > 0 ||
     student.creditBalance > 0 ||
+    student.oldBalanceAmount > 0 ||
     latestReceiptToday !== null;
 
   return (
@@ -106,7 +110,11 @@ export function PayeeSummaryStrip({
         </div>
 
         {hasRiskPills ? (
-          <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+            <OldBalanceChip
+              amount={student.oldBalanceAmount}
+              label={t("payeeOldBalanceLabel")}
+            />
             {student.overdueAmount > 0 ? (
               <StatusBadge
                 label={t("payeeOverdueBadge", { amount: formatInr(student.overdueAmount) })}

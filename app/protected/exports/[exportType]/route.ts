@@ -629,6 +629,7 @@ const DEFAULTER_FILTER_PARAMS = [
   "classId",
   "transportRouteId",
   "overdue",
+  "prevYearDues",
   "minPendingAmount",
   "query",
 ] as const;
@@ -647,6 +648,7 @@ function parseDefaulterFiltersFromQuery(request: NextRequest): DefaulterFilters 
   const rawClassId = get("classId");
   const rawRouteId = get("transportRouteId");
   const rawOverdue = get("overdue");
+  const rawPrevYearDues = get("prevYearDues");
   const rawMinPending = get("minPendingAmount");
   const rawQuery = get("query");
 
@@ -656,6 +658,8 @@ function parseDefaulterFiltersFromQuery(request: NextRequest): DefaulterFilters 
       ? rawRouteId
       : EMPTY_DEFAULTER_FILTERS.transportRouteId,
     overdue: rawOverdue === "overdue" ? "overdue" : EMPTY_DEFAULTER_FILTERS.overdue,
+    prevYearDues:
+      rawPrevYearDues === "prevYear" ? "prevYear" : EMPTY_DEFAULTER_FILTERS.prevYearDues,
     minPendingAmount: /^\d+$/.test(rawMinPending)
       ? rawMinPending
       : EMPTY_DEFAULTER_FILTERS.minPendingAmount,

@@ -252,6 +252,7 @@ describe("call queue recovery desk", () => {
       paymentBehavior: "new",
       promiseStatus: null,
       noCall: false,
+      prevYearDuesAmount: 0,
       ...extras,
     } satisfies DefaulterSummaryRow;
   }

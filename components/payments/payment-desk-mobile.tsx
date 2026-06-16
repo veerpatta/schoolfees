@@ -38,6 +38,7 @@ import {
   calculateOverdueBaseAmount,
   calculatePendingLateFeeAmount,
 } from "@/lib/fees/due-amounts";
+import { CARRY_FORWARD_LABEL } from "@/lib/prev-year-dues/constants";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import {
   buildPaymentConfirmationSummary,
@@ -446,6 +447,11 @@ export function PaymentDeskClient({
     0,
   );
   const previewOverdueAmount = calculateOverdueBaseAmount(previewBreakdown);
+  const previewOldBalance = previewBreakdown.reduce(
+    (sum, item) =>
+      item.installmentLabel === CARRY_FORWARD_LABEL ? sum + item.outstandingAmount : sum,
+    0,
+  );
   const previewNextDue =
     previewBreakdown.find((item) => item.outstandingAmount > 0) ?? null;
   const paymentAmount = Number(paymentAmountInput) || 0;
@@ -2771,6 +2777,7 @@ export function PaymentDeskClient({
                     totalPending: previewTotalPending,
                     overdueAmount: previewOverdueAmount,
                     creditBalance: creditBalance,
+                    oldBalanceAmount: previewOldBalance,
                     nextDueDate: previewNextDue?.dueDate ?? null,
                     nextDueAmount: previewNextDue?.outstandingAmount ?? null,
                   }}

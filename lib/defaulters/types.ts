@@ -12,6 +12,8 @@ export type DefaulterFilters = {
   classId: string;
   transportRouteId: string;
   overdue: "" | "overdue";
+  /** When "prevYear", restrict to students carrying a pending previous-year balance. */
+  prevYearDues: "" | "prevYear";
   minPendingAmount: string;
   searchQuery?: string;
 };
@@ -70,6 +72,12 @@ export type DefaulterSummaryRow = {
   promiseKeptRate?: number | null;
   promiseKeptCount?: number;
   promiseBrokenCount?: number;
+  /**
+   * Pending previous-year (carry-forward) balance for this student, derived from
+   * the carry-forward installment (`CARRY_FORWARD_LABEL`). 0 when none. A value
+   * > 0 means the student has an "old balance" surfaced via the chip/filter.
+   */
+  prevYearDuesAmount: number;
 };
 
 export type MissingDuesWarningRow = {
@@ -118,6 +126,7 @@ export const EMPTY_DEFAULTER_FILTERS: DefaulterFilters = {
   classId: "",
   transportRouteId: "",
   overdue: "",
+  prevYearDues: "",
   minPendingAmount: "",
   searchQuery: "",
 };

@@ -87,6 +87,7 @@ describe("getDefaulterExportRows — honours filters (audit 1.7)", () => {
         classId: "",
         transportRouteId: "",
         overdue: "",
+        prevYearDues: "",
         minPendingAmount: "",
         searchQuery: "priya",
       },
@@ -107,6 +108,7 @@ describe("getDefaulterExportRows — honours filters (audit 1.7)", () => {
         classId: "class-uuid-1",
         transportRouteId: "",
         overdue: "",
+        prevYearDues: "",
         minPendingAmount: "",
         searchQuery: "",
       },
@@ -131,6 +133,7 @@ describe("getDefaulterExportRows — honours filters (audit 1.7)", () => {
         classId: "",
         transportRouteId: "route-b",
         overdue: "",
+        prevYearDues: "",
         minPendingAmount: "",
         searchQuery: "",
       },
@@ -152,6 +155,7 @@ describe("getDefaulterExportRows — honours filters (audit 1.7)", () => {
         classId: "",
         transportRouteId: "",
         overdue: "",
+        prevYearDues: "",
         minPendingAmount: "5000",
         searchQuery: "",
       },
@@ -174,6 +178,7 @@ describe("getDefaulterExportRows — honours filters (audit 1.7)", () => {
         classId: "",
         transportRouteId: "",
         overdue: "",
+        prevYearDues: "",
         minPendingAmount: "",
         searchQuery: "",
       },
@@ -181,5 +186,34 @@ describe("getDefaulterExportRows — honours filters (audit 1.7)", () => {
     );
 
     expect(rows.map((r) => r.fullName)).toEqual(["Mira", "Asha", "Zoya"]);
+  });
+
+  it("restricts to students with a pending carry-forward installment when prevYearDues is set", async () => {
+    const { CARRY_FORWARD_LABEL } = await import("@/lib/prev-year-dues/constants");
+    getWorkbookStudentFinancials.mockResolvedValue([
+      buildFinancialRow({ studentId: "s-1", studentName: "Asha Sharma", outstandingAmount: 6000 }),
+      buildFinancialRow({ studentId: "s-2", studentName: "Rahul Verma", outstandingAmount: 9000 }),
+    ]);
+    // First call is the overdue fetch (left unset → []); second is the
+    // previous-year-dues fetch the new branch issues only when the filter is on.
+    getWorkbookInstallmentRows.mockResolvedValueOnce([]);
+    getWorkbookInstallmentRows.mockResolvedValueOnce([
+      { studentId: "s-1", installmentLabel: CARRY_FORWARD_LABEL, pendingAmount: 15000 },
+    ]);
+
+    const { getDefaulterExportRows } = await import("@/lib/defaulters/data");
+    const rows = await getDefaulterExportRows(
+      {
+        classId: "",
+        transportRouteId: "",
+        overdue: "",
+        prevYearDues: "prevYear",
+        minPendingAmount: "",
+        searchQuery: "",
+      },
+      "TEST-2026-27",
+    );
+
+    expect(rows.map((r) => r.studentId)).toEqual(["s-1"]);
   });
 });

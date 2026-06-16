@@ -18,6 +18,7 @@ const STUDENT = {
 const BASE_PROPS = {
   student: STUDENT,
   outstandingAmount: 12000,
+  prevYearDuesAmount: 0,
   overdueAmount: 0,
   pendingLateFeeAmount: 0,
   creditBalance: 0,

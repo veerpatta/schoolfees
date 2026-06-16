@@ -10,6 +10,7 @@ const FILTER_PARAM_NAMES = [
   "classId",
   "transportRouteId",
   "overdue",
+  "prevYearDues",
   "minPendingAmount",
   "query",
 ] as const;
@@ -18,6 +19,7 @@ type StoredFilters = {
   classId?: string;
   transportRouteId?: string;
   overdue?: string;
+  prevYearDues?: string;
   minPendingAmount?: string;
   searchQuery?: string;
 };
@@ -40,6 +42,7 @@ function writeStored(filters: DefaulterFilters) {
     if (filters.classId) trimmed.classId = filters.classId;
     if (filters.transportRouteId) trimmed.transportRouteId = filters.transportRouteId;
     if (filters.overdue) trimmed.overdue = filters.overdue;
+    if (filters.prevYearDues) trimmed.prevYearDues = filters.prevYearDues;
     if (filters.minPendingAmount) trimmed.minPendingAmount = filters.minPendingAmount;
     if (filters.searchQuery) trimmed.searchQuery = filters.searchQuery;
     if (Object.keys(trimmed).length === 0) {
@@ -86,6 +89,7 @@ export function DefaulterFilterRehydrator({ filters, sessionLabel }: Props) {
         Boolean(stored.classId) ||
         Boolean(stored.transportRouteId) ||
         Boolean(stored.overdue) ||
+        Boolean(stored.prevYearDues) ||
         Boolean(stored.minPendingAmount) ||
         Boolean(stored.searchQuery);
       if (!hasStored) return;
@@ -95,6 +99,7 @@ export function DefaulterFilterRehydrator({ filters, sessionLabel }: Props) {
       if (stored.classId) next.set("classId", stored.classId);
       if (stored.transportRouteId) next.set("transportRouteId", stored.transportRouteId);
       if (stored.overdue) next.set("overdue", stored.overdue);
+      if (stored.prevYearDues) next.set("prevYearDues", stored.prevYearDues);
       if (stored.minPendingAmount) next.set("minPendingAmount", stored.minPendingAmount);
       if (stored.searchQuery) next.set("query", stored.searchQuery);
 
@@ -108,6 +113,7 @@ export function DefaulterFilterRehydrator({ filters, sessionLabel }: Props) {
       filters.classId === EMPTY_DEFAULTER_FILTERS.classId &&
       filters.transportRouteId === EMPTY_DEFAULTER_FILTERS.transportRouteId &&
       filters.overdue === EMPTY_DEFAULTER_FILTERS.overdue &&
+      filters.prevYearDues === EMPTY_DEFAULTER_FILTERS.prevYearDues &&
       filters.minPendingAmount === EMPTY_DEFAULTER_FILTERS.minPendingAmount &&
       filters.searchQuery === EMPTY_DEFAULTER_FILTERS.searchQuery;
     if (isAllEmpty) {
