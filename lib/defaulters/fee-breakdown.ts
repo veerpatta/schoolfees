@@ -5,10 +5,17 @@ import {
   getWorkbookStudentFinancials,
   getWorkbookTransactions,
 } from "@/lib/workbook/data";
+import {
+  getCarryForwardSourceSession,
+  getDisplayInstallmentLabel,
+  isCarryForwardInstallment,
+} from "@/lib/prev-year-dues/display";
 
 export type FeeBreakdownInstallment = {
   installmentNo: number;
   installmentLabel: string;
+  isCarryForward?: boolean;
+  sourceSessionLabel?: string | null;
   dueDate: string;
   baseCharge: number;
   paidAmount: number;
@@ -97,7 +104,9 @@ export async function getStudentFeeBreakdown(
     .map(
       (row): FeeBreakdownInstallment => ({
         installmentNo: row.installmentNo,
-        installmentLabel: row.installmentLabel,
+        installmentLabel: getDisplayInstallmentLabel(row),
+        isCarryForward: isCarryForwardInstallment(row),
+        sourceSessionLabel: getCarryForwardSourceSession(row),
         dueDate: row.dueDate,
         baseCharge: row.baseCharge,
         paidAmount: row.paidAmount,

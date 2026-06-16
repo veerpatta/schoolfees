@@ -58,6 +58,7 @@ export function buildPaymentAllocation(
 export type ReceiptPreviewAllocationItem = {
   installmentId: string;
   installmentLabel: string;
+  displayLabel?: string;
   dueDate: string;
   pendingBefore: number;
   discountApplied: number;
@@ -95,6 +96,7 @@ export function buildReceiptPreviewAllocation(payload: {
       return {
         installmentId: item.installmentId,
         installmentLabel: item.installmentLabel,
+        displayLabel: item.displayLabel,
         dueDate: item.dueDate,
         pendingBefore,
         discountApplied,

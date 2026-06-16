@@ -367,6 +367,62 @@ describe("dashboard summary", () => {
     expect(summary.installmentSummary[0]?.overdueAmount).toBe(5000);
   });
 
+  it("surfaces previous-year carry-forward dues as old balance instead of installment 99", () => {
+    const summary = buildDashboardSummary({
+      financialRows: [
+        student({
+          baseChargeTotal: 13000,
+          totalDue: 13000,
+          totalPaid: 2000,
+          outstandingAmount: 11000,
+        }),
+      ],
+      studentRows: [
+        {
+          studentId: "student-1",
+          classId: "class-1",
+          sessionLabel: "2026-27",
+          classLabel: "Class 1",
+        },
+      ],
+      installmentRows: [
+        installment({
+          installmentNo: 99,
+          installmentLabel: "Previous year tuition balance (2025-26)",
+          isCarryForward: true,
+          sourceSessionLabel: "2025-26",
+          baseCharge: 8000,
+          paidAmount: 2000,
+          pendingAmount: 6000,
+          totalCharge: 8000,
+        }),
+        installment({
+          installmentNo: 2,
+          installmentLabel: "Installment 2",
+          baseCharge: 5000,
+          pendingAmount: 5000,
+          totalCharge: 5000,
+        }),
+      ],
+      overdueInstallments: [],
+      transactions: [],
+      todayTransactions: [],
+    });
+
+    expect(summary.kpis.previousYearPending).toBe(6000);
+    expect(summary.kpis.currentYearPending).toBe(5000);
+    expect(summary.installmentSummary[0]).toMatchObject({
+      installmentLabel: "Previous year tuition balance from 2025-26",
+      isCarryForward: true,
+      pendingAmount: 6000,
+    });
+    expect(summary.classInstallmentMatrix[0]?.installments[0]).toMatchObject({
+      installmentLabel: "Previous year tuition balance from 2025-26",
+      isCarryForward: true,
+      pendingAmount: 6000,
+    });
+  });
+
   it("keeps class rows visible even when dues are missing", () => {
     const summary = buildDashboardSummary({
       financialRows: [],

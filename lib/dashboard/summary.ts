@@ -4,7 +4,12 @@ import type {
   WorkbookTransaction,
 } from "@/lib/workbook/data";
 import { calculateInstallmentBasePending, calculateOverdueBaseAmount } from "@/lib/fees/due-amounts";
-import { buildCarryForwardSummary } from "@/lib/prev-year-dues/display";
+import {
+  buildCarryForwardSummary,
+  getCarryForwardSourceSession,
+  getDisplayInstallmentLabel,
+  isCarryForwardInstallment,
+} from "@/lib/prev-year-dues/display";
 
 export type DashboardKpis = {
   totalStudents: number;
@@ -56,6 +61,8 @@ export type DashboardClassInstallmentPendingRow = {
   installments: Array<{
     installmentNo: number;
     installmentLabel: string;
+    isCarryForward?: boolean;
+    sourceSessionLabel?: string | null;
     pendingAmount: number;
   }>;
   totalPendingAmount: number;
@@ -64,6 +71,8 @@ export type DashboardClassInstallmentPendingRow = {
 export type DashboardInstallmentSummaryRow = {
   installmentNo: number;
   installmentLabel: string;
+  isCarryForward?: boolean;
+  sourceSessionLabel?: string | null;
   dueDate: string | null;
   studentCount: number;
   expectedAmount: number;
@@ -161,6 +170,31 @@ function buildReminderText(row: WorkbookStudentFinancial) {
 
 function getCollectedFromInstallment(row: WorkbookInstallmentBalance) {
   return Math.max(0, row.paidAmount + row.adjustmentAmount);
+}
+
+function getDashboardInstallmentKey(row: Pick<WorkbookInstallmentBalance, "installmentNo" | "installmentLabel" | "isCarryForward" | "feeBucket" | "sourceSessionLabel">) {
+  if (isCarryForwardInstallment(row)) {
+    return `carry-forward:${getCarryForwardSourceSession(row) ?? row.installmentLabel ?? row.installmentNo}`;
+  }
+
+  return `installment:${row.installmentNo}`;
+}
+
+function compareDashboardInstallments(
+  left: Pick<DashboardInstallmentSummaryRow, "installmentNo" | "installmentLabel" | "isCarryForward" | "sourceSessionLabel">,
+  right: Pick<DashboardInstallmentSummaryRow, "installmentNo" | "installmentLabel" | "isCarryForward" | "sourceSessionLabel">,
+) {
+  const leftCarry = isCarryForwardInstallment(left);
+  const rightCarry = isCarryForwardInstallment(right);
+  if (leftCarry !== rightCarry) {
+    return leftCarry ? -1 : 1;
+  }
+
+  if (leftCarry && rightCarry) {
+    return getDisplayInstallmentLabel(left).localeCompare(getDisplayInstallmentLabel(right));
+  }
+
+  return left.installmentNo - right.installmentNo;
 }
 
 export function buildDashboardSummary(input: DashboardSummaryInput) {
@@ -304,10 +338,13 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
 
   const installmentMap = input.installmentRows.reduce(
     (acc, row) => {
-      const key = String(row.installmentNo);
+      const isCarryForward = isCarryForwardInstallment(row);
+      const key = getDashboardInstallmentKey(row);
       const existing = acc.get(key) ?? {
         installmentNo: row.installmentNo,
-        installmentLabel: row.installmentLabel,
+        installmentLabel: getDisplayInstallmentLabel(row),
+        isCarryForward,
+        sourceSessionLabel: getCarryForwardSourceSession(row),
         dueDate: row.dueDate,
         studentCount: 0,
         expectedAmount: 0,
@@ -335,7 +372,7 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
       ...row,
       collectionRate: calculatePercentage(row.collectedAmount, row.expectedAmount),
     }))
-    .sort((left, right) => left.installmentNo - right.installmentNo);
+    .sort(compareDashboardInstallments);
 
   const trendMap = input.transactions.reduce((acc, row) => {
     const existing = acc.get(row.paymentDate) ?? {
@@ -415,37 +452,45 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
       reminderText: buildReminderText(row),
     }));
 
-  const classMatrixMap = new Map<string, { classId: string; classLabel: string; installmentsMap: Map<number, number> }>();
+  const classMatrixMap = new Map<string, { classId: string; classLabel: string; installmentsMap: Map<string, number> }>();
   for (const row of input.installmentRows) {
     const classKey = `${row.sessionLabel}::${row.classId}`;
+    const installmentKey = getDashboardInstallmentKey(row);
     const existing = classMatrixMap.get(classKey) ?? {
       classId: row.classId,
       classLabel: row.classLabel,
-      installmentsMap: new Map<number, number>(),
+      installmentsMap: new Map<string, number>(),
     };
-    const currentPending = existing.installmentsMap.get(row.installmentNo) ?? 0;
-    existing.installmentsMap.set(row.installmentNo, currentPending + row.pendingAmount);
+    const currentPending = existing.installmentsMap.get(installmentKey) ?? 0;
+    existing.installmentsMap.set(installmentKey, currentPending + row.pendingAmount);
     classMatrixMap.set(classKey, existing);
   }
 
-  const distinctInstallmentNos = Array.from(
-    new Set(input.installmentRows.map((r) => r.installmentNo))
-  ).sort((a, b) => a - b);
-
-  const distinctInstallments = distinctInstallmentNos.map((no) => {
-    const match = input.installmentRows.find((r) => r.installmentNo === no);
-    return {
-      installmentNo: no,
-      installmentLabel: match?.installmentLabel ?? `Inst ${no}`,
-    };
-  });
+  const distinctInstallments = Array.from(
+    input.installmentRows.reduce((acc, row) => {
+      const key = getDashboardInstallmentKey(row);
+      if (!acc.has(key)) {
+        acc.set(key, {
+          key,
+          installmentNo: row.installmentNo,
+          installmentLabel: getDisplayInstallmentLabel(row),
+          isCarryForward: isCarryForwardInstallment(row),
+          sourceSessionLabel: getCarryForwardSourceSession(row),
+        });
+      }
+      return acc;
+    }, new Map<string, { key: string; installmentNo: number; installmentLabel: string; isCarryForward: boolean; sourceSessionLabel: string | null }>())
+      .values(),
+  ).sort(compareDashboardInstallments);
 
   const classInstallmentMatrix: DashboardClassInstallmentPendingRow[] = Array.from(classMatrixMap.values())
     .map((row) => {
       const installments = distinctInstallments.map((inst) => ({
         installmentNo: inst.installmentNo,
         installmentLabel: inst.installmentLabel,
-        pendingAmount: row.installmentsMap.get(inst.installmentNo) ?? 0,
+        isCarryForward: inst.isCarryForward,
+        sourceSessionLabel: inst.sourceSessionLabel,
+        pendingAmount: row.installmentsMap.get(inst.key) ?? 0,
       }));
       const totalPendingAmount = installments.reduce((sum, inst) => sum + inst.pendingAmount, 0);
       return {

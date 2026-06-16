@@ -29,6 +29,7 @@ type ConfirmReceiptSheetProps = {
   receiptPreviewAllocation: Array<{
     installmentId: string;
     installmentLabel: string;
+    displayLabel?: string;
     dueDate: string;
     pendingBefore: number;
     discountApplied: number;
@@ -255,7 +256,7 @@ export function ConfirmReceiptSheet({
                         }`}
                       >
                         <td className="px-2 py-2">
-                          <p className="font-medium text-foreground">{item.installmentLabel}</p>
+                          <p className="font-medium text-foreground">{item.displayLabel ?? item.installmentLabel}</p>
                           <p className="text-[10px] text-muted-foreground">{item.dueDate}</p>
                         </td>
                         <td className="px-2 py-2 text-right font-semibold text-foreground">

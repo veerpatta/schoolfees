@@ -1788,16 +1788,17 @@ async function getPaymentDateAwareInstallmentBalancesUncached(payload: {
       isCarryForward: row.is_carry_forward ?? undefined,
       feeBucket: row.carry_forward_fee_head ? `previous_year_${row.carry_forward_fee_head}` : undefined,
     });
+    const displayLabel = getDisplayInstallmentLabel({
+      installmentLabel: row.installment_label,
+      installmentNo: row.installment_no,
+      isCarryForward,
+      sourceSessionLabel: row.source_session_label ?? null,
+    });
     return {
       installmentId: row.installment_id,
       installmentNo: row.installment_no,
-      installmentLabel: row.installment_label,
-      displayLabel: getDisplayInstallmentLabel({
-        installmentLabel: row.installment_label,
-        installmentNo: row.installment_no,
-        isCarryForward,
-        sourceSessionLabel: row.source_session_label ?? null,
-      }),
+      installmentLabel: displayLabel,
+      displayLabel,
       isCarryForward,
       sourceSessionLabel: row.source_session_label ?? null,
       targetSessionLabel: row.target_session_label ?? null,

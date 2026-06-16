@@ -35,7 +35,7 @@ export function ClassInstallmentMatrixTable({ matrix }: Props) {
             <tr className="border-b border-border bg-surface-2/70 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
               <th className="px-4 py-3 font-medium">Class</th>
               {installmentHeaders.map((inst) => (
-                <th key={inst.installmentNo} className="px-4 py-3 text-right font-medium">
+                <th key={`${inst.installmentNo}-${inst.installmentLabel}`} className="px-4 py-3 text-right font-medium">
                   {inst.installmentLabel}
                 </th>
               ))}
@@ -50,7 +50,7 @@ export function ClassInstallmentMatrixTable({ matrix }: Props) {
                 <td className="px-4 py-3 font-medium text-foreground">{row.classLabel}</td>
                 {row.installments.map((inst) => (
                   <td
-                    key={inst.installmentNo}
+                    key={`${inst.installmentNo}-${inst.installmentLabel}`}
                     className={cn(
                       "px-4 py-3 text-right font-medium tabular",
                       inst.pendingAmount > 0 ? "text-warning" : "text-muted-foreground/40"

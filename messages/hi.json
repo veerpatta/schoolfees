@@ -842,7 +842,8 @@
     "morningBriefFollowUpOverdue": "{label} ओवरड्यू है — {count, plural, =1 {# छात्र} other {# छात्रों}} से {amount} का फ़ॉलो-अप करें।",
     "morningBriefFollowUpDueToday": "{label} की तारीख आज है — {count, plural, =1 {# छात्र} other {# छात्रों}} से {amount} का फ़ॉलो-अप करें।",
     "morningBriefFollowUpInstallment": "{label} ({dueDate} तक) से पहले {count, plural, =1 {# छात्र} other {# छात्रों}} से {amount} का फ़ॉलो-अप करें।",
-    "morningBriefFollowUp": "{count, plural, =1 {# छात्र} other {# छात्रों}} से {amount} बकाया का फ़ॉलो-अप करें।"
+    "morningBriefFollowUp": "{count, plural, =1 {# छात्र} other {# छात्रों}} से {amount} बकाया का फ़ॉलो-अप करें।",
+    "morningBriefAmountWithOldBalance": "{total} total ({currentYear} current year + {previousYear} previous-year dues)"
   },
   "Payments": {
     "eyebrow": "भुगतान",

@@ -193,7 +193,7 @@ export default async function StudentDetailPage({
   const firstPendingInstallment = installmentBalances.find((b) => b.pendingAmount > 0) ?? null;
   const nextPendingInfo = firstPendingInstallment
     ? {
-        label: firstPendingInstallment.installmentLabel,
+        label: getDisplayInstallmentLabel(firstPendingInstallment),
         amount: firstPendingInstallment.pendingAmount,
         dueDate: firstPendingInstallment.dueDate,
         isOverdue: firstPendingInstallment.balanceStatus === "overdue",
@@ -779,7 +779,7 @@ export default async function StudentDetailPage({
           balanceStatus: b.balanceStatus,
         }))}
         nextDueDate={firstPendingInstallment?.dueDate ?? null}
-        nextDueLabel={firstPendingInstallment?.installmentLabel ?? null}
+        nextDueLabel={firstPendingInstallment ? getDisplayInstallmentLabel(firstPendingInstallment) : null}
         nextDueAmount={firstPendingInstallment?.pendingAmount ?? null}
       />
 

@@ -25,6 +25,7 @@ import {
 } from "@/lib/reports/types";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatDateTimeIst, formatShortDate } from "@/lib/helpers/date";
+import { isCarryForwardInstallment } from "@/lib/prev-year-dues/display";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
 import { getSetupWizardData } from "@/lib/setup/data";
@@ -720,14 +721,16 @@ function ReportTables({ report }: { report: ReportData }) {
                   </tr>
                 ) : (
                   report.rows.map((row) => (
-                    <tr key={`${row.studentId}-${row.installmentNo}`} className="border-t border-border text-foreground">
+                    <tr key={`${row.studentId}-${row.installmentNo}-${row.installmentLabel}`} className="border-t border-border text-foreground">
                       <td className="px-4 py-3 font-medium text-foreground">{row.fullName}</td>
                       <td className="px-4 py-3">{row.admissionNo}</td>
                       <td className="px-4 py-3">{row.sessionLabel}</td>
                       <td className="px-4 py-3">{row.classLabel}</td>
                       <td className="px-4 py-3">{row.transportRouteLabel}</td>
                       <td className="px-4 py-3">
-                        {row.installmentLabel} ({row.installmentNo})
+                        {isCarryForwardInstallment(row)
+                          ? row.installmentLabel
+                          : `${row.installmentLabel} (${row.installmentNo})`}
                       </td>
                       <td className="px-4 py-3">{formatShortDate(row.dueDate)}</td>
                       <td className="px-4 py-3">{formatInr(row.amountDue)}</td>

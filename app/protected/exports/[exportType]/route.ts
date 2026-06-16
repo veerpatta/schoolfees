@@ -4,6 +4,7 @@ import { getOfficeWorkbookData } from "@/lib/transactions/dues";
 import type { OfficeWorkbookView } from "@/lib/transactions/workbook";
 import { getDefaulterExportRows } from "@/lib/defaulters/data";
 import { getPrevYearDuesCollectionRows } from "@/lib/prev-year-dues/data";
+import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
 import {
   EMPTY_DEFAULTER_FILTERS,
   type DefaulterFilters,
@@ -396,7 +397,7 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
         "Student": row.studentName,
         "Class": row.classLabel,
         "Installment no": row.installmentNo,
-        "Installment label": row.installmentLabel,
+        "Installment label": getDisplayInstallmentLabel(row),
         "Due date": row.dueDate,
         "Base charge": row.baseCharge,
         "Paid": row.paidAmount,
@@ -449,7 +450,9 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
               "Student": student?.studentName ?? "",
               "Class": student?.classLabel ?? "",
               "Receipt number": receipt?.receipt_number ?? "",
-              "Installment": installment?.installment_label ?? "",
+              "Installment": installment
+                ? getDisplayInstallmentLabel({ installmentLabel: installment.installment_label })
+                : "",
               "Adjustment type": row.adjustment_type,
               "Amount delta (₹, signed)": row.amount_delta,
               "Reason": row.reason,

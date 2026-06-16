@@ -28,6 +28,13 @@ function toAmount(value: number | null | undefined) {
 export function isCarryForwardInstallment(row: CarryForwardInstallmentLike) {
   if (row.isCarryForward === true || row.is_carry_forward === true) return true;
   if (row.feeBucket === "previous_year_tuition" || row.fee_bucket === "previous_year_tuition") return true;
+  const normalizedLabel = row.installmentLabel?.trim().toLowerCase() ?? "";
+  if (
+    normalizedLabel.startsWith("previous year") &&
+    normalizedLabel.includes("balance")
+  ) {
+    return true;
+  }
   return row.installmentLabel === CARRY_FORWARD_LABEL;
 }
 

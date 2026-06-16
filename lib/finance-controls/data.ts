@@ -2,6 +2,7 @@ import "server-only";
 
 import { formatPaymentModeLabel } from "@/lib/config/fee-rules";
 import { formatExportName } from "@/lib/helpers/export";
+import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
 import { createClient } from "@/lib/supabase/server";
 
 import type { AdjustmentType, PaymentMode, RefundRequestStatus } from "@/lib/db/types";
@@ -434,7 +435,7 @@ function mapAdjustmentRow(
     receivedBy: receipt.received_by,
     receiptNumber: receipt.receipt_number,
     paymentDate: receipt.payment_date,
-    installmentLabel: installment.installment_label,
+    installmentLabel: getDisplayInstallmentLabel({ installmentLabel: installment.installment_label }),
     adjustmentType: row.adjustment_type,
     amountDelta: row.amount_delta,
     reason: row.reason,

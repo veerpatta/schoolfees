@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { AdjustmentType, PaymentMode } from "@/lib/db/types";
+import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
 import { createClient } from "@/lib/supabase/server";
 import type {
   LedgerAdjustmentRow,
@@ -346,7 +347,7 @@ export async function getLedgerPageData(payload: {
         createdAt: row.created_at,
         paymentDate: receiptRef.payment_date,
         receiptNumber: receiptRef.receipt_number,
-        installmentLabel: installmentRef.installment_label,
+        installmentLabel: getDisplayInstallmentLabel({ installmentLabel: installmentRef.installment_label }),
         dueDate: installmentRef.due_date,
         paymentMode: receiptRef.payment_mode,
         paymentAmount: row.amount,

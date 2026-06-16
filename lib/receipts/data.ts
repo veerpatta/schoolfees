@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
 import { buildReceiptAdjustmentTotals } from "@/lib/receipts/amounts";
 import { resolveReceiptSessionLabel } from "@/lib/receipts/session-label";
 import type {
@@ -263,7 +264,10 @@ function buildInstallmentStatus(
       );
       return {
         installmentNo: row.installment_no,
-        label: row.installment_label,
+        label: getDisplayInstallmentLabel({
+          installmentNo: row.installment_no,
+          installmentLabel: row.installment_label,
+        }),
         dueDate: row.due_date,
         expected: row.base_charge ?? 0,
         paid: applied,
@@ -455,7 +459,10 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
       return {
         paymentId: row.id,
         installmentNo: installment.installment_no,
-        installmentLabel: installment.installment_label,
+        installmentLabel: getDisplayInstallmentLabel({
+          installmentNo: installment.installment_no,
+          installmentLabel: installment.installment_label,
+        }),
         sessionLabel: toSingleRecord(installment.class_ref)?.session_label ?? null,
         dueDate: installment.due_date,
         amount: row.amount,

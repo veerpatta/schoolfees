@@ -2,6 +2,7 @@ import "server-only";
 
 import { WORKBOOK_CLASS_ORDER, normalizeWorkbookClassLabel } from "@/lib/fees/workbook";
 import type { PaymentMode } from "@/lib/db/types";
+import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
 import { createClient } from "@/lib/supabase/server";
 import { getStudentFormOptions } from "@/lib/students/data";
 
@@ -360,6 +361,8 @@ function mapFinancialRow(row: WorkbookStudentFinancialRow): WorkbookStudentFinan
 }
 
 function mapInstallmentRow(row: WorkbookInstallmentBalanceRow): WorkbookInstallmentBalance {
+  const isCarryForward = row.is_carry_forward === true;
+  const feeBucket = row.carry_forward_fee_head ? `previous_year_${row.carry_forward_fee_head}` : null;
   return {
     installmentId: row.installment_id,
     studentId: row.student_id,
@@ -374,11 +377,17 @@ function mapInstallmentRow(row: WorkbookInstallmentBalanceRow): WorkbookInstallm
     section: row.section,
     streamName: row.stream_name,
     installmentNo: row.installment_no,
-    installmentLabel: row.installment_label,
-    isCarryForward: row.is_carry_forward === true,
+    installmentLabel: getDisplayInstallmentLabel({
+      installmentNo: row.installment_no,
+      installmentLabel: row.installment_label,
+      isCarryForward,
+      sourceSessionLabel: row.source_session_label ?? null,
+      feeBucket,
+    }),
+    isCarryForward,
     sourceSessionLabel: row.source_session_label ?? null,
     targetSessionLabel: row.target_session_label ?? null,
-    feeBucket: row.carry_forward_fee_head ? `previous_year_${row.carry_forward_fee_head}` : null,
+    feeBucket,
     dueDate: row.due_date,
     transportRouteId: row.transport_route_id,
     transportRouteName: row.transport_route_name,

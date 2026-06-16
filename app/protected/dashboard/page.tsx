@@ -111,11 +111,17 @@ function formatUpdatedAt(iso: string): string {
 function InstallmentPulse({
   installment,
   pending,
+  currentYearPending,
+  previousYearPending,
+  lateFeePending,
   followUpCount,
   t,
 }: {
   installment: Awaited<ReturnType<typeof getDashboardAboveFoldData>>["currentInstallment"];
   pending: number;
+  currentYearPending: number;
+  previousYearPending: number;
+  lateFeePending: number;
   followUpCount: number;
   t: DashboardTranslator;
 }) {
@@ -136,6 +142,11 @@ function InstallmentPulse({
     >
       <Money value={pending} size="sm" />{" "}
       {t("installmentPulseBody", { count: followUpCount })}
+      <span className="mt-1 block text-xs text-muted-foreground">
+        Current <Money value={currentYearPending} size="xs" /> · Previous year{" "}
+        <Money value={previousYearPending} size="xs" /> · Late fee{" "}
+        <Money value={lateFeePending} size="xs" />
+      </span>
     </Notice>
   );
 }
@@ -212,6 +223,9 @@ function MobileDashboardHero({
   receiptsToday,
   followUpCount,
   overdueAmount,
+  currentYearPending,
+  previousYearPending,
+  lateFeePending,
   updatedAt,
   currentInstallmentLabel,
   todayDelta,
@@ -224,6 +238,9 @@ function MobileDashboardHero({
   receiptsToday: number;
   followUpCount: number;
   overdueAmount: number;
+  currentYearPending: number;
+  previousYearPending: number;
+  lateFeePending: number;
   updatedAt: string;
   currentInstallmentLabel?: string;
   todayDelta: KpiDelta | null;
@@ -289,7 +306,12 @@ function MobileDashboardHero({
             label: t("pending"),
             value: pending,
             tone: "warning" as const,
-            subtext: t("studentsCount", { count: followUpCount }),
+            subtext:
+              previousYearPending > 0
+                ? `Current ${formatInr(currentYearPending)} + old ${formatInr(previousYearPending)}${
+                    lateFeePending > 0 ? ` + late ${formatInr(lateFeePending)}` : ""
+                  }`
+                : t("studentsCount", { count: followUpCount }),
             href: "/protected/defaulters",
           },
           {
@@ -438,9 +460,15 @@ function HeroKpis({
         }
         hint={
           <span className="space-y-0.5">
-            <span className="block">{t("fullSessionDue", { count: followUpCount })}</span>
+            <span className="block">
+              {previousYearPending > 0
+                ? `Includes previous-year dues across ${followUpCount} students`
+                : t("fullSessionDue", { count: followUpCount })}
+            </span>
             <span className="block text-[11px]">
-              Current <Money value={currentYearPending} size="xs" /> · Old <Money value={previousYearPending} size="xs" /> · Late <Money value={lateFeePending} size="xs" />
+              Current year <Money value={currentYearPending} size="xs" /> · Previous year{" "}
+              <Money value={previousYearPending} size="xs" /> · Late fee{" "}
+              <Money value={lateFeePending} size="xs" />
             </span>
           </span>
         }
@@ -1185,26 +1213,36 @@ function InstallmentTrack({ installments }: { installments: DashboardInstallment
     },
   } as const;
 
+  const gridClass =
+    installments.length <= 4
+      ? "grid-cols-4"
+      : installments.length === 5
+        ? "grid-cols-5"
+        : "grid-cols-6";
+
   return (
     <Section title="Installment Progress" description="Across all due dates" variant="card">
       <div className="hidden sm:block">
         <div className="relative">
           <div className="absolute left-0 right-0 top-5 h-0.5 bg-border" />
-          <div className="relative grid grid-cols-4 gap-2">
+          <div className={cn("relative grid gap-2", gridClass)}>
             {installments.map((installment) => {
               const status = getStatus(installment);
               const config = statusConfig[status];
               const percent = Math.round(installment.collectionRate);
+              const isOldBalance = installment.isCarryForward === true;
               return (
-                <div key={installment.installmentNo} className="flex flex-col items-center gap-2">
+                <div key={`${installment.installmentNo}-${installment.installmentLabel}`} className="flex flex-col items-center gap-2">
                   <div
                     className={cn(
                       "relative z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 text-xs font-bold",
-                      config.ring,
+                      isOldBalance ? "border-amber-500 bg-amber-50 text-amber-700" : config.ring,
                     )}
                   >
                     {status === "done" ? (
                       <CheckCircle2 className="size-4 text-white" aria-hidden="true" />
+                    ) : isOldBalance ? (
+                      <span className="text-[10px] font-bold">Old</span>
                     ) : (
                       <span className={config.text}>{installment.installmentNo}</span>
                     )}
@@ -1254,16 +1292,19 @@ function InstallmentTrack({ installments }: { installments: DashboardInstallment
           const status = getStatus(installment);
           const config = statusConfig[status];
           const percent = Math.round(installment.collectionRate);
+          const isOldBalance = installment.isCarryForward === true;
           return (
-            <div key={installment.installmentNo} className="flex items-center gap-3">
+            <div key={`${installment.installmentNo}-${installment.installmentLabel}`} className="flex items-center gap-3">
               <div
                 className={cn(
                   "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold",
-                  config.ring,
+                  isOldBalance ? "border-amber-500 bg-amber-50 text-[10px] text-amber-700" : config.ring,
                 )}
               >
                 {status === "done" ? (
                   <CheckCircle2 className="size-3.5 text-white" aria-hidden="true" />
+                ) : isOldBalance ? (
+                  "Old"
                 ) : (
                   <span className={config.text}>{installment.installmentNo}</span>
                 )}
@@ -2082,6 +2123,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           receiptsToday={aboveFold.kpis.receiptsToday}
           followUpCount={aboveFold.studentsWithPending}
           overdueAmount={aboveFold.kpis.overdueAmount}
+          currentYearPending={aboveFold.kpis.currentYearPending ?? aboveFold.kpis.totalPending}
+          previousYearPending={aboveFold.kpis.previousYearPending ?? 0}
+          lateFeePending={aboveFold.kpis.lateFeePending ?? 0}
           updatedAt={aboveFold.generatedAt}
           currentInstallmentLabel={aboveFold.currentInstallment?.label}
           todayDelta={todayDelta}
@@ -2120,6 +2164,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         <InstallmentPulse
           installment={aboveFold.currentInstallment}
           pending={aboveFold.kpis.totalPending}
+          currentYearPending={aboveFold.kpis.currentYearPending ?? aboveFold.kpis.totalPending}
+          previousYearPending={aboveFold.kpis.previousYearPending ?? 0}
+          lateFeePending={aboveFold.kpis.lateFeePending ?? 0}
           followUpCount={aboveFold.studentsWithPending}
           t={t}
         />

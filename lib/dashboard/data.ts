@@ -4,6 +4,13 @@ import { cache } from "react";
 
 import { hasAnyRolePermission, type StaffRole } from "@/lib/auth/roles";
 import { getFeePolicySummary } from "@/lib/fees/data";
+import { getWorkbookInstallmentRows } from "@/lib/workbook/data";
+import {
+  buildCarryForwardSummary,
+  getCarryForwardSourceSession,
+  getDisplayInstallmentLabel,
+  isCarryForwardInstallment,
+} from "@/lib/prev-year-dues/display";
 import { getCacheSafeClient } from "@/lib/supabase/cache-safe";
 import {
   type DashboardClassSummaryRow,
@@ -236,6 +243,172 @@ function dedupeInstallmentDuplicates(result: DashboardSummaryRpcResult) {
   }
 }
 
+function normalizeInstallmentSummaryLabels(result: DashboardSummaryRpcResult) {
+  if (Array.isArray(result.followUpQueue)) {
+    result.followUpQueue = result.followUpQueue.map((row) => ({
+      ...row,
+      nextDueLabel: row.nextDueLabel
+        ? getDisplayInstallmentLabel({ installmentLabel: row.nextDueLabel })
+        : null,
+    }));
+  }
+
+  if (Array.isArray(result.installmentSummary)) {
+    result.installmentSummary = result.installmentSummary.map((row) => ({
+      ...row,
+      isCarryForward: isCarryForwardInstallment(row),
+      sourceSessionLabel: getCarryForwardSourceSession(row),
+      installmentLabel: getDisplayInstallmentLabel(row),
+    }));
+  }
+
+  if (Array.isArray(result.classInstallmentMatrix)) {
+    result.classInstallmentMatrix = result.classInstallmentMatrix.map((row) => ({
+      ...row,
+      installments: row.installments.map((installment) => ({
+        ...installment,
+        isCarryForward: isCarryForwardInstallment(installment),
+        sourceSessionLabel: getCarryForwardSourceSession(installment),
+        installmentLabel: getDisplayInstallmentLabel(installment),
+      })),
+    }));
+  }
+}
+
+function compareCarryForwardAwareInstallments(
+  left: Pick<DashboardInstallmentSummaryRow, "installmentNo" | "installmentLabel" | "isCarryForward" | "sourceSessionLabel">,
+  right: Pick<DashboardInstallmentSummaryRow, "installmentNo" | "installmentLabel" | "isCarryForward" | "sourceSessionLabel">,
+) {
+  const leftCarry = isCarryForwardInstallment(left);
+  const rightCarry = isCarryForwardInstallment(right);
+  if (leftCarry !== rightCarry) {
+    return leftCarry ? -1 : 1;
+  }
+
+  if (leftCarry && rightCarry) {
+    return getDisplayInstallmentLabel(left).localeCompare(getDisplayInstallmentLabel(right));
+  }
+
+  return left.installmentNo - right.installmentNo;
+}
+
+async function augmentCarryForwardDashboardResult(
+  sessionLabel: string,
+  result: DashboardSummaryRpcResult,
+) {
+  const hasSplit =
+    typeof result.kpis.currentYearPending === "number" ||
+    typeof result.kpis.previousYearPending === "number" ||
+    typeof result.kpis.lateFeePending === "number";
+
+  const hasCarryForwardLabel =
+    result.installmentSummary?.some((row) => isCarryForwardInstallment(row)) ||
+    result.classInstallmentMatrix?.some((row) =>
+      row.installments.some((installment) => isCarryForwardInstallment(installment)),
+    );
+
+  if (hasSplit && hasCarryForwardLabel) {
+    normalizeInstallmentSummaryLabels(result);
+    return;
+  }
+
+  try {
+    const installmentRows = await getWorkbookInstallmentRows({ sessionLabel });
+    const split = buildCarryForwardSummary(installmentRows);
+    result.kpis = {
+      ...result.kpis,
+      currentYearPending: split.currentYearPending,
+      previousYearPending: split.previousYearPending,
+      previousYearCollected: split.previousYearCollected,
+      lateFeePending: split.lateFeePending,
+    };
+
+    const installmentSummaryByKey = new Map<
+      string,
+      {
+        installmentNo: number;
+        installmentLabel: string;
+        isCarryForward: boolean;
+        sourceSessionLabel: string | null;
+      }
+    >();
+    const carryForwardMetadataByInstallmentNo = new Map<
+      number,
+      {
+        installmentNo: number;
+        installmentLabel: string;
+        isCarryForward: boolean;
+        sourceSessionLabel: string | null;
+      }
+    >();
+    for (const row of installmentRows) {
+      const isCarryForward = isCarryForwardInstallment(row);
+      const key = isCarryForward
+        ? `carry-forward:${getCarryForwardSourceSession(row) ?? row.installmentLabel}`
+        : `installment:${row.installmentNo}`;
+      if (!installmentSummaryByKey.has(key)) {
+        installmentSummaryByKey.set(key, {
+          installmentNo: row.installmentNo,
+          installmentLabel: getDisplayInstallmentLabel(row),
+          isCarryForward,
+          sourceSessionLabel: getCarryForwardSourceSession(row),
+        });
+      }
+      if (isCarryForward && !carryForwardMetadataByInstallmentNo.has(row.installmentNo)) {
+        carryForwardMetadataByInstallmentNo.set(row.installmentNo, {
+          installmentNo: row.installmentNo,
+          installmentLabel: getDisplayInstallmentLabel(row),
+          isCarryForward,
+          sourceSessionLabel: getCarryForwardSourceSession(row),
+        });
+      }
+    }
+
+    result.installmentSummary = result.installmentSummary.map((row) => {
+      const key = isCarryForwardInstallment(row)
+        ? `carry-forward:${getCarryForwardSourceSession(row) ?? row.installmentLabel}`
+        : `installment:${row.installmentNo}`;
+      const metadata =
+        installmentSummaryByKey.get(key) ??
+        carryForwardMetadataByInstallmentNo.get(row.installmentNo);
+      if (!metadata) {
+        return {
+          ...row,
+          installmentLabel: getDisplayInstallmentLabel(row),
+          isCarryForward: isCarryForwardInstallment(row),
+          sourceSessionLabel: getCarryForwardSourceSession(row),
+        };
+      }
+      return { ...row, ...metadata };
+    }).sort(compareCarryForwardAwareInstallments);
+
+    result.classInstallmentMatrix = result.classInstallmentMatrix.map((row) => ({
+      ...row,
+      installments: row.installments.map((installment) => {
+        const key = isCarryForwardInstallment(installment)
+          ? `carry-forward:${getCarryForwardSourceSession(installment) ?? installment.installmentLabel}`
+          : `installment:${installment.installmentNo}`;
+        const metadata =
+          installmentSummaryByKey.get(key) ??
+          carryForwardMetadataByInstallmentNo.get(installment.installmentNo);
+        if (!metadata) {
+          return {
+            ...installment,
+            installmentLabel: getDisplayInstallmentLabel(installment),
+            isCarryForward: isCarryForwardInstallment(installment),
+            sourceSessionLabel: getCarryForwardSourceSession(installment),
+          };
+        }
+        return { ...installment, ...metadata };
+      }).sort(compareCarryForwardAwareInstallments),
+    }));
+    normalizeInstallmentSummaryLabels(result);
+  } catch (caught) {
+    console.warn("[dashboard-carry-forward] split augmentation failed:", caught);
+    normalizeInstallmentSummaryLabels(result);
+  }
+}
+
 // P1-1: fetch a wider window of daily receipt totals so the heatmap
 // component can let the user step backwards through prior months without a
 // network round-trip. The RPC only returns the current-month slice, so we
@@ -421,6 +594,7 @@ const _getDashboardSummaryCached = cache(
     );
     const result = data as unknown as DashboardSummaryRpcResult;
     dedupeInstallmentDuplicates(result);
+    await augmentCarryForwardDashboardResult(sessionLabel, result);
     return result;
   },
 );

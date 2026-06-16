@@ -42,6 +42,7 @@ describe("carry-forward display helpers", () => {
     expect(isCarryForwardInstallment(row({ isCarryForward: true }))).toBe(true);
     expect(isCarryForwardInstallment(row({ feeBucket: "previous_year_tuition" }))).toBe(true);
     expect(isCarryForwardInstallment(row({ installmentLabel: "Previous year tuition balance (2025-26)" }))).toBe(true);
+    expect(isCarryForwardInstallment(row({ installmentLabel: "Previous year tuition balance from 2025-26" }))).toBe(true);
     expect(isCarryForwardInstallment(row({ installmentNo: 99, installmentLabel: "Quarter 99" }))).toBe(false);
   });
 

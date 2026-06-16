@@ -9,6 +9,7 @@ import { cacheSafeUnstableCache, getCacheSafeClient } from "@/lib/supabase/cache
 import { getOptionalEnvVar, hasRequiredEnvVars } from "@/lib/env";
 import { getActiveSessionLabel } from "@/lib/session/active";
 import { setActiveSessionLabel } from "@/lib/session/set-active";
+import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
 import type { PaymentMode } from "@/lib/db/types";
 import {
   buildDefaultFeePolicySummary,
@@ -1937,7 +1938,9 @@ async function getStudentFinancialSnapshotUncached(
       openInstallments: workbookBalances.length,
       overdueInstallments: workbookBalances.filter((row) => row.balance_status === "overdue").length,
       nextDueDate: workbookStudent?.next_due_date ?? null,
-      nextDueLabel: workbookStudent?.next_due_label ?? null,
+      nextDueLabel: workbookStudent?.next_due_label
+        ? getDisplayInstallmentLabel({ installmentLabel: workbookStudent.next_due_label })
+        : null,
       nextDueAmount: workbookStudent?.next_due_amount ?? null,
       activeOverrideReason: resolved.activeOverrideReason,
     };
@@ -1970,7 +1973,9 @@ async function getStudentFinancialSnapshotUncached(
     openInstallments: balanceRows.length,
     overdueInstallments: balanceRows.filter((row) => row.balance_status === "overdue").length,
     nextDueDate: nextDue?.due_date ?? null,
-    nextDueLabel: nextDue?.installment_label ?? null,
+    nextDueLabel: nextDue?.installment_label
+      ? getDisplayInstallmentLabel({ installmentLabel: nextDue.installment_label })
+      : null,
     nextDueAmount: nextDue?.outstanding_amount ?? null,
     activeOverrideReason: resolved.activeOverrideReason,
   };

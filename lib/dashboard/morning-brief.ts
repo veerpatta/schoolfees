@@ -21,7 +21,8 @@ export type MorningBriefTranslator = (
     | "morningBriefFollowUpOverdue"
     | "morningBriefFollowUpDueToday"
     | "morningBriefFollowUpInstallment"
-    | "morningBriefFollowUp",
+    | "morningBriefFollowUp"
+    | "morningBriefAmountWithOldBalance",
   values?: Record<string, string | number>,
 ) => string;
 
@@ -50,7 +51,15 @@ export function composeMorningBrief({
     return t("morningBriefAllClear");
   }
 
-  const amount = formatInr(kpis.totalPending);
+  const oldBalance = kpis.previousYearPending ?? 0;
+  const amount =
+    oldBalance > 0
+      ? t("morningBriefAmountWithOldBalance", {
+          total: formatInr(kpis.totalPending),
+          previousYear: formatInr(oldBalance),
+          currentYear: formatInr(Math.max(kpis.totalPending - oldBalance, 0)),
+        })
+      : formatInr(kpis.totalPending);
   const count = followUpCount;
 
   if (currentInstallment) {

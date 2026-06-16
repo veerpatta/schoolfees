@@ -6,6 +6,7 @@ import { getStudentFormOptions } from "@/lib/students/data";
 import { formatPaymentModeLabel } from "@/lib/config/fee-rules";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { calculateInstallmentBasePending } from "@/lib/fees/due-amounts";
+import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
 
 import type {
   AdjustmentType,
@@ -109,6 +110,9 @@ type WorkbookInstallmentBalanceReportRow = {
   stream_name: string;
   installment_no: number;
   installment_label: string;
+  is_carry_forward?: boolean | null;
+  source_session_label?: string | null;
+  carry_forward_fee_head?: string | null;
   due_date: string;
   base_charge: number;
   final_late_fee: number;
@@ -169,6 +173,10 @@ type LedgerReceiptRow = {
 
 type LedgerInstallmentRow = {
   installment_label: string;
+  installment_no?: number | null;
+  is_carry_forward?: boolean | null;
+  source_session_label?: string | null;
+  carry_forward_fee_head?: string | null;
   due_date: string;
 };
 
@@ -710,7 +718,13 @@ async function getOutstandingReportData(
               : null,
           ),
           installmentNo: row.installment_no,
-          installmentLabel: row.installment_label,
+          installmentLabel: getDisplayInstallmentLabel({
+            installmentNo: row.installment_no,
+            installmentLabel: row.installment_label,
+            is_carry_forward: row.is_carry_forward,
+            source_session_label: row.source_session_label,
+            fee_bucket: row.carry_forward_fee_head ? `previous_year_${row.carry_forward_fee_head}` : null,
+          }),
           dueDate: row.due_date,
           amountDue: row.total_charge,
           lateFeeAmount: row.final_late_fee,
@@ -1019,7 +1033,13 @@ async function getStudentLedgerReportData(
         createdAt: row.created_at,
         paymentDate: receipt.payment_date,
         receiptNumber: receipt.receipt_number,
-        installmentLabel: installment.installment_label,
+        installmentLabel: getDisplayInstallmentLabel({
+          installmentNo: installment.installment_no,
+          installmentLabel: installment.installment_label,
+          is_carry_forward: installment.is_carry_forward,
+          source_session_label: installment.source_session_label,
+          fee_bucket: installment.carry_forward_fee_head ? `previous_year_${installment.carry_forward_fee_head}` : null,
+        }),
         dueDate: installment.due_date,
         paymentMode: receipt.payment_mode,
         paymentAmount: row.amount,
