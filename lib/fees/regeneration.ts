@@ -46,6 +46,7 @@ type ExistingInstallmentRow = {
   amount_due: number;
   late_fee_flat_amount: number;
   status: "scheduled" | "waived" | "cancelled";
+  is_carry_forward: boolean;
 };
 
 type InstallmentAmountRow = {
@@ -334,7 +335,7 @@ async function loadPlan(): Promise<RegenerationPlan> {
     const { data: installmentsRaw, error: installmentsError } = await supabase
       .from("installments")
       .select(
-        "id, student_id, class_id, fee_setting_id, student_fee_override_id, installment_no, installment_label, due_date, base_amount, transport_amount, discount_amount, amount_due, late_fee_flat_amount, status",
+        "id, student_id, class_id, fee_setting_id, student_fee_override_id, installment_no, installment_label, due_date, base_amount, transport_amount, discount_amount, amount_due, late_fee_flat_amount, status, is_carry_forward",
       )
       .in("student_id", studentIds);
 
@@ -652,6 +653,8 @@ async function loadPlan(): Promise<RegenerationPlan> {
     existingInstallments
       .filter((row) => row.student_id === student.id)
       .filter((row) => row.installment_no > setupData.globalPolicy.installmentCount)
+      // Never propose cancelling a carry-forward (previous-year dues) line.
+      .filter((row) => !row.is_carry_forward)
       .forEach((row) => {
         if (row.status === "waived" || row.status === "cancelled") {
           rows.push({
