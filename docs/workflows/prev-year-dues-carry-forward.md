@@ -51,7 +51,7 @@ Interpretation:
 
 ### 1. Apply the migration (one-time per environment)
 
-`supabase/migrations/20260616120000_prev_year_dues_carry_forward.sql` — adds
+`supabase/migrations/20260616054508_prev_year_dues_carry_forward.sql` — adds
 `installments.is_carry_forward` plus `prev_year_import_batches` /
 `prev_year_import_rows` audit tables. Apply via `supabase db push` (preferred)
 or the MCP (then rename the file to the recorded version — see CLAUDE.md).
