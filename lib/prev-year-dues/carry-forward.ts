@@ -5,12 +5,17 @@ import {
   CARRY_FORWARD_LABEL,
   CARRY_FORWARD_LATE_FEE_FLAT_AMOUNT,
 } from "@/lib/prev-year-dues/constants";
+import { buildCarryForwardLabel } from "@/lib/prev-year-dues/display";
 
 export type CarryForwardInstallmentInput = {
   studentId: string;
   classId: string;
   feeSettingId: string;
   amount: number;
+  sourceSessionLabel?: string;
+  targetSessionLabel?: string;
+  carryForwardBalanceId?: string;
+  feeHead?: "tuition";
   /** installment_no values that already exist for this (student, class). */
   existingInstallmentNos?: number[];
   dueDate?: string;
@@ -29,6 +34,10 @@ export type CarryForwardInstallmentPayload = {
   late_fee_flat_amount: 0;
   status: "scheduled";
   is_carry_forward: true;
+  carry_forward_balance_id?: string;
+  source_session_label?: string;
+  target_session_label?: string;
+  carry_forward_fee_head?: "tuition";
 };
 
 /**
@@ -73,7 +82,9 @@ export function buildCarryForwardInstallment(
     class_id: input.classId,
     fee_setting_id: input.feeSettingId,
     installment_no: selectCarryForwardInstallmentNo(input.existingInstallmentNos),
-    installment_label: CARRY_FORWARD_LABEL,
+    installment_label: input.sourceSessionLabel
+      ? buildCarryForwardLabel({ sourceSessionLabel: input.sourceSessionLabel, feeHead: input.feeHead ?? "tuition" })
+      : CARRY_FORWARD_LABEL,
     due_date: input.dueDate ?? CARRY_FORWARD_DUE_DATE,
     base_amount: amount,
     transport_amount: 0,
@@ -81,5 +92,9 @@ export function buildCarryForwardInstallment(
     late_fee_flat_amount: CARRY_FORWARD_LATE_FEE_FLAT_AMOUNT,
     status: "scheduled",
     is_carry_forward: true,
+    ...(input.carryForwardBalanceId ? { carry_forward_balance_id: input.carryForwardBalanceId } : {}),
+    ...(input.sourceSessionLabel ? { source_session_label: input.sourceSessionLabel } : {}),
+    ...(input.targetSessionLabel ? { target_session_label: input.targetSessionLabel } : {}),
+    carry_forward_fee_head: input.feeHead ?? "tuition",
   };
 }

@@ -17,6 +17,8 @@ type PayeeSummaryStripProps = {
     fatherPhone: string | null;
     studentStatusLabel: string;
     totalPending: number;
+    currentYearPending?: number;
+    pendingLateFeeAmount?: number;
     overdueAmount: number;
     creditBalance: number;
     /** Pending previous-year carry-forward balance (allocated first). 0 when none. */
@@ -45,6 +47,8 @@ export function PayeeSummaryStrip({
   className,
 }: PayeeSummaryStripProps) {
   const t = useTranslations("Payments");
+  const currentYearPending = student.currentYearPending ?? Math.max(student.totalPending - student.oldBalanceAmount, 0);
+  const pendingLateFeeAmount = student.pendingLateFeeAmount ?? 0;
   const hasRiskPills =
     student.overdueAmount > 0 ||
     student.creditBalance > 0 ||
@@ -106,6 +110,29 @@ export function PayeeSummaryStrip({
                 </a>
               ) : null}
             </div>
+
+            {student.totalPending > 0 ? (
+              <div className="mt-3 grid gap-2 border-t border-border pt-3 text-xs sm:grid-cols-3">
+                <div className="rounded-md bg-surface-2 px-2.5 py-2">
+                  <p className="text-muted-foreground">Current year dues</p>
+                  <p className="mt-0.5 font-mono font-semibold text-foreground">
+                    {formatInr(currentYearPending)}
+                  </p>
+                </div>
+                <div className="rounded-md bg-warning-soft px-2.5 py-2 text-warning-soft-foreground">
+                  <p className="opacity-80">Previous year balance</p>
+                  <p className="mt-0.5 font-mono font-semibold">
+                    {formatInr(student.oldBalanceAmount)}
+                  </p>
+                </div>
+                <div className="rounded-md bg-surface-2 px-2.5 py-2">
+                  <p className="text-muted-foreground">Late fee pending</p>
+                  <p className="mt-0.5 font-mono font-semibold text-foreground">
+                    {formatInr(pendingLateFeeAmount)}
+                  </p>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 

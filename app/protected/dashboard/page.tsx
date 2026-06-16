@@ -353,6 +353,9 @@ function HeroKpis({
   receiptsToday,
   followUpCount,
   overdueAmount,
+  currentYearPending,
+  previousYearPending,
+  lateFeePending,
   totalCollected,
   totalExpected,
   todayDelta,
@@ -364,6 +367,9 @@ function HeroKpis({
   receiptsToday: number;
   followUpCount: number;
   overdueAmount: number;
+  currentYearPending: number;
+  previousYearPending: number;
+  lateFeePending: number;
   totalCollected: number;
   totalExpected: number;
   todayDelta: KpiDelta | null;
@@ -430,7 +436,14 @@ function HeroKpis({
             className="text-xl font-semibold tracking-tight md:text-2xl lg:text-xl xl:text-2xl"
           />
         }
-        hint={t("fullSessionDue", { count: followUpCount })}
+        hint={
+          <span className="space-y-0.5">
+            <span className="block">{t("fullSessionDue", { count: followUpCount })}</span>
+            <span className="block text-[11px]">
+              Current <Money value={currentYearPending} size="xs" /> · Old <Money value={previousYearPending} size="xs" /> · Late <Money value={lateFeePending} size="xs" />
+            </span>
+          </span>
+        }
       />
 
       {/* Collection rate - arc gauge */}
@@ -497,6 +510,18 @@ function MobileSecondaryKpis({ kpis, t }: { kpis: DashboardKpis; t: DashboardTra
       label: t("thisMonth"),
       value: <Money value={kpis.thisMonthCollection} size="sm" tone="success" />,
       hint: t("monthlyReceipts"),
+    },
+    {
+      key: "previousYearPending",
+      label: "Old balance",
+      value: <Money value={kpis.previousYearPending ?? 0} size="sm" tone="warning" />,
+      hint: "Previous-year dues",
+    },
+    {
+      key: "lateFeePending",
+      label: "Late fee",
+      value: <Money value={kpis.lateFeePending ?? 0} size="sm" tone="warning" />,
+      hint: "Pending late fee",
     },
   ];
 
@@ -2071,6 +2096,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           receiptsToday={aboveFold.kpis.receiptsToday}
           followUpCount={aboveFold.studentsWithPending}
           overdueAmount={aboveFold.kpis.overdueAmount}
+          currentYearPending={aboveFold.kpis.currentYearPending ?? aboveFold.kpis.totalPending}
+          previousYearPending={aboveFold.kpis.previousYearPending ?? 0}
+          lateFeePending={aboveFold.kpis.lateFeePending ?? 0}
           totalCollected={aboveFold.kpis.totalCollected}
           totalExpected={aboveFold.kpis.totalExpectedFees}
           todayDelta={todayDelta}

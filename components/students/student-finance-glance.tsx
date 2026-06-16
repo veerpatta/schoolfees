@@ -7,6 +7,10 @@ import { InstallmentRowDetail } from "@/components/fees/installment-row-detail";
 import { Section } from "@/components/ui/section";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
+import {
+  getDisplayInstallmentLabel,
+  isCarryForwardInstallment,
+} from "@/lib/prev-year-dues/display";
 import { cn } from "@/lib/utils";
 
 type FeeHeadRow = { label: string; amount: number };
@@ -249,7 +253,9 @@ function InstallmentsBlock({ installments }: { installments: InstallmentSnapshot
               )}
             >
               <div className="flex items-center justify-between gap-1.5">
-                <span className="font-semibold">Inst {item.installmentNo}</span>
+                <span className="font-semibold">
+                  {isCarryForwardInstallment(item) ? "Old balance" : `Inst ${item.installmentNo}`}
+                </span>
                 <span className="text-[10px] font-medium uppercase tracking-wide">
                   {isPaid ? "✓ Paid" : isOverdue ? "Overdue" : isPartial ? "Partial" : "Pending"}
                 </span>
@@ -275,7 +281,7 @@ function InstallmentsBlock({ installments }: { installments: InstallmentSnapshot
           <div className="mt-3">
             <InstallmentRowDetail
               installmentNo={detail.installmentNo}
-              installmentLabel={detail.installmentLabel}
+              installmentLabel={getDisplayInstallmentLabel(detail)}
               dueDate={detail.dueDate}
               baseCharge={detail.baseCharge ?? Math.max(detail.paidAmount + detail.pendingAmount - detail.finalLateFee, 0)}
               rawLateFee={detail.rawLateFee ?? detail.finalLateFee + (detail.waiverApplied ?? 0)}

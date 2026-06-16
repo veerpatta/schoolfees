@@ -13,6 +13,10 @@ import {
 } from "@/lib/system-sync/finance-sync";
 import { logError, logWarn } from "@/lib/observability/log";
 import { getWorkbookStudentFinancials } from "@/lib/workbook/data";
+import {
+  getDisplayInstallmentLabel,
+  isCarryForwardInstallment,
+} from "@/lib/prev-year-dues/display";
 import type {
   InstallmentBalanceItem,
   PaymentDeskStudentSummary,
@@ -66,6 +70,10 @@ type PaymentPreviewRpcRow = {
   installment_id: string;
   installment_no: number;
   installment_label: string;
+  is_carry_forward?: boolean | null;
+  source_session_label?: string | null;
+  target_session_label?: string | null;
+  carry_forward_fee_head?: string | null;
   due_date: string;
   total_charge: number;
   paid_amount: number;
@@ -1774,18 +1782,35 @@ async function getPaymentDateAwareInstallmentBalancesUncached(payload: {
     throw new Error(toFriendlyPaymentPreviewError(error));
   }
 
-  return ((data ?? []) as PaymentPreviewRpcRow[]).map((row) => ({
-    installmentId: row.installment_id,
-    installmentNo: row.installment_no,
-    installmentLabel: row.installment_label,
-    dueDate: row.due_date,
-    amountDue: row.total_charge,
-    paymentsTotal: row.paid_amount,
-    adjustmentsTotal: row.adjustment_amount,
-    outstandingAmount: row.pending_amount,
-    rawLateFee: row.raw_late_fee,
-    waiverApplied: row.waiver_applied,
-    finalLateFee: row.final_late_fee,
-    balanceStatus: row.balance_status,
-  })) satisfies InstallmentBalanceItem[];
+  return ((data ?? []) as PaymentPreviewRpcRow[]).map((row) => {
+    const isCarryForward = isCarryForwardInstallment({
+      installmentLabel: row.installment_label,
+      isCarryForward: row.is_carry_forward ?? undefined,
+      feeBucket: row.carry_forward_fee_head ? `previous_year_${row.carry_forward_fee_head}` : undefined,
+    });
+    return {
+      installmentId: row.installment_id,
+      installmentNo: row.installment_no,
+      installmentLabel: row.installment_label,
+      displayLabel: getDisplayInstallmentLabel({
+        installmentLabel: row.installment_label,
+        installmentNo: row.installment_no,
+        isCarryForward,
+        sourceSessionLabel: row.source_session_label ?? null,
+      }),
+      isCarryForward,
+      sourceSessionLabel: row.source_session_label ?? null,
+      targetSessionLabel: row.target_session_label ?? null,
+      feeBucket: row.carry_forward_fee_head ? `previous_year_${row.carry_forward_fee_head}` : null,
+      dueDate: row.due_date,
+      amountDue: row.total_charge,
+      paymentsTotal: row.paid_amount,
+      adjustmentsTotal: row.adjustment_amount,
+      outstandingAmount: row.pending_amount,
+      rawLateFee: row.raw_late_fee,
+      waiverApplied: row.waiver_applied,
+      finalLateFee: row.final_late_fee,
+      balanceStatus: row.balance_status,
+    };
+  }) satisfies InstallmentBalanceItem[];
 }

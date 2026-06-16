@@ -15,7 +15,7 @@ import {
   refreshDefaulterRecoveryState,
 } from "@/lib/defaulters/contacts";
 import { resolvePromiseStatus } from "@/lib/defaulters/promise-lifecycle";
-import { CARRY_FORWARD_LABEL } from "@/lib/prev-year-dues/constants";
+import { isCarryForwardInstallment } from "@/lib/prev-year-dues/display";
 
 import type {
   DefaulterFilters,
@@ -273,13 +273,13 @@ export async function getDefaultersPageData(
   // Per-student paid-installment timing: on-time when the installment was fully
   // cleared on or before its due date. Used only for behavior classification.
   const paymentTimingByStudent = new Map<string, { onTime: number; late: number }>();
-  // Pending previous-year carry-forward balance per student, keyed off the
-  // canonical carry-forward installment label. Drives the "Old balance" chip
-  // and the previous-year-dues filter. Carried over from allInstallmentRows
-  // (which includes paid rows) so we can read the live pending amount.
+  // Pending previous-year carry-forward balance per student. Drives the "Old
+  // balance" chip and the previous-year-dues filter. Carried over from
+  // allInstallmentRows (which includes paid rows) so we can read the live
+  // pending amount.
   const prevYearDuesByStudent = new Map<string, number>();
   for (const inst of allInstallmentRows) {
-    if (inst.installmentLabel === CARRY_FORWARD_LABEL && inst.pendingAmount > 0) {
+    if (isCarryForwardInstallment(inst) && inst.pendingAmount > 0) {
       prevYearDuesByStudent.set(
         inst.studentId,
         (prevYearDuesByStudent.get(inst.studentId) ?? 0) + inst.pendingAmount,
@@ -597,7 +597,7 @@ export async function getDefaulterExportRows(
 
   const prevYearDuesStudentIds = new Set(
     prevYearDuesRows
-      .filter((row) => row.installmentLabel === CARRY_FORWARD_LABEL && row.pendingAmount > 0)
+      .filter((row) => isCarryForwardInstallment(row) && row.pendingAmount > 0)
       .map((row) => row.studentId),
   );
 

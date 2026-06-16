@@ -1,12 +1,11 @@
-// Canonical constants for the previous-year (2025-26) dues carry-forward.
-// Kept in one place so the parser, matcher, dry-run script, apply path, and
-// tests all agree on the exact label / sentinel / dates.
+// Legacy constants for the first previous-year (2025-26) dues carry-forward.
+// New code should prefer carry-forward metadata (`is_carry_forward`,
+// `student_carry_forward_balances`, source/target sessions, and fee bucket).
 
 /**
- * The installment_label that uniquely identifies a carry-forward line. This is
- * the human-readable key; `installments.is_carry_forward = true` is the machine
- * key the Fee Setup regeneration sweep tests against. Idempotency is detected
- * by `(student_id, CARRY_FORWARD_LABEL)`.
+ * Legacy installment_label used by the first 2025-26 import. Kept only for
+ * backwards-compatible display and migration fallback; it is not the future
+ * identity key for carry-forward dues.
  */
 export const CARRY_FORWARD_LABEL = "Previous year tuition balance (2025-26)";
 
@@ -28,6 +27,6 @@ export const CARRY_FORWARD_DUE_DATE = "2026-04-01";
 /** Hard rule: prior-year dues never carry a late fee. */
 export const CARRY_FORWARD_LATE_FEE_FLAT_AMOUNT = 0;
 
-/** Rollback predicate (scoped to a batch via prev_year_import_rows). */
+/** Legacy rollback hint. Prefer `student_carry_forward_balances` batch links. */
 export const CARRY_FORWARD_ROLLBACK_HINT =
   `delete from public.installments where is_carry_forward = true and installment_label = '${CARRY_FORWARD_LABEL}'`;

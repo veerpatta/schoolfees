@@ -18,8 +18,6 @@ import * as XLSX from "xlsx";
 
 import { parseRows, planRows } from "./prev-year-dues-core.mjs";
 
-const PREV_LABEL = "Previous year tuition balance (2025-26)";
-
 // ----- env loading (matches scripts/verify-live-fee-health.mjs) -------------
 function loadEnvFile(path) {
   if (!existsSync(path)) return;
@@ -67,7 +65,9 @@ async function main() {
   const supabase = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
 
   // Read-only: students in the target session + active fee settings + existing
-  // carry-forwards (detected by label, since is_carry_forward may not yet exist).
+  // carry-forwards. Prefer the first-class balance table; fall back to the
+  // legacy installment marker for databases that have not run the newer
+  // migration yet.
   const { data: studentsRaw, error: sErr } = await supabase
     .from("students")
     .select("id, admission_no, full_name, father_name, primary_phone, class_id, classes!inner(session_label, status)")
@@ -88,12 +88,26 @@ async function main() {
   }
   const feeByClass = new Map((feeSettings ?? []).map((f) => [f.class_id, f.id]));
 
-  const { data: existingCf, error: cErr } = await supabase
-    .from("installments")
+  let existingCf = [];
+  const carryForwardBalanceResult = await supabase
+    .from("student_carry_forward_balances")
     .select("student_id")
-    .eq("installment_label", PREV_LABEL);
-  if (cErr) {
-    console.error("installments query failed:", cErr.message);
+    .eq("target_session_label", sessionLabel)
+    .neq("status", "cancelled");
+  if (!carryForwardBalanceResult.error) {
+    existingCf = carryForwardBalanceResult.data ?? [];
+  } else if (["42P01", "42703"].includes(carryForwardBalanceResult.error.code)) {
+    const { data, error: cErr } = await supabase
+      .from("installments")
+      .select("student_id")
+      .eq("is_carry_forward", true);
+    if (cErr) {
+      console.error("installments query failed:", cErr.message);
+      process.exit(1);
+    }
+    existingCf = data ?? [];
+  } else {
+    console.error("carry-forward balance query failed:", carryForwardBalanceResult.error.message);
     process.exit(1);
   }
   const cfStudents = new Set((existingCf ?? []).map((r) => r.student_id));

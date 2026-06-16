@@ -87,6 +87,11 @@ export type InstallmentBalanceItem = {
   installmentId: string;
   installmentNo: number;
   installmentLabel: string;
+  displayLabel?: string;
+  isCarryForward?: boolean;
+  sourceSessionLabel?: string | null;
+  targetSessionLabel?: string | null;
+  feeBucket?: string | null;
   dueDate: string;
   amountDue: number;
   paymentsTotal: number;
@@ -102,6 +107,9 @@ export type PaymentAllocationItem = {
   installmentId: string;
   installmentNo: number;
   installmentLabel: string;
+  displayLabel?: string;
+  isCarryForward?: boolean;
+  sourceSessionLabel?: string | null;
   dueDate: string;
   outstandingBefore: number;
   allocatedAmount: number;

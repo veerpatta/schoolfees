@@ -3,6 +3,10 @@ import { AlertTriangle, Check, CircleDashed, Clock, Tag } from "lucide-react";
 import { Money } from "@/components/ui/money";
 import { MoneyWithDefinition } from "@/components/ui/money-with-definition";
 import { formatShortDate } from "@/lib/helpers/date";
+import {
+  getDisplayInstallmentLabel,
+  isCarryForwardInstallment,
+} from "@/lib/prev-year-dues/display";
 import { cn } from "@/lib/utils";
 
 export type InstallmentRowStatus = "paid" | "partial" | "overdue" | "pending" | "waived";
@@ -114,16 +118,19 @@ export function InstallmentRowDetail({
 }: InstallmentRowDetailProps) {
   const meta = STATUS_META[status];
   const StatusIcon = meta.icon;
+  const isCarryForward = isCarryForwardInstallment({ installmentLabel, installmentNo });
+  const displayLabel = getDisplayInstallmentLabel({ installmentLabel, installmentNo });
 
   return (
     <article
       data-installment-row={installmentNo}
+      aria-label={displayLabel}
       className={cn("rounded-lg border p-3 text-sm anim-fade-in", meta.wrap, className)}
     >
       <header className="flex items-baseline justify-between gap-2">
         <div>
           <p className="font-semibold text-foreground">
-            Inst {installmentNo}
+            {isCarryForward ? "Old balance" : `Inst ${installmentNo}`}
             <span className="ml-1.5 font-normal text-muted-foreground">
               · {installmentLabel || `Installment ${installmentNo}`}
             </span>

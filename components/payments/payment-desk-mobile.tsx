@@ -38,7 +38,11 @@ import {
   calculateOverdueBaseAmount,
   calculatePendingLateFeeAmount,
 } from "@/lib/fees/due-amounts";
-import { CARRY_FORWARD_LABEL } from "@/lib/prev-year-dues/constants";
+import {
+  buildCarryForwardSummary,
+  getDisplayInstallmentLabel,
+  isCarryForwardInstallment,
+} from "@/lib/prev-year-dues/display";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import {
   buildPaymentConfirmationSummary,
@@ -447,11 +451,8 @@ export function PaymentDeskClient({
     0,
   );
   const previewOverdueAmount = calculateOverdueBaseAmount(previewBreakdown);
-  const previewOldBalance = previewBreakdown.reduce(
-    (sum, item) =>
-      item.installmentLabel === CARRY_FORWARD_LABEL ? sum + item.outstandingAmount : sum,
-    0,
-  );
+  const pendingSplit = useMemo(() => buildCarryForwardSummary(previewBreakdown), [previewBreakdown]);
+  const previewOldBalance = pendingSplit.previousYearPending;
   const previewNextDue =
     previewBreakdown.find((item) => item.outstandingAmount > 0) ?? null;
   const paymentAmount = Number(paymentAmountInput) || 0;
@@ -2125,7 +2126,7 @@ export function PaymentDeskClient({
                             "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium",
                             pillCls,
                           )}
-                          title={`Inst ${item.installmentNo}: ${
+                          title={`${item.displayLabel ?? getDisplayInstallmentLabel(item)}: ${
                             isPaid
                               ? `paid ${formatInr(item.paymentsTotal)}`
                               : isOverdue
@@ -2135,7 +2136,7 @@ export function PaymentDeskClient({
                                   : `pending ${formatInr(item.outstandingAmount)}`
                           }`}
                         >
-                          Inst {item.installmentNo} {symbol}
+                          {isCarryForwardInstallment(item) ? "Old balance" : `Inst ${item.installmentNo}`} {symbol}
                         </span>
                       );
                     })}
@@ -2157,7 +2158,7 @@ export function PaymentDeskClient({
                     return (
                       <div key={row.installmentId} className="flex items-center justify-between gap-2 px-3 py-2">
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-foreground">{row.installmentLabel}</p>
+                          <p className="truncate text-foreground">{row.displayLabel ?? getDisplayInstallmentLabel(row)}</p>
                           <p className="text-[10px] text-muted-foreground">
                             Due {row.dueDate}
                             {row.finalLateFee > 0 ? (
@@ -2775,6 +2776,8 @@ export function PaymentDeskClient({
                     fatherPhone: selectedStudent.fatherPhone,
                     studentStatusLabel: selectedStudent.studentStatusLabel,
                     totalPending: previewTotalPending,
+                    currentYearPending: pendingSplit.currentYearPending,
+                    pendingLateFeeAmount: pendingSplit.lateFeePending,
                     overdueAmount: previewOverdueAmount,
                     creditBalance: creditBalance,
                     oldBalanceAmount: previewOldBalance,
@@ -3044,7 +3047,7 @@ export function PaymentDeskClient({
                   <p className="mt-1 text-[11px] text-muted-foreground">
                     Allocating:{" "}
                     {allocationPreview
-                      .map((item) => `${item.installmentLabel} ${formatInr(item.allocatedAmount)}`)
+                      .map((item) => `${item.displayLabel ?? getDisplayInstallmentLabel(item)} ${formatInr(item.allocatedAmount)}`)
                       .join(" · ")}
                   </p>
                 ) : null}
@@ -3195,7 +3198,7 @@ export function PaymentDeskClient({
                 />
                 <MetricCard
                   title="Next due installment"
-                  value={previewNextDue?.installmentLabel ?? "No pending dues"}
+                  value={previewNextDue ? (previewNextDue.displayLabel ?? getDisplayInstallmentLabel(previewNextDue)) : "No pending dues"}
                   hint={
                     previewNextDue
                       ? `${previewNextDue.dueDate} - ${formatInr(previewNextDue.outstandingAmount)}`
@@ -3234,7 +3237,7 @@ export function PaymentDeskClient({
                   style={{ animationDelay: `${index * 40}ms` }}
                 >
                   <div className="flex items-center justify-between">
-                    <p className="font-semibold text-foreground">{item.installmentLabel}</p>
+                    <p className="font-semibold text-foreground">{item.displayLabel ?? getDisplayInstallmentLabel(item)}</p>
                     <ValueStatePill tone={item.balanceStatus === "paid" ? "locked" : item.balanceStatus === "partial" || item.balanceStatus === "overdue" ? "review" : "calculated"} className="normal-case tracking-normal">
                       {item.balanceStatus}
                     </ValueStatePill>
@@ -3272,7 +3275,7 @@ export function PaymentDeskClient({
                 <tbody>
                   {previewBreakdown.map((item) => (
                     <tr key={item.installmentId} className="border-t border-border text-foreground">
-                      <td className="px-4 py-3">{item.installmentLabel}</td>
+                      <td className="px-4 py-3">{item.displayLabel ?? getDisplayInstallmentLabel(item)}</td>
                       <td className="px-4 py-3">{item.dueDate}</td>
                       <td className="px-4 py-3">{formatInr(item.amountDue - item.finalLateFee)}</td>
                       <td className="px-4 py-3">{formatInr(item.finalLateFee)}</td>

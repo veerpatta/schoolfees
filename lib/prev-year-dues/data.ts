@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { CARRY_FORWARD_LABEL } from "@/lib/prev-year-dues/constants";
+import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
 import type { MatchMethod, OwnerDecision } from "@/lib/prev-year-dues/types";
 
 export type PrevYearImportBatchSummary = {
@@ -142,6 +143,9 @@ export type PrevYearDuesCollectionRow = {
   studentName: string;
   classLabel: string;
   fatherPhone: string | null;
+  sourceSessionLabel: string | null;
+  targetSessionLabel: string | null;
+  displayLabel: string;
   oldBalance: number;
   collected: number;
   remaining: number;
@@ -157,6 +161,43 @@ export async function getPrevYearDuesCollectionRows(
   sessionLabel: string,
 ): Promise<PrevYearDuesCollectionRow[]> {
   const supabase = await createClient();
+  const carryForwardView = await supabase
+    .from("v_student_carry_forward_balances")
+    .select(
+      "admission_no, student_name, class_label, father_phone, source_session_label, target_session_label, fee_head, original_amount, collected_amount, remaining_amount, balance_status, status",
+    )
+    .eq("target_session_label", sessionLabel)
+    .neq("status", "cancelled");
+
+  if (!carryForwardView.error) {
+    return ((carryForwardView.data ?? []) as Record<string, unknown>[])
+      .map((row) => {
+        const sourceSessionLabel = (row.source_session_label as string | null) ?? null;
+        return {
+          admissionNo: (row.admission_no as string | null) ?? null,
+          studentName: (row.student_name as string | null) ?? "",
+          classLabel: (row.class_label as string | null) ?? "",
+          fatherPhone: (row.father_phone as string | null) ?? null,
+          sourceSessionLabel,
+          targetSessionLabel: (row.target_session_label as string | null) ?? null,
+          displayLabel: getDisplayInstallmentLabel({
+            isCarryForward: true,
+            sourceSessionLabel,
+            feeBucket: "previous_year_tuition",
+          }),
+          oldBalance: Number(row.original_amount ?? 0),
+          collected: Number(row.collected_amount ?? 0),
+          remaining: Number(row.remaining_amount ?? 0),
+          status: (row.balance_status as string | null) ?? (row.status as string | null) ?? "",
+        };
+      })
+      .sort((a, b) => b.remaining - a.remaining || a.studentName.localeCompare(b.studentName));
+  }
+
+  if (!["42P01", "42703"].includes((carryForwardView.error as { code?: string }).code ?? "")) {
+    throw new Error(`Failed to load carry-forward balances: ${carryForwardView.error.message}`);
+  }
+
   const { data, error } = await supabase
     .from("v_workbook_installment_balances")
     .select(
@@ -176,6 +217,9 @@ export async function getPrevYearDuesCollectionRows(
       studentName: (row.student_name as string | null) ?? "",
       classLabel: (row.class_label as string | null) ?? "",
       fatherPhone: (row.father_phone as string | null) ?? null,
+      sourceSessionLabel: null,
+      targetSessionLabel: sessionLabel,
+      displayLabel: getDisplayInstallmentLabel({ installmentLabel: (row.installment_label as string | null) ?? "" }),
       oldBalance: Number(row.base_charge ?? 0),
       collected: Number(row.applied_amount ?? 0),
       remaining: Number(row.pending_amount ?? 0),

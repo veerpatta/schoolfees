@@ -73,9 +73,9 @@ export type DefaulterSummaryRow = {
   promiseKeptCount?: number;
   promiseBrokenCount?: number;
   /**
-   * Pending previous-year (carry-forward) balance for this student, derived from
-   * the carry-forward installment (`CARRY_FORWARD_LABEL`). 0 when none. A value
-   * > 0 means the student has an "old balance" surfaced via the chip/filter.
+   * Pending previous-year (carry-forward) balance for this student. 0 when
+   * none. A value > 0 means the student has an "old balance" surfaced via the
+   * chip/filter.
    */
   prevYearDuesAmount: number;
 };

@@ -7,6 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatInr } from "@/lib/helpers/currency";
 import { sanitizeDecimalInput } from "@/lib/payments/payment-desk-client-helpers";
+import {
+  getDisplayInstallmentLabel,
+  isCarryForwardInstallment,
+} from "@/lib/prev-year-dues/display";
 import type {
   InstallmentBalanceItem,
   PaymentStudentIndexItem,
@@ -693,7 +697,7 @@ export function MobilePaymentFlowSheet({
                               "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium",
                               cls,
                             )}
-                            title={`Inst ${item.installmentNo}: ${
+                            title={`${item.displayLabel ?? getDisplayInstallmentLabel(item)}: ${
                               isPaid
                                 ? `paid ${formatInr(item.paymentsTotal)}`
                                 : isOverdue
@@ -703,7 +707,7 @@ export function MobilePaymentFlowSheet({
                                     : `pending ${formatInr(item.outstandingAmount)}`
                             }`}
                           >
-                            Inst {item.installmentNo} {symbol}
+                            {isCarryForwardInstallment(item) ? "Old balance" : `Inst ${item.installmentNo}`} {symbol}
                           </span>
                         );
                       })}
@@ -838,7 +842,7 @@ export function MobilePaymentFlowSheet({
                           return (
                             <div key={item.installmentId} className="flex items-center justify-between gap-2 text-xs py-1 border-b border-border/40 last:border-0">
                               <div className="min-w-0 flex-1">
-                                <p className="truncate text-foreground">{item.installmentLabel}</p>
+                                <p className="truncate text-foreground">{item.displayLabel ?? getDisplayInstallmentLabel(item)}</p>
                                 <p className="text-[10px] text-muted-foreground">Due {item.dueDate}</p>
                               </div>
                               <span className={cn("shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold", statusChip.cls)}>

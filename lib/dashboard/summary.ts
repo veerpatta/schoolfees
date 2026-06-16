@@ -4,12 +4,17 @@ import type {
   WorkbookTransaction,
 } from "@/lib/workbook/data";
 import { calculateInstallmentBasePending, calculateOverdueBaseAmount } from "@/lib/fees/due-amounts";
+import { buildCarryForwardSummary } from "@/lib/prev-year-dues/display";
 
 export type DashboardKpis = {
   totalStudents: number;
   totalExpectedFees: number;
   totalCollected: number;
   totalPending: number;
+  currentYearPending?: number;
+  previousYearPending?: number;
+  previousYearCollected?: number;
+  lateFeePending?: number;
   overdueAmount: number;
   todaysCollection: number;
   thisMonthCollection: number;
@@ -172,6 +177,7 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
     (sum, row) => sum + row.outstandingAmount,
     0,
   );
+  const pendingSplit = buildCarryForwardSummary(input.installmentRows);
   const overdueAmount = calculateOverdueBaseAmount(input.overdueInstallments);
   const todaysCollection = input.todayTransactions.reduce(
     (sum, row) => sum + row.totalAmount,
@@ -187,6 +193,10 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
     totalExpectedFees,
     totalCollected,
     totalPending,
+    currentYearPending: pendingSplit.currentYearPending,
+    previousYearPending: pendingSplit.previousYearPending,
+    previousYearCollected: pendingSplit.previousYearCollected,
+    lateFeePending: pendingSplit.lateFeePending,
     overdueAmount,
     todaysCollection,
     thisMonthCollection,

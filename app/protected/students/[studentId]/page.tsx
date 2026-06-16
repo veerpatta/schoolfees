@@ -19,7 +19,10 @@ import { Notice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
 import { buildFeeBreakupDisplayRows } from "@/lib/fees/display-breakdown";
 import { getDefaultAcademicSessionLabel } from "@/lib/config/fee-rules";
-import { CARRY_FORWARD_LABEL } from "@/lib/prev-year-dues/constants";
+import {
+  getDisplayInstallmentLabel,
+  isCarryForwardInstallment,
+} from "@/lib/prev-year-dues/display";
 import { cn } from "@/lib/utils";
 import {
   calculateInstallmentBasePending,
@@ -131,10 +134,7 @@ export default async function StudentDetailPage({
   const canShowDangerZone = staff.appRole === "admin" && canEditStudent && deletionSafety;
   const outstandingAmount = installmentBalances.reduce((sum, row) => sum + row.pendingAmount, 0);
   const prevYearDuesAmount = installmentBalances.reduce(
-    (sum, row) =>
-      row.installmentLabel === CARRY_FORWARD_LABEL && row.pendingAmount > 0
-        ? sum + row.pendingAmount
-        : sum,
+    (sum, row) => (isCarryForwardInstallment(row) && row.pendingAmount > 0 ? sum + row.pendingAmount : sum),
     0,
   );
   const overdueAmount = calculateOverdueBaseAmount(installmentBalances);
@@ -362,6 +362,9 @@ export default async function StudentDetailPage({
   const annualBreakdownRows = glanceBreakdownRows;
 
   function buildPerInstallmentHeads(item: typeof installmentBalances[number]) {
+    if (isCarryForwardInstallment(item)) {
+      return [{ label: "Previous year tuition balance", amount: item.baseCharge }];
+    }
     if (annualBreakdownRows.length === 0 || installmentCount <= 0) {
       return [] as Array<{ label: string; amount: number }>;
     }
@@ -429,7 +432,7 @@ export default async function StudentDetailPage({
                 <summary className="flex cursor-pointer list-none flex-col gap-2 px-4 py-3">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-sm text-foreground">
-                      {item.installmentLabel}
+                      {getDisplayInstallmentLabel(item)}
                       <span className="ml-1.5 text-[10px] font-normal text-muted-foreground group-open:hidden">
                         · tap for fee heads
                       </span>
@@ -496,7 +499,7 @@ export default async function StudentDetailPage({
             <tbody className="divide-y divide-border/60">
               {installmentBalances.map((item) => (
                 <tr key={item.installmentId} className="even:bg-surface-2/30 hover:bg-surface-2/10 transition-colors">
-                  <td className="px-4 py-3 font-medium text-foreground">{item.installmentLabel}</td>
+                  <td className="px-4 py-3 font-medium text-foreground">{getDisplayInstallmentLabel(item)}</td>
                   <td className="px-4 py-3 font-mono tabular-nums text-muted-foreground">{formatShortDate(item.dueDate)}</td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums"><Money value={item.baseCharge} size="sm" /></td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums">
@@ -736,7 +739,7 @@ export default async function StudentDetailPage({
         pendingLateFeeAmount={effectivePendingLateFeeAmount}
         creditBalance={financialSnapshot?.creditBalance ?? 0}
         nextDueDate={firstPendingInstallment?.dueDate ?? null}
-        nextDueLabel={firstPendingInstallment?.installmentLabel ?? null}
+        nextDueLabel={firstPendingInstallment ? getDisplayInstallmentLabel(firstPendingInstallment) : null}
         nextDueAmount={firstPendingInstallment?.pendingAmount ?? null}
         todayIso={todayIso}
         canPostPayments={canPostPayments}
@@ -763,7 +766,7 @@ export default async function StudentDetailPage({
         installments={installmentBalances.map((b) => ({
           installmentId: b.installmentId,
           installmentNo: b.installmentNo,
-          installmentLabel: b.installmentLabel,
+          installmentLabel: getDisplayInstallmentLabel(b),
           dueDate: b.dueDate,
           baseCharge: b.baseCharge,
           pendingAmount: b.pendingAmount,

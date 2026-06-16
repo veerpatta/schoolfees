@@ -20,6 +20,10 @@ import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { formatPaymentModeLabel } from "@/lib/dashboard/summary";
+import {
+  getDisplayInstallmentLabel,
+  isCarryForwardInstallment,
+} from "@/lib/prev-year-dues/display";
 import type { FeeBreakdown, FeeBreakdownInstallment } from "@/lib/defaulters/fee-breakdown";
 
 type Props = {
@@ -191,7 +195,9 @@ export function FeeBreakdownPanel({
                     aria-expanded={isExpanded}
                   >
                     <div className="flex items-center justify-between gap-1">
-                      <span className="font-semibold">Q{inst.installmentNo}</span>
+                      <span className="font-semibold">
+                        {isCarryForwardInstallment(inst) ? "Old balance" : `Q${inst.installmentNo}`}
+                      </span>
                       <Icon className="size-3" aria-hidden="true" />
                     </div>
                     <p className="mt-1 font-semibold tabular-nums leading-tight">
@@ -307,7 +313,7 @@ function InstallmentDetail({ installment }: { installment: FeeBreakdownInstallme
   return (
     <InstallmentRowDetail
       installmentNo={installment.installmentNo}
-      installmentLabel={installment.installmentLabel}
+      installmentLabel={getDisplayInstallmentLabel(installment)}
       dueDate={installment.dueDate}
       baseCharge={installment.baseCharge}
       rawLateFee={installment.rawLateFee ?? installment.finalLateFee}

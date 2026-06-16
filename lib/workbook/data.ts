@@ -68,6 +68,10 @@ type WorkbookInstallmentBalanceRow = {
   stream_name: string;
   installment_no: number;
   installment_label: string;
+  is_carry_forward?: boolean | null;
+  source_session_label?: string | null;
+  target_session_label?: string | null;
+  carry_forward_fee_head?: string | null;
   due_date: string;
   base_charge: number;
   paid_amount: number;
@@ -191,6 +195,10 @@ export type WorkbookInstallmentBalance = {
   streamName: string;
   installmentNo: number;
   installmentLabel: string;
+  isCarryForward?: boolean;
+  sourceSessionLabel?: string | null;
+  targetSessionLabel?: string | null;
+  feeBucket?: string | null;
   dueDate: string;
   transportRouteId: string | null;
   transportRouteName: string | null;
@@ -367,6 +375,10 @@ function mapInstallmentRow(row: WorkbookInstallmentBalanceRow): WorkbookInstallm
     streamName: row.stream_name,
     installmentNo: row.installment_no,
     installmentLabel: row.installment_label,
+    isCarryForward: row.is_carry_forward === true,
+    sourceSessionLabel: row.source_session_label ?? null,
+    targetSessionLabel: row.target_session_label ?? null,
+    feeBucket: row.carry_forward_fee_head ? `previous_year_${row.carry_forward_fee_head}` : null,
     dueDate: row.due_date,
     transportRouteId: row.transport_route_id,
     transportRouteName: row.transport_route_name,
