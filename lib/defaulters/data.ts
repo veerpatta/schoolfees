@@ -1,7 +1,7 @@
 import "server-only";
 
 import { getFeePolicySummary } from "@/lib/fees/data";
-import { calculateOverdueBaseAmount } from "@/lib/fees/due-amounts";
+import { calculateDaysOverdue, calculateOverdueBaseAmount } from "@/lib/fees/due-amounts";
 import { createClient } from "@/lib/supabase/server";
 import { cacheSafeUnstableCache, getCacheSafeClient } from "@/lib/supabase/cache-safe";
 import { getWorkbookClassOptions, getWorkbookInstallmentRows, getWorkbookStudentFinancials } from "@/lib/workbook/data";
@@ -110,15 +110,6 @@ function toDateKey() {
   }).format(new Date());
 }
 
-function calculateDaysOverdue(dueDate: string | null, today: string) {
-  if (!dueDate || dueDate >= today) {
-    return 0;
-  }
-
-  const due = new Date(`${dueDate}T00:00:00+05:30`).getTime();
-  const now = new Date(`${today}T00:00:00+05:30`).getTime();
-  return Math.max(0, Math.floor((now - due) / 86_400_000));
-}
 
 async function getActiveSessionStudentsUncached(filters: DefaulterFilters, sessionLabel: string) {
   const supabase = await getCacheSafeClient();

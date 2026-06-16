@@ -13,6 +13,9 @@ export type MoneyTermKey =
   | "totalPaid"
   | "outstanding"
   | "pending"
+  | "feesPending"
+  | "dueNow"
+  | "daysOverdue"
   | "balanceDue"
   | "balanceAfterReceipt"
   | "creditBalance"
@@ -69,16 +72,39 @@ export const MONEY_GLOSSARY: Record<MoneyTermKey, MoneyTerm> = {
   outstanding: {
     key: "outstanding",
     label: "Outstanding",
-    summary: "Total Due − Total Paid. Money still owed today.",
+    summary: "Total Due − Total Paid. All money still owed today, late fee included.",
     detail:
-      "Always equals Total Due − Total Paid for the active academic session. If the student has a credit balance (paid more than due), Outstanding is ₹0 and the surplus shows as Credit Balance.",
+      "Always equals Total Due − Total Paid for the active academic session, INCLUDING any unpaid late fee. Breaks down as Fees pending (base) + Late fee. Only the Fees-pending part decides whether a student counts as overdue / a defaulter — an unpaid late fee alone never makes a student a defaulter. If the student has a credit balance (paid more than due), Outstanding is ₹0 and the surplus shows as Credit Balance.",
+    source: "v_workbook_student_financials.outstanding_amount",
   },
   pending: {
     key: "pending",
     label: "Pending",
-    summary: "Same as Outstanding, shown on installment-level views.",
+    summary: "Total still owed (fees + late fee). Same as Outstanding at student level.",
     detail:
-      "When shown next to a specific installment, this is the unpaid portion of THAT installment (including its late fee, minus any waiver). When shown at the student level, it equals Outstanding.",
+      "When shown next to a specific installment, this is the unpaid portion of THAT installment (including its late fee, minus any waiver). When shown at the student level, it equals Outstanding = Fees pending (base) + Late fee.",
+  },
+  feesPending: {
+    key: "feesPending",
+    label: "Fees pending",
+    summary: "Fees still owed, late fee excluded. Drives overdue / defaulter status.",
+    detail:
+      "The base charge (tuition + transport + academic + other heads, after discount) not yet paid. Late fee is deliberately excluded — a student is treated as PAID once Fees pending reaches ₹0, even if a late fee is still owed. This is the figure that determines 'Due now', 'Overdue', and defaulter lists.",
+    source: "v_workbook_student_financials.base_outstanding_amount",
+  },
+  dueNow: {
+    key: "dueNow",
+    label: "Due now",
+    summary: "Fees to collect right now — base of installments due today or earlier.",
+    detail:
+      "Sum of the unpaid base charge of every installment whose due date is today or in the past. Late fee is shown on its own line, not folded in here. This is the actionable 'collect this today' number.",
+  },
+  daysOverdue: {
+    key: "daysOverdue",
+    label: "Days overdue",
+    summary: "Days past the oldest unpaid installment's due date.",
+    detail:
+      "Counted from the due date of the oldest installment that still has unpaid fees (base). 0 when nothing is past due. Based on fees only — an unpaid late fee alone does not start the overdue clock. Computed in Asia/Kolkata time.",
   },
   balanceDue: {
     key: "balanceDue",
@@ -158,7 +184,8 @@ export const MONEY_GLOSSARY: Record<MoneyTermKey, MoneyTerm> = {
     label: "Late Fee Pending",
     summary: "Late fee still owed after waiver.",
     detail:
-      "Late Fee Charged − Late Fee Waived, on the installments where the charged amount exceeds the waiver. Aggregated across all installments at the student level.",
+      "Late Fee Charged − Late Fee Waived, on the installments where the charged amount exceeds the waiver. Aggregated across all installments at the student level. This is the late-fee portion of Outstanding; it is tracked separately so it never drives overdue/defaulter status.",
+    source: "v_workbook_student_financials.late_fee_outstanding_amount",
   },
   baseCharge: {
     key: "baseCharge",
@@ -269,6 +296,9 @@ export const MONEY_GLOSSARY_ORDER: readonly MoneyTermKey[] = [
   "totalPaid",
   "outstanding",
   "pending",
+  "feesPending",
+  "dueNow",
+  "daysOverdue",
   "balanceDue",
   "balanceAfterReceipt",
   "creditBalance",

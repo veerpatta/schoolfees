@@ -56,6 +56,7 @@ type MobilePaymentFlowSheetProps = {
   paymentDate: string;
   paymentDateIsBackdated: boolean;
   waiveFullLateFee: boolean;
+  canWaiveLateFee: boolean;
   quickAmounts: Array<{ key: string; label?: string; amount: number | null; disabled: boolean }>;
   remainingAfterPayment: number;
   formError: string | null;
@@ -153,6 +154,7 @@ export function MobilePaymentFlowSheet({
   paymentDate,
   paymentDateIsBackdated,
   waiveFullLateFee,
+  canWaiveLateFee,
   quickAmounts,
   remainingAfterPayment,
   formError,
@@ -868,9 +870,9 @@ export function MobilePaymentFlowSheet({
           </div>
 
           <div className="flex flex-col gap-0">
-            {pendingLateFeeAmount > 0 ? (
+            {canWaiveLateFee && pendingLateFeeAmount > 0 ? (
               <label className="flex-none flex items-center justify-between gap-3 border-b border-border px-3 py-2 text-sm text-foreground">
-                <span>Waive late fee {formatInr(pendingLateFeeAmount)}</span>
+                <span>Waive late fee permanently {formatInr(pendingLateFeeAmount)}</span>
                 <input
                   type="checkbox"
                   className="size-5 rounded border-border-strong"

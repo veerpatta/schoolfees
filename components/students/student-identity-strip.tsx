@@ -17,8 +17,10 @@ import { StudentRowCollectButton } from "@/components/students/student-row-colle
 import { StudentAvatar } from "@/components/students/student-avatar";
 import { StudentContactActions } from "@/components/students/student-contact-actions";
 import { OldBalanceChip } from "@/components/shared/old-balance-chip";
+import { WaiveLateFeeTrigger } from "@/components/payments/waive-late-fee-trigger";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { Button } from "@/components/ui/button";
+import { calculateDaysOverdue } from "@/lib/fees/due-amounts";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatMediumDate } from "@/lib/helpers/date";
 import type { StudentStatus } from "@/lib/db/types";
@@ -48,6 +50,9 @@ type StudentIdentityStripProps = {
   todayIso: string;
   canPostPayments: boolean;
   canEditStudent: boolean;
+  canWaiveLateFee: boolean;
+  /** Late fee already waived on this student (for the waive sheet's running total). */
+  lateFeeWaiverAmount: number;
   canPrintReceipts: boolean;
   canViewLedger: boolean;
   latestReceiptId: string | null;
@@ -197,6 +202,8 @@ export function StudentIdentityStrip({
   todayIso,
   canPostPayments,
   canEditStudent,
+  canWaiveLateFee,
+  lateFeeWaiverAmount,
   canPrintReceipts,
   canViewLedger,
   latestReceiptId,
@@ -204,6 +211,7 @@ export function StudentIdentityStrip({
   encodedReturnTo,
 }: StudentIdentityStripProps) {
   const hint = computeTemporalHint(nextDueDate, outstandingAmount, creditBalance, todayIso);
+  const daysOverdue = calculateDaysOverdue(nextDueDate, todayIso);
   const duePanelClasses = {
     danger: "bg-destructive-soft/70 text-destructive-soft-foreground border-destructive/20",
     warning: "bg-warning-soft text-warning-soft-foreground border-warning/20",
@@ -297,20 +305,42 @@ export function StudentIdentityStrip({
             <dl className="mt-5 grid gap-2 text-sm">
               {overdueAmount > 0 ? (
                 <div className="flex items-center justify-between gap-3 rounded-lg bg-card/60 px-3 py-2">
-                  <dt className="text-muted-foreground">Overdue base amount</dt>
+                  <dt className="text-muted-foreground">
+                    Overdue base amount
+                    {daysOverdue > 0 ? (
+                      <span className="ml-1.5 text-xs font-semibold text-destructive">
+                        · {daysOverdue} {daysOverdue === 1 ? "day" : "days"} overdue
+                      </span>
+                    ) : null}
+                  </dt>
                   <dd className="font-semibold tabular-nums text-destructive">
                     {formatInr(overdueAmount)}
                   </dd>
                 </div>
               ) : null}
               {pendingLateFeeAmount > 0 ? (
-                <div className="flex items-center justify-between gap-3 rounded-lg bg-card/60 px-3 py-2">
-                  <dt className="text-muted-foreground">
-                    {overdueAmount > 0 ? "Late fee accruing" : "Late fee"}
-                  </dt>
-                  <dd className="font-semibold tabular-nums text-destructive">
-                    + {formatInr(pendingLateFeeAmount)}
-                  </dd>
+                <div className="rounded-lg bg-card/60 px-3 py-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-muted-foreground">
+                      {overdueAmount > 0 ? "Late fee accruing" : "Late fee"}
+                      <span className="ml-1 text-xs font-normal opacity-70">(separate fine)</span>
+                    </dt>
+                    <dd className="font-semibold tabular-nums text-destructive">
+                      + {formatInr(pendingLateFeeAmount)}
+                    </dd>
+                  </div>
+                  {canWaiveLateFee ? (
+                    <div className="mt-2 flex justify-end">
+                      <WaiveLateFeeTrigger
+                        studentId={student.id}
+                        studentLabel={student.fullName}
+                        studentAdmissionNo={student.admissionNo}
+                        classLabel={student.classLabel}
+                        pendingLateFeeAmount={pendingLateFeeAmount}
+                        currentWaiverAmount={lateFeeWaiverAmount}
+                      />
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
               {overdueAmount <= 0 && pendingLateFeeAmount <= 0 && outstandingAmount > 0 ? (

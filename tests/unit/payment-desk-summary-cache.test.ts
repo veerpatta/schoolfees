@@ -40,6 +40,8 @@ const summary: PaymentDeskStudentSummary = {
     totalDue: 1000,
     totalPaid: 200,
     totalPending: 800,
+    baseOutstandingAmount: 800,
+    lateFeeOutstandingAmount: 0,
     creditBalance: 0,
     overpaidAmount: 0,
     refundableAmount: 0,

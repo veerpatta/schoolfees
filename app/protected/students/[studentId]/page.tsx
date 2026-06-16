@@ -130,6 +130,7 @@ export default async function StudentDetailPage({
   const canEditStudent = hasStaffPermission(staff, "students:write");
   const canPrintReceipts = hasStaffPermission(staff, "receipts:print");
   const canPostPayments = hasStaffPermission(staff, "payments:write");
+  const canWaiveLateFee = hasStaffPermission(staff, "payments:waive_late_fee");
   const canViewLedger = hasStaffPermission(staff, "ledger:view");
   const canShowDangerZone = staff.appRole === "admin" && canEditStudent && deletionSafety;
   const outstandingAmount = installmentBalances.reduce((sum, row) => sum + row.pendingAmount, 0);
@@ -744,6 +745,8 @@ export default async function StudentDetailPage({
         todayIso={todayIso}
         canPostPayments={canPostPayments}
         canEditStudent={canEditStudent}
+        canWaiveLateFee={canWaiveLateFee}
+        lateFeeWaiverAmount={student.lateFeeWaiverAmount ?? 0}
         canPrintReceipts={canPrintReceipts}
         canViewLedger={canViewLedger}
         latestReceiptId={receipts[0]?.id ?? null}

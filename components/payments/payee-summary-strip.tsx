@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 
 import { StatusBadge } from "@/components/admin/status-badge";
+import { FeeStatusSummary } from "@/components/fees/fee-status-summary";
 import { OldBalanceChip } from "@/components/shared/old-balance-chip";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { formatInr } from "@/lib/helpers/currency";
@@ -19,12 +20,18 @@ type PayeeSummaryStripProps = {
     totalPending: number;
     currentYearPending?: number;
     pendingLateFeeAmount?: number;
+    /** Base owed, late fee excluded. Falls back to totalPending − late fee. */
+    baseOutstandingAmount?: number;
+    /** Late-fee remainder still owed. Falls back to pendingLateFeeAmount. */
+    lateFeeOutstandingAmount?: number;
     overdueAmount: number;
     creditBalance: number;
     /** Pending previous-year carry-forward balance (allocated first). 0 when none. */
     oldBalanceAmount: number;
     nextDueDate: string | null;
     nextDueAmount: number | null;
+    /** Days past the oldest unpaid base installment. Optional; else computed. */
+    daysOverdue?: number;
   };
   latestReceiptToday: {
     receiptNumber: string;
@@ -47,7 +54,6 @@ export function PayeeSummaryStrip({
   className,
 }: PayeeSummaryStripProps) {
   const t = useTranslations("Payments");
-  const currentYearPending = student.currentYearPending ?? Math.max(student.totalPending - student.oldBalanceAmount, 0);
   const pendingLateFeeAmount = student.pendingLateFeeAmount ?? 0;
   const hasRiskPills =
     student.overdueAmount > 0 ||
@@ -112,26 +118,22 @@ export function PayeeSummaryStrip({
             </div>
 
             {student.totalPending > 0 ? (
-              <div className="mt-3 grid gap-2 border-t border-border pt-3 text-xs sm:grid-cols-3">
-                <div className="rounded-md bg-surface-2 px-2.5 py-2">
-                  <p className="text-muted-foreground">Current year dues</p>
-                  <p className="mt-0.5 font-mono font-semibold text-foreground">
-                    {formatInr(currentYearPending)}
-                  </p>
-                </div>
-                <div className="rounded-md bg-warning-soft px-2.5 py-2 text-warning-soft-foreground">
-                  <p className="opacity-80">Previous year balance</p>
-                  <p className="mt-0.5 font-mono font-semibold">
-                    {formatInr(student.oldBalanceAmount)}
-                  </p>
-                </div>
-                <div className="rounded-md bg-surface-2 px-2.5 py-2">
-                  <p className="text-muted-foreground">Late fee pending</p>
-                  <p className="mt-0.5 font-mono font-semibold text-foreground">
-                    {formatInr(pendingLateFeeAmount)}
-                  </p>
-                </div>
-              </div>
+              <FeeStatusSummary
+                className="mt-3 border-t border-border pt-3"
+                bare
+                showHeadline={false}
+                pending={student.totalPending}
+                feesPending={
+                  student.baseOutstandingAmount ??
+                  Math.max(student.totalPending - pendingLateFeeAmount, 0)
+                }
+                lateFeePending={student.lateFeeOutstandingAmount ?? pendingLateFeeAmount}
+                oldBalance={student.oldBalanceAmount}
+                creditBalance={student.creditBalance}
+                nextDueDate={student.nextDueDate}
+                nextDueAmount={student.nextDueAmount}
+                daysOverdue={student.daysOverdue}
+              />
             ) : null}
           </div>
         </div>

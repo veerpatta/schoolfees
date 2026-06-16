@@ -21,7 +21,6 @@ import { AlertTriangle, Banknote, Building2, CheckCircle2, CircleAlert, FileText
 import { PayeeSummaryStrip } from "@/components/payments/payee-summary-strip";
 import { DeskTotalsSection } from "@/components/payments/desk-totals-section";
 import { MobilePaymentFlowSheet } from "@/components/payments/mobile-payment-flow-sheet";
-import { WaiveLateFeeTrigger } from "@/components/payments/waive-late-fee-trigger";
 import {
   DesktopPaymentDeskBody,
   DesktopPaymentDeskMainPanel,
@@ -287,7 +286,6 @@ export function PaymentDeskClient({
   repairPaymentDeskStudentDuesAction,
   formId = "payment-entry-form",
 }: PaymentDeskMobileProps) {
-  const tPayments = useTranslations("Payments");
   const tToasts = useTranslations("Toasts");
   const [state, formAction, pending] = useActionState(
     submitPaymentEntryAction,
@@ -1779,6 +1777,7 @@ export function PaymentDeskClient({
         paymentDate={paymentDate}
         paymentDateIsBackdated={paymentDateIsBackdated}
         waiveFullLateFee={waiveFullLateFee}
+        canWaiveLateFee={canWaiveLateFee}
         quickAmounts={quickAmounts}
         remainingAfterPayment={remainingAfterPayment}
         formError={formError}
@@ -2217,35 +2216,22 @@ export function PaymentDeskClient({
                           {formatInr(pendingLateFeeAmount)} late fee
                         </span>
                       </p>
-                      <button
-                        type="button"
-                        onClick={() => setWaiveFullLateFee((value) => !value)}
-                        className={cn(
-                          "mt-1.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors",
-                          waiveFullLateFee
-                            ? "border-success-soft-foreground/30 bg-success-soft text-success-soft-foreground"
-                            : "border-border bg-card text-muted-foreground hover:bg-surface-2",
-                        )}
-                        aria-pressed={waiveFullLateFee}
-                      >
-                        {waiveFullLateFee
-                          ? `✓ Late fee waived — saving ${formatInr(pendingLateFeeAmount)}`
-                          : `Waive late fee (−${formatInr(pendingLateFeeAmount)})`}
-                      </button>
                       {canWaiveLateFee ? (
-                        <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border/60 pt-2">
-                          <span className="text-[11px] text-muted-foreground">
-                            {tPayments("waiveStandaloneCaption")}
-                          </span>
-                          <WaiveLateFeeTrigger
-                            studentId={selectedStudent.id}
-                            studentLabel={selectedStudent.fullName}
-                            studentAdmissionNo={selectedStudent.admissionNo}
-                            classLabel={selectedStudent.classLabel}
-                            pendingLateFeeAmount={pendingLateFeeAmount}
-                            currentWaiverAmount={0}
-                          />
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setWaiveFullLateFee((value) => !value)}
+                          className={cn(
+                            "mt-1.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors",
+                            waiveFullLateFee
+                              ? "border-success-soft-foreground/30 bg-success-soft text-success-soft-foreground"
+                              : "border-border bg-card text-muted-foreground hover:bg-surface-2",
+                          )}
+                          aria-pressed={waiveFullLateFee}
+                        >
+                          {waiveFullLateFee
+                            ? `✓ Late fee waived permanently — saving ${formatInr(pendingLateFeeAmount)}`
+                            : `Waive late fee permanently (−${formatInr(pendingLateFeeAmount)})`}
+                        </button>
                       ) : null}
                     </div>
                   ) : null}
@@ -2447,7 +2433,7 @@ export function PaymentDeskClient({
                     ))}
                 </div>
 
-                {pendingLateFeeAmount > 0 ? (
+                {canWaiveLateFee && pendingLateFeeAmount > 0 ? (
                   <div className="flex items-center justify-between border-b border-border bg-info-soft/40 px-3 py-2.5">
                     <label
                       htmlFor="desktop-waive-late-fee"
@@ -2464,7 +2450,7 @@ export function PaymentDeskClient({
                           setFormError(null);
                         }}
                       />
-                      Waive full pending late fee
+                      Waive late fee permanently
                     </label>
                     <span className="text-sm font-semibold tabular-nums text-info-soft-foreground">
                       {formatInr(pendingLateFeeAmount)}
@@ -2891,24 +2877,30 @@ export function PaymentDeskClient({
                   </div>
                   <div className="rounded-lg border border-border bg-surface-2 px-3 py-2 xl:col-span-2">
                     <input type="hidden" name="quickLateFeeWaiverAmount" value={quickLateFeeWaiverAmount} />
-                    <label className="flex items-start gap-2 text-sm font-medium text-foreground">
-                      <input
-                        type="checkbox"
-                        className="mt-1 size-4 rounded border-border-strong"
-                        checked={waiveFullLateFee}
-                        disabled={pendingLateFeeAmount <= 0}
-                        onChange={(event) => {
-                          setWaiveFullLateFee(event.target.checked);
-                          setFormError(null);
-                        }}
-                      />
-                      <span>
-                        Waive full pending late fee ({formatInr(pendingLateFeeAmount)})
-                        <span className="mt-1 block text-xs font-normal text-muted-foreground">
-                          Applies only to pending late fee.
+                    {canWaiveLateFee ? (
+                      <label className="flex items-start gap-2 text-sm font-medium text-foreground">
+                        <input
+                          type="checkbox"
+                          className="mt-1 size-4 rounded border-border-strong"
+                          checked={waiveFullLateFee}
+                          disabled={pendingLateFeeAmount <= 0}
+                          onChange={(event) => {
+                            setWaiveFullLateFee(event.target.checked);
+                            setFormError(null);
+                          }}
+                        />
+                        <span>
+                          Waive late fee permanently ({formatInr(pendingLateFeeAmount)})
+                          <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                            Cuts the late fee and removes it permanently from this student&apos;s record.
+                          </span>
                         </span>
-                      </span>
-                    </label>
+                      </label>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Pending late fee: {formatInr(pendingLateFeeAmount)}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="quick-discount-amount">Additional discount / concession</Label>

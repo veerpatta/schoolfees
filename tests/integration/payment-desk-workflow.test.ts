@@ -47,6 +47,8 @@ const selectedStudent = {
   totalDue: 5000,
   totalPaid: 1000,
   totalPending: 4000,
+  baseOutstandingAmount: 4000,
+  lateFeeOutstandingAmount: 0,
   creditBalance: 0,
   overpaidAmount: 0,
   refundableAmount: 0,
@@ -970,14 +972,28 @@ describe("payment desk cashier workflow", () => {
       "utf8",
     );
 
-    expect(component).toContain("Waive full pending late fee");
+    expect(component).toContain("Waive late fee permanently");
     expect(component).toContain('type="checkbox"');
     expect(component).toContain('type="hidden" name="quickLateFeeWaiverAmount"');
     expect(component).not.toContain('id="quick-late-fee-waiver-amount"');
     // Change 3: waiver must appear before the inline mode segment in source order
-    expect(component.indexOf("Waive full pending late fee")).toBeLessThan(
+    expect(component.indexOf("Waive late fee permanently")).toBeLessThan(
       component.indexOf("grid-cols-4 divide-x divide-border"),
     );
+  });
+
+  it("payment-desk waive is permanent: routes through waive_late_fee, posts with zero writeoff (A1/A3)", () => {
+    const action = readFileSync(
+      join(process.cwd(), "app/protected/payments/actions.ts"),
+      "utf8",
+    );
+
+    // The checkbox waiver must persist via the same RPC the student-profile
+    // waiver uses, so the figure reads identically on every surface.
+    expect(action).toContain('.rpc("waive_late_fee"');
+    expect(action).toContain('requireStaffPermission("payments:waive_late_fee")');
+    // And it must NOT also create a per-receipt writeoff (that would double-count).
+    expect(action).toContain("quickLateFeeWaiverAmount: 0");
   });
 
   it("quick discount and late fee waiver update locally without refetching dues", () => {

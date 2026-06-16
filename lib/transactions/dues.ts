@@ -257,6 +257,8 @@ async function getBaseOfficeStudents(filters: OfficeWorkbookFilters) {
       totalDue: 0,
       totalPaid: 0,
       outstandingAmount: 0,
+      baseOutstandingAmount: 0,
+      lateFeeOutstandingAmount: 0,
       nextDueDate: null,
       nextDueAmount: null,
       nextDueLabel: null,
