@@ -39,6 +39,8 @@ type WorkbookStudentFinancialRow = {
   total_due: number;
   total_paid: number;
   outstanding_amount: number;
+  base_outstanding_amount: number;
+  late_fee_outstanding_amount: number;
   next_due_date: string | null;
   next_due_amount: number | null;
   next_due_label: string | null;
@@ -166,6 +168,8 @@ export type WorkbookStudentFinancial = {
   totalDue: number;
   totalPaid: number;
   outstandingAmount: number;
+  baseOutstandingAmount: number;
+  lateFeeOutstandingAmount: number;
   nextDueDate: string | null;
   nextDueAmount: number | null;
   nextDueLabel: string | null;
@@ -344,6 +348,10 @@ function mapFinancialRow(row: WorkbookStudentFinancialRow): WorkbookStudentFinan
     totalDue: row.total_due,
     totalPaid: row.total_paid,
     outstandingAmount: row.outstanding_amount,
+    baseOutstandingAmount: row.base_outstanding_amount ?? row.outstanding_amount,
+    lateFeeOutstandingAmount:
+      row.late_fee_outstanding_amount ??
+      Math.max((row.outstanding_amount ?? 0) - (row.base_outstanding_amount ?? row.outstanding_amount ?? 0), 0),
     nextDueDate: row.next_due_date,
     nextDueAmount: row.next_due_amount,
     nextDueLabel: row.next_due_label,

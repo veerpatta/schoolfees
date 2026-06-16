@@ -662,6 +662,10 @@ function summarizeStudent(
     totalDue,
     totalPaid,
     totalPending: pendingAmount,
+    baseOutstandingAmount: financial.baseOutstandingAmount ?? pendingAmount,
+    lateFeeOutstandingAmount:
+      financial.lateFeeOutstandingAmount ??
+      Math.max(pendingAmount - (financial.baseOutstandingAmount ?? pendingAmount), 0),
     creditBalance: financialState?.credit_balance ?? 0,
     overpaidAmount: financialState?.overpaid_amount ?? 0,
     refundableAmount: financialState?.refundable_amount ?? 0,

@@ -28,6 +28,8 @@ const BASE_PROPS = {
   todayIso: "2026-05-24",
   canPostPayments: true,
   canEditStudent: true,
+  canWaiveLateFee: false,
+  lateFeeWaiverAmount: 0,
   canPrintReceipts: true,
   canViewLedger: true,
   latestReceiptId: null,

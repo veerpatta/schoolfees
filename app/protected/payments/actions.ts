@@ -14,6 +14,7 @@ import {
   toFriendlyPaymentPostingError,
 } from "@/lib/payments/data";
 import type { PaymentEntryActionState } from "@/lib/payments/types";
+import { createClient } from "@/lib/supabase/server";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import { revalidateAfterPaymentPosting } from "@/lib/system-sync/finance-revalidation";
 import {
@@ -199,6 +200,46 @@ export async function submitPaymentEntryAction(
     const acknowledgeDailyDuplicate =
       (formData.get("acknowledgeDailyDuplicate") ?? "").toString() === "true";
 
+    // A1 — permanent late-fee waiver. When the cashier ticks "waive late fee",
+    // persist it to the student's fee override via the proven `waive_late_fee`
+    // RPC FIRST, then post the payment with no per-receipt writeoff. This makes
+    // the waiver permanent and consistent everywhere (profile, defaulters,
+    // receipts) instead of a one-off writeoff that only the receipt knew about.
+    // The receipt still shows the "Late fee waived" line via the
+    // late_fee_waiver_amount fallback in lib/receipts/data.ts.
+    //
+    // Both RPCs take the same per-student advisory lock, so the waive and the
+    // post serialise. They are two calls, not one transaction: if the post
+    // fails after the waive succeeds, the (audited) waiver persists and the
+    // cashier simply retries the payment — the same clientRequestId dedupes the
+    // waiver, and a re-tick is unnecessary.
+    if (quickLateFeeWaiverAmount > 0) {
+      await requireStaffPermission("payments:waive_late_fee");
+      const supabase = await createClient();
+      const { data: waiveRows, error: waiveError } = await supabase.rpc("waive_late_fee", {
+        p_student_id: studentId,
+        p_amount: quickLateFeeWaiverAmount,
+        p_remarks: `Late fee waived at Payment Desk during collection on ${paymentDate}`,
+        p_session_label: sessionLabel,
+        p_client_request_id: clientRequestId,
+      });
+      if (waiveError) {
+        throw new Error(
+          `Could not waive the late fee, so no payment was posted. Please retry. (${waiveError.message})`,
+        );
+      }
+      const waiveRow =
+        ((waiveRows ?? []) as Array<{ ok: boolean; message: string | null }>)[0] ?? null;
+      // ok=false solely because there is no pending late fee left means the
+      // waiver was already applied (e.g. a retried submit) — non-fatal. Any
+      // other failure must block the post so money and waivers stay in sync.
+      if (waiveRow && !waiveRow.ok && !/no pending late fee/i.test(waiveRow.message ?? "")) {
+        throw new Error(
+          `Could not waive the late fee, so no payment was posted: ${waiveRow.message ?? "unknown error"}`,
+        );
+      }
+    }
+
     _tBeforePost = Date.now();
     const receipt = await postStudentPayment({
       studentId,
@@ -207,7 +248,9 @@ export async function submitPaymentEntryAction(
       paymentMode,
       paymentAmount,
       quickDiscountAmount,
-      quickLateFeeWaiverAmount,
+      // Waiver (if any) is now persisted as a permanent override above, so the
+      // posting RPC must NOT also create a writeoff — that would double-count.
+      quickLateFeeWaiverAmount: 0,
       referenceNumber,
       remarks: (formData.get("remarks") ?? "").toString().trim() || null,
       receivedBy,

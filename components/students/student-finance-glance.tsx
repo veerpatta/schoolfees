@@ -4,6 +4,7 @@ import { CheckCircle2, AlertTriangle, Clock, Wallet } from "lucide-react";
 import { useState } from "react";
 
 import { InstallmentRowDetail } from "@/components/fees/installment-row-detail";
+import { InstallmentTimeline } from "@/components/fees/installment-timeline";
 import { Section } from "@/components/ui/section";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
@@ -227,52 +228,20 @@ function InstallmentsBlock({ installments }: { installments: InstallmentSnapshot
         <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Installments</p>
         <p className="text-[10px] text-muted-foreground">Tap any chip for the full breakdown</p>
       </div>
-      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-        {installments.map((item) => {
-          const isPaid = item.pendingAmount <= 0 && item.paidAmount > 0;
-          const isOverdue = item.balanceStatus === "overdue";
-          const isPartial = item.paidAmount > 0 && item.pendingAmount > 0;
-          const isExpanded = expandedNo === item.installmentNo;
-          const cls = isPaid
-            ? "border-success-soft-foreground/30 bg-success-soft text-success-soft-foreground"
-            : isOverdue
-              ? "border-destructive/30 bg-destructive/10 text-destructive"
-              : isPartial
-                ? "border-warning-soft-foreground/30 bg-warning-soft text-warning-soft-foreground"
-                : "border-border bg-card text-muted-foreground";
-          return (
-            <button
-              type="button"
-              key={item.installmentId}
-              onClick={() => setExpandedNo(isExpanded ? null : item.installmentNo)}
-              aria-expanded={isExpanded}
-              className={cn(
-                "rounded-lg border px-2.5 py-2 text-left text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                cls,
-                isExpanded && "ring-2 ring-accent",
-              )}
-            >
-              <div className="flex items-center justify-between gap-1.5">
-                <span className="font-semibold">
-                  {isCarryForwardInstallment(item) ? "Old balance" : `Inst ${item.installmentNo}`}
-                </span>
-                <span className="text-[10px] font-medium uppercase tracking-wide">
-                  {isPaid ? "✓ Paid" : isOverdue ? "Overdue" : isPartial ? "Partial" : "Pending"}
-                </span>
-              </div>
-              <p className="mt-0.5 truncate text-[10px] opacity-80">
-                Due {formatShortDate(item.dueDate)}
-              </p>
-              <p className="mt-1 font-mono text-sm font-semibold tabular-nums">
-                {isPaid ? formatInr(item.paidAmount) : formatInr(item.pendingAmount)}
-              </p>
-              {item.finalLateFee > 0 ? (
-                <p className="text-[10px] font-medium">+ {formatInr(item.finalLateFee)} late fee</p>
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
+      <InstallmentTimeline
+        installments={installments.map((item) => ({
+          installmentId: item.installmentId,
+          installmentNo: item.installmentNo,
+          dueDate: item.dueDate,
+          isCarryForward: isCarryForwardInstallment(item),
+          paidAmount: item.paidAmount,
+          pendingAmount: item.pendingAmount,
+          finalLateFee: item.finalLateFee,
+          balanceStatus: item.balanceStatus,
+        }))}
+        selectedNo={expandedNo}
+        onSelect={setExpandedNo}
+      />
 
       {expandedNo !== null ? (() => {
         const detail = installments.find((i) => i.installmentNo === expandedNo);

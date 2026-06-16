@@ -145,6 +145,10 @@ export type SelectedStudentSummary = {
   totalDue: number;
   totalPaid: number;
   totalPending: number;
+  /** Base owed, late fee excluded — drives Due now / Overdue / defaulter status. */
+  baseOutstandingAmount: number;
+  /** Late-fee remainder still owed (separate fine). */
+  lateFeeOutstandingAmount: number;
   creditBalance: number;
   overpaidAmount: number;
   refundableAmount: number;

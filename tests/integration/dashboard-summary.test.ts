@@ -56,6 +56,8 @@ function student(
     totalDue: 1500,
     totalPaid: 0,
     outstandingAmount: 1500,
+    baseOutstandingAmount: 1500,
+    lateFeeOutstandingAmount: 0,
     nextDueDate: "2026-04-20",
     nextDueAmount: 1500,
     nextDueLabel: "Installment 1",
