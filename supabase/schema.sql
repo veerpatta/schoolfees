@@ -346,13 +346,7 @@ create table if not exists public.student_fee_overrides (
   created_by uuid references auth.users(id) on delete set null,
   updated_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  check (
-    custom_annual_base_amount is not null
-    or custom_transport_installment_amount is not null
-    or custom_late_fee_flat_amount is not null
-    or discount_amount > 0
-  )
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.installments (
@@ -1815,6 +1809,7 @@ alter table public.student_fee_overrides
   );
 
 alter table public.student_fee_overrides
+  drop constraint if exists student_fee_overrides_check,
   drop constraint if exists student_fee_overrides_override_payload_check,
   add constraint student_fee_overrides_override_payload_check
   check (
@@ -2729,6 +2724,7 @@ alter table public.student_fee_overrides
     check (late_fee_waiver_amount >= 0);
 
 alter table public.student_fee_overrides
+  drop constraint if exists student_fee_overrides_check,
   drop constraint if exists student_fee_overrides_override_payload_check,
   add constraint student_fee_overrides_override_payload_check
   check (

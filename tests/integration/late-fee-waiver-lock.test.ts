@@ -28,6 +28,11 @@ describe("waive_late_fee Postgres RPC (audit 1.5)", () => {
     "supabase/migrations/20260617031509_waive_late_fee_uses_workbook_snapshot.sql",
   );
   const sql = readFileSync(migrationPath, "utf8");
+  const constraintMigrationPath = join(
+    repoRoot,
+    "supabase/migrations/20260617054803_drop_legacy_student_fee_override_check.sql",
+  );
+  const constraintSql = readFileSync(constraintMigrationPath, "utf8");
 
   it("creates the waive_late_fee function with the documented signature", () => {
     expect(sql).toContain("create or replace function public.waive_late_fee");
@@ -49,6 +54,13 @@ describe("waive_late_fee Postgres RPC (audit 1.5)", () => {
     // view — which stores 0 for never-paid overdue (accruing) late fees.
     expect(sql).toMatch(/v_pending_late_fee[\s\S]+from private\.workbook_installment_snapshot/);
     expect(sql).toContain("Waiver cannot exceed the current pending late fee");
+  });
+
+  it("drops the legacy unnamed payload check that blocks waiver-only override inserts", () => {
+    expect(constraintSql).toContain(
+      "drop constraint if exists student_fee_overrides_check",
+    );
+    expect(constraintSql).toContain("late_fee_waiver_amount > 0");
   });
 
   it("selects the active override row with FOR UPDATE so two writers serialise", () => {
