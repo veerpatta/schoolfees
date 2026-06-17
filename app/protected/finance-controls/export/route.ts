@@ -7,6 +7,7 @@ import {
   serializeFinanceDayBookCsv,
 } from "@/lib/finance-controls/data";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/lib/supabase/session";
+import { resolveViewSession } from "@/lib/session/resolver";
 
 export async function GET(request: NextRequest) {
   const staff = await getAuthenticatedStaff();
@@ -20,7 +21,13 @@ export async function GET(request: NextRequest) {
   }
 
   const selectedDate = normalizeFinanceDateFilter(request.nextUrl.searchParams.get("date"));
-  const csvData = await getFinanceDayBookCsvData(selectedDate);
+  const urlSession = request.nextUrl.searchParams.get("session");
+  const cookieSession = request.cookies.get("vpps_view_session")?.value;
+  const viewSession = await resolveViewSession({
+    searchParamSession: urlSession,
+    cookieSession,
+  });
+  const csvData = await getFinanceDayBookCsvData(selectedDate, viewSession.sessionLabel);
 
   return new Response(
     serializeFinanceDayBookCsv({

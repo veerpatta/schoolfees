@@ -72,6 +72,11 @@ next-env.d.ts
 
 # Claude Code local/personal settings (project settings.json is committed)
 /.claude/settings.local.json
+/.claude/launch.json
+
+# Prev-year dues import snapshots — contain real student names/dues (PII); never commit
+/prevyear_*.json
+/prevyear_batch_id.txt
 
 # Claude Code Superpowers plugin plans (ephemeral agent artefacts)
 /docs/superpowers/

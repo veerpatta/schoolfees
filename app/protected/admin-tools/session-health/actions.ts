@@ -91,6 +91,7 @@ export async function reconcileSessionAction(formData: FormData) {
     sessionHealthUrl({
       reconciled: label,
       prepared: preparedCount,
+      session: label,
     }),
   );
 }

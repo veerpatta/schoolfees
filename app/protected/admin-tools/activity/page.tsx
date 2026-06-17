@@ -6,6 +6,9 @@ import { SectionCard } from "@/components/admin/section-card";
 import { listActivity, activityKindTone, ACTIVITY_KINDS, type ActivityKind } from "@/lib/activity/events";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatDateTimeIst } from "@/lib/helpers/date";
+import { appendSessionParam } from "@/lib/navigation/session-href";
+import { getViewSessionCookie } from "@/lib/session/cookie";
+import { resolveViewSession } from "@/lib/session/resolver";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/lib/supabase/session";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +75,9 @@ export default async function ActivityFeedPage() {
     onDenied: "redirect",
   });
   const canSeeAll = hasStaffPermission(staff, "settings:view");
+  const viewSession = await resolveViewSession({
+    cookieSession: await getViewSessionCookie(),
+  });
   const events = await listActivity({
     limit: 100,
     userId: canSeeAll ? undefined : (staff.id as string | undefined),
@@ -126,7 +132,7 @@ export default async function ActivityFeedPage() {
                     <span>{formatWhen(event.createdAt)}</span>
                     {studentId ? (
                       <Link
-                        href={`/protected/students/${studentId}`}
+                        href={appendSessionParam(`/protected/students/${studentId}`, viewSession.sessionLabel)}
                         className="text-info-soft-foreground hover:underline"
                       >
                         {t("activityOpenStudent")}

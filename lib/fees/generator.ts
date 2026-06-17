@@ -112,6 +112,7 @@ export type LedgerSkippedStudentReasonCode =
   | "STUDENT_NOT_ACTIVE"
   | "FEE_SETUP_INCOMPLETE"
   | "NO_INSTALLMENT_DATES"
+  | "DISCOUNT_EXCEEDS_DUES"
   | "DATABASE_ERROR"
   | "UNKNOWN";
 
@@ -664,9 +665,14 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
     const grossBaseBeforeDiscount = resolved.breakdown.grossBaseBeforeDiscount ??
       (tuitionAmount + transportAmount + (resolved.breakdown.academicFeeAmount ?? 0) + (resolved.breakdown.otherAdjustmentAmount ?? 0));
     if (grossBaseBeforeDiscount < discountAmount) {
-      throw new Error(
-        `Discount for a student in class ${student.class_id} exceeds the configured annual total.`,
+      skippedStudents.push(
+        toSkippedStudent(
+          student,
+          "DISCOUNT_EXCEEDS_DUES",
+          `Discount for student (${discountAmount}) exceeds the annual total (${grossBaseBeforeDiscount}).`,
+        ),
       );
+      continue;
     }
 
     const resolvedFeeSettingId = feeSettingId as string;

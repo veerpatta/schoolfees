@@ -11,17 +11,25 @@ import {
 } from "@/lib/finance-controls/data";
 import type { FinanceControlsActionState } from "@/lib/finance-controls/types";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
-
 import {
   submitCorrectionReviewAction,
   submitRefundWorkflowAction,
 } from "./actions";
+import { getViewSessionCookie } from "@/lib/session/cookie";
+import { resolveViewSession } from "@/lib/session/resolver";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 
 type FinanceControlsPageProps = {
   searchParams?: Promise<{
     date?: string;
+    session?: string | string[];
   }>;
 };
+
+function asString(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[value.length - 1] ?? "";
+  return value ?? "";
+}
 
 const INITIAL_FINANCE_CONTROLS_ACTION_STATE: FinanceControlsActionState = {
   status: "idle",
@@ -30,16 +38,21 @@ const INITIAL_FINANCE_CONTROLS_ACTION_STATE: FinanceControlsActionState = {
 
 export default async function FinanceControlsPage({ searchParams }: FinanceControlsPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const viewSession = await resolveViewSession({
+    searchParamSession: asString(resolvedSearchParams?.session),
+    cookieSession: await getViewSessionCookie(),
+  });
   const selectedDate = normalizeFinanceDateFilter(resolvedSearchParams?.date ?? null);
 
   const [staff, data] = await Promise.all([
     requireStaffPermission("finance:view", { onDenied: "redirect" }),
-    getFinanceControlsPageData(selectedDate),
+    getFinanceControlsPageData(selectedDate, viewSession.sessionLabel),
   ]);
 
   const canWrite = hasStaffPermission(staff, "finance:write");
   const canApprove = hasStaffPermission(staff, "finance:approve");
-  const exportHref = `/protected/finance-controls/export?date=${data.selectedDate}`;
+  const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
+  const exportHref = withSession(`/protected/finance-controls/export?date=${data.selectedDate}`);
 
   return (
     <div className="space-y-6">
@@ -62,6 +75,9 @@ export default async function FinanceControlsPage({ searchParams }: FinanceContr
 
       <section className="rounded-2xl border border-border bg-card p-4">
         <form action="/protected/finance-controls" method="get" className="flex flex-wrap items-end gap-3">
+          {viewSession.sessionLabel ? (
+            <input type="hidden" name="session" value={viewSession.sessionLabel} />
+          ) : null}
           <div>
             <Input
               name="date"
@@ -73,7 +89,7 @@ export default async function FinanceControlsPage({ searchParams }: FinanceContr
           <div className="flex flex-wrap gap-2">
             <Button type="submit">Load day</Button>
             <Button asChild variant="outline">
-              <Link href="/protected/finance-controls">Today</Link>
+              <Link href={withSession("/protected/finance-controls")}>Today</Link>
             </Button>
           </div>
         </form>

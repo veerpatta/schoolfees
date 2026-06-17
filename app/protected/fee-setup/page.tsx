@@ -9,6 +9,7 @@ import { INITIAL_FEE_SETUP_ACTION_STATE } from "@/lib/fees/types";
 import { getMasterDataPageData } from "@/lib/master-data/data";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 import { saveWorkbookFeeSetupAction } from "./actions";
@@ -46,6 +47,8 @@ export default async function FeeSetupPage({ searchParams }: FeeSetupPageProps) 
     getMasterDataPageData(),
   ]);
 
+  const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
+
   const canEdit = hasStaffPermission(staff, "fees:write");
 
   return (
@@ -56,7 +59,7 @@ export default async function FeeSetupPage({ searchParams }: FeeSetupPageProps) 
         description={t("description")}
         actions={
           <Button asChild variant="outline">
-            <Link href="/protected/fee-setup/time-travel">{t("timeTravelAction")}</Link>
+            <Link href={withSession("/protected/fee-setup/time-travel")}>{t("timeTravelAction")}</Link>
           </Button>
         }
       />

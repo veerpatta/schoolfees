@@ -282,6 +282,7 @@ function buildInstallmentStatus(
 export async function getReceiptsPage(
   searchQuery: string,
   pagination: { page: number; pageSize: number },
+  sessionLabel: string,
 ): Promise<{ receipts: ReceiptListItem[]; totalCount: number; page: number; pageSize: number }> {
   const supabase = await createClient();
   const page = Math.max(1, Math.floor(pagination.page));
@@ -289,12 +290,16 @@ export async function getReceiptsPage(
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
+  // Scope to the viewed session via inner joins (receipt → student → current class →
+  // session_label). Inner joins keep the `count: exact` total aligned with the filtered
+  // rows so pagination stays correct.
   let query = supabase
     .from("receipts")
     .select(
-      "id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, student_ref:students(id, full_name, admission_no, father_name, primary_phone, class_ref:classes(session_label, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code))",
+      "id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, student_ref:students!inner(id, full_name, admission_no, father_name, primary_phone, class_ref:classes!inner(session_label, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code))",
       { count: "exact" },
     )
+    .eq("student_ref.class_ref.session_label", sessionLabel)
     .order("payment_date", { ascending: false })
     .order("created_at", { ascending: false })
     .range(from, to);
@@ -338,8 +343,11 @@ export async function getReceiptsPage(
   };
 }
 
-export async function getReceiptsList(searchQuery: string): Promise<ReceiptListItem[]> {
-  const page = await getReceiptsPage(searchQuery, { page: 1, pageSize: 80 });
+export async function getReceiptsList(
+  searchQuery: string,
+  sessionLabel: string,
+): Promise<ReceiptListItem[]> {
+  const page = await getReceiptsPage(searchQuery, { page: 1, pageSize: 80 }, sessionLabel);
   return page.receipts;
 }
 

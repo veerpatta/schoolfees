@@ -5,6 +5,7 @@ import { AutoSubmitForm } from "@/components/office/auto-submit-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 import { STUDENT_STATUSES } from "@/lib/students/constants";
 import type {
   StudentClassOption,
@@ -114,7 +115,7 @@ export async function StudentFilters({
 
       <div className="flex items-end gap-2 xl:col-span-6">
         <Button type="button" variant="outline" asChild>
-          <Link href="/protected/students">{t("filterClear")}</Link>
+          <Link href={appendSessionParam("/protected/students", filters.sessionLabel)}>{t("filterClear")}</Link>
         </Button>
       </div>
     </AutoSubmitForm>

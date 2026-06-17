@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { schoolProfile } from "@/lib/config/school";
 import { formatDateTimeIst } from "@/lib/helpers/date";
 import { getRecentConfigChangeLog } from "@/lib/fees/change-log";
-import { getFeePolicySummary } from "@/lib/fees/data";
+import { getFeePolicyForSession } from "@/lib/fees/data";
 import {
   getRuntimeEnvironmentLabel,
   getOptionalEnvVar,
@@ -19,6 +19,9 @@ import {
   isVercelProductionEnvironment,
 } from "@/lib/env";
 import { requireStaffPermission } from "@/lib/supabase/session";
+import { getViewSessionCookie } from "@/lib/session/cookie";
+import { resolveViewSession } from "@/lib/session/resolver";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 
 function toneForStatus(isHealthy: boolean) {
   return isHealthy ? "good" : "warning";
@@ -40,12 +43,30 @@ function formatDateTime(value: string | null) {
   return formatDateTimeIst(value, "Not applied");
 }
 
-export default async function SettingsPage() {
+type SettingsPageProps = {
+  searchParams?: Promise<{
+    session?: string | string[];
+  }>;
+};
+
+function asString(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[value.length - 1] ?? "";
+  return value ?? "";
+}
+
+export default async function SettingsPage({ searchParams }: SettingsPageProps) {
   const staff = await requireStaffPermission("settings:view", { onDenied: "redirect" });
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const viewSession = await resolveViewSession({
+    searchParamSession: asString(resolvedSearchParams?.session),
+    cookieSession: await getViewSessionCookie(),
+  });
+
   const [policy, recentConfigChanges] = await Promise.all([
-    getFeePolicySummary(),
+    getFeePolicyForSession(viewSession.sessionLabel),
     getRecentConfigChangeLog(),
   ]);
+  const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
   const serviceRoleConfigured = Boolean(getOptionalEnvVar("SUPABASE_SERVICE_ROLE_KEY"));
   const deploymentEnvironment = getRuntimeEnvironmentLabel();
   const resolvedSiteUrl = getSiteUrl();
@@ -154,10 +175,10 @@ export default async function SettingsPage() {
         actions={
           <div className="flex flex-wrap gap-2">
             <Button asChild size="sm">
-              <Link href="/protected/fee-setup">Edit in Fee Setup</Link>
+              <Link href={withSession("/protected/fee-setup")}>Edit in Fee Setup</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link href="/protected/master-data">School lists</Link>
+              <Link href={withSession("/protected/master-data")}>School lists</Link>
             </Button>
           </div>
         }

@@ -11,6 +11,9 @@ import { formatInr } from "@/lib/helpers/currency";
 import { formatDateTimeIst } from "@/lib/helpers/date";
 import { getPromotionRun } from "@/lib/promotion/data";
 import { requireStaffPermission } from "@/lib/supabase/session";
+import { getViewSessionCookie } from "@/lib/session/cookie";
+import { resolveViewSession } from "@/lib/session/resolver";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 
 import {
   applyPromotionRunAction,
@@ -23,8 +26,14 @@ type Props = {
   searchParams?: Promise<{
     error?: string;
     notice?: string;
+    session?: string | string[];
   }>;
 };
+
+function asString(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[value.length - 1] ?? "";
+  return value ?? "";
+}
 
 const DECISION_I18N: Record<string, string> = {
   pending: "promotionDecisionPending",
@@ -49,6 +58,11 @@ export default async function PromotionDetailPage({ params, searchParams }: Prop
   await requireStaffPermission("students:write", { onDenied: "redirect" });
   const { runId } = await params;
   const resolved = searchParams ? await searchParams : undefined;
+  const viewSession = await resolveViewSession({
+    searchParamSession: asString(resolved?.session),
+    cookieSession: await getViewSessionCookie(),
+  });
+  const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
   const detail = await getPromotionRun(runId);
 
   if (!detail) {
@@ -85,7 +99,7 @@ export default async function PromotionDetailPage({ params, searchParams }: Prop
         })}
         actions={
           <Button asChild variant="outline">
-            <Link href="/protected/admin-tools/promotion">{t("promotionBackToRuns")}</Link>
+            <Link href={withSession("/protected/admin-tools/promotion")}>{t("promotionBackToRuns")}</Link>
           </Button>
         }
       />

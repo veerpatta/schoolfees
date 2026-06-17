@@ -3,6 +3,8 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { MoneyGlossaryLink } from "@/components/ui/money-glossary";
 import { LedgerClient } from "@/components/ledger/ledger-client";
 import { getLedgerPageData } from "@/lib/ledger/data";
+import { getViewSessionCookie } from "@/lib/session/cookie";
+import { resolveViewSession } from "@/lib/session/resolver";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 import { submitLedgerAdjustmentAction } from "./actions";
@@ -13,8 +15,14 @@ type LedgerPageProps = {
     studentId?: string;
     entryQuery?: string;
     entryFilter?: string;
+    session?: string | string[];
   }>;
 };
+
+function asString(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[value.length - 1] ?? "";
+  return value ?? "";
+}
 
 function normalizeStudentId(rawValue: string | undefined) {
   const value = (rawValue ?? "").trim();
@@ -29,6 +37,10 @@ export default async function LedgerPage({ searchParams }: LedgerPageProps) {
   const searchQuery = (resolvedSearchParams?.query ?? "").trim();
   const entryQuery = (resolvedSearchParams?.entryQuery ?? "").trim();
   const studentId = normalizeStudentId(resolvedSearchParams?.studentId);
+  const viewSession = await resolveViewSession({
+    searchParamSession: asString(resolvedSearchParams?.session),
+    cookieSession: await getViewSessionCookie(),
+  });
 
   const [staff, data] = await Promise.all([
     requireStaffPermission("ledger:view", { onDenied: "redirect" }),
@@ -37,6 +49,7 @@ export default async function LedgerPage({ searchParams }: LedgerPageProps) {
       studentId,
       entryQuery,
       entryFilter: resolvedSearchParams?.entryFilter,
+      sessionLabel: viewSession.sessionLabel,
     }),
   ]);
 

@@ -228,17 +228,27 @@ export async function getLedgerPageData(payload: {
   studentId: string | null;
   entryFilter: string | undefined;
   entryQuery: string;
+  sessionLabel?: string;
 }): Promise<LedgerPageData> {
   const supabase = await createClient();
 
+  // Scope the student picker to the viewed session (inner join on current class →
+  // session_label). The explicit by-id lookup below stays unscoped so a direct link to a
+  // specific student's ledger still resolves regardless of the viewed session. The
+  // per-student workspace drill-down passes no sessionLabel, so the picker stays unfiltered
+  // there (it only consumes the by-id result).
   let studentsQuery = supabase
     .from("students")
     .select(
-      "id, full_name, admission_no, class_ref:classes(class_name, section, stream_name)",
+      "id, full_name, admission_no, class_ref:classes!inner(session_label, class_name, section, stream_name)",
     )
     .in("status", ["active", "inactive"])
     .order("full_name", { ascending: true })
     .limit(150);
+
+  if (payload.sessionLabel) {
+    studentsQuery = studentsQuery.eq("class_ref.session_label", payload.sessionLabel);
+  }
 
   const normalizedSearchQuery = payload.searchQuery.trim();
 

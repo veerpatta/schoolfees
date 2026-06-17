@@ -13,12 +13,21 @@ import {
   getFeeSetupSnapshotAt,
 } from "@/lib/fees/time-travel";
 import { requireStaffPermission } from "@/lib/supabase/session";
+import { getViewSessionCookie } from "@/lib/session/cookie";
+import { resolveViewSession } from "@/lib/session/resolver";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 
 type Props = {
   searchParams?: Promise<{
     asOf?: string;
+    session?: string | string[];
   }>;
 };
+
+function asString(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[value.length - 1] ?? "";
+  return value ?? "";
+}
 
 function todayIso(): string {
   const now = new Date();
@@ -45,6 +54,12 @@ export default async function FeeSetupTimeTravelPage({ searchParams }: Props) {
   const t = await getTranslations("FeeSetup");
   await requireStaffPermission("fees:view", { onDenied: "redirect" });
   const resolved = searchParams ? await searchParams : undefined;
+  const viewSession = await resolveViewSession({
+    searchParamSession: asString(resolved?.session),
+    cookieSession: await getViewSessionCookie(),
+  });
+  const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
+
   const requestedDate = resolved?.asOf?.trim() || todayIso();
   const isValidDate = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate);
   const asOf = isValidDate ? requestedDate : todayIso();
@@ -65,7 +80,7 @@ export default async function FeeSetupTimeTravelPage({ searchParams }: Props) {
         description={t("timeTravelDescription")}
         actions={
           <Button asChild variant="outline">
-            <Link href="/protected/fee-setup">{t("timeTravelBackAction")}</Link>
+            <Link href={withSession("/protected/fee-setup")}>{t("timeTravelBackAction")}</Link>
           </Button>
         }
       />
@@ -75,6 +90,9 @@ export default async function FeeSetupTimeTravelPage({ searchParams }: Props) {
         description={t("timeTravelChooseDescription")}
       >
         <form className="flex flex-wrap items-end gap-3">
+          {viewSession.sessionLabel ? (
+            <input type="hidden" name="session" value={viewSession.sessionLabel} />
+          ) : null}
           <div>
             <Label htmlFor="asOf">{t("timeTravelDateLabel")}</Label>
             <Input

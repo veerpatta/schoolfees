@@ -78,6 +78,21 @@ export function MobileSessionPill({
   }, [currentLabel, urlSession]);
 
   useEffect(() => {
+    if (urlSession && urlSession !== currentLabel && !isTransitioning) {
+      void (async () => {
+        try {
+          const result = await setViewSessionAction(urlSession);
+          if (result.success) {
+            router["refresh"]();
+          }
+        } catch (err) {
+          console.error("Failed to sync session from URL to cookie", err);
+        }
+      })();
+    }
+  }, [urlSession, currentLabel, isTransitioning, router]);
+
+  useEffect(() => {
     setGlobalSessionSwitching(isTransitioning);
 
     return () => {

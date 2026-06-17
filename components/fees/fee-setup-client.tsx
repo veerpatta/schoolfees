@@ -27,6 +27,7 @@ import {
 } from "@/lib/fees/workbook-setup";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatDateTimeIst, formatMediumDate, formatTimeIst } from "@/lib/helpers/date";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 
 const selectClassName =
   "flex h-11 w-full rounded-xl border border-input/80 bg-card/88 px-3.5 py-2 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-[border-color,box-shadow,background-color] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50";
@@ -843,7 +844,7 @@ export function FeeSetupClient({
               <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm leading-6 text-muted-foreground">
                 {t("manageYearsMovedNotice")}{" "}
                 <Link
-                  href="/protected/admin-tools/promotion"
+                  href={appendSessionParam("/protected/admin-tools/promotion", selectedSessionLabel)}
                   className="font-semibold text-accent underline-offset-2 hover:underline"
                 >
                   {t("manageYearsMovedLink")}

@@ -19,6 +19,7 @@ import type {
 } from "@/lib/finance-controls/types";
 
 type ClassRow = {
+  session_label: string;
   class_name: string;
   section: string | null;
   stream_name: string | null;
@@ -569,6 +570,7 @@ export function buildFinanceDayBookFilename(paymentDate: string) {
 
 export async function getFinanceControlsPageData(
   selectedDateInput: string,
+  sessionLabel: string,
 ): Promise<FinanceControlsPageData> {
   const selectedDate = normalizeDate(selectedDateInput);
   const nextDate = addOneDay(selectedDate);
@@ -583,7 +585,7 @@ export async function getFinanceControlsPageData(
     supabase
       .from("receipts")
       .select(
-        "id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, created_by, student_ref:students(id, full_name, admission_no, class_ref:classes(class_name, section, stream_name))",
+        "id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, created_by, student_ref:students(id, full_name, admission_no, class_ref:classes(session_label, class_name, section, stream_name))",
       )
       .eq("payment_date", selectedDate)
       .neq("payment_mode", "discount")
@@ -591,7 +593,7 @@ export async function getFinanceControlsPageData(
     supabase
       .from("refund_requests")
       .select(
-        "id, refund_date, requested_amount, refund_method, refund_reference, reason, notes, status, approval_note, processing_note, created_at, approved_at, processed_at, created_by, approved_by, processed_by, receipt_ref:receipts(id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, created_by, student_ref:students(id, full_name, admission_no, class_ref:classes(class_name, section, stream_name)))",
+        "id, refund_date, requested_amount, refund_method, refund_reference, reason, notes, status, approval_note, processing_note, created_at, approved_at, processed_at, created_by, approved_by, processed_by, receipt_ref:receipts(id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, created_by, student_ref:students(id, full_name, admission_no, class_ref:classes(session_label, class_name, section, stream_name)))",
       )
       .eq("refund_date", selectedDate)
       .order("created_at", { ascending: false }),
@@ -604,7 +606,7 @@ export async function getFinanceControlsPageData(
         // through `receipt_ref` instead: the composite FK guarantees
         // payments.student_id == receipts.student_id, and receipts → students is a
         // real single-column FK.
-        "id, payment_id, adjustment_type, amount_delta, reason, notes, created_at, created_by, payment_ref:payments(amount, receipt_ref:receipts(id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, created_by, student_ref:students(id, full_name, admission_no, class_ref:classes(class_name, section, stream_name))), installment_ref:installments(installment_label, due_date))",
+        "id, payment_id, adjustment_type, amount_delta, reason, notes, created_at, created_by, payment_ref:payments(amount, receipt_ref:receipts(id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, created_by, student_ref:students(id, full_name, admission_no, class_ref:classes(session_label, class_name, section, stream_name))), installment_ref:installments(installment_label, due_date))",
       )
       .gte("created_at", `${selectedDate}T00:00:00.000Z`)
       .lt("created_at", `${nextDate}T00:00:00.000Z`)
@@ -647,10 +649,31 @@ export async function getFinanceControlsPageData(
     });
   }
 
-  const receiptsRaw = (receiptsResult.data ?? []) as ReceiptRow[];
-  const refundsRaw = (refundsResult.data ?? []) as RefundRow[];
-  const adjustmentsRaw = (adjustmentsResult.data ?? []) as PaymentAdjustmentRow[];
+  const allReceiptsRaw = (receiptsResult.data ?? []) as ReceiptRow[];
+  const allRefundsRaw = (refundsResult.data ?? []) as RefundRow[];
+  const allAdjustmentsRaw = (adjustmentsResult.data ?? []) as PaymentAdjustmentRow[];
   const closureRaw = (closureResult.data ?? null) as CollectionCloseRow | null;
+
+  const receiptsRaw = allReceiptsRaw.filter((row) => {
+    const student = toSingleRecord(row.student_ref);
+    const classRef = student ? toSingleRecord(student.class_ref) : null;
+    return classRef?.session_label === sessionLabel;
+  });
+
+  const refundsRaw = allRefundsRaw.filter((row) => {
+    const receipt = toSingleRecord(row.receipt_ref);
+    const student = receipt ? toSingleRecord(receipt.student_ref) : null;
+    const classRef = student ? toSingleRecord(student.class_ref) : null;
+    return classRef?.session_label === sessionLabel;
+  });
+
+  const adjustmentsRaw = allAdjustmentsRaw.filter((row) => {
+    const payment = toSingleRecord(row.payment_ref);
+    const receipt = payment ? toSingleRecord(payment.receipt_ref) : null;
+    const student = receipt ? toSingleRecord(receipt.student_ref) : null;
+    const classRef = student ? toSingleRecord(student.class_ref) : null;
+    return classRef?.session_label === sessionLabel;
+  });
 
   const reviewIds = adjustmentsRaw.map((row) => row.id);
   const reviewResult =
@@ -839,8 +862,8 @@ export async function getFinanceControlsPageData(
   };
 }
 
-export async function getFinanceDayBookCsvData(selectedDateInput: string) {
-  const data = await getFinanceControlsPageData(selectedDateInput);
+export async function getFinanceDayBookCsvData(selectedDateInput: string, sessionLabel: string) {
+  const data = await getFinanceControlsPageData(selectedDateInput, sessionLabel);
 
   return {
     filename: buildFinanceDayBookFilename(data.selectedDate),

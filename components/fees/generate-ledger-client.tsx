@@ -3,8 +3,10 @@
 import { useEffect, useActionState } from "react";
 import { AlertCircle, ArrowLeft, Loader2, RotateCcw } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+
+import { appendCurrentSessionParam } from "@/lib/navigation/session-href";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -54,6 +56,7 @@ function AlertBox({
 export function GenerateLedgerClient({ initialState, action }: GenerateLedgerClientProps) {
   const t = useTranslations("FeeSetup");
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [state, formAction, pending] = useActionState(action, initialState);
 
   useEffect(() => {
@@ -66,7 +69,7 @@ export function GenerateLedgerClient({ initialState, action }: GenerateLedgerCli
     <div className="mx-auto max-w-5xl space-y-6">
       <div className="flex items-center justify-between gap-3">
         <Button variant="outline" size="sm" asChild>
-          <Link href="/protected/fee-setup">
+          <Link href={appendCurrentSessionParam("/protected/fee-setup", searchParams)}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             {t("generateBack")}
           </Link>

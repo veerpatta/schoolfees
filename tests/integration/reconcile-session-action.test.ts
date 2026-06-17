@@ -97,7 +97,7 @@ describe("reconcileSessionAction", () => {
     expect(updateEq).toHaveBeenCalledWith("id", "log-1");
     expect(revalidateSessionFinance).toHaveBeenCalledWith("2026-27");
     expect(redirect).toHaveBeenCalledWith(
-      "/protected/admin-tools/session-health?reconciled=2026-27&prepared=4",
+      "/protected/admin-tools/session-health?reconciled=2026-27&prepared=4&session=2026-27",
     );
   });
 

@@ -7,11 +7,21 @@ import { roleLabels } from "@/lib/auth/roles";
 import { getDefaultProtectedHref } from "@/lib/config/navigation";
 import { requireAuthenticatedStaff } from "@/lib/supabase/session";
 
+import { getViewSessionCookie } from "@/lib/session/cookie";
+import { resolveViewSession } from "@/lib/session/resolver";
+import { appendSessionParam } from "@/lib/navigation/session-href";
+
 type AccessDeniedPageProps = {
   searchParams?: Promise<{
     permission?: string;
+    session?: string | string[];
   }>;
 };
+
+function asString(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[value.length - 1] ?? "";
+  return value ?? "";
+}
 
 function formatPermissionLabel(value: string) {
   return value
@@ -26,8 +36,13 @@ export default async function AccessDeniedPage({
 }: AccessDeniedPageProps) {
   const staff = await requireAuthenticatedStaff();
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const viewSession = await resolveViewSession({
+    searchParamSession: asString(resolvedSearchParams?.session),
+    cookieSession: await getViewSessionCookie(),
+  });
+  const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
   const requestedPermission = formatPermissionLabel(
-    resolvedSearchParams?.permission ?? "",
+    asString(resolvedSearchParams?.permission),
   );
 
   return (
@@ -59,11 +74,11 @@ export default async function AccessDeniedPage({
 
         <div className="mt-4 flex flex-wrap gap-2">
           <Button asChild>
-            <Link href={getDefaultProtectedHref(staff.appRole)}>Go to workspace</Link>
+            <Link href={withSession(getDefaultProtectedHref(staff.appRole))}>Go to workspace</Link>
           </Button>
           {staff.appRole === "admin" ? (
             <Button asChild variant="outline">
-              <Link href="/protected/staff">Review staff access</Link>
+              <Link href={withSession("/protected/staff")}>Review staff access</Link>
             </Button>
           ) : null}
         </div>

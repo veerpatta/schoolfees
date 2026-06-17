@@ -154,15 +154,19 @@ function InstallmentPulse({
 function CriticalAlerts({
   syncError,
   appRole,
+  sessionLabel,
   t,
 }: {
   syncError: boolean;
   appRole: string;
+  sessionLabel?: string;
   t: DashboardTranslator;
 }) {
   if (!syncError) {
     return null;
   }
+
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
   return (
     <Notice tone="warning" title={t("criticalAlertTitle")}>
@@ -170,7 +174,7 @@ function CriticalAlerts({
       {appRole === "admin" ? (
         <>
           {" "}
-          <Link href="/protected/admin-tools#fee-data-troubleshooting" className="underline">
+          <Link href={withSession("/protected/admin-tools#fee-data-troubleshooting")} className="underline">
             {t("criticalAlertAdminTools")}
           </Link>
           {t("criticalAlertAdminToolsSuffix")}
@@ -381,6 +385,7 @@ function HeroKpis({
   totalCollected,
   totalExpected,
   todayDelta,
+  sessionLabel,
   t,
 }: {
   collected: number;
@@ -395,6 +400,7 @@ function HeroKpis({
   totalCollected: number;
   totalExpected: number;
   todayDelta: KpiDelta | null;
+  sessionLabel?: string;
   t: DashboardTranslator;
 }) {
   const rateSignal = getCollectionRateHealth(collectionRate, t);
@@ -402,6 +408,8 @@ function HeroKpis({
     totalExpected > 0
       ? Math.min(100, Math.round((totalCollected / totalExpected) * 100))
       : 0;
+
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
   return (
     <div className="hidden sm:grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5">
@@ -411,7 +419,7 @@ function HeroKpis({
       <KpiCard
         accent="success"
         label={t("totalCollected")}
-        href="/protected/transactions?view=receipts"
+        href={withSession("/protected/transactions?view=receipts")}
         className="snap-start shrink-0 w-[72vw] sm:w-auto"
         value={
           <CountUp
@@ -430,7 +438,7 @@ function HeroKpis({
       <KpiCard
         accent="accent"
         label={t("todayCollection")}
-        href="/protected/transactions?view=collection_today"
+        href={withSession("/protected/transactions?view=collection_today")}
         className="snap-start shrink-0 w-[72vw] sm:w-auto"
         value={
           <CountUp
@@ -450,7 +458,7 @@ function HeroKpis({
       <KpiCard
         accent="warning"
         label={t("pendingDues")}
-        href="/protected/defaulters"
+        href={withSession("/protected/defaulters")}
         className="snap-start shrink-0 w-[72vw] sm:w-auto"
         value={
           <CountUp
@@ -1795,9 +1803,11 @@ function AlertsPanel({ alerts, t }: { alerts: DashboardAlert[]; t: DashboardTran
 
 function FeeDataAttentionBanner({
   health,
+  sessionLabel,
   t,
 }: {
   health: NonNullable<Awaited<ReturnType<typeof getDashboardPageData>>["systemSyncHealth"]>;
+  sessionLabel?: string;
   t: DashboardTranslator;
 }) {
   const needsAttention =
@@ -1809,13 +1819,15 @@ function FeeDataAttentionBanner({
     return null;
   }
 
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+
   return (
     <Notice
       tone="warning"
       title={t("feeRecordsAttentionTitle")}
       action={
         <Button asChild size="sm" variant="outline">
-          <Link href="/protected/admin-tools#fee-data-troubleshooting">
+          <Link href={withSession("/protected/admin-tools#fee-data-troubleshooting")}>
             {t("feeRecordsAttentionAction")}
           </Link>
         </Button>
@@ -1887,7 +1899,7 @@ async function DashboardBelowFold({
       ) : null}
 
       {staffRole === "admin" && data.systemSyncHealth ? (
-        <FeeDataAttentionBanner health={data.systemSyncHealth} t={t} />
+        <FeeDataAttentionBanner health={data.systemSyncHealth} sessionLabel={sessionLabel} t={t} />
       ) : null}
 
       {visibleAlerts.length > 0 ? <AlertsPanel alerts={visibleAlerts} t={t} /> : null}
@@ -2146,6 +2158,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           totalCollected={aboveFold.kpis.totalCollected}
           totalExpected={aboveFold.kpis.totalExpectedFees}
           todayDelta={todayDelta}
+          sessionLabel={viewSession.sessionLabel}
           t={t}
         />
         {/* Year-to-date collection progress. Mobile keeps the MobileSecondaryKpis
@@ -2170,7 +2183,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           followUpCount={aboveFold.studentsWithPending}
           t={t}
         />
-        <CriticalAlerts syncError={aboveFold.syncError} appRole={staff.appRole} t={t} />
+        <CriticalAlerts syncError={aboveFold.syncError} appRole={staff.appRole} sessionLabel={viewSession.sessionLabel} t={t} />
 
         <MobileQuickActions
           canWriteStudents={canWriteStudents}

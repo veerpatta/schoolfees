@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { getReceiptsPage } from "@/lib/receipts/data";
+import { getViewSessionCookie } from "@/lib/session/cookie";
+import { resolveViewSession } from "@/lib/session/resolver";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 function normalizePage(value: string | null) {
@@ -19,7 +21,11 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = (searchParams.get("query") ?? "").trim();
   const page = normalizePage(searchParams.get("page"));
+  const viewSession = await resolveViewSession({
+    searchParamSession: searchParams.get("session"),
+    cookieSession: await getViewSessionCookie(),
+  });
 
-  const payload = await getReceiptsPage(query, { page, pageSize: 30 });
+  const payload = await getReceiptsPage(query, { page, pageSize: 30 }, viewSession.sessionLabel);
   return NextResponse.json(payload);
 }

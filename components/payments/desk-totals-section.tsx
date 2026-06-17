@@ -139,10 +139,10 @@ export function DeskTotalsSection({
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button asChild size="sm" variant="outline">
-                <Link href="/protected/transactions?view=receipts">Receipts</Link>
+                <Link href={withSession("/protected/transactions?view=receipts")}>Receipts</Link>
               </Button>
               <Button asChild size="sm" variant="outline">
-                <Link href="/protected/transactions?view=collection_today">Today&apos;s collection</Link>
+                <Link href={withSession("/protected/transactions?view=collection_today")}>Today&apos;s collection</Link>
               </Button>
             </div>
             <div className="mt-3">

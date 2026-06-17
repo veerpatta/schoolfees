@@ -95,16 +95,6 @@ export function isConfiguredSiteUrlSecure() {
   return withHttpsIfNeeded(configuredUrl).startsWith("https://");
 }
 
-export function isBootstrapSignupEnabled() {
-  const value = getOptionalEnvVar("NEXT_PUBLIC_ENABLE_BOOTSTRAP_SIGNUP");
-
-  if (!value) {
-    return false;
-  }
-
-  return truthyEnvValues.has(value.toLowerCase());
-}
-
 // Gates the in-app language switcher (English / Hindi / Hinglish). The flag
 // is now opt-out: when LOCALE_SWITCHER_ENABLED is unset or truthy, the
 // switcher is on; only an explicit falsy value (`0`, `false`, `off`, `no`)

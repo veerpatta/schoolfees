@@ -10,6 +10,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { getReceiptsList } from "@/lib/receipts/data";
+import { getViewSessionCookie } from "@/lib/session/cookie";
+import { resolveViewSession } from "@/lib/session/resolver";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +42,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ items: [] satisfies CommandReceiptHit[] });
   }
 
-  const receipts = await getReceiptsList(rawQuery);
+  const viewSession = await resolveViewSession({
+    searchParamSession: searchParams.get("session"),
+    cookieSession: await getViewSessionCookie(),
+  });
+  const receipts = await getReceiptsList(rawQuery, viewSession.sessionLabel);
 
   const items: CommandReceiptHit[] = receipts.slice(0, 8).map((row) => ({
     id: row.id,

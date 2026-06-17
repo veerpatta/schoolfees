@@ -14,6 +14,9 @@ import { REQUIRED_OFFICE_SESSION_LABELS } from "@/lib/session/available-sessions
 import { createClient } from "@/lib/supabase/server";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import { getSystemSyncHealth, type SystemSyncHealth } from "@/lib/system-sync/finance-sync";
+import { getViewSessionCookie } from "@/lib/session/cookie";
+import { resolveViewSession } from "@/lib/session/resolver";
+import { appendSessionParam } from "@/lib/navigation/session-href";
 import {
   buildUnavailableSystemSyncHealth,
   getErrorMessage,
@@ -280,6 +283,11 @@ export default async function SessionHealthPage({ searchParams }: SessionHealthP
   const t = await getTranslations("AdminTools");
   await requireStaffPermission("fees:view", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const viewSession = await resolveViewSession({
+    searchParamSession: resolvedSearchParams?.session,
+    cookieSession: await getViewSessionCookie(),
+  });
+  const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
 
   return (
     <div className="space-y-6">
@@ -289,7 +297,7 @@ export default async function SessionHealthPage({ searchParams }: SessionHealthP
         description={t("sessionHealthDescription")}
         actions={
           <Button asChild variant="outline">
-            <Link href="/protected/admin-tools">{t("sessionHealthBackToAdmin")}</Link>
+            <Link href={withSession("/protected/admin-tools")}>{t("sessionHealthBackToAdmin")}</Link>
           </Button>
         }
       />

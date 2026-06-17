@@ -453,9 +453,8 @@ async function loadPlan(): Promise<RegenerationPlan> {
     // resolved breakdown surfaced a `grossBaseBeforeDiscount` lower than
     // `annualTotal`. Comparing against annualTotal removes the ambiguity.
     if (resolved.breakdown.annualTotal < discountAmount) {
-      throw new Error(
-        `Discount for student ${studentLabel} (${discountAmount}) exceeds the configured annual total (${resolved.breakdown.annualTotal}).`,
-      );
+      studentsMissingSettings += 1;
+      continue;
     }
 
     studentsWithResolvedSettings += 1;
