@@ -80,8 +80,10 @@ function OutstandingCell({ student, t }: { student: StudentListItem; t: Students
   }
 
   const isOverdue = student.overdueAmount > 0;
-  // Candidate late fee: if overdue and pendingLateFeeAmount is 0 (not yet materialised in view),
-  // show lateFeeTotal from the workbook view as an indicator.
+  // pendingLateFeeAmount already includes the accruing (candidate) late fee for
+  // never-paid overdue installments (see lib/students/data.ts), so it matches the
+  // profile page and the waive cap. lateFeeTotal is only a degraded fallback for
+  // when installment balances failed to load.
   const effectiveLateFee = student.pendingLateFeeAmount > 0
     ? student.pendingLateFeeAmount
     : (isOverdue && student.lateFeeTotal > 0 ? student.lateFeeTotal : 0);

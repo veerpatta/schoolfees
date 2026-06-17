@@ -1,14 +1,24 @@
 import "server-only";
 
 
-import { getFeePolicySummary, getFeeSetupPageData, upsertStudentFeeOverride } from "@/lib/fees/data";
+import {
+  getFeePolicyForSession,
+  getFeePolicySummary,
+  getFeeSetupPageData,
+  upsertStudentFeeOverride,
+} from "@/lib/fees/data";
 import {
   getConventionalDiscountPolicies,
   getStudentConventionalDiscountAssignments,
   saveStudentConventionalDiscountAssignments,
 } from "@/lib/fees/conventional-discounts";
 import { getMasterDataOptions } from "@/lib/master-data/data";
-import { calculateOverdueBaseAmount, calculatePendingLateFeeAmount } from "@/lib/fees/due-amounts";
+import {
+  calculateCandidateLateFeeAmount,
+  calculateOverdueBaseAmount,
+  calculatePendingLateFeeAmount,
+} from "@/lib/fees/due-amounts";
+import { isCarryForwardInstallment } from "@/lib/prev-year-dues/display";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getCacheSafeClient } from "@/lib/supabase/cache-safe";
@@ -158,6 +168,8 @@ type StudentFeeOverrideRow = {
 
 type StudentListInstallmentBalanceRow = {
   student_id: string;
+  installment_no: number | null;
+  installment_label: string | null;
   base_charge: number;
   paid_amount: number;
   adjustment_amount: number;
@@ -803,6 +815,7 @@ async function getStudentsPageUncached(
   let overrideMap = new Map<string, StudentFeeOverrideRow>();
   let overdueAmountMap = new Map<string, number>();
   let pendingLateFeeMap = new Map<string, number>();
+  let candidateLateFeeMap = new Map<string, number>();
   let conventionalDiscountMap = new Map<string, string[]>();
   let siblingPillMap = new Map<string, StudentSiblingPill>();
 
@@ -814,6 +827,7 @@ async function getStudentsPageUncached(
       { data: installmentBalancesRaw, error: installmentBalancesError },
       conventionalAssignments,
       loadedSiblingPills,
+      lateFeeFlatAmount,
     ] = await Promise.all([
       supabase
         .from("v_workbook_student_financials")
@@ -830,9 +844,14 @@ async function getStudentsPageUncached(
         .in("student_id", studentIds),
       supabase
         .from("v_workbook_installment_balances")
-        .select("student_id, base_charge, paid_amount, adjustment_amount, final_late_fee, pending_amount, balance_status")
+        .select(
+          "student_id, installment_no, installment_label, base_charge, paid_amount, adjustment_amount, final_late_fee, pending_amount, balance_status",
+        )
         .in("student_id", studentIds)
-        .gt("pending_amount", 0),
+        .gt("pending_amount", 0)
+        // Installment order so the candidate late-fee waiver pool is consumed in
+        // the same order as the DB snapshot (see calculateCandidateLateFees).
+        .order("installment_no", { ascending: true }),
       getStudentConventionalDiscountAssignments({
         academicSessionLabel: listSessionLabel,
         studentIds,
@@ -844,6 +863,15 @@ async function getStudentsPageUncached(
 
         throw error;
       }),
+      // Active session late-fee flat amount, resolved once for the whole page —
+      // feeds the candidate ("accruing") late fee for never-paid overdue rows,
+      // which the candidate-blind workbook matview stores as 0.
+      (listSessionLabel
+        ? getFeePolicyForSession(listSessionLabel)
+        : getFeePolicySummary()
+      )
+        .then((policy) => policy.lateFeeFlatAmount)
+        .catch(() => 0),
     ]);
 
     if (financialsError) {
@@ -925,6 +953,28 @@ async function getStudentsPageUncached(
         row,
       ]),
     );
+    // Candidate ("accruing") late fee for never-paid overdue installments, which
+    // the candidate-blind matview stores as final_late_fee=0. Mirrors the student
+    // profile page so the list badge, the profile, and the waive cap all agree.
+    // Rows are already in installment order; the student's waiver is consumed as a
+    // single pool across them, and carry-forward rows are excluded.
+    candidateLateFeeMap = new Map(
+      [...installmentRowsByStudent.entries()].map(([studentId, rows]) => [
+        studentId,
+        calculateCandidateLateFeeAmount(
+          rows.map((row) => ({
+            balanceStatus: row.balance_status,
+            finalLateFee: row.final_late_fee,
+            isCarryForward: isCarryForwardInstallment({
+              installmentNo: row.installment_no,
+              installmentLabel: row.installment_label,
+            }),
+          })),
+          lateFeeFlatAmount,
+          overrideMap.get(studentId)?.late_fee_waiver_amount ?? 0,
+        ),
+      ]),
+    );
     conventionalDiscountMap = new Map();
     conventionalAssignments.forEach((assignment) => {
       const labels = conventionalDiscountMap.get(assignment.studentId) ?? [];
@@ -1000,7 +1050,10 @@ async function getStudentsPageUncached(
       lateFeeTotal: financial?.late_fee_total ?? 0,
       totalDue: financial?.total_due ?? 0,
       overdueAmount: overdueAmountMap.get(row.id) ?? 0,
-      pendingLateFeeAmount: pendingLateFeeMap.get(row.id) ?? 0,
+      // Materialized pending late fee plus the accruing (candidate) amount so the
+      // list badge matches the profile page and the waive cap.
+      pendingLateFeeAmount:
+        (pendingLateFeeMap.get(row.id) ?? 0) + (candidateLateFeeMap.get(row.id) ?? 0),
       hasLateFeeWaiver: Boolean(override?.late_fee_waiver_amount && override.late_fee_waiver_amount > 0),
       fatherPhone: row.primary_phone,
       motherPhone: row.secondary_phone,
