@@ -18,9 +18,14 @@ import { describe, expect, it } from "vitest";
  */
 describe("waive_late_fee Postgres RPC (audit 1.5)", () => {
   const repoRoot = process.cwd();
+  // Latest definition of the RPC. The original audit-1.5 migration
+  // (20260528151726) read the pending late fee from a column that the
+  // base-outstanding refactor later removed; 20260617031509 re-sources it from
+  // the candidate-aware workbook snapshot. The advisory-lock / FOR UPDATE /
+  // field-guard invariants below must hold against the CURRENT definition.
   const migrationPath = join(
     repoRoot,
-    "supabase/migrations/20260528151726_waive_late_fee_advisory_lock.sql",
+    "supabase/migrations/20260617031509_waive_late_fee_uses_workbook_snapshot.sql",
   );
   const sql = readFileSync(migrationPath, "utf8");
 
@@ -39,7 +44,10 @@ describe("waive_late_fee Postgres RPC (audit 1.5)", () => {
 
   it("validates the input amount and the pending late fee inside the lock", () => {
     expect(sql).toMatch(/raise exception 'Waiver amount must be greater than 0\.'/);
-    expect(sql).toMatch(/v_pending_late_fee[\s\S]+from public\.v_workbook_student_financials/);
+    // Pending late fee comes from the candidate-aware workbook snapshot (the
+    // same projection the payment RPCs use), NOT the materialized financials
+    // view — which stores 0 for never-paid overdue (accruing) late fees.
+    expect(sql).toMatch(/v_pending_late_fee[\s\S]+from private\.workbook_installment_snapshot/);
     expect(sql).toContain("Waiver cannot exceed the current pending late fee");
   });
 

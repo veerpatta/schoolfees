@@ -11,6 +11,10 @@ type InstallmentLike = {
   pendingAmount?: number | null;
   finalLateFee?: number | null;
   balanceStatus?: string | null;
+  // Carry-forward (previous-year) installments never accrue a late fee — their
+  // stored `late_fee_flat_amount` is 0 (see CARRY_FORWARD_LATE_FEE_FLAT_AMOUNT).
+  // The caller flags them so the candidate late-fee calc skips them.
+  isCarryForward?: boolean | null;
 };
 
 function toAmount(value: number | null | undefined) {
@@ -36,6 +40,58 @@ export function calculateInstallmentBasePending(row: InstallmentLike) {
 export function calculatePendingLateFeeAmount(rows: readonly InstallmentLike[]) {
   return rows.reduce(
     (sum, row) => sum + Math.min(toAmount(row.finalLateFee), toAmount(row.outstandingAmount ?? row.pendingAmount)),
+    0,
+  );
+}
+
+/**
+ * Per-installment candidate ("accruing") late fee for overdue installments
+ * whose late fee has NOT yet materialized in the workbook view — the view only
+ * materializes a late fee once a payment posts after the due date, so a
+ * never-paid overdue installment reads `finalLateFee = 0` there.
+ *
+ * This mirrors `private.workbook_installment_snapshot(..., include_candidate :=
+ * true)`: the student's `late_fee_waiver_amount` is a single waiver POOL that the
+ * DB consumes across installments in order (`least(raw_late_fee, remaining_pool)`),
+ * NOT a per-installment deduction. Consuming it the same way here keeps the
+ * displayed figure equal to what `waive_late_fee` will accept.
+ *
+ * Carry-forward (previous-year) installments are excluded — they never accrue a
+ * late fee in the DB, so counting them would over-state the pending late fee.
+ *
+ * `rows` must be supplied in installment order. Returns an array aligned to
+ * `rows` (0 for non-candidate installments).
+ */
+export function calculateCandidateLateFees(
+  rows: readonly InstallmentLike[],
+  lateFeeFlatAmount: number,
+  studentLateFeeWaiver: number,
+): number[] {
+  const flat = toAmount(lateFeeFlatAmount);
+  let remainingWaiver = toAmount(studentLateFeeWaiver);
+  return rows.map((row) => {
+    const isCandidate =
+      row.balanceStatus === "overdue" && toAmount(row.finalLateFee) === 0 && !row.isCarryForward;
+    if (!isCandidate || flat <= 0) {
+      return 0;
+    }
+    const applied = Math.min(flat, remainingWaiver);
+    remainingWaiver -= applied;
+    return flat - applied;
+  });
+}
+
+/**
+ * Total candidate late fee across all installments — the sum of
+ * {@link calculateCandidateLateFees}.
+ */
+export function calculateCandidateLateFeeAmount(
+  rows: readonly InstallmentLike[],
+  lateFeeFlatAmount: number,
+  studentLateFeeWaiver: number,
+): number {
+  return calculateCandidateLateFees(rows, lateFeeFlatAmount, studentLateFeeWaiver).reduce(
+    (sum, value) => sum + value,
     0,
   );
 }
