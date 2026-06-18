@@ -34,6 +34,7 @@
     "node_modules",
     "supabase/functions",
     "tests/smoke-2026-05",
+    "tests/smoke-readiness",
     "docs/smoke-reports"
   ]
 }

@@ -90,7 +90,7 @@ export function buildOfficeWorkflowReadiness(
         nonAdminDetail:
           "Student entry is waiting for admin setup. Classes for the active session are still missing.",
         actionLabel: "Add classes now",
-        actionHref: "/protected/setup#classes",
+        actionHref: "/protected/master-data",
       });
 
   const importStudents =
@@ -107,9 +107,9 @@ export function buildOfficeWorkflowReadiness(
               : "Configure school and class fee defaults before importing students.",
           nonAdminDetail:
             "Student import is waiting on admin setup. The active session classes or fee defaults are incomplete.",
-          actionLabel: input.classCount === 0 ? "Go to Setup" : "Configure fee defaults",
+          actionLabel: input.classCount === 0 ? "Open school lists" : "Configure fee defaults",
           actionHref:
-            input.classCount === 0 ? "/protected/setup#classes" : "/protected/setup#class-defaults",
+            input.classCount === 0 ? "/protected/master-data" : "/protected/fee-setup",
         });
 
   const recalculateLedgers =
@@ -145,7 +145,7 @@ export function buildOfficeWorkflowReadiness(
         nonAdminDetail:
           "Payment posting is waiting on admin setup. Fee defaults for the active session are still incomplete.",
         actionLabel: input.classCount > 0 ? "Configure fee defaults" : "Open Fee Setup",
-        actionHref: input.classCount > 0 ? "/protected/fee-setup" : "/protected/setup#class-defaults",
+        actionHref: "/protected/fee-setup",
       };
     }
 
@@ -192,8 +192,8 @@ export function buildOfficeWorkflowReadiness(
             "Add classes and fee defaults first so dues and receipt views have useful operational data.",
           nonAdminDetail:
             "Operational views are limited until admin setup and student import are complete.",
-          actionLabel: "Open Setup",
-          actionHref: "/protected/setup",
+          actionLabel: "Open Admin Tools",
+          actionHref: "/protected/admin-tools",
         });
 
   return {

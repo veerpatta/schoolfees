@@ -2,6 +2,8 @@ import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { OfficeNotice } from "@/components/office/office-ui";
+import { formatInr } from "@/lib/helpers/currency";
+import { formatDateTimeIst, formatShortDate } from "@/lib/helpers/date";
 import {
   getPrevYearDuesCollectionRows,
   getPrevYearImportRows,
@@ -11,8 +13,6 @@ import {
 import { requireAnyStaffPermission } from "@/lib/supabase/session";
 
 export const revalidate = 0;
-
-const inr = (value: number) => `Rs ${value.toLocaleString("en-IN")}`;
 
 function statusTone(status: string): "good" | "warning" | "info" {
   if (status === "applied") return "good";
@@ -66,20 +66,20 @@ export default async function PrevYearDuesPage() {
           <SectionCard
             title={`Latest batch - ${latest.sessionLabel}`}
             description={`${latest.fileName} - imported ${
-              latest.appliedAt ? new Date(latest.appliedAt).toLocaleString("en-IN") : "-"
+              formatDateTimeIst(latest.appliedAt, "-")
             }`}
             actions={<StatusBadge label={latest.status.toUpperCase()} tone={statusTone(latest.status)} />}
           >
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <Metric label="Candidate rows" value={String(latest.candidateRowCount)} />
-              <Metric label="Confirmed" value={`${latest.confirmedRowCount} - ${inr(latest.confirmedSubtotal)}`} />
-              <Metric label="Applied" value={`${latest.appliedRowCount} - ${inr(latest.appliedSubtotal)}`} />
+              <Metric label="Confirmed" value={`${latest.confirmedRowCount} - ${formatInr(latest.confirmedSubtotal)}`} />
+              <Metric label="Applied" value={`${latest.appliedRowCount} - ${formatInr(latest.appliedSubtotal)}`} />
               <Metric label="Not applied" value={String(breakdown.skipped + breakdown.error + breakdown.pending)} />
             </div>
             <div className="mt-3 grid gap-3 md:grid-cols-3">
-              <Metric label="Opening old balance" value={inr(collectionTotal)} />
-              <Metric label="Collected from old balance" value={inr(collectedTotal)} />
-              <Metric label="Old balance remaining" value={inr(remainingTotal)} />
+              <Metric label="Opening old balance" value={formatInr(collectionTotal)} />
+              <Metric label="Collected from old balance" value={formatInr(collectedTotal)} />
+              <Metric label="Old balance remaining" value={formatInr(remainingTotal)} />
             </div>
             {latest.applyNotes ? (
               <p className="mt-4 text-sm text-muted-foreground">{latest.applyNotes}</p>
@@ -88,11 +88,11 @@ export default async function PrevYearDuesPage() {
               Reconciliation:{" "}
               {latest.appliedSubtotal === breakdown.appliedSubtotal ? (
                 <span className="font-semibold text-success-soft-foreground">
-                  applied subtotal matches inserted rows ({inr(breakdown.appliedSubtotal)}).
+                  applied subtotal matches inserted rows ({formatInr(breakdown.appliedSubtotal)}).
                 </span>
               ) : (
                 <span className="font-semibold text-warning-soft-foreground">
-                  mismatch - batch {inr(latest.appliedSubtotal)} vs rows {inr(breakdown.appliedSubtotal)}.
+                  mismatch - batch {formatInr(latest.appliedSubtotal)} vs rows {formatInr(breakdown.appliedSubtotal)}.
                 </span>
               )}
             </p>
@@ -120,7 +120,7 @@ export default async function PrevYearDuesPage() {
                       <tr key={row.id} className="border-b border-border/60">
                         <td className="py-2 pr-3 font-mono text-xs">{row.sourceAdmissionNo ?? "-"}</td>
                         <td className="py-2 pr-3">{row.sourceName ?? "-"}</td>
-                        <td className="py-2 pr-3 text-right">{row.prevYearDue != null ? inr(row.prevYearDue) : "-"}</td>
+                        <td className="py-2 pr-3 text-right">{formatInr(row.prevYearDue, { fallback: "-" })}</td>
                         <td className="py-2 pr-3 capitalize">{row.ownerDecision.replace("_", " ")}</td>
                         <td className="py-2 pr-3 text-muted-foreground">{row.skipReason ?? "-"}</td>
                       </tr>
@@ -147,10 +147,10 @@ export default async function PrevYearDuesPage() {
                   <li key={batch.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2">
                     <span>
                       {batch.sessionLabel} - {batch.fileName} -{" "}
-                      {batch.appliedAt ? new Date(batch.appliedAt).toLocaleDateString("en-IN") : "-"}
+                      {formatShortDate(batch.appliedAt, "-")}
                     </span>
                     <span className="text-muted-foreground">
-                      {batch.appliedRowCount} applied - {inr(batch.appliedSubtotal)}
+                      {batch.appliedRowCount} applied - {formatInr(batch.appliedSubtotal)}
                     </span>
                   </li>
                 ))}

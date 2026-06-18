@@ -36,8 +36,8 @@ export async function getStudentImportWorkflowReadiness(
       role === "admin"
         ? "Create or choose the active session first, then return to import students."
         : "Student import is waiting for admin setup. The active academic session is missing.",
-      role === "admin" ? "Go to Setup" : null,
-      role === "admin" ? "/protected/setup#session-policy" : null,
+      role === "admin" ? "Open school lists" : null,
+      role === "admin" ? "/protected/master-data" : null,
       false,
     );
   }
@@ -53,7 +53,7 @@ export async function getStudentImportWorkflowReadiness(
         ? `No classes are saved for ${resolvedSessionLabel}. Add classes first, then return to student import.`
         : "Student import is waiting for admin setup. Classes for the active academic session are still missing.",
       role === "admin" ? "Add classes now" : null,
-      role === "admin" ? "/protected/setup#classes" : null,
+      role === "admin" ? "/protected/master-data" : null,
       false,
     );
   }

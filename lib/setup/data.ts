@@ -184,7 +184,7 @@ function buildReadinessSummary(payload: {
         : "Save the active academic session before continuing.",
       status: payload.hasPolicyRecord ? "complete" : "incomplete",
       blocking: true,
-      href: "/protected/setup#session-policy",
+      href: "/protected/master-data",
     },
     {
       key: "classes_configured",
@@ -195,7 +195,7 @@ function buildReadinessSummary(payload: {
           : "Add the classes that belong to the active academic session.",
       status: payload.classCount > 0 ? "complete" : "incomplete",
       blocking: true,
-      href: "/protected/setup#classes",
+      href: "/protected/master-data",
     },
     {
       key: "routes_configured",
@@ -206,7 +206,7 @@ function buildReadinessSummary(payload: {
           : "No transport routes are saved yet. If transport is used, add them before import.",
       status: payload.routeCount > 0 ? "complete" : "warning",
       blocking: false,
-      href: "/protected/setup#routes",
+      href: "/protected/master-data",
     },
     {
       key: "fee_defaults_configured",
@@ -224,7 +224,7 @@ function buildReadinessSummary(payload: {
           ? "complete"
           : "incomplete",
       blocking: true,
-      href: "/protected/setup#class-defaults",
+      href: "/protected/fee-setup",
     },
     {
       key: "students_imported",
@@ -274,7 +274,7 @@ function buildReadinessSummary(payload: {
       href:
         payload.studentsMissingDues > 0
           ? "/protected/admin-tools#fee-data-troubleshooting"
-          : "/protected/setup#complete",
+          : "/protected/admin-tools",
     },
   ];
   const completedCount = checklist.filter((item) => item.status === "complete").length;
@@ -301,11 +301,11 @@ function buildFlowItems(payload: {
   return [
     {
       key: "setup",
-      label: "Finish setup wizard",
+      label: "Review setup status",
       detail: payload.readiness.readyForCompletion
         ? "Core setup data is ready. Saving a completion note is optional for the office audit trail."
         : "Complete session, classes, routes, and fee defaults before importing students.",
-      href: "/protected/setup",
+      href: "/protected/admin-tools",
       status: payload.readiness.readyForCompletion ? "done" : "current",
     },
     {

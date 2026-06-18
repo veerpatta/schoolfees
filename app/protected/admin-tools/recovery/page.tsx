@@ -6,6 +6,8 @@ import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { OfficeNotice } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
+import { formatInr } from "@/lib/helpers/currency";
+import { formatShortDate } from "@/lib/helpers/date";
 import { getRecoveryQueue } from "@/lib/recovery/data";
 import {
   RECOVERY_STUDENT_STATUSES,
@@ -14,8 +16,6 @@ import {
 import { requireAnyStaffPermission } from "@/lib/supabase/session";
 
 export const revalidate = 0;
-
-const inr = (value: number) => `Rs ${value.toLocaleString("en-IN")}`;
 
 const STATUS_TONE: Record<RecoveryStudentStatus, "warning" | "info"> = {
   left: "warning",
@@ -86,7 +86,7 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <Metric label="Students in queue" value={String(data.totalStudents)} />
-        <Metric label="Total recoverable" value={inr(data.totalRemaining)} />
+        <Metric label="Total recoverable" value={formatInr(data.totalRemaining)} />
         <Metric label="Left" value={String(data.statusCounts.left)} />
         <Metric label="Graduated / inactive" value={String(data.statusCounts.graduated + data.statusCounts.inactive)} />
       </div>
@@ -175,7 +175,7 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
               <tbody>
                 {data.rows.map((row) => {
                   const waMessage = encodeURIComponent(
-                    `Dear Parent, our records show a pending balance of ${inr(row.totalRemaining)} for ${row.fullName} (Adm# ${row.admissionNo}). Kindly clear the dues at your earliest convenience. - VPPS Office`,
+                    `Dear Parent, our records show a pending balance of ${formatInr(row.totalRemaining)} for ${row.fullName} (Adm# ${row.admissionNo}). Kindly clear the dues at your earliest convenience. - VPPS Office`,
                   );
                   const waHref = row.phone
                     ? `https://wa.me/91${row.phone.replace(/\D/g, "").slice(-10)}?text=${waMessage}`
@@ -200,11 +200,9 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
                       </td>
                       <td className="py-2 pr-3">{row.classLabel ?? "-"}</td>
                       <td className="py-2 pr-3">{row.sourceSessionLabel ?? "-"}</td>
-                      <td className="py-2 pr-3 text-right font-semibold">{inr(row.totalRemaining)}</td>
+                      <td className="py-2 pr-3 text-right font-semibold">{formatInr(row.totalRemaining)}</td>
                       <td className="py-2 pr-3 text-muted-foreground">
-                        {row.lastPaymentDate
-                          ? new Date(row.lastPaymentDate).toLocaleDateString("en-IN")
-                          : "-"}
+                        {formatShortDate(row.lastPaymentDate, "-")}
                       </td>
                       <td className="py-2 pr-3">
                         <div className="flex flex-wrap items-center justify-end gap-1.5">

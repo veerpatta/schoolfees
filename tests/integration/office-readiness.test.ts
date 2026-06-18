@@ -18,7 +18,7 @@ describe("office workflow readiness", () => {
     );
 
     expect(readiness.addStudent.isReady).toBe(false);
-    expect(readiness.addStudent.actionHref).toBe("/protected/setup#classes");
+    expect(readiness.addStudent.actionHref).toBe("/protected/master-data");
   });
 
   it("tells accountants to wait on admin setup instead of offering admin actions", () => {
