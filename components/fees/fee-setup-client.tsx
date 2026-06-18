@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isTestAcademicSessionLabel } from "@/lib/config/fee-rules";
+import { normalizeConventionalDiscountCode } from "@/lib/fees/conventional-discount-rules";
 import type { ClassStatus } from "@/lib/db/types";
 import type {
   FeeHeadApplicationType,
@@ -88,6 +89,8 @@ type FeeSetupClientProps = {
   initialState: FeeSetupActionState;
   initialMasterDataState: MasterDataActionState;
   initialSelectedSessionLabel?: string;
+  /** Deep-link target section (from ?section=…). Defaults to "basic". */
+  initialSection?: FeeSetupSectionId;
   actions: {
     createClassAction: MasterDataActionFn;
     updateClassAction: MasterDataActionFn;
@@ -103,6 +106,8 @@ type FeeHeadRow = FeeHeadDefinition & {
 };
 
 type ConventionalDiscountRow = {
+  /** Stable client key — code is editable for custom policies, so it can't be the key. */
+  rowId: string;
   id: string | null;
   code: string;
   displayName: string;
@@ -110,6 +115,7 @@ type ConventionalDiscountRow = {
   fixedTuitionAmount: number | null;
   percentage: number | null;
   isActive: boolean;
+  isBuiltin: boolean;
   sortOrder: number;
 };
 
@@ -189,6 +195,7 @@ function buildSessionFormState(data: FeeSetupPageData, sessionLabel: string): Se
     academicFeeDistribution: snapshot.academicFeeDistribution,
     customFeeHeads: snapshot.customFeeHeads.map((item, index) => buildFeeHeadRow(item, index)),
     conventionalDiscountPolicies: data.conventionalDiscountPolicies.map((policy) => ({
+      rowId: policy.id ?? `builtin-${policy.code}`,
       id: policy.id,
       code: policy.code,
       displayName: policy.displayName,
@@ -196,6 +203,7 @@ function buildSessionFormState(data: FeeSetupPageData, sessionLabel: string): Se
       fixedTuitionAmount: policy.fixedTuitionAmount,
       percentage: policy.percentage,
       isActive: policy.isActive,
+      isBuiltin: policy.isBuiltin,
       sortOrder: policy.sortOrder,
     })),
     classRows: buildWorkbookClassSetupRows(data, sessionLabel).map((item) => ({
@@ -456,6 +464,7 @@ export function FeeSetupClient({
   initialState,
   initialMasterDataState,
   initialSelectedSessionLabel,
+  initialSection,
   actions,
 }: FeeSetupClientProps) {
   const t = useTranslations("FeeSetup");
@@ -471,7 +480,7 @@ export function FeeSetupClient({
     buildSessionFormState(data, startingSessionLabel),
   );
   const [isDirty, setIsDirty] = useState(false);
-  const [activeSection, setActiveSection] = useState<FeeSetupSectionId>("basic");
+  const [activeSection, setActiveSection] = useState<FeeSetupSectionId>(initialSection ?? "basic");
   const [dirtySections, setDirtySections] = useState<Set<FeeSetupSectionId>>(new Set());
   const [saveState, setSaveState] = useState(initialState);
   const [classState, setClassState] = useState(initialMasterDataState);
@@ -689,13 +698,50 @@ export function FeeSetupClient({
   }
 
   function updateConventionalDiscountRow(
-    code: string,
+    rowId: string,
     patch: Partial<ConventionalDiscountRow>,
   ) {
     setForm((current) => ({
       ...current,
       conventionalDiscountPolicies: current.conventionalDiscountPolicies.map((item) =>
-        item.code === code ? { ...item, ...patch } : item,
+        item.rowId === rowId ? { ...item, ...patch } : item,
+      ),
+    }));
+    markDirty("discounts");
+  }
+
+  function addCustomDiscountRow() {
+    setForm((current) => ({
+      ...current,
+      conventionalDiscountPolicies: [
+        ...current.conventionalDiscountPolicies,
+        {
+          rowId:
+            typeof crypto !== "undefined" && "randomUUID" in crypto
+              ? crypto.randomUUID()
+              : `custom-${Date.now()}`,
+          id: null,
+          code: "",
+          displayName: "",
+          calculationType: "tuition_zero",
+          fixedTuitionAmount: null,
+          percentage: null,
+          isActive: true,
+          isBuiltin: false,
+          sortOrder: current.conventionalDiscountPolicies.length + 1,
+        },
+      ],
+    }));
+    markDirty("discounts");
+  }
+
+  // Built-ins are never removed (only deactivated via the Active toggle); custom
+  // rows can be dropped before saving. Server-side protection is the backstop.
+  function removeDiscountRow(rowId: string) {
+    setForm((current) => ({
+      ...current,
+      conventionalDiscountPolicies: current.conventionalDiscountPolicies.filter(
+        (item) => item.rowId !== rowId || item.isBuiltin,
       ),
     }));
     markDirty("discounts");
@@ -1202,15 +1248,15 @@ export function FeeSetupClient({
               </div>
               <div className="grid gap-3 lg:grid-cols-3">
                 {form.conventionalDiscountPolicies.map((policy) => (
-                  <div key={policy.code} className="rounded-xl border border-border bg-card p-4">
+                  <div key={policy.rowId} className="rounded-xl border border-border bg-card p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <Label htmlFor={`policy-name-${policy.code}`}>{t("policyNameLabel")}</Label>
+                        <Label htmlFor={`policy-name-${policy.rowId}`}>{t("policyNameLabel")}</Label>
                         <Input
-                          id={`policy-name-${policy.code}`}
+                          id={`policy-name-${policy.rowId}`}
                           value={policy.displayName}
                           onChange={(event) =>
-                            updateConventionalDiscountRow(policy.code, {
+                            updateConventionalDiscountRow(policy.rowId, {
                               displayName: event.target.value,
                             })
                           }
@@ -1223,7 +1269,7 @@ export function FeeSetupClient({
                           type="checkbox"
                           checked={policy.isActive}
                           onChange={(event) =>
-                            updateConventionalDiscountRow(policy.code, {
+                            updateConventionalDiscountRow(policy.rowId, {
                               isActive: event.target.checked,
                             })
                           }
@@ -1234,12 +1280,34 @@ export function FeeSetupClient({
                     </div>
                     <div className="mt-4 grid gap-3">
                       <div>
-                        <Label htmlFor={`policy-type-${policy.code}`}>{t("policyCalculationLabel")}</Label>
+                        <Label htmlFor={`policy-code-${policy.rowId}`}>{t("policyCodeLabel")}</Label>
+                        {policy.isBuiltin ? (
+                          <p className="mt-2 flex items-center gap-2 text-sm">
+                            <code className="rounded bg-surface-3 px-2 py-1 text-xs">{policy.code}</code>
+                            <StatusBadge label={t("policyBuiltinBadge")} tone="info" />
+                          </p>
+                        ) : (
+                          <Input
+                            id={`policy-code-${policy.rowId}`}
+                            value={policy.code}
+                            placeholder="sports_quota"
+                            onChange={(event) =>
+                              updateConventionalDiscountRow(policy.rowId, {
+                                code: normalizeConventionalDiscountCode(event.target.value),
+                              })
+                            }
+                            className="mt-2 font-mono"
+                            disabled={!canEdit}
+                          />
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor={`policy-type-${policy.rowId}`}>{t("policyCalculationLabel")}</Label>
                         <select
-                          id={`policy-type-${policy.code}`}
+                          id={`policy-type-${policy.rowId}`}
                           value={policy.calculationType}
                           onChange={(event) =>
-                            updateConventionalDiscountRow(policy.code, {
+                            updateConventionalDiscountRow(policy.rowId, {
                               calculationType: event.target.value as ConventionalDiscountRow["calculationType"],
                             })
                           }
@@ -1253,15 +1321,15 @@ export function FeeSetupClient({
                       </div>
                       {policy.calculationType === "tuition_percentage" ? (
                         <div>
-                          <Label htmlFor={`policy-percent-${policy.code}`}>{t("policyPercentageLabel")}</Label>
+                          <Label htmlFor={`policy-percent-${policy.rowId}`}>{t("policyPercentageLabel")}</Label>
                           <Input
-                            id={`policy-percent-${policy.code}`}
+                            id={`policy-percent-${policy.rowId}`}
                             type="number"
                             min={0}
                             max={100}
                             value={policy.percentage ?? 0}
                             onChange={(event) =>
-                              updateConventionalDiscountRow(policy.code, {
+                              updateConventionalDiscountRow(policy.rowId, {
                                 percentage: Number(event.target.value || 0),
                               })
                             }
@@ -1272,14 +1340,14 @@ export function FeeSetupClient({
                       ) : null}
                       {policy.calculationType === "tuition_fixed_amount" ? (
                         <div>
-                          <Label htmlFor={`policy-fixed-${policy.code}`}>{t("policyFixedLabel")}</Label>
+                          <Label htmlFor={`policy-fixed-${policy.rowId}`}>{t("policyFixedLabel")}</Label>
                           <Input
-                            id={`policy-fixed-${policy.code}`}
+                            id={`policy-fixed-${policy.rowId}`}
                             type="number"
                             min={0}
                             value={policy.fixedTuitionAmount ?? 0}
                             onChange={(event) =>
-                              updateConventionalDiscountRow(policy.code, {
+                              updateConventionalDiscountRow(policy.rowId, {
                                 fixedTuitionAmount: Number(event.target.value || 0),
                               })
                             }
@@ -1288,10 +1356,34 @@ export function FeeSetupClient({
                           />
                         </div>
                       ) : null}
+                      {!policy.isBuiltin && canEdit ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="justify-self-start text-destructive"
+                          onClick={() => removeDiscountRow(policy.rowId)}
+                        >
+                          <X className="mr-1 size-4" />
+                          {t("removeDiscount")}
+                        </Button>
+                      ) : null}
                     </div>
                   </div>
                 ))}
               </div>
+              {canEdit ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addCustomDiscountRow}
+                  className="justify-self-start"
+                >
+                  <Plus className="mr-1 size-4" />
+                  {t("addCustomDiscount")}
+                </Button>
+              ) : null}
             </div>
           </SectionCard>
         </div>

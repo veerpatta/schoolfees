@@ -30,13 +30,34 @@ const INITIAL_MASTER_DATA_ACTION_STATE: MasterDataActionState = {
 
 export const revalidate = 60;
 
+type FeeSetupSectionId =
+  | "session"
+  | "basic"
+  | "classes"
+  | "transport"
+  | "fee-heads"
+  | "discounts";
+
 type FeeSetupPageProps = {
-  searchParams?: Promise<{ session?: string }>;
+  searchParams?: Promise<{ session?: string; section?: string }>;
 };
+
+// Maps a ?section=… deep link to a Fee Setup section. Installment dates live in
+// the "basic" section, so ?section=installments lands there.
+function resolveDeepLinkSection(value: string | undefined): FeeSetupSectionId | undefined {
+  const normalized = (value ?? "").trim().toLowerCase();
+  if (!normalized) return undefined;
+  if (normalized === "installments") return "basic";
+  const valid: FeeSetupSectionId[] = ["session", "basic", "classes", "transport", "fee-heads", "discounts"];
+  return valid.includes(normalized as FeeSetupSectionId)
+    ? (normalized as FeeSetupSectionId)
+    : undefined;
+}
 
 export default async function FeeSetupPage({ searchParams }: FeeSetupPageProps) {
   const t = await getTranslations("FeeSetup");
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const initialSection = resolveDeepLinkSection(resolvedSearchParams?.section);
   const viewSession = await resolveViewSession({
     searchParamSession: resolvedSearchParams?.session,
     cookieSession: await getViewSessionCookie(),
@@ -76,6 +97,7 @@ export default async function FeeSetupPage({ searchParams }: FeeSetupPageProps) 
         initialState={INITIAL_FEE_SETUP_ACTION_STATE}
         initialMasterDataState={INITIAL_MASTER_DATA_ACTION_STATE}
         initialSelectedSessionLabel={viewSession.sessionLabel}
+        initialSection={initialSection}
         actions={{
           createClassAction,
           updateClassAction,
