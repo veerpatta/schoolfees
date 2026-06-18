@@ -115,14 +115,15 @@ WHERE NOT EXISTS (
 
 -- 4. Seed conventional discount policies for TEST-2026-27
 INSERT INTO public.conventional_discount_policies
-  (academic_session_label, code, display_name, calculation_type, fixed_tuition_amount, percentage, is_active, sort_order)
+  (academic_session_label, code, display_name, calculation_type, fixed_tuition_amount, percentage, is_active, is_builtin, sort_order)
 VALUES
-  ('TEST-2026-27', 'rte',         'RTE',             'tuition_zero',           NULL,  NULL, true, 1),
-  ('TEST-2026-27', 'staff_child', 'Staff Child',      'tuition_percentage',     NULL,  50,   true, 2),
-  ('TEST-2026-27', 'third_child', '3rd Child Policy', 'tuition_fixed_amount',  6000,  NULL, true, 3)
+  ('TEST-2026-27', 'rte',         'RTE',             'tuition_zero',           NULL,  NULL, true, true, 1),
+  ('TEST-2026-27', 'staff_child', 'Staff Child',      'tuition_percentage',     NULL,  50,   true, true, 2),
+  ('TEST-2026-27', 'third_child', '3rd Child Policy', 'tuition_fixed_amount',  6000,  NULL, true, true, 3)
 ON CONFLICT (academic_session_label, code) DO UPDATE SET
-  is_active  = true,
-  updated_at = now();
+  is_active   = true,
+  is_builtin  = true,
+  updated_at  = now();
 
 -- 5. Seed family groups for 3rd-child testing
 INSERT INTO public.student_family_groups (academic_session_label, family_label, guardian_name, guardian_phone, notes)

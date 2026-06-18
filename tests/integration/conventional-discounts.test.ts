@@ -25,6 +25,7 @@ function policy(
     fixedTuitionAmount: overrides.fixedTuitionAmount ?? null,
     percentage: overrides.percentage ?? null,
     isActive: overrides.isActive ?? true,
+    isBuiltin: overrides.isBuiltin ?? false,
     sortOrder: 1,
     updatedAt: null,
   };

@@ -3,8 +3,12 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
+  assertConventionalDiscountPolicyMutationAllowed,
   calculateConventionalPolicyTuition,
+  isBuiltinConventionalDiscountCode,
+  normalizeAssignmentPolicySelection,
   selectThirdChildPolicyRecipient,
+  validateConventionalDiscountPolicyInput,
   type ThirdChildPolicyFamilyMember,
 } from "@/lib/fees/conventional-discount-rules";
 import type {
@@ -26,6 +30,7 @@ type DiscountPolicyRow = {
   fixed_tuition_amount: number | null;
   percentage: number | null;
   is_active: boolean;
+  is_builtin: boolean;
   sort_order: number;
   updated_at: string | null;
 };
@@ -185,6 +190,9 @@ function toPolicy(row: DiscountPolicyRow): ConventionalDiscountPolicy {
     fixedTuitionAmount: row.fixed_tuition_amount,
     percentage: row.percentage,
     isActive: row.is_active,
+    // Trust the column, but fall back to the code so a session copy that predates
+    // the is_builtin migration still treats the three defaults as built-in.
+    isBuiltin: Boolean(row.is_builtin) || isBuiltinConventionalDiscountCode(row.code),
     sortOrder: row.sort_order,
     updatedAt: row.updated_at,
   };
@@ -200,6 +208,7 @@ function buildFallbackPolicies(sessionLabel: string): ConventionalDiscountPolicy
     fixedTuitionAmount: policy.fixedTuitionAmount,
     percentage: policy.percentage,
     isActive: true,
+    isBuiltin: true,
     sortOrder: policy.sortOrder,
     updatedAt: null,
   }));
@@ -242,7 +251,7 @@ export async function getConventionalDiscountPolicies(sessionLabel: string) {
   const { data, error } = await supabase
     .from("conventional_discount_policies")
     .select(
-      "id, academic_session_label, code, display_name, calculation_type, fixed_tuition_amount, percentage, is_active, sort_order, updated_at",
+      "id, academic_session_label, code, display_name, calculation_type, fixed_tuition_amount, percentage, is_active, is_builtin, sort_order, updated_at",
     )
     .eq("academic_session_label", normalizedSession)
     .order("sort_order", { ascending: true });
@@ -277,7 +286,7 @@ export async function getStudentConventionalDiscountAssignments(payload: {
     let query = supabase
       .from("student_conventional_discount_assignments")
       .select(
-        "id, student_id, policy_id, academic_session_label, is_active, reason, notes, before_tuition_amount, resulting_tuition_amount, family_group_id, is_manual_override, manual_override_reason, applied_by, applied_at, policy_ref:conventional_discount_policies(id, academic_session_label, code, display_name, calculation_type, fixed_tuition_amount, percentage, is_active, sort_order, updated_at), family_group_ref:student_family_groups(family_label)",
+        "id, student_id, policy_id, academic_session_label, is_active, reason, notes, before_tuition_amount, resulting_tuition_amount, family_group_id, is_manual_override, manual_override_reason, applied_by, applied_at, policy_ref:conventional_discount_policies(id, academic_session_label, code, display_name, calculation_type, fixed_tuition_amount, percentage, is_active, is_builtin, sort_order, updated_at), family_group_ref:student_family_groups(family_label)",
       )
       .eq("academic_session_label", normalizedSession)
       .eq("is_active", true)
@@ -373,7 +382,7 @@ async function loadThirdChildPolicy(
   const { data, error } = await supabase
     .from("conventional_discount_policies")
     .select(
-      "id, academic_session_label, code, display_name, calculation_type, fixed_tuition_amount, percentage, is_active, sort_order, updated_at",
+      "id, academic_session_label, code, display_name, calculation_type, fixed_tuition_amount, percentage, is_active, is_builtin, sort_order, updated_at",
     )
     .eq("academic_session_label", academicSessionLabel)
     .eq("code", "third_child")
@@ -695,12 +704,8 @@ export async function saveStudentConventionalDiscountAssignments(payload: {
   manualOverrideReason?: string | null;
 }) {
   const academicSessionLabel = payload.academicSessionLabel.trim();
-  const policyIds = Array.from(new Set(payload.policyIds.filter(Boolean))).slice(0, 2);
+  const policyIds = normalizeAssignmentPolicySelection(payload.policyIds);
   const reason = payload.reason.trim();
-
-  if (policyIds.length > 2) {
-    throw new Error("Select no more than two conventional discounts.");
-  }
 
   if (policyIds.length > 0 && !reason) {
     throw new Error("Reason is required for conventional discounts.");
@@ -710,7 +715,7 @@ export async function saveStudentConventionalDiscountAssignments(payload: {
   const { data: policiesRaw, error: policiesError } = await supabase
     .from("conventional_discount_policies")
     .select(
-      "id, academic_session_label, code, display_name, calculation_type, fixed_tuition_amount, percentage, is_active, sort_order, updated_at",
+      "id, academic_session_label, code, display_name, calculation_type, fixed_tuition_amount, percentage, is_active, is_builtin, sort_order, updated_at",
     )
     .eq("academic_session_label", academicSessionLabel)
     .eq("is_active", true)
@@ -874,22 +879,63 @@ export async function upsertConventionalDiscountPolicies(payload: {
 
   const supabase = createAdminClient();
 
+  // Load existing rows so we can protect built-ins (their code is immutable) and
+  // preserve the is_builtin flag on update without trusting client input for it.
+  const { data: existingRaw, error: existingError } = await supabase
+    .from("conventional_discount_policies")
+    .select("id, code, is_builtin")
+    .eq("academic_session_label", academicSessionLabel);
+
+  if (existingError && !isMissingTableError(existingError)) {
+    throw new Error(existingError.message);
+  }
+
+  const existingById = new Map(
+    ((existingRaw ?? []) as Array<{ id: string; code: string; is_builtin: boolean }>).map(
+      (row) => [row.id, row],
+    ),
+  );
+
   for (const policy of payload.policies) {
-    const values = {
-      academic_session_label: academicSessionLabel,
+    // Validate + normalise (lowercases the code, zeroes irrelevant params, range-checks).
+    const normalized = validateConventionalDiscountPolicyInput({
       code: policy.code,
-      display_name: policy.displayName.trim(),
-      calculation_type: policy.calculationType,
-      fixed_tuition_amount: policy.fixedTuitionAmount,
+      calculationType: policy.calculationType,
+      fixedTuitionAmount: policy.fixedTuitionAmount,
       percentage: policy.percentage,
+    });
+
+    const displayName = policy.displayName.trim();
+    if (!displayName) {
+      throw new Error("Discount name is required.");
+    }
+
+    const baseValues = {
+      academic_session_label: academicSessionLabel,
+      code: normalized.code,
+      display_name: displayName,
+      calculation_type: normalized.calculationType,
+      fixed_tuition_amount: normalized.fixedTuitionAmount,
+      percentage: normalized.percentage,
       is_active: policy.isActive,
       sort_order: policy.sortOrder,
     };
 
     if (policy.id) {
+      const existing = existingById.get(policy.id);
+      if (existing) {
+        // A built-in's code cannot be changed; everything else stays editable.
+        assertConventionalDiscountPolicyMutationAllowed({
+          existingCode: existing.code,
+          existingIsBuiltin: existing.is_builtin,
+          nextCode: normalized.code,
+        });
+      }
+
+      // Never let an update flip is_builtin — preserve it by omitting the column.
       const { error } = await supabase
         .from("conventional_discount_policies")
-        .update(values)
+        .update(baseValues)
         .eq("id", policy.id);
 
       if (error) {
@@ -898,9 +944,16 @@ export async function upsertConventionalDiscountPolicies(payload: {
       continue;
     }
 
+    // New policy: built-in codes are reserved for the seeded school defaults.
+    if (isBuiltinConventionalDiscountCode(normalized.code)) {
+      throw new Error(
+        `"${normalized.code}" is a built-in discount code and cannot be used for a custom policy.`,
+      );
+    }
+
     const { error } = await supabase
       .from("conventional_discount_policies")
-      .upsert(values, { onConflict: "academic_session_label,code" });
+      .upsert({ ...baseValues, is_builtin: false }, { onConflict: "academic_session_label,code" });
 
     if (error) {
       throw new Error(error.message);

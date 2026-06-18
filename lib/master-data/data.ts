@@ -8,6 +8,7 @@ import {
   normalizeFeeHeadId,
   parseAcademicSessionLabel,
 } from "@/lib/config/fee-rules";
+import { isBuiltinConventionalDiscountCode } from "@/lib/fees/conventional-discount-rules";
 import {
   DEFAULT_FEE_HEAD_METADATA,
   parseFeeHeadCatalog,
@@ -773,7 +774,7 @@ export async function copyAcademicSessionSetup(payload: {
   const { data: sourceDiscountPoliciesRaw, error: sourceDiscountPoliciesError } = await supabase
     .from("conventional_discount_policies")
     .select(
-      "code, display_name, calculation_type, fixed_tuition_amount, percentage, is_active, sort_order",
+      "code, display_name, calculation_type, fixed_tuition_amount, percentage, is_active, is_builtin, sort_order",
     )
     .eq("academic_session_label", sourceSessionLabel);
 
@@ -788,6 +789,7 @@ export async function copyAcademicSessionSetup(payload: {
     fixed_tuition_amount: number | null;
     percentage: number | null;
     is_active: boolean;
+    is_builtin: boolean;
     sort_order: number;
   }>;
 
@@ -803,6 +805,9 @@ export async function copyAcademicSessionSetup(payload: {
           fixed_tuition_amount: row.fixed_tuition_amount,
           percentage: row.percentage,
           is_active: row.is_active,
+          // Carry built-in status forward; fall back to the code so the three
+          // defaults stay protected even if a legacy source row missed the flag.
+          is_builtin: row.is_builtin || isBuiltinConventionalDiscountCode(row.code),
           sort_order: row.sort_order,
         })),
       );

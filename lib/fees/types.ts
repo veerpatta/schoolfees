@@ -209,6 +209,7 @@ export type ConventionalDiscountPolicy = {
   fixedTuitionAmount: number | null;
   percentage: number | null;
   isActive: boolean;
+  isBuiltin: boolean;
   sortOrder: number;
   updatedAt: string | null;
 };
