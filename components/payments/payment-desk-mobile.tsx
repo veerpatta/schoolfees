@@ -463,6 +463,10 @@ export function PaymentDeskClient({
   const refundableAmount = selectedStudent?.refundableAmount ?? 0;
   const creditOrRefundAmount = Math.max(creditBalance, refundableAmount);
   const studentSelectedFromIndex = Boolean(selectedStudentId && selectedStudentIndexItem);
+  // A left-student recovery preselect arrives via the server summary
+  // (data.initialStudentSummary) and is NOT in the active-only picker index, so a
+  // populated summary also counts as "a student is selected" for rendering the form.
+  const hasSelectedStudentForEntry = studentSelectedFromIndex || Boolean(selectedStudent);
   const todayCollectionAmount = (data.todayCollection?.totalAmount ?? 0) + optimisticCollectionAdd;
   const todayReceiptCount = (data.todayCollection?.receiptCount ?? 0) + optimisticReceiptAdd;
 
@@ -2641,7 +2645,7 @@ export function PaymentDeskClient({
         />
       ) : null}
 
-      {!studentSelectedFromIndex ? (
+      {!hasSelectedStudentForEntry ? (
         <SectionCard
           title="Choose a student to continue"
           description="Dues, installment breakup, and the payment form will appear after a student is selected."
