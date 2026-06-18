@@ -3,6 +3,7 @@ import "server-only";
 import { formatPaymentModeLabel } from "@/lib/config/fee-rules";
 import { formatExportName } from "@/lib/helpers/export";
 import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
+import { loadSessionScopedReceiptIds } from "@/lib/session/installment-scope";
 import { createClient } from "@/lib/supabase/server";
 
 import type { AdjustmentType, PaymentMode, RefundRequestStatus } from "@/lib/db/types";
@@ -23,6 +24,15 @@ type ClassRow = {
   class_name: string;
   section: string | null;
   stream_name: string | null;
+};
+
+// The installment frozen on a payment is the promotion-proof session anchor for
+// money rows (a row belongs to the session its payments settled, not the
+// student's current class). `receipts` has no session_label, so receipts/refunds
+// are scoped via the shared `loadSessionScopedReceiptIds` helper (payments →
+// installments → classes), and adjustments via their own installment embed below.
+type SessionOnlyClassRow = {
+  session_label: string;
 };
 
 type StudentRow = {
@@ -66,17 +76,16 @@ type RefundRow = {
   receipt_ref: ReceiptRow | ReceiptRow[] | null;
 };
 
+type AdjustmentInstallmentRow = {
+  installment_label: string;
+  due_date: string;
+  class_ref: SessionOnlyClassRow | SessionOnlyClassRow[] | null;
+};
+
 type PaymentRefRow = {
   amount: number;
   receipt_ref: ReceiptRow | ReceiptRow[] | null;
-  installment_ref: {
-    installment_label: string;
-    due_date: string;
-  } | {
-    installment_label: string;
-    due_date: string;
-  }[]
-    | null;
+  installment_ref: AdjustmentInstallmentRow | AdjustmentInstallmentRow[] | null;
 };
 
 type PaymentAdjustmentRow = {
@@ -581,6 +590,7 @@ export async function getFinanceControlsPageData(
     refundsResult,
     adjustmentsResult,
     closureResult,
+    sessionReceiptIds,
   ] = await Promise.all([
     supabase
       .from("receipts")
@@ -606,7 +616,7 @@ export async function getFinanceControlsPageData(
         // through `receipt_ref` instead: the composite FK guarantees
         // payments.student_id == receipts.student_id, and receipts → students is a
         // real single-column FK.
-        "id, payment_id, adjustment_type, amount_delta, reason, notes, created_at, created_by, payment_ref:payments(amount, receipt_ref:receipts(id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, created_by, student_ref:students(id, full_name, admission_no, class_ref:classes(session_label, class_name, section, stream_name))), installment_ref:installments(installment_label, due_date))",
+        "id, payment_id, adjustment_type, amount_delta, reason, notes, created_at, created_by, payment_ref:payments(amount, receipt_ref:receipts(id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, created_by, student_ref:students(id, full_name, admission_no, class_ref:classes(session_label, class_name, section, stream_name))), installment_ref:installments(installment_label, due_date, class_ref:classes(session_label)))",
       )
       .gte("created_at", `${selectedDate}T00:00:00.000Z`)
       .lt("created_at", `${nextDate}T00:00:00.000Z`)
@@ -618,7 +628,12 @@ export async function getFinanceControlsPageData(
       )
       .eq("payment_date", selectedDate)
       .maybeSingle(),
+    // Receipt ids whose payments settled an installment frozen to this session —
+    // the promotion-proof scope for collections and refunds (see helper).
+    loadSessionScopedReceiptIds(sessionLabel),
   ]);
+
+  const sessionReceiptIdSet = new Set(sessionReceiptIds);
 
   // Per-section resilience: if any single finance table fails (schema drift, RLS
   // grant gap, transient outage), keep the other panels useful and surface the
@@ -654,24 +669,22 @@ export async function getFinanceControlsPageData(
   const allAdjustmentsRaw = (adjustmentsResult.data ?? []) as PaymentAdjustmentRow[];
   const closureRaw = (closureResult.data ?? null) as CollectionCloseRow | null;
 
-  const receiptsRaw = allReceiptsRaw.filter((row) => {
-    const student = toSingleRecord(row.student_ref);
-    const classRef = student ? toSingleRecord(student.class_ref) : null;
-    return classRef?.session_label === sessionLabel;
-  });
+  // Scope each money row by the session frozen on its payment's installment, NOT
+  // the student's current class — otherwise a promoted student's prior-year
+  // collections/refunds/corrections would be misattributed to their new session.
+  // Receipts/refunds key off the session-scoped receipt id set; adjustments use
+  // their own (single) installment, which is the most precise anchor.
+  const receiptsRaw = allReceiptsRaw.filter((row) => sessionReceiptIdSet.has(row.id));
 
   const refundsRaw = allRefundsRaw.filter((row) => {
     const receipt = toSingleRecord(row.receipt_ref);
-    const student = receipt ? toSingleRecord(receipt.student_ref) : null;
-    const classRef = student ? toSingleRecord(student.class_ref) : null;
-    return classRef?.session_label === sessionLabel;
+    return receipt ? sessionReceiptIdSet.has(receipt.id) : false;
   });
 
   const adjustmentsRaw = allAdjustmentsRaw.filter((row) => {
     const payment = toSingleRecord(row.payment_ref);
-    const receipt = payment ? toSingleRecord(payment.receipt_ref) : null;
-    const student = receipt ? toSingleRecord(receipt.student_ref) : null;
-    const classRef = student ? toSingleRecord(student.class_ref) : null;
+    const installment = payment ? toSingleRecord(payment.installment_ref) : null;
+    const classRef = installment ? toSingleRecord(installment.class_ref) : null;
     return classRef?.session_label === sessionLabel;
   });
 

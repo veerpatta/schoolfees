@@ -2,6 +2,7 @@ import "server-only";
 
 import type { AdjustmentType, PaymentMode } from "@/lib/db/types";
 import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
+import { loadSessionScopedStudentIds } from "@/lib/session/installment-scope";
 import { createClient } from "@/lib/supabase/server";
 import type {
   LedgerAdjustmentRow,
@@ -232,39 +233,49 @@ export async function getLedgerPageData(payload: {
 }): Promise<LedgerPageData> {
   const supabase = await createClient();
 
-  // Scope the student picker to the viewed session (inner join on current class →
-  // session_label). The explicit by-id lookup below stays unscoped so a direct link to a
-  // specific student's ledger still resolves regardless of the viewed session. The
-  // per-student workspace drill-down passes no sessionLabel, so the picker stays unfiltered
-  // there (it only consumes the by-id result).
-  let studentsQuery = supabase
-    .from("students")
-    .select(
-      "id, full_name, admission_no, class_ref:classes!inner(session_label, class_name, section, stream_name)",
-    )
-    .in("status", ["active", "inactive"])
-    .order("full_name", { ascending: true })
-    .limit(150);
-
-  if (payload.sessionLabel) {
-    studentsQuery = studentsQuery.eq("class_ref.session_label", payload.sessionLabel);
-  }
-
+  // Scope the student picker to the viewed session by the installments frozen to that
+  // session (promotion-proof) — NOT the student's current class, which would drop a
+  // promoted student from the session they actually had ledger activity in. The explicit
+  // by-id lookup below stays unscoped so a direct link to a specific student's ledger still
+  // resolves regardless of the viewed session. The per-student workspace drill-down passes
+  // no sessionLabel, so the picker stays unfiltered there (it only consumes the by-id
+  // result).
   const normalizedSearchQuery = payload.searchQuery.trim();
+  const sessionStudentIds = payload.sessionLabel
+    ? await loadSessionScopedStudentIds(payload.sessionLabel)
+    : null;
+  // An empty scope means no student had activity in this session — skip the picker query
+  // (an empty `.in(...)` is an invalid filter) but still allow the by-id drill-down below.
+  const skipPicker = sessionStudentIds !== null && sessionStudentIds.length === 0;
 
-  if (normalizedSearchQuery) {
-    studentsQuery = studentsQuery.or(
-      `full_name.ilike.%${normalizedSearchQuery}%,admission_no.ilike.%${normalizedSearchQuery}%`,
-    );
+  let studentOptions: LedgerStudentOption[] = [];
+
+  if (!skipPicker) {
+    let studentsQuery = supabase
+      .from("students")
+      .select("id, full_name, admission_no, class_ref:classes(class_name, section, stream_name)")
+      .in("status", ["active", "inactive"])
+      .order("full_name", { ascending: true })
+      .limit(150);
+
+    if (sessionStudentIds) {
+      studentsQuery = studentsQuery.in("id", sessionStudentIds);
+    }
+
+    if (normalizedSearchQuery) {
+      studentsQuery = studentsQuery.or(
+        `full_name.ilike.%${normalizedSearchQuery}%,admission_no.ilike.%${normalizedSearchQuery}%`,
+      );
+    }
+
+    const { data: studentsRaw, error: studentsError } = await studentsQuery;
+
+    if (studentsError) {
+      throw new Error(`Unable to load students for ledger: ${studentsError.message}`);
+    }
+
+    studentOptions = mapStudentOptions((studentsRaw ?? []) as StudentRow[]);
   }
-
-  const { data: studentsRaw, error: studentsError } = await studentsQuery;
-
-  if (studentsError) {
-    throw new Error(`Unable to load students for ledger: ${studentsError.message}`);
-  }
-
-  const studentOptions = mapStudentOptions((studentsRaw ?? []) as StudentRow[]);
 
   const entryFilter = normalizeEntryFilter(payload.entryFilter);
   const entryQuery = payload.entryQuery.trim();
