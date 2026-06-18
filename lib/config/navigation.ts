@@ -1,10 +1,12 @@
 import {
   ActivitySquare,
   BadgeIndianRupee,
+  BadgePercent,
   BarChart3,
   BookOpenCheck,
   BookText,
   ClipboardList,
+  Download,
   FileSpreadsheet,
   FolderCog,
   MessageCircle,
@@ -426,6 +428,51 @@ export type AdvancedHubSection = {
 
 export const advancedHubSections: readonly AdvancedHubSection[] = [
   {
+    title: "Fees & Recovery",
+    description: "Fee policy, custom discounts, and recovering old or left-student dues.",
+    items: [
+      {
+        href: "/protected/fee-setup",
+        label: "Fee Policy",
+        description:
+          "The canonical fee-policy editor: installment dates, class tuition, academic fees, and late fee.",
+        icon: BookOpenCheck,
+        requiredPermission: "fees:view",
+      },
+      {
+        href: "/protected/fee-setup?section=discounts",
+        label: "Custom Discounts",
+        description:
+          "Manage conventional discount policies. Built-ins (RTE, Staff Child, 3rd Child) are protected; add your own.",
+        icon: BadgePercent,
+        requiredPermission: "fees:view",
+      },
+      {
+        href: "/protected/admin-tools/prev-year-dues",
+        label: "Previous Year Dues",
+        description:
+          "Audit the carry-forward of unpaid prior-year tuition balances: matched, written-off, and applied rows, with reconciliation and rollback.",
+        icon: BadgeIndianRupee,
+        requiredPermission: "fees:view",
+      },
+      {
+        href: "/protected/admin-tools/recovery",
+        label: "Left Students With Dues",
+        description:
+          "Recovery queue for left / graduated / inactive students who still owe fees. Collect against existing dues via the guarded Payment Desk recovery mode.",
+        icon: UsersRound,
+        requiredPermission: "defaulters:view",
+      },
+      {
+        href: "/protected/exports",
+        label: "Exports",
+        description: "Download XLSX/PDF reports: students, dues, defaulters, previous-year dues, left-student dues.",
+        icon: Download,
+        requiredPermission: "reports:view",
+      },
+    ],
+  },
+  {
     title: "Year & Sessions",
     description: "Move into the next academic year and clean up sessions made by mistake.",
     items: [
@@ -436,14 +483,6 @@ export const advancedHubSections: readonly AdvancedHubSection[] = [
           "Create next year by copying classes, fees, and discount policies, then promote students. Roll back or delete a session made by mistake.",
         icon: UsersRound,
         requiredPermission: "students:write",
-      },
-      {
-        href: "/protected/admin-tools/prev-year-dues",
-        label: "Previous Year Dues",
-        description:
-          "Audit the carry-forward of unpaid prior-year tuition balances: matched, written-off, and applied rows, with reconciliation and rollback.",
-        icon: BadgeIndianRupee,
-        requiredPermission: "fees:view",
       },
     ],
   },
