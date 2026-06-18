@@ -944,16 +944,18 @@ export async function upsertConventionalDiscountPolicies(payload: {
       continue;
     }
 
-    // New policy: built-in codes are reserved for the seeded school defaults.
-    if (isBuiltinConventionalDiscountCode(normalized.code)) {
-      throw new Error(
-        `"${normalized.code}" is a built-in discount code and cannot be used for a custom policy.`,
-      );
-    }
-
+    // No id: this is either a fallback built-in being persisted for the first time
+    // (getConventionalDiscountPolicies returns built-ins with id:null when a session
+    // has no rows yet) or a brand-new custom policy. Flag built-in codes as built-in,
+    // everything else as custom; onConflict still prevents duplicates. Blocking a
+    // custom policy from squatting a built-in code is enforced at input time in the
+    // Fee Setup UI (Increment 6), where id-vs-fallback is unambiguous.
     const { error } = await supabase
       .from("conventional_discount_policies")
-      .upsert({ ...baseValues, is_builtin: false }, { onConflict: "academic_session_label,code" });
+      .upsert(
+        { ...baseValues, is_builtin: isBuiltinConventionalDiscountCode(normalized.code) },
+        { onConflict: "academic_session_label,code" },
+      );
 
     if (error) {
       throw new Error(error.message);
