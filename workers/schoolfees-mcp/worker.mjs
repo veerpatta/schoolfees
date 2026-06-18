@@ -821,6 +821,135 @@ async function buildDailyRecoveryDigest(
   };
 }
 
+function groupFinancialRows(rows, keySelector, labelSelector) {
+  const groups = new Map();
+
+  for (const row of rows) {
+    const key = keySelector(row) || "unknown";
+    const current =
+      groups.get(key) ||
+      {
+        key,
+        label: labelSelector(row) || key,
+        studentCount: 0,
+        pendingStudentCount: 0,
+        overdueStudentCount: 0,
+        totalDue: 0,
+        totalPaid: 0,
+        totalOutstanding: 0,
+        totalLateFee: 0,
+        totalDiscount: 0,
+      };
+
+    current.studentCount += 1;
+    current.totalDue += number(row.total_due);
+    current.totalPaid += number(row.total_paid);
+    current.totalOutstanding += number(row.outstanding_amount);
+    current.totalLateFee += number(row.late_fee_total);
+    current.totalDiscount += number(row.discount_amount);
+    if (number(row.outstanding_amount) > 0) current.pendingStudentCount += 1;
+    if (number(row.overdue_installment_count) > 0) current.overdueStudentCount += 1;
+    groups.set(key, current);
+  }
+
+  return [...groups.values()].sort((left, right) => {
+    if (right.totalOutstanding !== left.totalOutstanding) {
+      return right.totalOutstanding - left.totalOutstanding;
+    }
+    return left.label.localeCompare(right.label, "en", { numeric: true });
+  });
+}
+
+async function buildAiAnalysisContext(
+  env,
+  {
+    sessionLabel,
+    includeStudentRows = false,
+    studentLimit = 50,
+    topOutstandingLimit = 25,
+    recentPaymentsLimit = 10,
+  },
+) {
+  const [allFinancialRows, recentPayments] = await Promise.all([
+    getFinancialRows(env, { sessionLabel, onlyActive: false }),
+    getRecentPayments(env, { sessionLabel, days: 14, limit: recentPaymentsLimit }),
+  ]);
+  const summary = summarizeFinancialRows(allFinancialRows);
+  const topOutstandingRows = rankDefaulters(
+    allFinancialRows.filter((row) => number(row.outstanding_amount) > 0),
+  )
+    .slice(0, topOutstandingLimit)
+    .map((row, index) => ({ rank: index + 1, ...mapFinancialRow(row) }));
+
+  const studentRows = includeStudentRows
+    ? allFinancialRows.slice(0, studentLimit).map(mapFinancialRow)
+    : [];
+
+  return {
+    sessionLabel,
+    asOfDate: todayIst(),
+    safety: {
+      readOnly: true,
+      messagesSent: false,
+      paymentsPosted: false,
+      recordsChanged: false,
+      dataSource: "live Schoolfees read models",
+      note: "This tool only reads fee context. Payment posting stays in Payment Desk.",
+    },
+    sourceOfTruth: {
+      studentMaster: "Students",
+      feePolicy: "Fee Setup",
+      paymentPosting: "Payment Desk only",
+      financeHistory: "append-only receipts, payments, adjustments, and refunds",
+    },
+    aiWorkbookExport: {
+      webAppPath: `/protected/exports/ai-context-bundle?session=${encodeURIComponent(sessionLabel)}`,
+      sheetCoverage: [
+        "_README",
+        "Students",
+        "Installments",
+        "Payments",
+        "Adjustments",
+        "Refunds",
+        "Classes",
+        "Routes",
+        "Discounts",
+        "Defaulters",
+        "Recovery Follow-Up",
+        "Previous Year Dues",
+        "Left Student Recovery",
+        "Sessions",
+      ],
+      note: "Use the web app AI context bundle when a file with every row is needed for offline analysis.",
+    },
+    summary,
+    classSummaries: groupFinancialRows(
+      allFinancialRows,
+      (row) => row.class_id,
+      (row) => row.class_label || row.class_name,
+    ),
+    statusSummaries: groupFinancialRows(
+      allFinancialRows,
+      (row) => row.record_status,
+      (row) => row.record_status,
+    ),
+    routeSummaries: groupFinancialRows(
+      allFinancialRows,
+      (row) => row.transport_route_id || "no_transport",
+      (row) => routeLabel(row),
+    ),
+    topOutstandingRows,
+    recentPayments,
+    studentRows,
+    truncation: {
+      includeStudentRows,
+      studentRowsReturned: studentRows.length,
+      studentRowsAvailable: allFinancialRows.length,
+      topOutstandingRowsReturned: topOutstandingRows.length,
+    },
+  };
+}
+
 function toolResult(summary, structuredContent) {
   return {
     content: [{ type: "text", text: summary }],
@@ -831,7 +960,7 @@ function toolResult(summary, structuredContent) {
 function createMcpServer(env) {
   const server = new McpServer({
     name: "schoolfees-collection-assistant",
-    version: "0.3.0",
+    version: "0.3.1",
   });
 
   const readOnly = {
@@ -1126,6 +1255,40 @@ function createMcpServer(env) {
           sessionLabel,
           classes,
         },
+      );
+    },
+  );
+
+  server.registerTool(
+    "get_ai_analysis_context",
+    {
+      title: "Get AI Analysis Context",
+      description:
+        "Use this when the user wants the whole app context for AI analysis: source-of-truth rules, live fee totals, class/status/route summaries, top outstanding students, recent payments, and the AI workbook sheet map. This is read-only.",
+      inputSchema: {
+        sessionLabel: sessionSchema(env),
+        includeStudentRows: z
+          .boolean()
+          .default(false)
+          .describe("When true, include a limited sample of per-student financial rows in structuredContent."),
+        studentLimit: limitSchema.default(50),
+        topOutstandingLimit: limitSchema.default(25),
+        recentPaymentsLimit: limitSchema.default(10),
+      },
+      annotations: readOnly,
+    },
+    async ({ sessionLabel, includeStudentRows, studentLimit, topOutstandingLimit, recentPaymentsLimit }) => {
+      const context = await buildAiAnalysisContext(env, {
+        sessionLabel,
+        includeStudentRows,
+        studentLimit,
+        topOutstandingLimit,
+        recentPaymentsLimit,
+      });
+
+      return toolResult(
+        `${sessionLabel}: AI analysis context ready for ${context.summary.studentCount} students, ${money(context.summary.totalOutstanding)} pending, and ${context.aiWorkbookExport.sheetCoverage.length} AI workbook sheets.`,
+        context,
       );
     },
   );

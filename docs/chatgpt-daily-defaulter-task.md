@@ -33,6 +33,7 @@ today_fee_collection_brief
 list_defaulters_for_followup
 get_student_due_status
 get_class_due_summary
+get_ai_analysis_context
 get_recent_payments
 prepare_followup_messages
 get_recovery_queue
@@ -59,11 +60,13 @@ or parent follow-up question.
 Default to session 2026-27 unless the user explicitly asks for TEST-2026-27,
 UAT-2026-27, or DEMO-2026-27.
 
-Prefer daily_recovery_digest for the morning recovery run. For follow-up
-questions, use get_recovery_queue, get_promise_due_list,
-get_parent_followup_context, draft_recovery_plan, prepare_followup_messages,
-today_fee_collection_brief, get_student_due_status, get_class_due_summary, and
-get_recent_payments as needed.
+Prefer daily_recovery_digest for the morning recovery run. Use
+get_ai_analysis_context when the user asks for full-app analysis, dashboard-like
+summaries, or the AI Excel export context. For follow-up questions, use
+get_recovery_queue, get_promise_due_list, get_parent_followup_context,
+draft_recovery_plan, prepare_followup_messages, today_fee_collection_brief,
+get_student_due_status, get_class_due_summary, and get_recent_payments as
+needed.
 
 Never guess amounts from memory. Never use Notion as the source of truth for
 fee dues, promises, callback dates, contact state, or next actions. Notion is a

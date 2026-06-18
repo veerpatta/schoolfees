@@ -119,8 +119,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("schoolfees Worker daily_recovery_digest", () => {
-  it("lists daily_recovery_digest as a read-only MCP tool", async () => {
+describe("schoolfees Worker MCP tools", () => {
+  it("lists recovery and AI context tools as read-only MCP tools", async () => {
     const fetchMock = installSupabaseMock();
     const { default: worker } = await loadWorker();
 
@@ -131,11 +131,19 @@ describe("schoolfees Worker daily_recovery_digest", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    const tool = body.result.tools.find((item: { name: string }) => item.name === "daily_recovery_digest");
+    const dailyDigestTool = body.result.tools.find(
+      (item: { name: string }) => item.name === "daily_recovery_digest",
+    );
+    const aiContextTool = body.result.tools.find(
+      (item: { name: string }) => item.name === "get_ai_analysis_context",
+    );
 
-    expect(tool).toBeTruthy();
-    expect(tool.annotations.readOnlyHint).toBe(true);
-    expect(tool.annotations.destructiveHint).toBe(false);
+    expect(dailyDigestTool).toBeTruthy();
+    expect(dailyDigestTool.annotations.readOnlyHint).toBe(true);
+    expect(dailyDigestTool.annotations.destructiveHint).toBe(false);
+    expect(aiContextTool).toBeTruthy();
+    expect(aiContextTool.annotations.readOnlyHint).toBe(true);
+    expect(aiContextTool.annotations.destructiveHint).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -184,5 +192,61 @@ describe("schoolfees Worker daily_recovery_digest", () => {
     });
     expect(digest.followUpDrafts.drafts[0].paymentLink).toContain("upi://pay?");
     expect(digest.followUpDrafts.drafts[0].draftMessage).toContain("UPI payment link:");
+  });
+
+  it("returns whole-app AI analysis context matching the AI export coverage", async () => {
+    installSupabaseMock();
+    const { default: worker } = await loadWorker();
+
+    const response = await worker.fetch(
+      mcpRequest({
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: {
+          name: "get_ai_analysis_context",
+          arguments: {
+            sessionLabel: "2026-27",
+            includeStudentRows: true,
+            studentLimit: 5,
+            topOutstandingLimit: 5,
+            recentPaymentsLimit: 5,
+          },
+        },
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    const context = body.result.structuredContent;
+
+    expect(context.safety).toMatchObject({
+      readOnly: true,
+      messagesSent: false,
+      paymentsPosted: false,
+      recordsChanged: false,
+    });
+    expect(context.sourceOfTruth).toMatchObject({
+      studentMaster: "Students",
+      feePolicy: "Fee Setup",
+      paymentPosting: "Payment Desk only",
+    });
+    expect(context.aiWorkbookExport.sheetCoverage).toEqual(
+      expect.arrayContaining([
+        "Recovery Follow-Up",
+        "Previous Year Dues",
+        "Left Student Recovery",
+      ]),
+    );
+    expect(context.summary.studentCount).toBe(1);
+    expect(context.topOutstandingRows[0]).toMatchObject({
+      studentName: "Test Student",
+      outstandingAmount: 8000,
+    });
+    expect(context.studentRows[0]).toMatchObject({
+      admissionNo: "ADM1234",
+      studentName: "Test Student",
+    });
   });
 });

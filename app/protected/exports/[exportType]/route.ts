@@ -7,6 +7,11 @@ import { getPrevYearDuesCollectionRows } from "@/lib/prev-year-dues/data";
 import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
 import { getRecoveryQueue } from "@/lib/recovery/data";
 import {
+  getContactSummariesForStudents,
+  getNoCallFlags,
+  getPromiseReliabilityForStudents,
+} from "@/lib/defaulters/contacts";
+import {
   EMPTY_DEFAULTER_FILTERS,
   type DefaulterFilters,
 } from "@/lib/defaulters/types";
@@ -164,6 +169,8 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     installments,
     transactions,
     discountPolicies,
+    previousYearDues,
+    leftStudentRecovery,
   ] = await Promise.all([
     getFeePolicySummary(),
     getMasterDataOptions(),
@@ -171,14 +178,29 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     getWorkbookInstallmentRows({ sessionLabel }),
     getWorkbookTransactions({ sessionLabel }),
     getConventionalDiscountPolicies(sessionLabel),
+    getPrevYearDuesCollectionRows(sessionLabel),
+    getRecoveryQueue(),
   ]);
 
   const allStudentIds = financials.map((row) => row.studentId);
+  const activePendingStudentIds = financials
+    .filter((row) => row.recordStatus === "active" && row.outstandingAmount > 0)
+    .map((row) => row.studentId);
 
-  const discountAssignments = await getStudentConventionalDiscountAssignments({
-    academicSessionLabel: sessionLabel,
-    studentIds: allStudentIds,
-  });
+  const [
+    discountAssignments,
+    contactSummaries,
+    noCallFlags,
+    promiseReliability,
+  ] = await Promise.all([
+    getStudentConventionalDiscountAssignments({
+      academicSessionLabel: sessionLabel,
+      studentIds: allStudentIds,
+    }),
+    getContactSummariesForStudents(activePendingStudentIds, sessionLabel),
+    getNoCallFlags(activePendingStudentIds, sessionLabel),
+    getPromiseReliabilityForStudents(activePendingStudentIds, sessionLabel),
+  ]);
 
   // Per-student conventional discount labels (derived from assignments so they
   // cover every status, not just the active list).
@@ -326,6 +348,10 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     `* Routes            — transport route master with codes.`,
     `* Discounts         — conventional discount policies + every active assignment.`,
     `* Defaulters        — outstanding follow-up list (students with pending > 0).`,
+    `* Recovery Follow-Up — active defaulter contact state, promise/no-call data,`,
+    `                      and best-call hints used by the Defaulters workspace.`,
+    `* Previous Year Dues — carry-forward balance collection and recovery state.`,
+    `* Left Student Recovery — collectable dues from left/graduated/inactive students.`,
     `* Sessions          — session metadata (current, fee plan summary).`,
     ``,
     `HOW TO INTERPRET THIS WORKBOOK`,
@@ -347,6 +373,9 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     `  Discount policies:       ${discountPolicies.length}`,
     `  Discount assignments:    ${discountAssignments.length}`,
     `  Defaulters:              ${financials.filter((row) => row.outstandingAmount > 0).length}`,
+    `  Recovery contact rows:   ${contactSummaries.size}`,
+    `  Previous-year dues rows: ${previousYearDues.length}`,
+    `  Left-student recovery:   ${leftStudentRecovery.rows.length}`,
   ];
 
   const workbook = XLSX.utils.book_new();
@@ -600,6 +629,94 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
       "Status": row.statusLabel,
     }));
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(defaulterRows), "Defaulters");
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.json_to_sheet(
+      financials
+        .filter((row) => row.recordStatus === "active" && row.outstandingAmount > 0)
+        .sort((a, b) => b.outstandingAmount - a.outstandingAmount)
+        .map((row) => {
+          const summary = contactSummaries.get(row.studentId);
+          const noCall = noCallFlags.get(row.studentId);
+          const reliability = promiseReliability.get(row.studentId);
+          return {
+            "SR no": row.admissionNo,
+            "Student": row.studentName,
+            "Class": row.classLabel,
+            "Father phone": row.fatherPhone ?? "",
+            "Mother phone": row.motherPhone ?? "",
+            "Outstanding": row.outstandingAmount,
+            "Overdue installments": row.overdueInstallmentCount,
+            "Next due label": row.nextDueLabel ?? "",
+            "Next due date": row.nextDueDate ?? "",
+            "Next due amount": row.nextDueAmount ?? 0,
+            "Last contacted at": summary?.lastContactedAt ?? "",
+            "Last outcome": summary?.lastOutcome ?? "",
+            "Last channel": summary?.lastChannel ?? "",
+            "Promise / snooze date": summary?.snoozeUntil ?? "",
+            "No-answer streak": summary?.noAnswerStreak ?? 0,
+            "Total contact attempts": summary?.totalAttempts ?? 0,
+            "Suggested phone label": summary?.suggestedPhoneLabel ?? "",
+            "Best call window": summary?.bestCallWindow ?? "",
+            "No-call flag": noCall?.noCall ? "yes" : "no",
+            "No-call reason": noCall?.reason ?? "",
+            "Promise kept count": reliability?.promiseKeptCount ?? 0,
+            "Promise broken count": reliability?.promiseBrokenCount ?? 0,
+            "Promise kept rate": reliability?.promiseKeptRate ?? "",
+          };
+        }),
+    ),
+    "Recovery Follow-Up",
+  );
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.json_to_sheet(
+      previousYearDues.map((row) => ({
+        "SR no": row.admissionNo ?? "",
+        "Student": row.studentName,
+        "Class": row.classLabel,
+        "Student status": row.studentStatus ?? "",
+        "Phone": row.fatherPhone ?? "",
+        "Balance label": row.displayLabel,
+        "Source session": row.sourceSessionLabel ?? "",
+        "Target session": row.targetSessionLabel ?? "",
+        "Opening old balance": row.oldBalance,
+        "Collected from old balance": row.collected,
+        "Old balance remaining": row.remaining,
+        "Recovery state": row.status,
+      })),
+    ),
+    "Previous Year Dues",
+  );
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.json_to_sheet(
+      leftStudentRecovery.rows.map((row) => ({
+        "SR no": row.admissionNo,
+        "Student": row.fullName,
+        "Father": row.fatherName ?? "",
+        "Phone": row.phone ?? "",
+        "Status": row.status,
+        "Class": row.classLabel ?? "",
+        "Source session": row.sourceSessionLabel ?? "",
+        "Carry-forward": row.hasCarryForward ? "yes" : "no",
+        "Collectable": row.collectable ? "yes" : "no",
+        "Total remaining": row.totalRemaining,
+        "Last payment": row.lastPaymentDate ?? "",
+        "Due count": row.dues.length,
+        "Due details": row.dues
+          .map((due) => {
+            const source = due.sourceSessionLabel ?? due.sessionLabel ?? "unknown session";
+            return `${due.installmentLabel} / ${source} / ${due.remainingAmount}`;
+          })
+          .join("; "),
+      })),
+    ),
+    "Left Student Recovery",
+  );
 
   XLSX.utils.book_append_sheet(
     workbook,

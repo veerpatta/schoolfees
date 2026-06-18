@@ -242,7 +242,7 @@ Every export streams **all rows** (no page caps) as XLSX. 🧾
 
 - 👨‍🎓 All students · 📊 Class-wise dues · 📞 Defaulters · 🧾 Receipt register · 🎁 Conventional-discount students
 - 🤖 **AI context bundle** — a single workbook designed to feed an LLM:
-  `_README` (data dictionary) · Students (all statuses) · Installments · Payments · **Adjustments** · **Refunds** · Classes · Routes · Discounts · Defaulters · Sessions. Every sheet joins on **SR no**.
+  `_README` (data dictionary) · Students (all statuses) · Installments · Payments · **Adjustments** · **Refunds** · Classes · Routes · Discounts · Defaulters · Recovery Follow-Up · Previous Year Dues · Left Student Recovery · Sessions. Every sheet joins on **SR no**.
 
 ---
 

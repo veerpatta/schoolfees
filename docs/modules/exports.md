@@ -31,7 +31,14 @@ self-describing so a model needs no extra context:
   counted as paid, and that every sheet joins on **SR no** (admission number).
 - `Students` (all statuses — active/inactive/graduated), `Installments`,
   `Payments`, `Adjustments` (append-only corrections/reversals incl. refunds),
-  `Refunds`, `Classes`, `Routes`, `Discounts`, `Defaulters`, `Sessions`.
+  `Refunds`, `Classes`, `Routes`, `Discounts`, `Defaulters`,
+  `Recovery Follow-Up`, `Previous Year Dues`, `Left Student Recovery`,
+  `Sessions`.
+
+The recovery sheets use the same read models as Defaulters and Admin Tools:
+contact/promise/no-call context for active defaulters, carry-forward balances
+for previous-year dues, and collectable balances for left/graduated/inactive
+students.
 
 Source: `app/protected/exports/[exportType]/route.ts` (`aiContextBundleResponse`).
 

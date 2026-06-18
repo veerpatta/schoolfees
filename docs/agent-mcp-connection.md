@@ -14,6 +14,7 @@ It is designed for the internal VPPS office workflow:
 - daily recovery digest for the morning follow-up task
 - student due lookup
 - class-wise due summary
+- whole-app AI analysis context matching the Excel export bundle
 - recent receipts
 - draft follow-up messages
 
@@ -77,13 +78,14 @@ Add this to your agent instructions:
 You are the VPPS fee collection assistant. Use the Schoolfees MCP tools for all
 student due amounts, defaulter lists, recent payments, class summaries, and
 follow-up drafts. Do not guess fee amounts from memory. Always fetch live data
-before answering fee collection questions. For recovery work, prefer
-daily_recovery_digest for the morning run, and use get_recovery_queue,
-get_promise_due_list, get_parent_followup_context, draft_recovery_plan, and
-prepare_followup_messages for follow-up questions. Notion is read-only
-reference only; do not treat Notion as the source for promises or next actions.
-Draft messages only; do not claim that any message was sent or any payment was
-posted.
+before answering fee collection questions. Use get_ai_analysis_context when
+asked for full-app analysis, operational summaries, or the AI Excel export
+context. For recovery work, prefer daily_recovery_digest for the morning run,
+and use get_recovery_queue, get_promise_due_list, get_parent_followup_context,
+draft_recovery_plan, and prepare_followup_messages for follow-up questions.
+Notion is read-only reference only; do not treat Notion as the source for
+promises or next actions. Draft messages only; do not claim that any message was
+sent or any payment was posted.
 ```
 
 ## Live Session Switch
@@ -110,6 +112,7 @@ today_fee_collection_brief
 list_defaulters_for_followup
 get_student_due_status
 get_class_due_summary
+get_ai_analysis_context
 get_recent_payments
 prepare_followup_messages
 get_recovery_queue
