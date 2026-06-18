@@ -3,6 +3,7 @@ import "server-only";
 import { WORKBOOK_CLASS_ORDER, normalizeWorkbookClassLabel } from "@/lib/fees/workbook";
 import type { PaymentMode } from "@/lib/db/types";
 import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
+import { loadSessionScopedReceiptIds } from "@/lib/session/installment-scope";
 import { createClient } from "@/lib/supabase/server";
 import { getStudentFormOptions } from "@/lib/students/data";
 
@@ -723,16 +724,19 @@ export async function getWorkbookTransactions(filters?: {
 }) {
   const supabase = await createClient();
   const normalizedSearch = normalizeTransactionSearch(filters?.query);
-  const hasStudentScopeFilter = Boolean(filters?.classId || filters?.routeId || filters?.sessionLabel);
+  // Class/route/name filters scope by student attributes (current class, route,
+  // name) and stay student-based. Session scoping, however, must follow the
+  // installment frozen on each payment — NOT the student's current class — so a
+  // promoted student's prior-year receipts stay under the session they paid into.
+  const hasStudentScopeFilter = Boolean(filters?.classId || filters?.routeId);
 
-  // Run both student-id lookups in parallel to save a full DB round-trip
-  const [scopedStudentIds, searchStudentIds] = await Promise.all([
+  // Run the student-id and session-receipt lookups in parallel to save round-trips.
+  const [scopedStudentIds, searchStudentIds, sessionReceiptIds] = await Promise.all([
     filters?.studentId || !hasStudentScopeFilter
       ? Promise.resolve(null)
       : loadTransactionStudentIds({
           classId: filters?.classId,
           routeId: filters?.routeId,
-          sessionLabel: filters?.sessionLabel,
         }),
     filters?.studentId || !normalizedSearch
       ? Promise.resolve(null)
@@ -740,11 +744,17 @@ export async function getWorkbookTransactions(filters?: {
           classId: filters?.classId,
           query: normalizedSearch,
           routeId: filters?.routeId,
-          sessionLabel: filters?.sessionLabel,
         }),
+    filters?.sessionLabel
+      ? loadSessionScopedReceiptIds(filters.sessionLabel)
+      : Promise.resolve(null),
   ]);
 
   if (scopedStudentIds && scopedStudentIds.length === 0) {
+    return [];
+  }
+
+  if (sessionReceiptIds && sessionReceiptIds.length === 0) {
     return [];
   }
 
@@ -760,6 +770,10 @@ export async function getWorkbookTransactions(filters?: {
     query = query.eq("student_id", filters.studentId);
   } else if (scopedStudentIds) {
     query = query.in("student_id", scopedStudentIds);
+  }
+
+  if (sessionReceiptIds) {
+    query = query.in("id", sessionReceiptIds);
   }
 
   if (filters?.todayOnly) {
@@ -855,7 +869,9 @@ export async function getWorkbookTransactions(filters?: {
     })
     .filter((row) => (filters?.classId ? row.classId === filters.classId : true))
     .filter((row) => (filters?.routeId ? row.transportRouteId === filters.routeId : true))
-    .filter((row) => (filters?.sessionLabel ? row.sessionLabel === filters.sessionLabel : true))
+    // Session scoping is enforced upstream via installment-frozen receipt ids
+    // (.in("id", sessionReceiptIds)); the current-class post-filter that used to
+    // sit here would have dropped promoted students' prior-year receipts.
     .filter((row) => {
       const normalizedQuery = normalizedSearch.toLowerCase();
 

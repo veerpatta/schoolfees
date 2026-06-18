@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import { loadSessionScopedReceiptIds } from "@/lib/session/installment-scope";
 import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
 import { buildReceiptAdjustmentTotals } from "@/lib/receipts/amounts";
 import { resolveReceiptSessionLabel } from "@/lib/receipts/session-label";
@@ -290,16 +291,24 @@ export async function getReceiptsPage(
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  // Scope to the viewed session via inner joins (receipt → student → current class →
-  // session_label). Inner joins keep the `count: exact` total aligned with the filtered
-  // rows so pagination stays correct.
+  // Scope to the viewed session by the installment frozen on each payment, NOT the
+  // student's current class — otherwise a promoted student's prior-year receipts would
+  // follow them into their new session (and vanish from the old one). Step 1 resolves the
+  // receipt ids whose payments settled an installment in this session; step 2 filters
+  // receipts by those ids so `count: exact` and pagination stay correct.
+  const sessionReceiptIds = await loadSessionScopedReceiptIds(sessionLabel);
+
+  if (sessionReceiptIds.length === 0) {
+    return { receipts: [], totalCount: 0, page, pageSize };
+  }
+
   let query = supabase
     .from("receipts")
     .select(
-      "id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, student_ref:students!inner(id, full_name, admission_no, father_name, primary_phone, class_ref:classes!inner(session_label, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code))",
+      "id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, student_ref:students(id, full_name, admission_no, father_name, primary_phone, class_ref:classes(class_name, section, stream_name), route_ref:transport_routes(route_name, route_code))",
       { count: "exact" },
     )
-    .eq("student_ref.class_ref.session_label", sessionLabel)
+    .in("id", sessionReceiptIds)
     .order("payment_date", { ascending: false })
     .order("created_at", { ascending: false })
     .range(from, to);
