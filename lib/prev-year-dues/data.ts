@@ -139,18 +139,45 @@ export type BatchRowBreakdown = {
 };
 
 export type PrevYearDuesCollectionRow = {
+  studentId: string | null;
   admissionNo: string | null;
   studentName: string;
   classLabel: string;
   fatherPhone: string | null;
+  /** The student's enrollment status (active / left / graduated / inactive). */
+  studentStatus: string | null;
   sourceSessionLabel: string | null;
   targetSessionLabel: string | null;
   displayLabel: string;
   oldBalance: number;
   collected: number;
   remaining: number;
+  /** The carry-forward balance status (active / collected / cancelled). */
   status: string;
 };
+
+/** Joins each carry-forward row to its student's current enrollment status. */
+async function attachStudentStatus(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rows: PrevYearDuesCollectionRow[],
+): Promise<PrevYearDuesCollectionRow[]> {
+  const ids = Array.from(
+    new Set(rows.map((row) => row.studentId).filter((id): id is string => Boolean(id))),
+  );
+  if (ids.length === 0) {
+    return rows;
+  }
+  const { data } = await supabase.from("students").select("id, status").in("id", ids);
+  const statusById = new Map(
+    ((data ?? []) as Array<{ id: string; status: string }>).map((row) => [row.id, row.status]),
+  );
+  for (const row of rows) {
+    if (row.studentId) {
+      row.studentStatus = statusById.get(row.studentId) ?? null;
+    }
+  }
+  return rows;
+}
 
 /**
  * Collected-vs-remaining on carry-forward (previous-year) balances for a
@@ -164,34 +191,36 @@ export async function getPrevYearDuesCollectionRows(
   const carryForwardView = await supabase
     .from("v_student_carry_forward_balances")
     .select(
-      "admission_no, student_name, class_label, father_phone, source_session_label, target_session_label, fee_head, original_amount, collected_amount, remaining_amount, balance_status, status",
+      "student_id, admission_no, student_name, class_label, father_phone, source_session_label, target_session_label, fee_head, original_amount, collected_amount, remaining_amount, balance_status, status",
     )
     .eq("target_session_label", sessionLabel)
     .neq("status", "cancelled");
 
   if (!carryForwardView.error) {
-    return ((carryForwardView.data ?? []) as Record<string, unknown>[])
-      .map((row) => {
-        const sourceSessionLabel = (row.source_session_label as string | null) ?? null;
-        return {
-          admissionNo: (row.admission_no as string | null) ?? null,
-          studentName: (row.student_name as string | null) ?? "",
-          classLabel: (row.class_label as string | null) ?? "",
-          fatherPhone: (row.father_phone as string | null) ?? null,
+    const rows = ((carryForwardView.data ?? []) as Record<string, unknown>[]).map((row) => {
+      const sourceSessionLabel = (row.source_session_label as string | null) ?? null;
+      return {
+        studentId: (row.student_id as string | null) ?? null,
+        admissionNo: (row.admission_no as string | null) ?? null,
+        studentName: (row.student_name as string | null) ?? "",
+        classLabel: (row.class_label as string | null) ?? "",
+        fatherPhone: (row.father_phone as string | null) ?? null,
+        studentStatus: null,
+        sourceSessionLabel,
+        targetSessionLabel: (row.target_session_label as string | null) ?? null,
+        displayLabel: getDisplayInstallmentLabel({
+          isCarryForward: true,
           sourceSessionLabel,
-          targetSessionLabel: (row.target_session_label as string | null) ?? null,
-          displayLabel: getDisplayInstallmentLabel({
-            isCarryForward: true,
-            sourceSessionLabel,
-            feeBucket: "previous_year_tuition",
-          }),
-          oldBalance: Number(row.original_amount ?? 0),
-          collected: Number(row.collected_amount ?? 0),
-          remaining: Number(row.remaining_amount ?? 0),
-          status: (row.balance_status as string | null) ?? (row.status as string | null) ?? "",
-        };
-      })
-      .sort((a, b) => b.remaining - a.remaining || a.studentName.localeCompare(b.studentName));
+          feeBucket: "previous_year_tuition",
+        }),
+        oldBalance: Number(row.original_amount ?? 0),
+        collected: Number(row.collected_amount ?? 0),
+        remaining: Number(row.remaining_amount ?? 0),
+        status: (row.balance_status as string | null) ?? (row.status as string | null) ?? "",
+      };
+    });
+    await attachStudentStatus(supabase, rows);
+    return rows.sort((a, b) => b.remaining - a.remaining || a.studentName.localeCompare(b.studentName));
   }
 
   if (!["42P01", "42703"].includes((carryForwardView.error as { code?: string }).code ?? "")) {
@@ -201,7 +230,7 @@ export async function getPrevYearDuesCollectionRows(
   const { data, error } = await supabase
     .from("v_workbook_installment_balances")
     .select(
-      "admission_no, student_name, class_label, father_phone, base_charge, applied_amount, pending_amount, balance_status, session_label, installment_label",
+      "student_id, admission_no, student_name, class_label, father_phone, base_charge, applied_amount, pending_amount, balance_status, session_label, installment_label",
     )
     .eq("installment_label", CARRY_FORWARD_LABEL)
     .eq("session_label", sessionLabel);
@@ -211,21 +240,25 @@ export async function getPrevYearDuesCollectionRows(
     throw new Error(`Failed to load previous-year dues collection: ${error.message}`);
   }
 
-  return ((data ?? []) as Record<string, unknown>[])
-    .map((row) => ({
-      admissionNo: (row.admission_no as string | null) ?? null,
-      studentName: (row.student_name as string | null) ?? "",
-      classLabel: (row.class_label as string | null) ?? "",
-      fatherPhone: (row.father_phone as string | null) ?? null,
-      sourceSessionLabel: null,
-      targetSessionLabel: sessionLabel,
-      displayLabel: getDisplayInstallmentLabel({ installmentLabel: (row.installment_label as string | null) ?? "" }),
-      oldBalance: Number(row.base_charge ?? 0),
-      collected: Number(row.applied_amount ?? 0),
-      remaining: Number(row.pending_amount ?? 0),
-      status: (row.balance_status as string | null) ?? "",
-    }))
-    .sort((a, b) => b.remaining - a.remaining || a.studentName.localeCompare(b.studentName));
+  const fallbackRows = ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+    studentId: (row.student_id as string | null) ?? null,
+    admissionNo: (row.admission_no as string | null) ?? null,
+    studentName: (row.student_name as string | null) ?? "",
+    classLabel: (row.class_label as string | null) ?? "",
+    fatherPhone: (row.father_phone as string | null) ?? null,
+    studentStatus: null,
+    sourceSessionLabel: null,
+    targetSessionLabel: sessionLabel,
+    displayLabel: getDisplayInstallmentLabel({ installmentLabel: (row.installment_label as string | null) ?? "" }),
+    oldBalance: Number(row.base_charge ?? 0),
+    collected: Number(row.applied_amount ?? 0),
+    remaining: Number(row.pending_amount ?? 0),
+    status: (row.balance_status as string | null) ?? "",
+  }));
+  await attachStudentStatus(supabase, fallbackRows);
+  return fallbackRows.sort(
+    (a, b) => b.remaining - a.remaining || a.studentName.localeCompare(b.studentName),
+  );
 }
 
 /** Pure: group rows by disposition for display. */

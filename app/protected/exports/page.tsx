@@ -56,6 +56,13 @@ const exportGroups = [
         icon: Layers,
         tone: "warning" as const,
       },
+      {
+        key: "left-student-dues",
+        labelKey: "itemLeftStudentDues",
+        detailKey: "itemLeftStudentDuesDetail",
+        icon: UsersRound,
+        tone: "danger" as const,
+      },
     ],
   },
   {

@@ -481,6 +481,8 @@
     "itemDefaultersDetail": "Follow-up list for pending and overdue dues.",
     "itemPrevYearDues": "Old balance",
     "itemPrevYearDuesDetail": "Carried-forward 2025-26 balances: collected vs remaining.",
+    "itemLeftStudentDues": "Left students with dues",
+    "itemLeftStudentDuesDetail": "Left / graduated students who still owe fees, for recovery.",
     "itemReceiptRegister": "Receipt register",
     "itemReceiptRegisterDetail": "Saved receipt records for office accounts.",
     "itemAiContextBundle": "Full AI context",

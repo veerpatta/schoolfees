@@ -71,6 +71,11 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
         eyebrow="Admin Tools"
         title="Left Students With Dues"
         description="Recover still-pending fees from students who have left, graduated, or gone inactive."
+        actions={
+          <Button asChild variant="outline" size="sm">
+            <Link href="/protected/exports/left-student-dues">Export</Link>
+          </Button>
+        }
       />
 
       <OfficeNotice title="How recovery works" tone="info">

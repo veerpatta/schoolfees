@@ -5,6 +5,7 @@ import type { OfficeWorkbookView } from "@/lib/transactions/workbook";
 import { getDefaulterExportRows } from "@/lib/defaulters/data";
 import { getPrevYearDuesCollectionRows } from "@/lib/prev-year-dues/data";
 import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
+import { getRecoveryQueue } from "@/lib/recovery/data";
 import {
   EMPTY_DEFAULTER_FILTERS,
   type DefaulterFilters,
@@ -742,6 +743,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         "SR no": row.admissionNo ?? "",
         "Student": row.studentName,
         "Class": row.classLabel,
+        "Student status": row.studentStatus ?? "",
         "Phone": row.fatherPhone ?? "",
         "Balance label": row.displayLabel,
         "Source session": row.sourceSessionLabel ?? "",
@@ -749,7 +751,29 @@ export async function GET(request: NextRequest, context: RouteContext) {
         "Previous-year balance": row.oldBalance,
         "Collected": row.collected,
         "Remaining": row.remaining,
+        "Recovery state": row.status,
+      })),
+    );
+  }
+
+  if (exportType === "left-student-dues") {
+    const queue = await getRecoveryQueue();
+
+    return rowsResponse(
+      format,
+      filenameBase,
+      exportTitle,
+      queue.rows.map((row) => ({
+        "SR no": row.admissionNo,
+        "Student": row.fullName,
+        "Father": row.fatherName ?? "",
+        "Phone": row.phone ?? "",
         "Status": row.status,
+        "Class": row.classLabel ?? "",
+        "Source session": row.sourceSessionLabel ?? "",
+        "Carry-forward": row.hasCarryForward ? "yes" : "no",
+        "Total remaining": row.totalRemaining,
+        "Last payment": row.lastPaymentDate ?? "",
       })),
     );
   }

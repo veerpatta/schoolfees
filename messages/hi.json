@@ -481,6 +481,8 @@
     "itemDefaultersDetail": "लंबित और अतिदेय बकाया के लिए अनुसरण सूची।",
     "itemPrevYearDues": "पुराना बकाया",
     "itemPrevYearDuesDetail": "आगे लाया गया 2025-26 बकाया: वसूल बनाम शेष।",
+    "itemLeftStudentDues": "बकाया वाले छोड़ चुके छात्र",
+    "itemLeftStudentDuesDetail": "छोड़ चुके / उत्तीर्ण छात्र जिन पर अभी भी फीस बकाया है, वसूली हेतु।",
     "itemReceiptRegister": "रसीद पंजी",
     "itemReceiptRegisterDetail": "कार्यालय खातों के लिए सहेजे गए रसीद रिकॉर्ड।",
     "itemAiContextBundle": "पूर्ण AI संदर्भ",
