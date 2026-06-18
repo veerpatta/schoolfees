@@ -2798,6 +2798,11 @@ export function PaymentDeskClient({
                 <input type="hidden" name="clientRequestId" value={clientRequestId} />
                 <input
                   type="hidden"
+                  name="collectionContext"
+                  value={data.collectionContext ?? "regular"}
+                />
+                <input
+                  type="hidden"
                   name="acknowledgeDailyDuplicate"
                   value={acknowledgeDailyDuplicate ? "true" : "false"}
                 />

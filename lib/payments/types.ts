@@ -178,10 +178,20 @@ export type PaymentDeskIssue = {
   repairStudentId?: string | null;
 };
 
+/**
+ * Where a payment is being collected from. `left_student_recovery` is the
+ * guarded mode used by the Admin Tools recovery queue to collect existing dues
+ * from students who have LEFT — it relaxes the active-student posting gate but
+ * never prepares new dues or reactivates the student.
+ */
+export type PaymentCollectionContext = "regular" | "left_student_recovery";
+
 export type PaymentEntryPageData = {
   studentIndex: PaymentStudentIndexItem[];
   initialStudentId: string | null;
   initialClassId: string;
+  /** Set to `left_student_recovery` when the desk is opened in recovery mode. */
+  collectionContext?: PaymentCollectionContext;
   initialStudentSummary: SelectedStudentSummary | null;
   initialStudentIssue: PaymentDeskIssue | null;
   initialLatestReceipt: {

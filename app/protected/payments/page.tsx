@@ -30,6 +30,7 @@ type PaymentsPageProps = {
     classId?: string;
     session?: string;
     repairNotice?: string;
+    mode?: string;
   }>;
 };
 
@@ -47,6 +48,9 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
   const studentId = normalizeStudentId(resolvedSearchParams?.studentId);
   const classId = normalizeStudentId(resolvedSearchParams?.classId);
   const repairNotice = (resolvedSearchParams?.repairNotice ?? "").trim();
+  // Recovery mode is reachable only via an explicit ?mode=recovery link with a
+  // preselected student (from the Admin Tools recovery queue).
+  const recovery = (resolvedSearchParams?.mode ?? "").trim() === "recovery" && Boolean(studentId);
   const viewSession = await resolveViewSession({
     searchParamSession: resolvedSearchParams?.session,
     cookieSession: await getViewSessionCookie(),
@@ -79,6 +83,7 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
           studentId={studentId}
           classId={classId}
           sessionLabel={viewSession.sessionLabel}
+          recovery={recovery}
         />
       </Suspense>
     </div>
@@ -91,12 +96,14 @@ async function PaymentDeskDataLoader({
   studentId,
   classId,
   sessionLabel,
+  recovery,
 }: {
   staff: Awaited<ReturnType<typeof requireStaffPermission>>;
   classOptions: Array<{ id: string; label: string }>;
   studentId: string | null;
   classId: string | null;
   sessionLabel: string;
+  recovery: boolean;
 }) {
   const t = await getTranslations("Payments");
   const canWritePayments = hasStaffPermission(staff, "payments:write");
@@ -176,10 +183,17 @@ async function PaymentDeskDataLoader({
   const translatedData = {
     ...data,
     initialStudentIssue: translateBlockingReason(data.initialStudentIssue, t),
+    collectionContext: recovery ? ("left_student_recovery" as const) : undefined,
   };
 
   return (
     <>
+      {recovery ? (
+        <OfficeNotice title="Recovery mode — left student" tone="warning">
+          You are collecting against this student&apos;s <strong>existing pending dues</strong>.
+          Posting will not re-enrol the student or create new dues.
+        </OfficeNotice>
+      ) : null}
       <div className="flex justify-end">
         <StatusBadge
           label={canPostPayments ? t("postingEnabled") : t("readOnlyAccess")}

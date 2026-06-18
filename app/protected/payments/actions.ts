@@ -13,7 +13,7 @@ import {
   postStudentPayment,
   toFriendlyPaymentPostingError,
 } from "@/lib/payments/data";
-import type { PaymentEntryActionState } from "@/lib/payments/types";
+import type { PaymentCollectionContext, PaymentEntryActionState } from "@/lib/payments/types";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import { revalidateAfterPaymentPosting } from "@/lib/system-sync/finance-revalidation";
@@ -183,13 +183,27 @@ export async function submitPaymentEntryAction(
     clientRequestId = validatedClientRequestId;
     const referenceNumber = (formData.get("referenceNumber") ?? "").toString().trim() || null;
     const receivedBy = parseRequiredString(formData.get("receivedBy"), "Received by");
+    const collectionContext: PaymentCollectionContext =
+      (formData.get("collectionContext") ?? "").toString() === "left_student_recovery"
+        ? "left_student_recovery"
+        : "regular";
+    const isRecovery = collectionContext === "left_student_recovery";
     const student = await getStudentDetail(studentId);
 
     if (!student) {
       throw new Error("Selected student could not be found. Refresh Payment Desk and select the student again.");
     }
 
-    if (student.classSessionLabel !== sessionLabel) {
+    // Recovery collects a left student's existing dues, which live in the session
+    // they left from — so post against the student's own class session. Regular
+    // posting still requires the desk session to match the student's session.
+    // Cross-session recovery (a student whose class is in a prior session) is not
+    // supported in v1 and is left to fail naturally downstream.
+    const effectiveSessionLabel = isRecovery
+      ? student.classSessionLabel || sessionLabel
+      : sessionLabel;
+
+    if (!isRecovery && student.classSessionLabel !== sessionLabel) {
       throw new Error(
         `Selected student belongs to ${student.classSessionLabel || "another year"}, but this payment desk is working in ${sessionLabel}. Change the session before collecting.`,
       );
@@ -220,7 +234,7 @@ export async function submitPaymentEntryAction(
         p_student_id: studentId,
         p_amount: quickLateFeeWaiverAmount,
         p_remarks: `Late fee waived at Payment Desk during collection on ${paymentDate}`,
-        p_session_label: sessionLabel,
+        p_session_label: effectiveSessionLabel,
         p_client_request_id: clientRequestId,
       });
       if (waiveError) {
@@ -240,10 +254,21 @@ export async function submitPaymentEntryAction(
       }
     }
 
+    // Receipt-level audit for recovery collections. We deliberately do NOT change
+    // the live post_student_payment_with_adjustments RPC (see CLAUDE.md / memory:
+    // that RPC's guards regress easily). The context is recorded on the receipt
+    // via remarks and in the activity log instead.
+    const userRemarks = (formData.get("remarks") ?? "").toString().trim() || null;
+    const remarks = isRecovery
+      ? `[Recovery: left-student collection — status at posting: ${student.status}]${
+          userRemarks ? ` ${userRemarks}` : ""
+        }`
+      : userRemarks;
+
     _tBeforePost = Date.now();
     const receipt = await postStudentPayment({
       studentId,
-      sessionLabel,
+      sessionLabel: effectiveSessionLabel,
       paymentDate,
       paymentMode,
       paymentAmount,
@@ -252,10 +277,11 @@ export async function submitPaymentEntryAction(
       // posting RPC must NOT also create a writeoff — that would double-count.
       quickLateFeeWaiverAmount: 0,
       referenceNumber,
-      remarks: (formData.get("remarks") ?? "").toString().trim() || null,
+      remarks,
       receivedBy,
       clientRequestId,
       acknowledgeDailyDuplicate,
+      collectionContext,
     });
     const _tAfterPost = Date.now();
     // Coarse latency split so a slow post is attributable from the Vercel logs:
@@ -305,6 +331,8 @@ export async function submitPaymentEntryAction(
           amount: paymentAmount,
           paymentMode,
           sessionLabel: resolvedSessionLabel,
+          collectionContext,
+          ...(isRecovery ? { studentStatusAtPosting: student.status } : {}),
         },
       });
     });

@@ -19,6 +19,7 @@ import {
 } from "@/lib/prev-year-dues/display";
 import type {
   InstallmentBalanceItem,
+  PaymentCollectionContext,
   PaymentDeskStudentSummary,
   PaymentDeskIssue,
   PaymentEntryPageData,
@@ -979,11 +980,15 @@ export async function preflightPaymentPosting(payload: {
   paymentMode?: PaymentMode;
   referenceNumber?: string | null;
   sessionLabel?: string | null;
+  collectionContext?: PaymentCollectionContext;
 }) {
   const context = await getSelectedStudentPreflightContext(
     payload.studentId,
     payload.sessionLabel,
   );
+  // Left-student recovery: collect against EXISTING dues for a student who has
+  // left. Relaxes the active-student gate but must never prepare new dues.
+  const isRecovery = payload.collectionContext === "left_student_recovery";
   let installmentCount = context.installmentCount;
   let autoPrepareAttempted = false;
   let autoPrepareWorked: boolean | null = null;
@@ -1005,7 +1010,9 @@ export async function preflightPaymentPosting(payload: {
     );
   }
 
-  if (context.student.status !== "active") {
+  // Regular posting requires an active student. Recovery mode intentionally
+  // allows non-active students so the office can collect their existing dues.
+  if (!isRecovery && context.student.status !== "active") {
     throw new PaymentPostingPreflightError(
       "No payable dues found for selected payment date.",
       buildPaymentDiagnostic({
@@ -1021,6 +1028,17 @@ export async function preflightPaymentPosting(payload: {
       buildPaymentDiagnostic({
         ...baseDiagnostic,
         reason: "session_mismatch",
+      }),
+    );
+  }
+
+  if (installmentCount === 0 && isRecovery) {
+    // Recovery must allocate only to EXISTING dues — never regenerate fees.
+    throw new PaymentPostingPreflightError(
+      "No existing dues to recover for this student. Recovery cannot create new dues.",
+      buildPaymentDiagnostic({
+        ...baseDiagnostic,
+        reason: "recovery_no_existing_dues",
       }),
     );
   }
@@ -1534,6 +1552,7 @@ export async function postStudentPayment(payload: {
    * flag is set. The 60-second near-duplicate check is always applied.
    */
   acknowledgeDailyDuplicate?: boolean;
+  collectionContext?: PaymentCollectionContext;
 }) {
   const policy = payload.sessionLabel
     ? await getFeePolicyForSession(payload.sessionLabel)
@@ -1556,6 +1575,7 @@ export async function postStudentPayment(payload: {
     paymentMode: payload.paymentMode,
     referenceNumber: payload.referenceNumber,
     sessionLabel: payload.sessionLabel,
+    collectionContext: payload.collectionContext,
   });
   const duplicateReceipt = await findLikelyDuplicateReceipt({
     studentId: payload.studentId,

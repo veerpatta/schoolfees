@@ -497,4 +497,121 @@ describe("payment submit preflight", () => {
     );
     expect(postRpc).not.toHaveBeenCalled();
   });
+
+  it("regular mode still blocks a non-active student (safety gate intact)", async () => {
+    getStudentDetail.mockResolvedValue(student({ status: "left" }));
+    createClient.mockResolvedValueOnce(clientWithRpc([4], vi.fn()));
+
+    const { preflightPaymentPosting } = await import("@/lib/payments/data");
+
+    await expect(
+      preflightPaymentPosting({
+        studentId: "00000000-0000-4000-8000-000000000001",
+        paymentDate: "2026-04-25",
+        paymentAmount: 1000,
+        paymentMode: "cash",
+        referenceNumber: null,
+      }),
+    ).rejects.toThrow("No payable dues found for selected payment date.");
+    expect(prepareDuesForStudentsAutomatically).not.toHaveBeenCalled();
+  });
+
+  it("recovery mode allows a non-active student but never auto-prepares dues", async () => {
+    getStudentDetail.mockResolvedValue(student({ status: "left" }));
+    // installmentCount === 0 -> regular would auto-prepare; recovery must error.
+    createClient.mockResolvedValueOnce(clientWithRpc([0], vi.fn()));
+
+    const { preflightPaymentPosting } = await import("@/lib/payments/data");
+
+    await expect(
+      preflightPaymentPosting({
+        studentId: "00000000-0000-4000-8000-000000000001",
+        paymentDate: "2026-04-25",
+        paymentAmount: 1000,
+        paymentMode: "cash",
+        referenceNumber: null,
+        collectionContext: "left_student_recovery",
+      }),
+    ).rejects.toThrow("No existing dues to recover for this student.");
+    expect(prepareDuesForStudentsAutomatically).not.toHaveBeenCalled();
+  });
+
+  it("recovery mode rejects overpayment beyond existing pending dues", async () => {
+    getStudentDetail.mockResolvedValue(student({ status: "left" }));
+    const previewRpc = vi.fn().mockResolvedValue({
+      data: [
+        {
+          installment_id: "00000000-0000-4000-8000-000000000101",
+          installment_no: 1,
+          installment_label: "Installment 3",
+          due_date: "2026-10-20",
+          total_charge: 1000,
+          paid_amount: 0,
+          adjustment_amount: 0,
+          raw_late_fee: 0,
+          waiver_applied: 0,
+          final_late_fee: 0,
+          pending_amount: 1000,
+          balance_status: "pending",
+        },
+      ],
+      error: null,
+    });
+    createClient
+      .mockResolvedValueOnce(clientWithRpc([4], vi.fn()))
+      .mockResolvedValueOnce(clientWithRpc([], previewRpc));
+
+    const { preflightPaymentPosting } = await import("@/lib/payments/data");
+
+    await expect(
+      preflightPaymentPosting({
+        studentId: "00000000-0000-4000-8000-000000000001",
+        paymentDate: "2026-04-25",
+        paymentAmount: 2000,
+        paymentMode: "cash",
+        referenceNumber: null,
+        collectionContext: "left_student_recovery",
+      }),
+    ).rejects.toThrow("Payment amount is more than net payable after discount.");
+  });
+
+  it("recovery mode accepts a valid collection against a left student's existing dues", async () => {
+    getStudentDetail.mockResolvedValue(student({ status: "left" }));
+    const previewRpc = vi.fn().mockResolvedValue({
+      data: [
+        {
+          installment_id: "00000000-0000-4000-8000-000000000101",
+          installment_no: 1,
+          installment_label: "Installment 3",
+          due_date: "2026-10-20",
+          total_charge: 1000,
+          paid_amount: 0,
+          adjustment_amount: 0,
+          raw_late_fee: 0,
+          waiver_applied: 0,
+          final_late_fee: 0,
+          pending_amount: 1000,
+          balance_status: "pending",
+        },
+      ],
+      error: null,
+    });
+    createClient
+      .mockResolvedValueOnce(clientWithRpc([4], vi.fn()))
+      .mockResolvedValueOnce(clientWithRpc([], previewRpc));
+
+    const { preflightPaymentPosting } = await import("@/lib/payments/data");
+
+    await expect(
+      preflightPaymentPosting({
+        studentId: "00000000-0000-4000-8000-000000000001",
+        paymentDate: "2026-04-25",
+        paymentAmount: 1000,
+        paymentMode: "cash",
+        referenceNumber: null,
+        collectionContext: "left_student_recovery",
+      }),
+    ).resolves.toBeTruthy();
+    expect(prepareDuesForStudentsAutomatically).not.toHaveBeenCalled();
+  });
 });
