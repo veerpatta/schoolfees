@@ -982,6 +982,16 @@ export async function preflightPaymentPosting(payload: {
   sessionLabel?: string | null;
   collectionContext?: PaymentCollectionContext;
 }) {
+  // Kick off the date-aware preview alongside the context reads — it only
+  // needs studentId + paymentDate, and it is the slowest single read in the
+  // preflight. The catch() marks the promise handled so an early validation
+  // throw below can't surface an unhandled rejection; the awaited path still
+  // sees the real result/error.
+  let previewRowsPromise = getPaymentDateAwareInstallmentBalances({
+    studentId: payload.studentId,
+    paymentDate: payload.paymentDate,
+  });
+  previewRowsPromise.catch(() => {});
   const context = await getSelectedStudentPreflightContext(
     payload.studentId,
     payload.sessionLabel,
@@ -1067,14 +1077,17 @@ export async function preflightPaymentPosting(payload: {
     }
 
     installmentCount = await countNonCancelledInstallments(payload.studentId);
+    // Dues were just prepared, so the prefetched preview is stale — re-read.
+    previewRowsPromise = getPaymentDateAwareInstallmentBalances({
+      studentId: payload.studentId,
+      paymentDate: payload.paymentDate,
+    });
+    previewRowsPromise.catch(() => {});
   }
 
   let previewRows: InstallmentBalanceItem[];
   try {
-    previewRows = await getPaymentDateAwareInstallmentBalances({
-      studentId: payload.studentId,
-      paymentDate: payload.paymentDate,
-    });
+    previewRows = await previewRowsPromise;
   } catch (error) {
     throw new PaymentPostingPreflightError(
       "Dues exist, but payment posting could not read them. Ask admin to check database update.",
@@ -1557,54 +1570,82 @@ export async function postStudentPayment(payload: {
   const policy = payload.sessionLabel
     ? await getFeePolicyForSession(payload.sessionLabel)
     : await getFeePolicySummary();
-  const existingReceipt = await findReceiptByClientRequestId({
-    studentId: payload.studentId,
-    clientRequestId: payload.clientRequestId,
-  });
 
-  if (existingReceipt) {
-    return existingReceipt;
-  }
-
-  const preflightDiagnostic = await preflightPaymentPosting({
-    studentId: payload.studentId,
-    paymentDate: payload.paymentDate,
-    paymentAmount: payload.paymentAmount,
-    quickDiscountAmount: payload.quickDiscountAmount,
-    quickLateFeeWaiverAmount: payload.quickLateFeeWaiverAmount,
-    paymentMode: payload.paymentMode,
-    referenceNumber: payload.referenceNumber,
-    sessionLabel: payload.sessionLabel,
-    collectionContext: payload.collectionContext,
-  });
-  const duplicateReceipt = await findLikelyDuplicateReceipt({
-    studentId: payload.studentId,
-    paymentDate: payload.paymentDate,
-    paymentMode: payload.paymentMode,
-    paymentAmount: payload.paymentAmount,
-    referenceNumber: payload.referenceNumber,
-  });
-
-  if (duplicateReceipt) {
-    throw new DuplicatePaymentWarning(duplicateReceipt, { kind: "near-duplicate" });
-  }
-
-  // Audit 1.4 — broader same-day same-amount soft check. Caught even when the
-  // amount or reference differs from the most recent post.
-  if (!payload.acknowledgeDailyDuplicate) {
-    const dailyDuplicate = await findLikelyDailyDuplicateReceipt({
-      studentId: payload.studentId,
-      paymentDate: payload.paymentDate,
-      paymentAmount: payload.paymentAmount,
-    });
-
-    if (dailyDuplicate) {
-      throw new DuplicatePaymentWarning(dailyDuplicate, {
-        kind: "daily-amount",
-        amount: payload.paymentAmount,
+  // The idempotency lookup, preflight, and both duplicate checks are
+  // independent reads, so run them together instead of paying four sequential
+  // round trips on every post. Results are still evaluated in the original
+  // priority order below (existing receipt → preflight error → near-duplicate
+  // → daily duplicate), so the visible behavior is unchanged. allSettled keeps
+  // the idempotent-retry path intact: a retried already-posted payment returns
+  // the existing receipt even though preflight now rejects with "no payable
+  // dues".
+  const [existingReceiptResult, preflightResult, duplicateResult, dailyDuplicateResult] =
+    await Promise.allSettled([
+      findReceiptByClientRequestId({
+        studentId: payload.studentId,
+        clientRequestId: payload.clientRequestId,
+      }),
+      preflightPaymentPosting({
+        studentId: payload.studentId,
         paymentDate: payload.paymentDate,
-      });
-    }
+        paymentAmount: payload.paymentAmount,
+        quickDiscountAmount: payload.quickDiscountAmount,
+        quickLateFeeWaiverAmount: payload.quickLateFeeWaiverAmount,
+        paymentMode: payload.paymentMode,
+        referenceNumber: payload.referenceNumber,
+        sessionLabel: payload.sessionLabel,
+        collectionContext: payload.collectionContext,
+      }),
+      findLikelyDuplicateReceipt({
+        studentId: payload.studentId,
+        paymentDate: payload.paymentDate,
+        paymentMode: payload.paymentMode,
+        paymentAmount: payload.paymentAmount,
+        referenceNumber: payload.referenceNumber,
+      }),
+      // Audit 1.4 — broader same-day same-amount soft check. Caught even when
+      // the amount or reference differs from the most recent post.
+      payload.acknowledgeDailyDuplicate
+        ? Promise.resolve(null)
+        : findLikelyDailyDuplicateReceipt({
+            studentId: payload.studentId,
+            paymentDate: payload.paymentDate,
+            paymentAmount: payload.paymentAmount,
+          }),
+    ]);
+
+  if (existingReceiptResult.status === "rejected") {
+    throw existingReceiptResult.reason;
+  }
+
+  if (existingReceiptResult.value) {
+    return existingReceiptResult.value;
+  }
+
+  if (preflightResult.status === "rejected") {
+    throw preflightResult.reason;
+  }
+
+  const preflightDiagnostic = preflightResult.value;
+
+  if (duplicateResult.status === "rejected") {
+    throw duplicateResult.reason;
+  }
+
+  if (duplicateResult.value) {
+    throw new DuplicatePaymentWarning(duplicateResult.value, { kind: "near-duplicate" });
+  }
+
+  if (dailyDuplicateResult.status === "rejected") {
+    throw dailyDuplicateResult.reason;
+  }
+
+  if (dailyDuplicateResult.value) {
+    throw new DuplicatePaymentWarning(dailyDuplicateResult.value, {
+      kind: "daily-amount",
+      amount: payload.paymentAmount,
+      paymentDate: payload.paymentDate,
+    });
   }
 
   const supabase = await createClient();

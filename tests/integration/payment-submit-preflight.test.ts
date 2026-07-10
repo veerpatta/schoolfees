@@ -33,75 +33,111 @@ function student(overrides: Partial<Awaited<ReturnType<typeof getStudentDetail>>
   };
 }
 
-function queryCount(counts: number[]) {
+function previewRow(overrides: Record<string, unknown> = {}) {
   return {
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    neq: vi.fn(() => Promise.resolve({ count: counts.shift() ?? 0, error: null })),
+    installment_id: "00000000-0000-4000-8000-000000000101",
+    installment_no: 1,
+    installment_label: "Installment 1",
+    due_date: "2026-04-20",
+    total_charge: 1500,
+    paid_amount: 0,
+    adjustment_amount: 0,
+    raw_late_fee: 0,
+    waiver_applied: 0,
+    final_late_fee: 0,
+    pending_amount: 1500,
+    balance_status: "pending",
+    ...overrides,
   };
 }
 
-function clientWithRpc(counts: number[], rpc: ReturnType<typeof vi.fn>) {
-  return {
-    from: vi.fn(() => queryCount(counts)),
-    rpc,
-  };
+type UniversalClientOptions = {
+  /** Sequential results for countNonCancelledInstallments (initial, recount). */
+  counts?: number[];
+  /** Row returned by the clientRequestId idempotency lookup (.maybeSingle). */
+  existingReceipt?: { id: string; receipt_number: string; total_amount?: number } | null;
+  /** Row returned by the 60-second near-duplicate check. */
+  nearDuplicate?: { id: string; receipt_number: string } | null;
+  /** Row returned by the daily same-amount soft check. */
+  dailyDuplicate?: { id: string; receipt_number: string } | null;
+  /** Result rows for preview_workbook_payment_allocation. */
+  previewRows?: Array<Record<string, unknown>>;
+  /** Result row for post_student_payment_with_adjustments. */
+  postResult?: Record<string, unknown> | null;
+  /** Error for the posting RPC. */
+  postError?: { message: string } | null;
+};
+
+// postStudentPayment now runs its independent reads (idempotency lookup,
+// preflight, duplicate checks) in parallel, so mocks keyed to createClient
+// call ORDER no longer work. This client dispatches on the shape of each
+// query instead: the terminal method (or awaiting the builder itself)
+// identifies which data-layer helper is asking.
+function universalClient(options: UniversalClientOptions = {}) {
+  const counts = [...(options.counts ?? [])];
+  const rpc = vi.fn((name: string) => {
+    if (name === "preview_workbook_payment_allocation") {
+      return Promise.resolve({ data: options.previewRows ?? [], error: null });
+    }
+
+    if (options.postError) {
+      return Promise.resolve({ data: null, error: options.postError });
+    }
+
+    return Promise.resolve({ data: options.postResult ?? null, error: null });
+  });
+  const from = vi.fn(() => {
+    let sawGte = false;
+    const query: Record<string, unknown> = {};
+    const chain = vi.fn(() => query);
+    Object.assign(query, {
+      select: chain,
+      eq: chain,
+      order: chain,
+      limit: chain,
+      gte: vi.fn(() => {
+        sawGte = true;
+        return query;
+      }),
+      // countNonCancelledInstallments terminates in .neq()
+      neq: vi.fn(() =>
+        Promise.resolve({ count: counts.length > 0 ? counts.shift() : 0, error: null }),
+      ),
+      // findReceiptByClientRequestId / financial-state lookups terminate in .maybeSingle()
+      maybeSingle: vi.fn(() =>
+        Promise.resolve({ data: options.existingReceipt ?? null, error: null }),
+      ),
+      // findLikelyDuplicateReceipt with a null reference terminates in .is()
+      is: vi.fn(() =>
+        Promise.resolve({
+          data: options.nearDuplicate ? [options.nearDuplicate] : [],
+          error: null,
+        }),
+      ),
+      // findLikelyDailyDuplicateReceipt awaits the builder itself after .limit();
+      // findLikelyDuplicateReceipt with a reference number does the same after
+      // .eq() — the .gte() call distinguishes the two.
+      then: (
+        onFulfilled: (value: unknown) => unknown,
+        onRejected?: (reason: unknown) => unknown,
+      ) => {
+        const row = sawGte ? options.nearDuplicate : options.dailyDuplicate;
+        return Promise.resolve({ data: row ? [row] : [], error: null }).then(
+          onFulfilled,
+          onRejected,
+        );
+      },
+    });
+    return query;
+  });
+
+  return { client: { from, rpc }, rpc };
 }
 
-function noExistingReceiptClient() {
-  return {
-    from: vi.fn(() => ({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-    })),
-  };
-}
-
-function noLikelyDuplicateClient() {
-  return {
-    from: vi.fn(() => ({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      gte: vi.fn().mockReturnThis(),
-      order: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockReturnThis(),
-      is: vi.fn().mockResolvedValue({ data: [], error: null }),
-    })),
-  };
-}
-
-// Audit 1.4 — findLikelyDailyDuplicateReceipt runs an additional query after
-// the 60-second near-duplicate check. The terminal method is .limit() (not
-// .is()), and it returns [] when there is no daily duplicate.
-function noLikelyDailyDuplicateClient() {
-  return {
-    from: vi.fn(() => ({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockResolvedValue({ data: [], error: null }),
-    })),
-  };
-}
-
-function duplicateReceiptQuery() {
-  return {
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    gte: vi.fn().mockReturnThis(),
-    order: vi.fn().mockReturnThis(),
-    limit: vi.fn().mockReturnThis(),
-    is: vi.fn().mockResolvedValue({
-      data: [
-        {
-          id: "00000000-0000-4000-8000-000000000301",
-          receipt_number: "SVP20260425-0001",
-        },
-      ],
-      error: null,
-    }),
-  };
+function useClient(options: UniversalClientOptions = {}) {
+  const { client, rpc } = universalClient(options);
+  createClient.mockResolvedValue(client);
+  return rpc;
 }
 
 describe("payment submit preflight", () => {
@@ -121,43 +157,15 @@ describe("payment submit preflight", () => {
   });
 
   it("payment_submit_auto_prepares_missing_dues", async () => {
-    const rpc = vi
-      .fn()
-      .mockResolvedValueOnce({
-        data: [
-          {
-            installment_id: "00000000-0000-4000-8000-000000000101",
-            installment_no: 1,
-            installment_label: "Installment 1",
-            due_date: "2026-04-20",
-            total_charge: 1500,
-            paid_amount: 0,
-            adjustment_amount: 0,
-            raw_late_fee: 0,
-            waiver_applied: 0,
-            final_late_fee: 0,
-            pending_amount: 1500,
-            balance_status: "pending",
-          },
-        ],
-        error: null,
-      })
-      .mockResolvedValueOnce({
-        data: {
-          receipt_id: "00000000-0000-4000-8000-000000000201",
-          receipt_number: "SVP20260425-0001",
-          allocated_total: 1000,
-        },
-        error: null,
+    const rpc = useClient({
+      counts: [0, 4],
+      previewRows: [previewRow()],
+      postResult: {
+        receipt_id: "00000000-0000-4000-8000-000000000201",
+        receipt_number: "SVP20260425-0001",
+        allocated_total: 1000,
+      },
     });
-    createClient
-      .mockResolvedValueOnce(noExistingReceiptClient())
-      .mockResolvedValueOnce(clientWithRpc([0], rpc))
-      .mockResolvedValueOnce(clientWithRpc([4], rpc))
-      .mockResolvedValueOnce(clientWithRpc([], rpc))
-      .mockResolvedValueOnce(noLikelyDuplicateClient())
-      .mockResolvedValueOnce(noLikelyDailyDuplicateClient())
-      .mockResolvedValueOnce({ rpc });
 
     const { postStudentPayment } = await import("@/lib/payments/data");
     const receipt = await postStudentPayment({
@@ -176,18 +184,19 @@ describe("payment submit preflight", () => {
       reason: "Payment submit auto-prepare",
       useSystemClient: true,
     });
-    expect(rpc).toHaveBeenNthCalledWith(1, "preview_workbook_payment_allocation", {
+    expect(rpc).toHaveBeenCalledWith("preview_workbook_payment_allocation", {
       p_student_id: "00000000-0000-4000-8000-000000000001",
       p_payment_date: "2026-04-25",
     });
-    expect(rpc).toHaveBeenNthCalledWith(2, "post_student_payment_with_adjustments", expect.any(Object));
+    expect(rpc).toHaveBeenLastCalledWith(
+      "post_student_payment_with_adjustments",
+      expect.any(Object),
+    );
     expect(receipt.receiptNumber).toBe("SVP20260425-0001");
   });
 
   it("payment_submit_shows_exact_reason_when_class_fee_missing", async () => {
-    createClient
-      .mockResolvedValueOnce(noExistingReceiptClient())
-      .mockResolvedValueOnce(clientWithRpc([0], vi.fn()));
+    useClient({ counts: [0] });
     prepareDuesForStudentsAutomatically.mockResolvedValue({
       readyForPaymentCount: 0,
       duesNeedAttentionCount: 1,
@@ -211,9 +220,7 @@ describe("payment submit preflight", () => {
   });
 
   it("payment_submit_shows_exact_reason_when_session_mismatch", async () => {
-    createClient
-      .mockResolvedValueOnce(noExistingReceiptClient())
-      .mockResolvedValueOnce(clientWithRpc([4], vi.fn()));
+    useClient({ counts: [4] });
     getStudentDetail.mockResolvedValue(student({ classSessionLabel: "2025-26" }));
 
     const { postStudentPayment } = await import("@/lib/payments/data");
@@ -233,42 +240,15 @@ describe("payment submit preflight", () => {
   });
 
   it("payment_submit_does_not_fail_after_successful_preview", async () => {
-    const rpc = vi
-      .fn()
-      .mockResolvedValueOnce({
-        data: [
-          {
-            installment_id: "00000000-0000-4000-8000-000000000101",
-            installment_no: 1,
-            installment_label: "Installment 1",
-            due_date: "2026-04-20",
-            total_charge: 1500,
-            paid_amount: 0,
-            adjustment_amount: 0,
-            raw_late_fee: 0,
-            waiver_applied: 0,
-            final_late_fee: 0,
-            pending_amount: 1500,
-            balance_status: "pending",
-          },
-        ],
-        error: null,
-      })
-      .mockResolvedValueOnce({
-        data: {
-          receipt_id: "00000000-0000-4000-8000-000000000201",
-          receipt_number: "SVP20260425-0001",
-          allocated_total: 1500,
-        },
-        error: null,
-      });
-    createClient
-      .mockResolvedValueOnce(noExistingReceiptClient())
-      .mockResolvedValueOnce(clientWithRpc([4], rpc))
-      .mockResolvedValueOnce(clientWithRpc([], rpc))
-      .mockResolvedValueOnce(noLikelyDuplicateClient())
-      .mockResolvedValueOnce(noLikelyDailyDuplicateClient())
-      .mockResolvedValueOnce({ rpc });
+    useClient({
+      counts: [4],
+      previewRows: [previewRow()],
+      postResult: {
+        receipt_id: "00000000-0000-4000-8000-000000000201",
+        receipt_number: "SVP20260425-0001",
+        allocated_total: 1500,
+      },
+    });
 
     const { postStudentPayment } = await import("@/lib/payments/data");
 
@@ -290,28 +270,10 @@ describe("payment submit preflight", () => {
   });
 
   it("server preflight rejects overpayment after quick discount", async () => {
-    const previewRpc = vi.fn().mockResolvedValue({
-      data: [
-        {
-          installment_id: "00000000-0000-4000-8000-000000000101",
-          installment_no: 1,
-          installment_label: "Installment 1",
-          due_date: "2026-04-20",
-          total_charge: 1000,
-          paid_amount: 0,
-          adjustment_amount: 0,
-          raw_late_fee: 0,
-          waiver_applied: 0,
-          final_late_fee: 0,
-          pending_amount: 1000,
-          balance_status: "pending",
-        },
-      ],
-      error: null,
+    useClient({
+      counts: [4],
+      previewRows: [previewRow({ total_charge: 1000, pending_amount: 1000 })],
     });
-    createClient
-      .mockResolvedValueOnce(clientWithRpc([4], vi.fn()))
-      .mockResolvedValueOnce(clientWithRpc([], previewRpc));
 
     const { preflightPaymentPosting } = await import("@/lib/payments/data");
 
@@ -328,28 +290,17 @@ describe("payment submit preflight", () => {
   });
 
   it("server preflight rejects late fee waiver above pending late fee", async () => {
-    const previewRpc = vi.fn().mockResolvedValue({
-      data: [
-        {
-          installment_id: "00000000-0000-4000-8000-000000000101",
-          installment_no: 1,
-          installment_label: "Installment 1",
-          due_date: "2026-04-20",
+    useClient({
+      counts: [4],
+      previewRows: [
+        previewRow({
           total_charge: 1100,
-          paid_amount: 0,
-          adjustment_amount: 0,
           raw_late_fee: 100,
-          waiver_applied: 0,
           final_late_fee: 100,
           pending_amount: 1100,
-          balance_status: "pending",
-        },
+        }),
       ],
-      error: null,
     });
-    createClient
-      .mockResolvedValueOnce(clientWithRpc([4], vi.fn()))
-      .mockResolvedValueOnce(clientWithRpc([], previewRpc));
 
     const { preflightPaymentPosting } = await import("@/lib/payments/data");
 
@@ -366,7 +317,7 @@ describe("payment submit preflight", () => {
   });
 
   it("server preflight accepts UPI payment without a reference number", async () => {
-    createClient.mockResolvedValueOnce(clientWithRpc([4], vi.fn()));
+    useClient({ counts: [4] });
 
     const { preflightPaymentPosting } = await import("@/lib/payments/data");
 
@@ -382,42 +333,15 @@ describe("payment submit preflight", () => {
   });
 
   it("payment submit passes quick adjustments to the adjustment RPC", async () => {
-    const rpc = vi
-      .fn()
-      .mockResolvedValueOnce({
-        data: [
-          {
-            installment_id: "00000000-0000-4000-8000-000000000101",
-            installment_no: 1,
-            installment_label: "Installment 1",
-            due_date: "2026-04-20",
-            total_charge: 1000,
-            paid_amount: 0,
-            adjustment_amount: 0,
-            raw_late_fee: 0,
-            waiver_applied: 0,
-            final_late_fee: 0,
-            pending_amount: 1000,
-            balance_status: "pending",
-          },
-        ],
-        error: null,
-      })
-      .mockResolvedValueOnce({
-        data: {
-          receipt_id: "00000000-0000-4000-8000-000000000201",
-          receipt_number: "SVP20260425-0001",
-          allocated_total: 900,
-        },
-        error: null,
-      });
-    createClient
-      .mockResolvedValueOnce(noExistingReceiptClient())
-      .mockResolvedValueOnce(clientWithRpc([4], rpc))
-      .mockResolvedValueOnce(clientWithRpc([], rpc))
-      .mockResolvedValueOnce(noLikelyDuplicateClient())
-      .mockResolvedValueOnce(noLikelyDailyDuplicateClient())
-      .mockResolvedValueOnce({ rpc });
+    const rpc = useClient({
+      counts: [4],
+      previewRows: [previewRow({ total_charge: 1000, pending_amount: 1000 })],
+      postResult: {
+        receipt_id: "00000000-0000-4000-8000-000000000201",
+        receipt_number: "SVP20260425-0001",
+        allocated_total: 900,
+      },
+    });
 
     const { postStudentPayment } = await import("@/lib/payments/data");
 
@@ -447,37 +371,14 @@ describe("payment submit preflight", () => {
   });
 
   it("likely duplicate payment returns a friendly warning without posting again", async () => {
-    const postRpc = vi.fn();
-    const previewRpc = vi.fn().mockResolvedValue({
-      data: [
-        {
-          installment_id: "00000000-0000-4000-8000-000000000101",
-          installment_no: 1,
-          installment_label: "Installment 1",
-          due_date: "2026-04-20",
-          total_charge: 1500,
-          paid_amount: 0,
-          adjustment_amount: 0,
-          raw_late_fee: 0,
-          waiver_applied: 0,
-          final_late_fee: 0,
-          pending_amount: 1500,
-          balance_status: "pending",
-        },
-      ],
-      error: null,
+    const rpc = useClient({
+      counts: [4],
+      previewRows: [previewRow()],
+      nearDuplicate: {
+        id: "00000000-0000-4000-8000-000000000301",
+        receipt_number: "SVP20260425-0001",
+      },
     });
-    const countClient = clientWithRpc([4], vi.fn());
-    const previewClient = clientWithRpc([], previewRpc);
-    const duplicateClient = {
-      from: vi.fn(() => duplicateReceiptQuery()),
-    };
-
-    createClient
-      .mockResolvedValueOnce(noExistingReceiptClient())
-      .mockResolvedValueOnce(countClient)
-      .mockResolvedValueOnce(previewClient)
-      .mockResolvedValueOnce(duplicateClient);
 
     const { postStudentPayment } = await import("@/lib/payments/data");
 
@@ -495,12 +396,15 @@ describe("payment submit preflight", () => {
     ).rejects.toThrow(
       "A similar payment was just recorded. Open the latest receipt or start a new payment if this is intentional.",
     );
-    expect(postRpc).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalledWith(
+      "post_student_payment_with_adjustments",
+      expect.anything(),
+    );
   });
 
   it("regular mode still blocks a non-active student (safety gate intact)", async () => {
     getStudentDetail.mockResolvedValue(student({ status: "left" }));
-    createClient.mockResolvedValueOnce(clientWithRpc([4], vi.fn()));
+    useClient({ counts: [4] });
 
     const { preflightPaymentPosting } = await import("@/lib/payments/data");
 
@@ -519,7 +423,7 @@ describe("payment submit preflight", () => {
   it("recovery mode allows a non-active student but never auto-prepares dues", async () => {
     getStudentDetail.mockResolvedValue(student({ status: "left" }));
     // installmentCount === 0 -> regular would auto-prepare; recovery must error.
-    createClient.mockResolvedValueOnce(clientWithRpc([0], vi.fn()));
+    useClient({ counts: [0] });
 
     const { preflightPaymentPosting } = await import("@/lib/payments/data");
 
@@ -538,28 +442,17 @@ describe("payment submit preflight", () => {
 
   it("recovery mode rejects overpayment beyond existing pending dues", async () => {
     getStudentDetail.mockResolvedValue(student({ status: "left" }));
-    const previewRpc = vi.fn().mockResolvedValue({
-      data: [
-        {
-          installment_id: "00000000-0000-4000-8000-000000000101",
-          installment_no: 1,
+    useClient({
+      counts: [4],
+      previewRows: [
+        previewRow({
           installment_label: "Installment 3",
           due_date: "2026-10-20",
           total_charge: 1000,
-          paid_amount: 0,
-          adjustment_amount: 0,
-          raw_late_fee: 0,
-          waiver_applied: 0,
-          final_late_fee: 0,
           pending_amount: 1000,
-          balance_status: "pending",
-        },
+        }),
       ],
-      error: null,
     });
-    createClient
-      .mockResolvedValueOnce(clientWithRpc([4], vi.fn()))
-      .mockResolvedValueOnce(clientWithRpc([], previewRpc));
 
     const { preflightPaymentPosting } = await import("@/lib/payments/data");
 
@@ -577,28 +470,17 @@ describe("payment submit preflight", () => {
 
   it("recovery mode accepts a valid collection against a left student's existing dues", async () => {
     getStudentDetail.mockResolvedValue(student({ status: "left" }));
-    const previewRpc = vi.fn().mockResolvedValue({
-      data: [
-        {
-          installment_id: "00000000-0000-4000-8000-000000000101",
-          installment_no: 1,
+    useClient({
+      counts: [4],
+      previewRows: [
+        previewRow({
           installment_label: "Installment 3",
           due_date: "2026-10-20",
           total_charge: 1000,
-          paid_amount: 0,
-          adjustment_amount: 0,
-          raw_late_fee: 0,
-          waiver_applied: 0,
-          final_late_fee: 0,
           pending_amount: 1000,
-          balance_status: "pending",
-        },
+        }),
       ],
-      error: null,
     });
-    createClient
-      .mockResolvedValueOnce(clientWithRpc([4], vi.fn()))
-      .mockResolvedValueOnce(clientWithRpc([], previewRpc));
 
     const { preflightPaymentPosting } = await import("@/lib/payments/data");
 

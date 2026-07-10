@@ -27,13 +27,17 @@ vi.mock("@/lib/system-sync/finance-sync", () => ({
   prepareDuesForStudentsAutomatically: vi.fn(),
 }));
 
-function countClient() {
+// preflightPaymentPosting now prefetches the date-aware preview RPC in
+// parallel with the installment count, so the mock client serves both from a
+// single order-insensitive instance instead of per-call createClient chains.
+function preflightClient(previewRows: Array<Record<string, unknown>> = []) {
   return {
     from: vi.fn(() => ({
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
       neq: vi.fn().mockResolvedValue({ count: 4, error: null }),
     })),
+    rpc: vi.fn().mockResolvedValue({ data: previewRows, error: null }),
   };
 }
 
@@ -53,29 +57,24 @@ describe("payment session guard", () => {
       classSessionLabel: "2025-26",
       status: "active",
     });
-    createClient
-      .mockResolvedValueOnce(countClient())
-      .mockResolvedValueOnce({
-        rpc: vi.fn().mockResolvedValue({
-          data: [
-            {
-              installment_id: "00000000-0000-4000-8000-000000000101",
-              installment_no: 1,
-              installment_label: "Installment 1",
-              due_date: "2025-04-20",
-              total_charge: 1000,
-              paid_amount: 0,
-              adjustment_amount: 0,
-              raw_late_fee: 0,
-              waiver_applied: 0,
-              final_late_fee: 0,
-              pending_amount: 1000,
-              balance_status: "pending",
-            },
-          ],
-          error: null,
-        }),
-      });
+    createClient.mockResolvedValue(
+      preflightClient([
+        {
+          installment_id: "00000000-0000-4000-8000-000000000101",
+          installment_no: 1,
+          installment_label: "Installment 1",
+          due_date: "2025-04-20",
+          total_charge: 1000,
+          paid_amount: 0,
+          adjustment_amount: 0,
+          raw_late_fee: 0,
+          waiver_applied: 0,
+          final_late_fee: 0,
+          pending_amount: 1000,
+          balance_status: "pending",
+        },
+      ]),
+    );
 
     const { preflightPaymentPosting } = await import("@/lib/payments/data");
 
@@ -101,7 +100,7 @@ describe("payment session guard", () => {
       classSessionLabel: "2025-26",
       status: "active",
     });
-    createClient.mockResolvedValueOnce(countClient());
+    createClient.mockResolvedValue(preflightClient());
 
     const { preflightPaymentPosting } = await import("@/lib/payments/data");
 

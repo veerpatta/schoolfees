@@ -169,7 +169,13 @@ export async function submitPaymentEntryAction(
     const studentId = parseUuid(formData.get("studentId"), "Student");
     const sessionLabel = parseSessionLabel(formData.get("sessionLabel"));
     const paymentDate = parsePaymentDate(formData.get("paymentDate"));
-    const paymentMode = await parsePaymentMode(formData.get("paymentMode"), sessionLabel);
+    // Mode validation (policy read) and the student lookup are independent —
+    // fetch them together; getStudentDetail is request-cached so the preflight
+    // inside postStudentPayment reuses this same lookup.
+    const [paymentMode, studentEarly] = await Promise.all([
+      parsePaymentMode(formData.get("paymentMode"), sessionLabel),
+      getStudentDetail(studentId),
+    ]);
     const paymentAmount = parsePaymentAmount(formData.get("paymentAmount"));
     const quickDiscountAmount = parseOptionalPaymentAdjustment(
       formData.get("quickDiscountAmount"),
@@ -188,7 +194,7 @@ export async function submitPaymentEntryAction(
         ? "left_student_recovery"
         : "regular";
     const isRecovery = collectionContext === "left_student_recovery";
-    const student = await getStudentDetail(studentId);
+    const student = studentEarly;
 
     if (!student) {
       throw new Error("Selected student could not be found. Refresh Payment Desk and select the student again.");

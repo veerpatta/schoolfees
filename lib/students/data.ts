@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 
 import {
   getFeePolicyForSession,
@@ -257,7 +258,7 @@ async function getStudentSiblingPills(
 
   const supabase = await createClient();
   let query = supabase
-    .from("v_student_sibling_groups")
+    .from("mv_student_sibling_groups")
     .select(
       "group_key, session_label, student_ids, student_count, phone_match, father_name_match, confidence, existing_family_group_id",
     )
@@ -359,7 +360,7 @@ async function getStudentSiblingPills(
 export async function getSiblingGroups(sessionLabel?: string | null): Promise<SiblingGroupSummary[]> {
   const supabase = await createClient();
   let query = supabase
-    .from("v_student_sibling_groups")
+    .from("mv_student_sibling_groups")
     .select(
       "group_key, session_label, student_ids, student_count, phone_match, father_name_match, confidence, existing_family_group_id",
     )
@@ -1216,8 +1217,13 @@ async function getStudentDetailUncached(studentId: string): Promise<StudentDetai
   } satisfies StudentDetail;
 }
 
+// Request-scoped memoization: payment posting resolves the same student in the
+// action body and again inside preflight — cache() collapses those (and any
+// other same-request lookups) into one round of queries.
+const getStudentDetailForRequest = cache(getStudentDetailUncached);
+
 export async function getStudentDetail(studentId: string): Promise<StudentDetail | null> {
-  return getStudentDetailUncached(studentId);
+  return getStudentDetailForRequest(studentId);
 }
 
 export async function createStudent(payload: StudentValidatedInput) {
@@ -1574,7 +1580,7 @@ export async function getStudentFamilyMembersDetail(
     //    current session (informational only; staff link explicitly). Use
     //    array-pick instead of `.maybeSingle()` to tolerate edge duplicates.
     const { data: suspectedGroupRows } = await supabase
-      .from("v_student_sibling_groups")
+      .from("mv_student_sibling_groups")
       .select("student_ids, confidence, existing_family_group_id")
       .overlaps("student_ids", [studentId])
       .eq("session_label", sessionLabel)

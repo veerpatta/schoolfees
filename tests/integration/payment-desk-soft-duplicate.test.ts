@@ -56,7 +56,9 @@ describe("postStudentPayment wires the soft daily-amount check (audit 1.4)", () 
     const fn = source.slice(source.indexOf("export async function postStudentPayment"));
     expect(fn).toContain("acknowledgeDailyDuplicate");
     expect(fn).toContain("findLikelyDailyDuplicateReceipt");
-    expect(fn).toMatch(/if \(!payload\.acknowledgeDailyDuplicate\)/);
+    // The soft check is gated on the acknowledged flag: when acknowledged the
+    // parallel read is short-circuited to null instead of querying receipts.
+    expect(fn).toMatch(/payload\.acknowledgeDailyDuplicate\s*\?\s*Promise\.resolve\(null\)/);
     expect(fn).toMatch(/kind: "daily-amount"/);
   });
 });
