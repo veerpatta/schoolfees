@@ -1097,70 +1097,70 @@ drop policy if exists "authenticated can read users" on public.users;
 create policy "authenticated can read users"
 on public.users for select
 to authenticated
-using (public.has_any_permission(array['dashboard:view', 'ledger:view', 'receipts:view', 'staff:manage', 'finance:view']));
+using ((select public.has_any_permission(array['dashboard:view', 'ledger:view', 'receipts:view', 'staff:manage', 'finance:view'])));
 
 drop policy if exists "authenticated can insert users" on public.users;
 create policy "authenticated can insert users"
 on public.users for insert
 to authenticated
-with check (public.has_permission('staff:manage'));
+with check ((select public.has_permission('staff:manage')));
 
 drop policy if exists "authenticated can update users" on public.users;
 create policy "authenticated can update users"
 on public.users for update
 to authenticated
-using (public.has_permission('staff:manage'))
-with check (public.has_permission('staff:manage'));
+using ((select public.has_permission('staff:manage')))
+with check ((select public.has_permission('staff:manage')));
 
 drop policy if exists "authenticated can read classes" on public.classes;
 create policy "authenticated can read classes"
 on public.classes for select
 to authenticated
-using (public.has_any_permission(array['dashboard:view', 'students:view', 'fees:view', 'payments:view', 'defaulters:view', 'finance:view']));
+using ((select public.has_any_permission(array['dashboard:view', 'students:view', 'fees:view', 'payments:view', 'defaulters:view', 'finance:view'])));
 
 drop policy if exists "authenticated can insert classes" on public.classes;
 create policy "authenticated can insert classes"
 on public.classes for insert
 to authenticated
-with check (public.has_permission('fees:write'));
+with check ((select public.has_permission('fees:write')));
 
 drop policy if exists "authenticated can update classes" on public.classes;
 create policy "authenticated can update classes"
 on public.classes for update
 to authenticated
-using (public.has_permission('fees:write'))
-with check (public.has_permission('fees:write'));
+using ((select public.has_permission('fees:write')))
+with check ((select public.has_permission('fees:write')));
 
 drop policy if exists "authenticated can read transport routes" on public.transport_routes;
 create policy "authenticated can read transport routes"
 on public.transport_routes for select
 to authenticated
-using (public.has_any_permission(array['students:view', 'fees:view', 'defaulters:view']));
+using ((select public.has_any_permission(array['students:view', 'fees:view', 'defaulters:view'])));
 
 drop policy if exists "authenticated can insert transport routes" on public.transport_routes;
 create policy "authenticated can insert transport routes"
 on public.transport_routes for insert
 to authenticated
-with check (public.has_permission('fees:write'));
+with check ((select public.has_permission('fees:write')));
 
 drop policy if exists "authenticated can update transport routes" on public.transport_routes;
 create policy "authenticated can update transport routes"
 on public.transport_routes for update
 to authenticated
-using (public.has_permission('fees:write'))
-with check (public.has_permission('fees:write'));
+using ((select public.has_permission('fees:write')))
+with check ((select public.has_permission('fees:write')));
 
 drop policy if exists "authenticated can read students" on public.students;
 create policy "authenticated can read students"
 on public.students for select
 to authenticated
-using (public.has_any_permission(array['students:view', 'payments:view', 'ledger:view', 'receipts:view', 'defaulters:view', 'dashboard:view', 'finance:view']));
+using ((select public.has_any_permission(array['students:view', 'payments:view', 'ledger:view', 'receipts:view', 'defaulters:view', 'dashboard:view', 'finance:view'])));
 
 drop policy if exists "authenticated can insert students" on public.students;
 create policy "authenticated can insert students"
 on public.students for insert
 to authenticated
-with check (public.has_permission('students:write'));
+with check ((select public.has_permission('students:write')));
 
 create table if not exists public.office_sync_events (
   id uuid primary key default gen_random_uuid(),
@@ -1186,22 +1186,22 @@ alter table public.office_sync_events replica identity full;
 drop policy if exists "staff can read office sync events" on public.office_sync_events;
 create policy "staff can read office sync events" on public.office_sync_events
   for select to authenticated using (
-    public.has_any_permission(array[
+    (select public.has_any_permission(array[
       'dashboard:view',
       'students:view',
       'fees:view',
       'payments:view',
       'reports:view',
       'defaulters:view'
-    ])
+    ]))
   );
 
 drop policy if exists "staff can insert office sync events" on public.office_sync_events;
 create policy "staff can insert office sync events" on public.office_sync_events
   for insert to authenticated with check (
-    public.has_permission('students:write') or
-    public.has_permission('fees:write') or
-    public.has_permission('payments:write')
+    (select public.has_permission('students:write')) or
+    (select public.has_permission('fees:write')) or
+    (select public.has_permission('payments:write'))
   );
 
 grant select, insert on public.office_sync_events to authenticated;
@@ -1244,13 +1244,13 @@ drop policy if exists "authenticated can read receipt adjustments" on public.rec
 create policy "authenticated can read receipt adjustments"
 on public.receipt_adjustments for select
 to authenticated
-using (public.has_any_permission(array['payments:view', 'receipts:view', 'reports:view', 'defaulters:view']));
+using ((select public.has_any_permission(array['payments:view', 'receipts:view', 'reports:view', 'defaulters:view'])));
 
 drop policy if exists "authenticated can insert receipt adjustments" on public.receipt_adjustments;
 create policy "authenticated can insert receipt adjustments"
 on public.receipt_adjustments for insert
 to authenticated
-with check (public.has_permission('payments:write'));
+with check ((select public.has_permission('payments:write')));
 
 create or replace function private.prevent_receipt_adjustment_mutation()
 returns trigger
@@ -1315,7 +1315,7 @@ declare
   v_revised_pending integer;
   v_normalized_prefix text;
 begin
-  if not public.has_permission('payments:write') then
+  if not (select public.has_permission('payments:write')) then
     raise exception 'You do not have permission to post payments.';
   end if;
 
@@ -1457,157 +1457,157 @@ drop policy if exists "authenticated can update students" on public.students;
 create policy "authenticated can update students"
 on public.students for update
 to authenticated
-using (public.has_permission('students:write'))
-with check (public.has_permission('students:write'));
+using ((select public.has_permission('students:write')))
+with check ((select public.has_permission('students:write')));
 
 drop policy if exists "authenticated can read fee settings" on public.fee_settings;
 create policy "authenticated can read fee settings"
 on public.fee_settings for select
 to authenticated
-using (public.has_permission('fees:view'));
+using ((select public.has_permission('fees:view')));
 
 drop policy if exists "authenticated can insert fee settings" on public.fee_settings;
 create policy "authenticated can insert fee settings"
 on public.fee_settings for insert
 to authenticated
-with check (public.has_permission('fees:write'));
+with check ((select public.has_permission('fees:write')));
 
 drop policy if exists "authenticated can update fee settings" on public.fee_settings;
 create policy "authenticated can update fee settings"
 on public.fee_settings for update
 to authenticated
-using (public.has_permission('fees:write'))
-with check (public.has_permission('fees:write'));
+using ((select public.has_permission('fees:write')))
+with check ((select public.has_permission('fees:write')));
 
 drop policy if exists "authenticated can read student fee overrides" on public.student_fee_overrides;
 create policy "authenticated can read student fee overrides"
 on public.student_fee_overrides for select
 to authenticated
-using (public.has_permission('fees:view'));
+using ((select public.has_permission('fees:view')));
 
 drop policy if exists "authenticated can insert student fee overrides" on public.student_fee_overrides;
 create policy "authenticated can insert student fee overrides"
 on public.student_fee_overrides for insert
 to authenticated
-with check (public.has_permission('fees:write'));
+with check ((select public.has_permission('fees:write')));
 
 drop policy if exists "authenticated can update student fee overrides" on public.student_fee_overrides;
 create policy "authenticated can update student fee overrides"
 on public.student_fee_overrides for update
 to authenticated
-using (public.has_permission('fees:write'))
-with check (public.has_permission('fees:write'));
+using ((select public.has_permission('fees:write')))
+with check ((select public.has_permission('fees:write')));
 
 drop policy if exists "authenticated can read installments" on public.installments;
 create policy "authenticated can read installments"
 on public.installments for select
 to authenticated
-using (public.has_any_permission(array['fees:view', 'payments:view', 'ledger:view', 'defaulters:view', 'finance:view']));
+using ((select public.has_any_permission(array['fees:view', 'payments:view', 'ledger:view', 'defaulters:view', 'finance:view'])));
 
 drop policy if exists "authenticated can insert installments" on public.installments;
 create policy "authenticated can insert installments"
 on public.installments for insert
 to authenticated
-with check (public.has_permission('fees:write'));
+with check ((select public.has_permission('fees:write')));
 
 drop policy if exists "authenticated can update installments" on public.installments;
 create policy "authenticated can update installments"
 on public.installments for update
 to authenticated
-using (public.has_permission('fees:write'))
-with check (public.has_permission('fees:write'));
+using ((select public.has_permission('fees:write')))
+with check ((select public.has_permission('fees:write')));
 
 drop policy if exists "authenticated can read receipts" on public.receipts;
 create policy "authenticated can read receipts"
 on public.receipts for select
 to authenticated
-using (public.has_any_permission(array['payments:view', 'ledger:view', 'receipts:view', 'dashboard:view', 'finance:view']));
+using ((select public.has_any_permission(array['payments:view', 'ledger:view', 'receipts:view', 'dashboard:view', 'finance:view'])));
 
 drop policy if exists "authenticated can insert receipts" on public.receipts;
 create policy "authenticated can insert receipts"
 on public.receipts for insert
 to authenticated
-with check (public.has_permission('payments:write'));
+with check ((select public.has_permission('payments:write')));
 
 drop policy if exists "authenticated can read payments" on public.payments;
 create policy "authenticated can read payments"
 on public.payments for select
 to authenticated
-using (public.has_any_permission(array['payments:view', 'ledger:view', 'receipts:view', 'dashboard:view', 'finance:view']));
+using ((select public.has_any_permission(array['payments:view', 'ledger:view', 'receipts:view', 'dashboard:view', 'finance:view'])));
 
 drop policy if exists "authenticated can insert payments" on public.payments;
 create policy "authenticated can insert payments"
 on public.payments for insert
 to authenticated
-with check (public.has_permission('payments:write'));
+with check ((select public.has_permission('payments:write')));
 
 drop policy if exists "authenticated can read payment adjustments" on public.payment_adjustments;
 create policy "authenticated can read payment adjustments"
 on public.payment_adjustments for select
 to authenticated
-using (public.has_any_permission(array['ledger:view', 'defaulters:view', 'dashboard:view', 'finance:view']));
+using ((select public.has_any_permission(array['ledger:view', 'defaulters:view', 'dashboard:view', 'finance:view'])));
 
 drop policy if exists "authenticated can insert payment adjustments" on public.payment_adjustments;
 create policy "authenticated can insert payment adjustments"
 on public.payment_adjustments for insert
 to authenticated
-with check (public.has_permission('payments:adjust'));
+with check ((select public.has_permission('payments:adjust')));
 
 drop policy if exists "authenticated can read collection closures" on public.collection_closures;
 create policy "authenticated can read collection closures"
 on public.collection_closures for select
 to authenticated
-using (public.has_permission('finance:view'));
+using ((select public.has_permission('finance:view')));
 
 drop policy if exists "authenticated can insert collection closures" on public.collection_closures;
 create policy "authenticated can insert collection closures"
 on public.collection_closures for insert
 to authenticated
-with check (public.has_permission('finance:write'));
+with check ((select public.has_permission('finance:write')));
 
 drop policy if exists "authenticated can update collection closures" on public.collection_closures;
 create policy "authenticated can update collection closures"
 on public.collection_closures for update
 to authenticated
-using (public.has_any_permission(array['finance:write', 'finance:approve']))
-with check (public.has_any_permission(array['finance:write', 'finance:approve']));
+using ((select public.has_any_permission(array['finance:write', 'finance:approve'])))
+with check ((select public.has_any_permission(array['finance:write', 'finance:approve'])));
 
 drop policy if exists "authenticated can read refund requests" on public.refund_requests;
 create policy "authenticated can read refund requests"
 on public.refund_requests for select
 to authenticated
-using (public.has_permission('finance:view'));
+using ((select public.has_permission('finance:view')));
 
 drop policy if exists "authenticated can insert refund requests" on public.refund_requests;
 create policy "authenticated can insert refund requests"
 on public.refund_requests for insert
 to authenticated
-with check (public.has_permission('finance:write'));
+with check ((select public.has_permission('finance:write')));
 
 drop policy if exists "authenticated can update refund requests" on public.refund_requests;
 create policy "authenticated can update refund requests"
 on public.refund_requests for update
 to authenticated
-using (public.has_any_permission(array['finance:write', 'finance:approve']))
-with check (public.has_any_permission(array['finance:write', 'finance:approve']));
+using ((select public.has_any_permission(array['finance:write', 'finance:approve'])))
+with check ((select public.has_any_permission(array['finance:write', 'finance:approve'])));
 
 drop policy if exists "authenticated can read payment adjustment reviews" on public.payment_adjustment_reviews;
 create policy "authenticated can read payment adjustment reviews"
 on public.payment_adjustment_reviews for select
 to authenticated
-using (public.has_permission('finance:view'));
+using ((select public.has_permission('finance:view')));
 
 drop policy if exists "authenticated can insert payment adjustment reviews" on public.payment_adjustment_reviews;
 create policy "authenticated can insert payment adjustment reviews"
 on public.payment_adjustment_reviews for insert
 to authenticated
-with check (public.has_permission('finance:approve'));
+with check ((select public.has_permission('finance:approve')));
 
 drop policy if exists "authenticated can read audit logs" on public.audit_logs;
 create policy "authenticated can read audit logs"
 on public.audit_logs for select
 to authenticated
-using (public.has_permission('staff:manage'));
+using ((select public.has_permission('staff:manage')));
 
 create or replace view public.v_installment_balances
 with (security_invoker = true)
@@ -1850,20 +1850,20 @@ drop policy if exists "authenticated can read school fee defaults" on public.sch
 create policy "authenticated can read school fee defaults"
 on public.school_fee_defaults for select
 to authenticated
-using (public.has_permission('fees:view'));
+using ((select public.has_permission('fees:view')));
 
 drop policy if exists "authenticated can insert school fee defaults" on public.school_fee_defaults;
 create policy "authenticated can insert school fee defaults"
 on public.school_fee_defaults for insert
 to authenticated
-with check (public.has_permission('fees:write'));
+with check ((select public.has_permission('fees:write')));
 
 drop policy if exists "authenticated can update school fee defaults" on public.school_fee_defaults;
 create policy "authenticated can update school fee defaults"
 on public.school_fee_defaults for update
 to authenticated
-using (public.has_permission('fees:write'))
-with check (public.has_permission('fees:write'));
+using ((select public.has_permission('fees:write')))
+with check ((select public.has_permission('fees:write')));
 
 create table if not exists public.import_batches (
   id uuid primary key default gen_random_uuid(),
@@ -2016,39 +2016,39 @@ drop policy if exists "staff can read import batches" on public.import_batches;
 create policy "staff can read import batches"
 on public.import_batches for select
 to authenticated
-using (public.has_permission('imports:view') or public.has_permission('students:write'));
+using ((select public.has_permission('imports:view')) or (select public.has_permission('students:write')));
 
 drop policy if exists "staff can insert import batches" on public.import_batches;
 create policy "staff can insert import batches"
 on public.import_batches for insert
 to authenticated
-with check (public.has_permission('students:write'));
+with check ((select public.has_permission('students:write')));
 
 drop policy if exists "staff can update import batches" on public.import_batches;
 create policy "staff can update import batches"
 on public.import_batches for update
 to authenticated
-using (public.has_permission('students:write'))
-with check (public.has_permission('students:write'));
+using ((select public.has_permission('students:write')))
+with check ((select public.has_permission('students:write')));
 
 drop policy if exists "staff can read import rows" on public.import_rows;
 create policy "staff can read import rows"
 on public.import_rows for select
 to authenticated
-using (public.has_permission('imports:view') or public.has_permission('students:write'));
+using ((select public.has_permission('imports:view')) or (select public.has_permission('students:write')));
 
 drop policy if exists "staff can insert import rows" on public.import_rows;
 create policy "staff can insert import rows"
 on public.import_rows for insert
 to authenticated
-with check (public.has_permission('students:write'));
+with check ((select public.has_permission('students:write')));
 
 drop policy if exists "staff can update import rows" on public.import_rows;
 create policy "staff can update import rows"
 on public.import_rows for update
 to authenticated
-using (public.has_permission('students:write'))
-with check (public.has_permission('students:write'));
+using ((select public.has_permission('students:write')))
+with check ((select public.has_permission('students:write')));
 
 create or replace function public.import_student_batch_row(
   p_batch_id uuid,
@@ -2453,39 +2453,39 @@ drop policy if exists "authenticated can read config change batches" on public.c
 create policy "authenticated can read config change batches"
 on public.config_change_batches for select
 to authenticated
-using (public.has_permission('fees:view'));
+using ((select public.has_permission('fees:view')));
 
 drop policy if exists "authenticated can insert config change batches" on public.config_change_batches;
 create policy "authenticated can insert config change batches"
 on public.config_change_batches for insert
 to authenticated
-with check (public.has_permission('fees:write'));
+with check ((select public.has_permission('fees:write')));
 
 drop policy if exists "authenticated can update config change batches" on public.config_change_batches;
 create policy "authenticated can update config change batches"
 on public.config_change_batches for update
 to authenticated
-using (public.has_permission('fees:write'))
-with check (public.has_permission('fees:write'));
+using ((select public.has_permission('fees:write')))
+with check ((select public.has_permission('fees:write')));
 
 drop policy if exists "authenticated can read config change blocked installments" on public.config_change_blocked_installments;
 create policy "authenticated can read config change blocked installments"
 on public.config_change_blocked_installments for select
 to authenticated
-using (public.has_permission('fees:view'));
+using ((select public.has_permission('fees:view')));
 
 drop policy if exists "authenticated can insert config change blocked installments" on public.config_change_blocked_installments;
 create policy "authenticated can insert config change blocked installments"
 on public.config_change_blocked_installments for insert
 to authenticated
-with check (public.has_permission('fees:write'));
+with check ((select public.has_permission('fees:write')));
 
 drop policy if exists "authenticated can update config change blocked installments" on public.config_change_blocked_installments;
 create policy "authenticated can update config change blocked installments"
 on public.config_change_blocked_installments for update
 to authenticated
-using (public.has_permission('fees:write'))
-with check (public.has_permission('fees:write'));
+using ((select public.has_permission('fees:write')))
+with check ((select public.has_permission('fees:write')));
 
 create table if not exists public.ledger_regeneration_batches (
   id uuid primary key default gen_random_uuid(),
@@ -2611,39 +2611,39 @@ drop policy if exists "authenticated can read ledger regeneration batches" on pu
 create policy "authenticated can read ledger regeneration batches"
 on public.ledger_regeneration_batches for select
 to authenticated
-using (public.has_permission('fees:view'));
+using ((select public.has_permission('fees:view')));
 
 drop policy if exists "authenticated can insert ledger regeneration batches" on public.ledger_regeneration_batches;
 create policy "authenticated can insert ledger regeneration batches"
 on public.ledger_regeneration_batches for insert
 to authenticated
-with check (public.has_permission('fees:write'));
+with check ((select public.has_permission('fees:write')));
 
 drop policy if exists "authenticated can update ledger regeneration batches" on public.ledger_regeneration_batches;
 create policy "authenticated can update ledger regeneration batches"
 on public.ledger_regeneration_batches for update
 to authenticated
-using (public.has_permission('fees:write'))
-with check (public.has_permission('fees:write'));
+using ((select public.has_permission('fees:write')))
+with check ((select public.has_permission('fees:write')));
 
 drop policy if exists "authenticated can read ledger regeneration rows" on public.ledger_regeneration_rows;
 create policy "authenticated can read ledger regeneration rows"
 on public.ledger_regeneration_rows for select
 to authenticated
-using (public.has_permission('fees:view'));
+using ((select public.has_permission('fees:view')));
 
 drop policy if exists "authenticated can insert ledger regeneration rows" on public.ledger_regeneration_rows;
 create policy "authenticated can insert ledger regeneration rows"
 on public.ledger_regeneration_rows for insert
 to authenticated
-with check (public.has_permission('fees:write'));
+with check ((select public.has_permission('fees:write')));
 
 drop policy if exists "authenticated can update ledger regeneration rows" on public.ledger_regeneration_rows;
 create policy "authenticated can update ledger regeneration rows"
 on public.ledger_regeneration_rows for update
 to authenticated
-using (public.has_permission('fees:write'))
-with check (public.has_permission('fees:write'));
+using ((select public.has_permission('fees:write')))
+with check ((select public.has_permission('fees:write')));
 
 create table if not exists public.setup_progress (
   id uuid primary key default gen_random_uuid(),
@@ -2688,20 +2688,20 @@ drop policy if exists "staff can read setup progress" on public.setup_progress;
 create policy "staff can read setup progress"
 on public.setup_progress for select
 to authenticated
-using (public.has_permission('dashboard:view'));
+using ((select public.has_permission('dashboard:view')));
 
 drop policy if exists "admins can insert setup progress" on public.setup_progress;
 create policy "admins can insert setup progress"
 on public.setup_progress for insert
 to authenticated
-with check (public.has_permission('settings:write'));
+with check ((select public.has_permission('settings:write')));
 
 drop policy if exists "admins can update setup progress" on public.setup_progress;
 create policy "admins can update setup progress"
 on public.setup_progress for update
 to authenticated
-using (public.has_permission('settings:write'))
-with check (public.has_permission('settings:write'));
+using ((select public.has_permission('settings:write')))
+with check ((select public.has_permission('settings:write')));
 
 -- Synced from migration: 20260423093000_workbook_v1_ay_2026_27.sql
 
@@ -3881,7 +3881,7 @@ declare
   student_session_label text;
   use_workbook_mode boolean := false;
 begin
-  if not public.has_permission('payments:write') then
+  if not (select public.has_permission('payments:write')) then
     raise exception 'You do not have permission to post payments.';
   end if;
 
@@ -5270,53 +5270,53 @@ drop policy if exists "authenticated can read conventional discount policies" on
 create policy "authenticated can read conventional discount policies"
 on public.conventional_discount_policies for select
 to authenticated
-using (public.has_any_permission(array['fees:view', 'students:view', 'reports:view']));
+using ((select public.has_any_permission(array['fees:view', 'students:view', 'reports:view'])));
 
 drop policy if exists "authenticated can write conventional discount policies" on public.conventional_discount_policies;
 create policy "authenticated can write conventional discount policies"
 on public.conventional_discount_policies for all
 to authenticated
-using (public.has_permission('fees:write'))
-with check (public.has_permission('fees:write'));
+using ((select public.has_permission('fees:write')))
+with check ((select public.has_permission('fees:write')));
 
 drop policy if exists "authenticated can read student family groups" on public.student_family_groups;
 create policy "authenticated can read student family groups"
 on public.student_family_groups for select
 to authenticated
-using (public.has_any_permission(array['students:view', 'fees:view', 'reports:view']));
+using ((select public.has_any_permission(array['students:view', 'fees:view', 'reports:view'])));
 
 drop policy if exists "authenticated can write student family groups" on public.student_family_groups;
 create policy "authenticated can write student family groups"
 on public.student_family_groups for all
 to authenticated
-using (public.has_permission('students:write'))
-with check (public.has_permission('students:write'));
+using ((select public.has_permission('students:write')))
+with check ((select public.has_permission('students:write')));
 
 drop policy if exists "authenticated can read student family members" on public.student_family_members;
 create policy "authenticated can read student family members"
 on public.student_family_members for select
 to authenticated
-using (public.has_any_permission(array['students:view', 'fees:view', 'reports:view']));
+using ((select public.has_any_permission(array['students:view', 'fees:view', 'reports:view'])));
 
 drop policy if exists "authenticated can write student family members" on public.student_family_members;
 create policy "authenticated can write student family members"
 on public.student_family_members for all
 to authenticated
-using (public.has_permission('students:write'))
-with check (public.has_permission('students:write'));
+using ((select public.has_permission('students:write')))
+with check ((select public.has_permission('students:write')));
 
 drop policy if exists "authenticated can read student conventional discounts" on public.student_conventional_discount_assignments;
 create policy "authenticated can read student conventional discounts"
 on public.student_conventional_discount_assignments for select
 to authenticated
-using (public.has_any_permission(array['students:view', 'fees:view', 'payments:view', 'reports:view', 'defaulters:view']));
+using ((select public.has_any_permission(array['students:view', 'fees:view', 'payments:view', 'reports:view', 'defaulters:view'])));
 
 drop policy if exists "authenticated can write student conventional discounts" on public.student_conventional_discount_assignments;
 create policy "authenticated can write student conventional discounts"
 on public.student_conventional_discount_assignments for all
 to authenticated
-using (public.has_permission('students:write'))
-with check (public.has_permission('students:write'));
+using ((select public.has_permission('students:write')))
+with check ((select public.has_permission('students:write')));
 
 create or replace view public.v_student_sibling_groups
 with (security_invoker = true)
@@ -5435,8 +5435,8 @@ drop policy if exists "settings:write can update app_settings" on public.app_set
 create policy "settings:write can update app_settings"
 on public.app_settings for all
 to authenticated
-using (public.has_permission('settings:write'))
-with check (public.has_permission('settings:write'));
+using ((select public.has_permission('settings:write')))
+with check ((select public.has_permission('settings:write')));
 
 grant select, insert, update, delete on public.app_settings to authenticated;
 
@@ -5484,13 +5484,13 @@ drop policy if exists "staff can read student session reanchor log" on public.st
 create policy "staff can read student session reanchor log"
 on public.student_session_reanchor_log for select
 to authenticated
-using (public.has_any_permission(array['students:view', 'fees:view', 'finance:view']));
+using ((select public.has_any_permission(array['students:view', 'fees:view', 'finance:view'])));
 
 drop policy if exists "staff can insert student session reanchor log" on public.student_session_reanchor_log;
 create policy "staff can insert student session reanchor log"
 on public.student_session_reanchor_log for insert
 to authenticated
-with check (public.has_permission('fees:write'));
+with check ((select public.has_permission('fees:write')));
 
 create or replace function public.realign_recent_import_students_to_active_session(
   p_run_by uuid default null
@@ -5507,7 +5507,7 @@ as $$
 declare
   v_active_session text;
 begin
-  if not public.has_permission('fees:write') then
+  if not (select public.has_permission('fees:write')) then
     raise exception 'Missing permission: fees:write';
   end if;
 
@@ -5622,19 +5622,19 @@ drop policy if exists "fees:view can read reconcile log" on public.session_recon
 create policy "fees:view can read reconcile log"
 on public.session_reconcile_log for select
 to authenticated
-using (public.has_permission('fees:view'));
+using ((select public.has_permission('fees:view')));
 
 drop policy if exists "fees:write can write reconcile log" on public.session_reconcile_log;
 create policy "fees:write can write reconcile log"
 on public.session_reconcile_log for insert
 to authenticated
-with check (public.has_permission('fees:write'));
+with check ((select public.has_permission('fees:write')));
 
 drop policy if exists "fees:write can update reconcile log" on public.session_reconcile_log;
 create policy "fees:write can update reconcile log"
 on public.session_reconcile_log for update
 to authenticated
-using (public.has_permission('fees:write'));
+using ((select public.has_permission('fees:write')));
 
 grant select, insert, update on public.session_reconcile_log to authenticated;
 
@@ -5851,7 +5851,7 @@ declare
   v_payment_count integer;
   v_receipt_count integer;
 begin
-  if not public.has_permission('settings:write') then
+  if not (select public.has_permission('settings:write')) then
     raise exception 'You do not have permission to delete academic sessions.';
   end if;
 
@@ -5938,7 +5938,7 @@ declare
   v_alloc integer;
   pay record;
 begin
-  if not public.has_permission('finance:write') then
+  if not (select public.has_permission('finance:write')) then
     raise exception 'You do not have permission to process refunds.';
   end if;
 
@@ -6010,3 +6010,140 @@ $$;
 revoke all on function public.process_refund_with_adjustment(uuid) from public;
 revoke all on function public.process_refund_with_adjustment(uuid) from anon;
 grant execute on function public.process_refund_with_adjustment(uuid) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Activity feed ordering (migration 20260710060844_audit_logs_created_at_idx)
+-- ---------------------------------------------------------------------------
+
+create index if not exists idx_audit_logs_created_at
+  on public.audit_logs (created_at desc);
+
+-- ---------------------------------------------------------------------------
+-- Materialized sibling groups (migration 20260710060829_materialize_sibling_groups)
+--
+-- v_student_sibling_groups recomputes phone normalization for every active
+-- student on each query (~1s in production). App code reads this materialized
+-- snapshot instead; statement triggers queue a refresh whenever students or
+-- family membership change and the */2 cron drains the queue with a
+-- CONCURRENT refresh.
+-- ---------------------------------------------------------------------------
+
+create materialized view if not exists public.mv_student_sibling_groups as
+select
+  group_key,
+  session_label,
+  student_ids,
+  student_count,
+  phone_match,
+  father_name_match,
+  confidence,
+  existing_family_group_id
+from public.v_student_sibling_groups;
+
+create unique index if not exists mv_student_sibling_groups_key_idx
+  on public.mv_student_sibling_groups (session_label, group_key);
+
+create index if not exists mv_student_sibling_groups_student_ids_idx
+  on public.mv_student_sibling_groups using gin (student_ids);
+
+grant select on public.mv_student_sibling_groups to authenticated, service_role;
+
+alter table public.workbook_materialized_view_refresh_queue
+  drop constraint if exists workbook_materialized_view_refresh_queue_singleton;
+alter table public.workbook_materialized_view_refresh_queue
+  add constraint workbook_materialized_view_refresh_queue_singleton
+  check (queue_key in ('workbook', 'sibling_groups'));
+
+insert into public.workbook_materialized_view_refresh_queue
+  (queue_key, pending, requested_at, request_count)
+values ('sibling_groups', false, now(), 0)
+on conflict (queue_key) do nothing;
+
+create or replace function public.queue_sibling_groups_refresh()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.workbook_materialized_view_refresh_queue
+    (queue_key, pending, requested_at, request_count)
+  values ('sibling_groups', true, now(), 1)
+  on conflict (queue_key) do update
+    set pending = true,
+        requested_at = excluded.requested_at,
+        request_count = public.workbook_materialized_view_refresh_queue.request_count + 1;
+
+  return null;
+end;
+$$;
+
+revoke all on function public.queue_sibling_groups_refresh() from public;
+
+drop trigger if exists queue_sibling_refresh_on_students on public.students;
+create trigger queue_sibling_refresh_on_students
+  after insert or update or delete or truncate on public.students
+  for each statement execute function public.queue_sibling_groups_refresh();
+
+drop trigger if exists queue_sibling_refresh_on_family_groups on public.student_family_groups;
+create trigger queue_sibling_refresh_on_family_groups
+  after insert or update or delete or truncate on public.student_family_groups
+  for each statement execute function public.queue_sibling_groups_refresh();
+
+drop trigger if exists queue_sibling_refresh_on_family_members on public.student_family_members;
+create trigger queue_sibling_refresh_on_family_members
+  after insert or update or delete or truncate on public.student_family_members
+  for each statement execute function public.queue_sibling_groups_refresh();
+
+create or replace function public.refresh_sibling_groups_if_requested()
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_requested_at timestamptz;
+begin
+  select requested_at
+    into v_requested_at
+  from public.workbook_materialized_view_refresh_queue
+  where queue_key = 'sibling_groups'
+    and pending = true
+  for update skip locked;
+
+  if v_requested_at is null then
+    return false;
+  end if;
+
+  refresh materialized view concurrently public.mv_student_sibling_groups;
+
+  update public.workbook_materialized_view_refresh_queue
+  set pending = false,
+      last_refreshed_at = now(),
+      request_count = 0
+  where queue_key = 'sibling_groups';
+
+  return true;
+end;
+$$;
+
+revoke all on function public.refresh_sibling_groups_if_requested() from public;
+grant execute on function public.refresh_sibling_groups_if_requested() to service_role;
+
+do $$
+begin
+  if exists (
+    select 1
+    from cron.job
+    where jobname = 'refresh-sibling-groups-matview'
+  ) then
+    perform cron.unschedule('refresh-sibling-groups-matview');
+  end if;
+end;
+$$;
+
+select cron.schedule(
+  'refresh-sibling-groups-matview',
+  '*/2 * * * *',
+  $$select public.refresh_sibling_groups_if_requested();$$
+);

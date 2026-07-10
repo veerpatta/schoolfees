@@ -251,7 +251,7 @@ export async function linkSuspectedSiblingsAction(
   const supabase = await createClient();
 
   const { data: groupRows, error: groupError } = await supabase
-    .from("v_student_sibling_groups")
+    .from("mv_student_sibling_groups")
     .select("student_ids, phone_match, father_name_match")
     .overlaps("student_ids", [studentId])
     .eq("session_label", sessionLabel)

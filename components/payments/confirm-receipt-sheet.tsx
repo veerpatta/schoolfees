@@ -66,6 +66,20 @@ export function ConfirmReceiptSheet({
 }: ConfirmReceiptSheetProps) {
   const [dragY, setDragY] = useState(0);
   const startY = useRef(0);
+  // Surface a reassurance line when the save takes unusually long (slow school
+  // Wi-Fi). The clientRequestId idempotency guard makes a retry safe, but the
+  // cashier should wait rather than re-enter the payment.
+  const [isSlowSave, setIsSlowSave] = useState(false);
+
+  useEffect(() => {
+    if (!isSubmitting) {
+      setIsSlowSave(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => setIsSlowSave(true), 8000);
+    return () => window.clearTimeout(timer);
+  }, [isSubmitting]);
 
   useEffect(() => {
     if (!open || isSubmitting) return;
@@ -87,15 +101,15 @@ export function ConfirmReceiptSheet({
   const hasCredit = confirmationSummary.remainingBalance < 0;
   const isMobileSwipe = () => typeof window !== "undefined" && window.innerWidth < 768;
   const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
-    if (!isMobileSwipe()) return;
+    if (!isMobileSwipe() || isSubmitting) return;
     startY.current = event.touches[0]?.clientY ?? 0;
   };
   const handleTouchMove = (event: TouchEvent<HTMLDivElement>) => {
-    if (!isMobileSwipe()) return;
+    if (!isMobileSwipe() || isSubmitting) return;
     setDragY(Math.max(0, (event.touches[0]?.clientY ?? 0) - startY.current));
   };
   const handleTouchEnd = () => {
-    if (isMobileSwipe() && dragY > 120) {
+    if (isMobileSwipe() && !isSubmitting && dragY > 120) {
       onBack();
     }
     setDragY(0);
@@ -122,10 +136,38 @@ export function ConfirmReceiptSheet({
         {/* A. Header row */}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <p className="text-lg font-semibold text-foreground">Confirm & Save Payment</p>
-          <span className="rounded border border-warning-soft-foreground/30 bg-warning-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warning-soft-foreground">
-            DRAFT — NOT POSTED
-          </span>
+          {isSubmitting ? (
+            <span className="flex items-center gap-1.5 rounded border border-info-soft-foreground/30 bg-info-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-info-soft-foreground">
+              <Spinner />
+              Saving…
+            </span>
+          ) : (
+            <span className="rounded border border-warning-soft-foreground/30 bg-warning-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warning-soft-foreground">
+              DRAFT — NOT POSTED
+            </span>
+          )}
         </div>
+
+        {/* While the payment posts, replace ambiguity with an explicit status
+            banner — the cashier must never wonder whether the save started. */}
+        {isSubmitting ? (
+          <div
+            className="mt-3 flex items-center gap-2 rounded-xl border border-info-soft bg-info-soft px-4 py-3 text-sm font-medium text-info-soft-foreground"
+            role="status"
+            aria-live="polite"
+          >
+            <Spinner />
+            <span>
+              Saving payment — keep this screen open. The receipt will appear in a moment.
+              {isSlowSave ? (
+                <span className="mt-1 block font-normal">
+                  Slow connection — still saving. Do not re-enter the payment; duplicates are
+                  blocked automatically.
+                </span>
+              ) : null}
+            </span>
+          </div>
+        ) : null}
 
         {/* B. Amount hero block */}
         <div className="mt-4 rounded-xl border border-accent/30 bg-accent-soft p-4">
