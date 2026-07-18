@@ -3,22 +3,40 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { isShellV2Enabled } from "@/lib/env";
 
 describe("SHELL_V2 env flag", () => {
-  const original = process.env.SHELL_V2;
+  const original = {
+    shell: process.env.SHELL_V2,
+    mode: process.env.APP_MODE,
+    vercel: process.env.VERCEL_ENV,
+  };
 
   beforeEach(() => {
     delete process.env.SHELL_V2;
+    delete process.env.APP_MODE;
+    delete process.env.VERCEL_ENV;
   });
 
   afterEach(() => {
-    if (original === undefined) {
-      delete process.env.SHELL_V2;
-    } else {
-      process.env.SHELL_V2 = original;
+    for (const [key, value] of Object.entries({
+      SHELL_V2: original.shell,
+      APP_MODE: original.mode,
+      VERCEL_ENV: original.vercel,
+    })) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
     }
   });
 
   it("defaults to false when unset (production-safe default)", () => {
     expect(isShellV2Enabled()).toBe(false);
+  });
+
+  it("defaults to true in preview and TEST app mode", () => {
+    process.env.VERCEL_ENV = "preview";
+    expect(isShellV2Enabled()).toBe(true);
+
+    delete process.env.VERCEL_ENV;
+    process.env.APP_MODE = "test";
+    expect(isShellV2Enabled()).toBe(true);
   });
 
   it("returns true when SHELL_V2 is set to 1", () => {
@@ -36,6 +54,8 @@ describe("SHELL_V2 env flag", () => {
   it("returns false for explicit falsy strings", () => {
     for (const value of ["0", "false", "no", "off"]) {
       process.env.SHELL_V2 = value;
+      process.env.APP_MODE = "test";
+      process.env.VERCEL_ENV = "preview";
       expect(isShellV2Enabled()).toBe(false);
     }
   });

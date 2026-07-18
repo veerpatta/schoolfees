@@ -111,15 +111,16 @@ export function isLocaleSwitcherEnabled() {
 
 // Gates the redesigned admin shell (tighter sidebar, header session pill,
 // global Cmd/Ctrl+K command palette, top-bar overflow). Default OFF in
-// production, ON in TEST-2026-27. Old shell remains the fallback.
+// production, ON in preview and APP_MODE=test. Old shell remains available
+// through an explicit falsy rollback flag for the first production release.
 export function isShellV2Enabled() {
   const value = getOptionalEnvVar("SHELL_V2");
 
-  if (!value) {
-    return false;
+  if (value) {
+    return truthyEnvValues.has(value.toLowerCase());
   }
 
-  return truthyEnvValues.has(value.toLowerCase());
+  return getOptionalEnvVar("VERCEL_ENV") === "preview" || getAppMode() === "test";
 }
 
 export function isVercelProductionEnvironment() {

@@ -11,11 +11,15 @@ describe("Phase D/E quality budgets and design tokens", () => {
       inpMs: 200,
       cls: 0.1,
     });
-    expect(qualityBudgets.performance.officeWorkflow.paymentDeskSearchToSelectionMs).toBeLessThanOrEqual(
-      6000,
-    );
-    expect(qualityBudgets.performance.officeWorkflow.studentSelectedToReceiptMs).toBeLessThanOrEqual(
-      30000,
+    const workflow = qualityBudgets.performance.officeWorkflow;
+    expect(workflow.paymentSearchWarmMs).toBeLessThanOrEqual(500);
+    expect(workflow.paymentSearchColdMs).toBeLessThanOrEqual(1500);
+    expect(workflow.studentSelectionToFeeSummaryColdMs).toBeLessThanOrEqual(2000);
+    expect(workflow.paymentConfirmToReceiptP75Ms).toBeLessThanOrEqual(8000);
+    expect(workflow.studentSelectedToReceiptP75Ms).toBeLessThanOrEqual(20000);
+    expect(workflow.studentsFilterResponseP75Ms).toBeLessThanOrEqual(1000);
+    expect(qualityBudgets.performance.sourceBudgets.paymentDeskInitialClientJsReductionPercent).toBe(
+      20,
     );
   });
 
@@ -29,8 +33,12 @@ describe("Phase D/E quality budgets and design tokens", () => {
     expect(qualityBudgets.visualRegression.routes).toEqual(
       expect.arrayContaining([
         "/protected/dashboard?session=TEST-2026-27",
+        "/protected/students?session=TEST-2026-27",
+        "/protected/fee-setup?session=TEST-2026-27",
         "/protected/payments?session=TEST-2026-27",
-        "/protected/reports?session=TEST-2026-27",
+        "/protected/transactions?session=TEST-2026-27",
+        "/protected/defaulters?session=TEST-2026-27",
+        "/protected/exports?session=TEST-2026-27",
         "/protected/admin-tools?session=TEST-2026-27",
       ]),
     );

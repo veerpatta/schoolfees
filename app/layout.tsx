@@ -3,6 +3,7 @@ import { Inter, Noto_Sans_Devanagari, Source_Serif_4 } from "next/font/google";
 import { getLocale } from "next-intl/server";
 
 import { ServiceWorkerRegistration } from "@/components/system/service-worker-registration";
+import { QualityReporterLoader } from "@/components/quality/quality-reporter-loader";
 import { ThemeProvider } from "@/components/system/theme-provider";
 import { ToastViewport } from "@/components/ui/toast";
 import { DensityProvider } from "@/lib/design/density-context";
@@ -121,6 +122,7 @@ export default async function RootLayout({
             </DensityProvider>
           </ThemeProvider>
         </LanguageProvider>
+        <QualityReporterLoader />
         <ServiceWorkerRegistration />
       </body>
     </html>

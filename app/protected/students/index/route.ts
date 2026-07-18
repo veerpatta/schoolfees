@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getPaymentDeskStudentIndex } from "@/lib/payments/data";
 import { STUDENT_STATUSES } from "@/lib/students/constants";
-import { getStudentsPage } from "@/lib/students/data";
+import { getStudentsIdentityPage, getStudentsPage } from "@/lib/students/data";
 import { EMPTY_STUDENT_FILTERS, type StudentListFilters } from "@/lib/students/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
@@ -44,30 +44,48 @@ function normalizePage(value: string | null) {
 }
 
 export async function GET(request: Request) {
+  const startedAt = performance.now();
   const { searchParams } = new URL(request.url);
   const purpose = searchParams.get("purpose")?.trim() ?? "";
 
   if (purpose === "paymentDesk") {
     await requireStaffPermission("payments:view");
+    const authMs = performance.now() - startedAt;
+    const dataStartedAt = performance.now();
     const students = await getPaymentDeskStudentIndex({
       sessionLabel: searchParams.get("session")?.trim() || undefined,
     });
+    const dataMs = performance.now() - dataStartedAt;
 
     return Response.json(
       { students },
       {
         headers: {
           "Cache-Control": "private, max-age=300, stale-while-revalidate=900",
+          "Server-Timing": `auth;dur=${authMs.toFixed(1)}, index;dur=${dataMs.toFixed(1)}, total;dur=${(performance.now() - startedAt).toFixed(1)}`,
         },
       },
     );
   }
 
   await requireStaffPermission("students:view");
+  const authMs = performance.now() - startedAt;
 
   const filters = normalizeFilters(searchParams);
   const page = normalizePage(searchParams.get("page"));
-  const payload = await getStudentsPage(filters, { page, pageSize: 40 });
+  const mode = searchParams.get("mode")?.trim();
+  const dataStartedAt = performance.now();
+  const payload = mode === "identity"
+    ? await getStudentsIdentityPage(filters, { page, pageSize: 40 })
+    : await getStudentsPage(filters, { page, pageSize: 40 });
+  const dataMs = performance.now() - dataStartedAt;
 
-  return NextResponse.json(payload);
+  return NextResponse.json({
+    ...payload,
+    mode: mode === "identity" ? "identity" : mode === "financial" ? "financial" : "full",
+  }, {
+    headers: {
+      "Server-Timing": `auth;dur=${authMs.toFixed(1)}, ${mode === "identity" ? "identity" : "financial"};dur=${dataMs.toFixed(1)}, total;dur=${(performance.now() - startedAt).toFixed(1)}`,
+    },
+  });
 }

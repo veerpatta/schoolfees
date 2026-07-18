@@ -1003,6 +1003,7 @@
     "addFirstStudent": "पहला बच्चा जोड़ें",
     "openStudentAria": "{name} खोलें",
     "duesNotPrepared": "बकाया तैयार नहीं",
+    "feePositionLoading": "फीस लोड हो रही है",
     "yearClear": "साल का बकाया साफ ✓",
     "overdueBadge": "{amount} ओवरड्यू",
     "lateFeeSuffix": "+ {amount} लेट फीस",

@@ -6147,3 +6147,53 @@ select cron.schedule(
   '*/2 * * * *',
   $$select public.refresh_sibling_groups_if_requested();$$
 );
+
+-- Security hardening mirror. The guarded statements keep this historical
+-- bootstrap schema runnable even when later feature migrations have not yet
+-- created the Notion/recovery/adjustment objects. Canonical rollout:
+-- 20260718090711_harden_notion_and_financial_permissions.sql.
+alter function public.get_dashboard_summary(text, text)
+  set search_path = public, private, pg_temp;
+alter function public.refresh_financial_materialized_views(boolean)
+  set search_path = public, private, pg_temp;
+alter function public.trigger_refresh_financial_views()
+  set search_path = public, private, pg_temp;
+
+do $$
+declare
+  view_name text;
+begin
+  foreach view_name in array array[
+    'v_notion_student_fee_summary',
+    'v_notion_daily_collection_summary',
+    'v_notion_family_fee_summary',
+    'v_notion_student_fee_sync',
+    'v_notion_daily_summary'
+  ]
+  loop
+    if to_regclass('public.' || view_name) is not null then
+      execute format('alter view public.%I set (security_invoker = true)', view_name);
+      execute format(
+        'revoke all on table public.%I from public, anon, authenticated',
+        view_name
+      );
+      if exists (select 1 from pg_roles where rolname = 'notion_fee_sync_role') then
+        execute format(
+          'grant select on table public.%I to notion_fee_sync_role, service_role',
+          view_name
+        );
+      end if;
+    end if;
+  end loop;
+
+  if to_regclass('public.receipt_finance_adjustments') is not null then
+    execute 'drop policy if exists "authenticated can insert receipt finance adjustments" on public.receipt_finance_adjustments';
+    execute 'create policy "payment writers can insert receipt finance adjustments" on public.receipt_finance_adjustments for insert to authenticated with check ((select public.has_permission(''payments:write'')))';
+  end if;
+
+  if to_regprocedure('public.refresh_defaulter_recovery_state(text,date)') is not null then
+    execute 'revoke all on function public.refresh_defaulter_recovery_state(text, date) from public';
+    execute 'revoke execute on function public.refresh_defaulter_recovery_state(text, date) from anon';
+  end if;
+end;
+$$;

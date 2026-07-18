@@ -6,13 +6,19 @@
       "cls": 0.1
     },
     "officeWorkflow": {
-      "paymentDeskSearchToSelectionMs": 6000,
-      "studentSelectedToReceiptMs": 30000,
+      "paymentSearchWarmMs": 500,
+      "paymentSearchColdMs": 1500,
+      "studentSelectionToFeeSummaryColdMs": 2000,
+      "paymentConfirmToReceiptP75Ms": 8000,
+      "studentSelectedToReceiptP75Ms": 20000,
+      "studentsFilterResponseP75Ms": 1000,
       "paymentPostFailureRate": 0.005
     },
     "sourceBudgets": {
       "paymentDeskClientMaxLines": 3400,
-      "studentFormMaxLines": 1400
+      "studentFormMaxLines": 1400,
+      "paymentDeskInitialClientJsReductionPercent": 20,
+      "hotRouteClientJsRegressionPercent": 0
     }
   },
   "visualRegression": {
@@ -22,9 +28,12 @@
     ],
     "routes": [
       "/protected/dashboard?session=TEST-2026-27",
-      "/protected/payments?session=TEST-2026-27",
       "/protected/students?session=TEST-2026-27",
-      "/protected/reports?session=TEST-2026-27",
+      "/protected/fee-setup?session=TEST-2026-27",
+      "/protected/payments?session=TEST-2026-27",
+      "/protected/transactions?session=TEST-2026-27",
+      "/protected/defaulters?session=TEST-2026-27",
+      "/protected/exports?session=TEST-2026-27",
       "/protected/admin-tools?session=TEST-2026-27"
     ]
   }
