@@ -17,6 +17,7 @@ import { appendSessionParam } from "@/lib/navigation/session-href";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { isPendingAdmissionNo } from "@/lib/students/constants";
 import { cn } from "@/lib/utils";
+import { getOfficeMetricSessionKind, recordOfficeMetric } from "@/lib/quality/office-telemetry";
 import type { SavedView } from "@/lib/data-table/saved-views";
 import type {
   StudentClassOption,
@@ -185,8 +186,9 @@ export function StudentQuickLoad({
   }, [params]);
 
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
+    const isInitialHydration = isFirstRender.current;
+    isFirstRender.current = false;
+    if (isInitialHydration && !initialStudents.some((student) => student.financialLoading)) {
       return;
     }
     const controller = new AbortController();
@@ -196,42 +198,73 @@ export function StudentQuickLoad({
     const timeout = setTimeout(async () => {
       setIsLoading(true);
       setLoadError(null);
+      let identitiesLoaded = isInitialHydration;
       try {
-        const response = await fetch(`/protected/students/index?${params.toString()}`, {
-          signal: controller.signal,
-          headers: { accept: "application/json" },
-        });
+        const loadMode = async (mode: "identity" | "financial") => {
+          const startedAt = performance.now();
+          const requestParams = new URLSearchParams(params);
+          requestParams.set("mode", mode);
+          const response = await fetch(`/protected/students/index?${requestParams.toString()}`, {
+            signal: controller.signal,
+            headers: { accept: "application/json" },
+          });
 
-        if (!response.ok) {
-          throw new Error("Unable to load students.");
-        }
-
-        const payload = (await response.json()) as {
-          students: StudentListItem[];
-          totalCount: number;
-          page: number;
+          if (!response.ok) throw new Error(`Unable to load student ${mode} data.`);
+          const payload = (await response.json()) as {
+            students: StudentListItem[];
+            totalCount: number;
+            page: number;
+          };
+          recordOfficeMetric({
+            area: "students",
+            name: "students_filter_completed",
+            durationMs: performance.now() - startedAt,
+            outcome: "success",
+            surface: mode === "identity" ? "student-identities" : "student-financials",
+            sessionKind: getOfficeMetricSessionKind(initialFilters.sessionLabel),
+            metadata: { resultCount: payload.students.length },
+          });
+          return payload;
         };
 
-        setStudents(payload.students);
-        setTotalCount(payload.totalCount);
-        setPage(payload.page);
+        if (!isInitialHydration) {
+          const identityPayload = await loadMode("identity");
+          identitiesLoaded = true;
+          setStudents(identityPayload.students);
+          setTotalCount(identityPayload.totalCount);
+          setPage(identityPayload.page);
+        }
+
+        const financialPayload = await loadMode("financial");
+        setStudents(financialPayload.students);
+        setTotalCount(financialPayload.totalCount);
+        setPage(financialPayload.page);
       } catch (error) {
         if ((error as Error).name !== "AbortError") {
           console.error(error);
-          setStudents([]);
-          setTotalCount(0);
+          if (!identitiesLoaded) {
+            setStudents([]);
+            setTotalCount(0);
+          }
           setLoadError(t("studentLoadError"));
+          recordOfficeMetric({
+            area: "students",
+            name: "students_filter_completed",
+            outcome: "error",
+            surface: identitiesLoaded ? "student-financials" : "student-identities",
+            sessionKind: getOfficeMetricSessionKind(initialFilters.sessionLabel),
+          });
         }
       } finally {
         setIsLoading(false);
       }
-    }, 60);
+    }, isInitialHydration ? 0 : 60);
 
     return () => {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [params, t]);
+  }, [initialFilters.sessionLabel, initialStudents, params, t]);
 
   useEffect(() => {
     function handleSlash(event: KeyboardEvent) {

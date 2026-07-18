@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-import { recordOfficeMetric } from "@/lib/quality/office-telemetry";
+import { getOfficeMetricSessionKind, recordOfficeMetric } from "@/lib/quality/office-telemetry";
 
 export function ServiceWorkerRegistration() {
   useEffect(() => {
@@ -21,6 +21,8 @@ export function ServiceWorkerRegistration() {
           area: "app-shell",
           name: "offline_shell_ready",
           metadata: { result: "registered" },
+          outcome: "success",
+          sessionKind: getOfficeMetricSessionKind(new URLSearchParams(window.location.search).get("session")),
         });
       })
       .catch(() => {
@@ -28,6 +30,8 @@ export function ServiceWorkerRegistration() {
           area: "app-shell",
           name: "office_error_review_needed",
           metadata: { result: "offline-shell-registration-failed" },
+          outcome: "error",
+          sessionKind: getOfficeMetricSessionKind(new URLSearchParams(window.location.search).get("session")),
         });
       });
   }, []);

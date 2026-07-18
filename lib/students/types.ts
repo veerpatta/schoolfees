@@ -74,6 +74,8 @@ export type StudentListItem = {
   siblingPill?: StudentSiblingPill | null;
   updatedAt: string;
   photoPath?: string | null;
+  /** True during the identity-first response before fee enrichment arrives. */
+  financialLoading?: boolean;
 };
 
 export type StudentSiblingPill = {

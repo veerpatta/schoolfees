@@ -797,7 +797,8 @@ describe("payment desk cashier workflow", () => {
 
     expect(wrapper).toContain("PaymentDeskClient");
     expect(wrapper).not.toContain("PaymentDeskDesktop");
-    expect(wrapper).not.toContain("dynamic(");
+    expect(wrapper).toContain('import("@/components/payments/payment-desk-mobile")');
+    expect(wrapper).toContain("ssr: false");
     expect(wrapper).not.toContain("md:hidden");
     expect(wrapper).not.toContain("hidden md:block");
     expect(component).toContain("export function PaymentDeskClient");
@@ -1138,11 +1139,16 @@ describe("payment desk cashier workflow", () => {
       join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
       "utf8",
     );
+    const metrics = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-metrics.ts"),
+      "utf8",
+    );
 
-    expect(component).toContain('performance.mark("vpps:payment-desk:student_click")');
-    expect(component).toContain('performance.mark("vpps:payment-desk:summary_fetch_start")');
-    expect(component).toContain('performance.mark("vpps:payment-desk:summary_fetch_end")');
-    expect(component).toContain('performance.mark("vpps:payment-desk:summary_paint")');
+    expect(component).toContain('markPaymentDeskStudentTiming("student_click")');
+    expect(component).toContain('markPaymentDeskStudentTiming("summary_fetch_start")');
+    expect(component).toContain('markPaymentDeskStudentTiming("summary_fetch_end")');
+    expect(component).toContain('markPaymentDeskStudentTiming("summary_paint")');
+    expect(metrics).toContain("performance.mark(`vpps:payment-desk:${name}`)");
     expect(component).toContain("loadCachedPaymentDeskStudentSummary");
     expect(component).toContain("saveCachedPaymentDeskStudentSummary");
     expect(component).toContain("clearCachedPaymentDeskStudentSummary");

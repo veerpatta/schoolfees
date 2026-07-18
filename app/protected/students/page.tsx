@@ -19,7 +19,7 @@ import { appendSessionParam } from "@/lib/navigation/session-href";
 import {
   getClassOptionsForSession,
   getStudentFormOptions,
-  getStudentsPage,
+  getStudentsIdentityPage,
 } from "@/lib/students/data";
 import {
   EMPTY_STUDENT_FILTERS,
@@ -138,7 +138,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
   // Run the page load + the (conditional) recent-import count in parallel;
   // both are independent and were previously sequential.
   const [pageDataResult, recentImportStudentCount] = await Promise.all([
-    getStudentsPage(filters, { page, pageSize: 40 })
+    getStudentsIdentityPage(filters, { page, pageSize: 40 })
       .then((pageData) => ({ ok: true as const, pageData }))
       .catch((error: unknown) => ({ ok: false as const, error })),
     formOptions?.sessionMismatch && canRealignRecentImports

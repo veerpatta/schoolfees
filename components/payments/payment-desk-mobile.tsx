@@ -20,7 +20,7 @@ import { pushOptimisticPayment } from "@/lib/dashboard/optimistic-counters";
 import { AlertTriangle, Banknote, Building2, CheckCircle2, CircleAlert, FileText, Smartphone } from "lucide-react";
 import { PayeeSummaryStrip } from "@/components/payments/payee-summary-strip";
 import { DeskTotalsSection } from "@/components/payments/desk-totals-section";
-import { MobilePaymentFlowSheet } from "@/components/payments/mobile-payment-flow-sheet";
+import { CollectDraftBanner } from "@/components/payments/collect-draft-banner";
 import {
   DesktopPaymentDeskBody,
   DesktopPaymentDeskMainPanel,
@@ -76,6 +76,11 @@ import { formatInr } from "@/lib/helpers/currency";
 import { cn } from "@/lib/utils";
 import { clearDraft, loadDraft, saveDraft } from "@/lib/payments/draft-store";
 import { normalizeAmountInputShorthand, sanitizeDecimalInput } from "@/lib/payments/payment-desk-client-helpers";
+import { getOfficeMetricSessionKind, recordOfficeMetric } from "@/lib/quality/office-telemetry";
+import {
+  markPaymentDeskStudentTiming,
+  recordPaymentPostResult,
+} from "@/components/payments/payment-desk-metrics";
 
 const ConfirmReceiptSheet = dynamic(
   () => import("@/components/payments/confirm-receipt-sheet").then((mod) => mod.ConfirmReceiptSheet),
@@ -89,6 +94,11 @@ const SuccessReceiptSheet = dynamic(
 
 const DuplicateReceiptSheet = dynamic(
   () => import("@/components/payments/duplicate-receipt-sheet").then((mod) => mod.DuplicateReceiptSheet),
+  { ssr: false },
+);
+
+const MobilePaymentFlowSheet = dynamic(
+  () => import("@/components/payments/mobile-payment-flow-sheet").then((mod) => mod.MobilePaymentFlowSheet),
   { ssr: false },
 );
 
@@ -153,23 +163,6 @@ function createClientRequestId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function markPaymentDeskStudentTiming(
-  name:
-    | "student_click"
-    | "summary_fetch_start"
-    | "summary_fetch_end"
-    | "summary_paint",
-) {
-  if (typeof performance === "undefined" || !performance.mark) {
-    return;
-  }
-
-  if (name === "student_click") performance.mark("vpps:payment-desk:student_click");
-  if (name === "summary_fetch_start") performance.mark("vpps:payment-desk:summary_fetch_start");
-  if (name === "summary_fetch_end") performance.mark("vpps:payment-desk:summary_fetch_end");
-  if (name === "summary_paint") performance.mark("vpps:payment-desk:summary_paint");
 }
 
 /**
@@ -348,6 +341,7 @@ export function PaymentDeskClient({
   const { ref: amountInputRef } = useScrollIntoView<HTMLInputElement>();
 
   const submittingRef = useRef(false);
+  const paymentPostStartedAtRef = useRef<number | null>(null);
   const amountSectionRef = useRef<HTMLDivElement>(null);
   const desktopStudentPickerRef = useRef<HTMLDivElement>(null);
   const mobileStudentSearchInputRef = useRef<HTMLInputElement>(null);
@@ -355,6 +349,7 @@ export function PaymentDeskClient({
   const mobileStudentListRef = useRef<HTMLDivElement>(null);
   const desktopStudentListRef = useRef<HTMLDivElement>(null);
   const summaryRequestRef = useRef(0);
+  const searchStartedAtRef = useRef<number | null>(null);
   const summaryAbortRef = useRef<AbortController | null>(null);
   const optimisticReceiptKeyRef = useRef<string | null>(null);
   const studentIndexLoadedRef = useRef(data.studentIndex.length > 0);
@@ -418,6 +413,32 @@ export function PaymentDeskClient({
     },
     [studentIndex, deferredStudentSearchQuery, selectedClassId, studentSearchIndex, getFrecencyScore],
   );
+  useEffect(() => {
+    if (searchStartedAtRef.current === null) return;
+
+    recordOfficeMetric({
+      area: "payment-desk",
+      name: "payment_search_completed",
+      durationMs: performance.now() - searchStartedAtRef.current,
+      outcome: "success",
+      surface: "student-search",
+      sessionKind: getOfficeMetricSessionKind(data.sessionLabel),
+      metadata: { resultCount: filteredStudents.length, cached: studentIndexLoadedRef.current },
+    });
+    searchStartedAtRef.current = null;
+  }, [data.sessionLabel, deferredStudentSearchQuery, filteredStudents.length]);
+
+  const updateStudentSearchQuery = useCallback((query: string) => {
+    searchStartedAtRef.current = performance.now();
+    setStudentSearchQuery(query);
+    recordOfficeMetric({
+      area: "payment-desk",
+      name: "payment_search_started",
+      outcome: "success",
+      surface: "student-search",
+      sessionKind: getOfficeMetricSessionKind(data.sessionLabel),
+    });
+  }, [data.sessionLabel]);
   const selectedStudentIndexItem = useMemo(
     () => studentIndex.find((student) => student.id === selectedStudentId) ?? null,
     [studentIndex, selectedStudentId],
@@ -530,6 +551,7 @@ export function PaymentDeskClient({
     includeBreakdown?: boolean;
     signal?: AbortSignal;
   }) => {
+    const startedAt = performance.now();
     markPaymentDeskStudentTiming("summary_fetch_start");
     const params = new URLSearchParams({
       studentId: payload.studentId,
@@ -540,20 +562,43 @@ export function PaymentDeskClient({
     if (payload.includeBreakdown === false) {
       params.set("includeBreakdown", "false");
     }
-    const response = await fetch(`/protected/payments/student-summary?${params.toString()}`, {
-      method: "GET",
-      headers: { accept: "application/json" },
-      signal: payload.signal,
-    });
+    try {
+      const response = await fetch(`/protected/payments/student-summary?${params.toString()}`, {
+        method: "GET",
+        headers: { accept: "application/json" },
+        signal: payload.signal,
+      });
 
-    if (!response.ok) {
-      const errorPayload = await response.json().catch(() => null);
-      throw new Error(errorPayload?.error ?? "Unable to refresh payment preview.");
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => null);
+        throw new Error(errorPayload?.error ?? "Unable to refresh payment preview.");
+      }
+
+      const summary = await response.json() as PaymentDeskStudentSummary;
+      markPaymentDeskStudentTiming("summary_fetch_end");
+      recordOfficeMetric({
+        area: "payment-desk",
+        name: "fee_summary_ready",
+        durationMs: performance.now() - startedAt,
+        outcome: "success",
+        surface: payload.includeBreakdown === false ? "summary-card" : "fee-summary",
+        sessionKind: getOfficeMetricSessionKind(data.sessionLabel),
+        metadata: { cached: false },
+      });
+      return summary;
+    } catch (error) {
+      if (!(error instanceof Error && error.name === "AbortError")) {
+        recordOfficeMetric({
+          area: "payment-desk",
+          name: "fee_summary_ready",
+          durationMs: performance.now() - startedAt,
+          outcome: "error",
+          surface: payload.includeBreakdown === false ? "summary-card" : "fee-summary",
+          sessionKind: getOfficeMetricSessionKind(data.sessionLabel),
+        });
+      }
+      throw error;
     }
-
-    const summary = await response.json() as PaymentDeskStudentSummary;
-    markPaymentDeskStudentTiming("summary_fetch_end");
-    return summary;
   }, [data.sessionLabel]);
 
   const applyStudentSummaryPayload = useCallback((payload: PaymentDeskStudentSummary) => {
@@ -1112,6 +1157,10 @@ export function PaymentDeskClient({
       })) {
         return;
       }
+      recordPaymentPostResult({
+        sessionLabel: data.sessionLabel, outcome: "success", surface: "payment-post", startedAt: paymentPostStartedAtRef.current,
+      });
+      paymentPostStartedAtRef.current = null;
       if (actionStateKey !== optimisticReceiptKeyRef.current) {
         optimisticReceiptKeyRef.current = actionStateKey;
         if (state.amountReceived && state.amountReceived > 0) {
@@ -1188,6 +1237,10 @@ export function PaymentDeskClient({
       })) {
         return;
       }
+      recordPaymentPostResult({
+        sessionLabel: data.sessionLabel, outcome: "cancelled", surface: "duplicate-protection", startedAt: paymentPostStartedAtRef.current,
+      });
+      paymentPostStartedAtRef.current = null;
       setDismissedActionStateKey(null);
       setIsConfirmOpen(false);
       setIsSuccessOpen(false);
@@ -1205,6 +1258,10 @@ export function PaymentDeskClient({
       })) {
         return;
       }
+      recordPaymentPostResult({
+        sessionLabel: data.sessionLabel, outcome: "error", surface: "payment-post", startedAt: paymentPostStartedAtRef.current,
+      });
+      paymentPostStartedAtRef.current = null;
       setDismissedActionStateKey(null);
       setIsConfirmOpen(false);
       setFormError(state.message);
@@ -1220,6 +1277,7 @@ export function PaymentDeskClient({
     state,
     clientRequestId,
     dismissedActionStateKey,
+    data.sessionLabel,
     tToasts,
   ]);
 
@@ -1553,6 +1611,13 @@ export function PaymentDeskClient({
 
   function selectStudent(studentId: string) {
     markPaymentDeskStudentTiming("student_click");
+    recordOfficeMetric({
+      area: "payment-desk",
+      name: "student_selected",
+      outcome: "success",
+      surface: "student-search",
+      sessionKind: getOfficeMetricSessionKind(data.sessionLabel),
+    });
     summaryAbortRef.current?.abort();
     summaryRequestRef.current += 1;
     const cacheKey = buildStudentSummaryCacheKey(studentId, paymentDate);
@@ -1738,7 +1803,9 @@ export function PaymentDeskClient({
         }
       />
 
-      <MobilePaymentFlowSheet
+      <CollectDraftBanner />
+
+      {mobileSheetView ? <MobilePaymentFlowSheet
         view={mobileSheetView}
         onClose={() => setMobileSheetView(null)}
         onOpenClassPicker={() => setMobileSheetView("class-picker")}
@@ -1748,7 +1815,7 @@ export function PaymentDeskClient({
         studentSearchQuery={studentSearchQuery}
         onStudentSearchChange={(q) => {
           setActiveStudentPickerMode("mobile");
-          setStudentSearchQuery(q);
+          updateStudentSearchQuery(q);
           setStudentListScrollTop(0);
           setActiveStudentOptionIndex(0);
         }}
@@ -1846,7 +1913,7 @@ export function PaymentDeskClient({
           setFormError(null);
         }}
         isLastAmountArmed={isLastAmountArmed}
-      />
+      /> : null}
 
       <DesktopPaymentDeskSection>
         {/* Top bar */}
@@ -1932,7 +1999,7 @@ export function PaymentDeskClient({
                 }}
                 onChange={(event) => {
                   setActiveStudentPickerMode("desktop");
-                  setStudentSearchQuery(event.target.value);
+                  updateStudentSearchQuery(event.target.value);
                   setIsStudentPickerOpen(true);
                   setStudentListScrollTop(0);
                   setActiveStudentOptionIndex(0);
@@ -2752,6 +2819,14 @@ export function PaymentDeskClient({
                 }
 
                 submittingRef.current = true;
+                paymentPostStartedAtRef.current = performance.now();
+                recordOfficeMetric({
+                  area: "payment-desk",
+                  name: "payment_post_attempted",
+                  outcome: "success",
+                  surface: "payment-post",
+                  sessionKind: getOfficeMetricSessionKind(data.sessionLabel),
+                });
                 setDismissedActionStateKey(null);
               }}
             >

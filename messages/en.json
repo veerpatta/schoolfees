@@ -1003,6 +1003,7 @@
     "addFirstStudent": "Add first student",
     "openStudentAria": "Open {name}",
     "duesNotPrepared": "Dues not prepared",
+    "feePositionLoading": "Loading fees",
     "yearClear": "Year Clear ✓",
     "overdueBadge": "{amount} overdue",
     "lateFeeSuffix": "+ {amount} late fee",

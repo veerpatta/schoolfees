@@ -1003,6 +1003,7 @@
     "addFirstStudent": "Pehla bachha add karo",
     "openStudentAria": "{name} kholo",
     "duesNotPrepared": "Baaki taiyaar nahi",
+    "feePositionLoading": "Fees load ho rahi hai",
     "yearClear": "Saal ka baaki saaf ✓",
     "overdueBadge": "{amount} overdue",
     "lateFeeSuffix": "+ {amount} late fee",

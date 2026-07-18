@@ -4,8 +4,6 @@ import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/admin/page-header";
 import { OfficeNotice, WorkflowGuard } from "@/components/office/office-ui";
 import { StatusBadge } from "@/components/admin/status-badge";
-import { MoneyGlossaryLink } from "@/components/ui/money-glossary";
-import { CollectDraftBanner } from "@/components/payments/collect-draft-banner";
 import { PaymentEntryClient } from "@/components/payments/payment-entry-client";
 import { PaymentDeskSkeleton } from "@/components/payments/payment-desk-skeleton";
 import {
@@ -67,14 +65,11 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
         eyebrow={t("eyebrow")}
         title={t("title")}
         description={t("description")}
-        actions={<MoneyGlossaryLink />}
       />
 
       {repairNotice ? (
         <OfficeNotice tone="warning">{repairNotice}</OfficeNotice>
       ) : null}
-
-      <CollectDraftBanner />
 
       <Suspense fallback={<PaymentDeskSkeleton />}>
         <PaymentDeskDataLoader

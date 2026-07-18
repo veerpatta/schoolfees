@@ -55,6 +55,7 @@ export default defineConfig({
       use: {
         ...devices["Pixel 7"],
         ...sharedUse,
+        viewport: { width: 390, height: 844 },
       },
     },
   ],

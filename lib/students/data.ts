@@ -1086,6 +1086,94 @@ async function getStudentsPageUncached(
   };
 }
 
+export async function getStudentsIdentityPage(
+  filters: StudentListFilters,
+  pagination: { page: number; pageSize: number },
+) {
+  const supabase = await createClient();
+  const page = Math.max(1, Math.floor(pagination.page));
+  const pageSize = Math.min(100, Math.max(1, Math.floor(pagination.pageSize)));
+  const from = (page - 1) * pageSize;
+  let query = supabase
+    .from("students")
+    .select(
+      "id, admission_no, full_name, date_of_birth, status, primary_phone, secondary_phone, updated_at, photo_path, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code)",
+      { count: "exact" },
+    )
+    .eq("class_ref.status", "active")
+    .order("full_name", { ascending: true })
+    .range(from, from + pageSize - 1);
+
+  if (filters.query) query = query.ilike("full_name", `%${filters.query}%`);
+  if (filters.sessionLabel) query = query.eq("class_ref.session_label", filters.sessionLabel);
+  if (filters.classId) query = query.eq("class_id", filters.classId);
+  if (filters.transportRouteId) query = query.eq("transport_route_id", filters.transportRouteId);
+  if (filters.status) query = query.eq("status", filters.status);
+
+  const { data, error, count } = await query;
+  if (error) throw new Error(`Unable to load student identities: ${error.message}`);
+
+  const students = ((data ?? []) as StudentListRow[]).map((row) => {
+    const classRef = toSingleRecord(row.class_ref);
+    const routeRef = toSingleRecord(row.route_ref);
+    return {
+      id: row.id,
+      workbookStudentKey: `${classRef ? buildClassLabel(classRef) : "Unknown class"}|${row.admission_no}`,
+      admissionNo: row.admission_no,
+      fullName: row.full_name,
+      dateOfBirth: row.date_of_birth,
+      status: row.status,
+      studentStatusLabel: "Old",
+      classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
+      transportRouteLabel: routeRef
+        ? routeRef.route_code
+          ? `${routeRef.route_name} (${routeRef.route_code})`
+          : routeRef.route_name
+        : "No Transport",
+      tuitionFee: 0,
+      transportFee: 0,
+      academicFee: 0,
+      grossBaseBeforeDiscount: 0,
+      discountAmount: 0,
+      baseTotalDue: 0,
+      installment1Base: 0,
+      installment2Base: 0,
+      installment3Base: 0,
+      installment4Base: 0,
+      totalPaid: 0,
+      lateFeeTotal: 0,
+      totalDue: 0,
+      overdueAmount: 0,
+      pendingLateFeeAmount: 0,
+      hasLateFeeWaiver: false,
+      hasFeeProfile: false,
+      feeProfileStatusLabel: "Loading fee position",
+      fatherPhone: row.primary_phone,
+      motherPhone: row.secondary_phone,
+      nextDueLabel: null,
+      nextDueDate: null,
+      nextDueAmount: null,
+      statusLabel: "",
+      duesStatus: "missing_dues",
+      duesStatusLabel: "Loading fee position",
+      lastPaymentDate: null,
+      lastPaymentAmount: 0,
+      duplicateSrFlag: false,
+      missingDobFlag: false,
+      missingClassFlag: false,
+      missingStatusFlag: false,
+      outstandingAmount: 0,
+      conventionalDiscountLabels: [],
+      siblingPill: null,
+      updatedAt: row.updated_at,
+      photoPath: row.photo_path,
+      financialLoading: true,
+    } satisfies StudentListItem;
+  });
+
+  return { students, totalCount: count ?? 0, page, pageSize };
+}
+
 export async function getStudentsPage(
   filters: StudentListFilters,
   pagination: {
