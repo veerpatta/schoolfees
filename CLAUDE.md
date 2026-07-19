@@ -253,7 +253,10 @@ Copy `.env.example` to `.env.local` for local development. Required values:
 2. Never expose `SUPABASE_SERVICE_ROLE_KEY` in browser code or `NEXT_PUBLIC_*` variables.
 3. Keep public signup disabled after the bootstrap phase.
 4. The `/protected` root redirect must never loop back to itself.
-5. No alternate payment-posting paths outside Payment Desk (`/protected/payments`).
+5. No alternate payment-posting paths outside the Payment Desk module
+   (`/protected/payments`, including its admin-only bulk-entry sub-surface
+   `/protected/payments/bulk`, which posts every row through
+   `post_student_payment_with_adjustments`).
 6. `2026-27` is the live production session with real school financial records.
    Use `TEST-2026-27` for all testing and debugging. Never add test data,
    post test payments, or make experimental changes to the `2026-27` session.

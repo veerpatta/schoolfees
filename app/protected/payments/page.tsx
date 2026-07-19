@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/admin/page-header";
@@ -66,6 +67,16 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
         eyebrow={t("eyebrow")}
         title={t("title")}
         description={t("description")}
+        actions={
+          hasStaffPermission(staff, "payments:bulk") ? (
+            <Link
+              href={`/protected/payments/bulk?session=${encodeURIComponent(viewSession.sessionLabel)}`}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-3"
+            >
+              Bulk upload
+            </Link>
+          ) : undefined
+        }
       />
 
       {repairNotice ? (
