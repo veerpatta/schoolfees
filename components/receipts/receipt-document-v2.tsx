@@ -827,9 +827,23 @@ export function ReceiptDocumentV2({
                   key={item.id}
                   className="flex items-center justify-between gap-2 rounded border border-border bg-surface-2/60 px-2 py-1 tabular-nums"
                 >
-                  <span className="font-medium text-foreground">{item.receiptNumber}</span>
+                  <span className="font-medium text-foreground">
+                    {item.receiptNumber}
+                    {item.isReversed ? (
+                      <span className="ml-1 rounded bg-destructive/10 px-1 py-0.5 text-[9px] font-semibold uppercase text-destructive">
+                        Reversed
+                      </span>
+                    ) : null}
+                  </span>
                   <span className="text-muted-foreground">{formatDate(item.paymentDate)}</span>
-                  <span className="font-semibold text-foreground">{formatInr(item.totalAmount)}</span>
+                  <span
+                    className={cn(
+                      "font-semibold text-foreground",
+                      item.isReversed && "line-through opacity-60",
+                    )}
+                  >
+                    {formatInr(item.totalAmount)}
+                  </span>
                 </li>
               ))}
             </ul>

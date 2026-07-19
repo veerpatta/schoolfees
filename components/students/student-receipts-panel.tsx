@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Money } from "@/components/ui/money";
+import { ReversedBadge } from "@/components/receipts/reversed-badge";
 import { Section } from "@/components/ui/section";
 import { formatShortDate } from "@/lib/helpers/date";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,8 @@ type ReceiptItem = {
   paymentModeLabel: string;
   referenceNumber: string | null;
   receivedBy: string | null;
+  /** True when reversal adjustments cancel this receipt in full. */
+  isReversed?: boolean;
 };
 
 type SessionGroup = {
@@ -156,8 +159,13 @@ function BySessionView({
               {group.receipts.map((receipt) => (
                 <div key={receipt.id} className="px-4 py-3 space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm">{receipt.receiptNumber}</span>
-                    <Money value={receipt.totalAmount} size="sm" />
+                    <span className="flex items-center gap-1.5 font-semibold text-sm">
+                      {receipt.receiptNumber}
+                      {receipt.isReversed ? <ReversedBadge /> : null}
+                    </span>
+                    <span className={receipt.isReversed ? "line-through opacity-60" : undefined}>
+                      <Money value={receipt.totalAmount} size="sm" />
+                    </span>
                   </div>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>{formatShortDate(receipt.paymentDate)}</span>
@@ -197,14 +205,24 @@ function BySessionView({
                 <tbody className="divide-y divide-border/60">
                   {group.receipts.map((receipt) => (
                     <tr key={receipt.id} className="even:bg-surface-2/30 hover:bg-surface-2/10 transition-colors">
-                      <td className="px-4 py-3 font-semibold text-foreground">{receipt.receiptNumber}</td>
+                      <td className="px-4 py-3 font-semibold text-foreground">
+                        <span className="flex items-center gap-1.5">
+                          {receipt.receiptNumber}
+                          {receipt.isReversed ? <ReversedBadge /> : null}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 font-mono tabular-nums text-muted-foreground">{formatShortDate(receipt.paymentDate)}</td>
                       <td className="px-4 py-3 text-xs">
                         <span className="inline-flex items-center rounded-md bg-surface-3/50 px-2 py-0.5 font-medium text-muted-foreground">
                           {receipt.paymentModeLabel}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right font-mono tabular-nums font-semibold text-foreground">
+                      <td
+                        className={cn(
+                          "px-4 py-3 text-right font-mono tabular-nums font-semibold text-foreground",
+                          receipt.isReversed && "line-through opacity-60",
+                        )}
+                      >
                         <Money value={receipt.totalAmount} size="sm" />
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{receipt.referenceNumber ?? "—"}</td>
@@ -264,7 +282,10 @@ function TimelineView({
             <div className="rounded-lg border border-border bg-card px-3 py-2.5">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground">{receipt.receiptNumber}</p>
+                  <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                    {receipt.receiptNumber}
+                    {receipt.isReversed ? <ReversedBadge /> : null}
+                  </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {formatShortDate(receipt.paymentDate)} ·{" "}
                     <span className="font-medium">{receipt.paymentModeLabel}</span>
@@ -277,7 +298,9 @@ function TimelineView({
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Money value={receipt.totalAmount} size="sm" />
+                  <span className={receipt.isReversed ? "line-through opacity-60" : undefined}>
+                    <Money value={receipt.totalAmount} size="sm" />
+                  </span>
                   <Button asChild size="sm" variant="outline" className="h-7 text-xs px-2">
                     <Link href={`/protected/receipts/${receipt.id}?returnTo=${encodedReturnTo}`}>
                       {canPrintReceipts ? "Print" : "Open"}

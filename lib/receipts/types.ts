@@ -13,6 +13,8 @@ export type ReceiptListItem = {
   studentFullName: string;
   admissionNo: string;
   classLabel: string;
+  /** True when reversal adjustments cancel this receipt in full. */
+  isReversed?: boolean;
 };
 
 export type ReceiptBreakdownItem = {
@@ -62,6 +64,8 @@ export type ReceiptHistoryItem = {
   receiptNumber: string;
   paymentDate: string;
   totalAmount: number;
+  /** True when reversal adjustments cancel this receipt in full. */
+  isReversed?: boolean;
 };
 
 export type ConventionalDiscountAssignmentSummary = {

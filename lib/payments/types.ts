@@ -209,6 +209,7 @@ export type PaymentEntryPageData = {
     paymentMode: string;
     paymentDate: string;
     createdAt: string | null;
+    isReversed?: boolean;
   } | null;
   modeOptions: PaymentModeOption[];
   sessionLabel: string;
@@ -222,6 +223,7 @@ export type PaymentEntryPageData = {
     paymentMode: string;
     paymentDate: string;
     createdAt: string | null;
+    isReversed?: boolean;
   }>;
   todayCollection: {
     receiptCount: number;

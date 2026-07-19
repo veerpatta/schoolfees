@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { loadSessionScopedReceiptIds } from "@/lib/session/installment-scope";
 import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
 import { buildReceiptAdjustmentTotals } from "@/lib/receipts/amounts";
+import { getReceiptReversalTotals, isReceiptReversed } from "@/lib/receipts/reversals";
 import { resolveReceiptSessionLabel } from "@/lib/receipts/session-label";
 import type {
   ConventionalDiscountAssignmentSummary,
@@ -325,7 +326,9 @@ export async function getReceiptsPage(
     throw new Error(`Unable to load receipts: ${error.message}`);
   }
 
-  const receipts = ((data ?? []) as ReceiptListRow[]).map((row) => {
+  const listRows = (data ?? []) as ReceiptListRow[];
+  const reversalTotals = await getReceiptReversalTotals(listRows.map((row) => row.id));
+  const receipts = listRows.map((row) => {
     const student = toSingleRecord(row.student_ref);
 
     return {
@@ -341,6 +344,7 @@ export async function getReceiptsPage(
       studentFullName: student?.full_name ?? "Unknown student",
       admissionNo: student?.admission_no ?? "N/A",
       classLabel: buildClassLabel(student?.class_ref ?? null),
+      isReversed: isReceiptReversed(reversalTotals, row.id, row.total_amount),
     };
   });
 
@@ -558,11 +562,15 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     return winner;
   }, null)?.id ?? null;
 
+  const historyReversalTotals = await getReceiptReversalTotals(
+    receiptsBeforeCurrent.map((row) => row.id),
+  );
   const previousReceipts: ReceiptHistoryItem[] = receiptsBeforeCurrent.map((row) => ({
     id: row.id,
     receiptNumber: row.receipt_number,
     paymentDate: row.payment_date,
     totalAmount: row.total_amount,
+    isReversed: isReceiptReversed(historyReversalTotals, row.id, row.total_amount),
   }));
 
   const installmentStatus: ReceiptInstallmentStatusItem[] = buildInstallmentStatus(

@@ -12,6 +12,7 @@ import {
   prepareDuesForStudentsAutomatically,
 } from "@/lib/system-sync/finance-sync";
 import { logError, logWarn } from "@/lib/observability/log";
+import { getReceiptReversalTotals, isReceiptReversed } from "@/lib/receipts/reversals";
 import { getWorkbookStudentFinancials } from "@/lib/workbook/data";
 import {
   getDisplayInstallmentLabel,
@@ -869,7 +870,16 @@ async function getRecentPaymentDeskReceiptsUncached(limit = 6, sessionLabel: str
     throw new Error(`Unable to load recent receipts: ${error.message}`);
   }
 
-  return ((data ?? []) as PaymentDeskReceiptRow[]).map(mapPaymentDeskReceipt);
+  const rows = ((data ?? []) as PaymentDeskReceiptRow[]).map(mapPaymentDeskReceipt);
+  const reversalTotals = await getReceiptReversalTotals(
+    rows.map((row) => row.id),
+    supabase,
+  );
+
+  return rows.map((row) => ({
+    ...row,
+    isReversed: isReceiptReversed(reversalTotals, row.id, row.totalAmount),
+  }));
 }
 
 async function getTodayPaymentDeskCollection(sessionLabel?: string) {
@@ -927,7 +937,17 @@ async function getLatestReceiptForStudentUncached(studentId: string) {
     return null;
   }
 
-  return data ? mapPaymentDeskReceipt(data as PaymentDeskReceiptRow) : null;
+  if (!data) {
+    return null;
+  }
+
+  const receipt = mapPaymentDeskReceipt(data as PaymentDeskReceiptRow);
+  const reversalTotals = await getReceiptReversalTotals([receipt.id], supabase);
+
+  return {
+    ...receipt,
+    isReversed: isReceiptReversed(reversalTotals, receipt.id, receipt.totalAmount),
+  };
 }
 
 
