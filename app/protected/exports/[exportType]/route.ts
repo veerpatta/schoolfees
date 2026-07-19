@@ -29,10 +29,18 @@ import {
 } from "@/lib/workbook/data";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/lib/supabase/session";
 import { createClient } from "@/lib/supabase/server";
+import { fetchInChunks } from "@/lib/helpers/chunk";
 import { formatExportName } from "@/lib/helpers/export";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatDateTimeIst } from "@/lib/helpers/date";
 import { recordActivity } from "@/lib/activity/events";
+
+// Heavy exports (ai-context-bundle builds a 16-sheet workbook from ~14 reads)
+// overrun Vercel's default function timeout on real data volumes.
+export const maxDuration = 60;
+
+// PostgREST .in() filters serialize ids into the URL; chunk to stay under limits.
+const IN_FILTER_CHUNK_SIZE = 200;
 
 type RouteContext = {
   params: Promise<{
@@ -217,24 +225,24 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
   // get empty sheets (RLS), which is acceptable degradation.
   const supabase = await createClient();
   const [adjustmentsResult, refundsResult] = await Promise.all([
-    allStudentIds.length > 0
-      ? supabase
-          .from("payment_adjustments")
-          .select(
-            "id, student_id, adjustment_type, amount_delta, reason, notes, created_at, installment_ref:installments(installment_label), payment_ref:payments(receipt_ref:receipts(receipt_number))",
-          )
-          .in("student_id", allStudentIds)
-          .order("created_at", { ascending: true })
-      : Promise.resolve({ data: [], error: null }),
-    allStudentIds.length > 0
-      ? supabase
-          .from("refund_requests")
-          .select(
-            "id, student_id, refund_date, requested_amount, refund_method, refund_reference, reason, notes, status, created_at, approved_at, processed_at, receipt_ref:receipts(receipt_number)",
-          )
-          .in("student_id", allStudentIds)
-          .order("created_at", { ascending: true })
-      : Promise.resolve({ data: [], error: null }),
+    fetchInChunks(allStudentIds, IN_FILTER_CHUNK_SIZE, (chunk) =>
+      supabase
+        .from("payment_adjustments")
+        .select(
+          "id, student_id, adjustment_type, amount_delta, reason, notes, created_at, installment_ref:installments(installment_label), payment_ref:payments(receipt_ref:receipts(receipt_number))",
+        )
+        .in("student_id", chunk)
+        .order("created_at", { ascending: true }),
+    ),
+    fetchInChunks(allStudentIds, IN_FILTER_CHUNK_SIZE, (chunk) =>
+      supabase
+        .from("refund_requests")
+        .select(
+          "id, student_id, refund_date, requested_amount, refund_method, refund_reference, reason, notes, status, created_at, approved_at, processed_at, receipt_ref:receipts(receipt_number)",
+        )
+        .in("student_id", chunk)
+        .order("created_at", { ascending: true }),
+    ),
   ]);
 
   const adjustments = (adjustmentsResult.data ?? []) as Array<{
