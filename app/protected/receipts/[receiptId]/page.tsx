@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { ReceiptDocument } from "@/components/receipts/receipt-document";
 import { ReceiptPrintActions } from "@/components/receipts/receipt-print-actions";
 import { ReceiptShareActions } from "@/components/receipts/receipt-share-actions";
+import { ReceiptUndoAction } from "@/components/receipts/receipt-undo-action";
 import { createBilingualReceiptTranslator } from "@/lib/i18n/bilingual-receipt";
 import { getReceiptDetail } from "@/lib/receipts/data";
 import { listWhatsappTemplates } from "@/lib/whatsapp-templates/data";
@@ -54,6 +55,8 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
   }
 
   const canPrintReceipts = hasStaffPermission(staff, "receipts:print");
+  const canUndoPayment =
+    hasStaffPermission(staff, "payments:adjust") && !receipt.isVoided;
 
   return (
     <div className="space-y-6">
@@ -71,6 +74,15 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
                 <ReceiptShareActions receipt={receipt} templates={whatsappTemplates} />
                 <ReceiptPrintActions autoPrint={shouldAutoPrint} />
               </>
+            ) : null}
+            {canUndoPayment ? (
+              <ReceiptUndoAction
+                receiptId={receipt.id}
+                studentId={receipt.studentId}
+                sessionLabel={receipt.sessionLabel}
+                receiptNumber={receipt.receiptNumber}
+                createdAt={receipt.createdAt}
+              />
             ) : null}
           </div>
         }

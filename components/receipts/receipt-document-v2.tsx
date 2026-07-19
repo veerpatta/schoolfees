@@ -255,7 +255,29 @@ export function ReceiptDocumentV2({
         </div>
       ) : null}
 
+      {receipt.isVoided ? (
+        <div
+          className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center text-center text-5xl font-semibold uppercase tracking-[0.2em] text-destructive/20 print:flex"
+          aria-hidden="true"
+        >
+          REVERSED · VOID
+        </div>
+      ) : null}
+
       <div className="relative z-10 space-y-3">
+        {receipt.isVoided ? (
+          <div
+            role="status"
+            className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive-soft-foreground"
+          >
+            This receipt has been reversed in full
+            {typeof receipt.reversedAmount === "number" && receipt.reversedAmount > 0
+              ? ` (${formatInr(receipt.reversedAmount)})`
+              : ""}
+            {" — it is no longer part of the student's paid total."}
+            {receipt.voidReason ? ` Reason: ${receipt.voidReason}` : ""}
+          </div>
+        ) : null}
         {/* 1. School header — logo, name, address / phone / email, receipt # */}
         <header className="flex items-start justify-between gap-3 rounded-lg border border-border bg-card p-3">
           <div className="flex items-start gap-3">

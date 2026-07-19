@@ -389,6 +389,7 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     { data: receiptAdjustmentsRaw, error: receiptAdjustmentsError },
     { data: conventionalAssignmentsRaw, error: conventionalAssignmentsError },
     { data: installmentBalancesRaw, error: installmentBalancesError },
+    { data: paymentAdjustmentsRaw, error: paymentAdjustmentsError },
   ] = await Promise.all([
     supabase
       .from("payments")
@@ -435,6 +436,16 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
         "installment_no, installment_label, session_label, due_date, base_charge, total_charge, paid_amount, applied_amount, discount_closeout_amount, pending_amount, final_late_fee, balance_status",
       )
       .eq("student_id", receipt.student_id),
+    // Reversals (undo / refund) for this student — narrowed to this receipt's
+    // payments below. Drives the VOID banner. Receipts are append-only, so
+    // "voided" can only ever be derived from adjustments, never stored on the
+    // receipt row.
+    supabase
+      .from("payment_adjustments")
+      .select("payment_id, amount_delta, adjustment_type, reason")
+      .eq("student_id", receipt.student_id)
+      .eq("adjustment_type", "reversal")
+      .order("created_at", { ascending: true }),
   ]);
 
   if (paymentsError) {
@@ -463,6 +474,10 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
 
   if (installmentBalancesError && !installmentBalancesError.message.includes("does not exist")) {
     throw new Error(`Unable to load installment balances receipt context: ${installmentBalancesError.message}`);
+  }
+
+  if (paymentAdjustmentsError && !paymentAdjustmentsError.message.includes("does not exist")) {
+    throw new Error(`Unable to load receipt reversal context: ${paymentAdjustmentsError.message}`);
   }
 
   const breakdown: ReceiptBreakdownItem[] = ((paymentsRaw ?? []) as ReceiptPaymentRow[])
@@ -559,6 +574,23 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
   // base pending so the headline reconciles with the status table.
   const baseOutstanding = installmentStatus.reduce((sum, item) => sum + item.pending, 0);
 
+  // Use the raw payments rows, not `breakdown` — breakdown drops payments whose
+  // installment lookup failed, and a reversal on such a row must still count.
+  const receiptPaymentIds = new Set(
+    ((paymentsRaw ?? []) as ReceiptPaymentRow[]).map((row) => row.id),
+  );
+  const receiptReversals = (
+    (paymentAdjustmentsRaw ?? []) as Array<{
+      payment_id: string;
+      amount_delta: number;
+      adjustment_type: string;
+      reason: string | null;
+    }>
+  ).filter((row) => receiptPaymentIds.has(row.payment_id) && row.amount_delta < 0);
+  const reversedAmount = receiptReversals.reduce((sum, row) => sum + -row.amount_delta, 0);
+  const isVoided = receipt.total_amount > 0 && reversedAmount >= receipt.total_amount;
+  const voidReason = receiptReversals[0]?.reason ?? null;
+
   const conventionalDiscountAssignments: ConventionalDiscountAssignmentSummary[] =
     conventionalDiscountRows.map((row) => {
       const policy = toSingleRecord(row.policy_ref);
@@ -611,5 +643,8 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
     installmentStatus,
     previousReceipts,
     conventionalDiscountAssignments,
+    reversedAmount,
+    isVoided,
+    voidReason,
   };
 }

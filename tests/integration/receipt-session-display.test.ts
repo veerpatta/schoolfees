@@ -136,7 +136,11 @@ function conventionalAssignmentsQuery() {
 function installmentBalancesQuery() {
   return {
     select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+    eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    then(resolve: (value: unknown) => void) {
+      return Promise.resolve({ data: [], error: null }).then(resolve);
+    },
   };
 }
 
@@ -156,6 +160,10 @@ describe("receipt session display", () => {
           return conventionalAssignmentsQuery();
         }
         if (table === "v_workbook_installment_balances") {
+          return installmentBalancesQuery();
+        }
+        // Reversal lookup for the VOID banner — same generic empty-result shape.
+        if (table === "payment_adjustments") {
           return installmentBalancesQuery();
         }
         throw new Error(`Unexpected table ${table}`);

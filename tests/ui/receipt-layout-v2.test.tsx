@@ -202,3 +202,33 @@ describe("ReceiptDocument shim — always renders V2", () => {
     expect(html).not.toContain("Total Fee Due");
   });
 });
+
+describe("ReceiptDocumentV2 — VOID banner for reversed receipts", () => {
+  it("renders the REVERSED watermark and banner when the receipt is voided", () => {
+    const html = renderToStaticMarkup(
+      <ReceiptDocumentV2
+        t={t}
+        receipt={receipt({ isVoided: true, reversedAmount: 5000, voidReason: "Payment undone — accidental posting" })}
+      />,
+    );
+    expect(html).toContain("REVERSED · VOID");
+    expect(html).toContain("reversed in full");
+    expect(html).toContain("Payment undone — accidental posting");
+  });
+
+  it("renders no VOID artifacts for a normal receipt", () => {
+    const html = renderToStaticMarkup(<ReceiptDocumentV2 t={t} receipt={receipt()} />);
+    expect(html).not.toContain("REVERSED · VOID");
+    expect(html).not.toContain("reversed in full");
+  });
+
+  it("partial reversals do not mark the receipt VOID", () => {
+    const html = renderToStaticMarkup(
+      <ReceiptDocumentV2
+        t={t}
+        receipt={receipt({ isVoided: false, reversedAmount: 2000 })}
+      />,
+    );
+    expect(html).not.toContain("REVERSED · VOID");
+  });
+});

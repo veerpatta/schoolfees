@@ -735,6 +735,7 @@
   },
   "Activity": {
     "kindPaymentPosted": "Payment darj hua",
+    "kindPaymentUndone": "Payment undo hua",
     "kindReceiptPrinted": "Receipt print hui",
     "kindStudentEdited": "Bachhe ki info badli",
     "kindStudentView": "Bachha dekha",
