@@ -1248,6 +1248,9 @@ export function PaymentDeskClient({
       setIsSuccessOpen(true);
       setIsDuplicateOpen(false);
       setIsLockedAfterSuccess(true);
+      // Close the mobile payment-entry sheet so the success sheet can never be
+      // layered under it — the cashier must always see the saved-receipt view.
+      setMobileSheetView(null);
       // Audit 1.4 — reset the duplicate acks so the next payment goes through
       // the prompts again rather than silently bypassing.
       setAcknowledgeDailyDuplicate(false);
@@ -2887,6 +2890,25 @@ export function PaymentDeskClient({
               }}
             >
               <ActionNotice state={visibleActionState} canViewDiagnostics={canViewDiagnostics} />
+              {/* Recovery fallback: if the success sheet ever fails to appear
+                  (deploy skew, portal failure), the locked form must still show
+                  proof of the save and a way to start the next payment. */}
+              {isLockedAfterSuccess ? (
+                <div
+                  role="status"
+                  data-post-success-recovery
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-success-soft px-3 py-2.5 text-sm text-success-soft-foreground"
+                >
+                  <span className="font-medium">
+                    {visibleActionState.receiptNumber
+                      ? `Payment saved — Receipt ${visibleActionState.receiptNumber}.`
+                      : "Payment saved."}
+                  </span>
+                  <Button type="button" size="sm" variant="accent" onClick={handleCollectAnotherPayment}>
+                    Collect Another Payment
+                  </Button>
+                </div>
+              ) : null}
               {selectedStudent ? (
                 <PayeeSummaryStrip
                   student={{

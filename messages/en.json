@@ -872,7 +872,7 @@
     "duplicateDetailWithTime": "Receipt {receiptNumber} for {amount} ({mode}) was saved at {time}.",
     "duplicateDetailNoTime": "Receipt {receiptNumber} for {amount} ({mode}) is already saved.",
     "duplicateConfirmDifferent": "I confirm this is a second, different payment — not a repeat of receipt {receiptNumber}.",
-    "duplicateHardStopHint": "Posting the same amount and mode again within 10 minutes is blocked to prevent accidental double entry. If this really is a second payment, wait a few minutes or ask an admin.",
+    "duplicateHardStopHint": "This exact payment was submitted moments ago, so it is blocked to prevent an accidental double entry. Check the receipt above — if this really is a second payment, wait a minute and try again, or ask an admin.",
     "duplicateAdminOverride": "Post anyway (admin override)",
     "modeSheetTitle": "Payment Mode",
     "modeSheetCloseAria": "Close payment mode",

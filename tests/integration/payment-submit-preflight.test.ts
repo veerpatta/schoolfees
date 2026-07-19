@@ -56,8 +56,8 @@ type UniversalClientOptions = {
   counts?: number[];
   /** Row returned by the clientRequestId idempotency lookup (.maybeSingle). */
   existingReceipt?: { id: string; receipt_number: string; total_amount?: number } | null;
-  /** Row returned by the 60-second near-duplicate check. */
-  nearDuplicate?: { id: string; receipt_number: string } | null;
+  /** Row returned by the near-duplicate check (created_at drives the tier). */
+  nearDuplicate?: { id: string; receipt_number: string; created_at?: string } | null;
   /** Row returned by the daily same-amount soft check. */
   dailyDuplicate?: { id: string; receipt_number: string } | null;
   /** Result rows for preview_workbook_payment_allocation. */
@@ -399,6 +399,111 @@ describe("payment submit preflight", () => {
     expect(rpc).not.toHaveBeenCalledWith(
       "post_student_payment_with_adjustments",
       expect.anything(),
+    );
+  });
+
+  // Two-tier near-duplicate block: < 90 s = accidental double-submit (hard,
+  // admin-only override); 90 s – 10 min = soft checkbox-confirmed warning so
+  // staff aren't dead-ended on legitimate repeat collections.
+  it("near-duplicate posted 30s ago stays a hard block even with the daily ack", async () => {
+    const rpc = useClient({
+      counts: [4],
+      previewRows: [previewRow()],
+      nearDuplicate: {
+        id: "00000000-0000-4000-8000-000000000301",
+        receipt_number: "SVP20260425-0001",
+        created_at: new Date(Date.now() - 30_000).toISOString(),
+      },
+    });
+
+    const { postStudentPayment, DuplicatePaymentWarning } = await import("@/lib/payments/data");
+
+    await expect(
+      postStudentPayment({
+        studentId: "00000000-0000-4000-8000-000000000001",
+        paymentDate: "2026-04-25",
+        paymentMode: "cash",
+        paymentAmount: 1500,
+        referenceNumber: null,
+        remarks: null,
+        receivedBy: "Admin",
+        clientRequestId: "00000000-0000-4000-8000-000000000901",
+        acknowledgeDailyDuplicate: true,
+      }),
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof DuplicatePaymentWarning && error.kind === "near-duplicate",
+    );
+    expect(rpc).not.toHaveBeenCalledWith(
+      "post_student_payment_with_adjustments",
+      expect.anything(),
+    );
+  });
+
+  it("near-duplicate posted 5 minutes ago downgrades to the soft daily-amount warning", async () => {
+    useClient({
+      counts: [4],
+      previewRows: [previewRow()],
+      nearDuplicate: {
+        id: "00000000-0000-4000-8000-000000000301",
+        receipt_number: "SVP20260425-0001",
+        created_at: new Date(Date.now() - 5 * 60_000).toISOString(),
+      },
+    });
+
+    const { postStudentPayment, DuplicatePaymentWarning } = await import("@/lib/payments/data");
+
+    await expect(
+      postStudentPayment({
+        studentId: "00000000-0000-4000-8000-000000000001",
+        paymentDate: "2026-04-25",
+        paymentMode: "cash",
+        paymentAmount: 1500,
+        referenceNumber: null,
+        remarks: null,
+        receivedBy: "Admin",
+        clientRequestId: "00000000-0000-4000-8000-000000000901",
+      }),
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof DuplicatePaymentWarning && error.kind === "daily-amount",
+    );
+  });
+
+  it("near-duplicate posted 5 minutes ago posts once the staffer confirms via the daily ack", async () => {
+    const rpc = useClient({
+      counts: [4],
+      previewRows: [previewRow()],
+      nearDuplicate: {
+        id: "00000000-0000-4000-8000-000000000301",
+        receipt_number: "SVP20260425-0001",
+        created_at: new Date(Date.now() - 5 * 60_000).toISOString(),
+      },
+      postResult: {
+        receipt_id: "00000000-0000-4000-8000-000000000202",
+        receipt_number: "SVP20260425-0002",
+        allocated_total: 1500,
+      },
+    });
+
+    const { postStudentPayment } = await import("@/lib/payments/data");
+
+    const receipt = await postStudentPayment({
+      studentId: "00000000-0000-4000-8000-000000000001",
+      paymentDate: "2026-04-25",
+      paymentMode: "cash",
+      paymentAmount: 1500,
+      referenceNumber: null,
+      remarks: null,
+      receivedBy: "Admin",
+      clientRequestId: "00000000-0000-4000-8000-000000000901",
+      acknowledgeDailyDuplicate: true,
+    });
+
+    expect(receipt.receiptNumber).toBe("SVP20260425-0002");
+    expect(rpc).toHaveBeenLastCalledWith(
+      "post_student_payment_with_adjustments",
+      expect.any(Object),
     );
   });
 

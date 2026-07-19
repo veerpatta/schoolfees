@@ -63,6 +63,9 @@ describe("postStudentPayment wires the soft daily-amount check (audit 1.4)", () 
     // slipped through — it must never come back.
     expect(body).not.toMatch(/\.eq\("payment_date"/);
     expect(source).toMatch(/NEAR_DUPLICATE_WINDOW_MS = 10 \* 60_000/);
+    // Two-tier: only sub-90s matches stay a hard block; older ones downgrade
+    // to the checkbox-confirmed soft warning so staff have recourse.
+    expect(source).toMatch(/NEAR_DUPLICATE_HARD_WINDOW_MS = 90_000/);
   });
 
   it("threads acknowledgeDailyDuplicate through postStudentPayment", () => {
