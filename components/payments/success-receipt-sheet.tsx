@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { CountUp } from "@/components/ui/count-up";
+import { SuccessCheckMark } from "@/components/payments/success-check-mark";
 import { formatInr } from "@/lib/helpers/currency";
 import { cn } from "@/lib/utils";
 
@@ -63,6 +65,16 @@ export function SuccessReceiptSheet({
   onUndoPayment,
 }: SuccessReceiptSheetProps) {
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
+  // Read once on mount rather than via a live listener: the sheet is a
+  // short-lived, fire-once surface, and a mid-animation preference flip is
+  // not a case worth extra state for. The CSS animations are silenced by the
+  // global reduced-motion block regardless; this only governs the JS count-up.
+  const [prefersReducedMotion] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
   const [undoState, setUndoState] = useState<
     "idle" | "confirming" | "working" | "done" | "error"
   >("idle");
@@ -102,11 +114,9 @@ export function SuccessReceiptSheet({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 px-2 md:items-center md:px-4">
       <div className="max-h-[92vh] w-full anim-slide-up animate-bottom-sheet-up overflow-y-auto rounded-t-2xl border border-success/30 bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-xl md:rounded-xl md:p-5">
-        <div className="flex items-center gap-2">
-          <span className="inline-flex size-7 anim-scale-in animate-success-check items-center justify-center rounded-full bg-success-soft text-success-soft-foreground">
-            ✓
-          </span>
-          <div>
+        <div className="flex items-center gap-2.5">
+          <SuccessCheckMark />
+          <div className="anim-settle-in" style={{ animationDelay: "160ms" }}>
             <h2 className="text-lg font-semibold text-foreground">Payment Successful</h2>
             <p className="text-sm text-muted-foreground">Receipt has been saved</p>
           </div>
@@ -116,11 +126,19 @@ export function SuccessReceiptSheet({
           SAVED · Receipt {receiptNumber} / सहेजा गया
         </span>
 
-        <div className="mt-4 rounded-xl border border-border bg-surface-2 px-4 py-3">
+        <div
+          className="mt-4 rounded-xl border border-border bg-surface-2 px-4 py-3 anim-settle-in"
+          style={{ animationDelay: "300ms" }}
+        >
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Receipt No
           </p>
-          <p className="mt-1 break-words text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
+          <p
+            className="mt-1 break-words text-2xl sm:text-3xl font-semibold tracking-tight text-foreground"
+            /* Carries the receipt identity across to the receipt page when the
+               browser supports view transitions (see startReceiptViewTransition). */
+            style={{ viewTransitionName: "receipt-number" } as React.CSSProperties}
+          >
             {receiptNumber}
           </p>
           {receiptId ? (
@@ -138,10 +156,18 @@ export function SuccessReceiptSheet({
           </p>
           <p className="mt-1 text-muted-foreground">Received by: {receivedBy || "-"}</p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div>
+            <div className="anim-settle-in" style={{ animationDelay: "420ms" }}>
               <p className="text-xs text-muted-foreground">Amount received</p>
               <p className="text-2xl font-semibold text-accent">
-                {formatInr(amountReceived)}
+                {/* Lands rather than blinks. Under reduced motion CountUp is
+                    given its final value up front (startFrom), so the figure
+                    is correct and static. */}
+                <CountUp
+                  value={amountReceived}
+                  format="inr"
+                  duration={480}
+                  startFrom={prefersReducedMotion ? amountReceived : 0}
+                />
               </p>
             </div>
             <div>
