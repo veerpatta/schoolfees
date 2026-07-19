@@ -22,6 +22,12 @@ export type PaymentEntryActionState = {
   syncOutcome?: OfficeSyncOutcome | null;
   /** Audit 1.4 — distinguish near-duplicate (hard) from daily-amount (soft override). */
   duplicateKind?: DuplicatePaymentKind | null;
+  /** Details of the receipt a duplicate warning matched, so the sheet can show
+   * "Receipt SVP-NNNN for ₹N (Cash) was saved at HH:MM". Optional so in-flight
+   * clients from an older deploy degrade gracefully. */
+  existingReceiptCreatedAt?: string | null;
+  existingReceiptAmount?: number | null;
+  existingReceiptMode?: string | null;
 };
 
 export const INITIAL_PAYMENT_ENTRY_ACTION_STATE: PaymentEntryActionState = {

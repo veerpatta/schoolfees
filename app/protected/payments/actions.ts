@@ -127,6 +127,9 @@ function toActionStateError(error: unknown, clientRequestId?: string | null): Pa
       remainingBalance: null,
       diagnostic: null,
       duplicateKind: error.kind,
+      existingReceiptCreatedAt: error.existingCreatedAt,
+      existingReceiptAmount: error.existingAmount,
+      existingReceiptMode: error.existingMode,
     };
   }
 
@@ -220,6 +223,14 @@ export async function submitPaymentEntryAction(
     const acknowledgeDailyDuplicate =
       (formData.get("acknowledgeDailyDuplicate") ?? "").toString() === "true";
 
+    // Admin-only bypass of the 10-minute hard near-duplicate block. The
+    // permission check here is what makes the data-layer flag trustworthy.
+    const acknowledgeNearDuplicate =
+      (formData.get("acknowledgeNearDuplicate") ?? "").toString() === "true";
+    if (acknowledgeNearDuplicate) {
+      await requireStaffPermission("payments:adjust");
+    }
+
     // A1 — permanent late-fee waiver. When the cashier ticks "waive late fee",
     // persist it to the student's fee override via the proven `waive_late_fee`
     // RPC FIRST, then post the payment with no per-receipt writeoff. This makes
@@ -287,6 +298,7 @@ export async function submitPaymentEntryAction(
       receivedBy,
       clientRequestId,
       acknowledgeDailyDuplicate,
+      acknowledgeNearDuplicate,
       collectionContext,
     });
     const _tAfterPost = Date.now();

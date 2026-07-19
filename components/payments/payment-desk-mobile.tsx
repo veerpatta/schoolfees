@@ -107,6 +107,8 @@ export type PaymentDeskMobileProps = {
   canPost: boolean;
   canViewDiagnostics: boolean;
   canWaiveLateFee: boolean;
+  /** Admin (payments:adjust) — may bypass the 10-minute near-duplicate block. */
+  canOverrideNearDuplicate?: boolean;
   classOptions: Array<{ id: string; label: string }>;
   workflowGuard: {
     title: string;
@@ -271,6 +273,7 @@ export function PaymentDeskClient({
   canPost,
   canViewDiagnostics,
   canWaiveLateFee,
+  canOverrideNearDuplicate = false,
   classOptions,
   workflowGuard,
   initialState,
@@ -325,6 +328,9 @@ export function PaymentDeskClient({
   // duplicate prompt. Persists for one resubmit, then resets on the next
   // success or after the user clears the form.
   const [acknowledgeDailyDuplicate, setAcknowledgeDailyDuplicate] = useState(false);
+  // Admin-only near-duplicate override — same one-resubmit lifecycle as the
+  // daily ack above; the server re-checks payments:adjust before honoring it.
+  const [acknowledgeNearDuplicate, setAcknowledgeNearDuplicate] = useState(false);
   const [isLockedAfterSuccess, setIsLockedAfterSuccess] = useState(false);
   const [lastPrintMode, setLastPrintMode] = useState<"yes" | "no">("no");
   const [mounted, setMounted] = useState(false);
@@ -927,7 +933,20 @@ export function PaymentDeskClient({
   const latestReceiptToday = (() => {
     if (!latestStudentReceipt) return null;
     if (latestStudentReceipt.studentId !== selectedStudentId) return null;
-    if (latestStudentReceipt.paymentDate !== paymentDate) return null;
+    // Match on the entered payment date OR on when the receipt was actually
+    // posted: the 2026-07 live duplicates were re-entries whose first receipt
+    // was backdated, so a payment_date-only comparison hid the warning banner.
+    const postedToday = (() => {
+      if (!latestStudentReceipt.createdAt) return false;
+      const created = new Date(latestStudentReceipt.createdAt);
+      const now = new Date();
+      return (
+        created.getFullYear() === now.getFullYear() &&
+        created.getMonth() === now.getMonth() &&
+        created.getDate() === now.getDate()
+      );
+    })();
+    if (latestStudentReceipt.paymentDate !== paymentDate && !postedToday) return null;
     return latestStudentReceipt;
   })();
   const latestStudentPaymentAmount =
@@ -1222,9 +1241,10 @@ export function PaymentDeskClient({
       setIsSuccessOpen(true);
       setIsDuplicateOpen(false);
       setIsLockedAfterSuccess(true);
-      // Audit 1.4 — reset the daily-duplicate ack so the next payment goes
-      // through the soft prompt again rather than silently bypassing.
+      // Audit 1.4 — reset the duplicate acks so the next payment goes through
+      // the prompts again rather than silently bypassing.
       setAcknowledgeDailyDuplicate(false);
+      setAcknowledgeNearDuplicate(false);
       setFormError(null);
       return;
     }
@@ -1758,6 +1778,7 @@ export function PaymentDeskClient({
     setIsSuccessOpen(false);
     setIsDuplicateOpen(false);
     setAcknowledgeDailyDuplicate(false);
+    setAcknowledgeNearDuplicate(false);
     setStudentSearchQuery("");
     setSelectedStudentId("");
     setSelectedStudent(null);
@@ -2885,6 +2906,11 @@ export function PaymentDeskClient({
                   name="acknowledgeDailyDuplicate"
                   value={acknowledgeDailyDuplicate ? "true" : "false"}
                 />
+                <input
+                  type="hidden"
+                  name="acknowledgeNearDuplicate"
+                  value={acknowledgeNearDuplicate ? "true" : "false"}
+                />
 
                 {studentSummaryLoading ? (
                   <p className="rounded-md bg-info-soft px-2 py-1 text-xs text-info-soft-foreground">Loading dues...</p>
@@ -3205,8 +3231,13 @@ export function PaymentDeskClient({
                       receiptId={visibleActionState.receiptId ?? ""}
                       receiptNumber={visibleActionState.receiptNumber}
                       kind={visibleActionState.duplicateKind ?? "near-duplicate"}
+                      existingCreatedAt={visibleActionState.existingReceiptCreatedAt ?? null}
+                      existingAmount={visibleActionState.existingReceiptAmount ?? null}
+                      existingMode={visibleActionState.existingReceiptMode ?? null}
+                      canOverrideNearDuplicate={canOverrideNearDuplicate}
                       onCollectAnother={() => {
                         setAcknowledgeDailyDuplicate(false);
+                        setAcknowledgeNearDuplicate(false);
                         handleCollectAnotherPayment();
                       }}
                       onContinueAnyway={() => {
@@ -3230,6 +3261,32 @@ export function PaymentDeskClient({
                           );
                           if (ackInput) {
                             ackInput.value = "true";
+                          }
+                          fastPostRequestedRef.current = true;
+                          form.requestSubmit();
+                        }
+                      }}
+                      onOverrideNearDuplicate={() => {
+                        // Same DOM-imperative flush as onContinueAnyway. Sets
+                        // BOTH acks: after bypassing the hard block, the soft
+                        // daily-amount check would otherwise fire on the same
+                        // receipt and stop the admin a second time.
+                        setAcknowledgeNearDuplicate(true);
+                        setAcknowledgeDailyDuplicate(true);
+                        setIsDuplicateOpen(false);
+                        setDismissedActionStateKey(actionStateKey);
+                        const form = document.getElementById(formId) as HTMLFormElement | null;
+                        if (form) {
+                          for (const name of [
+                            "acknowledgeNearDuplicate",
+                            "acknowledgeDailyDuplicate",
+                          ]) {
+                            const ackInput = form.querySelector<HTMLInputElement>(
+                              `input[name="${name}"]`,
+                            );
+                            if (ackInput) {
+                              ackInput.value = "true";
+                            }
                           }
                           fastPostRequestedRef.current = true;
                           form.requestSubmit();

@@ -41,15 +41,28 @@ describe("postStudentPayment wires the soft daily-amount check (audit 1.4)", () 
 
   it("defines findLikelyDailyDuplicateReceipt with no mode/reference predicate", () => {
     expect(source).toContain("async function findLikelyDailyDuplicateReceipt");
-    // The whole point — no mode/reference clause, just student + date + amount.
+    // The whole point — no mode/reference clause, just student + amount, with
+    // the date matched EITHER on payment_date OR on posted-recently
+    // (created_at): the 2026-07 live duplicates were re-entries whose second
+    // post carried a different payment_date, so a payment_date-only predicate
+    // missed them.
     const fn = source.slice(source.indexOf("async function findLikelyDailyDuplicateReceipt"));
     const body = fn.slice(0, fn.indexOf("\nasync function"));
     expect(body).toMatch(/\.eq\("student_id"/);
-    expect(body).toMatch(/\.eq\("payment_date"/);
     expect(body).toMatch(/\.eq\("total_amount"/);
+    expect(body).toMatch(/\.or\(`payment_date\.eq\.\$\{payload\.paymentDate\},created_at\.gte\./);
     expect(body).not.toMatch(/\.eq\("payment_mode"/);
     expect(body).not.toMatch(/\.eq\("reference_number"/);
-    expect(body).not.toMatch(/recentCutoff|gte\("created_at"/);
+  });
+
+  it("hard near-duplicate check matches on posting time, not the entered payment_date", () => {
+    const fn = source.slice(source.indexOf("async function findLikelyDuplicateReceipt"));
+    const body = fn.slice(0, fn.indexOf("\nexport async function"));
+    expect(body).toMatch(/gte\("created_at"/);
+    // Matching on the entered date is exactly the hole the live duplicates
+    // slipped through — it must never come back.
+    expect(body).not.toMatch(/\.eq\("payment_date"/);
+    expect(source).toMatch(/NEAR_DUPLICATE_WINDOW_MS = 10 \* 60_000/);
   });
 
   it("threads acknowledgeDailyDuplicate through postStudentPayment", () => {
@@ -60,6 +73,11 @@ describe("postStudentPayment wires the soft daily-amount check (audit 1.4)", () 
     // parallel read is short-circuited to null instead of querying receipts.
     expect(fn).toMatch(/payload\.acknowledgeDailyDuplicate\s*\?\s*Promise\.resolve\(null\)/);
     expect(fn).toMatch(/kind: "daily-amount"/);
+  });
+
+  it("threads the admin-only acknowledgeNearDuplicate bypass through postStudentPayment", () => {
+    const fn = source.slice(source.indexOf("export async function postStudentPayment"));
+    expect(fn).toMatch(/payload\.acknowledgeNearDuplicate\s*\?\s*Promise\.resolve\(null\)/);
   });
 });
 
@@ -76,6 +94,19 @@ describe("submitPaymentEntryAction passes acknowledgeDailyDuplicate (audit 1.4)"
 
   it("returns the warning kind in the action state so the UI can render the right CTA", () => {
     expect(source).toContain("duplicateKind: error.kind");
+  });
+
+  it("returns the matched receipt's details so the sheet can show what was already saved", () => {
+    expect(source).toContain("existingReceiptCreatedAt: error.existingCreatedAt");
+    expect(source).toContain("existingReceiptAmount: error.existingAmount");
+    expect(source).toContain("existingReceiptMode: error.existingMode");
+  });
+
+  it("gates the near-duplicate bypass behind payments:adjust before forwarding it", () => {
+    expect(source).toContain('formData.get("acknowledgeNearDuplicate")');
+    const ackIdx = source.indexOf("const acknowledgeNearDuplicate");
+    const guarded = source.slice(ackIdx, ackIdx + 400);
+    expect(guarded).toContain('requireStaffPermission("payments:adjust")');
   });
 });
 
