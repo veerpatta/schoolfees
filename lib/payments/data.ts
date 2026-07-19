@@ -1723,6 +1723,42 @@ export async function postStudentPayment(payload: {
   };
 }
 
+/**
+ * Admin-only undo of a just-posted payment (10-minute window, enforced by the
+ * undo_recent_payment RPC). Posts full-amount reversal adjustments — receipts
+ * and payments rows are never mutated.
+ *
+ * MUST run on the user-JWT client: the RPC's first guard is
+ * has_permission('payments:adjust'), which is always false under the
+ * service-role client (auth.uid() is null there).
+ */
+export async function undoRecentPayment(payload: { receiptId: string; reason?: string | null }) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("undo_recent_payment", {
+    p_receipt_id: payload.receiptId,
+    p_reason: payload.reason ?? null,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Could not undo the payment.");
+  }
+
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { receipt_id: string; receipt_number: string; reversed_amount: number }
+    | null
+    | undefined;
+
+  if (!row?.receipt_id) {
+    throw new Error("Undo did not return a result. Check the receipt before retrying.");
+  }
+
+  return {
+    receiptId: row.receipt_id,
+    receiptNumber: row.receipt_number,
+    reversedAmount: row.reversed_amount,
+  };
+}
+
 async function findReceiptByClientRequestId(payload: {
   studentId: string;
   clientRequestId: string;

@@ -30,6 +30,10 @@ type SuccessReceiptSheetProps = {
   visibleReceiptHref: string;
   autoPrint: boolean;
   onCollectAnother: () => void;
+  /** Admin (payments:adjust): allow undoing this just-posted payment. */
+  canUndo?: boolean;
+  /** Runs the undo server action; resolves with the outcome message. */
+  onUndoPayment?: () => Promise<{ ok: boolean; message: string }>;
 };
 
 export function SuccessReceiptSheet({
@@ -55,8 +59,14 @@ export function SuccessReceiptSheet({
   visibleReceiptHref,
   autoPrint,
   onCollectAnother,
+  canUndo = false,
+  onUndoPayment,
 }: SuccessReceiptSheetProps) {
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
+  const [undoState, setUndoState] = useState<
+    "idle" | "confirming" | "working" | "done" | "error"
+  >("idle");
+  const [undoMessage, setUndoMessage] = useState<string | null>(null);
   const autoPrintOpenedRef = useRef(false);
 
   useEffect(() => {
@@ -216,6 +226,62 @@ export function SuccessReceiptSheet({
                   >
                     {copyStatus === "copied" ? "Copied ✓" : "Copy WhatsApp Message"}
                   </Button>
+                ) : null}
+                {canUndo && onUndoPayment && undoState !== "done" ? (
+                  <div className="col-span-2 rounded-lg border border-destructive/30 bg-destructive/5 p-2">
+                    {undoState === "confirming" || undoState === "working" ? (
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm text-foreground">
+                          Reverse receipt {receiptNumber} in full? This cannot be re-done from here.
+                        </p>
+                        <span className="flex gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            disabled={undoState === "working"}
+                            onClick={async () => {
+                              setUndoState("working");
+                              const result = await onUndoPayment();
+                              setUndoMessage(result.message);
+                              setUndoState(result.ok ? "done" : "error");
+                            }}
+                          >
+                            {undoState === "working" ? "Undoing..." : "Yes, undo"}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            disabled={undoState === "working"}
+                            onClick={() => setUndoState("idle")}
+                          >
+                            Cancel
+                          </Button>
+                        </span>
+                      </div>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="w-full text-destructive"
+                        onClick={() => setUndoState("confirming")}
+                      >
+                        Undo this payment (Admin, within 10 min)
+                      </Button>
+                    )}
+                    {undoState === "error" && undoMessage ? (
+                      <p className="mt-1 text-xs text-destructive">{undoMessage}</p>
+                    ) : null}
+                  </div>
+                ) : null}
+                {undoState === "done" ? (
+                  <p
+                    role="status"
+                    className="col-span-2 rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground"
+                  >
+                    {undoMessage ?? `Receipt ${receiptNumber} reversed.`}
+                  </p>
                 ) : null}
               </div>
             </details>

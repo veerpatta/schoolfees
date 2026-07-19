@@ -112,4 +112,11 @@ export type ReceiptDetail = {
   installmentStatus: ReceiptInstallmentStatusItem[];
   previousReceipts: ReceiptHistoryItem[];
   conventionalDiscountAssignments: ConventionalDiscountAssignmentSummary[];
+  /** Total money reversed off this receipt via payment_adjustments (positive).
+   * Optional — draft previews and older fixtures don't carry reversal context. */
+  reversedAmount?: number;
+  /** True when reversals cancel the receipt in full (undo or full refund). */
+  isVoided?: boolean;
+  /** Reason of the first reversal adjustment, for the VOID banner. */
+  voidReason?: string | null;
 };

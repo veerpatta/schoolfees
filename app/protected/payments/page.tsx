@@ -20,6 +20,7 @@ import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/sessi
 import {
   repairPaymentDeskStudentDuesAction,
   submitPaymentEntryAction,
+  undoRecentPaymentAction,
 } from "./actions";
 
 type PaymentsPageProps = {
@@ -151,6 +152,8 @@ async function PaymentDeskDataLoader({
           canViewDiagnostics={staff.appRole === "admin"}
           canWaiveLateFee={hasStaffPermission(staff, "payments:waive_late_fee")}
           canOverrideNearDuplicate={hasStaffPermission(staff, "payments:adjust")}
+          canUndoPayment={hasStaffPermission(staff, "payments:adjust")}
+          undoRecentPaymentAction={undoRecentPaymentAction}
           classOptions={classOptions}
           workflowGuard={blockingReason}
           initialState={INITIAL_PAYMENT_ENTRY_ACTION_STATE}
@@ -212,6 +215,8 @@ async function PaymentDeskDataLoader({
         canViewDiagnostics={staff.appRole === "admin"}
         canWaiveLateFee={hasStaffPermission(staff, "payments:waive_late_fee")}
         canOverrideNearDuplicate={hasStaffPermission(staff, "payments:adjust")}
+        canUndoPayment={hasStaffPermission(staff, "payments:adjust")}
+        undoRecentPaymentAction={undoRecentPaymentAction}
         classOptions={classOptions}
         workflowGuard={blockingReason}
         initialState={INITIAL_PAYMENT_ENTRY_ACTION_STATE}

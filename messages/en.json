@@ -735,6 +735,7 @@
   },
   "Activity": {
     "kindPaymentPosted": "Payment posted",
+    "kindPaymentUndone": "Payment undone",
     "kindReceiptPrinted": "Receipt printed",
     "kindStudentEdited": "Student edited",
     "kindStudentView": "Student viewed",

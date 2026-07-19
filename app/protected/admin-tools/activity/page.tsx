@@ -26,6 +26,7 @@ const TONE_CLASS: Record<"success" | "info" | "warning" | "muted", string> = {
 
 const ACTIVITY_KIND_I18N: Record<ActivityKind, string> = {
   payment_posted: "kindPaymentPosted",
+  payment_undone: "kindPaymentUndone",
   receipt_printed: "kindReceiptPrinted",
   student_edited: "kindStudentEdited",
   student_view: "kindStudentView",

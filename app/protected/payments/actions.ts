@@ -12,6 +12,7 @@ import {
   getPaymentPostingDiagnostic,
   postStudentPayment,
   toFriendlyPaymentPostingError,
+  undoRecentPayment,
 } from "@/lib/payments/data";
 import type { PaymentCollectionContext, PaymentEntryActionState } from "@/lib/payments/types";
 import { createClient } from "@/lib/supabase/server";
@@ -378,6 +379,74 @@ export async function submitPaymentEntryAction(
       `[payment-post] fail total=${Date.now() - _t0}ms pre=${_tBeforePost - _t0}ms`,
     );
     return toActionStateError(error, clientRequestId);
+  }
+}
+
+export type UndoPaymentActionResult = {
+  ok: boolean;
+  message: string;
+  receiptNumber?: string;
+  reversedAmount?: number;
+};
+
+/**
+ * Admin-only: reverse a just-posted receipt in full within 10 minutes.
+ * Defense-in-depth: permission is checked here AND inside the RPC
+ * (has_permission('payments:adjust')).
+ */
+export async function undoRecentPaymentAction(
+  formData: FormData,
+): Promise<UndoPaymentActionResult> {
+  try {
+    const staffSession = await requireStaffPermission("payments:adjust");
+    const receiptId = parseUuid(formData.get("receiptId"), "Receipt");
+    const studentId = parseUuid(formData.get("studentId"), "Student");
+    const sessionLabel = parseSessionLabel(formData.get("sessionLabel"));
+    const reason = (formData.get("reason") ?? "").toString().trim() || null;
+
+    const result = await undoRecentPayment({ receiptId, reason });
+
+    revalidateSessionFinance(sessionLabel, [studentId]);
+    revalidateAfterPaymentPosting([studentId]);
+
+    after(async () => {
+      await publishOfficeSyncEvent({
+        sessionLabel,
+        entityType: "payment",
+        entityId: receiptId,
+        action: "undone",
+        affectedStudentIds: [studentId],
+        metadata: {
+          receiptNumber: result.receiptNumber,
+          reversedAmount: result.reversedAmount,
+        },
+      });
+
+      await recordActivity({
+        userId: (staffSession?.id as string | undefined) ?? null,
+        kind: "payment_undone",
+        refId: receiptId,
+        payload: {
+          studentId,
+          receiptNumber: result.receiptNumber,
+          reversedAmount: result.reversedAmount,
+          sessionLabel,
+          reason,
+        },
+      });
+    });
+
+    return {
+      ok: true,
+      message: `Receipt ${result.receiptNumber} reversed in full (₹${result.reversedAmount.toLocaleString("en-IN")}).`,
+      receiptNumber: result.receiptNumber,
+      reversedAmount: result.reversedAmount,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Could not undo the payment.",
+    };
   }
 }
 

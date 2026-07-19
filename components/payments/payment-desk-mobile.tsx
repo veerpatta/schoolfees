@@ -109,6 +109,11 @@ export type PaymentDeskMobileProps = {
   canWaiveLateFee: boolean;
   /** Admin (payments:adjust) — may bypass the 10-minute near-duplicate block. */
   canOverrideNearDuplicate?: boolean;
+  /** Admin (payments:adjust) — may undo a just-posted payment (10-min window). */
+  canUndoPayment?: boolean;
+  undoRecentPaymentAction?: (
+    formData: FormData,
+  ) => Promise<{ ok: boolean; message: string }>;
   classOptions: Array<{ id: string; label: string }>;
   workflowGuard: {
     title: string;
@@ -274,6 +279,8 @@ export function PaymentDeskClient({
   canViewDiagnostics,
   canWaiveLateFee,
   canOverrideNearDuplicate = false,
+  canUndoPayment = false,
+  undoRecentPaymentAction,
   classOptions,
   workflowGuard,
   initialState,
@@ -1743,6 +1750,34 @@ export function PaymentDeskClient({
     setIsConfirmOpen(true);
   }
 
+
+  async function handleUndoJustPostedPayment(): Promise<{ ok: boolean; message: string }> {
+    if (!undoRecentPaymentAction || !visibleActionState.receiptId || !visibleActionState.studentId) {
+      return { ok: false, message: "Undo is not available right now." };
+    }
+    const formData = new FormData();
+    formData.set("receiptId", visibleActionState.receiptId);
+    formData.set("studentId", visibleActionState.studentId);
+    formData.set("sessionLabel", data.sessionLabel);
+    formData.set("reason", "Payment undone from Payment Desk right after posting");
+    const result = await undoRecentPaymentAction(formData);
+    if (result.ok) {
+      // Roll back the optimistic today-collection counters and drop the stale
+      // summary cache so the next lookup shows the restored pending amount.
+      const amount = visibleActionState.amountReceived ?? 0;
+      if (amount > 0) {
+        setOptimisticCollectionAdd((prev) => prev - amount);
+        setOptimisticReceiptAdd((prev) => Math.max(prev - 1, 0));
+      }
+      const postedCacheKey = buildStudentSummaryCacheKey(
+        visibleActionState.studentId,
+        visibleActionState.paymentDate ?? paymentDate,
+      );
+      summaryCache.current.delete(postedCacheKey);
+      cardOnlyCache.current.delete(postedCacheKey);
+    }
+    return result;
+  }
 
   function handleCollectAnotherPayment() {
     // Prefetch the next student in the filtered list
@@ -3218,6 +3253,8 @@ export function PaymentDeskClient({
                       visibleReceiptHref={visibleReceiptHref}
                       autoPrint={lastPrintMode === "yes"}
                       onCollectAnother={handleCollectAnotherPayment}
+                      canUndo={canUndoPayment}
+                      onUndoPayment={handleUndoJustPostedPayment}
                     />,
                     document.body,
                   )
