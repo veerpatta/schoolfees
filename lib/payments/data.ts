@@ -1673,7 +1673,28 @@ export async function postStudentPayment(payload: {
   }
 
   if (duplicateResult.value) {
-    throw new DuplicatePaymentWarning(duplicateResult.value, { kind: "near-duplicate" });
+    // Two-tier block: a match posted moments ago (< 90 s) is almost certainly
+    // an accidental double-submit — hard block, admin-only override. An older
+    // match inside the 10-minute window can be a legitimate repeat collection,
+    // so it downgrades to the soft daily-amount kind: every staff member can
+    // proceed after ticking the explicit "second, different payment" checkbox
+    // (acknowledgeDailyDuplicate).
+    const matchAgeMs = duplicateResult.value.createdAt
+      ? Date.now() - new Date(duplicateResult.value.createdAt).getTime()
+      : 0;
+    const isInstantRepeat = matchAgeMs < NEAR_DUPLICATE_HARD_WINDOW_MS;
+
+    if (isInstantRepeat) {
+      throw new DuplicatePaymentWarning(duplicateResult.value, { kind: "near-duplicate" });
+    }
+
+    if (!payload.acknowledgeDailyDuplicate) {
+      throw new DuplicatePaymentWarning(duplicateResult.value, {
+        kind: "daily-amount",
+        amount: payload.paymentAmount,
+        paymentDate: payload.paymentDate,
+      });
+    }
   }
 
   if (dailyDuplicateResult.status === "rejected") {
@@ -1847,6 +1868,13 @@ function toDuplicateReceiptMatch(row: unknown): DuplicateReceiptMatch | null {
  * payment_date.
  */
 const NEAR_DUPLICATE_WINDOW_MS = 10 * 60_000;
+/**
+ * Matches younger than this are treated as an accidental instant double-submit
+ * (hard block, admin-only override). Older matches inside the 10-minute window
+ * downgrade to the soft checkbox-confirmed warning so staff aren't dead-ended
+ * on legitimate repeat collections.
+ */
+const NEAR_DUPLICATE_HARD_WINDOW_MS = 90_000;
 /** Daily-amount soft check also flags receipts POSTED in the last 24h. */
 const DAILY_DUPLICATE_CREATED_WINDOW_MS = 24 * 60 * 60_000;
 
