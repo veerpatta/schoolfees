@@ -40,7 +40,7 @@ describe("mobile UX roadmap implementation", () => {
     const paymentDesk = readRepoFile("components/payments/payment-desk-mobile.tsx");
     const mobileSheet = readRepoFile("components/payments/mobile-payment-flow-sheet.tsx");
 
-    expect(paymentDesk).toContain("triggerHaptic([50, 30, 80])");
+    expect(paymentDesk).toContain(`triggerHaptic("success")`);
     expect(mobileSheet).toContain("min-h-11 min-w-[4rem]");
     expect(mobileSheet).toContain("text-center text-3xl font-bold text-accent");
     expect(mobileSheet).toContain("pattern=\"[0-9]*\"");

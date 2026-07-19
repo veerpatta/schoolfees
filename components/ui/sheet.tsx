@@ -41,6 +41,12 @@ type SheetProps = ComponentPropsWithoutRef<"div"> & {
   lockScroll?: boolean;
   /** Sheet height for bottom sheets. Default: "full" (92dvh). */
   size?: SheetSize;
+  /**
+   * Make the Android/browser back gesture close this sheet instead of leaving
+   * the page. Opt-in per call site so sheets that are themselves a navigation
+   * step (rare) can keep the default behavior.
+   */
+  historyDismiss?: boolean;
   children: ReactNode;
 };
 
@@ -79,6 +85,11 @@ export function releaseAllSheetScrollLocks() {
   previousHtmlOverflow = "";
 }
 
+/** Marker written into history.state so we only react to our own entries —
+ * the App Router pushes its own states and must not be mistaken for a sheet. */
+const SHEET_HISTORY_MARKER = "__vppsSheet";
+let sheetHistorySeq = 0;
+
 export function Sheet({
   open,
   onClose,
@@ -87,15 +98,69 @@ export function Sheet({
   side = "bottom",
   lockScroll = true,
   size = "full",
+  historyDismiss = true,
   className,
   children,
   ...props
 }: SheetProps) {
+  /**
+   * Back-button integration. On open we push a marker entry; a popstate that
+   * removes it closes the sheet. Any OTHER dismissal (Escape, X, backdrop,
+   * swipe) must pop our own entry with history.back(), otherwise phantom
+   * entries pile up and the back button appears dead for the next few presses.
+   * `closingFromPopstateRef` keeps those two paths from cancelling each other.
+   */
+  const closingFromPopstateRef = useRef(false);
+  const pushedHistoryRef = useRef(false);
+
+  const closeWithHistory = useCallback(() => {
+    if (historyDismiss && pushedHistoryRef.current && !closingFromPopstateRef.current) {
+      // Popping our entry fires popstate, which runs onClose for us.
+      pushedHistoryRef.current = false;
+      window.history.back();
+      return;
+    }
+    onClose();
+  }, [historyDismiss, onClose]);
+
+  useEffect(() => {
+    if (!open || !historyDismiss) return;
+    if (typeof window === "undefined") return;
+
+    sheetHistorySeq += 1;
+    const entryId = sheetHistorySeq;
+    window.history.pushState(
+      { ...(window.history.state ?? {}), [SHEET_HISTORY_MARKER]: entryId },
+      "",
+    );
+    pushedHistoryRef.current = true;
+
+    const onPopState = (event: PopStateEvent) => {
+      const stillOurs = (event.state as Record<string, unknown> | null)?.[SHEET_HISTORY_MARKER];
+      if (stillOurs === entryId) return;
+      pushedHistoryRef.current = false;
+      closingFromPopstateRef.current = true;
+      onClose();
+      closingFromPopstateRef.current = false;
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      // Unmounted without a popstate (parent flipped `open`, or navigated
+      // away) — clean up the entry we own so history stays balanced.
+      if (pushedHistoryRef.current) {
+        pushedHistoryRef.current = false;
+        window.history.back();
+      }
+    };
+  }, [open, historyDismiss, onClose]);
+
   const handleKey = useCallback(
     (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") closeWithHistory();
     },
-    [onClose],
+    [closeWithHistory],
   );
 
   const panelRef = useRef<HTMLDivElement>(null);
@@ -206,11 +271,11 @@ export function Sheet({
 
   const onTouchEnd = useCallback(() => {
     if (dragY > SWIPE_DISMISS_THRESHOLD) {
-      onClose();
+      closeWithHistory();
     }
     setDragY(0);
     touchStartY.current = null;
-  }, [dragY, onClose]);
+  }, [dragY, closeWithHistory]);
 
   if (!open) return null;
   if (typeof document === "undefined") return null;
@@ -230,7 +295,7 @@ export function Sheet({
       <button
         type="button"
         aria-label="Close"
-        onClick={onClose}
+        onClick={closeWithHistory}
         className="absolute inset-0 bg-foreground/30 anim-fade-in"
         style={{ animationDuration: "250ms" }}
       />
@@ -274,7 +339,7 @@ export function Sheet({
             </div>
             <button
               type="button"
-              onClick={onClose}
+              onClick={closeWithHistory}
               className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
               aria-label="Close"
             >

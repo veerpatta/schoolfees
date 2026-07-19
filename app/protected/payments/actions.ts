@@ -7,6 +7,7 @@ import type { PaymentMode } from "@/lib/db/types";
 import { recordActivity } from "@/lib/activity/events";
 import { getFeePolicyForSession } from "@/lib/fees/data";
 import { parseAcademicSessionLabel } from "@/lib/config/fee-rules";
+import { formatInr } from "@/lib/helpers/currency";
 import {
   DuplicatePaymentWarning,
   getPaymentPostingDiagnostic,
@@ -438,7 +439,7 @@ export async function undoRecentPaymentAction(
 
     return {
       ok: true,
-      message: `Receipt ${result.receiptNumber} reversed in full (₹${result.reversedAmount.toLocaleString("en-IN")}).`,
+      message: `Receipt ${result.receiptNumber} reversed in full (${formatInr(result.reversedAmount)}).`,
       receiptNumber: result.receiptNumber,
       reversedAmount: result.reversedAmount,
     };

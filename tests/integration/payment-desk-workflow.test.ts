@@ -525,12 +525,13 @@ describe("payment desk cashier workflow", () => {
       "utf8",
     );
     const successEffect = component.match(
-      /if \(state\.status === "success"\) \{[\s\S]*?triggerHaptic\(\[50, 30, 80\]\)/,
+      /if \(state\.status === "success"\) \{[\s\S]*?triggerHaptic\("success"\)/,
     )?.[0] ?? "";
 
     expect(component).toContain("const [lastPostedAmount, setLastPostedAmount] = useState<number | null>(null)");
     expect(successEffect).toContain("setLastPostedAmount(state.amountReceived)");
-    expect(component).toContain("navigator.vibrate");
+    // navigator.vibrate now lives in the shared hooks/use-haptics.ts primitive.
+    expect(component).toContain('from "@/hooks/use-haptics"');
     expect(successEffect).toContain("optimisticReceiptKeyRef.current = actionStateKey");
     expect(component).toContain("lastPostedAmount={lastPostedAmount}");
     expect(component).toContain("setPaymentAmountInput(String(lastPostedAmount))");
@@ -548,9 +549,9 @@ describe("payment desk cashier workflow", () => {
 
     expect(component).toContain("toast({");
     expect(component).toContain('tToasts("receiptPostedTitle"');
-    expect(component).toContain("triggerHaptic([40, 60, 40])");
-    expect(component).toContain("triggerHaptic([20, 40, 20, 40, 20])");
-    expect(component).toContain("triggerHaptic(10)");
+    expect(component).toContain(`triggerHaptic("error")`);
+    expect(component).toContain(`triggerHaptic("warning")`);
+    expect(component).toContain(`triggerHaptic("tap")`);
     expect(component).toContain("animate-pulse");
     expect(component).toContain("grid-cols-3");
     expect(confirmSheet).toContain("onTouchStart");

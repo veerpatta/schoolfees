@@ -18,6 +18,9 @@ import type {
 } from "@/lib/payments/types";
 import { cn } from "@/lib/utils";
 
+/** Rows revealed per "Show more" press in the global search results. */
+const SEARCH_RESULT_PAGE_SIZE = 20;
+
 type MobilePaymentFlowSheetProps = {
   view: "class-picker" | "student-picker" | "payment-entry" | null;
   onClose: () => void;
@@ -188,6 +191,16 @@ export function MobilePaymentFlowSheet({
   const amountInputRef = React.useRef<HTMLInputElement>(null);
   const hasFocusedRef = React.useRef(false);
 
+  /**
+   * Exactly one loading affordance at a time:
+   * - nothing on screen yet  → skeleton (communicates shape)
+   * - content already shown  → hairline progress bar (background refresh)
+   * Previously both keyed off the same expression and rendered together.
+   */
+  const isLoadingSummary = studentSummaryLoading || previewLoading;
+  const isFirstLoad = isLoadingSummary && !selectedStudent;
+  const isBackgroundRefreshing = isLoadingSummary && Boolean(selectedStudent);
+
   const displayName = selectedStudent?.fullName ?? selectedStudentIndexItem?.fullName ?? "";
   const displayClass = selectedStudent?.classLabel ?? selectedStudentIndexItem?.classLabel ?? "";
   const displayAdmNo = selectedStudent?.admissionNo ?? selectedStudentIndexItem?.admissionNo ?? "";
@@ -224,6 +237,21 @@ export function MobilePaymentFlowSheet({
   // over the sheet's bottom action button on mobile. This mirrors how
   // ConfirmReceiptSheet and SuccessReceiptSheet already escape via createPortal.
   const [mounted, setMounted] = React.useState(false);
+  /**
+   * Progressive reveal for the global search results. This list used to be
+   * hard-capped at 20 while the label above printed the true match count —
+   * so a common surname showed "34 matches" and offered no way to reach #21.
+   * Keeping an initial cap protects scroll performance on a mid-range phone;
+   * the button below makes the rest reachable.
+   */
+  const [visibleSearchCount, setVisibleSearchCount] = React.useState(
+    SEARCH_RESULT_PAGE_SIZE,
+  );
+
+  // Any new query starts the reveal over.
+  React.useEffect(() => {
+    setVisibleSearchCount(SEARCH_RESULT_PAGE_SIZE);
+  }, [studentSearchQuery]);
   React.useEffect(() => setMounted(true), []);
 
   if (view === null) return null;
@@ -286,7 +314,7 @@ export function MobilePaymentFlowSheet({
                 </p>
               ) : (
                 <ul className="divide-y divide-border overflow-hidden rounded-md border border-border bg-card">
-                  {filteredStudents.slice(0, 20).map((student) => {
+                  {filteredStudents.slice(0, visibleSearchCount).map((student) => {
                     const pendingAmt = getStudentPendingAmount(student.id);
                     return (
                       <li key={student.id}>
@@ -323,6 +351,21 @@ export function MobilePaymentFlowSheet({
                   })}
                 </ul>
               )}
+              {filteredStudents.length > visibleSearchCount ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setVisibleSearchCount((count) => count + SEARCH_RESULT_PAGE_SIZE)
+                  }
+                  className="mt-2 w-full rounded-md border border-border bg-surface-2 px-3 py-2.5 text-xs font-medium text-foreground hover:bg-surface-3"
+                >
+                  Show {Math.min(
+                    SEARCH_RESULT_PAGE_SIZE,
+                    filteredStudents.length - visibleSearchCount,
+                  )}{" "}
+                  more ({filteredStudents.length - visibleSearchCount} remaining)
+                </button>
+              ) : null}
             </div>
           ) : (
             <div className="overflow-y-auto">
@@ -512,7 +555,12 @@ export function MobilePaymentFlowSheet({
       {view === "payment-entry" ? (
         <div className="absolute bottom-0 left-0 right-0 rounded-t-2xl border-t border-border bg-background flex flex-col" style={{ height: 'calc(100svh - 3.5rem)' }}>
           <SheetHandle swipeHandlers={paymentEntrySwipe} />
-          {(studentSummaryLoading || previewLoading) ? (
+          {/* One loading signal at a time. The skeleton below owns the
+              first load (it communicates shape, which reads better on a
+              phone); this bar is only for a background refresh over content
+              that is already on screen. Showing both made a fast two-phase
+              load feel slower than it was. */}
+          {isBackgroundRefreshing ? (
             <div className="flex-none h-0.5 bg-surface-2 overflow-hidden">
               <div className="h-full bg-accent anim-route-progress" style={{ width: "60%" }} />
             </div>
@@ -882,7 +930,7 @@ export function MobilePaymentFlowSheet({
               </label>
             ) : null}
 
-            {studentSummaryLoading || previewLoading ? (
+            {isFirstLoad ? (
               <div className="px-3 py-3 border-b border-border space-y-3">
                 <div className="flex gap-2">
                   <div className="h-16 flex-1 rounded-xl bg-surface-2 animate-pulse" />
