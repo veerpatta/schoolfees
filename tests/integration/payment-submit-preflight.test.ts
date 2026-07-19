@@ -394,7 +394,7 @@ describe("payment submit preflight", () => {
         clientRequestId: "00000000-0000-4000-8000-000000000901",
       }),
     ).rejects.toThrow(
-      "A similar payment was just recorded. Open the latest receipt or start a new payment if this is intentional.",
+      "A similar payment was just recorded for this student. Open the latest receipt to verify before posting again.",
     );
     expect(rpc).not.toHaveBeenCalledWith(
       "post_student_payment_with_adjustments",

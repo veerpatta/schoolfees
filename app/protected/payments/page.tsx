@@ -150,6 +150,7 @@ async function PaymentDeskDataLoader({
           canPost={canPostPayments}
           canViewDiagnostics={staff.appRole === "admin"}
           canWaiveLateFee={hasStaffPermission(staff, "payments:waive_late_fee")}
+          canOverrideNearDuplicate={hasStaffPermission(staff, "payments:adjust")}
           classOptions={classOptions}
           workflowGuard={blockingReason}
           initialState={INITIAL_PAYMENT_ENTRY_ACTION_STATE}
@@ -210,6 +211,7 @@ async function PaymentDeskDataLoader({
         canPost={canPostPayments}
         canViewDiagnostics={staff.appRole === "admin"}
         canWaiveLateFee={hasStaffPermission(staff, "payments:waive_late_fee")}
+        canOverrideNearDuplicate={hasStaffPermission(staff, "payments:adjust")}
         classOptions={classOptions}
         workflowGuard={blockingReason}
         initialState={INITIAL_PAYMENT_ENTRY_ACTION_STATE}
