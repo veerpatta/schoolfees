@@ -8,6 +8,7 @@ import { SectionCard } from "@/components/admin/section-card";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/helpers/currency";
 import { ReceiptPreviewSheet } from "@/components/receipts/receipt-preview-sheet";
+import { ReversedBadge } from "@/components/receipts/reversed-badge";
 import type { ReceiptListItem } from "@/lib/receipts/types";
 import type { PaymentMode } from "@/lib/db/types";
 
@@ -142,11 +143,14 @@ export function ReceiptsQuickLoad({
                     onClick={() => setPreviewReceiptId(receipt.id)}
                     className="block w-full rounded-xl border border-border bg-card p-3 text-left text-sm transition-colors hover:bg-surface-2/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <p className="font-semibold text-foreground">{receipt.receiptNumber}</p>
+                    <p className="flex items-center gap-1.5 font-semibold text-foreground">
+                      {receipt.receiptNumber}
+                      {receipt.isReversed ? <ReversedBadge /> : null}
+                    </p>
                     <p className="text-xs text-muted-foreground">{receipt.paymentDate}</p>
                     <p className="mt-1">{receipt.studentFullName} ({receipt.admissionNo})</p>
                     <p className="text-xs text-muted-foreground">{receipt.classLabel} • {paymentModeLabel(receipt.paymentMode)}</p>
-                    <p className="mt-1 font-semibold text-foreground">{formatInr(receipt.totalAmount)}</p>
+                    <p className={`mt-1 font-semibold text-foreground${receipt.isReversed ? " line-through opacity-60" : ""}`}>{formatInr(receipt.totalAmount)}</p>
                     <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-accent">
                       {t("tapToPreview")}
                     </span>
@@ -195,14 +199,19 @@ export function ReceiptsQuickLoad({
                           setPreviewReceiptId(receipt.id);
                         }}
                       >
-                        <td className="px-4 py-3 font-medium text-foreground">{receipt.receiptNumber}</td>
+                        <td className="px-4 py-3 font-medium text-foreground">
+                          <span className="flex items-center gap-1.5">
+                            {receipt.receiptNumber}
+                            {receipt.isReversed ? <ReversedBadge /> : null}
+                          </span>
+                        </td>
                         <td className="px-4 py-3">{receipt.paymentDate}</td>
                         <td className="px-4 py-3">
                           {receipt.studentFullName} ({receipt.admissionNo})
                         </td>
                         <td className="px-4 py-3">{receipt.classLabel}</td>
                         <td className="px-4 py-3">{paymentModeLabel(receipt.paymentMode)}</td>
-                        <td className="px-4 py-3">{formatInr(receipt.totalAmount)}</td>
+                        <td className={`px-4 py-3${receipt.isReversed ? " line-through opacity-60" : ""}`}>{formatInr(receipt.totalAmount)}</td>
                         <td className="px-4 py-3" data-row-action="true" onClick={(event) => event.stopPropagation()}>
                           <Button asChild variant="outline" size="sm">
                             <Link href={`/protected/receipts/${receipt.id}?returnTo=${encodeURIComponent(returnTo)}`}>

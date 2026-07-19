@@ -9,6 +9,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, CreditCard, Printer, SlidersHor
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { SavedViewsTabs } from "@/components/data-table/saved-views-tabs";
+import { ReversedBadge } from "@/components/receipts/reversed-badge";
 import { SummaryRow, SummaryCell } from "@/components/data-table/summary-row";
 import { Button } from "@/components/ui/button";
 import type { SavedView } from "@/lib/data-table/saved-views";
@@ -342,12 +343,18 @@ function TransactionsTable({
                     {formatShortDate(row.paymentDate)} · {row.classLabel}
                   </p>
                 </div>
-                <p className="shrink-0 font-semibold text-foreground tabular-nums">
+                <p
+                  className={cn(
+                    "shrink-0 font-semibold text-foreground tabular-nums",
+                    row.isReversed && "line-through opacity-60",
+                  )}
+                >
                   {formatInr(row.totalAmount)}
                 </p>
               </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">
+              <p className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 {row.receiptNumber} · {formatPaymentModeLabel(row.paymentMode, t)}
+                {row.isReversed ? <ReversedBadge /> : null}
               </p>
               <div className="mt-2 flex flex-wrap gap-2" data-row-action="true" onClick={(event) => event.stopPropagation()}>
                 <Button asChild size="sm" variant="ghost" aria-label={t("rowActionPrintAria", { number: row.receiptNumber })}>
@@ -425,7 +432,10 @@ function TransactionsTable({
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="font-mono text-xs text-foreground">{row.receiptNumber}</div>
+                    <div className="flex items-center gap-1.5 font-mono text-xs text-foreground">
+                      {row.receiptNumber}
+                      {row.isReversed ? <ReversedBadge /> : null}
+                    </div>
                     <div className="text-xs text-muted-foreground tabular-nums">
                       {formatShortDate(row.paymentDate)}
                     </div>
@@ -440,7 +450,12 @@ function TransactionsTable({
                       {formatPaymentModeLabel(row.paymentMode, t)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right font-semibold tabular-nums text-foreground">
+                  <td
+                    className={cn(
+                      "px-4 py-3 text-right font-semibold tabular-nums text-foreground",
+                      row.isReversed && "line-through opacity-60",
+                    )}
+                  >
                     {formatInr(row.totalAmount)}
                   </td>
                   <td className="w-10 px-2 py-3 text-right" data-row-action="true" onClick={(event) => event.stopPropagation()}>

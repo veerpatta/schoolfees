@@ -3,6 +3,7 @@ import "server-only";
 import { WORKBOOK_CLASS_ORDER, normalizeWorkbookClassLabel } from "@/lib/fees/workbook";
 import type { PaymentMode } from "@/lib/db/types";
 import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
+import { getReceiptReversalTotals, isReceiptReversed } from "@/lib/receipts/reversals";
 import { loadSessionScopedReceiptIds } from "@/lib/session/installment-scope";
 import { createClient } from "@/lib/supabase/server";
 import { getStudentFormOptions } from "@/lib/students/data";
@@ -244,6 +245,8 @@ export type WorkbookTransaction = {
   currentTotalPaid: number;
   discountApplied: number;
   lateFeeWaived: number;
+  /** True when reversal adjustments cancel this receipt in full (undo/refund). */
+  isReversed?: boolean;
 };
 
 function toSingleRecord<T>(value: T | T[] | null) {
@@ -822,6 +825,8 @@ export async function getWorkbookTransactions(filters?: {
 
   const receipts = (data ?? []) as ReceiptRow[];
   const receiptStudentIds = [...new Set(receipts.map((row) => row.student_id).filter(Boolean))];
+  // Reversed receipts (undo / refund) must be visibly flagged in every list.
+  const reversalTotals = await getReceiptReversalTotals(receipts.map((row) => row.id));
   // Skip financial enrichment when the caller only needs display data (not export).
   // currentOutstanding / currentTotalPaid are not shown in the UI table — only in CSV exports.
   const financials =
@@ -865,6 +870,7 @@ export async function getWorkbookTransactions(filters?: {
         currentTotalPaid: financial?.totalPaid ?? 0,
         discountApplied: financial?.discountAmount ?? 0,
         lateFeeWaived: financial?.lateFeeWaiverAmount ?? 0,
+        isReversed: isReceiptReversed(reversalTotals, row.id, row.total_amount),
       } satisfies WorkbookTransaction;
     })
     .filter((row) => (filters?.classId ? row.classId === filters.classId : true))

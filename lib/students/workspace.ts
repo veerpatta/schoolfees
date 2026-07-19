@@ -3,6 +3,7 @@ import "server-only";
 import type { PaymentMode } from "@/lib/db/types";
 import { getFeePolicySummary, getStudentFinancialSnapshot } from "@/lib/fees/data";
 import { getLedgerPageData } from "@/lib/ledger/data";
+import { getReceiptReversalTotals, isReceiptReversed } from "@/lib/receipts/reversals";
 import { createClient } from "@/lib/supabase/server";
 import { getStudentDetail } from "@/lib/students/data";
 import { getWorkbookInstallmentBalances } from "@/lib/workbook/data";
@@ -75,11 +76,14 @@ export async function getStudentWorkspaceData(
     throw new Error(`Unable to load student receipts: ${receiptsResult.error.message}`);
   }
 
+  const receiptRows = (receiptsResult.data ?? []) as StudentReceiptRow[];
+  const reversalTotals = await getReceiptReversalTotals(receiptRows.map((row) => row.id));
+
   return {
     student,
     financialSnapshot,
     ledger: ledgerData.selectedStudent,
-    receipts: ((receiptsResult.data ?? []) as StudentReceiptRow[]).map((row) => ({
+    receipts: receiptRows.map((row) => ({
       id: row.id,
       receiptNumber: row.receipt_number,
       paymentDate: row.payment_date,
@@ -89,6 +93,7 @@ export async function getStudentWorkspaceData(
       referenceNumber: row.reference_number,
       receivedBy: row.received_by,
       createdAt: row.created_at,
+      isReversed: isReceiptReversed(reversalTotals, row.id, row.total_amount),
     })),
     installmentBalances,
   };

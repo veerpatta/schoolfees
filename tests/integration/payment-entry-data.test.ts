@@ -185,6 +185,7 @@ describe("payment entry data", () => {
       or: vi.fn().mockReturnThis(),
       order: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
+      in: vi.fn().mockReturnThis(),
       maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
       then: vi.fn((resolve) =>
         resolve({

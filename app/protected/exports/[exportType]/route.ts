@@ -1001,6 +1001,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         "Class": row.classLabel,
         "Mode": row.paymentMode,
         "Amount": row.totalAmount,
+        "Status": row.isReversed ? "REVERSED" : "",
         "Reference": row.referenceNumber ?? "",
         "Received by": row.receivedBy ?? "",
       })),

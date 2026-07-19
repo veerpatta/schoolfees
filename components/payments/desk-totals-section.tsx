@@ -6,6 +6,7 @@ import Link from "next/link";
 import { SectionCard } from "@/components/admin/section-card";
 import { Button } from "@/components/ui/button";
 import { OfficeRecentActions } from "@/components/office/office-ui";
+import { ReversedBadge } from "@/components/receipts/reversed-badge";
 import { formatInr } from "@/lib/helpers/currency";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 
@@ -24,6 +25,7 @@ type DeskTotalsSectionProps = {
       paymentMode: string;
       paymentDate: string;
       createdAt: string | null;
+      isReversed?: boolean;
     }>;
   };
   latestPayment: {
@@ -89,11 +91,22 @@ export function DeskTotalsSection({
                       onClick={() => setExpandedReceiptId(expanded ? null : receipt.id)}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <span className="font-semibold text-foreground">{receipt.receiptNumber}</span>
+                        <span className="flex items-center gap-1.5 font-semibold text-foreground">
+                          {receipt.receiptNumber}
+                          {receipt.isReversed ? <ReversedBadge /> : null}
+                        </span>
                         <span className="text-xs text-muted-foreground">{receipt.paymentDate}</span>
                       </div>
                       <div className="mt-2 flex items-center justify-between gap-3">
-                        <span className="font-semibold text-success-soft-foreground">{formatInr(receipt.totalAmount)}</span>
+                        <span
+                          className={
+                            receipt.isReversed
+                              ? "font-semibold text-muted-foreground line-through opacity-60"
+                              : "font-semibold text-success-soft-foreground"
+                          }
+                        >
+                          {formatInr(receipt.totalAmount)}
+                        </span>
                         <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                           {receipt.paymentMode}
                         </span>
@@ -177,9 +190,16 @@ export function DeskTotalsSection({
               ) : (
                 data.recentReceipts.map((receipt) => (
                   <tr key={receipt.id} className="border-t border-border">
-                    <td className="px-4 py-3 font-medium text-foreground">{receipt.receiptNumber}</td>
+                    <td className="px-4 py-3 font-medium text-foreground">
+                      <span className="flex items-center gap-1.5">
+                        {receipt.receiptNumber}
+                        {receipt.isReversed ? <ReversedBadge /> : null}
+                      </span>
+                    </td>
                     <td className="px-4 py-3">{receipt.studentLabel}</td>
-                    <td className="px-4 py-3">{formatInr(receipt.totalAmount)}</td>
+                    <td className={receipt.isReversed ? "px-4 py-3 line-through opacity-60" : "px-4 py-3"}>
+                      {formatInr(receipt.totalAmount)}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2">
                         <Button asChild size="sm" variant="outline">
