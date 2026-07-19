@@ -10,6 +10,9 @@ import {
   hasStaffPermission,
 } from "@/lib/supabase/session";
 
+// Full-session CSV exports can overrun Vercel's default function timeout.
+export const maxDuration = 60;
+
 export async function GET(request: NextRequest) {
   const staff = await getAuthenticatedStaff();
 

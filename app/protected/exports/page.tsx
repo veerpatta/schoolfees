@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { UsersRound, BadgePercent, Layers, CircleAlert, Receipt, Download, Sparkles, FileText } from "lucide-react";
 
@@ -180,15 +179,19 @@ export default async function ExportsPage({ searchParams }: ExportsPageProps) {
                       <p className="text-xs text-muted-foreground mt-0.5">{t(item.detailKey)}</p>
                     </div>
                     <div className="ml-auto flex shrink-0 items-center gap-2">
-                      <Link
+                      {/* Plain anchors, not next/link: these hrefs return binary
+                          attachments from a route handler, and client-side
+                          navigation to a non-RSC response silently no-ops. */}
+                      <a
                         href={xlsxHref}
+                        download
                         className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-3"
                       >
                         <Download className="size-3.5" aria-hidden="true" />
                         {t("formatXlsx")}
-                      </Link>
+                      </a>
                       {supportsPdf ? (
-                        <Link
+                        <a
                           href={pdfHref}
                           target="_blank"
                           rel="noopener"
@@ -196,7 +199,7 @@ export default async function ExportsPage({ searchParams }: ExportsPageProps) {
                         >
                           <FileText className="size-3.5" aria-hidden="true" />
                           {t("formatPdf")}
-                        </Link>
+                        </a>
                       ) : null}
                     </div>
                   </div>
