@@ -533,6 +533,12 @@ function CallQueueRow({
         "grid gap-3 px-3 py-3 transition-colors sm:px-4 xl:grid-cols-[minmax(0,1fr)_auto]",
         selected ? "bg-accent-soft/70" : "bg-card hover:bg-surface-2/70",
       )}
+      /* The call queue is server-paginated but uncapped, and each row is
+         heavy (phone chips, heat/promise badges, quick-log buttons). Skipping
+         render work for off-screen rows is the same dependency-free technique
+         already proven on the desktop student table. The intrinsic size keeps
+         the scrollbar honest so there is no layout shift while scrolling. */
+      style={{ contentVisibility: "auto", containIntrinsicSize: "0 132px" } as React.CSSProperties}
     >
       <button type="button" onClick={onSelect} className="min-w-0 text-left">
         <div className="flex items-start justify-between gap-3">

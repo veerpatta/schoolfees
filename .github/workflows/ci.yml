@@ -1,0 +1,73 @@
+name: CI
+
+# Until now only Vercel's `next build` enforced anything (lint + types).
+# Tests, source budgets, and the money-formatting audit ran nowhere — which is
+# how the Payment Desk line budget sat silently red. This runs them on every PR.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests (node + jsdom interaction projects)
+        run: npm run test
+
+      - name: Source + money-formatting budgets
+        run: npm run quality:budgets
+
+  # Route-bundle ceilings need a production build, so this is a separate job:
+  # it must not delay the fast feedback above, and a bundle regression is a
+  # different conversation from a broken test.
+  bundles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          # Build-time placeholders: the build must not reach a real database,
+          # and lib/env.ts rejects empty values. No secret is required for a
+          # bundle measurement.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder-publishable-key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          NEXT_PUBLIC_SCHOOL_NAME: Shri Veer Patta Senior Secondary School
+          NEXT_PUBLIC_APP_MODE: internal-admin
+
+      - name: Route bundle budgets
+        run: npm run quality:bundles:check

@@ -35,15 +35,15 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
   },
   experimental: {
+    // Only packages that are actually installed. react-dialog / react-select /
+    // react-sheet were listed here but have never been dependencies — dialogs
+    // and sheets are hand-rolled in components/ui to keep the bundle small.
     optimizePackageImports: [
       "lucide-react",
       "@radix-ui/react-checkbox",
-      "@radix-ui/react-dialog",
       "@radix-ui/react-dropdown-menu",
       "@radix-ui/react-label",
-      "@radix-ui/react-select",
       "@radix-ui/react-slot",
-      "@radix-ui/react-sheet",
       "@radix-ui/react-tabs",
       "class-variance-authority",
       "next-intl",

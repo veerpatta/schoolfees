@@ -335,6 +335,9 @@ function TransactionsTable({
                 onPreviewReceipt(row.receiptId);
               }}
               className="cursor-pointer rounded-xl border border-border bg-card p-3 text-sm transition-colors hover:bg-surface-2/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              /* Transactions pages up to 150 rows; skip render work for
+                 off-screen cards (same technique as the students table). */
+              style={{ contentVisibility: "auto", containIntrinsicSize: "0 132px" } as React.CSSProperties}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -404,6 +407,7 @@ function TransactionsTable({
                 <tr
                   key={row.receiptId}
                   className="cursor-pointer border-t border-border transition-colors hover:bg-surface-2/30"
+                  style={{ contentVisibility: "auto", containIntrinsicSize: "0 64px" } as React.CSSProperties}
                   onClick={(event) => {
                     const target = event.target as HTMLElement | null;
                     if (target && target.closest('[data-row-action="true"]')) return;
