@@ -17,6 +17,25 @@ const sizeClasses: Record<NonNullable<InputProps["inputSize"]>, string> = {
   lg: "h-11 px-4 text-base",
 };
 
+/**
+ * On a phone the wrong soft keyboard costs a tap and an error every time —
+ * a number pad for a phone number, a letter keyboard for an amount. These
+ * were previously opt-in per call site, so only the Payment Desk got them
+ * right. Deriving from `type` makes every field correct by default; any call
+ * site can still override by passing inputMode/enterKeyHint explicitly.
+ */
+const inputModeByType: Partial<Record<string, React.HTMLAttributes<HTMLInputElement>["inputMode"]>> = {
+  tel: "tel",
+  email: "email",
+  url: "url",
+  search: "search",
+  number: "decimal",
+};
+
+const enterKeyHintByType: Partial<Record<string, React.InputHTMLAttributes<HTMLInputElement>["enterKeyHint"]>> = {
+  search: "search",
+};
+
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   (
     {
@@ -25,6 +44,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       onFocus,
       scrollIntoViewOnFocus = false,
       inputSize = "default",
+      inputMode,
+      enterKeyHint,
       ...props
     },
     ref,
@@ -33,6 +54,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       <input
         type={type}
         ref={ref}
+        inputMode={inputMode ?? (type ? inputModeByType[type] : undefined)}
+        enterKeyHint={enterKeyHint ?? (type ? enterKeyHintByType[type] : undefined)}
         className={cn(
           "flex w-full rounded-md border border-input bg-surface text-foreground",
           "shadow-xs transition-[border-color,box-shadow,background-color] duration-150",

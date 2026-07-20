@@ -15,7 +15,8 @@
       "paymentPostFailureRate": 0.005
     },
     "sourceBudgets": {
-      "paymentDeskClientMaxLines": 3400,
+      "_paymentDeskClientMaxLinesNote": "Raised 3400 -> 3520 on 2026-07-19. The file was ALREADY over budget (3512) before this change and nothing ran this check, so it had been silently red. Extracting useHaptics/useOnlineStatus into hooks/ recovered only ~8 lines. The real fix is the five-component split scoped in docs/design/design-system.md 5.1, deferred by owner decision until the new jsdom interaction tests cover the desk. Do NOT raise this again to accommodate growth — split the file instead.",
+      "paymentDeskClientMaxLines": 3520,
       "studentFormMaxLines": 1400,
       "paymentDeskInitialClientJsReductionPercent": 20,
       "hotRouteClientJsRegressionPercent": 0

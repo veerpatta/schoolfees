@@ -322,6 +322,26 @@
   .animate-pop-in { animation: scale-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both; }
   .animate-receipt-settle { animation: slide-up 220ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 
+  /* ---- Payment-collected choreography ----
+     A receipt an office clerk sees 80 times a day earns a clear "the system
+     did work" signal, not a celebration. The check DRAWS itself (a stroke
+     resolving reads as work completing; a scale-in reads as a div appearing),
+     then the receipt number and amount settle in behind it. Whole sequence
+     stays under ~900ms so it never gates the next collection. */
+  .anim-check-draw {
+    stroke-dasharray: var(--check-path-length, 48);
+    stroke-dashoffset: var(--check-path-length, 48);
+    animation: check-draw 320ms cubic-bezier(0.65, 0, 0.35, 1) 80ms forwards;
+  }
+
+  .anim-check-halo {
+    animation: check-halo 520ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both;
+  }
+
+  .anim-settle-in {
+    animation: settle-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
   .anim-shimmer {
     position: relative;
     overflow: hidden;
@@ -472,6 +492,8 @@
   .anim-scale-in,
   .anim-shimmer,
   .anim-route-progress,
+  .anim-check-halo,
+  .anim-settle-in,
   .animate-bottom-sheet-up,
   .animate-success-check,
   .animate-loading-bar,
@@ -486,6 +508,13 @@
   .anim-shimmer::after {
     animation: none !important;
     display: none;
+  }
+
+  /* The check must still READ as complete when motion is off — silence the
+     draw and show the finished stroke rather than an invisible path. */
+  .anim-check-draw {
+    animation: none !important;
+    stroke-dashoffset: 0 !important;
   }
 }
 
@@ -516,6 +545,22 @@
 @keyframes route-progress {
   0% { transform: translate3d(-100%, 0, 0); }
   100% { transform: translate3d(100%, 0, 0); }
+}
+
+/* Payment-collected choreography. */
+@keyframes check-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes check-halo {
+  0% { opacity: 0; transform: scale(0.6); }
+  55% { opacity: 1; transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes settle-in {
+  from { opacity: 0; transform: translate3d(0, 6px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
 /* =====================================================================

@@ -72,6 +72,7 @@ import type {
   PaymentEntryPageData,
   PaymentStudentIndexItem,
 } from "@/lib/payments/types";
+import { triggerHaptic } from "@/hooks/use-haptics";
 import { formatInr } from "@/lib/helpers/currency";
 import { cn } from "@/lib/utils";
 import { clearDraft, loadDraft, saveDraft } from "@/lib/payments/draft-store";
@@ -194,16 +195,6 @@ function classifyPaymentSummaryError(error: unknown): string {
     return "Dues are not prepared for this student. Ask admin to check Fee Setup.";
   }
   return "Unable to load dues. Tap Retry or ask admin to check Fee Setup.";
-}
-
-function triggerHaptic(pattern: VibratePattern) {
-  try {
-    if (typeof navigator !== "undefined" && navigator.vibrate) {
-      navigator.vibrate(pattern);
-    }
-  } catch {
-    // Haptics are best-effort only.
-  }
 }
 
 function ActionNotice({
@@ -1200,7 +1191,7 @@ export function PaymentDeskClient({
           });
         }
       }
-      triggerHaptic([50, 30, 80]);
+      triggerHaptic("success");
       if (state.receiptNumber && state.amountReceived && selectedStudent && printReceiptHref) {
         toast({
           title: tToasts("receiptPostedTitle", {
@@ -1275,7 +1266,7 @@ export function PaymentDeskClient({
       setIsConfirmOpen(false);
       setIsSuccessOpen(false);
       setIsDuplicateOpen(true);
-      triggerHaptic([20, 40, 20, 40, 20]);
+      triggerHaptic("warning");
       setFormError(null);
       return;
     }
@@ -1295,7 +1286,7 @@ export function PaymentDeskClient({
       setDismissedActionStateKey(null);
       setIsConfirmOpen(false);
       setFormError(state.message);
-      triggerHaptic([40, 60, 40]);
+      triggerHaptic("error");
     }
   }, [
     actionStateKey,
@@ -1933,7 +1924,7 @@ export function PaymentDeskClient({
         onSetPaymentMode={(mode) => {
           setPaymentMode(mode as typeof paymentMode);
           if (isMobileView) {
-            triggerHaptic(10);
+            triggerHaptic("tap");
           }
           setFormError(null);
         }}
@@ -3120,7 +3111,7 @@ export function PaymentDeskClient({
                             disabled={!selectedStudent}
                             onClick={() => {
                               setPaymentMode(value as typeof paymentMode);
-                              triggerHaptic(10);
+                              triggerHaptic("tap");
                               setFormError(null);
                             }}
                             className={cn(
