@@ -16,7 +16,10 @@ export type DashboardKpis = {
   totalExpectedFees: number;
   totalCollected: number;
   totalPending: number;
+  currentYearExpected?: number;
+  currentYearCollected?: number;
   currentYearPending?: number;
+  previousYearOriginal?: number;
   previousYearPending?: number;
   previousYearCollected?: number;
   lateFeePending?: number;
@@ -227,7 +230,10 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
     totalExpectedFees,
     totalCollected,
     totalPending,
+    currentYearExpected: pendingSplit.currentYearExpected,
+    currentYearCollected: pendingSplit.currentYearCollected,
     currentYearPending: pendingSplit.currentYearPending,
+    previousYearOriginal: pendingSplit.previousYearOriginal,
     previousYearPending: pendingSplit.previousYearPending,
     previousYearCollected: pendingSplit.previousYearCollected,
     lateFeePending: pendingSplit.lateFeePending,

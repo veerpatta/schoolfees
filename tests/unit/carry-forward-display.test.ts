@@ -80,5 +80,11 @@ describe("carry-forward display helpers", () => {
     expect(summary.lateFeePending).toBe(1000);
     expect(summary.totalPending).toBe(8000);
     expect(summary.hasCarryForward).toBe(true);
+
+    // Current-year expected/collected are base-vs-base and never include the
+    // carry-forward rows: Installment 1 base = 10000 - 1000 late fee = 9000,
+    // Installment 2 base = 10000. Collected caps at base due per row.
+    expect(summary.currentYearExpected).toBe(19000);
+    expect(summary.currentYearCollected).toBe(15000);
   });
 });

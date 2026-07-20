@@ -92,6 +92,8 @@ export function buildCarryForwardSummary(rows: readonly CarryForwardInstallmentL
   let previousYearOriginal = 0;
   let previousYearCollected = 0;
   let previousYearPending = 0;
+  let currentYearExpected = 0;
+  let currentYearCollected = 0;
   let currentYearPending = 0;
   let lateFeePending = 0;
 
@@ -106,12 +108,21 @@ export function buildCarryForwardSummary(rows: readonly CarryForwardInstallmentL
       continue;
     }
 
+    // Base-vs-base for the current year: expected excludes late fee, so the
+    // collected side caps at the base due — late-fee receipts stay in their
+    // own bucket instead of inflating this year's collection figure.
+    const baseDue = calculateRowBaseDue(row);
+    currentYearExpected += baseDue;
+    currentYearCollected += Math.min(applied, baseDue);
+
     const rowLatePending = Math.min(toAmount(row.finalLateFee), pending);
     lateFeePending += rowLatePending;
     currentYearPending += Math.max(pending - rowLatePending, 0);
   }
 
   return {
+    currentYearExpected,
+    currentYearCollected,
     currentYearPending,
     previousYearOriginal,
     previousYearCollected,

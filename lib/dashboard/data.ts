@@ -297,8 +297,10 @@ async function augmentCarryForwardDashboardResult(
   result: DashboardSummaryRpcResult,
 ) {
   const hasSplit =
-    typeof result.kpis.currentYearPending === "number" ||
-    typeof result.kpis.previousYearPending === "number" ||
+    typeof result.kpis.currentYearPending === "number" &&
+    typeof result.kpis.currentYearExpected === "number" &&
+    typeof result.kpis.currentYearCollected === "number" &&
+    typeof result.kpis.previousYearPending === "number" &&
     typeof result.kpis.lateFeePending === "number";
 
   const hasCarryForwardLabel =
@@ -317,7 +319,10 @@ async function augmentCarryForwardDashboardResult(
     const split = buildCarryForwardSummary(installmentRows);
     result.kpis = {
       ...result.kpis,
+      currentYearExpected: split.currentYearExpected,
+      currentYearCollected: split.currentYearCollected,
       currentYearPending: split.currentYearPending,
+      previousYearOriginal: split.previousYearOriginal,
       previousYearPending: split.previousYearPending,
       previousYearCollected: split.previousYearCollected,
       lateFeePending: split.lateFeePending,

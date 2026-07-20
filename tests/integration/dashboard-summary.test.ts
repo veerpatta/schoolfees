@@ -413,6 +413,10 @@ describe("dashboard summary", () => {
 
     expect(summary.kpis.previousYearPending).toBe(6000);
     expect(summary.kpis.currentYearPending).toBe(5000);
+    expect(summary.kpis.previousYearOriginal).toBe(8000);
+    expect(summary.kpis.previousYearCollected).toBe(2000);
+    expect(summary.kpis.currentYearExpected).toBe(5000);
+    expect(summary.kpis.currentYearCollected).toBe(0);
     expect(summary.installmentSummary[0]).toMatchObject({
       installmentLabel: "Previous year tuition balance from 2025-26",
       isCarryForward: true,
@@ -486,6 +490,19 @@ describe("dashboard summary", () => {
     const dashboardPage = readRepoFile("app/protected/dashboard/page.tsx");
 
     expect(dashboardPage).toContain("Overdue without late fee");
+  });
+
+  it("dashboard hero keeps this-year collection separate from previous-year recovery", () => {
+    const dashboardPage = readRepoFile("app/protected/dashboard/page.tsx");
+
+    // Hero cards must read the current-year split, and previous-year dues get
+    // their own dedicated card instead of blending into the headline totals.
+    expect(dashboardPage).toContain("OldBalanceRecoveryCard");
+    expect(dashboardPage).toContain('t("thisYearCollected")');
+    expect(dashboardPage).toContain('t("thisYearPending")');
+    expect(dashboardPage).toContain("thisYearCollectionRate");
+    expect(dashboardPage).toContain("expected={currentYearExpected}");
+    expect(dashboardPage).toContain("collected={currentYearCollected}");
   });
 
   it("dashboard wires collection heatmap and class collection progress data", () => {

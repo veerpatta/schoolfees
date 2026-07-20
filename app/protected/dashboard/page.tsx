@@ -222,14 +222,12 @@ function KpiDeltaLine({ delta }: { delta: KpiDelta | null }) {
 
 function MobileDashboardHero({
   collected,
-  pending,
   collectionRate,
   receiptsToday,
   followUpCount,
   overdueAmount,
   currentYearPending,
   previousYearPending,
-  lateFeePending,
   updatedAt,
   currentInstallmentLabel,
   todayDelta,
@@ -237,14 +235,12 @@ function MobileDashboardHero({
   t,
 }: {
   collected: number;
-  pending: number;
   collectionRate: number;
   receiptsToday: number;
   followUpCount: number;
   overdueAmount: number;
   currentYearPending: number;
   previousYearPending: number;
-  lateFeePending: number;
   updatedAt: string;
   currentInstallmentLabel?: string;
   todayDelta: KpiDelta | null;
@@ -307,14 +303,12 @@ function MobileDashboardHero({
         {[
           {
             key: "pending",
-            label: t("pending"),
-            value: pending,
+            label: t("thisYearPending"),
+            value: currentYearPending,
             tone: "warning" as const,
             subtext:
               previousYearPending > 0
-                ? `Current ${formatInr(currentYearPending)} + old ${formatInr(previousYearPending)}${
-                    lateFeePending > 0 ? ` + late ${formatInr(lateFeePending)}` : ""
-                  }`
+                ? t("oldBalancePendingLine", { amount: formatInr(previousYearPending) })
                 : t("studentsCount", { count: followUpCount }),
             href: "/protected/defaulters",
           },
@@ -374,62 +368,73 @@ function MobileDashboardHero({
 
 function HeroKpis({
   collected,
-  pending,
   collectionRate,
   receiptsToday,
   followUpCount,
   overdueAmount,
+  currentYearExpected,
+  currentYearCollected,
   currentYearPending,
   previousYearPending,
+  previousYearCollected,
   lateFeePending,
-  totalCollected,
-  totalExpected,
   todayDelta,
   sessionLabel,
   t,
 }: {
   collected: number;
-  pending: number;
   collectionRate: number;
   receiptsToday: number;
   followUpCount: number;
   overdueAmount: number;
+  currentYearExpected: number;
+  currentYearCollected: number;
   currentYearPending: number;
   previousYearPending: number;
+  previousYearCollected: number;
   lateFeePending: number;
-  totalCollected: number;
-  totalExpected: number;
   todayDelta: KpiDelta | null;
   sessionLabel?: string;
   t: DashboardTranslator;
 }) {
   const rateSignal = getCollectionRateHealth(collectionRate, t);
   const collectedPct =
-    totalExpected > 0
-      ? Math.min(100, Math.round((totalCollected / totalExpected) * 100))
+    currentYearExpected > 0
+      ? Math.min(100, Math.round((currentYearCollected / currentYearExpected) * 100))
       : 0;
 
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
   return (
     <div className="hidden sm:grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5">
-      {/* Total Collected (YTD) — answers "how much has come in this year so far?"
-          Hint surfaces the % progress + expected target. Drills into the
-          year-to-date collection view inside Transactions. */}
+      {/* This Year Collected — strictly this session's own fees. Recovery of
+          previous-year carry-forward balances is shown on the Old Balance card
+          instead of being blended in here, so this number always compares
+          apples-to-apples against this year's expected total. */}
       <KpiCard
         accent="success"
-        label={t("totalCollected")}
+        label={t("thisYearCollected")}
         href={withSession("/protected/transactions?view=receipts")}
         className="snap-start shrink-0 w-[72vw] sm:w-auto"
         value={
           <CountUp
-            value={totalCollected}
+            value={currentYearCollected}
             className="text-xl font-semibold tracking-tight text-success md:text-2xl lg:text-xl xl:text-2xl"
           />
         }
         hint={
-          <span className="text-xs text-muted-foreground">
-            {collectedPct}% · of <Money value={totalExpected} size="sm" />
+          <span className="space-y-0.5">
+            <span className="block text-xs text-muted-foreground">
+              {collectedPct}% · of <Money value={currentYearExpected} size="sm" /> ·{" "}
+              {t("thisYearFeesOnly")}
+            </span>
+            {previousYearCollected > 0 ? (
+              <span className="block text-[11px] text-muted-foreground">
+                {t("oldBalanceCollectedInline", {
+                  amount: formatInr(previousYearCollected),
+                })}
+              </span>
+            ) : null}
           </span>
         }
       />
@@ -454,50 +459,64 @@ function HeroKpis({
         }
       />
 
-      {/* Pending dues */}
+      {/* This Year Pending — old balance and late fee live in their own
+          buckets; this card never mixes them into one number. */}
       <KpiCard
         accent="warning"
-        label={t("pendingDues")}
+        label={t("thisYearPending")}
         href={withSession("/protected/defaulters")}
         className="snap-start shrink-0 w-[72vw] sm:w-auto"
         value={
           <CountUp
-            value={pending}
+            value={currentYearPending}
             className="text-xl font-semibold tracking-tight md:text-2xl lg:text-xl xl:text-2xl"
           />
         }
         hint={
           <span className="space-y-0.5">
             <span className="block">
-              {previousYearPending > 0
-                ? `Includes previous-year dues across ${followUpCount} students`
-                : t("fullSessionDue", { count: followUpCount })}
+              {t("excludesOldBalance")} · {t("studentsCount", { count: followUpCount })}
             </span>
-            <span className="block text-[11px]">
-              Current year <Money value={currentYearPending} size="xs" /> · Previous year{" "}
-              <Money value={previousYearPending} size="xs" /> · Late fee{" "}
-              <Money value={lateFeePending} size="xs" />
-            </span>
+            {previousYearPending > 0 || lateFeePending > 0 ? (
+              <span className="block text-[11px]">
+                {previousYearPending > 0 ? (
+                  <>
+                    {t("oldBalanceShort")} <Money value={previousYearPending} size="xs" />
+                  </>
+                ) : null}
+                {previousYearPending > 0 && lateFeePending > 0 ? " · " : null}
+                {lateFeePending > 0 ? (
+                  <>
+                    {t("lateFeePendingLabel")} <Money value={lateFeePending} size="xs" />
+                  </>
+                ) : null}
+              </span>
+            ) : null}
           </span>
         }
       />
 
-      {/* Collection rate - arc gauge */}
+      {/* Collection rate - arc gauge, current-year fees only */}
       <KpiCard
         accent="info"
         label={t("collectionRate")}
         className="snap-start shrink-0 w-[72vw] sm:w-auto"
         value={<RateGauge value={collectionRate} size="md" />}
         hint={
-          <span
-            className={cn(
-              "text-xs font-medium",
-              rateSignal.tone === "success" && "text-success",
-              rateSignal.tone === "warning" && "text-warning",
-              rateSignal.tone === "danger" && "text-destructive",
-            )}
-          >
-            {rateSignal.label}
+          <span className="space-y-0.5">
+            <span
+              className={cn(
+                "block text-xs font-medium",
+                rateSignal.tone === "success" && "text-success",
+                rateSignal.tone === "warning" && "text-warning",
+                rateSignal.tone === "danger" && "text-destructive",
+              )}
+            >
+              {rateSignal.label}
+            </span>
+            <span className="block text-[11px] text-muted-foreground">
+              {t("thisYearFeesOnly")}
+            </span>
           </span>
         }
       />
@@ -515,25 +534,141 @@ function HeroKpis({
         </div>
         <p className="mt-1 text-xs text-destructive/60">
           {t("pastInstallmentDueDate")}
+          {previousYearPending > 0 ? ` · ${t("includesOldBalance")}` : ""}
         </p>
       </div>
     </div>
   );
 }
 
+/**
+ * OldBalanceRecoveryCard gives previous-year carry-forward dues their own
+ * dedicated home instead of letting them leak into this year's cards. It
+ * reads as a small recovery tracker: brought forward → recovered → still due,
+ * with a reconciliation line so the office can always tie the session's total
+ * receipts back to the split buckets.
+ */
+function OldBalanceRecoveryCard({
+  originalAmount,
+  recoveredAmount,
+  pendingAmount,
+  lateFeePending,
+  totalCollected,
+  currentYearCollected,
+  sessionLabel,
+  t,
+}: {
+  originalAmount: number;
+  recoveredAmount: number;
+  pendingAmount: number;
+  lateFeePending: number;
+  totalCollected: number;
+  currentYearCollected: number;
+  sessionLabel?: string;
+  t: DashboardTranslator;
+}) {
+  const hasOldBalance =
+    originalAmount > 0 || pendingAmount > 0 || recoveredAmount > 0;
+  if (!hasOldBalance) {
+    return null;
+  }
+
+  const recoveredPct =
+    originalAmount > 0
+      ? Math.min(100, Math.round((recoveredAmount / originalAmount) * 100))
+      : 0;
+  const otherCollected = Math.max(
+    0,
+    totalCollected - currentYearCollected - recoveredAmount,
+  );
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+
+  return (
+    <div className="rounded-lg border border-amber-300 bg-amber-50/70 px-4 py-3 dark:border-amber-700 dark:bg-amber-950/30">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-amber-500 bg-amber-100 text-[9px] font-bold text-amber-700 dark:bg-amber-900 dark:text-amber-200">
+            Old
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-foreground">{t("oldBalanceTitle")}</p>
+            <p className="text-[11px] text-muted-foreground">{t("oldBalanceDescription")}</p>
+          </div>
+        </div>
+        <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+          {t("oldBalanceRecoveredPct", { pct: recoveredPct })}
+        </span>
+      </div>
+
+      <div className="mt-3 grid grid-cols-3 gap-3">
+        <div>
+          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            {t("oldBalanceBroughtForward")}
+          </p>
+          <Money value={originalAmount} size="sm" className="mt-0.5" />
+        </div>
+        <div>
+          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            {t("oldBalanceRecovered")}
+          </p>
+          <Money value={recoveredAmount} size="sm" tone="success" className="mt-0.5" />
+        </div>
+        <Link href={withSession("/protected/defaulters")} className="group">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            {t("oldBalanceStillDue")}
+          </p>
+          <span className="mt-0.5 inline-flex items-center gap-1">
+            <Money value={pendingAmount} size="sm" tone="warning" />
+            <ChevronRight
+              className="size-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+              aria-hidden="true"
+            />
+          </span>
+        </Link>
+      </div>
+
+      <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-amber-200/70 dark:bg-amber-900/60">
+        <div
+          className="h-full rounded-full bg-amber-500 transition-all duration-500"
+          style={{ width: `${recoveredPct}%` }}
+        />
+      </div>
+
+      <p className="mt-2.5 border-t border-amber-200 pt-2 text-[11px] text-muted-foreground dark:border-amber-900">
+        {t("sessionMoneyReconciliation", {
+          total: formatInr(totalCollected),
+          currentYear: formatInr(currentYearCollected),
+          previousYear: formatInr(recoveredAmount),
+          other: formatInr(otherCollected),
+        })}
+        {lateFeePending > 0 ? (
+          <>
+            {" · "}
+            {t("lateFeeSeparate", { amount: formatInr(lateFeePending) })}
+          </>
+        ) : null}
+      </p>
+    </div>
+  );
+}
+
 function MobileSecondaryKpis({ kpis, t }: { kpis: DashboardKpis; t: DashboardTranslator }) {
+  const currentYearExpected = kpis.currentYearExpected ?? kpis.totalExpectedFees;
+  const currentYearCollected = kpis.currentYearCollected ?? kpis.totalCollected;
+  const previousYearOriginal = kpis.previousYearOriginal ?? 0;
+  const previousYearCollected = kpis.previousYearCollected ?? 0;
   const cards = [
     {
-      key: "totalExpected",
-      label: t("totalExpected"),
-      value: <Money value={kpis.totalExpectedFees} size="sm" />,
-      hint: t("sessionTarget"),
+      key: "thisYearExpected",
+      label: t("thisYearExpected"),
+      value: <Money value={currentYearExpected} size="sm" />,
+      hint: t("thisYearFeesOnly"),
     },
     {
-      key: "totalCollected",
-      label: t("totalCollected"),
-      value: <Money value={kpis.totalCollected} size="sm" tone="success" />,
-      hint: t("allReceipts"),
+      key: "thisYearCollected",
+      label: t("thisYearCollected"),
+      value: <Money value={currentYearCollected} size="sm" tone="success" />,
+      hint: t("thisYearReceipts"),
     },
     {
       key: "activeStudents",
@@ -547,18 +682,29 @@ function MobileSecondaryKpis({ kpis, t }: { kpis: DashboardKpis; t: DashboardTra
       value: <Money value={kpis.thisMonthCollection} size="sm" tone="success" />,
       hint: t("monthlyReceipts"),
     },
-    {
-      key: "previousYearPending",
-      label: "Old balance",
-      value: <Money value={kpis.previousYearPending ?? 0} size="sm" tone="warning" />,
-      hint: "Previous-year dues",
-    },
-    {
-      key: "lateFeePending",
-      label: "Late fee",
-      value: <Money value={kpis.lateFeePending ?? 0} size="sm" tone="warning" />,
-      hint: "Pending late fee",
-    },
+    ...(previousYearOriginal > 0 || (kpis.previousYearPending ?? 0) > 0
+      ? [
+          {
+            key: "previousYearPending",
+            label: t("oldBalanceShort"),
+            value: <Money value={kpis.previousYearPending ?? 0} size="sm" tone="warning" />,
+            hint: t("oldBalanceHint", {
+              recovered: formatInr(previousYearCollected),
+              original: formatInr(previousYearOriginal),
+            }),
+          },
+        ]
+      : []),
+    ...((kpis.lateFeePending ?? 0) > 0
+      ? [
+          {
+            key: "lateFeePending",
+            label: t("lateFeePendingLabel"),
+            value: <Money value={kpis.lateFeePending ?? 0} size="sm" tone="warning" />,
+            hint: t("lateFeePendingHint"),
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -724,7 +870,7 @@ function CollectionFunnelBar({
   return (
     <Section
       title="Collection Funnel"
-      description="Session due is the full pending amount; overdue excludes late fee."
+      description="This year's fees only - old balance and late fees are tracked separately. Overdue excludes late fee."
       variant="card"
     >
       <div className="space-y-4">
@@ -2022,6 +2168,25 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     aboveFold.kpis.todaysCollection,
   );
 
+  // Three-pot split: this year's fees, previous-year carry-forward ("old
+  // balance"), and late fees. Every above-fold card reads from exactly one
+  // pot so the numbers never blend. Fallbacks keep the page rendering if the
+  // carry-forward augmentation ever fails (older cached summary payloads).
+  const currentYearExpected =
+    aboveFold.kpis.currentYearExpected ?? aboveFold.kpis.totalExpectedFees;
+  const currentYearCollected =
+    aboveFold.kpis.currentYearCollected ?? aboveFold.kpis.totalCollected;
+  const currentYearPending =
+    aboveFold.kpis.currentYearPending ?? aboveFold.kpis.totalPending;
+  const previousYearOriginal = aboveFold.kpis.previousYearOriginal ?? 0;
+  const previousYearCollected = aboveFold.kpis.previousYearCollected ?? 0;
+  const previousYearPending = aboveFold.kpis.previousYearPending ?? 0;
+  const lateFeePending = aboveFold.kpis.lateFeePending ?? 0;
+  const thisYearCollectionRate =
+    currentYearExpected > 0
+      ? Math.min(100, Math.round((currentYearCollected / currentYearExpected) * 100))
+      : aboveFold.kpis.collectionRate;
+
   timer.flush();
 
   return (
@@ -2130,14 +2295,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         <OptimisticBanner />
         <MobileDashboardHero
           collected={aboveFold.kpis.todaysCollection}
-          pending={aboveFold.kpis.totalPending}
-          collectionRate={aboveFold.kpis.collectionRate}
+          collectionRate={thisYearCollectionRate}
           receiptsToday={aboveFold.kpis.receiptsToday}
           followUpCount={aboveFold.studentsWithPending}
           overdueAmount={aboveFold.kpis.overdueAmount}
-          currentYearPending={aboveFold.kpis.currentYearPending ?? aboveFold.kpis.totalPending}
-          previousYearPending={aboveFold.kpis.previousYearPending ?? 0}
-          lateFeePending={aboveFold.kpis.lateFeePending ?? 0}
+          currentYearPending={currentYearPending}
+          previousYearPending={previousYearPending}
           updatedAt={aboveFold.generatedAt}
           currentInstallmentLabel={aboveFold.currentInstallment?.label}
           todayDelta={todayDelta}
@@ -2147,29 +2310,44 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
         <HeroKpis
           collected={aboveFold.kpis.todaysCollection}
-          pending={aboveFold.kpis.totalPending}
-          collectionRate={aboveFold.kpis.collectionRate}
+          collectionRate={thisYearCollectionRate}
           receiptsToday={aboveFold.kpis.receiptsToday}
           followUpCount={aboveFold.studentsWithPending}
           overdueAmount={aboveFold.kpis.overdueAmount}
-          currentYearPending={aboveFold.kpis.currentYearPending ?? aboveFold.kpis.totalPending}
-          previousYearPending={aboveFold.kpis.previousYearPending ?? 0}
-          lateFeePending={aboveFold.kpis.lateFeePending ?? 0}
-          totalCollected={aboveFold.kpis.totalCollected}
-          totalExpected={aboveFold.kpis.totalExpectedFees}
+          currentYearExpected={currentYearExpected}
+          currentYearCollected={currentYearCollected}
+          currentYearPending={currentYearPending}
+          previousYearPending={previousYearPending}
+          previousYearCollected={previousYearCollected}
+          lateFeePending={lateFeePending}
           todayDelta={todayDelta}
           sessionLabel={viewSession.sessionLabel}
           t={t}
         />
-        {/* Year-to-date collection progress. Mobile keeps the MobileSecondaryKpis
-            tiles below (which already show Total Expected + Total Collected as
+
+        {/* Previous-year carry-forward gets its own card on every breakpoint —
+            this is the single place old balance numbers live, so the hero
+            cards above stay strictly this-year. */}
+        <OldBalanceRecoveryCard
+          originalAmount={previousYearOriginal}
+          recoveredAmount={previousYearCollected}
+          pendingAmount={previousYearPending}
+          lateFeePending={lateFeePending}
+          totalCollected={aboveFold.kpis.totalCollected}
+          currentYearCollected={currentYearCollected}
+          sessionLabel={viewSession.sessionLabel}
+          t={t}
+        />
+
+        {/* This-year collection progress. Mobile keeps the MobileSecondaryKpis
+            tiles below (which show the this-year expected + collected split as
             cards); the funnel bar's 3-segment progress + labels need horizontal
             room, so it's tablet+ only. */}
         <div className="hidden sm:block anim-fade-in">
           <CollectionFunnelBar
-            expected={aboveFold.kpis.totalExpectedFees}
-            collected={aboveFold.kpis.totalCollected}
-            pending={aboveFold.kpis.totalPending}
+            expected={currentYearExpected}
+            collected={currentYearCollected}
+            pending={currentYearPending}
             overdue={aboveFold.kpis.overdueAmount}
           />
         </div>
