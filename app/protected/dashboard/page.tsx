@@ -411,7 +411,7 @@ function HeroKpis({
      CTA), year-progress card, needs-attention card. Old balance keeps its own
      card below — the three-pot split stays intact. */
   return (
-    <div className="hidden sm:grid gap-3 lg:grid-cols-3">
+    <div className="hidden gap-3 sm:grid md:grid-cols-3">
       {/* Today — ink card */}
       <div className="relative overflow-hidden rounded-2xl bg-nav px-5 py-5 text-nav-foreground shadow-md">
         <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-nav-muted">
@@ -447,10 +447,12 @@ function HeroKpis({
         </div>
       </div>
 
-      {/* Year progress — strictly this session's own fees. Recovery of
-          previous-year carry-forward balances is shown on the Old Balance card
-          instead of being blended in here, so this number always compares
-          apples-to-apples against this year's expected total. */}
+      {/* Year progress — strictly this session's own fees. The full-year
+          target is stated FIRST and in words ("This year expected · fees
+          only"), then collected and pending sit underneath it so the three
+          figures visibly reconcile: collected + pending = expected. Old
+          balance and late fee are named explicitly as tracked-separately so
+          nobody reads the expected total as the whole session's money. */}
       <div className="rounded-2xl border border-border bg-card px-5 py-5 shadow-xs">
         <div className="flex items-start justify-between gap-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -467,14 +469,14 @@ function HeroKpis({
             {rateSignal.label}
           </span>
         </div>
-        <div className="mt-2 flex items-baseline gap-2">
+        <p className="mt-2 text-xs text-muted-foreground">
+          {t("thisYearExpected")} · {t("thisYearFeesOnly")}
+        </p>
+        <div className="mt-0.5">
           <CountUp
-            value={currentYearCollected}
-            className="text-2xl font-semibold tracking-tight text-success"
+            value={currentYearExpected}
+            className="text-2xl font-semibold tracking-tight text-foreground"
           />
-          <span className="text-xs text-muted-foreground">
-            {collectedPct}% · of <Money value={currentYearExpected} size="sm" />
-          </span>
         </div>
         {/* Progress track */}
         <div
@@ -489,11 +491,31 @@ function HeroKpis({
             style={{ width: `${collectedPct}%` }}
           />
         </div>
-        <p className="mt-3 text-xs text-muted-foreground">
-          <Link href={withSession("/protected/defaulters")} className="hover:text-foreground">
-            {t("thisYearPending")} <Money value={currentYearPending} size="sm" tone="warning" />
-          </Link>{" "}
-          · {t("thisYearFeesOnly")}
+        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+          <span>
+            <span className="block text-muted-foreground">{t("thisYearCollected")}</span>
+            <span className="font-semibold tabular-nums text-success">
+              {formatInr(currentYearCollected)}
+            </span>{" "}
+            <span className="text-muted-foreground">({collectedPct}%)</span>
+          </span>
+          <Link
+            href={withSession("/protected/defaulters")}
+            className="group text-right"
+          >
+            <span className="block text-muted-foreground group-hover:text-foreground">
+              {t("thisYearPending")}
+            </span>
+            <span className="font-semibold tabular-nums text-warning">
+              {formatInr(currentYearPending)}
+            </span>
+          </Link>
+        </div>
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          {t("excludesOldBalance")}
+          {lateFeePending > 0
+            ? ` · ${t("lateFeeSeparate", { amount: formatInr(lateFeePending) })}`
+            : ""}
         </p>
         {previousYearCollected > 0 ? (
           <p className="mt-1 text-[11px] text-muted-foreground">
@@ -517,10 +539,17 @@ function HeroKpis({
         </div>
         <p className="mt-1 text-xs text-destructive/70">
           {t("overdueWithoutLateFee")} · {t("pastInstallmentDueDate")}
-          {previousYearPending > 0 ? ` · ${t("includesOldBalance")}` : ""}
         </p>
         <p className="mt-2 text-xs text-destructive-soft-foreground">
           {t("studentsCount", { count: followUpCount })}
+          {/* Name the old-balance share explicitly — this card's overdue figure
+              spans both pots, unlike Year progress next door. */}
+          {previousYearPending > 0 ? (
+            <>
+              {" · "}
+              {t("oldBalanceShort")} <Money value={previousYearPending} size="xs" />
+            </>
+          ) : null}
           {lateFeePending > 0 ? (
             <>
               {" · "}
@@ -566,7 +595,7 @@ function DesktopSecondaryKpis({
       : 0;
 
   return (
-    <div className="hidden gap-2 sm:grid sm:grid-cols-2 sm:gap-3 lg:grid-cols-5">
+    <div className="hidden gap-2 sm:grid sm:grid-cols-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-5">
       <KpiCard
         label={t("thisMonth")}
         value={<Money value={kpis.thisMonthCollection} size="lg" />}

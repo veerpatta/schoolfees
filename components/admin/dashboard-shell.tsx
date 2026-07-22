@@ -143,7 +143,7 @@ export async function DashboardShell({
           localeSwitcher={localeSwitcher}
         />
         <ScrollRestoringMain
-          className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8 lg:py-7 mobile-bottom-nav-clearance md:pb-6 lg:pb-8 print:max-w-none print:px-0 print:py-0"
+          className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8 lg:py-7 2xl:max-w-[88rem] mobile-bottom-nav-clearance md:pb-6 lg:pb-8 print:max-w-none print:px-0 print:py-0"
         >
           <div className="anim-fade-in">{children}</div>
         </ScrollRestoringMain>
