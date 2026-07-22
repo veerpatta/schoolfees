@@ -156,7 +156,10 @@
     "amountInWordsHindiLabel": "Amount in words (Hindi)",
     "balanceDuePayBy": "Balance due: {amount} — kindly pay by {date}",
     "balanceDuePayByNoDate": "Balance due: {amount} — kindly clear at the earliest",
-    "allDuesClearedLine": "All dues cleared — thank you"
+    "allDuesClearedLine": "All dues cleared — thank you",
+    "previewValidBadge": "Valid · verified",
+    "previewReversedBadge": "Reversed · no longer valid",
+    "printA4Action": "Print A4"
   },
   "hi": {
     "indexEyebrow": "रसीदें",
@@ -315,6 +318,9 @@
     "amountInWordsHindiLabel": "राशि शब्दों में (हिंदी)",
     "balanceDuePayBy": "शेष राशि: {amount} — कृपया {date} तक जमा करें",
     "balanceDuePayByNoDate": "शेष राशि: {amount} — कृपया शीघ्र जमा करें",
-    "allDuesClearedLine": "सभी शुल्क चुकता — धन्यवाद"
+    "allDuesClearedLine": "सभी शुल्क चुकता — धन्यवाद",
+    "previewValidBadge": "मान्य · सत्यापित",
+    "previewReversedBadge": "निरस्त · अब मान्य नहीं",
+    "printA4Action": "A4 प्रिंट करें"
   }
 }

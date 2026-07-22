@@ -905,7 +905,11 @@
     "morningBriefFollowUpDueToday": "{label} is due today — follow up with {count, plural, =1 {# student} other {# students}} for {amount}.",
     "morningBriefFollowUpInstallment": "Follow up with {count, plural, =1 {# student} other {# students}} for {amount} before {label} (due {dueDate}).",
     "morningBriefFollowUp": "Follow up with {count, plural, =1 {# student} other {# students}} for {amount} pending.",
-    "morningBriefAmountWithOldBalance": "{total} total ({currentYear} current year + {previousYear} previous-year dues)"
+    "morningBriefAmountWithOldBalance": "{total} total ({currentYear} current year + {previousYear} previous-year dues)",
+    "topDefaultersTitle": "Top defaulters",
+    "topDefaultersDescription": "Highest risk first — overdue, then by amount.",
+    "openWorklist": "Open worklist",
+    "cashCollectedToday": "Cash collected today"
   },
   "Payments": {
     "eyebrow": "Payments",
@@ -1084,7 +1088,8 @@
     "flagDuplicateSr": "Duplicate SR number",
     "flagMissingDob": "Date of birth missing",
     "flagMissingClass": "Class not assigned",
-    "flagMissingStatus": "Status not set"
+    "flagMissingStatus": "Status not set",
+    "chipOnlyWithDues": "Only with dues"
   },
   "Transactions": {
     "loadingBadge": "Transactions",
@@ -1099,7 +1104,7 @@
     "unknownViewBody": "Unknown view ''{value}'' — showing default view.",
     "viewFilterTitle": "View & Filter",
     "viewFilterDescription": "Switch views instantly. Filters apply without reloading the page.",
-    "readOnlyBadge": "Read-only",
+    "readOnlyBadge": "Read-only · corrections via Finance Controls",
     "paymentDeskAction": "Payment Desk",
     "filterSearchLabel": "Search",
     "filterSearchPlaceholder": "Student, SR no, receipt no, phone…",
@@ -1356,7 +1361,10 @@
     "amountInWordsHindiLabel": "Amount in words (Hindi)",
     "balanceDuePayBy": "Balance due: {amount} — kindly pay by {date}",
     "balanceDuePayByNoDate": "Balance due: {amount} — kindly clear at the earliest",
-    "allDuesClearedLine": "All dues cleared — thank you"
+    "allDuesClearedLine": "All dues cleared — thank you",
+    "previewValidBadge": "Valid · verified",
+    "previewReversedBadge": "Reversed · no longer valid",
+    "printA4Action": "Print A4"
   },
   "AdminTools": {
     "eyebrow": "Admin Tools",

@@ -1,7 +1,7 @@
 {
   "generatedAt": "2026-07-18",
   "currentGeneratedAt": "2026-07-23",
-  "generatedFrom": "next build on 7578e70 plus phased-program instrumentation; transactions ceiling re-based twice since — 3f9e601 (reversed-count summary cell) and the post-redesign fix sweep, where the shared print/dark-mode reset in globals.css added ~250 gzip bytes to EVERY route. Only transactions had too little headroom to absorb it; all other routes remain under their original ceilings. fee-setup re-based once more for the publish-gate card (FeeSetupImpactPreview) and defaulters for call-mode auto-advance (CallProgressPanel + UpNextPanel) — both deliberate new features on their routes.",
+  "generatedFrom": "next build on 7578e70 plus phased-program instrumentation; transactions ceiling re-based twice since — 3f9e601 (reversed-count summary cell) and the post-redesign fix sweep, where the shared print/dark-mode reset in globals.css added ~250 gzip bytes to EVERY route. Only transactions had too little headroom to absorb it; all other routes remain under their original ceilings. fee-setup re-based once more for the publish-gate card (FeeSetupImpactPreview) and defaulters for call-mode auto-advance (CallProgressPanel + UpNextPanel) — both deliberate new features on their routes; transactions again for the proportional mode-split bar and the receipt-preview verification badge.",
   "metric": "initial entry JS, unique chunks",
   "measurements": [
     { "route": "/protected/dashboard", "chunks": 9, "rawBytes": 575152, "gzipBytes": 168026, "currentGzipBytes": 167025 },
@@ -17,7 +17,7 @@
       "targetReductionPercent": 20,
       "actualReductionPercent": 21.03
     },
-    { "route": "/protected/transactions", "chunks": 10, "rawBytes": 697000, "gzipBytes": 196600, "currentGzipBytes": 195636 },
+    { "route": "/protected/transactions", "chunks": 10, "rawBytes": 700000, "gzipBytes": 198400, "currentGzipBytes": 197457 },
     { "route": "/protected/defaulters", "chunks": 10, "rawBytes": 678000, "gzipBytes": 195800, "currentGzipBytes": 194868 },
     { "route": "/protected/exports", "chunks": 9, "rawBytes": 561682, "gzipBytes": 163252, "currentGzipBytes": 162255 },
     { "route": "/protected/admin-tools", "chunks": 9, "rawBytes": 562003, "gzipBytes": 163366, "currentGzipBytes": 162369 }

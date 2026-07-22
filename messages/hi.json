@@ -905,7 +905,11 @@
     "morningBriefFollowUpDueToday": "{label} की तारीख आज है — {count, plural, =1 {# छात्र} other {# छात्रों}} से {amount} का फ़ॉलो-अप करें।",
     "morningBriefFollowUpInstallment": "{label} ({dueDate} तक) से पहले {count, plural, =1 {# छात्र} other {# छात्रों}} से {amount} का फ़ॉलो-अप करें।",
     "morningBriefFollowUp": "{count, plural, =1 {# छात्र} other {# छात्रों}} से {amount} बकाया का फ़ॉलो-अप करें।",
-    "morningBriefAmountWithOldBalance": "{total} total ({currentYear} current year + {previousYear} previous-year dues)"
+    "morningBriefAmountWithOldBalance": "{total} total ({currentYear} current year + {previousYear} previous-year dues)",
+    "topDefaultersTitle": "प्रमुख बकायेदार",
+    "topDefaultersDescription": "सबसे अधिक जोखिम पहले — पहले अतिदेय, फिर राशि के अनुसार।",
+    "openWorklist": "सूची खोलें",
+    "cashCollectedToday": "आज नकद प्राप्त"
   },
   "Payments": {
     "eyebrow": "भुगतान",
@@ -1084,7 +1088,8 @@
     "flagDuplicateSr": "SR नंबर दोहरा है",
     "flagMissingDob": "जन्म तिथि नहीं है",
     "flagMissingClass": "क्लास नहीं दी",
-    "flagMissingStatus": "स्थिति नहीं चुनी"
+    "flagMissingStatus": "स्थिति नहीं चुनी",
+    "chipOnlyWithDues": "केवल बकाया वाले"
   },
   "Transactions": {
     "loadingBadge": "लेन-देन",
@@ -1099,7 +1104,7 @@
     "unknownViewBody": "अनजान व्यू ''{value}'' — डिफ़ॉल्ट व्यू दिखा रहे हैं।",
     "viewFilterTitle": "व्यू और फ़िल्टर",
     "viewFilterDescription": "व्यू तुरंत बदलें। फ़िल्टर पन्ना दोबारा लोड किए बिना लगते हैं।",
-    "readOnlyBadge": "केवल पढ़ें",
+    "readOnlyBadge": "केवल पढ़ने के लिए · सुधार Finance Controls से",
     "paymentDeskAction": "पेमेंट डेस्क",
     "filterSearchLabel": "खोजें",
     "filterSearchPlaceholder": "बच्चा, SR नं., रसीद नं., फोन…",
@@ -1356,7 +1361,10 @@
     "amountInWordsHindiLabel": "राशि शब्दों में (हिंदी)",
     "balanceDuePayBy": "शेष राशि: {amount} — कृपया {date} तक जमा करें",
     "balanceDuePayByNoDate": "शेष राशि: {amount} — कृपया शीघ्र जमा करें",
-    "allDuesClearedLine": "सभी शुल्क चुकता — धन्यवाद"
+    "allDuesClearedLine": "सभी शुल्क चुकता — धन्यवाद",
+    "previewValidBadge": "मान्य · सत्यापित",
+    "previewReversedBadge": "निरस्त · अब मान्य नहीं",
+    "printA4Action": "A4 प्रिंट करें"
   },
   "AdminTools": {
     "eyebrow": "Admin Tools",

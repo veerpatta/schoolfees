@@ -420,6 +420,17 @@ function HeroKpis({
       ? Math.min(100, Math.round((currentYearCollected / currentYearExpected) * 100))
       : 0;
 
+  // Split this year's pending into what is already late and what has simply
+  // not fallen due yet. `overdueAmount` spans both pots (it can include old
+  // balance), so cap it at this year's pending before splitting.
+  const overdueWithinYear = Math.min(overdueAmount, currentYearPending);
+  const upcomingWithinYear = Math.max(currentYearPending - overdueWithinYear, 0);
+  const overduePct =
+    currentYearExpected > 0
+      ? Math.min(100 - collectedPct, Math.round((overdueWithinYear / currentYearExpected) * 100))
+      : 0;
+  const upcomingPct = Math.max(0, 100 - collectedPct - overduePct);
+
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
   /* Ledger Calm 2.0 hero band: ink today-card (serif display money + desk
@@ -495,19 +506,51 @@ function HeroKpis({
             className="text-2xl font-semibold tracking-tight text-foreground"
           />
         </div>
-        {/* Progress track */}
+        {/* Three-segment track: collected · overdue · upcoming. The year's
+            money is never just "done vs not" — what is already late reads
+            differently from what simply has not fallen due yet. */}
         <div
-          className="mt-3 h-2 overflow-hidden rounded-full bg-surface-3"
+          className="mt-3 flex h-2 overflow-hidden rounded-full bg-surface-3"
           role="progressbar"
           aria-valuenow={collectedPct}
           aria-valuemin={0}
           aria-valuemax={100}
+          aria-label={`${t("thisYearCollected")} ${collectedPct}%`}
         >
-          <div
-            className="h-full rounded-full bg-success transition-[width] duration-500 ease-out-expo"
+          <span
+            className="h-full bg-success transition-[width] duration-500 ease-out-expo"
             style={{ width: `${collectedPct}%` }}
+            title={`${t("thisYearCollected")} · ${formatInr(currentYearCollected)}`}
+          />
+          <span
+            className="h-full bg-destructive transition-[width] duration-500 ease-out-expo"
+            style={{ width: `${overduePct}%` }}
+            title={`${t("overdue")} · ${formatInr(overdueWithinYear)}`}
+          />
+          <span
+            className="h-full bg-warning/60 transition-[width] duration-500 ease-out-expo"
+            style={{ width: `${upcomingPct}%` }}
+            title={`${t("dueNotOverdue")} · ${formatInr(upcomingWithinYear)}`}
           />
         </div>
+        <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            <span aria-hidden="true" className="size-2 rounded-full bg-success" />
+            {t("collected")}
+          </span>
+          {overdueWithinYear > 0 ? (
+            <span className="inline-flex items-center gap-1">
+              <span aria-hidden="true" className="size-2 rounded-full bg-destructive" />
+              {t("overdue")} {formatInr(overdueWithinYear)}
+            </span>
+          ) : null}
+          {upcomingWithinYear > 0 ? (
+            <span className="inline-flex items-center gap-1">
+              <span aria-hidden="true" className="size-2 rounded-full bg-warning/60" />
+              {t("dueNotOverdue")} {formatInr(upcomingWithinYear)}
+            </span>
+          ) : null}
+        </p>
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
           <span>
             <span className="block text-muted-foreground">{t("thisYearCollected")}</span>
@@ -1276,6 +1319,26 @@ function TodayBreakdown({
                 {kpis.receiptsToday}
               </span>
             </div>
+            {/* Cash specifically — it's the figure that has to match the
+                drawer at day close. Derived from the mode breakdown rather
+                than inventing a separate day-close number. */}
+            {(() => {
+              const cash = paymentModeBreakdown.find(
+                (mode) => mode.paymentMode?.toLowerCase() === "cash",
+              );
+              if (!cash || cash.amount <= 0) return null;
+              return (
+                <div>
+                  <p className="mb-0.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Cash collected today
+                  </p>
+                  <Money value={cash.amount} size="md" />
+                  <p className="text-[11px] text-muted-foreground">
+                    counts toward the automatic day close
+                  </p>
+                </div>
+              );
+            })()}
           </div>
 
           {paymentModeBreakdown.length > 0 ? (
@@ -1331,13 +1394,18 @@ function SVGTrendBarChart({
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
   return (
-    <Section title="Collection Trend" description="Daily fee receipts" variant="card">
+    <Section
+      title="Collection Trend"
+      description="Daily fee receipts — tap a bar to open that day's receipts"
+      variant="card"
+    >
       <div className="w-full overflow-x-auto">
         <svg
           viewBox={`0 0 ${chartWidth} ${chartHeight}`}
           className="w-full"
           style={{ minWidth: "260px", height: "auto" }}
-          aria-hidden="true"
+          role="group"
+          aria-label="Daily collection trend"
         >
           {[0.25, 0.5, 0.75, 1].map((fraction) => {
             const y = barAreaBottom - fraction * barAreaHeight;
@@ -1363,7 +1431,26 @@ function SVGTrendBarChart({
             const isToday = point.date === todayStamp;
 
             return (
-              <g key={point.date}>
+              <a
+                key={point.date}
+                href={withSession(
+                  `/protected/transactions?fromDate=${point.date}&toDate=${point.date}`,
+                )}
+                aria-label={`${formatLabel(point.date)} · ${formatInr(point.amount)} · ${point.receiptCount} receipts`}
+                className="cursor-pointer [&:hover>rect]:opacity-80"
+              >
+                <title>
+                  {formatLabel(point.date)} · {formatInr(point.amount)}
+                </title>
+                {/* Full-slot hit area so the whole column is clickable, not
+                    just a 4px bar on a quiet day. */}
+                <rect
+                  x={index * slotWidth}
+                  y={barAreaTop}
+                  width={slotWidth}
+                  height={barAreaBottom - barAreaTop}
+                  fill="transparent"
+                />
                 <rect
                   x={barX}
                   y={barY}
@@ -1403,7 +1490,7 @@ function SVGTrendBarChart({
                     {point.receiptCount}r
                   </text>
                 ) : null}
-              </g>
+              </a>
             );
           })}
         </svg>
@@ -1425,6 +1512,66 @@ function SVGTrendBarChart({
           </Link>
         ))}
       </div>
+    </Section>
+  );
+}
+
+/**
+ * The families worth a call today, straight from the dashboard — already
+ * ranked overdue-first then by amount by `followUpQueue`. Saves a trip to
+ * the Defaulters page just to see who is at the top.
+ */
+function TopDefaulters({
+  rows,
+  sessionLabel,
+  t,
+}: {
+  rows: Awaited<ReturnType<typeof getDashboardAboveFoldData>>["followUpQueue"];
+  sessionLabel?: string;
+  t: DashboardTranslator;
+}) {
+  if (!rows.length) return null;
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+
+  return (
+    <Section
+      title={t("topDefaultersTitle")}
+      description={t("topDefaultersDescription")}
+      variant="card"
+      actions={
+        <Link
+          href={withSession("/protected/defaulters")}
+          className="text-xs font-medium text-accent underline-offset-4 hover:underline"
+        >
+          {t("openWorklist")} →
+        </Link>
+      }
+    >
+      <ul className="divide-y divide-border/70">
+        {rows.slice(0, 5).map((row) => (
+          <li key={row.studentId}>
+            <Link
+              href={withSession(`/protected/students/${row.studentId}`)}
+              className="flex min-h-12 items-center justify-between gap-3 py-2"
+            >
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium text-foreground">
+                  {row.studentName}
+                </span>
+                <span className="block truncate text-[11px] text-muted-foreground">
+                  {row.classLabel}
+                  {row.statusLabel === "OVERDUE" ? ` · ${t("overdue")}` : ""}
+                </span>
+              </span>
+              <Money
+                value={row.outstandingAmount}
+                size="sm"
+                tone={row.statusLabel === "OVERDUE" ? "danger" : "warning"}
+              />
+            </Link>
+          </li>
+        ))}
+      </ul>
     </Section>
   );
 }
@@ -2191,8 +2338,10 @@ async function DashboardBelowFold({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
         <SVGTrendBarChart trendData={data.collectionTrend} sessionLabel={sessionLabel} />
-        <ClassLeaderboard classSummary={data.classSummary} />
+        <TopDefaulters rows={data.followUpQueue} sessionLabel={sessionLabel} t={t} />
       </div>
+
+      <ClassLeaderboard classSummary={data.classSummary} />
 
       <Section
         title={t("classFeePositionTitle")}

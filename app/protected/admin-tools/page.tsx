@@ -14,6 +14,7 @@ import { advancedHubSections } from "@/lib/config/navigation";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
+import { getOpenRefundCount } from "@/lib/finance-controls/open-refunds";
 import { getSystemSyncHealth, type SystemSyncHealth } from "@/lib/system-sync/finance-sync";
 import { getErrorMessage } from "@/lib/system-sync/health-fallback";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/lib/supabase/session";
@@ -122,6 +123,13 @@ async function SystemStatusCard({
   );
 }
 
+async function OpenRefundsChip() {
+  const open = await getOpenRefundCount();
+  if (open <= 0) return null;
+
+  return <StatusBadge label={`${open} OPEN`} tone="warning" iconless />;
+}
+
 function Metric({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
@@ -221,6 +229,13 @@ export default async function AdvancedPage({ searchParams }: AdvancedPageProps) 
                             tone={item.statusChip.tone}
                             iconless
                           />
+                        ) : null}
+                        {/* Live status, streamed in its own boundary so the
+                            hub never waits on it to paint. */}
+                        {item.label === "Refunds" ? (
+                          <Suspense fallback={null}>
+                            <OpenRefundsChip />
+                          </Suspense>
                         ) : null}
                       </p>
                       <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">

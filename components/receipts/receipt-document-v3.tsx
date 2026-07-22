@@ -407,6 +407,18 @@ export function ReceiptDocumentV3({
                 {t.en("amountInWords")}: {amountInWords(totalPaid, t.en)}
               </p>
               <p lang="hi">{amountInWordsHindi(totalPaid)}</p>
+              {/* Where this payment leaves the year — a parent reads the
+                  receipt to answer "how much of the year is done?" */}
+              {receipt.totalDue > 0 ? (
+                <p className="mt-1 font-semibold">
+                  {Math.min(
+                    100,
+                    Math.round((receipt.totalPaidToDate / receipt.totalDue) * 100),
+                  )}
+                  % {t.en("paidSoFar").toLowerCase()} — {formatInr(receipt.totalPaidToDate)} /{" "}
+                  {formatInr(receipt.totalDue)}
+                </p>
+              ) : null}
             </div>
           </div>
         </section>

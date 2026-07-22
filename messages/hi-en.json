@@ -905,7 +905,11 @@
     "morningBriefFollowUpDueToday": "{label} ki date aaj hai — {count, plural, =1 {# student} other {# students}} se {amount} ka follow-up karein.",
     "morningBriefFollowUpInstallment": "{label} ({dueDate} tak) se pehle {count, plural, =1 {# student} other {# students}} se {amount} ka follow-up karein.",
     "morningBriefFollowUp": "{count, plural, =1 {# student} other {# students}} se {amount} pending ka follow-up karein.",
-    "morningBriefAmountWithOldBalance": "{total} total ({currentYear} current year + {previousYear} previous-year dues)"
+    "morningBriefAmountWithOldBalance": "{total} total ({currentYear} current year + {previousYear} previous-year dues)",
+    "topDefaultersTitle": "Top defaulters",
+    "topDefaultersDescription": "Sabse zyada risk pehle — pehle overdue, phir amount ke hisaab se.",
+    "openWorklist": "Worklist kholein",
+    "cashCollectedToday": "Aaj cash mila"
   },
   "Payments": {
     "eyebrow": "Payments",
@@ -1084,7 +1088,8 @@
     "flagDuplicateSr": "SR number duplicate hai",
     "flagMissingDob": "Date of birth nahi hai",
     "flagMissingClass": "Class nahi di",
-    "flagMissingStatus": "Status nahi chuna"
+    "flagMissingStatus": "Status nahi chuna",
+    "chipOnlyWithDues": "Sirf dues wale"
   },
   "Transactions": {
     "loadingBadge": "Transactions",
@@ -1099,7 +1104,7 @@
     "unknownViewBody": "Unknown view ''{value}'' — default view dikha rahe hain.",
     "viewFilterTitle": "View aur filter",
     "viewFilterDescription": "View turant badlo. Filters page reload kiye bina lagte hain.",
-    "readOnlyBadge": "Read-only",
+    "readOnlyBadge": "Read-only · corrections Finance Controls se",
     "paymentDeskAction": "Payment Desk",
     "filterSearchLabel": "Khojo",
     "filterSearchPlaceholder": "Bachha, SR no., receipt no., phone…",
@@ -1356,7 +1361,10 @@
     "amountInWordsHindiLabel": "Raashi shabdon mein (Hindi)",
     "balanceDuePayBy": "Shesh raashi: {amount} — kripya {date} tak jama karein",
     "balanceDuePayByNoDate": "Shesh raashi: {amount} — kripya sheeghra jama karein",
-    "allDuesClearedLine": "Sabhi shulk chukta — dhanyavaad"
+    "allDuesClearedLine": "Sabhi shulk chukta — dhanyavaad",
+    "previewValidBadge": "Valid · verified",
+    "previewReversedBadge": "Reversed · ab valid nahi",
+    "printA4Action": "Print A4"
   },
   "AdminTools": {
     "eyebrow": "Admin Tools",

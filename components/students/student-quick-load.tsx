@@ -71,6 +71,8 @@ export function StudentQuickLoad({
     status: initialFilters.status,
   });
   const [students, setStudents] = useState(initialStudents);
+  /** Design's "Only with dues ✕" chip — a real, removable filter. */
+  const [onlyWithDues, setOnlyWithDues] = useState(false);
   const [page, setPage] = useState(initialPage);
   const [totalCount, setTotalCount] = useState(initialTotalCount);
   const [isLoading, setIsLoading] = useState(false);
@@ -173,12 +175,22 @@ export function StudentQuickLoad({
   // fetch (60 ms debounce above) replaces the underlying list shortly after.
   const displayedStudents = useMemo(() => {
     const q = filters.query.trim().toLowerCase();
-    if (!q) return students;
-    return students.filter((student) => {
+    const matchesQuery = (student: (typeof students)[number]) => {
+      if (!q) return true;
       const haystack = `${student.fullName} ${student.admissionNo} ${student.classLabel} ${student.fatherPhone ?? ""} ${student.motherPhone ?? ""}`.toLowerCase();
       return haystack.includes(q);
+    };
+
+    return students.filter((student) => {
+      if (!matchesQuery(student)) return false;
+      // "Only with dues" — while a row's figures are still loading we keep it
+      // rather than hide it, so the list never appears to lose students.
+      if (onlyWithDues && !student.financialLoading && student.outstandingAmount <= 0) {
+        return false;
+      }
+      return true;
     });
-  }, [students, filters.query]);
+  }, [students, filters.query, onlyWithDues]);
 
   useEffect(() => {
     const nextUrl = `/protected/students${params.toString() ? `?${params.toString()}` : ""}`;
@@ -323,8 +335,28 @@ export function StudentQuickLoad({
 
           {/* Quick filter chips — one-tap focus on common subsets. */}
           <div className="flex flex-wrap gap-1.5">
+            {/* "Only with dues" filters on the real outstanding figure and
+                toggles off with the ✕, replacing a chip that only seeded the
+                free-text search with the word "overdue" and could never show
+                as active or be cleared. */}
+            <button
+              type="button"
+              aria-pressed={onlyWithDues}
+              onClick={() => {
+                setPage(1);
+                setOnlyWithDues((previous) => !previous);
+              }}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                onlyWithDues
+                  ? "border-accent bg-accent text-accent-foreground"
+                  : "border-border bg-card text-foreground hover:bg-surface-2",
+              )}
+            >
+              {t("chipOnlyWithDues")}
+              {onlyWithDues ? <span aria-hidden="true">✕</span> : null}
+            </button>
             {[
-              { key: "has-overdue", label: t("chipHasOverdue") },
               { key: "missing-phone", label: t("chipMissingPhone") },
               { key: "left", label: t("chipWithdrawn") },
               { key: "new", label: t("chipNewThisYear") },
@@ -344,11 +376,6 @@ export function StudentQuickLoad({
                         ...previous,
                         status: filters.status === "left" ? "active" : "left",
                       }));
-                    } else if (chip.key === "has-overdue") {
-                      // Client filter via search box — server-side text search
-                      // still kicks in; the chip seeds a known token recognised
-                      // by the row renderer when we expand server filters.
-                      setFilters((previous) => ({ ...previous, query: "overdue" }));
                     } else if (chip.key === "missing-phone") {
                       setFilters((previous) => ({ ...previous, query: "missing phone" }));
                     } else if (chip.key === "new") {

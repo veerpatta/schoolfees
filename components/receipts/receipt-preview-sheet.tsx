@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Printer, ExternalLink, AlertTriangle, Loader2 } from "lucide-react";
+import { Printer, ExternalLink, AlertTriangle, Loader2, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
@@ -125,6 +125,22 @@ export function ReceiptPreviewSheet({
           </div>
         ) : null}
 
+        {/* Verification status — the question a desk asks of a receipt someone
+            hands them is "is this real, and does it still stand?" */}
+        {state.status === "ready" ? (
+          state.receipt.isVoided ? (
+            <p className="inline-flex items-center gap-1.5 rounded-full bg-destructive-soft px-2.5 py-1 text-xs font-semibold text-destructive-soft-foreground">
+              <AlertTriangle className="size-3.5" aria-hidden="true" />
+              {t("previewReversedBadge")}
+            </p>
+          ) : (
+            <p className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-1 text-xs font-semibold text-success-soft-foreground">
+              <ShieldCheck className="size-3.5" aria-hidden="true" />
+              {t("previewValidBadge")}
+            </p>
+          )
+        ) : null}
+
         {state.status === "ready" ? (
           <ReceiptDocument receipt={state.receipt} mode="saved" density="compact" t={receiptT} />
         ) : null}
@@ -148,7 +164,7 @@ export function ReceiptPreviewSheet({
             <Button asChild size="sm">
               <Link href={printHref} target="_blank" rel="noopener">
                 <Printer className="size-4" aria-hidden="true" />
-                {t("printAction")}
+                {t("printA4Action")}
               </Link>
             </Button>
           ) : null}

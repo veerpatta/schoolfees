@@ -631,6 +631,29 @@ function TodayStrip({ snapshot, t }: { snapshot: TodaySnapshot; t: TxnTranslator
           ))}
         </div>
       </div>
+
+      {/* Proportional mode split — the shape of the day at a glance, so a
+          cash-heavy morning is obvious without reading four figures. */}
+      {snapshot.total > 0 ? (
+        <div className="mt-2.5 flex h-2 overflow-hidden rounded-full bg-surface-3">
+          {modes
+            .filter((mode) => mode.value > 0)
+            .map((mode) => (
+              <span
+                key={`bar-${mode.key}`}
+                className={cn(
+                  "h-full",
+                  mode.key === "cash" && "bg-success",
+                  mode.key === "upi" && "bg-info",
+                  mode.key === "bank" && "bg-accent",
+                  mode.key === "cheque" && "bg-warning",
+                )}
+                style={{ width: `${(mode.value / snapshot.total) * 100}%` }}
+                title={`${mode.label} ${formatInr(mode.value)}`}
+              />
+            ))}
+        </div>
+      ) : null}
     </div>
   );
 }
