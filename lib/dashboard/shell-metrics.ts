@@ -30,35 +30,49 @@ function getSchoolDateStamp(referenceDate = new Date()) {
   }).format(referenceDate);
 }
 
+/**
+ * Columns this module reads. `v_workbook_student_financials` is the
+ * STUDENT-level view: it has `outstanding_amount` / `record_status` but NOT
+ * `balance_status` (that one lives on the installment-level
+ * `v_workbook_installment_balances`). Naming the columns here lets a unit test
+ * assert them against the generated DB types — a wrong name used to fail
+ * silently at runtime and render the whole card as zero.
+ */
+export const SHELL_PULSE_FINANCIALS_COLUMNS = [
+  "session_label",
+  "record_status",
+  "outstanding_amount",
+] as const;
+
 async function getShellPulseUncached(sessionLabel: string): Promise<ShellPulse> {
   const supabase = await getCacheSafeClient();
   const today = getSchoolDateStamp();
 
-  const [todayReceipts, overdueCount] = await Promise.all([
+  const [todayReceipts, defaulterCount] = await Promise.all([
     supabase
       .from("receipts")
       .select("id, total_amount, student_ref:students!inner(class_ref:classes!inner(session_label))")
       .eq("student_ref.class_ref.session_label", sessionLabel)
       .eq("payment_date", today),
+    // Matches what the Defaulters page lists (active students still owing
+    // anything) so the nav pill agrees with its click-through destination.
     supabase
       .from("v_workbook_student_financials")
       .select("student_id", { count: "exact", head: true })
       .eq("session_label", sessionLabel)
       .eq("record_status", "active")
-      .eq("balance_status", "overdue"),
+      .gt("outstanding_amount", 0),
   ]);
 
-  if (todayReceipts.error || overdueCount.error) {
-    // Shell chrome must never take a page down over a metrics hiccup.
-    return EMPTY_PULSE;
-  }
-
-  const rows = (todayReceipts.data ?? []) as Array<{ id: string; total_amount: number | null }>;
+  // Degrade per query: a failure on one side must never blank the other.
+  const receiptRows = todayReceipts.error
+    ? []
+    : ((todayReceipts.data ?? []) as Array<{ id: string; total_amount: number | null }>);
 
   return {
-    todayTotalAmount: rows.reduce((sum, row) => sum + (row.total_amount ?? 0), 0),
-    todayReceiptCount: rows.length,
-    overdueStudentCount: overdueCount.count ?? 0,
+    todayTotalAmount: receiptRows.reduce((sum, row) => sum + (row.total_amount ?? 0), 0),
+    todayReceiptCount: receiptRows.length,
+    overdueStudentCount: defaulterCount.error ? 0 : defaulterCount.count ?? 0,
   };
 }
 

@@ -14,7 +14,9 @@ export function SessionSwitchOverlay({ isVisible }: SessionSwitchOverlayProps) {
       data-session-switching={isVisible ? "true" : undefined}
       className={cn(
         "pointer-events-none fixed inset-0 z-20 transition-opacity duration-200 motion-reduce:transition-none",
-        "lg:left-[252px]",
+        // Must match the sidebar width in components/admin/dashboard-shell.tsx,
+        // or a strip of content stays un-dimmed during the switch.
+        "lg:left-[232px]",
         isVisible
           ? "opacity-100 motion-safe:anim-fade-in"
           : "opacity-0",
