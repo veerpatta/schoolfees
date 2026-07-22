@@ -462,7 +462,19 @@
     "bulkNoPhoneMessage": "{count, plural, =1 {# chayanit abhibhavak ke paas} other {# chayanit abhibhavakon ke paas}} phone number nahin hai aur chhod diye jaayenge:",
     "bulkOpenInfo": "Pushti karne par {count, plural, =1 {# naya browser tab} other {# naye browser tabs}} khulega, har abhibhavak ke liye ek. Sameeksha ke baad har ek ko manually bhejein.",
     "bulkCancel": "Rad karein",
-    "bulkOpenButton": "{count, plural, =1 {# WhatsApp tab} other {# WhatsApp tabs}} kholein"
+    "bulkOpenButton": "{count, plural, =1 {# WhatsApp tab} other {# WhatsApp tabs}} kholein",
+    "callProgressTitle": "Aaj ki calls",
+    "callProgressLogged": "{total} mein se {done} logged",
+    "callProgressPromises": "{count} promises",
+    "callProgressRecent": "Recent",
+    "callProgressEmpty": "Aaj abhi tak koi outcome log nahi hua.",
+    "callQueueUpNext": "Aage",
+    "callQueueSkipForNow": "Abhi chhodein",
+    "callQueueAutoAdvance": "Auto-advance",
+    "callQueueAutoAdvanceHint": "Outcome log karte hi agle parivaar par jaayein",
+    "callQueueShowFullList": "Poori list dikhayein",
+    "callQueueHideFullList": "Poori list chhupayein",
+    "callQueueAdvancedToNext": "Agle parivaar par pahunche"
   },
   "Exports": {
     "eyebrow": "Export",

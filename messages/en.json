@@ -462,7 +462,19 @@
     "bulkNoPhoneMessage": "{count, plural, =1 {# selected parent has} other {# selected parents have}} no phone number on file and will be skipped:",
     "bulkOpenInfo": "Confirming will open {count, plural, =1 {# new browser tab} other {# new browser tabs}}, one per parent. Send each manually after reviewing.",
     "bulkCancel": "Cancel",
-    "bulkOpenButton": "Open {count, plural, =1 {# WhatsApp tab} other {# WhatsApp tabs}}"
+    "bulkOpenButton": "Open {count, plural, =1 {# WhatsApp tab} other {# WhatsApp tabs}}",
+    "callProgressTitle": "Today's calls",
+    "callProgressLogged": "{done} of {total} logged",
+    "callProgressPromises": "{count} promises",
+    "callProgressRecent": "Recent",
+    "callProgressEmpty": "No outcomes logged yet today.",
+    "callQueueUpNext": "Up next",
+    "callQueueSkipForNow": "Skip for now",
+    "callQueueAutoAdvance": "Auto-advance",
+    "callQueueAutoAdvanceHint": "Move to the next family after logging an outcome",
+    "callQueueShowFullList": "Show full list",
+    "callQueueHideFullList": "Hide full list",
+    "callQueueAdvancedToNext": "Moved to the next family"
   },
   "Exports": {
     "eyebrow": "Exports",

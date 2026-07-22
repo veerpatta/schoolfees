@@ -52,6 +52,10 @@ const DEFAULT_SUMMARY: DefaulterContactSummary = {
   lastContactedAt: null,
 };
 
+/** Long enough for the optimistic outcome chip to register, short enough to
+ *  keep the calling rhythm. */
+const AUTO_ADVANCE_DELAY_MS = 450;
+
 function useIsDesktop() {
   const [isDesktop, setIsDesktop] = useState(false);
 
@@ -136,6 +140,11 @@ export function DefaultersWorkspace({
   const [bulkMode, setBulkMode] = useState(false);
   const [noCallOverlay, setNoCallOverlay] = useState<Record<string, boolean>>({});
   const [overlay, setOverlay] = useState<Record<string, DefaulterContactSummary>>({});
+  /** Student ids in the order outcomes were logged this session (newest first). */
+  const [loggedOrder, setLoggedOrder] = useState<string[]>([]);
+  const [autoAdvance, setAutoAdvance] = useState(true);
+  /** Mobile call mode shows one family at a time; this reveals the queue. */
+  const [mobileListOpen, setMobileListOpen] = useState(false);
 
   useEffect(() => {
     setOverlay({});
@@ -206,8 +215,28 @@ export function DefaultersWorkspace({
           [studentId]: patchForQuickLog(kind, defaultChannel, promisedDate, previous),
         };
       });
+
+      // Remember the order outcomes were logged in, so the progress panel can
+      // show a "Recent" feed without a round trip.
+      setLoggedOrder((prev) => [studentId, ...prev.filter((id) => id !== studentId)]);
+
+      // Call mode: logging an outcome for the family currently on screen moves
+      // to the next one. Without this the 40-call list never advances itself
+      // and the clerk has to hunt for their place after every call.
+      if (autoAdvance && studentId === selectedStudentId) {
+        // Let the optimistic chip land first so the outcome is visibly
+        // recorded before the card changes underneath them.
+        window.setTimeout(() => {
+          setSelectedStudentId((current) => {
+            if (current !== studentId) return current;
+            const index = callQueue.findIndex((entry) => entry.row.studentId === studentId);
+            if (index < 0) return current;
+            return callQueue[index + 1]?.row.studentId ?? current;
+          });
+        }, AUTO_ADVANCE_DELAY_MS);
+      }
     },
-    [contactSummaries],
+    [autoAdvance, callQueue, contactSummaries, selectedStudentId],
   );
 
   const handleQuickLogRevert = useCallback((studentId: string) => {
@@ -231,6 +260,48 @@ export function DefaultersWorkspace({
     },
     [callQueue, selectedIndex],
   );
+
+  /** The next few families, so the clerk can see what's coming. */
+  const upNext = useMemo(
+    () => (selectedIndex >= 0 ? callQueue.slice(selectedIndex + 1, selectedIndex + 4) : []),
+    [callQueue, selectedIndex],
+  );
+
+  /**
+   * Progress for the phone hour. "Logged" counts families in today's queue
+   * that now carry an outcome — from this session's optimistic overlay or
+   * from a contact already recorded today.
+   */
+  const callProgress = useMemo(() => {
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+
+    let logged = 0;
+    let promises = 0;
+
+    for (const entry of callQueue) {
+      const summary = effectiveSummaries[entry.row.studentId];
+      if (!summary?.lastContactedAt) continue;
+      if (!summary.lastContactedAt.startsWith(today)) continue;
+      logged += 1;
+      if (summary.lastOutcome === "promised_pay") promises += 1;
+    }
+
+    const recent = loggedOrder
+      .map((studentId) => {
+        const entry = callQueue.find((item) => item.row.studentId === studentId);
+        if (!entry) return null;
+        return { entry, summary: effectiveSummaries[studentId] ?? null };
+      })
+      .filter(Boolean)
+      .slice(0, 3) as Array<{ entry: RecoveryDeskEntry; summary: DefaulterContactSummary | null }>;
+
+    return { logged, promises, total: callQueue.length, recent };
+  }, [callQueue, effectiveSummaries, loggedOrder]);
 
   return (
     <div className="space-y-4">
@@ -262,7 +333,14 @@ export function DefaultersWorkspace({
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,440px)]">
-            <section className="rounded-xl border border-border bg-card">
+            {/* Mobile is call mode: one family at a time. The full queue is
+                one tap away but does not compete with the card being worked. */}
+            <section
+              className={cn(
+                "rounded-xl border border-border bg-card",
+                mobileListOpen ? "" : "hidden lg:block",
+              )}
+            >
               <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-3 sm:px-4">
                 <div>
                   <h2 className="text-base font-semibold text-foreground">{t("callQueueListTitle")}</h2>
@@ -304,6 +382,18 @@ export function DefaultersWorkspace({
               </ul>
             </section>
 
+            <div className="space-y-4">
+            <CallProgressPanel
+              logged={callProgress.logged}
+              total={callProgress.total}
+              promises={callProgress.promises}
+              recent={callProgress.recent}
+              autoAdvance={autoAdvance}
+              onToggleAutoAdvance={() => setAutoAdvance((prev) => !prev)}
+              mobileListOpen={mobileListOpen}
+              onToggleMobileList={() => setMobileListOpen((prev) => !prev)}
+            />
+
             <SelectedStudentPanel
               entry={selectedEntry}
               summary={selectedSummary}
@@ -339,6 +429,14 @@ export function DefaultersWorkspace({
                 }
               }}
             />
+
+            <UpNextPanel
+              entries={upNext}
+              onSelect={(entry) => selectEntry(entry)}
+              onSkip={() => moveSelection(1)}
+              canSkip={selectedIndex >= 0 && selectedIndex < callQueue.length - 1}
+            />
+            </div>
           </div>
 
           <MobileNextBar
@@ -469,6 +567,157 @@ function CallQueueHeader({
           </Button>
         </div>
       </div>
+    </section>
+  );
+}
+
+/**
+ * Turns the phone hour into a finishable list: how many of today's families
+ * carry an outcome, how many promised to pay, and what was just logged.
+ */
+function CallProgressPanel({
+  logged,
+  total,
+  promises,
+  recent,
+  autoAdvance,
+  onToggleAutoAdvance,
+  mobileListOpen,
+  onToggleMobileList,
+}: {
+  logged: number;
+  total: number;
+  promises: number;
+  recent: Array<{ entry: RecoveryDeskEntry; summary: DefaulterContactSummary | null }>;
+  autoAdvance: boolean;
+  onToggleAutoAdvance: () => void;
+  mobileListOpen: boolean;
+  onToggleMobileList: () => void;
+}) {
+  const t = useTranslations("Defaulters");
+  const pct = total > 0 ? Math.min(100, Math.round((logged / total) * 100)) : 0;
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-3 sm:p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-sm font-semibold text-foreground">{t("callProgressTitle")}</h2>
+        <p className="text-xs tabular-nums text-muted-foreground">
+          {t("callProgressLogged", { done: logged, total })}
+          {promises > 0 ? ` · ${t("callProgressPromises", { count: promises })}` : ""}
+        </p>
+      </div>
+
+      <div
+        className="mt-2 h-2 overflow-hidden rounded-full bg-surface-3"
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        <div
+          className="h-full rounded-full bg-success transition-[width] duration-500 ease-out-expo"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+
+      <div className="mt-3">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          {t("callProgressRecent")}
+        </p>
+        {recent.length === 0 ? (
+          <p className="mt-1 text-xs text-muted-foreground">{t("callProgressEmpty")}</p>
+        ) : (
+          <ul className="mt-1 space-y-1">
+            {recent.map(({ entry, summary }) => (
+              <li
+                key={entry.row.studentId}
+                className="flex items-center justify-between gap-2 text-xs"
+              >
+                <span className="min-w-0 truncate font-medium text-foreground">
+                  {entry.row.fullName}
+                </span>
+                <ContactStatusChip summary={summary} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+        <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-foreground">
+          <input
+            type="checkbox"
+            className="size-4 rounded border-border-strong"
+            checked={autoAdvance}
+            onChange={onToggleAutoAdvance}
+          />
+          <span>
+            {t("callQueueAutoAdvance")}
+            <span className="block text-[11px] text-muted-foreground">
+              {t("callQueueAutoAdvanceHint")}
+            </span>
+          </span>
+        </label>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="ml-auto lg:hidden"
+          onClick={onToggleMobileList}
+        >
+          {mobileListOpen ? t("callQueueHideFullList") : t("callQueueShowFullList")}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+/** The next few families in the queue, plus an explicit way to pass on one. */
+function UpNextPanel({
+  entries,
+  onSelect,
+  onSkip,
+  canSkip,
+}: {
+  entries: RecoveryDeskEntry[];
+  onSelect: (entry: RecoveryDeskEntry) => void;
+  onSkip: () => void;
+  canSkip: boolean;
+}) {
+  const t = useTranslations("Defaulters");
+  if (entries.length === 0) return null;
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-3 sm:p-4">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-foreground">{t("callQueueUpNext")}</h2>
+        {canSkip ? (
+          <Button type="button" variant="ghost" size="sm" onClick={onSkip}>
+            {t("callQueueSkipForNow")} →
+          </Button>
+        ) : null}
+      </div>
+      <ul className="mt-2 divide-y divide-border/70">
+        {entries.map((entry) => (
+          <li key={entry.row.studentId}>
+            <button
+              type="button"
+              onClick={() => onSelect(entry)}
+              className="flex min-h-11 w-full items-center justify-between gap-3 py-2 text-left"
+            >
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium text-foreground">
+                  {entry.row.fullName}
+                </span>
+                <span className="block truncate text-[11px] text-muted-foreground">
+                  {entry.row.classLabel}
+                </span>
+              </span>
+              <Money value={entry.row.totalPending} size="sm" tone="warning" />
+            </button>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
