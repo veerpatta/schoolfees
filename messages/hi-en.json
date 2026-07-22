@@ -737,7 +737,20 @@
     "timeTravelTableDiscount": "Chhoot",
     "timeTravelTableLateWaiver": "Vilamb maafi",
     "timeTravelTableReason": "Kaaran",
-    "timeTravelFootnote": "{date} tak ya usse pehle {policyCount} neeti audit panktiyan · {feeSettingCount} fee_settings panktiyan · {overrideCount} override panktiyan nireekshit."
+    "timeTravelFootnote": "{date} tak ya usse pehle {policyCount} neeti audit panktiyan · {feeSettingCount} fee_settings panktiyan · {overrideCount} override panktiyan nireekshit.",
+    "impactPreviewGateHeading": "Impact preview — publish se pehle",
+    "impactPreviewGateBody": "Yeh badlav students ke dues par kya asar dalega, dekhein phir publish karein.",
+    "previewUnpaidRebuilt": "Unpaid rows dubara banenge",
+    "previewUnpaidRebuiltHint": "{count} students affected",
+    "previewFrozenRows": "Paid / partial rows",
+    "previewFrozenRowsHint": "frozen · untouched",
+    "previewNeverEditsMoney": "Publish karne se posted money records kabhi nahi badalte.",
+    "reviewAndPublish": "Review & publish",
+    "keepEditing": "Editing jaari rakhein",
+    "publishing": "Publish ho raha hai…",
+    "stagePreviewImpact": "Impact dekhein",
+    "stagePublished": "Published",
+    "stageDraftEdited": "Draft edited"
   },
   "Activity": {
     "kindPaymentPosted": "Payment darj hua",

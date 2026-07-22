@@ -737,7 +737,20 @@
     "timeTravelTableDiscount": "Discount",
     "timeTravelTableLateWaiver": "Late waiver",
     "timeTravelTableReason": "Reason",
-    "timeTravelFootnote": "Inspected {policyCount} policy audit rows · {feeSettingCount} fee_settings rows · {overrideCount} override rows on or before {date}."
+    "timeTravelFootnote": "Inspected {policyCount} policy audit rows · {feeSettingCount} fee_settings rows · {overrideCount} override rows on or before {date}.",
+    "impactPreviewGateHeading": "Impact preview — before publish",
+    "impactPreviewGateBody": "Review what this change does to student dues, then publish.",
+    "previewUnpaidRebuilt": "Unpaid rows rebuilt",
+    "previewUnpaidRebuiltHint": "{count} students affected",
+    "previewFrozenRows": "Paid / partial rows",
+    "previewFrozenRowsHint": "frozen · untouched",
+    "previewNeverEditsMoney": "Publishing never edits posted money records.",
+    "reviewAndPublish": "Review & publish",
+    "keepEditing": "Keep editing",
+    "publishing": "Publishing…",
+    "stagePreviewImpact": "Preview impact",
+    "stagePublished": "Published",
+    "stageDraftEdited": "Draft edited"
   },
   "Activity": {
     "kindPaymentPosted": "Payment posted",

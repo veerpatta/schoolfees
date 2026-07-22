@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { isTestAcademicSessionLabel } from "@/lib/config/fee-rules";
 import { normalizeConventionalDiscountCode } from "@/lib/fees/conventional-discount-rules";
 import type { ClassStatus } from "@/lib/db/types";
+import { FeeSetupImpactPreview } from "@/components/fees/fee-setup-impact-preview";
 import type {
   FeeHeadApplicationType,
   FeeHeadChargeFrequency,
@@ -22,6 +23,7 @@ import type {
   FeeSetupActionState,
   FeeSetupPageData,
 } from "@/lib/fees/types";
+import { INITIAL_FEE_SETUP_ACTION_STATE } from "@/lib/fees/types";
 import {
   buildWorkbookClassSetupRows,
   buildWorkbookRouteSetupRows,
@@ -338,15 +340,6 @@ function AdvancedDetails({
   );
 }
 
-function ReviewMetric({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border border-border bg-card px-4 py-3 text-sm">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="mt-1 font-semibold text-foreground">{value}</p>
-    </div>
-  );
-}
-
 function SyncPill({ status, lastSavedAt }: { status: SyncStatus; lastSavedAt: string | null }) {
   const t = useTranslations("FeeSetup");
   const label =
@@ -536,6 +529,12 @@ export function FeeSetupClient({
     });
   }
 
+  /**
+   * Fee Setup rewrites student dues, so publishing is a two-step gate:
+   * "preview" computes the impact server-side and returns a batch id, then
+   * "apply" publishes that exact reviewed batch. The single-shot "save"
+   * intent still exists on the server for other callers.
+   */
   function submitFeeSetup(intent: "preview" | "apply" | "save") {
     startSaving(async () => {
       const result = await saveWorkbookFeeSetupAction(
@@ -553,6 +552,14 @@ export function FeeSetupClient({
       }
     });
   }
+
+  /** Discard a pending preview and go back to editing (nothing was written). */
+  function discardPreview() {
+    setSaveState(INITIAL_FEE_SETUP_ACTION_STATE);
+  }
+
+  const pendingPreview =
+    saveState.status === "preview" && saveState.preview ? saveState.preview : null;
 
   const sessionRows = masterData.sessions;
   const selectedSessionIsTest = isTestSessionLabel(selectedSessionLabel);
@@ -780,17 +787,14 @@ export function FeeSetupClient({
 
         <SyncPill status={syncStatus} lastSavedAt={lastSavedAt} />
 
-        {/* Stage indicator: unsaved edits = Draft, saving = Review (impact
-            preview + protected-row checks run in the save path), otherwise
-            the setup on screen is what the office is Live on. */}
-        <div
-          className="hidden items-center gap-1 text-[10px] font-semibold uppercase tracking-wide md:flex"
-          aria-hidden="true"
-        >
+        {/* Real workflow stage, not transient UI state: unsaved edits =
+            Draft edited, a computed-but-unpublished batch = Preview impact,
+            otherwise what is on screen is what the office is published on. */}
+        <div className="hidden items-center gap-1 text-[10px] font-semibold uppercase tracking-wide md:flex">
           {[
-            { key: "stageDraft", active: isDirty && !isSaving },
-            { key: "stageReview", active: isSaving },
-            { key: "stageLive", active: !isDirty && !isSaving },
+            { key: "stageDraftEdited", active: isDirty && !pendingPreview },
+            { key: "stagePreviewImpact", active: Boolean(pendingPreview) },
+            { key: "stagePublished", active: !isDirty && !pendingPreview },
           ].map((stage, index) => (
             <span key={stage.key} className="flex items-center gap-1">
               {index > 0 ? <span className="text-muted-foreground/40">→</span> : null}
@@ -798,7 +802,7 @@ export function FeeSetupClient({
                 className={cn(
                   "rounded-full px-2 py-0.5",
                   stage.active
-                    ? stage.key === "stageLive"
+                    ? stage.key === "stagePublished"
                       ? "bg-success-soft text-success-soft-foreground"
                       : "bg-accent-soft text-accent-soft-foreground"
                     : "text-muted-foreground/60",
@@ -822,8 +826,8 @@ export function FeeSetupClient({
           <Button
             type="button"
             size="sm"
-            onClick={() => submitFeeSetup("save")}
-            disabled={!isDirty || isSaving}
+            onClick={() => submitFeeSetup("preview")}
+            disabled={!isDirty || isSaving || Boolean(pendingPreview)}
             aria-label={t("topbarSaveAria")}
           >
             {isSaving ? t("topbarSaving") : t("topbarSave")}
@@ -833,6 +837,17 @@ export function FeeSetupClient({
 
       <div className="space-y-6 p-4 md:p-6">
         <ActionNotice state={saveState} />
+
+        {/* The publish gate. Nothing has been written at this point — the
+            preview only computed a batch; "Review & publish" applies it. */}
+        {canEdit && pendingPreview ? (
+          <FeeSetupImpactPreview
+            preview={pendingPreview}
+            isPublishing={isSaving}
+            onPublish={() => submitFeeSetup("apply")}
+            onKeepEditing={discardPreview}
+          />
+        ) : null}
 
         {!canEdit ? (
           <div className="rounded-2xl border bg-warning-soft px-4 py-3 text-sm leading-6 text-warning-soft-foreground">
@@ -2176,35 +2191,9 @@ export function FeeSetupClient({
         </div>
       </details>
 
-            {(isSaving || saveState.status === "preview") && saveState.preview ? (
-              <div className="mt-5 rounded-xl border bg-info-soft p-4 text-sm text-info-soft-foreground">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-widest">
-                  {t("impactPreviewHeading")}
-                </p>
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                  <ReviewMetric
-                    label={t("previewStudentsAffected")}
-                    value={saveState.preview.studentsAffected}
-                  />
-                  <ReviewMetric
-                    label={t("previewDuesChanging")}
-                    value={
-                      saveState.preview.installmentsToInsert +
-                      saveState.preview.installmentsToUpdate +
-                      saveState.preview.installmentsToCancel
-                    }
-                  />
-                  <ReviewMetric
-                    label={t("previewRowsKept")}
-                    value={saveState.preview.blockedInstallments}
-                  />
-                  <ReviewMetric
-                    label={t("previewStudentsInScope")}
-                    value={saveState.preview.studentsInScope}
-                  />
-                </div>
-              </div>
-            ) : null}
+            {/* The impact numbers now live in the publish gate at the top of
+                the page (FeeSetupImpactPreview) where they are seen before
+                publishing, rather than buried at the bottom of a section. */}
           </div>
         </div>
       </div>
@@ -2219,8 +2208,8 @@ export function FeeSetupClient({
           <Button
             type="button"
             size="sm"
-            onClick={() => submitFeeSetup("save")}
-            disabled={!isDirty || isSaving}
+            onClick={() => submitFeeSetup("preview")}
+            disabled={!isDirty || isSaving || Boolean(pendingPreview)}
             aria-label={t("topbarSaveAria")}
           >
             {isSaving ? t("topbarSaving") : t("mobileSave")}

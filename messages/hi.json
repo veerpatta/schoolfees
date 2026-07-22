@@ -737,7 +737,20 @@
     "timeTravelTableDiscount": "छूट",
     "timeTravelTableLateWaiver": "विलंब माफ़ी",
     "timeTravelTableReason": "कारण",
-    "timeTravelFootnote": "{date} तक या उससे पहले {policyCount} नीति ऑडिट पंक्तियाँ · {feeSettingCount} fee_settings पंक्तियाँ · {overrideCount} ओवरराइड पंक्तियाँ निरीक्षित।"
+    "timeTravelFootnote": "{date} तक या उससे पहले {policyCount} नीति ऑडिट पंक्तियाँ · {feeSettingCount} fee_settings पंक्तियाँ · {overrideCount} ओवरराइड पंक्तियाँ निरीक्षित।",
+    "impactPreviewGateHeading": "प्रभाव पूर्वावलोकन — प्रकाशित करने से पहले",
+    "impactPreviewGateBody": "यह बदलाव छात्रों के शुल्क पर क्या असर डालेगा, देखें और फिर प्रकाशित करें।",
+    "previewUnpaidRebuilt": "अवैतनिक पंक्तियाँ पुनः बनेंगी",
+    "previewUnpaidRebuiltHint": "{count} छात्र प्रभावित",
+    "previewFrozenRows": "भुगतान / आंशिक पंक्तियाँ",
+    "previewFrozenRowsHint": "सुरक्षित · अपरिवर्तित",
+    "previewNeverEditsMoney": "प्रकाशित करने से दर्ज भुगतान कभी नहीं बदलते।",
+    "reviewAndPublish": "जाँचें और प्रकाशित करें",
+    "keepEditing": "संपादन जारी रखें",
+    "publishing": "प्रकाशित हो रहा है…",
+    "stagePreviewImpact": "प्रभाव देखें",
+    "stagePublished": "प्रकाशित",
+    "stageDraftEdited": "मसौदा संपादित"
   },
   "Activity": {
     "kindPaymentPosted": "भुगतान दर्ज हुआ",
