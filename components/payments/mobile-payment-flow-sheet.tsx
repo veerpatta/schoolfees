@@ -613,8 +613,14 @@ export function MobilePaymentFlowSheet({
             </div>
           ) : null}
 
+          {/* Everything between the header and the Collect button scrolls.
+              The redesigned entry (dues ledger + late-fee card + composer +
+              allocation strip) is taller than one small-phone viewport, and
+              without this container the CTA rendered below the sheet edge
+              with no way to reach it. */}
+          <div className="flex-1 min-h-0 overflow-y-auto momentum-scroll">
           {/* Collapsed summary — always visible. Pending and Overdue are tappable to expand fee heads. */}
-          <div className="flex-none border-b border-border px-3 py-3">
+          <div className="border-b border-border px-3 py-3">
             {(() => {
               const dist = selectedStudent?.feeHeadDistribution;
               const installmentCount = Math.max(dist?.installmentCount ?? 4, 1);
@@ -727,10 +733,7 @@ export function MobilePaymentFlowSheet({
                       gray; overdue rows sit on a destructive-soft wash. Old
                       balance rows keep their carry-forward labelling. */}
                   {previewBreakdown.length > 0 ? (
-                    <div
-                      className="mt-2 max-h-[26svh] space-y-1 overflow-y-auto pr-0.5"
-                      data-dues-ledger
-                    >
+                    <div className="mt-2 space-y-1" data-dues-ledger>
                       {previewBreakdown.map((item) => {
                         const isPaid = item.outstandingAmount <= 0 && item.paymentsTotal > 0;
                         const isOverdue = item.balanceStatus === "overdue";
@@ -1140,6 +1143,13 @@ export function MobilePaymentFlowSheet({
                           e.currentTarget.blur();
                         }
                       }}
+                      onFocus={(event) => {
+                        // Keep the field visible once the keyboard settles.
+                        const target = event.currentTarget;
+                        window.setTimeout(() => {
+                          target.scrollIntoView({ block: "center", behavior: "smooth" });
+                        }, 200);
+                      }}
                     />
                     {paymentAmountInput && remainingAfterPayment === 0 ? (
                       <span className="mr-3 rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-medium text-success-soft-foreground">
@@ -1249,24 +1259,35 @@ export function MobilePaymentFlowSheet({
                 {formError}
               </p>
             ) : null}
+          </div>
+          </div>
 
-            <div className="flex-none px-3 pt-2" style={{ paddingBottom: 'calc(var(--mobile-safe-area-bottom, 0px) + 0.75rem)' }}>
-              <Button
-                type="button"
-                variant="accent"
-                size="lg"
-                fullWidth
-                className="h-14 rounded-xl text-base font-semibold"
-                disabled={confirmDisabled || !draftValidationOk || isLockedAfterSuccess || studentSummaryLoading}
-                onClick={onOpenConfirm}
-              >
-                {paymentAmountInput
-                  ? `Collect ${formatInr(Number(paymentAmountInput))} · ${
-                      paymentModeOptions.find((option) => option.value === paymentMode)?.label ?? ""
-                    }`.trimEnd()
-                  : "Enter amount"}
-              </Button>
-            </div>
+          {/* Collect button — pinned outside the scroll area so it is ALWAYS
+              visible and tappable. The keyboard offset lifts it above the
+              on-screen keyboard on browsers that overlay it (iOS), and is 0
+              where the viewport resizes instead (most Android). */}
+          <div
+            className="flex-none border-t border-border bg-background px-3 pt-2"
+            style={{
+              paddingBottom:
+                "calc(var(--mobile-safe-area-bottom, 0px) + 0.75rem + var(--keyboard-offset, 0px))",
+            }}
+          >
+            <Button
+              type="button"
+              variant="accent"
+              size="lg"
+              fullWidth
+              className="h-14 rounded-xl text-base font-semibold"
+              disabled={confirmDisabled || !draftValidationOk || isLockedAfterSuccess || studentSummaryLoading}
+              onClick={onOpenConfirm}
+            >
+              {paymentAmountInput
+                ? `Collect ${formatInr(Number(paymentAmountInput))} · ${
+                    paymentModeOptions.find((option) => option.value === paymentMode)?.label ?? ""
+                  }`.trimEnd()
+                : "Enter amount"}
+            </Button>
           </div>
         </div>
       ) : null}
