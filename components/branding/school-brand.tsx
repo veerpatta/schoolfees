@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 type SchoolBrandProps = {
   className?: string;
-  variant?: "hero" | "sidebar" | "compact" | "icon";
+  variant?: "hero" | "sidebar" | "sidebar-ink" | "compact" | "icon";
   priority?: boolean;
 };
 
@@ -23,6 +23,13 @@ const variantStyles = {
     eyebrow: "text-[10px] font-semibold uppercase tracking-[0.14em] text-accent",
     title: "mt-0.5 font-display text-[15px] font-semibold leading-tight tracking-tight text-foreground",
     subtitle: "mt-0.5 text-[11px] leading-4 text-muted-foreground",
+  },
+  "sidebar-ink": {
+    root: "gap-3",
+    frame: "size-11 rounded-lg p-1 shadow-xs",
+    eyebrow: "text-[10px] font-semibold uppercase tracking-[0.14em] text-accent",
+    title: "mt-0.5 font-display text-[15px] font-semibold leading-tight tracking-tight text-nav-foreground",
+    subtitle: "mt-0.5 text-[11px] leading-4 text-nav-muted",
   },
   compact: {
     root: "gap-2.5",
@@ -51,7 +58,8 @@ export function SchoolBrand({
     <div className={cn("flex items-center", style.root, className)}>
       <div
         className={cn(
-          "shrink-0 overflow-hidden border border-border bg-surface",
+          "shrink-0 overflow-hidden border",
+          variant === "sidebar-ink" ? "border-nav-border bg-nav-surface" : "border-border bg-surface",
           style.frame,
         )}
       >

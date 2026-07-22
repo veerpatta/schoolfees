@@ -21,7 +21,7 @@
       ui-serif, serif;
 
     /* Surfaces ---------------------------------------------------------- */
-    --background: 48 33% 98%;        /* paper */
+    --background: 46 42% 97%;        /* warmer paper (Ledger Calm 2.0) */
     --foreground: 222 25% 11%;       /* ink */
     --card: 0 0% 100%;
     --card-foreground: 222 25% 11%;
@@ -53,6 +53,14 @@
     --accent-soft-foreground: 20 86% 33%;
     --ring: 20 86% 45%;
 
+    /* Ink navigation surfaces — sidebar, hero band, WhatsApp card -------- */
+    --nav: 222 28% 10%;              /* sidebar / hero band bg */
+    --nav-foreground: 44 22% 96%;
+    --nav-muted: 44 12% 70%;
+    --nav-surface: 222 22% 14%;      /* cards sitting on ink */
+    --nav-hover: 222 20% 16%;
+    --nav-border: 222 16% 20%;
+
     /* Semantic ---------------------------------------------------------- */
     --success: 151 56% 24%;
     --success-foreground: 0 0% 100%;
@@ -81,12 +89,13 @@
     --chart-4: 30 70% 42%;
     --chart-5: 221 50% 38%;
 
-    /* Geometry ---------------------------------------------------------- */
-    --radius: 0.75rem;               /* 12px — cards / panels */
+    /* Geometry — cards step up one radius (Ledger Calm 2.0) ------------- */
+    --radius: 0.75rem;               /* 12px — panels */
     --radius-sm: 0.5rem;             /* 8px  — badges, inputs sm */
     --radius-md: 0.625rem;           /* 10px — buttons, inputs */
-    --radius-lg: 0.75rem;            /* 12px — cards */
-    --radius-xl: 1rem;               /* 16px — sheets, modals */
+    --radius-lg: 0.875rem;           /* 14px — rows / inputs */
+    --radius-xl: 1rem;               /* 16px — cards */
+    --radius-2xl: 1.25rem;           /* 20px — sheets / hero */
 
     /* Shadows ----------------------------------------------------------- */
     --shadow-xs: 0 1px 2px hsl(222 25% 11% / 0.04);
@@ -144,6 +153,14 @@
     --accent-soft: 22 50% 18%;
     --accent-soft-foreground: 22 88% 78%;
     --ring: 22 88% 58%;
+
+    /* Ink navigation surfaces — slightly lighter ink at night */
+    --nav: 222 22% 14%;
+    --nav-foreground: 44 22% 96%;
+    --nav-muted: 44 12% 70%;
+    --nav-surface: 222 20% 18%;
+    --nav-hover: 222 18% 20%;
+    --nav-border: 222 16% 24%;
 
     /* Semantic — bump softs to readable dark tones */
     --success: 151 50% 40%;
@@ -270,6 +287,16 @@
     letter-spacing: -0.01em;
   }
 
+  /* Display money — serif hero amounts only (dashboard today, amount
+     composer, success card, receipt amount, WhatsApp card). Table/body
+     money stays Inter via <Money>. */
+  .font-display-money {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+
   .tabular {
     font-variant-numeric: tabular-nums;
   }
@@ -340,6 +367,12 @@
 
   .anim-settle-in {
     animation: settle-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Receipt number stamps in like an office rubber stamp — lands from
+     above with a slight rotation, then settles square-ish. */
+  .anim-stamp-in {
+    animation: stamp-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   .anim-shimmer {
@@ -494,6 +527,7 @@
   .anim-route-progress,
   .anim-check-halo,
   .anim-settle-in,
+  .anim-stamp-in,
   .animate-bottom-sheet-up,
   .animate-success-check,
   .animate-loading-bar,
@@ -561,6 +595,11 @@
 @keyframes settle-in {
   from { opacity: 0; transform: translate3d(0, 6px, 0); }
   to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes stamp-in {
+  from { opacity: 0; transform: scale(1.6) rotate(-14deg); }
+  to { opacity: 1; transform: scale(1) rotate(-4deg); }
 }
 
 /* =====================================================================

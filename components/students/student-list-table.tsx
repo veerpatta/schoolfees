@@ -60,7 +60,7 @@ function OutstandingCell({ student, t }: { student: StudentListItem; t: Students
   if (student.financialLoading) {
     return (
       <div className="flex flex-col items-end gap-1" aria-live="polite">
-        <span className="h-4 w-16 animate-pulse rounded bg-surface-2" aria-hidden="true" />
+        <span className="h-4 w-16 anim-shimmer rounded bg-surface-2" aria-hidden="true" />
         <Badge variant="outline" className="rounded-full text-[10px] py-0 px-2 font-medium border-border">
           {t("feePositionLoading")}
         </Badge>

@@ -213,7 +213,16 @@ export default async function AdvancedPage({ searchParams }: AdvancedPageProps) 
                       <Icon className="size-5 text-accent" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-foreground">{item.label}</p>
+                      <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                        {item.label}
+                        {item.statusChip ? (
+                          <StatusBadge
+                            label={item.statusChip.label}
+                            tone={item.statusChip.tone}
+                            iconless
+                          />
+                        ) : null}
+                      </p>
                       <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
                         {item.description}
                       </p>

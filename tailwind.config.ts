@@ -76,6 +76,14 @@ export default {
           soft: "hsl(var(--info-soft))",
           "soft-foreground": "hsl(var(--info-soft-foreground))",
         },
+        nav: {
+          DEFAULT: "hsl(var(--nav))",
+          foreground: "hsl(var(--nav-foreground))",
+          muted: "hsl(var(--nav-muted))",
+          surface: "hsl(var(--nav-surface))",
+          hover: "hsl(var(--nav-hover))",
+          border: "hsl(var(--nav-border))",
+        },
         border: "hsl(var(--border))",
         "border-strong": "hsl(var(--border-strong))",
         input: "hsl(var(--input))",
@@ -93,6 +101,7 @@ export default {
         md: "var(--radius-md)",
         lg: "var(--radius-lg)",
         xl: "var(--radius-xl)",
+        "2xl": "var(--radius-2xl)",
       },
       boxShadow: {
         xs: "var(--shadow-xs)",

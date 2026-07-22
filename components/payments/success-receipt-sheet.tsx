@@ -126,18 +126,22 @@ export function SuccessReceiptSheet({
           SAVED · Receipt {receiptNumber} / सहेजा गया
         </span>
 
-        <div
-          className="mt-4 rounded-xl border border-border bg-surface-2 px-4 py-3 anim-settle-in"
-          style={{ animationDelay: "300ms" }}
-        >
+        <div className="mt-4 rounded-xl border border-border bg-surface-2 px-4 py-3">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Receipt No
           </p>
+          {/* The receipt number STAMPS in like an office rubber stamp — lands
+              from above with a slight rotation inside a saffron stamp box.
+              Reduced motion: the keyframe is silenced globally and the box
+              simply appears square. */}
           <p
-            className="mt-1 break-words text-2xl sm:text-3xl font-semibold tracking-tight text-foreground"
+            className="anim-stamp-in mt-1.5 inline-block max-w-full break-words rounded-lg border-2 border-accent px-3 py-1 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl"
             /* Carries the receipt identity across to the receipt page when the
                browser supports view transitions (see startReceiptViewTransition). */
-            style={{ viewTransitionName: "receipt-number" } as React.CSSProperties}
+            style={{
+              viewTransitionName: "receipt-number",
+              animationDelay: "140ms",
+            } as React.CSSProperties}
           >
             {receiptNumber}
           </p>
@@ -158,7 +162,7 @@ export function SuccessReceiptSheet({
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <div className="anim-settle-in" style={{ animationDelay: "420ms" }}>
               <p className="text-xs text-muted-foreground">Amount received</p>
-              <p className="text-2xl font-semibold text-accent">
+              <p className="font-display-money text-2xl text-accent">
                 {/* Lands rather than blinks. Under reduced motion CountUp is
                     given its final value up front (startFrom), so the figure
                     is correct and static. */}
@@ -200,7 +204,7 @@ export function SuccessReceiptSheet({
             {printReceiptHref ? (
               <Button asChild variant="outline" className={cn("w-full", !whatsappHref && "col-span-2")}>
                 <Link href={printReceiptHref} target="_blank">
-                  Print Receipt
+                  Print A4
                 </Link>
               </Button>
             ) : null}
@@ -221,14 +225,14 @@ export function SuccessReceiptSheet({
               </a>
             ) : null}
 
-            {/* Row 2: Collect Another - Primary accent CTA */}
+            {/* Row 2: Next student — ink primary, refocuses student search */}
             <Button
               type="button"
               className="col-span-2 w-full mt-1"
-              variant="accent"
+              variant="default"
               onClick={onCollectAnother}
             >
-              Collect Another Payment
+              Next student →
             </Button>
 
             {/* Row 3: More actions details dropdown */}
@@ -240,6 +244,18 @@ export function SuccessReceiptSheet({
                 <Button asChild variant="outline" className={cn("w-full", !whatsappMessage && "col-span-2")}>
                   <Link href={visibleReceiptHref}>Open Receipt</Link>
                 </Button>
+                {receiptId ? (
+                  <Button asChild variant="outline" className="col-span-2 w-full">
+                    {/* 1080×1080 PNG for WhatsApp — download, then attach in the chat. */}
+                    <a
+                      href={`/protected/receipts/${receiptId}/card`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Receipt Card (image for WhatsApp)
+                    </a>
+                  </Button>
+                ) : null}
                 {whatsappMessage ? (
                   <Button
                     type="button"

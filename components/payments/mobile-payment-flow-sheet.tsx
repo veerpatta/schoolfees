@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatInr } from "@/lib/helpers/currency";
+import { formatShortDate } from "@/lib/helpers/date";
 import { sanitizeDecimalInput } from "@/lib/payments/payment-desk-client-helpers";
 import {
   getDisplayInstallmentLabel,
@@ -13,6 +14,7 @@ import {
 } from "@/lib/prev-year-dues/display";
 import type {
   InstallmentBalanceItem,
+  PaymentAllocationItem,
   PaymentStudentIndexItem,
   SelectedStudentSummary,
 } from "@/lib/payments/types";
@@ -61,6 +63,8 @@ type MobilePaymentFlowSheetProps = {
   waiveFullLateFee: boolean;
   canWaiveLateFee: boolean;
   quickAmounts: Array<{ key: string; label?: string; amount: number | null; disabled: boolean }>;
+  /** Client-side allocation preview for the entered amount (oldest dues first). */
+  allocationPreview: PaymentAllocationItem[];
   remainingAfterPayment: number;
   formError: string | null;
   isLockedAfterSuccess: boolean;
@@ -159,6 +163,7 @@ export function MobilePaymentFlowSheet({
   waiveFullLateFee,
   canWaiveLateFee,
   quickAmounts,
+  allocationPreview,
   remainingAfterPayment,
   formError,
   isLockedAfterSuccess,
@@ -185,7 +190,6 @@ export function MobilePaymentFlowSheet({
   onUseLastAmount,
   isLastAmountArmed,
 }: MobilePaymentFlowSheetProps) {
-  const [breakdownExpanded, setBreakdownExpanded] = React.useState(false);
   const [pendingHeadsExpanded, setPendingHeadsExpanded] = React.useState(false);
   const [overdueHeadsExpanded, setOverdueHeadsExpanded] = React.useState(false);
   const amountInputRef = React.useRef<HTMLInputElement>(null);
@@ -209,7 +213,6 @@ export function MobilePaymentFlowSheet({
   React.useEffect(() => {
     if (view === "payment-entry") {
       hasFocusedRef.current = false;
-      setBreakdownExpanded(false);
       setPendingHeadsExpanded(false);
       setOverdueHeadsExpanded(false);
     }
@@ -717,48 +720,72 @@ export function MobilePaymentFlowSheet({
                         </button>
                       ) : null}
                     </div>
-                    <button
-                      type="button"
-                      className="text-xs font-medium text-accent underline-offset-2 hover:underline"
-                      onClick={() => setBreakdownExpanded((prev) => !prev)}
-                    >
-                      {breakdownExpanded ? "Hide ↑" : "Details ↓"}
-                    </button>
                   </div>
 
+                  {/* Dues ledger — one row per installment (Ledger Calm 2.0).
+                      Dot: paid green / overdue red / partial amber / upcoming
+                      gray; overdue rows sit on a destructive-soft wash. Old
+                      balance rows keep their carry-forward labelling. */}
                   {previewBreakdown.length > 0 ? (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
+                    <div
+                      className="mt-2 max-h-[26svh] space-y-1 overflow-y-auto pr-0.5"
+                      data-dues-ledger
+                    >
                       {previewBreakdown.map((item) => {
                         const isPaid = item.outstandingAmount <= 0 && item.paymentsTotal > 0;
                         const isOverdue = item.balanceStatus === "overdue";
                         const isPartial = item.paymentsTotal > 0 && item.outstandingAmount > 0;
-                        const cls = isPaid
-                          ? "bg-success-soft text-success-soft-foreground border-success-soft-foreground/30"
+                        const dotCls = isPaid
+                          ? "bg-success"
                           : isOverdue
-                            ? "bg-destructive/10 text-destructive border-destructive/30"
+                            ? "bg-destructive"
                             : isPartial
-                              ? "bg-warning-soft text-warning-soft-foreground border-warning-soft-foreground/30"
-                              : "bg-card text-muted-foreground border-border";
-                        const symbol = isPaid ? "✓" : isOverdue ? "‼" : isPartial ? "½" : "";
+                              ? "bg-warning"
+                              : "bg-border-strong";
+                        const rowLabel = isCarryForwardInstallment(item)
+                          ? item.displayLabel ?? getDisplayInstallmentLabel(item)
+                          : `Inst ${item.installmentNo}`;
                         return (
-                          <span
-                            key={`pill-${item.installmentId}`}
+                          <div
+                            key={`ledger-${item.installmentId}`}
                             className={cn(
-                              "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium",
-                              cls,
+                              "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs",
+                              isOverdue
+                                ? "bg-destructive-soft"
+                                : "bg-surface-2/50",
                             )}
-                            title={`${item.displayLabel ?? getDisplayInstallmentLabel(item)}: ${
-                              isPaid
-                                ? `paid ${formatInr(item.paymentsTotal)}`
-                                : isOverdue
-                                  ? `overdue ${formatInr(item.outstandingAmount)}`
-                                  : isPartial
-                                    ? `partial — ${formatInr(item.outstandingAmount)} left`
-                                    : `pending ${formatInr(item.outstandingAmount)}`
-                            }`}
                           >
-                            {isCarryForwardInstallment(item) ? "Old balance" : `Inst ${item.installmentNo}`} {symbol}
-                          </span>
+                            <span
+                              aria-hidden="true"
+                              className={cn("size-2 shrink-0 rounded-full", dotCls)}
+                            />
+                            <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                              {rowLabel}
+                              <span className="ml-1.5 font-normal text-muted-foreground">
+                                {isPaid
+                                  ? "Paid"
+                                  : isOverdue
+                                    ? `Overdue · was due ${formatShortDate(item.dueDate)}`
+                                    : isPartial
+                                      ? "Partly paid"
+                                      : `Due ${formatShortDate(item.dueDate)}`}
+                              </span>
+                            </span>
+                            <span
+                              className={cn(
+                                "shrink-0 font-semibold tabular-nums",
+                                isPaid
+                                  ? "text-success-soft-foreground"
+                                  : isOverdue
+                                    ? "text-destructive"
+                                    : "text-foreground",
+                              )}
+                            >
+                              {isPaid
+                                ? formatInr(item.paymentsTotal)
+                                : formatInr(item.outstandingAmount)}
+                            </span>
+                          </div>
                         );
                       })}
                     </div>
@@ -870,120 +897,221 @@ export function MobilePaymentFlowSheet({
                     </div>
                   ) : null}
 
-                  {/* Expanded installment-level breakdown (existing Details ↓) */}
-                  {breakdownExpanded ? (
-                    <div className="mt-2 space-y-1 max-h-[20svh] overflow-y-auto pr-1">
-                      {previewLoading ? (
-                        <p className="text-xs text-muted-foreground">Loading breakdown...</p>
-                      ) : previewBreakdown.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">No installment dues found.</p>
-                      ) : (
-                        previewBreakdown.map((item) => {
-                          const isPaid = item.outstandingAmount <= 0 && item.paymentsTotal > 0;
-                          const isOverdue = item.balanceStatus === "overdue";
-                          const isPartial = item.paymentsTotal > 0 && item.outstandingAmount > 0;
-                          const statusChip = isPaid
-                            ? { label: "✓ Paid", cls: "bg-success-soft text-success-soft-foreground border-success-soft-foreground/30" }
-                            : isOverdue
-                              ? { label: "Overdue", cls: "bg-destructive/10 text-destructive border-destructive/30" }
-                              : isPartial
-                                ? { label: "Partial", cls: "bg-warning-soft text-warning-soft-foreground border-warning-soft-foreground/30" }
-                                : { label: "Pending", cls: "bg-surface-2 text-muted-foreground border-border" };
-                          return (
-                            <div key={item.installmentId} className="flex items-center justify-between gap-2 text-xs py-1 border-b border-border/40 last:border-0">
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-foreground">{item.displayLabel ?? getDisplayInstallmentLabel(item)}</p>
-                                <p className="text-[10px] text-muted-foreground">Due {item.dueDate}</p>
-                              </div>
-                              <span className={cn("shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold", statusChip.cls)}>
-                                {statusChip.label}
-                              </span>
-                              <span className={cn(
-                                "shrink-0 min-w-[60px] text-right font-semibold tabular-nums",
-                                isPaid ? "text-success-soft-foreground"
-                                  : isOverdue ? "text-destructive"
-                                  : "text-foreground"
-                              )}>
-                                {isPaid ? formatInr(item.paymentsTotal) : formatInr(item.outstandingAmount)}
-                              </span>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  ) : null}
                 </>
               );
             })()}
           </div>
 
           <div className="flex flex-col gap-0">
-            {canWaiveLateFee && pendingLateFeeAmount > 0 ? (
-              <label className="flex-none flex items-center justify-between gap-3 border-b border-border px-3 py-2 text-sm text-foreground">
-                <span>Waive late fee permanently {formatInr(pendingLateFeeAmount)}</span>
-                <input
-                  type="checkbox"
-                  className="size-5 rounded border-border-strong"
-                  checked={waiveFullLateFee}
-                  onChange={onToggleWaiveLateFee}
-                />
-              </label>
+            {pendingLateFeeAmount > 0 ? (
+              (() => {
+                /* Late-fee decision card — replaces the old waive checkbox.
+                   States: Include (default, amber) / Waive (admin, success).
+                   The waiver is permanent and stamped on the receipt + audit. */
+                const overdueRows = previewBreakdown.filter(
+                  (item) => item.balanceStatus === "overdue" && item.outstandingAmount > 0,
+                );
+                const triggerRow = overdueRows[overdueRows.length - 1] ?? null;
+                const causeLine = triggerRow
+                  ? `Applied because ${
+                      isCarryForwardInstallment(triggerRow)
+                        ? triggerRow.displayLabel ?? getDisplayInstallmentLabel(triggerRow)
+                        : `Inst ${triggerRow.installmentNo}`
+                    } passed ${formatShortDate(triggerRow.dueDate)} · flat ${formatInr(pendingLateFeeAmount)}`
+                  : `Flat ${formatInr(pendingLateFeeAmount)} for late payment`;
+
+                return (
+                  <div
+                    className={cn(
+                      "mx-3 my-2 flex-none rounded-xl border px-3 py-2.5 transition-colors",
+                      waiveFullLateFee
+                        ? "border-success/30 bg-success-soft"
+                        : "border-warning/30 bg-warning-soft",
+                    )}
+                    data-late-fee-decision
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p
+                        className={cn(
+                          "text-sm font-semibold",
+                          waiveFullLateFee
+                            ? "text-success-soft-foreground"
+                            : "text-warning-soft-foreground",
+                        )}
+                      >
+                        Late fee · विलंब शुल्क{" "}
+                        <span
+                          className={cn(
+                            "tabular-nums",
+                            waiveFullLateFee && "line-through decoration-[1.5px] opacity-70",
+                          )}
+                        >
+                          {formatInr(pendingLateFeeAmount)}
+                        </span>
+                      </p>
+                    </div>
+                    <p
+                      className={cn(
+                        "mt-0.5 text-[11px]",
+                        waiveFullLateFee
+                          ? "text-success-soft-foreground/80"
+                          : "text-warning-soft-foreground/80",
+                      )}
+                    >
+                      {waiveFullLateFee
+                        ? "Waived permanently — stamped on the receipt and audit trail."
+                        : causeLine}
+                    </p>
+                    {canWaiveLateFee ? (
+                      <div
+                        className="mt-2 grid grid-cols-2 gap-1 rounded-lg bg-card/70 p-1"
+                        role="group"
+                        aria-label="Late fee decision"
+                      >
+                        <button
+                          type="button"
+                          aria-pressed={!waiveFullLateFee}
+                          disabled={disablePaymentActions}
+                          onClick={() => {
+                            if (waiveFullLateFee) onToggleWaiveLateFee();
+                          }}
+                          className={cn(
+                            "rounded-md px-2 py-1.5 text-xs font-semibold transition-colors",
+                            !waiveFullLateFee
+                              ? "bg-primary text-primary-foreground shadow-xs"
+                              : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          Include {formatInr(pendingLateFeeAmount)}
+                        </button>
+                        <button
+                          type="button"
+                          aria-pressed={waiveFullLateFee}
+                          disabled={disablePaymentActions}
+                          onClick={() => {
+                            if (!waiveFullLateFee) onToggleWaiveLateFee();
+                          }}
+                          className={cn(
+                            "rounded-md px-2 py-1.5 text-xs font-semibold transition-colors",
+                            waiveFullLateFee
+                              ? "bg-success text-success-foreground shadow-xs"
+                              : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          Waive (admin)
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })()
             ) : null}
 
             {isFirstLoad ? (
+              /* Skeleton mirrors the real composer layout: three quick cards,
+                 the amount field, and the mode row. Shimmer only — no pulse. */
               <div className="px-3 py-3 border-b border-border space-y-3">
                 <div className="flex gap-2">
-                  <div className="h-16 flex-1 rounded-xl bg-surface-2 animate-pulse" />
-                  <div className="h-16 flex-1 rounded-xl bg-surface-2 animate-pulse" />
+                  <div className="h-16 flex-1 rounded-xl bg-surface-2 anim-shimmer" />
+                  <div className="h-16 flex-1 rounded-xl bg-surface-2 anim-shimmer" />
+                  <div className="h-16 flex-1 rounded-xl bg-surface-2 anim-shimmer" />
                 </div>
-                <div className="h-16 w-full rounded-xl bg-surface-2 animate-pulse" />
-                <div className="flex gap-1.5 overflow-x-auto py-1">
-                  <div className="h-8 w-16 rounded-full bg-surface-2 animate-pulse" />
-                  <div className="h-8 w-16 rounded-full bg-surface-2 animate-pulse" />
-                  <div className="h-8 w-24 rounded-full bg-surface-2 animate-pulse" />
+                <div className="h-16 w-full rounded-xl bg-surface-2 anim-shimmer" />
+                <div className="flex gap-1.5 py-1">
+                  <div className="h-12 flex-1 rounded-xl bg-surface-2 anim-shimmer" />
+                  <div className="h-12 flex-1 rounded-xl bg-surface-2 anim-shimmer" />
+                  <div className="h-12 flex-1 rounded-xl bg-surface-2 anim-shimmer" />
+                  <div className="h-12 flex-1 rounded-xl bg-surface-2 anim-shimmer" />
                 </div>
               </div>
             ) : (
               <>
-                {/* Primary amounts — Full Due and Next Installment as large tappable cards */}
+                {/* Amount composer — three quick cards: Clear overdue (incl.
+                    late fee, saffron), Next installment, Full year. Selected
+                    card = saffron border + accent-soft wash. */}
                 {(() => {
                   const fullDue = quickAmounts.find((q) => q.key === "full");
                   const nextInst = quickAmounts.find((q) => q.key === "next");
-                  if (!fullDue && !nextInst) return null;
+                  const overdue = quickAmounts.find((q) => q.key === "overdue");
+                  const includedLateFee = waiveFullLateFee ? 0 : pendingLateFeeAmount;
+                  const clearOverdueAmount =
+                    (overdue?.amount ?? 0) > 0 ? (overdue?.amount ?? 0) + includedLateFee : 0;
+                  const composerCards = [
+                    clearOverdueAmount > 0
+                      ? {
+                          key: "clearOverdue",
+                          label: "Clear overdue",
+                          sub: includedLateFee > 0 ? "incl. late fee" : "past due",
+                          amount: clearOverdueAmount,
+                          emphasis: true,
+                        }
+                      : null,
+                    nextInst && nextInst.amount !== null && !nextInst.disabled
+                      ? {
+                          key: "next",
+                          label: "Next installment",
+                          sub: null,
+                          amount: nextInst.amount,
+                          emphasis: false,
+                        }
+                      : null,
+                    fullDue && fullDue.amount !== null && !fullDue.disabled
+                      ? {
+                          key: "full",
+                          label: "Full year",
+                          sub: null,
+                          amount: fullDue.amount,
+                          emphasis: false,
+                        }
+                      : null,
+                  ].filter(Boolean) as Array<{
+                    key: string;
+                    label: string;
+                    sub: string | null;
+                    amount: number;
+                    emphasis: boolean;
+                  }>;
+                  if (composerCards.length === 0) return null;
                   return (
                     <div className="flex gap-2 px-3 py-2 border-b border-border">
-                      {fullDue && fullDue.amount !== null ? (
-                        <button
-                          type="button"
-                          disabled={fullDue.disabled || disablePaymentActions}
-                          onClick={() => onQuickAmount(fullDue.amount)}
-                          className={cn(
-                            "flex flex-1 flex-col items-center rounded-xl border py-3 transition-all active:scale-95 disabled:opacity-40",
-                            paymentAmountInput === String(fullDue.amount)
-                              ? "border-accent bg-accent/10 text-accent font-semibold"
-                              : "border-border bg-surface-2 text-foreground hover:bg-surface-3"
-                          )}
-                        >
-                          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Full Due</span>
-                          <span className="text-lg font-bold tabular-nums">{formatInr(fullDue.amount)}</span>
-                        </button>
-                      ) : null}
-                      {nextInst && nextInst.amount !== null ? (
-                        <button
-                          type="button"
-                          disabled={nextInst.disabled || disablePaymentActions}
-                          onClick={() => onQuickAmount(nextInst.amount)}
-                          className={cn(
-                            "flex flex-1 flex-col items-center rounded-xl border py-3 transition-all active:scale-95 disabled:opacity-40",
-                            paymentAmountInput === String(nextInst.amount)
-                              ? "border-accent bg-accent/10 text-accent font-semibold"
-                              : "border-border bg-surface-2 text-foreground hover:bg-surface-3"
-                          )}
-                        >
-                          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Next Installment</span>
-                          <span className="text-lg font-bold tabular-nums">{formatInr(nextInst.amount)}</span>
-                        </button>
-                      ) : null}
+                      {composerCards.map((card) => {
+                        const selected = paymentAmountInput === String(card.amount);
+                        return (
+                          <button
+                            key={card.key}
+                            type="button"
+                            disabled={disablePaymentActions}
+                            onClick={() => onQuickAmount(card.amount)}
+                            className={cn(
+                              "flex min-w-0 flex-1 flex-col items-center rounded-xl border py-3 transition-all active:scale-95 disabled:opacity-40",
+                              selected
+                                ? "border-accent bg-accent-soft text-accent-soft-foreground font-semibold"
+                                : card.emphasis
+                                  ? "border-accent/40 bg-card text-accent hover:bg-accent-soft"
+                                  : "border-border bg-surface-2 text-foreground hover:bg-surface-3",
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "px-1 text-[10px] font-medium uppercase tracking-wide",
+                                selected || card.emphasis
+                                  ? "text-accent-soft-foreground/80"
+                                  : "text-muted-foreground",
+                              )}
+                            >
+                              {card.label}
+                            </span>
+                            <span className="text-base font-bold tabular-nums">
+                              {formatInr(card.amount)}
+                            </span>
+                            {card.sub ? (
+                              <span className="px-1 text-[9px] font-medium text-muted-foreground">
+                                {card.sub}
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
                     </div>
                   );
                 })()}
@@ -1020,43 +1148,82 @@ export function MobilePaymentFlowSheet({
                     ) : null}
                   </div>
                   {paymentAmountInput && Number(paymentAmountInput) > 0 ? (
-                    <p className="text-center text-3xl font-bold text-accent pb-2">
+                    <p className="font-display-money pb-2 text-center text-3xl text-accent">
                       {formatInr(Number(paymentAmountInput))}
                     </p>
                   ) : null}
                 </div>
 
-                <div className="flex-none flex gap-1.5 overflow-x-auto border-b border-border px-3 py-2">
-                  {quickAmounts.filter((q) => q.key !== "full" && q.key !== "next").map((qa) => (
-                    <button
-                      key={`mobile-sheet-${qa.key}`}
-                      type="button"
-                      disabled={qa.disabled || disablePaymentActions}
-                      className="min-h-11 min-w-[4rem] shrink-0 rounded-full border border-border bg-surface-2 px-4 py-1.5 text-sm font-semibold text-foreground disabled:pointer-events-none disabled:opacity-40"
-                      onClick={() => onQuickAmount(qa.amount)}
-                    >
-                      {qa.key === "clear" ? qa.label ?? "Clear" : `${qa.label ?? qa.key} ${qa.amount ? formatInr(qa.amount) : ""}`}
-                    </button>
-                  ))}
-                </div>
+                {/* Allocation preview strip — where the entered money lands,
+                    from the same preview data the posting flow uses. */}
+                {paymentAmountInput &&
+                Number(paymentAmountInput) > 0 &&
+                allocationPreview.length > 0 ? (
+                  (() => {
+                    const enteredAmount = Number(paymentAmountInput) || 0;
+                    const allocatedTotal = allocationPreview.reduce(
+                      (sum, item) => sum + item.allocatedAmount,
+                      0,
+                    );
+                    const surplus = Math.max(enteredAmount - allocatedTotal, 0);
+                    const lateFeeCovered =
+                      !waiveFullLateFee &&
+                      pendingLateFeeAmount > 0 &&
+                      surplus >= pendingLateFeeAmount;
+                    return (
+                      <div
+                        className="mx-3 my-2 flex-none rounded-lg bg-info-soft px-3 py-2 text-xs text-info-soft-foreground"
+                        data-allocation-strip
+                        aria-live="polite"
+                      >
+                        <span className="font-semibold">This payment → </span>
+                        {allocationPreview.map((item, index) => {
+                          const label = item.isCarryForward
+                            ? item.displayLabel ?? item.installmentLabel
+                            : `Inst ${item.installmentNo}`;
+                          return (
+                            <span key={item.installmentId}>
+                              {index > 0 ? " + " : ""}
+                              {item.outstandingAfter === 0 ? `clears ${label} ✓` : `${label} (part)`}
+                            </span>
+                          );
+                        })}
+                        {pendingLateFeeAmount > 0 ? (
+                          <span>
+                            {waiveFullLateFee
+                              ? " · late fee waived"
+                              : lateFeeCovered
+                                ? ` + late fee ${formatInr(pendingLateFeeAmount)} ✓`
+                                : ` · late fee ${formatInr(pendingLateFeeAmount)} still due`}
+                          </span>
+                        ) : null}
+                        <span>
+                          {" · "}Remaining after: {formatInr(Math.max(remainingAfterPayment, 0))}
+                        </span>
+                      </div>
+                    );
+                  })()
+                ) : null}
               </>
             )}
 
-            <div className="flex-none grid grid-cols-2 gap-2 border-t border-border px-3 py-2">
+            {/* Payment mode — one segmented row, selected mode fills ink. */}
+            <div className="flex-none grid grid-cols-4 gap-1.5 border-t border-border px-3 py-2">
               {paymentModeOptions.map(({ value, label, Icon }) => (
                 <button
                   key={value}
                   type="button"
+                  aria-pressed={paymentMode === value}
                   className={cn(
-                    "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl border text-[10px] font-medium transition-colors",
+                    "flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border text-[10px] font-medium transition-colors",
                     paymentMode === value
-                      ? "border-accent bg-accent/10 text-accent"
-                      : "border-border bg-surface-2 text-muted-foreground",
+                      ? "border-primary bg-primary text-primary-foreground shadow-xs"
+                      : "border-border bg-surface-2 text-muted-foreground hover:bg-surface-3",
                   )}
                   onClick={() => onSetPaymentMode(value)}
                 >
                   <Icon className="size-4" />
-                  <span>{label}</span>
+                  <span className="max-w-full truncate px-0.5">{label}</span>
                 </button>
               ))}
             </div>
@@ -1093,7 +1260,11 @@ export function MobilePaymentFlowSheet({
                 disabled={confirmDisabled || !draftValidationOk || isLockedAfterSuccess || studentSummaryLoading}
                 onClick={onOpenConfirm}
               >
-                {paymentAmountInput ? `Review Receipt · ${formatInr(Number(paymentAmountInput))}` : "Enter amount"}
+                {paymentAmountInput
+                  ? `Collect ${formatInr(Number(paymentAmountInput))} · ${
+                      paymentModeOptions.find((option) => option.value === paymentMode)?.label ?? ""
+                    }`.trimEnd()
+                  : "Enter amount"}
               </Button>
             </div>
           </div>

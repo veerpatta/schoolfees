@@ -155,6 +155,16 @@ export function SessionPill({
     optimisticLabel || urlSession ? isTestSession(optimisticLabel ?? urlSession ?? "") : isTest;
   const groups = useMemo(() => groupSessions(sessions), [sessions]);
   const isTransitioning = isSwitching || isRefreshing;
+  // "Live" treatment only applies to the school's current production
+  // session — an archived year stays neutral so nobody mistakes it for
+  // today's books. When the session list hasn't loaded yet, a non-test
+  // label is assumed live (the common case: staff sitting on the active AY).
+  const displayIsLive =
+    !displayIsTest &&
+    (sessions.length === 0 ||
+      sessions.some(
+        (session) => session.is_current && session.session_label === displayLabel,
+      ));
 
   useEffect(() => {
     if (initialSessions.length > 0) {
@@ -293,14 +303,25 @@ export function SessionPill({
       <DropdownMenuTrigger
         type="button"
         className={cn(
-          "inline-flex h-9 shrink-0 cursor-pointer list-none items-center gap-1.5 whitespace-nowrap rounded-md border border-border bg-surface px-2.5 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-surface-2 focus-ring",
-          displayIsTest && "border-fuchsia-500 text-fuchsia-700",
+          "inline-flex h-9 shrink-0 cursor-pointer list-none items-center gap-1.5 whitespace-nowrap rounded-md border px-2.5 text-xs font-semibold shadow-sm transition-colors focus-ring",
+          displayIsTest
+            ? "border-fuchsia-500 bg-surface text-fuchsia-700 hover:bg-surface-2"
+            : displayIsLive
+              ? "border-success/30 bg-success-soft text-success-soft-foreground hover:bg-success-soft/70"
+              : "border-border bg-surface text-foreground hover:bg-surface-2",
           isTransitioning && "opacity-75",
         )}
         aria-label="Change academic session"
         aria-busy={isTransitioning}
       >
-        <span className="text-muted-foreground">Session</span>
+        {displayIsLive ? (
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-success" />
+            Live ·
+          </span>
+        ) : (
+          <span className="text-muted-foreground">Session</span>
+        )}
         <span>{displayLabel}</span>
         {displayIsTest ? (
           <span className="rounded-full border border-fuchsia-300 bg-fuchsia-50 px-1.5 py-0.5 text-[10px] font-bold text-fuchsia-700">

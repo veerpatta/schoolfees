@@ -1,6 +1,6 @@
 import { ReactNode, Suspense } from "react";
 import Link from "next/link";
-import { CalendarDays, Coins } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 
 import { type StaffRole } from "@/lib/auth/roles";
 import { SchoolBrand } from "@/components/branding/school-brand";
@@ -9,6 +9,7 @@ import { OfficeSyncListener } from "@/components/admin/office-sync-listener";
 import { SessionPill } from "@/components/admin/session-pill";
 import { SessionSwitchOverlayMount } from "@/components/admin/session-switch-overlay";
 import { getDefaultProtectedHref } from "@/lib/config/navigation";
+import { getShellPulse } from "@/lib/dashboard/shell-metrics";
 import { getFeePolicyForSession } from "@/lib/fees/data";
 import { formatInr } from "@/lib/helpers/currency";
 import { getSessionSwitcherData } from "@/lib/session/switcher";
@@ -22,6 +23,17 @@ import { MobileBottomNav } from "./mobile-bottom-nav";
 import { RouteProgress } from "./route-progress";
 import { ScrollRestoringMain } from "./scroll-restoring-main";
 import { SidebarNav } from "./sidebar-nav";
+
+/**
+ * "Ledger Calm 2.0" workspace shell.
+ *
+ * - Ink sidebar (232px, bg --nav) with grouped navigation: the four daily
+ *   screens on top, records below; live count pills for Payment Desk
+ *   (receipts today) and Defaulters (overdue students).
+ * - Sidebar footer is a "Day so far" card: today's collected total in the
+ *   display serif + receipt count, so the desk clerk always sees the day's
+ *   money without leaving the current screen.
+ */
 
 type DashboardShellProps = {
   children: ReactNode;
@@ -38,12 +50,17 @@ export async function DashboardShell({
   viewSessionLabel,
   viewSessionIsTest,
 }: DashboardShellProps) {
-  const [policy, sessionSwitcher] = await Promise.all([
+  const [policy, sessionSwitcher, pulse] = await Promise.all([
     getFeePolicyForSession(viewSessionLabel),
     getSessionSwitcherData(),
+    getShellPulse(viewSessionLabel),
   ]);
   const homeHref = getDefaultProtectedHref(staffRole);
   const localeSwitcher = isLocaleSwitcherEnabled() ? <LocaleSwitcher /> : null;
+  const navCounts: Record<string, number> = {
+    "/protected/payments": pulse.todayReceiptCount,
+    "/protected/defaulters": pulse.overdueStudentCount,
+  };
 
   return (
     <SessionSwitchingProvider>
@@ -53,36 +70,52 @@ export async function DashboardShell({
         <OfficeSyncListener sessionLabel={viewSessionLabel} />
       </Suspense>
 
-      {/* Sidebar (desktop) */}
+      {/* Sidebar (desktop) — ink surface */}
       <aside
-        className="fixed inset-y-0 left-0 z-30 hidden w-[252px] border-r border-border bg-card print:hidden lg:flex lg:flex-col"
+        className="fixed inset-y-0 left-0 z-30 hidden w-[232px] border-r border-nav-border bg-nav text-nav-foreground print:hidden lg:flex lg:flex-col"
         aria-label="Workspace sidebar"
       >
         <Link
           href={homeHref}
-          className="flex items-center gap-3 border-b border-border px-4 py-4 transition-colors hover:bg-surface-2"
+          className="flex items-center gap-3 border-b border-nav-border px-4 py-4 transition-colors hover:bg-nav-hover"
         >
-          <SchoolBrand variant="sidebar" priority />
+          <SchoolBrand variant="sidebar-ink" priority />
         </Link>
 
         <div className="flex-1 overflow-y-auto px-2 py-3">
-          <SidebarNav staffRole={staffRole} />
+          <SidebarNav staffRole={staffRole} tone="ink" counts={navCounts} />
         </div>
 
-        <footer className="border-t border-border px-3 py-3 text-xs leading-5 text-muted-foreground">
-          <p className="flex items-center gap-2 text-foreground">
+        <footer className="border-t border-nav-border px-3 py-3">
+          <p className="flex items-center gap-2 px-1 text-xs leading-5 text-nav-muted">
             <CalendarDays className="size-3.5 text-accent" aria-hidden="true" />
-            <span className="font-medium">Viewing {viewSessionLabel}</span>
+            <span className="font-medium text-nav-foreground">{viewSessionLabel}</span>
+            {viewSessionIsTest ? (
+              <span className="ml-auto rounded-full bg-warning-soft px-1.5 text-[10px] font-semibold uppercase text-warning-soft-foreground">
+                TEST
+              </span>
+            ) : null}
           </p>
-          <p className="mt-1.5 flex items-center gap-2">
-            <Coins className="size-3.5 text-muted-foreground" aria-hidden="true" />
-            Late fee {formatInr(policy.lateFeeFlatAmount)} · Receipt{" "}
-            <span className="font-medium text-foreground">{policy.receiptPrefix}</span>
-          </p>
+          {/* Day so far */}
+          <div className="mt-2 rounded-xl bg-nav-surface px-3 py-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-nav-muted">
+              Day so far
+            </p>
+            <p className="font-display-money mt-0.5 text-xl leading-tight text-nav-foreground">
+              {formatInr(pulse.todayTotalAmount)}
+            </p>
+            <p className="mt-0.5 text-[11px] tabular-nums text-nav-muted">
+              {pulse.todayReceiptCount === 1
+                ? "1 receipt today"
+                : `${pulse.todayReceiptCount} receipts today`}
+              {" · "}
+              {policy.receiptPrefix}
+            </p>
+          </div>
         </footer>
       </aside>
 
-      <div className="relative min-w-0 lg:ml-[252px] lg:h-screen lg:overflow-y-auto">
+      <div className="relative min-w-0 lg:ml-[232px] lg:h-screen lg:overflow-y-auto">
         <SessionSwitchOverlayMount />
         <MobileHeader
           staffEmail={staffEmail}

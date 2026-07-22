@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -44,6 +44,19 @@ function initialsOf(email: string) {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
+function firstNameOf(email: string) {
+  const cleaned = email.split("@")[0] ?? email;
+  const first = cleaned.split(/[._-]+/).filter(Boolean)[0] ?? cleaned;
+  if (!first) return "";
+  return first[0].toUpperCase() + first.slice(1);
+}
+
+function greetingForHour(hour: number) {
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 export function AppTopBar({ staffEmail, staffRole, sessionPill, localeSwitcher }: AppTopBarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -51,13 +64,24 @@ export function AppTopBar({ staffEmail, staffRole, sessionPill, localeSwitcher }
   const passwordHref = appendCurrentSessionParam("/protected/password", searchParams);
   const tRoles = useTranslations("Roles");
   const roleLabel = tRoles.has(staffRole) ? tRoles(staffRole) : roleLabels[staffRole];
+  // On the dashboard the route label gives no information the page itself
+  // doesn't — greet the person instead (Ledger Calm 2.0). The hour is read
+  // after mount so server and client markup never disagree.
+  const isDashboard = pathname.startsWith("/protected/dashboard");
+  const [clientHour, setClientHour] = useState<number | null>(null);
+  useEffect(() => {
+    setClientHour(new Date().getHours());
+  }, []);
+  const headline = isDashboard
+    ? `${clientHour === null ? "Welcome" : greetingForHour(clientHour)}, ${firstNameOf(staffEmail)}`
+    : routeMeta.label;
 
   return (
     <header className="z-20 hidden border-b border-border bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70 print:hidden md:sticky md:top-0 md:flex md:flex-col">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-3">
           <h1 className="truncate text-base font-semibold tracking-tight text-foreground sm:text-lg">
-            {routeMeta.label}
+            {headline}
           </h1>
           <CommandTrigger />
         </div>

@@ -341,16 +341,24 @@ export function ConfirmReceiptSheet({
             name="printMode"
             value="yes"
             disabled={isSubmitting || isDisabled}
-            className="w-full"
+            className="relative w-full overflow-hidden"
           >
             {isSubmitting ? (
               <span className="flex items-center gap-1.5">
                 <Spinner />
-                Posting...
+                Saving receipt…
               </span>
             ) : (
               "Save & Print"
             )}
+            {isSubmitting ? (
+              <span
+                aria-hidden="true"
+                className="absolute inset-x-0 bottom-0 h-[3px] overflow-hidden"
+              >
+                <span className="anim-route-progress block h-full w-3/5 rounded-full bg-accent" />
+              </span>
+            ) : null}
           </Button>
           <Button
             type="submit"
@@ -358,16 +366,27 @@ export function ConfirmReceiptSheet({
             name="printMode"
             value="no"
             disabled={isSubmitting || isDisabled}
-            className="col-span-2 w-full sm:col-span-1"
+            className="relative col-span-2 w-full overflow-hidden sm:col-span-1"
           >
+            {/* While the server posts, the label swaps and a 3px progress bar
+                runs along the button bottom — the wait lives inside the button
+                so the cashier's eye never leaves the action. */}
             {isSubmitting ? (
               <span className="flex items-center gap-1.5">
                 <Spinner />
-                Posting...
+                Saving receipt…
               </span>
             ) : (
               "Save Payment"
             )}
+            {isSubmitting ? (
+              <span
+                aria-hidden="true"
+                className="absolute inset-x-0 bottom-0 h-[3px] overflow-hidden"
+              >
+                <span className="anim-route-progress block h-full w-3/5 rounded-full bg-primary-foreground/80" />
+              </span>
+            ) : null}
           </Button>
         </div>
       </div>

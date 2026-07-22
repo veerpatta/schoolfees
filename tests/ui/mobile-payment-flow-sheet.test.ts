@@ -25,26 +25,31 @@ describe("mobile payment bottom sheet flow", () => {
     expect(source).toContain("[view, studentSummaryLoading]");
     expect(source).toContain("onAmountChange(sanitizeDecimalInput(e.target.value))");
     expect(source).toContain("calc(100svh - 3.5rem)");
-    expect(source).toContain("Review Receipt");
+    expect(source).toContain("Collect ${formatInr(Number(paymentAmountInput))}");
     expect(source).toContain("Enter amount");
     expect(source).not.toContain("<MobileNumPad");
     expect(source).not.toContain("onNumpadKey");
     expect(source).not.toContain('aria-label="Mobile amount received"');
   });
 
-  it("surfaces mobile cashier shortcuts without expanding the dues table by default", () => {
+  it("surfaces mobile cashier shortcuts on the Ledger Calm 2.0 composer", () => {
     const source = readRepoFile("components/payments/mobile-payment-flow-sheet.tsx");
 
     expect(source).toContain("getStudentPendingAmount");
     expect(source).toContain("getClassStats");
     expect(source).toContain("${stats.pendingCount} pending");
     expect(source).toContain("Use {formatInr(lastPostedAmount)} again");
-    expect(source).toContain("Full Due");
-    expect(source).toContain("Next Installment");
-    expect(source).toContain('quickAmounts.filter((q) => q.key !== "full" && q.key !== "next")');
-    expect(source).toContain("breakdownExpanded");
-    expect(source).toContain("Details ↓");
-    expect(source).toContain("Hide ↑");
+    // Amount composer: three quick cards replace the old Full Due / Next pair
+    // and the secondary chip row.
+    expect(source).toContain("Clear overdue");
+    expect(source).toContain("Next installment");
+    expect(source).toContain("Full year");
+    // Dues ledger replaces both the installment pill row and the old
+    // expandable Details table.
+    expect(source).toContain("data-dues-ledger");
+    expect(source).toContain("data-late-fee-decision");
+    expect(source).toContain("data-allocation-strip");
+    expect(source).not.toContain("breakdownExpanded");
     expect(source).not.toContain('flex-[2] min-h-0 overflow-y-auto border-b border-border px-3 py-2');
   });
 

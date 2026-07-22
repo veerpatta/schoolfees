@@ -706,10 +706,10 @@ export function StudentQuickLoad({
             <div className="overflow-hidden rounded-xl border border-border divide-y divide-border">
               {Array.from({ length: 6 }).map((_, index) => (
                 <div key={index} className="flex items-center gap-4 px-4 py-3">
-                  <div className="h-3 w-16 animate-pulse rounded bg-surface-2" />
-                  <div className="h-3 w-32 animate-pulse rounded bg-surface-2" />
-                  <div className="h-3 w-12 animate-pulse rounded bg-surface-2" />
-                  <div className="ml-auto h-3 w-20 animate-pulse rounded bg-surface-2" />
+                  <div className="h-3 w-16 anim-shimmer rounded bg-surface-2" />
+                  <div className="h-3 w-32 anim-shimmer rounded bg-surface-2" />
+                  <div className="h-3 w-12 anim-shimmer rounded bg-surface-2" />
+                  <div className="ml-auto h-3 w-20 anim-shimmer rounded bg-surface-2" />
                 </div>
               ))}
             </div>

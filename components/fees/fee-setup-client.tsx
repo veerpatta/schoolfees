@@ -29,6 +29,7 @@ import {
 import { formatInr } from "@/lib/helpers/currency";
 import { formatDateTimeIst, formatMediumDate, formatTimeIst } from "@/lib/helpers/date";
 import { appendSessionParam } from "@/lib/navigation/session-href";
+import { cn } from "@/lib/utils";
 
 const selectClassName =
   "flex h-11 w-full rounded-xl border border-input/80 bg-card/88 px-3.5 py-2 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-[border-color,box-shadow,background-color] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50";
@@ -778,6 +779,36 @@ export function FeeSetupClient({
         </div>
 
         <SyncPill status={syncStatus} lastSavedAt={lastSavedAt} />
+
+        {/* Stage indicator: unsaved edits = Draft, saving = Review (impact
+            preview + protected-row checks run in the save path), otherwise
+            the setup on screen is what the office is Live on. */}
+        <div
+          className="hidden items-center gap-1 text-[10px] font-semibold uppercase tracking-wide md:flex"
+          aria-hidden="true"
+        >
+          {[
+            { key: "stageDraft", active: isDirty && !isSaving },
+            { key: "stageReview", active: isSaving },
+            { key: "stageLive", active: !isDirty && !isSaving },
+          ].map((stage, index) => (
+            <span key={stage.key} className="flex items-center gap-1">
+              {index > 0 ? <span className="text-muted-foreground/40">→</span> : null}
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5",
+                  stage.active
+                    ? stage.key === "stageLive"
+                      ? "bg-success-soft text-success-soft-foreground"
+                      : "bg-accent-soft text-accent-soft-foreground"
+                    : "text-muted-foreground/60",
+                )}
+              >
+                {t(stage.key)}
+              </span>
+            </span>
+          ))}
+        </div>
 
         {lastSavedAt && syncStatus === "synced" ? (
           <span className="hidden text-xs text-muted-foreground sm:inline">

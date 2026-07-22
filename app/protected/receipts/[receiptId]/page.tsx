@@ -1,12 +1,14 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import QRCode from "qrcode";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { ReceiptDocument } from "@/components/receipts/receipt-document";
 import { ReceiptPrintActions } from "@/components/receipts/receipt-print-actions";
 import { ReceiptShareActions } from "@/components/receipts/receipt-share-actions";
 import { ReceiptUndoAction } from "@/components/receipts/receipt-undo-action";
+import { getSiteUrl } from "@/lib/env";
 import { createBilingualReceiptTranslator } from "@/lib/i18n/bilingual-receipt";
 import { getReceiptDetail } from "@/lib/receipts/data";
 import { listWhatsappTemplates } from "@/lib/whatsapp-templates/data";
@@ -19,6 +21,7 @@ type ReceiptDetailPageProps = {
   searchParams?: Promise<{
     returnTo?: string;
     print?: string;
+    layout?: string;
   }>;
 };
 
@@ -57,6 +60,15 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
   const canPrintReceipts = hasStaffPermission(staff, "receipts:print");
   const canUndoPayment =
     hasStaffPermission(staff, "payments:adjust") && !receipt.isVoided;
+  const layout = resolvedSearchParams?.layout === "v2" ? ("v2" as const) : ("v3" as const);
+
+  // Footer QR — public verify link for the printed receipt (V3 layout).
+  const verifyUrl = `${getSiteUrl()}/r/${encodeURIComponent(receipt.receiptNumber)}`;
+  const verifyQrSvg = await QRCode.toString(verifyUrl, {
+    type: "svg",
+    margin: 0,
+    errorCorrectionLevel: "M",
+  }).catch(() => null);
 
   return (
     <div className="space-y-6">
@@ -89,7 +101,13 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
         className="no-print"
       />
 
-      <ReceiptDocument receipt={receipt} t={createBilingualReceiptTranslator()} />
+      <ReceiptDocument
+        receipt={receipt}
+        t={createBilingualReceiptTranslator()}
+        layout={layout}
+        verifyUrl={verifyUrl}
+        verifyQrSvg={verifyQrSvg}
+      />
     </div>
   );
 }

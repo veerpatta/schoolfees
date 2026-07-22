@@ -141,12 +141,21 @@ export function MobileBottomNav({ staffRole }: MobileBottomNavProps) {
             const href = "isOverflow" in item && item.isOverflow
               ? undefined
               : appendCurrentSessionParam(item.href, searchParams);
+            // Collect is THE action of this app — it stays a filled saffron
+            // pill in every state so the thumb always knows where money goes.
+            const isCollect =
+              !("isOverflow" in item && item.isOverflow) &&
+              item.href === "/protected/payments";
             const content = (
               <>
                 <span
                   className={cn(
                     "flex size-8 items-center justify-center rounded-lg transition-all duration-200",
-                    active ? "bg-accent/10 text-accent" : "text-muted-foreground/70",
+                    isCollect
+                      ? "h-8 w-12 rounded-full bg-accent text-accent-foreground shadow-sm"
+                      : active
+                        ? "bg-accent/10 text-accent"
+                        : "text-muted-foreground/70",
                   )}
                 >
                   <Icon className="size-5" aria-hidden="true" />
@@ -154,7 +163,8 @@ export function MobileBottomNav({ staffRole }: MobileBottomNavProps) {
                 <span
                   className={cn(
                     "mt-0.5 max-w-full truncate text-[10px] font-medium transition-colors",
-                    active ? "text-accent" : "text-muted-foreground/70",
+                    isCollect || active ? "text-accent" : "text-muted-foreground/70",
+                    isCollect && "font-semibold",
                   )}
                 >
                   {"isOverflow" in item && item.isOverflow

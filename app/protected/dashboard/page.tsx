@@ -283,7 +283,7 @@ function MobileDashboardHero({
             <Money
               value={collected}
               size="display"
-              className="text-[2.25rem] leading-none font-bold tracking-tight text-accent"
+              className="font-display-money text-[2.25rem] leading-none tracking-tight text-accent"
             />
           </div>
           <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
@@ -379,6 +379,7 @@ function HeroKpis({
   previousYearCollected,
   lateFeePending,
   todayDelta,
+  canPostPayments,
   sessionLabel,
   t,
 }: {
@@ -394,6 +395,7 @@ function HeroKpis({
   previousYearCollected: number;
   lateFeePending: number;
   todayDelta: KpiDelta | null;
+  canPostPayments: boolean;
   sessionLabel?: string;
   t: DashboardTranslator;
 }) {
@@ -405,138 +407,195 @@ function HeroKpis({
 
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
+  /* Ledger Calm 2.0 hero band: ink today-card (serif display money + desk
+     CTA), year-progress card, needs-attention card. Old balance keeps its own
+     card below — the three-pot split stays intact. */
   return (
-    <div className="hidden sm:grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5">
-      {/* This Year Collected — strictly this session's own fees. Recovery of
+    <div className="hidden sm:grid gap-3 lg:grid-cols-3">
+      {/* Today — ink card */}
+      <div className="relative overflow-hidden rounded-2xl bg-nav px-5 py-5 text-nav-foreground shadow-md">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-nav-muted">
+          {t("todayCollection")}
+        </p>
+        <div className="mt-2">
+          <CountUp
+            value={collected}
+            className="font-display-money text-4xl leading-none tracking-tight text-nav-foreground"
+          />
+        </div>
+        <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-nav-muted">
+          <span>{t("receiptsPosted", { count: receiptsToday })}</span>
+          <KpiDeltaLine delta={todayDelta} />
+        </p>
+        <div className="mt-4 flex items-center gap-2">
+          {canPostPayments ? (
+            <Link
+              href={withSession("/protected/payments")}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-accent-foreground shadow-sm transition-colors hover:bg-accent/90"
+            >
+              <BadgeIndianRupee className="size-3.5" aria-hidden="true" />
+              {t("openPaymentDesk")}
+            </Link>
+          ) : null}
+          <Link
+            href={withSession("/protected/transactions?view=collection_today")}
+            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-medium text-nav-muted transition-colors hover:bg-nav-hover hover:text-nav-foreground"
+          >
+            {t("receipts")}
+            <ChevronRight className="size-3.5" aria-hidden="true" />
+          </Link>
+        </div>
+      </div>
+
+      {/* Year progress — strictly this session's own fees. Recovery of
           previous-year carry-forward balances is shown on the Old Balance card
           instead of being blended in here, so this number always compares
           apples-to-apples against this year's expected total. */}
-      <KpiCard
-        accent="success"
-        label={t("thisYearCollected")}
-        href={withSession("/protected/transactions?view=receipts")}
-        className="snap-start shrink-0 w-[72vw] sm:w-auto"
-        value={
+      <div className="rounded-2xl border border-border bg-card px-5 py-5 shadow-xs">
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            {t("yearProgress")}
+          </p>
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+              rateSignal.tone === "success" && "bg-success-soft text-success-soft-foreground",
+              rateSignal.tone === "warning" && "bg-warning-soft text-warning-soft-foreground",
+              rateSignal.tone === "danger" && "bg-destructive-soft text-destructive-soft-foreground",
+            )}
+          >
+            {rateSignal.label}
+          </span>
+        </div>
+        <div className="mt-2 flex items-baseline gap-2">
           <CountUp
             value={currentYearCollected}
-            className="text-xl font-semibold tracking-tight text-success md:text-2xl lg:text-xl xl:text-2xl"
+            className="text-2xl font-semibold tracking-tight text-success"
           />
-        }
-        hint={
-          <span className="space-y-0.5">
-            <span className="block text-xs text-muted-foreground">
-              {collectedPct}% · of <Money value={currentYearExpected} size="sm" /> ·{" "}
-              {t("thisYearFeesOnly")}
-            </span>
-            {previousYearCollected > 0 ? (
-              <span className="block text-[11px] text-muted-foreground">
-                {t("oldBalanceCollectedInline", {
-                  amount: formatInr(previousYearCollected),
-                })}
-              </span>
-            ) : null}
+          <span className="text-xs text-muted-foreground">
+            {collectedPct}% · of <Money value={currentYearExpected} size="sm" />
           </span>
-        }
-      />
-
-      {/* Today - saffron accent border */}
-      <KpiCard
-        accent="accent"
-        label={t("todayCollection")}
-        href={withSession("/protected/transactions?view=collection_today")}
-        className="snap-start shrink-0 w-[72vw] sm:w-auto"
-        value={
-          <CountUp
-            value={collected}
-            className="text-xl font-semibold tracking-tight text-accent md:text-2xl lg:text-xl xl:text-2xl"
-          />
-        }
-        hint={
-          <span className="flex flex-wrap items-center gap-1.5">
-            <span>{t("receiptsPosted", { count: receiptsToday })}</span>
-            <KpiDeltaLine delta={todayDelta} />
-          </span>
-        }
-      />
-
-      {/* This Year Pending — old balance and late fee live in their own
-          buckets; this card never mixes them into one number. */}
-      <KpiCard
-        accent="warning"
-        label={t("thisYearPending")}
-        href={withSession("/protected/defaulters")}
-        className="snap-start shrink-0 w-[72vw] sm:w-auto"
-        value={
-          <CountUp
-            value={currentYearPending}
-            className="text-xl font-semibold tracking-tight md:text-2xl lg:text-xl xl:text-2xl"
-          />
-        }
-        hint={
-          <span className="space-y-0.5">
-            <span className="block">
-              {t("excludesOldBalance")} · {t("studentsCount", { count: followUpCount })}
-            </span>
-            {previousYearPending > 0 || lateFeePending > 0 ? (
-              <span className="block text-[11px]">
-                {previousYearPending > 0 ? (
-                  <>
-                    {t("oldBalanceShort")} <Money value={previousYearPending} size="xs" />
-                  </>
-                ) : null}
-                {previousYearPending > 0 && lateFeePending > 0 ? " · " : null}
-                {lateFeePending > 0 ? (
-                  <>
-                    {t("lateFeePendingLabel")} <Money value={lateFeePending} size="xs" />
-                  </>
-                ) : null}
-              </span>
-            ) : null}
-          </span>
-        }
-      />
-
-      {/* Collection rate - arc gauge, current-year fees only */}
-      <KpiCard
-        accent="info"
-        label={t("collectionRate")}
-        className="snap-start shrink-0 w-[72vw] sm:w-auto"
-        value={<RateGauge value={collectionRate} size="md" />}
-        hint={
-          <span className="space-y-0.5">
-            <span
-              className={cn(
-                "block text-xs font-medium",
-                rateSignal.tone === "success" && "text-success",
-                rateSignal.tone === "warning" && "text-warning",
-                rateSignal.tone === "danger" && "text-destructive",
-              )}
-            >
-              {rateSignal.label}
-            </span>
-            <span className="block text-[11px] text-muted-foreground">
-              {t("thisYearFeesOnly")}
-            </span>
-          </span>
-        }
-      />
-
-      {/* Overdue amount - destructive-soft tinted card */}
-      <div className="snap-start shrink-0 w-[72vw] sm:w-auto rounded-lg border border-destructive/30 bg-destructive-soft px-4 py-3">
-        <p className="text-[10px] font-medium uppercase tracking-widest text-destructive/70">
-          {t("overdueWithoutLateFee")}
-        </p>
-        <div className="mt-1">
-          <CountUp
-            value={overdueAmount}
-            className="text-xl font-semibold tracking-tight text-destructive md:text-2xl lg:text-xl xl:text-2xl"
+        </div>
+        {/* Progress track */}
+        <div
+          className="mt-3 h-2 overflow-hidden rounded-full bg-surface-3"
+          role="progressbar"
+          aria-valuenow={collectedPct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
+          <div
+            className="h-full rounded-full bg-success transition-[width] duration-500 ease-out-expo"
+            style={{ width: `${collectedPct}%` }}
           />
         </div>
-        <p className="mt-1 text-xs text-destructive/60">
-          {t("pastInstallmentDueDate")}
+        <p className="mt-3 text-xs text-muted-foreground">
+          <Link href={withSession("/protected/defaulters")} className="hover:text-foreground">
+            {t("thisYearPending")} <Money value={currentYearPending} size="sm" tone="warning" />
+          </Link>{" "}
+          · {t("thisYearFeesOnly")}
+        </p>
+        {previousYearCollected > 0 ? (
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {t("oldBalanceCollectedInline", {
+              amount: formatInr(previousYearCollected),
+            })}
+          </p>
+        ) : null}
+      </div>
+
+      {/* Needs attention — overdue money + follow-up load */}
+      <div className="rounded-2xl border border-destructive/30 bg-destructive-soft px-5 py-5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-destructive/70">
+          {t("needsAttention")}
+        </p>
+        <div className="mt-2">
+          <CountUp
+            value={overdueAmount}
+            className="text-2xl font-semibold tracking-tight text-destructive"
+          />
+        </div>
+        <p className="mt-1 text-xs text-destructive/70">
+          {t("overdueWithoutLateFee")} · {t("pastInstallmentDueDate")}
           {previousYearPending > 0 ? ` · ${t("includesOldBalance")}` : ""}
         </p>
+        <p className="mt-2 text-xs text-destructive-soft-foreground">
+          {t("studentsCount", { count: followUpCount })}
+          {lateFeePending > 0 ? (
+            <>
+              {" · "}
+              {t("lateFeePendingLabel")} <Money value={lateFeePending} size="xs" />
+            </>
+          ) : null}
+        </p>
+        <Link
+          href={withSession("/protected/defaulters")}
+          className="mt-3 inline-flex items-center gap-1 rounded-lg border border-destructive/30 bg-card px-3 py-1.5 text-xs font-semibold text-destructive transition-colors hover:bg-destructive-soft"
+        >
+          <ClipboardList className="size-3.5" aria-hidden="true" />
+          {t("defaulters")}
+          <ChevronRight className="size-3.5" aria-hidden="true" />
+        </Link>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Desktop secondary KPI strip — the five quieter numbers under the hero band:
+ * this month, average receipt, active students, old-balance recovery, and
+ * late fee still pending.
+ */
+function DesktopSecondaryKpis({
+  kpis,
+  sessionLabel,
+  t,
+}: {
+  kpis: DashboardKpis;
+  sessionLabel?: string;
+  t: DashboardTranslator;
+}) {
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+  const avgReceipt =
+    kpis.receiptsToday > 0 ? Math.round(kpis.todaysCollection / kpis.receiptsToday) : 0;
+  const previousYearOriginal = kpis.previousYearOriginal ?? 0;
+  const previousYearCollected = kpis.previousYearCollected ?? 0;
+  const oldBalancePct =
+    previousYearOriginal > 0
+      ? Math.min(100, Math.round((previousYearCollected / previousYearOriginal) * 100))
+      : 0;
+
+  return (
+    <div className="hidden gap-2 sm:grid sm:grid-cols-2 sm:gap-3 lg:grid-cols-5">
+      <KpiCard
+        label={t("thisMonth")}
+        value={<Money value={kpis.thisMonthCollection} size="lg" />}
+        hint={t("monthlyReceipts")}
+        href={withSession("/protected/transactions?view=receipts")}
+      />
+      <KpiCard
+        label={t("avgReceipt")}
+        value={avgReceipt > 0 ? <Money value={avgReceipt} size="lg" /> : <span className="text-lg font-semibold text-muted-foreground">—</span>}
+        hint={t("postedToday")}
+      />
+      <KpiCard
+        label={t("activeStudents")}
+        value={<span className="text-lg font-semibold tabular text-foreground">{kpis.totalStudents}</span>}
+        hint={t("currentSession")}
+        href={withSession("/protected/students")}
+      />
+      <KpiCard
+        label={t("oldBalanceTitle")}
+        value={<span className="text-lg font-semibold tabular text-foreground">{oldBalancePct}%</span>}
+        hint={t("oldBalanceRecovered")}
+        href={withSession("/protected/admin-tools/prev-year-dues")}
+      />
+      <KpiCard
+        label={t("lateFeePendingLabel")}
+        value={<Money value={kpis.lateFeePending ?? 0} size="lg" tone="warning" />}
+        hint={t("lateFeeSeparate")}
+        href={withSession("/protected/defaulters")}
+      />
     </div>
   );
 }
@@ -2321,6 +2380,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           previousYearCollected={previousYearCollected}
           lateFeePending={lateFeePending}
           todayDelta={todayDelta}
+          canPostPayments={canPostPayments}
+          sessionLabel={viewSession.sessionLabel}
+          t={t}
+        />
+
+        <DesktopSecondaryKpis
+          kpis={aboveFold.kpis}
           sessionLabel={viewSession.sessionLabel}
           t={t}
         />

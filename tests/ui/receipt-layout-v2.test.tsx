@@ -192,14 +192,29 @@ describe("ReceiptDocumentV2 — simplified layout", () => {
   });
 });
 
-describe("ReceiptDocument shim — always renders V2", () => {
-  it("renders the simplified V2 layout regardless of any env state", () => {
+describe("ReceiptDocument shim — V3 by default, V2 for reprints", () => {
+  it("renders the Ledger Calm V3 layout by default", () => {
     const html = renderToStaticMarkup(<ReceiptDocument t={t} receipt={receipt()} />);
+    expect(html).toContain('data-receipt-layout="v3"');
+    // Bilingual + core V3 sections.
+    expect(html).toContain("Fee Receipt");
+    expect(html).toContain("शुल्क रसीद");
+    expect(html).toContain("What this receipt paid");
+    expect(html).toContain("Total paid");
+    expect(html).toContain("Authorised Signature");
+    // A4 print rules travel with the document.
+    expect(html).toContain("size: A4;");
+    // The old V1-only string is gone with the legacy layout.
+    expect(html).not.toContain("Total Fee Due");
+  });
+
+  it("keeps the V2 layout reachable for reprints via layout='v2'", () => {
+    const html = renderToStaticMarkup(
+      <ReceiptDocument t={t} receipt={receipt()} layout="v2" />,
+    );
     expect(html).toContain('data-receipt-layout="v2"');
     expect(html).toContain("Payment date");
     expect(html).toContain("Total paid");
-    // The old V1-only string is gone with the legacy layout.
-    expect(html).not.toContain("Total Fee Due");
   });
 });
 

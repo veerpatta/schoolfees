@@ -1900,6 +1900,7 @@ export function PaymentDeskClient({
         waiveFullLateFee={waiveFullLateFee}
         canWaiveLateFee={canWaiveLateFee}
         quickAmounts={quickAmounts}
+        allocationPreview={allocationPreview}
         remainingAfterPayment={remainingAfterPayment}
         formError={formError}
         isLockedAfterSuccess={isLockedAfterSuccess}
@@ -2177,7 +2178,7 @@ export function PaymentDeskClient({
 
             {selectedStudentIndexItem && studentSummaryLoading && !selectedStudent ? (
               <div
-                className="animate-pulse rounded-xl border border-border bg-card px-4 py-4"
+                className="anim-shimmer rounded-xl border border-border bg-card px-4 py-4"
                 aria-live="polite"
                 aria-busy={studentSummaryLoading}
               >

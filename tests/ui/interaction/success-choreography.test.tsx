@@ -58,7 +58,7 @@ describe("payment-collected choreography", () => {
     render(<SuccessReceiptSheet {...BASE_PROPS} />);
     // The choreography must never gate the next collection.
     expect(
-      screen.getByRole("button", { name: /Collect Another Payment/i }),
+      screen.getByRole("button", { name: /Next student/i }),
     ).toBeEnabled();
   });
 });

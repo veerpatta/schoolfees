@@ -335,6 +335,38 @@ export function getMobileBottomNavigation(staffRole: StaffRole) {
   return getMobilePrimaryNavigation(staffRole);
 }
 
+/**
+ * Sidebar grouping (Ledger Calm 2.0): the four screens office staff live in
+ * every day sit on top; everything else files under "Records".
+ */
+const dailyNavHrefs: readonly string[] = [
+  "/protected/dashboard",
+  "/protected/payments",
+  "/protected/defaulters",
+  "/protected/students",
+];
+
+export type ProtectedNavigationGroup = {
+  key: "daily" | "records";
+  /** Key under the `Navigation` namespace in messages/. */
+  i18nKey: "groupDaily" | "groupRecords";
+  label: string;
+  items: ProtectedNavigationItem[];
+};
+
+export function getGroupedProtectedNavigation(
+  staffRole: StaffRole,
+): ProtectedNavigationGroup[] {
+  const visible = getVisibleProtectedNavigation(staffRole);
+  const daily = visible.filter((item) => dailyNavHrefs.includes(item.href));
+  const records = visible.filter((item) => !dailyNavHrefs.includes(item.href));
+
+  return [
+    { key: "daily", i18nKey: "groupDaily", label: "Daily", items: daily },
+    { key: "records", i18nKey: "groupRecords", label: "Records", items: records },
+  ].filter((group) => group.items.length > 0) as ProtectedNavigationGroup[];
+}
+
 export function getMobilePrimaryNavigation(staffRole: StaffRole) {
   if (staffRole === "fee_collector") {
     return [
@@ -353,18 +385,16 @@ export function getMobilePrimaryNavigation(staffRole: StaffRole) {
     ] satisfies MobileBottomNavigationItem[];
   }
 
+  // Ledger Calm 2.0 slot order: Home · Collect (saffron pill) · Students ·
+  // Calls · More. Collect only appears for roles that can post payments;
+  // Calls only for roles that can view defaulters. Remaining modules live
+  // behind "More".
   const items: MobileBottomNavigationItem[] = [
     {
       href: "/protected/dashboard",
       label: "Home",
       icon: BarChart3,
       i18nKey: "home",
-    },
-    {
-      href: "/protected/students",
-      label: "Students",
-      icon: UsersRound,
-      i18nKey: "students",
     },
   ];
 
@@ -377,21 +407,28 @@ export function getMobilePrimaryNavigation(staffRole: StaffRole) {
     });
   }
 
-  if (hasRolePermission(staffRole, "receipts:view")) {
+  items.push({
+    href: "/protected/students",
+    label: "Students",
+    icon: UsersRound,
+    i18nKey: "students",
+  });
+
+  if (hasRolePermission(staffRole, "defaulters:view")) {
+    items.push({
+      href: "/protected/defaulters",
+      label: "Calls",
+      icon: ClipboardList,
+      i18nKey: "calls",
+    });
+  }
+
+  if (items.length < 4 && hasRolePermission(staffRole, "receipts:view")) {
     items.push({
       href: "/protected/transactions",
       label: "Transactions",
       icon: BookOpenCheck,
       i18nKey: "transactions",
-    });
-  }
-
-  if (staffRole === "teacher") {
-    items.push({
-      href: "/protected/defaulters",
-      label: "Defaulters",
-      icon: ClipboardList,
-      i18nKey: "defaulters",
     });
   }
 
@@ -418,6 +455,8 @@ export type AdvancedHubItem = {
   description: string;
   icon: LucideIcon;
   requiredPermission: StaffPermission;
+  /** Small static capability chip (e.g. day close runs automatically). */
+  statusChip?: { label: string; tone: "good" | "info" | "warning" | "neutral" };
 };
 
 export type AdvancedHubSection = {
@@ -503,6 +542,7 @@ export const advancedHubSections: readonly AdvancedHubSection[] = [
         description: "Read the automatic day-close snapshot, day-book totals, and correction review.",
         icon: ClipboardList,
         requiredPermission: "finance:view",
+        statusChip: { label: "AUTO", tone: "good" },
       },
     ],
   },

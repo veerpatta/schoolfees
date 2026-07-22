@@ -41,8 +41,10 @@ describe("mobile UX roadmap implementation", () => {
     const mobileSheet = readRepoFile("components/payments/mobile-payment-flow-sheet.tsx");
 
     expect(paymentDesk).toContain(`triggerHaptic("success")`);
-    expect(mobileSheet).toContain("min-h-11 min-w-[4rem]");
-    expect(mobileSheet).toContain("text-center text-3xl font-bold text-accent");
+    // Touch-sized controls in the Ledger Calm composer: the mode segmented row
+    // keeps a 48px minimum target and the amount echo renders display-size.
+    expect(mobileSheet).toContain("min-h-12");
+    expect(mobileSheet).toContain("font-display-money pb-2 text-center text-3xl text-accent");
     expect(mobileSheet).toContain("pattern=\"[0-9]*\"");
   });
 

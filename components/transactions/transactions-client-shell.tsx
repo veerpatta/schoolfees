@@ -1244,7 +1244,20 @@ export function TransactionsClientShell({
               const rows = workbook.rows as unknown as Array<Record<string, unknown>>;
               if (workbook.view === "transactions" || workbook.view === "receipts" || workbook.view === "collection_today") {
                 const sum = rows.reduce((acc, row) => acc + Number(row.totalAmount ?? 0), 0);
-                return <SummaryCell label={t("summaryAmountSigma")} value={formatInr(sum)} />;
+                const reversedCount = rows.filter((row) => Boolean(row.isReversed)).length;
+                return (
+                  <>
+                    <SummaryCell label={t("summaryAmountSigma")} value={formatInr(sum)} />
+                    {reversedCount > 0 ? (
+                      <SummaryCell
+                        label={t("summaryReversedCount")}
+                        value={
+                          <span className="text-destructive">{reversedCount}</span>
+                        }
+                      />
+                    ) : null}
+                  </>
+                );
               }
               if (
                 workbook.view === "student_dues" ||

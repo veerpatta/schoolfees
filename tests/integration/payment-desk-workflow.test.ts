@@ -552,7 +552,7 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain(`triggerHaptic("error")`);
     expect(component).toContain(`triggerHaptic("warning")`);
     expect(component).toContain(`triggerHaptic("tap")`);
-    expect(component).toContain("animate-pulse");
+    expect(component).toContain("anim-shimmer");
     expect(component).toContain("grid-cols-3");
     expect(confirmSheet).toContain("onTouchStart");
     expect(confirmSheet).toContain("dragY > 120");
@@ -882,7 +882,7 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("Balance after");
   });
 
-  it("success receipt sheet shows receipt number prominently and has collect another CTA", () => {
+  it("success receipt sheet shows receipt number prominently and has a next-student CTA", () => {
     const component = readFileSync(
       join(process.cwd(), "components/payments/success-receipt-sheet.tsx"),
       "utf8",
@@ -890,12 +890,14 @@ describe("payment desk cashier workflow", () => {
 
     expect(component).toContain("Payment Successful");
     expect(component).toContain("Receipt has been saved");
-    expect(component).toContain("Print Receipt");
+    expect(component).toContain("Print A4");
     expect(component).toContain("Open Receipt");
     expect(component).toContain("Copy WhatsApp Message");
-    expect(component).toContain("Collect Another Payment");
-    expect(component.indexOf("Print Receipt")).toBeLessThan(
-      component.indexOf("Collect Another Payment"),
+    expect(component).toContain("Next student →");
+    // The receipt number stamps in like a rubber stamp (Ledger Calm 2.0).
+    expect(component).toContain("anim-stamp-in");
+    expect(component.indexOf("Print A4")).toBeLessThan(
+      component.indexOf("Next student →"),
     );
     expect(component).toContain("autoPrint");
     expect(component).toContain("onCollectAnother");
@@ -1103,7 +1105,7 @@ describe("payment desk cashier workflow", () => {
 
     expect(component).toContain("selectedStudentIndexItem && studentSummaryLoading");
     expect(component).toContain("aria-busy={studentSummaryLoading}");
-    expect(component).toContain("animate-pulse");
+    expect(component).toContain("anim-shimmer");
   });
 
   it("student selection retries when a prefetch summary was empty", () => {
@@ -1218,21 +1220,21 @@ describe("payment desk cashier workflow", () => {
       "utf8",
     );
 
-    // formError display must come before the review button in source order
+    // formError display must come before the collect button in source order
     expect(component.indexOf("formError")).toBeLessThan(
-      component.indexOf("Review Receipt"),
+      component.indexOf("Collect ${formatInr(Number(paymentAmountInput))}"),
     );
     // Must have role="alert" for accessibility
     expect(component).toContain('role="alert"');
   });
 
-  it("review button lives inside the full-screen mobile sheet", () => {
+  it("collect button lives inside the full-screen mobile sheet", () => {
     const component = readFileSync(
       join(process.cwd(), "components/payments/mobile-payment-flow-sheet.tsx"),
       "utf8",
     );
 
     expect(component).toContain("fixed inset-0 z-[45] md:hidden");
-    expect(component).toContain("Review Receipt");
+    expect(component).toContain("Collect ${formatInr(Number(paymentAmountInput))}");
   });
 });

@@ -183,19 +183,22 @@ describe("office navigation", () => {
     });
   });
 
-  it("builds mobile bottom nav with Home, Students, Collect, and Transactions for counter work", () => {
+  it("builds mobile bottom nav with Home, Collect, Students, and Calls for counter work", () => {
     const accountant = getMobileBottomNavigation("accountant");
     const viewOnly = getMobileBottomNavigation("view_only");
 
+    // Ledger Calm 2.0 slot order: Home · Collect (saffron pill) · Students ·
+    // Calls · More (More is appended by the component, not the config).
     expect(accountant.map((item) => item.label)).toEqual([
       "Home",
-      "Students",
       "Collect",
-      "Transactions",
+      "Students",
+      "Calls",
     ]);
     expect(viewOnly.map((item) => item.label)).toEqual([
       "Home",
       "Students",
+      "Calls",
       "Transactions",
     ]);
   });
@@ -209,11 +212,11 @@ describe("office navigation", () => {
     ]);
   });
 
-  it("gives teachers Defaulters as the rightmost mobile tab", () => {
+  it("keeps the defaulters call list in the teacher mobile tabs", () => {
     const items = getMobileBottomNavigation("teacher");
+    const calls = items.find((item) => item.label === "Calls");
 
-    expect(items.map((item) => item.label)).toContain("Defaulters");
-    expect(items[items.length - 1]?.label).toBe("Defaulters");
+    expect(calls?.href).toBe("/protected/defaulters");
   });
 
   it("keeps read_only_staff string accepted as a backward-compat alias for view_only", () => {
