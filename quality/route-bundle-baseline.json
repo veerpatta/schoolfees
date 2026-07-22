@@ -1,7 +1,7 @@
 {
   "generatedAt": "2026-07-18",
-  "currentGeneratedAt": "2026-07-18",
-  "generatedFrom": "next build on 7578e70 plus phased-program instrumentation",
+  "currentGeneratedAt": "2026-07-22",
+  "generatedFrom": "next build on 7578e70 plus phased-program instrumentation; transactions ceiling re-based on 3f9e601 (Ledger Calm 2.0 reversed-count summary cell, +~90 gzip bytes) with ~0.2% headroom for gzip nondeterminism",
   "metric": "initial entry JS, unique chunks",
   "measurements": [
     { "route": "/protected/dashboard", "chunks": 9, "rawBytes": 575152, "gzipBytes": 168026, "currentGzipBytes": 165800 },
@@ -17,7 +17,7 @@
       "targetReductionPercent": 20,
       "actualReductionPercent": 21.03
     },
-    { "route": "/protected/transactions", "chunks": 10, "rawBytes": 683092, "gzipBytes": 194847, "currentGzipBytes": 191668 },
+    { "route": "/protected/transactions", "chunks": 10, "rawBytes": 695918, "gzipBytes": 195400, "currentGzipBytes": 194932 },
     { "route": "/protected/defaulters", "chunks": 10, "rawBytes": 675450, "gzipBytes": 194624, "currentGzipBytes": 192398 },
     { "route": "/protected/exports", "chunks": 9, "rawBytes": 561682, "gzipBytes": 163252, "currentGzipBytes": 161026 },
     { "route": "/protected/admin-tools", "chunks": 9, "rawBytes": 562003, "gzipBytes": 163366, "currentGzipBytes": 161140 }
