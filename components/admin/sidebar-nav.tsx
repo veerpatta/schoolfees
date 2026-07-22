@@ -118,7 +118,8 @@ export function SidebarNav({
         onTouchStart={onWarm}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors duration-150",
+          "group relative flex items-center gap-2.5 overflow-hidden rounded-lg px-2.5 py-2 text-sm font-medium transition-colors duration-150",
+          isInk ? "focus-ring-ink" : "focus-ring",
           isInk
             ? active
               ? "bg-nav-hover text-nav-foreground"

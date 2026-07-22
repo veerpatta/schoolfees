@@ -27,7 +27,10 @@ const variantStyles = {
   "sidebar-ink": {
     root: "gap-3",
     frame: "size-11 rounded-lg p-1 shadow-xs",
-    eyebrow: "text-[10px] font-semibold uppercase tracking-[0.14em] text-accent",
+    // Saffron (--accent) on ink is only 3.7:1 — below AA for 10px text. The
+    // brand colour stays on non-text marks (icons, rules); the eyebrow uses
+    // the ink foreground so it stays readable.
+    eyebrow: "text-[10px] font-semibold uppercase tracking-[0.14em] text-nav-foreground/75",
     title: "mt-0.5 font-display text-[15px] font-semibold leading-tight tracking-tight text-nav-foreground",
     subtitle: "mt-0.5 text-[11px] leading-4 text-nav-muted",
   },

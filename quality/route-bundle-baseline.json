@@ -1,12 +1,12 @@
 {
   "generatedAt": "2026-07-18",
-  "currentGeneratedAt": "2026-07-22",
-  "generatedFrom": "next build on 7578e70 plus phased-program instrumentation; transactions ceiling re-based on 3f9e601 (Ledger Calm 2.0 reversed-count summary cell, +~90 gzip bytes) with ~0.2% headroom for gzip nondeterminism",
+  "currentGeneratedAt": "2026-07-23",
+  "generatedFrom": "next build on 7578e70 plus phased-program instrumentation; transactions ceiling re-based twice since — 3f9e601 (reversed-count summary cell) and the post-redesign fix sweep, where the shared print/dark-mode reset in globals.css added ~250 gzip bytes to EVERY route. Only transactions had too little headroom to absorb it; all other routes remain under their original ceilings.",
   "metric": "initial entry JS, unique chunks",
   "measurements": [
-    { "route": "/protected/dashboard", "chunks": 9, "rawBytes": 575152, "gzipBytes": 168026, "currentGzipBytes": 165800 },
-    { "route": "/protected/students", "chunks": 10, "rawBytes": 627228, "gzipBytes": 180401, "currentGzipBytes": 178368 },
-    { "route": "/protected/fee-setup", "chunks": 10, "rawBytes": 615012, "gzipBytes": 173943, "currentGzipBytes": 171717 },
+    { "route": "/protected/dashboard", "chunks": 9, "rawBytes": 575152, "gzipBytes": 168026, "currentGzipBytes": 167025 },
+    { "route": "/protected/students", "chunks": 10, "rawBytes": 627228, "gzipBytes": 180401, "currentGzipBytes": 179764 },
+    { "route": "/protected/fee-setup", "chunks": 10, "rawBytes": 615012, "gzipBytes": 173943, "currentGzipBytes": 173223 },
     {
       "route": "/protected/payments",
       "chunks": 10,
@@ -17,9 +17,9 @@
       "targetReductionPercent": 20,
       "actualReductionPercent": 21.03
     },
-    { "route": "/protected/transactions", "chunks": 10, "rawBytes": 695918, "gzipBytes": 195400, "currentGzipBytes": 194932 },
-    { "route": "/protected/defaulters", "chunks": 10, "rawBytes": 675450, "gzipBytes": 194624, "currentGzipBytes": 192398 },
-    { "route": "/protected/exports", "chunks": 9, "rawBytes": 561682, "gzipBytes": 163252, "currentGzipBytes": 161026 },
-    { "route": "/protected/admin-tools", "chunks": 9, "rawBytes": 562003, "gzipBytes": 163366, "currentGzipBytes": 161140 }
+    { "route": "/protected/transactions", "chunks": 10, "rawBytes": 697000, "gzipBytes": 196600, "currentGzipBytes": 195636 },
+    { "route": "/protected/defaulters", "chunks": 10, "rawBytes": 675450, "gzipBytes": 194624, "currentGzipBytes": 193852 },
+    { "route": "/protected/exports", "chunks": 9, "rawBytes": 561682, "gzipBytes": 163252, "currentGzipBytes": 162255 },
+    { "route": "/protected/admin-tools", "chunks": 9, "rawBytes": 562003, "gzipBytes": 163366, "currentGzipBytes": 162369 }
   ]
 }

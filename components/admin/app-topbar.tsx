@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -28,6 +28,8 @@ import { StatusBadge } from "./status-badge";
 type AppTopBarProps = {
   staffEmail: string;
   staffRole: StaffRole;
+  /** Current hour in school time (IST), resolved on the server. */
+  schoolHour: number;
   sessionPill?: ReactNode;
   /**
    * Locale switcher trigger (Globe icon + dropdown). Rendered only when the
@@ -57,7 +59,13 @@ function greetingForHour(hour: number) {
   return "Good evening";
 }
 
-export function AppTopBar({ staffEmail, staffRole, sessionPill, localeSwitcher }: AppTopBarProps) {
+export function AppTopBar({
+  staffEmail,
+  staffRole,
+  schoolHour,
+  sessionPill,
+  localeSwitcher,
+}: AppTopBarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const routeMeta = getProtectedRouteMeta(pathname);
@@ -65,15 +73,12 @@ export function AppTopBar({ staffEmail, staffRole, sessionPill, localeSwitcher }
   const tRoles = useTranslations("Roles");
   const roleLabel = tRoles.has(staffRole) ? tRoles(staffRole) : roleLabels[staffRole];
   // On the dashboard the route label gives no information the page itself
-  // doesn't — greet the person instead (Ledger Calm 2.0). The hour is read
-  // after mount so server and client markup never disagree.
+  // doesn't — greet the person instead (Ledger Calm 2.0). The hour comes from
+  // the server in school time, so the greeting is correct on first paint
+  // instead of flashing "Welcome," and swapping after hydration.
   const isDashboard = pathname.startsWith("/protected/dashboard");
-  const [clientHour, setClientHour] = useState<number | null>(null);
-  useEffect(() => {
-    setClientHour(new Date().getHours());
-  }, []);
   const headline = isDashboard
-    ? `${clientHour === null ? "Welcome" : greetingForHour(clientHour)}, ${firstNameOf(staffEmail)}`
+    ? `${greetingForHour(schoolHour)}, ${firstNameOf(staffEmail)}`
     : routeMeta.label;
 
   return (
@@ -152,7 +157,7 @@ export function MobileHeader({
   sessionPill,
   localeSwitcher,
   homeHref,
-}: AppTopBarProps & {
+}: Omit<AppTopBarProps, "schoolHour"> & {
   homeHref: string;
 }) {
   const pathname = usePathname();

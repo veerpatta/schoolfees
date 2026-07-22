@@ -19,7 +19,7 @@ import { requireStaffPermission } from "@/lib/supabase/session";
 // Ink palette resolved to hex — ImageResponse has no CSS variables.
 const INK = "#12161f"; // --nav 222 28% 10%
 const INK_SURFACE = "#1b202c"; // --nav-surface
-const INK_MUTED = "#aeaaa0"; // --nav-muted
+const INK_MUTED = "#bcb7a9"; // --nav-muted 44 12% 70%
 const PAPER = "#f7f5ef";
 const SAFFRON = "#c2410c"; // accent
 const GREEN = "#2f9e63";

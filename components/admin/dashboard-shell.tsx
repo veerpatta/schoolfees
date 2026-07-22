@@ -57,6 +57,15 @@ export async function DashboardShell({
   ]);
   const homeHref = getDefaultProtectedHref(staffRole);
   const localeSwitcher = isLocaleSwitcherEnabled() ? <LocaleSwitcher /> : null;
+  // School time, not server time — the greeting must match the clock on the
+  // office wall, and it must be right on first paint (no post-hydration swap).
+  const schoolHour = Number(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Kolkata",
+      hour: "2-digit",
+      hour12: false,
+    }).format(new Date()),
+  );
   const navCounts: Record<string, number> = {
     "/protected/payments": pulse.todayReceiptCount,
     "/protected/defaulters": pulse.overdueStudentCount,
@@ -77,12 +86,14 @@ export async function DashboardShell({
       >
         <Link
           href={homeHref}
-          className="flex items-center gap-3 border-b border-nav-border px-4 py-4 transition-colors hover:bg-nav-hover"
+          className="flex items-center gap-3 border-b border-nav-border px-4 py-4 transition-colors hover:bg-nav-hover focus-ring-ink"
         >
           <SchoolBrand variant="sidebar-ink" priority />
         </Link>
 
-        <div className="flex-1 overflow-y-auto px-2 py-3">
+        {/* no-scrollbar: a light OS scrollbar track on the ink panel reads as
+            a rendering fault once the nav list overflows a short viewport. */}
+        <div className="no-scrollbar flex-1 overflow-y-auto px-2 py-3">
           <SidebarNav staffRole={staffRole} tone="ink" counts={navCounts} />
         </div>
 
@@ -133,6 +144,7 @@ export async function DashboardShell({
         <AppTopBar
           staffEmail={staffEmail}
           staffRole={staffRole}
+          schoolHour={schoolHour}
           sessionPill={
             <SessionPill
               currentLabel={viewSessionLabel}

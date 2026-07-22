@@ -294,7 +294,10 @@
     font-family: var(--font-display);
     font-weight: 600;
     letter-spacing: -0.015em;
-    font-variant-numeric: tabular-nums lining-nums;
+    /* Source Serif 4 defaults to lining figures, and <Money>/<CountUp> always
+       add `.tabular` (declared later, so it would win a lining-nums fight
+       anyway). Keeping this to tabular-nums states what actually applies. */
+    font-variant-numeric: tabular-nums;
   }
 
   .tabular {
@@ -455,6 +458,14 @@
   /* Focus ring — saffron, single recipe used everywhere */
   .focus-ring {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Same recipe for ink surfaces. The paper version offsets against
+     --background (cream), which would draw a bright halo on the ink
+     sidebar; this offsets against the ink itself. */
+  .focus-ring-ink {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2;
+    --tw-ring-offset-color: hsl(var(--nav));
   }
 
   /* Tap highlight suppression already exists, but add active:scale feedback */
@@ -647,6 +658,42 @@ body[data-vpps-test-session="true"]::before {
   @page {
     size: A4;
     margin: 12mm;
+  }
+
+  /* Paper is always paper. A staff member with dark mode on used to print
+     receipts as a near-black page with pale text — and because the receipt
+     opts into `print-color-adjust: exact`, that actually reached the paper.
+     Reset the surface/text tokens to their light values for print, whatever
+     the on-screen theme is. */
+  .dark {
+    --background: 46 42% 97%;
+    --foreground: 222 25% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 25% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 25% 11%;
+    --surface: 0 0% 100%;
+    --surface-2: 44 18% 96%;
+    --surface-3: 44 14% 92%;
+    --muted: 44 18% 96%;
+    --muted-foreground: 222 9% 42%;
+    --subtle-foreground: 222 6% 56%;
+    --border: 40 14% 88%;
+    --border-strong: 40 12% 78%;
+    --primary: 222 25% 11%;
+    --primary-foreground: 48 33% 98%;
+    --accent: 20 86% 41%;
+    --accent-foreground: 48 33% 99%;
+    --accent-soft: 28 92% 96%;
+    --accent-soft-foreground: 20 86% 33%;
+    --success-soft: 151 64% 96%;
+    --success-soft-foreground: 151 56% 22%;
+    --warning-soft: 38 92% 96%;
+    --warning-soft-foreground: 30 84% 28%;
+    --destructive-soft: 0 84% 97%;
+    --destructive-soft-foreground: 0 72% 36%;
+    --info-soft: 221 90% 97%;
+    --info-soft-foreground: 221 70% 32%;
   }
 
   body {

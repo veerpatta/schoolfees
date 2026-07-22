@@ -227,6 +227,29 @@ export function ReceiptDocumentV3({
             margin: 0 auto;
           }
 
+          /* On screen the ink band carries the hierarchy. On paper a
+             full-width near-black slab per receipt is just toner — and the
+             family batch reprint emits one per sibling page. Invert to paper
+             with a saffron rule; the header keeps its weight without the
+             flood fill. */
+          .receipt-ink-band {
+            background: #ffffff !important;
+            color: hsl(var(--foreground)) !important;
+            border-bottom: 2px solid hsl(var(--accent));
+            padding-bottom: 0.5rem;
+          }
+          .receipt-ink-band .receipt-ink-muted {
+            color: hsl(var(--muted-foreground)) !important;
+          }
+          /* Explicit text-nav-foreground children win over the band's
+             inherited colour, so restate them for paper. */
+          .receipt-ink-band .text-nav-foreground {
+            color: hsl(var(--foreground)) !important;
+          }
+          .receipt-ink-band .receipt-ink-logo {
+            border-color: hsl(var(--border)) !important;
+          }
+
           .receipt-print-page table {
             border-collapse: collapse;
           }
@@ -256,11 +279,11 @@ export function ReceiptDocumentV3({
         </div>
       ) : null}
 
-      {/* 1. Ink header band */}
-      <header className="bg-nav px-4 py-4 text-nav-foreground sm:px-6 sm:py-5">
+      {/* 1. Ink header band (inverts to paper + saffron rule when printed) */}
+      <header className="receipt-ink-band bg-nav px-4 py-4 text-nav-foreground sm:px-6 sm:py-5">
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="size-14 shrink-0 overflow-hidden rounded-lg border border-nav-border bg-white p-1">
+            <div className="receipt-ink-logo size-14 shrink-0 overflow-hidden rounded-lg border border-nav-border bg-white p-1">
               <Image
                 src="/branding/veer-patta-school-logo.jpg"
                 alt={`${schoolProfile.name} logo`}
@@ -274,12 +297,19 @@ export function ReceiptDocumentV3({
                 {schoolProfile.name}
               </h1>
               {schoolProfile.address ? (
-                <p className="mt-0.5 text-[11px] leading-4 text-nav-muted">
+                <p className="receipt-ink-muted mt-0.5 text-[11px] leading-4 text-nav-muted">
                   {schoolProfile.address}
                 </p>
               ) : null}
+              {/* Contact line — a parent-facing document must say how to
+                  reach the office. (V2 printed this; V3 had dropped it.) */}
+              {schoolProfile.phone || schoolProfile.email ? (
+                <p className="receipt-ink-muted mt-0.5 text-[11px] leading-4 text-nav-muted">
+                  {[schoolProfile.phone, schoolProfile.email].filter(Boolean).join(" · ")}
+                </p>
+              ) : null}
               <div className="mt-1.5 h-0.5 w-24 rounded-full bg-accent" aria-hidden="true" />
-              <p className="mt-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-nav-muted">
+              <p className="receipt-ink-muted mt-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-nav-muted">
                 <BiKey t={t} k="feeReceiptHeading" hiClassName="text-nav-muted" />
               </p>
             </div>
@@ -288,14 +318,14 @@ export function ReceiptDocumentV3({
           {/* Rotated stamp box — receipt no */}
           <div className="shrink-0 text-right">
             <div className="inline-block -rotate-2 rounded-lg border-2 border-accent px-3 py-1.5">
-              <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-nav-muted">
+              <p className="receipt-ink-muted text-[9px] font-semibold uppercase tracking-[0.18em] text-nav-muted">
                 <BiKey t={t} k="receiptNo" hiClassName="text-nav-muted" />
               </p>
               <p className="mt-0.5 text-base font-bold tracking-tight text-nav-foreground">
                 {receipt.receiptNumber}
               </p>
             </div>
-            <p className="mt-1.5 text-[10px] text-nav-muted">
+            <p className="receipt-ink-muted mt-1.5 text-[10px] text-nav-muted">
               {t.en("sessionLabelText", { session: receipt.sessionLabel })}
             </p>
           </div>

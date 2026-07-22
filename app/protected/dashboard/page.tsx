@@ -204,15 +204,30 @@ function getCollectionRateHealth(rate: number, t: DashboardTranslator) {
  * MobileDashboardHero replaces the horizontal KPI rail on phones with a single
  * first-screen summary: today, collection rate, and the three office stats.
  */
-function KpiDeltaLine({ delta }: { delta: KpiDelta | null }) {
+/**
+ * `onInk` renders the chip for the dark hero card. The paper tones are all
+ * light "soft" tokens — on ink they read as pasted-on white pills, and in dark
+ * mode the neutral one (surface-2) is the same lightness as --nav, so it
+ * disappears entirely.
+ */
+function KpiDeltaLine({ delta, onInk = false }: { delta: KpiDelta | null; onInk?: boolean }) {
   if (!delta) return null;
   return (
     <span
       className={cn(
         "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
-        delta.tone === "success" && "bg-success-soft text-success-soft-foreground",
-        delta.tone === "danger" && "bg-destructive-soft text-destructive-soft-foreground",
-        delta.tone === "neutral" && "bg-surface-2 text-muted-foreground",
+        onInk
+          ? cn(
+              "bg-nav-surface",
+              delta.tone === "success" && "text-success-soft",
+              delta.tone === "danger" && "text-destructive-soft",
+              delta.tone === "neutral" && "text-nav-muted",
+            )
+          : cn(
+              delta.tone === "success" && "bg-success-soft text-success-soft-foreground",
+              delta.tone === "danger" && "bg-destructive-soft text-destructive-soft-foreground",
+              delta.tone === "neutral" && "bg-surface-2 text-muted-foreground",
+            ),
       )}
     >
       {delta.label}
@@ -412,8 +427,10 @@ function HeroKpis({
      card below — the three-pot split stays intact. */
   return (
     <div className="hidden gap-3 sm:grid md:grid-cols-3">
-      {/* Today — ink card */}
-      <div className="relative overflow-hidden rounded-2xl bg-nav px-5 py-5 text-nav-foreground shadow-md">
+      {/* Today — ink card. print:hidden because the band's background drops
+          on paper while the pale foreground stays, leaving the figure
+          invisible; the dashboard is a screen surface, not a report. */}
+      <div className="relative overflow-hidden rounded-2xl bg-nav px-5 py-5 text-nav-foreground shadow-md print:hidden">
         <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-nav-muted">
           {t("todayCollection")}
         </p>
@@ -425,7 +442,7 @@ function HeroKpis({
         </div>
         <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-nav-muted">
           <span>{t("receiptsPosted", { count: receiptsToday })}</span>
-          <KpiDeltaLine delta={todayDelta} />
+          <KpiDeltaLine delta={todayDelta} onInk />
         </p>
         <div className="mt-4 flex items-center gap-2">
           {canPostPayments ? (
