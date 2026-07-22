@@ -47,6 +47,13 @@ type SheetProps = ComponentPropsWithoutRef<"div"> & {
    * step (rare) can keep the default behavior.
    */
   historyDismiss?: boolean;
+  /**
+   * Actions pinned BELOW the scroll area — always visible, never scrolled past,
+   * and lifted above the on-screen keyboard. Any sheet whose primary action
+   * sits at the end of a long body (or below a text input) should pass it here
+   * instead of rendering it as the last child of `children`.
+   */
+  footer?: ReactNode;
   children: ReactNode;
 };
 
@@ -100,6 +107,7 @@ export function Sheet({
   size = "full",
   historyDismiss = true,
   className,
+  footer,
   children,
   ...props
 }: SheetProps) {
@@ -281,9 +289,16 @@ export function Sheet({
   if (typeof document === "undefined") return null;
 
   const isBottom = side === "bottom";
-  const panelStyle: React.CSSProperties = isBottom && dragY > 0
-    ? { transform: `translate3d(0, ${dragY}px, 0)`, transition: "none" }
-    : {};
+  const panelStyle: React.CSSProperties = {
+    // Lift the whole panel clear of the on-screen keyboard. On iOS the
+    // keyboard overlays the layout viewport, so without this the bottom of
+    // the sheet (where the submit button lives) is unreachable no matter how
+    // the body scrolls. --keyboard-offset is 0 where the viewport resizes.
+    ...(isBottom ? { marginBottom: "var(--keyboard-offset, 0px)" } : {}),
+    ...(isBottom && dragY > 0
+      ? { transform: `translate3d(0, ${dragY}px, 0)`, transition: "none" }
+      : {}),
+  };
 
   return createPortal(
     <div
@@ -348,9 +363,27 @@ export function Sheet({
           </header>
         )}
 
-        <div className="flex-1 overflow-y-auto momentum-scroll px-5 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] pt-1">
+        <div
+          className={cn(
+            "min-h-0 flex-1 overflow-y-auto momentum-scroll px-5 pt-1",
+            // With a pinned footer the safe-area padding belongs to the footer,
+            // not the scroll body, or the last row sits above a dead gap.
+            footer
+              ? "pb-3"
+              : "pb-[calc(env(safe-area-inset-bottom,0px)+20px)]",
+          )}
+        >
           {children}
         </div>
+
+        {footer ? (
+          <div
+            data-sheet-footer
+            className="flex-none border-t border-border bg-card px-5 pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+16px)]"
+          >
+            {footer}
+          </div>
+        ) : null}
       </div>
     </div>,
     document.body,

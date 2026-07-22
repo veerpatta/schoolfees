@@ -22,6 +22,9 @@ import {
 
 const INITIAL: TemplateActionState = { status: "idle" };
 
+/** Lets the pinned footer button submit the form it sits outside of. */
+const TEMPLATE_EDITOR_FORM_ID = "whatsapp-template-editor-form";
+
 // Sample variable bindings used to render a live template preview in the
 // editor. These are literal placeholder strings the staff sees on the
 // preview pane — they are NOT live money values from the database, so the
@@ -115,8 +118,30 @@ export function TemplateEditor({ open, onClose, template }: Props) {
       title={isEdit ? t("whatsappEditorEditTitle") : t("whatsappEditorNewTitle")}
       description={t("whatsappEditorDescription")}
       size="full"
+      /* Pinned outside the scroll body — the name input and message textarea
+         used to push Save behind the keyboard. */
+      footer={
+        <div className="flex flex-wrap gap-3">
+          <Button type="button" variant="outline" onClick={onClose} disabled={pending} className="flex-1">
+            {t("whatsappEditorCancel")}
+          </Button>
+          <Button
+            type="submit"
+            form={TEMPLATE_EDITOR_FORM_ID}
+            variant="accent"
+            disabled={pending}
+            className="flex-1"
+          >
+            {pending
+              ? t("whatsappEditorSavingDots")
+              : isEdit
+                ? t("whatsappEditorSaveChanges")
+                : t("whatsappEditorCreate")}
+          </Button>
+        </div>
+      }
     >
-      <form action={formAction} className="space-y-4">
+      <form id={TEMPLATE_EDITOR_FORM_ID} action={formAction} className="space-y-4">
         {isEdit ? <input type="hidden" name="id" value={template.id} /> : null}
 
         <div className="space-y-2">
@@ -222,19 +247,6 @@ export function TemplateEditor({ open, onClose, template }: Props) {
             {state.message}
           </p>
         ) : null}
-
-        <div className="flex flex-wrap gap-3">
-          <Button type="button" variant="outline" onClick={onClose} disabled={pending} className="flex-1">
-            {t("whatsappEditorCancel")}
-          </Button>
-          <Button type="submit" variant="accent" disabled={pending} className="flex-1">
-            {pending
-              ? t("whatsappEditorSavingDots")
-              : isEdit
-                ? t("whatsappEditorSaveChanges")
-                : t("whatsappEditorCreate")}
-          </Button>
-        </div>
       </form>
     </Sheet>
   );

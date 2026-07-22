@@ -66,7 +66,10 @@ export function MobilePaymentModeSheet({
             className="absolute inset-0 cursor-default"
             onClick={() => setOpen(false)}
           />
-          <div className="relative w-full anim-slide-up rounded-t-2xl border border-border bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl">
+          {/* Bounded + scrollable: in landscape the four mode rows exceeded
+              the viewport and, because the parent is items-end, the overflow
+              escaped off the TOP where it could not be scrolled to. */}
+          <div className="relative max-h-[92dvh] w-full overflow-y-auto momentum-scroll anim-slide-up rounded-t-2xl border border-border bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl">
             <h2 className="text-base font-semibold text-foreground">{t("modeSheetTitle")}</h2>
             <div className="mt-4 space-y-2">
               {PAYMENT_MODES.map((mode) => {

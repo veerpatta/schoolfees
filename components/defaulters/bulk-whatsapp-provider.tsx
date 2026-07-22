@@ -171,7 +171,9 @@ export function BulkWhatsappProvider({ rows, templates, children, sessionLabel }
       {children}
 
       {selectedIds.size > 0 ? (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 backdrop-blur-sm shadow-[0_-4px_16px_rgba(0,0,0,0.06)] mobile-safe-bottom-padding">
+        // Sits ABOVE the fixed mobile nav (z-40): at bottom-0/z-30 the
+        // "Send to N" button was hidden behind it on phones.
+        <div className="fixed inset-x-0 bottom-[var(--mobile-bottom-nav-offset,0px)] z-40 border-t border-border bg-card/95 backdrop-blur-sm shadow-[0_-4px_16px_rgba(0,0,0,0.06)] mobile-safe-bottom-padding md:bottom-0 print:hidden">
           <div className="mx-auto flex max-w-screen-xl flex-wrap items-center justify-between gap-3 px-4 py-3">
             <div className="flex items-center gap-3">
               <button

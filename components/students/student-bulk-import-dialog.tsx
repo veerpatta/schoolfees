@@ -237,11 +237,11 @@ export function StudentBulkImportDialogTrigger({
       {mounted && open
         ? createPortal(
             <div
-              className="fixed inset-0 z-[9999] flex items-start justify-center bg-foreground/50 p-4 pt-10 backdrop-blur-[2px]"
+              className="fixed inset-0 z-[60] flex items-start justify-center bg-foreground/50 p-4 pt-10 backdrop-blur-[2px]"
               role="dialog"
               aria-modal="true"
             >
-              <div className="max-h-[90vh] w-full max-w-5xl overflow-auto rounded-2xl border border-border bg-card p-5 shadow-2xl">
+              <div className="max-h-[calc(100dvh-5rem)] w-full max-w-5xl overflow-auto rounded-2xl border border-border bg-card p-5 shadow-2xl">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-semibold text-foreground">

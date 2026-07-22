@@ -870,7 +870,9 @@ function MobileNextBar({
 }) {
   const t = useTranslations("Defaulters");
   return (
-    <div className="sticky bottom-[calc(var(--mobile-safe-area-bottom)+72px)] z-20 rounded-xl border border-border bg-card/95 p-2 shadow-lg backdrop-blur lg:hidden">
+    // Token-based clearance instead of a hardcoded 72px, which drifted in
+    // landscape where the nav height token drops to 3rem.
+    <div className="sticky bottom-[calc(var(--mobile-bottom-nav-offset,0px)+0.5rem)] z-40 rounded-xl border border-border bg-card/95 p-2 shadow-lg backdrop-blur lg:hidden">
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
         <Button type="button" variant="outline" onClick={onPrevious} disabled={!hasPrevious}>
           {t("collectorModePrevious")}

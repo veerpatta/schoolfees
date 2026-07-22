@@ -41,7 +41,10 @@ export function SaveBar({
       role="region"
       aria-label="Save changes"
       className={cn(
-        "sticky bottom-0 z-40 mt-4 flex flex-col gap-2 border-t border-border bg-card px-3 py-2 shadow-md anim-slide-up sm:flex-row sm:items-center sm:justify-between sm:gap-4 print:hidden",
+        // Sits above the fixed mobile bottom nav so the save action is never
+        // covered on phones; falls back to the viewport bottom on desktop
+        // where the nav is hidden.
+        "sticky bottom-[var(--mobile-bottom-nav-offset,0px)] z-40 mt-4 flex flex-col gap-2 border-t border-border bg-card px-3 py-2 shadow-md anim-slide-up sm:flex-row sm:items-center sm:justify-between sm:gap-4 md:bottom-0 print:hidden",
         className,
       )}
       style={{ animationDuration: "180ms" }}

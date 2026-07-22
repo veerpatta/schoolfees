@@ -14,6 +14,9 @@ import { waiveLateFeeAction } from "@/app/protected/payments/waive-late-fee-acti
 import { INITIAL_WAIVE_LATE_FEE_ACTION_STATE } from "@/app/protected/payments/waive-late-fee-action-state";
 import { formatInr } from "@/lib/helpers/currency";
 
+/** Lets the pinned footer button submit the form it sits outside of. */
+const WAIVE_FORM_ID = "waive-late-fee-form";
+
 type WaiveLateFeeSheetProps = {
   open: boolean;
   onClose: () => void;
@@ -75,8 +78,27 @@ export function WaiveLateFeeSheet({
       title={`${t("waiveSheetTitlePrefix")} ${studentLabel}`}
       description={t("waiveSheetDescription", { amount: formatInr(pendingLateFeeAmount) })}
       size="md"
+      /* Pinned outside the scroll body so the amount/reason keyboard can
+         never bury the Waive button. */
+      footer={
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
+            {t("waiveCancel")}
+          </Button>
+          <Button type="submit" form={WAIVE_FORM_ID} disabled={!canSubmit}>
+            {pending ? (
+              <span className="flex items-center gap-1.5">
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                {t("waiveSubmitting")}
+              </span>
+            ) : (
+              t("waiveSubmit")
+            )}
+          </Button>
+        </div>
+      }
     >
-      <form action={formAction} className="space-y-4">
+      <form id={WAIVE_FORM_ID} action={formAction} className="space-y-4">
         <input type="hidden" name="studentId" value={studentId} />
 
         <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-xs text-muted-foreground">
@@ -138,22 +160,6 @@ export function WaiveLateFeeSheet({
             <p>{state.message}</p>
           </div>
         ) : null}
-
-        <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
-          <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
-            {t("waiveCancel")}
-          </Button>
-          <Button type="submit" disabled={!canSubmit}>
-            {pending ? (
-              <span className="flex items-center gap-1.5">
-                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                {t("waiveSubmitting")}
-              </span>
-            ) : (
-              t("waiveSubmit")
-            )}
-          </Button>
-        </div>
       </form>
     </Sheet>
   );

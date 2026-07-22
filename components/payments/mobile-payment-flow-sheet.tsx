@@ -414,7 +414,16 @@ export function MobilePaymentFlowSheet({
       ) : null}
 
       {view === "student-picker" ? (
-        <div className="absolute bottom-0 left-0 right-0 h-[88svh] rounded-t-2xl border-t border-border bg-card flex flex-col">
+        <div
+          className="absolute left-0 right-0 rounded-t-2xl border-t border-border bg-card flex flex-col"
+          style={{
+            // Same treatment as the class picker above: stretch to the
+            // keyboard edge so the result list isn't half-buried while typing
+            // a student's name.
+            top: "max(56px, calc(100svh - var(--keyboard-offset, 0px) - 88svh))",
+            bottom: "var(--keyboard-offset, 0px)",
+          }}
+        >
           <SheetHandle swipeHandlers={studentPickerSwipe} />
           <div className="flex-none px-4 pb-2 flex items-center justify-between">
             <p className="text-sm font-semibold text-foreground">{selectedClassLabel}</p>

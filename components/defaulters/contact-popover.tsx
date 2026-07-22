@@ -52,6 +52,9 @@ const SNOOZE_OPTIONS = [
 
 const INITIAL_STATE: LogContactState = { status: "idle" };
 
+/** Lets the pinned footer button submit the form it sits outside of. */
+const CONTACT_LOG_FORM_ID = "defaulter-contact-log-form";
+
 function isoDateToday() {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
@@ -106,8 +109,33 @@ export function ContactPopover({
       title={t("popoverTitle")}
       description={t("popoverDescription", { name: studentName })}
       size="lg"
+      /* Pinned outside the scroll body: this form has a date input, a select,
+         a textarea and a recorder, so the keyboard used to bury "Log contact"
+         — the single most-used action on the follow-up round. */
+      footer={
+        <div className="flex gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1"
+            onClick={onClose}
+            disabled={pending}
+          >
+            {t("popoverCancel")}
+          </Button>
+          <Button
+            type="submit"
+            form={CONTACT_LOG_FORM_ID}
+            variant="accent"
+            className="flex-1"
+            disabled={pending}
+          >
+            {pending ? t("popoverSaving") : t("popoverSubmit")}
+          </Button>
+        </div>
+      }
     >
-      <form action={formAction} className="space-y-5">
+      <form id={CONTACT_LOG_FORM_ID} action={formAction} className="space-y-5">
         <input type="hidden" name="studentId" value={studentId} />
         <input type="hidden" name="sessionLabel" value={sessionLabel} />
         <input type="hidden" name="contactedPhone" value={selectedPhone ?? ""} />
@@ -257,26 +285,6 @@ export function ContactPopover({
             {state.message}
           </p>
         ) : null}
-
-        <div className="flex gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            className="flex-1"
-            onClick={onClose}
-            disabled={pending}
-          >
-            {t("popoverCancel")}
-          </Button>
-          <Button
-            type="submit"
-            variant="accent"
-            className="flex-1"
-            disabled={pending}
-          >
-            {pending ? t("popoverSaving") : t("popoverSubmit")}
-          </Button>
-        </div>
       </form>
     </Sheet>
   );

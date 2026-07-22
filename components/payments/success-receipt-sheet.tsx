@@ -113,7 +113,9 @@ export function SuccessReceiptSheet({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 px-2 md:items-center md:px-4">
-      <div className="max-h-[92vh] w-full anim-slide-up animate-bottom-sheet-up overflow-y-auto rounded-t-2xl border border-success/30 bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-xl md:rounded-xl md:p-5">
+      {/* dvh, not vh — see confirm-receipt-sheet: vh can push the sticky
+          action row below the visible viewport. */}
+      <div className="max-h-[92dvh] w-full anim-slide-up animate-bottom-sheet-up overflow-y-auto rounded-t-2xl border border-success/30 bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-xl md:rounded-xl md:p-5">
         <div className="flex items-center gap-2.5">
           <SuccessCheckMark />
           <div className="anim-settle-in" style={{ animationDelay: "160ms" }}>

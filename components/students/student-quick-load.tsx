@@ -746,7 +746,9 @@ export function StudentQuickLoad({
       {canWrite && selectedIds.length === 0 && (
         <Link
           href={withSession(`/protected/students/new?sessionLabel=${encodeURIComponent(initialFilters.sessionLabel || "")}`)}
-          className="fixed bottom-24 right-4 z-30 flex size-14 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg hover:bg-accent/90 active:scale-95 transition-all md:hidden"
+          /* Token-based clearance: bottom-24 was hardcoded against a 68px nav
+             and overlapped it on notched devices (nav + safe-area > 96px). */
+          className="fixed bottom-[calc(var(--mobile-bottom-nav-offset,0px)+0.75rem)] right-4 z-40 flex size-14 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg hover:bg-accent/90 active:scale-95 transition-all md:hidden"
           aria-label={t("addNewStudentAria")}
         >
           <Plus className="size-6" />

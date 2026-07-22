@@ -123,7 +123,9 @@ export function ConfirmReceiptSheet({
       aria-label="Confirm and save payment"
     >
       <div
-        className="max-h-[92vh] w-full anim-slide-up overflow-y-auto rounded-t-2xl border border-border bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-3xl md:rounded-xl md:p-5"
+        /* dvh, not vh: with browser chrome expanded a vh-sized box extends
+           past the visible bottom and takes the sticky action row with it. */
+        className="max-h-[92dvh] w-full anim-slide-up overflow-y-auto rounded-t-2xl border border-border bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-3xl md:rounded-xl md:p-5"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}

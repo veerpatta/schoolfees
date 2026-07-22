@@ -649,7 +649,9 @@ export function StudentForm({
         </div>
       </details>
 
-      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap gap-2 border-t border-border bg-card/95 px-4 py-3 backdrop-blur md:-mx-5 md:px-5">
+      {/* Clears the fixed mobile nav (z-40); at bottom-0/z-10 the Save button
+          was underneath it on every phone add/edit. */}
+      <div className="sticky bottom-[var(--mobile-bottom-nav-offset,0px)] z-40 -mx-4 flex flex-wrap gap-2 border-t border-border bg-card/95 px-4 py-3 backdrop-blur md:bottom-0 md:-mx-5 md:px-5 print:hidden">
         <Button type="submit" disabled={disableSubmit || isPending}>
           {isPending
             ? mode === "add"

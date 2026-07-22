@@ -2210,7 +2210,9 @@ export function FeeSetupClient({
       </div>
 
       {canEdit ? (
-        <div className="sticky bottom-0 z-30 flex items-center gap-3 border-t border-border bg-card/95 p-3 backdrop-blur md:hidden">
+        /* Lifted above the fixed mobile nav (z-40) — this is the ONLY save
+           affordance on Fee Setup for phones and it was sitting under it. */
+        <div className="sticky bottom-[var(--mobile-bottom-nav-offset,0px)] z-40 flex items-center gap-3 border-t border-border bg-card/95 p-3 backdrop-blur md:hidden print:hidden">
           <div className="flex-1">
             <SyncPill status={syncStatus} lastSavedAt={lastSavedAt} />
           </div>

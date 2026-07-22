@@ -71,7 +71,7 @@ export function DuplicateReceiptSheet({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 px-2 md:items-center md:px-4">
-      <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl border border-warning/30 bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-lg md:rounded-xl md:p-5">
+      <div className="max-h-[90dvh] w-full overflow-y-auto rounded-t-2xl border border-warning/30 bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-lg md:rounded-xl md:p-5">
         <h2 className="text-lg font-semibold text-foreground">{t("duplicateTitle")}</h2>
         <p className="mt-3 text-sm text-foreground">{message}</p>
         <p className="mt-3 rounded-lg bg-warning-soft px-3 py-2 text-sm font-medium text-warning-soft-foreground">

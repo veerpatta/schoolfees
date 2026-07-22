@@ -1,4 +1,5 @@
 import { CommandHost } from "@/components/command/command-host";
+import { KeyboardOffsetProvider } from "@/components/system/keyboard-offset-provider";
 import { DashboardShell } from "@/components/admin/dashboard-shell";
 import { DashboardShellV2 } from "@/components/admin/dashboard-shell-v2";
 import { getVisibleProtectedNavigation } from "@/lib/config/navigation";
@@ -39,6 +40,7 @@ export default async function ProtectedLayout({
 
   const shellChildren = (
     <>
+      <KeyboardOffsetProvider />
       {isTestDatabase ? (
         <div className="mb-4 rounded-md border border-destructive/40 bg-destructive px-4 py-2 text-center text-xs font-bold uppercase tracking-[0.14em] text-destructive-foreground shadow-sm">
           TEST DATABASE - Staging deployment

@@ -1453,30 +1453,9 @@ export function PaymentDeskClient({
 
 
 
-  useEffect(() => {
-    const visualViewport = window.visualViewport;
-    if (!visualViewport) {
-      return;
-    }
-    const viewport: VisualViewport = visualViewport;
-
-    function updateKeyboardOffset() {
-      document.documentElement.style.setProperty(
-        "--keyboard-offset",
-        `${Math.max(0, window.innerHeight - viewport.height)}px`,
-      );
-    }
-
-    updateKeyboardOffset();
-    viewport.addEventListener("resize", updateKeyboardOffset);
-    viewport.addEventListener("scroll", updateKeyboardOffset);
-
-    return () => {
-      viewport.removeEventListener("resize", updateKeyboardOffset);
-      viewport.removeEventListener("scroll", updateKeyboardOffset);
-      document.documentElement.style.removeProperty("--keyboard-offset");
-    };
-  }, []);
+  // --keyboard-offset is published for the whole workspace by
+  // <KeyboardOffsetProvider/> (mounted in app/protected/layout.tsx) so every
+  // sheet — not just this one — can lift its actions above the keyboard.
 
   useEffect(() => {
     if (!selectedStudentId) {

@@ -22,6 +22,9 @@ const INITIAL_STATE: CloseDueActionState = {
   receiptNumber: null,
 };
 
+/** Lets the pinned footer button submit the form it sits outside of. */
+const CLOSE_DUE_FORM_ID = "close-due-as-discount-form";
+
 type CloseDueAsDiscountSheetProps = {
   open: boolean;
   onClose: () => void;
@@ -85,8 +88,34 @@ export function CloseDueAsDiscountSheet({
       title="Close balance as discount"
       description="Adds the amount to this student's discount override. The workbook re-runs and the pending balance updates."
       size="full"
+      /* Pinned outside the scroll body so the amount/reason keyboard cannot
+         bury the confirm action. */
+      footer={
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form={CLOSE_DUE_FORM_ID}
+            disabled={pending || !isAmountValid || reason.trim().length < 4}
+          >
+            {pending ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                Closing…
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5">
+                <CheckCircle2 className="size-4" aria-hidden="true" />
+                Close balance
+              </span>
+            )}
+          </Button>
+        </div>
+      }
     >
-      <form action={formAction} className="space-y-4 pb-2">
+      <form id={CLOSE_DUE_FORM_ID} action={formAction} className="space-y-4 pb-2">
         <input type="hidden" name="studentId" value={studentId} />
         <input type="hidden" name="sessionLabel" value={sessionLabel} />
 
@@ -184,25 +213,6 @@ export function CloseDueAsDiscountSheet({
             <span>{state.message}</span>
           </div>
         ) : null}
-
-        <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
-          <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={pending || !isAmountValid || reason.trim().length < 4}>
-            {pending ? (
-              <span className="inline-flex items-center gap-1.5">
-                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                Closing…
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5">
-                <CheckCircle2 className="size-4" aria-hidden="true" />
-                Close balance
-              </span>
-            )}
-          </Button>
-        </div>
       </form>
     </Sheet>
   );

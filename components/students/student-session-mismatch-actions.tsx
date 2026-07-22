@@ -76,7 +76,9 @@ export function StudentSessionMismatchActions({
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="recent-import-realign-title"
-                className="w-full max-w-md rounded-md border border-border bg-card p-4 text-card-foreground shadow-lg"
+                /* Bounded so a long session label / large count can't push
+                   the confirm button off-screen with no way to scroll. */
+                className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-md border border-border bg-card p-4 text-card-foreground shadow-lg"
               >
                 <h2 id="recent-import-realign-title" className="text-base font-semibold">
                   Move recent import students?

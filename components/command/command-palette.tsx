@@ -220,7 +220,7 @@ export function CommandPalette({ providers }: CommandPaletteProps) {
       role="dialog"
       aria-modal="true"
       aria-label="Command palette"
-      className="fixed inset-0 z-[60] flex items-start justify-center p-4 pt-[12vh]"
+      className="fixed inset-0 z-[60] flex items-start justify-center p-4 pt-[8dvh]"
       onKeyDown={onKeyDown}
     >
       <button
@@ -231,7 +231,10 @@ export function CommandPalette({ providers }: CommandPaletteProps) {
         style={{ animationDuration: "150ms" }}
       />
       <div
-        className="relative z-[1] flex w-full max-w-xl flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-lg anim-slide-up"
+        /* Bounded so the footer can't be clipped on short/landscape
+           viewports — the panel is overflow-hidden, so anything past the
+           edge would be unrecoverable. */
+        className="relative z-[1] flex max-h-[84dvh] w-full max-w-xl flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-lg anim-slide-up"
         style={{ animationDuration: "180ms" }}
       >
         <CommandSearchHeader
@@ -325,7 +328,7 @@ function CommandResults({
   }
 
   return (
-    <div className="max-h-[60vh] overflow-y-auto momentum-scroll py-2">
+    <div className="max-h-[55dvh] overflow-y-auto momentum-scroll py-2">
       {recentItems.length > 0 ? (
         <CommandSection title="Recents">
           {recentItems.map((item) => {
