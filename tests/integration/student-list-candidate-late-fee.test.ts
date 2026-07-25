@@ -49,6 +49,7 @@ function makeQuery(result: TableResult) {
     "range",
     "overlaps",
     "limit",
+    "abortSignal",
   ]) {
     builder[method] = passthrough;
   }

@@ -223,7 +223,58 @@ function isRecoverableWorkbookLoadError(error: { message?: string } | null | und
   );
 }
 
-function isRecoverableSiblingGroupLoadError(error: { message?: string } | null | undefined) {
+/**
+ * The sibling-group matview is scanned with an array-overlap filter, which is
+ * the slowest read on the student list. Under export load (getAllStudents walks
+ * every page) it can exceed the Postgres statement timeout. Cap it client-side
+ * so a slow read is abandoned quickly instead of holding the request open until
+ * Postgres cancels it — the cap is multiplied by the page count on the export
+ * path, so keep it small. Sibling pills are decorative; losing them is fine.
+ */
+const SIBLING_GROUP_QUERY_TIMEOUT_MS = 2500;
+
+/** Postgres `query_canceled` — what a statement timeout surfaces as. */
+const STATEMENT_TIMEOUT_CODE = "57014";
+
+/**
+ * Statement timeouts and client-side aborts both mean "this read did not finish
+ * in time", never "this data is wrong", so callers may safely fall back.
+ *
+ * Two shapes have to match: a raw PostgREST error (has `code`), and the wrapped
+ * `Error` rethrown by getStudentSiblingPills (message only). postgrest-js turns
+ * an aborted fetch into `{ message: "TimeoutError: ...", code: "" }` rather than
+ * a rejection, so the abort text is matched here too — without it, adding the
+ * abort signal would trade a slow failure for a new one.
+ */
+function isTimeoutLikeLoadError(error: { message?: string; code?: string } | null | undefined) {
+  if (!error) {
+    return false;
+  }
+
+  if (error.code === STATEMENT_TIMEOUT_CODE) {
+    return true;
+  }
+
+  const message = (error.message ?? "").toLowerCase();
+
+  return (
+    message.includes("canceling statement due to statement timeout") ||
+    message.includes("statement timeout") ||
+    message.includes(STATEMENT_TIMEOUT_CODE) ||
+    message.includes("aborterror") ||
+    message.includes("timeouterror") ||
+    message.includes("operation was aborted") ||
+    message.includes("the user aborted a request")
+  );
+}
+
+function isRecoverableSiblingGroupLoadError(
+  error: { message?: string; code?: string } | null | undefined,
+) {
+  if (isTimeoutLikeLoadError(error)) {
+    return true;
+  }
+
   if (!error?.message) {
     return false;
   }
@@ -262,7 +313,10 @@ async function getStudentSiblingPills(
     .select(
       "group_key, session_label, student_ids, student_count, phone_match, father_name_match, confidence, existing_family_group_id",
     )
-    .overlaps("student_ids", studentIds);
+    .overlaps("student_ids", studentIds)
+    // Abandon the array-overlap scan rather than letting it run into the
+    // Postgres statement timeout; the error path below degrades to no pills.
+    .abortSignal(AbortSignal.timeout(SIBLING_GROUP_QUERY_TIMEOUT_MS));
 
   if (sessionLabel) {
     query = query.eq("session_label", sessionLabel);

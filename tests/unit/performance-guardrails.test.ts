@@ -49,7 +49,10 @@ describe("office performance guardrails", () => {
     expect(officeDues).toContain("limit: filters.exportAll ? null : paginationInput.pageSize + 1");
     expect(officeDues).toContain("offset: filters.exportAll ? undefined : paginationInput.offset");
     expect(officeDues).toContain("pagination: page.pagination");
-    expect(workbookData).toContain("query = query.range(offset, offset + limit - 1)");
+    // Paging is pushed to the DB on the unchunked path; when the session receipt-id
+    // filter has to be batched the same window is re-applied in JS after merging.
+    expect(workbookData).toContain("query.range(rowOffset, rowOffset + explicitLimit - 1)");
+    expect(workbookData).toContain("rowCap === null ? undefined : rowCap");
     expect(transactionsShell).toContain("PaginationControls");
     expect(transactionsShell).toContain("handlePageChange");
     expect(exportRoute).toContain("exportAll: true");

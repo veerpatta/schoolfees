@@ -2,6 +2,7 @@ import "server-only";
 
 import { WORKBOOK_CLASS_ORDER, normalizeWorkbookClassLabel } from "@/lib/fees/workbook";
 import type { PaymentMode } from "@/lib/db/types";
+import { fetchInChunks } from "@/lib/helpers/chunk";
 import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
 import { getReceiptReversalTotals, isReceiptReversed } from "@/lib/receipts/reversals";
 import { loadSessionScopedReceiptIds } from "@/lib/session/installment-scope";
@@ -439,6 +440,47 @@ function toPostgrestInList(values: readonly string[]) {
   return values.map((value) => `"${value}"`).join(",");
 }
 
+/**
+ * PostgREST serialises `.in(...)` filters into the request URL. A session scope
+ * resolves to every receipt id that settled a session-frozen installment — up to
+ * SESSION_SCOPE_ROW_LIMIT (20k) ids — and a few hundred UUIDs already blow past
+ * the gateway's URL/header limit, which comes back as a 400 Bad Request that
+ * fails the whole Transactions page. Batch the id filter instead and merge in JS.
+ */
+const RECEIPT_ID_FILTER_CHUNK_SIZE = 100;
+
+/**
+ * Mirrors the DB `ORDER BY payment_date DESC, created_at DESC` used by the
+ * receipts listing. When the id filter is chunked, each batch is ordered only
+ * within itself, so the merged rows have to be re-sorted here before any
+ * limit/offset slice is applied. Postgres puts NULLs first for a DESC sort, so
+ * null `created_at` sorts ahead of a timestamp within the same payment_date;
+ * `id` is the final tiebreak so paging stays deterministic.
+ */
+function compareReceiptRowsForListing(a: ReceiptRow, b: ReceiptRow) {
+  const dateDiff = (b.payment_date ?? "").localeCompare(a.payment_date ?? "");
+  if (dateDiff !== 0) {
+    return dateDiff;
+  }
+
+  const aCreated = a.created_at;
+  const bCreated = b.created_at;
+  if (aCreated === null && bCreated !== null) {
+    return -1;
+  }
+  if (aCreated !== null && bCreated === null) {
+    return 1;
+  }
+  if (aCreated !== null && bCreated !== null) {
+    const createdDiff = bCreated.localeCompare(aCreated);
+    if (createdDiff !== 0) {
+      return createdDiff;
+    }
+  }
+
+  return a.id.localeCompare(b.id);
+}
+
 async function loadTransactionStudentIds(filters: {
   classId?: string;
   query?: string;
@@ -761,69 +803,119 @@ export async function getWorkbookTransactions(filters?: {
     return [];
   }
 
-  let query = supabase
-    .from("receipts")
-    .select(
-      "id, receipt_number, payment_date, created_at, payment_mode, total_amount, reference_number, received_by, student_id, student_ref:students(id, full_name, admission_no, father_name, primary_phone, transport_route_id, class_ref:classes(id, session_label, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code))",
-    )
-    .order("payment_date", { ascending: false })
-    .order("created_at", { ascending: false });
+  // Every filter except the receipt-id scope and the row cap. Built per batch so
+  // the chunked path applies exactly the same predicates as the single-shot one.
+  const buildReceiptQuery = (receiptIdChunk: readonly string[] | null) => {
+    let query = supabase
+      .from("receipts")
+      .select(
+        "id, receipt_number, payment_date, created_at, payment_mode, total_amount, reference_number, received_by, student_id, student_ref:students(id, full_name, admission_no, father_name, primary_phone, transport_route_id, class_ref:classes(id, session_label, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code))",
+      )
+      .order("payment_date", { ascending: false })
+      .order("created_at", { ascending: false });
 
-  if (filters?.studentId) {
-    query = query.eq("student_id", filters.studentId);
-  } else if (scopedStudentIds) {
-    query = query.in("student_id", scopedStudentIds);
-  }
-
-  if (sessionReceiptIds) {
-    query = query.in("id", sessionReceiptIds);
-  }
-
-  if (filters?.todayOnly) {
-    query = query.eq("payment_date", getTodayStamp());
-  }
-
-  if (filters?.fromDate) {
-    query = query.gte("payment_date", filters.fromDate);
-  }
-
-  if (filters?.toDate) {
-    query = query.lte("payment_date", filters.toDate);
-  }
-
-  if (filters?.paymentMode) {
-    query = query.eq("payment_mode", filters.paymentMode);
-  }
-
-  if (normalizedSearch) {
-    const pattern = `%${escapeIlikePattern(normalizedSearch)}%`;
-    const receiptSearchParts = [
-      `receipt_number.ilike.${pattern}`,
-      `reference_number.ilike.${pattern}`,
-    ];
-
-    if (searchStudentIds && searchStudentIds.length > 0) {
-      receiptSearchParts.push(`student_id.in.(${toPostgrestInList(searchStudentIds)})`);
+    if (filters?.studentId) {
+      query = query.eq("student_id", filters.studentId);
+    } else if (scopedStudentIds) {
+      // Bounded by a class/route filter (one class or one route), so this list
+      // stays roster-sized and does not need batching.
+      query = query.in("student_id", scopedStudentIds);
     }
 
-    query = query.or(receiptSearchParts.join(","));
+    if (receiptIdChunk) {
+      query = query.in("id", receiptIdChunk);
+    }
+
+    if (filters?.todayOnly) {
+      query = query.eq("payment_date", getTodayStamp());
+    }
+
+    if (filters?.fromDate) {
+      query = query.gte("payment_date", filters.fromDate);
+    }
+
+    if (filters?.toDate) {
+      query = query.lte("payment_date", filters.toDate);
+    }
+
+    if (filters?.paymentMode) {
+      query = query.eq("payment_mode", filters.paymentMode);
+    }
+
+    if (normalizedSearch) {
+      const pattern = `%${escapeIlikePattern(normalizedSearch)}%`;
+      const receiptSearchParts = [
+        `receipt_number.ilike.${pattern}`,
+        `reference_number.ilike.${pattern}`,
+      ];
+
+      if (searchStudentIds && searchStudentIds.length > 0) {
+        receiptSearchParts.push(`student_id.in.(${toPostgrestInList(searchStudentIds)})`);
+      }
+
+      query = query.or(receiptSearchParts.join(","));
+    }
+
+    return query;
+  };
+
+  const hasExplicitLimit = typeof filters?.limit === "number";
+  const explicitLimit = hasExplicitLimit ? Math.max(1, Math.floor(filters.limit as number)) : 0;
+  const rowOffset = hasExplicitLimit ? Math.max(0, Math.floor(filters?.offset ?? 0)) : 0;
+  // Total rows the DB must return for the caller's page to be satisfiable.
+  // `null` means "no cap" (export callers pass limit: null).
+  const rowCap = hasExplicitLimit
+    ? rowOffset + explicitLimit
+    : filters?.limit !== null
+      ? 250
+      : null;
+
+  let receipts: ReceiptRow[];
+
+  if (!sessionReceiptIds) {
+    let query = buildReceiptQuery(null);
+
+    if (hasExplicitLimit) {
+      query = query.range(rowOffset, rowOffset + explicitLimit - 1);
+    } else if (rowCap !== null) {
+      query = query.limit(rowCap);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw new Error(`Unable to load workbook transactions: ${error.message}`);
+    }
+
+    receipts = (data ?? []) as ReceiptRow[];
+  } else {
+    // Chunked path: each batch is capped at `rowCap` (not at the page size) so
+    // that after merging there are always enough rows to satisfy offset+limit,
+    // then the ordering and the page slice are re-applied in JS. Batches are
+    // disjoint id sets, so no de-duplication is needed. fetchInChunks stops at
+    // the first failing batch and surfaces its error.
+    const { data, error } = await fetchInChunks<ReceiptRow>(
+      sessionReceiptIds,
+      RECEIPT_ID_FILTER_CHUNK_SIZE,
+      (chunk) => {
+        const query = buildReceiptQuery(chunk);
+        return (rowCap === null ? query : query.limit(rowCap)) as unknown as PromiseLike<{
+          data: ReceiptRow[] | null;
+          error: unknown;
+        }>;
+      },
+    );
+
+    if (error) {
+      const message = (error as { message?: string }).message ?? String(error);
+      throw new Error(`Unable to load workbook transactions: ${message}`);
+    }
+
+    receipts = data
+      .sort(compareReceiptRowsForListing)
+      .slice(rowOffset, rowCap === null ? undefined : rowCap);
   }
 
-  if (typeof filters?.limit === "number") {
-    const limit = Math.max(1, Math.floor(filters.limit));
-    const offset = Math.max(0, Math.floor(filters.offset ?? 0));
-    query = query.range(offset, offset + limit - 1);
-  } else if (filters?.limit !== null) {
-    query = query.limit(250);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    throw new Error(`Unable to load workbook transactions: ${error.message}`);
-  }
-
-  const receipts = (data ?? []) as ReceiptRow[];
   const receiptStudentIds = [...new Set(receipts.map((row) => row.student_id).filter(Boolean))];
   // Reversed receipts (undo / refund) must be visibly flagged in every list.
   const reversalTotals = await getReceiptReversalTotals(receipts.map((row) => row.id));
