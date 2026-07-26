@@ -1377,7 +1377,8 @@
     "allDuesClearedLine": "सभी शुल्क चुकता — धन्यवाद",
     "previewValidBadge": "मान्य · सत्यापित",
     "previewReversedBadge": "निरस्त · अब मान्य नहीं",
-    "printA4Action": "A4 प्रिंट करें"
+    "printA4Action": "A4 प्रिंट करें",
+    "paidStamp": "भुगतान"
   },
   "AdminTools": {
     "eyebrow": "Admin Tools",

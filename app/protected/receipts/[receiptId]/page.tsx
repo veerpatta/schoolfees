@@ -119,6 +119,7 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
           paymentModeLabel={receipt.paymentMode}
           receivedBy={receipt.receivedBy ?? receipt.createdByName ?? ""}
           remainingBalance={receipt.outstandingAfterReceipt}
+          isVoided={receipt.isVoided}
         />
       </div>
 

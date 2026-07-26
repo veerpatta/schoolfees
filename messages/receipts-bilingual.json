@@ -159,7 +159,8 @@
     "allDuesClearedLine": "All dues cleared — thank you",
     "previewValidBadge": "Valid · verified",
     "previewReversedBadge": "Reversed · no longer valid",
-    "printA4Action": "Print A4"
+    "printA4Action": "Print A4",
+    "paidStamp": "PAID"
   },
   "hi": {
     "indexEyebrow": "रसीदें",
@@ -321,6 +322,7 @@
     "allDuesClearedLine": "सभी शुल्क चुकता — धन्यवाद",
     "previewValidBadge": "मान्य · सत्यापित",
     "previewReversedBadge": "निरस्त · अब मान्य नहीं",
-    "printA4Action": "A4 प्रिंट करें"
+    "printA4Action": "A4 प्रिंट करें",
+    "paidStamp": "भुगतान"
   }
 }

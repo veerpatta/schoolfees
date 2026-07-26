@@ -204,7 +204,7 @@ export function ReceiptDocumentV3({
 
   return (
     <article
-      className={`receipt-body receipt-print-page anim-slide-up relative mx-auto w-full max-w-5xl overflow-hidden rounded-lg border border-border bg-card text-foreground shadow-sm print:max-w-none print:rounded-none print:border-0 print:shadow-none ${className ?? ""}`.trim()}
+      className={`receipt-body receipt-print-page receipt-paper anim-slide-up relative mx-auto w-full max-w-5xl overflow-hidden rounded-lg border border-border text-foreground shadow-sm print:max-w-none print:rounded-none print:border-0 print:shadow-none ${className ?? ""}`.trim()}
       data-receipt-layout="v3"
     >
       <style>{`
@@ -216,6 +216,29 @@ export function ReceiptDocumentV3({
         .receipt-print-page {
           print-color-adjust: exact;
           -webkit-print-color-adjust: exact;
+        }
+
+        /* Paper stock. The phone slip and this document are the same object to
+           a parent — one is handed over at the counter, the other comes out of
+           the printer — so they share the warm off-white the design uses for
+           receipt paper rather than the app's card white. */
+        .receipt-paper {
+          background: #fffdf7;
+        }
+
+        /* Dotted leaders. On the phone slip these run horizontally from a
+           particular to its amount, because that layout is two columns. This
+           document carries four — installment, pending before, paid, balance
+           after — which is more than a parent gets on the counter slip and
+           worth keeping. So the leader becomes the rule BETWEEN rows: same
+           dotted paper-ledger texture, without collapsing four columns into
+           two to chase the mock literally. */
+        .receipt-particulars tbody tr {
+          border-top: 1px dotted hsl(222 12% 74%) !important;
+        }
+        .receipt-particulars tbody tr.receipt-total-row {
+          border-top: 2px solid hsl(222 25% 14%) !important;
+          border-bottom: 2px solid hsl(222 25% 14%) !important;
         }
 
         @media print {
@@ -279,56 +302,45 @@ export function ReceiptDocumentV3({
         </div>
       ) : null}
 
-      {/* 1. Ink header band (inverts to paper + saffron rule when printed) */}
-      <header className="receipt-ink-band bg-nav px-4 py-4 text-nav-foreground sm:px-6 sm:py-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="receipt-ink-logo size-14 shrink-0 overflow-hidden rounded-lg border border-nav-border bg-white p-1">
-              <Image
-                src="/branding/veer-patta-school-logo.jpg"
-                alt={`${schoolProfile.name} logo`}
-                width={96}
-                height={96}
-                className="h-full w-full object-contain"
-              />
-            </div>
-            <div className="min-w-0">
-              <h1 className="font-display text-lg font-semibold leading-tight tracking-tight sm:text-xl">
-                {schoolProfile.name}
-              </h1>
-              {schoolProfile.address ? (
-                <p className="receipt-ink-muted mt-0.5 text-[11px] leading-4 text-nav-muted">
-                  {schoolProfile.address}
-                </p>
-              ) : null}
-              {/* Contact line — a parent-facing document must say how to
-                  reach the office. (V2 printed this; V3 had dropped it.) */}
-              {schoolProfile.phone || schoolProfile.email ? (
-                <p className="receipt-ink-muted mt-0.5 text-[11px] leading-4 text-nav-muted">
-                  {[schoolProfile.phone, schoolProfile.email].filter(Boolean).join(" · ")}
-                </p>
-              ) : null}
-              <div className="mt-1.5 h-0.5 w-24 rounded-full bg-accent" aria-hidden="true" />
-              <p className="receipt-ink-muted mt-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-nav-muted">
-                <BiKey t={t} k="feeReceiptHeading" hiClassName="text-nav-muted" />
-              </p>
-            </div>
-          </div>
-
-          {/* Rotated stamp box — receipt no */}
-          <div className="shrink-0 text-right">
-            <div className="inline-block -rotate-2 rounded-lg border-2 border-accent px-3 py-1.5">
-              <p className="receipt-ink-muted text-[9px] font-semibold uppercase tracking-[0.18em] text-nav-muted">
-                <BiKey t={t} k="receiptNo" hiClassName="text-nav-muted" />
-              </p>
-              <p className="mt-0.5 text-base font-bold tracking-tight text-nav-foreground">
-                {receipt.receiptNumber}
-              </p>
-            </div>
-            <p className="receipt-ink-muted mt-1.5 text-[10px] text-nav-muted">
-              {t.en("sessionLabelText", { session: receipt.sessionLabel })}
+      {/* 1. Letterhead — the design's paper receipt head.
+          The ink band this replaces was a full-width near-black slab that
+          printed as toner and, on a family batch reprint, once per sibling
+          page. A centred letterhead over a double rule is what a fee slip
+          actually looks like, and it costs nothing to print. */}
+      <header className="px-4 pt-5 sm:px-6">
+        <div className="flex flex-col items-center border-b-2 border-[hsl(222_25%_14%)] pb-3 text-center">
+          <Image
+            src="/branding/veer-patta-school-logo.jpg"
+            alt={`${schoolProfile.name} logo`}
+            width={96}
+            height={96}
+            className="mb-2 size-12 object-contain"
+          />
+          <h1 className="font-display text-lg font-bold leading-tight tracking-tight sm:text-xl">
+            {schoolProfile.name}
+          </h1>
+          {schoolProfile.address || schoolProfile.phone || schoolProfile.email ? (
+            <p className="mt-1 text-[10px] leading-4 text-muted-foreground">
+              {[schoolProfile.address, schoolProfile.phone, schoolProfile.email]
+                .filter(Boolean)
+                .join(" · ")}
             </p>
-          </div>
+          ) : null}
+          <span className="mt-2.5 inline-block border border-[hsl(222_25%_14%)] px-3 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.16em]">
+            <BiKey t={t} k="feeReceiptHeading" />
+          </span>
+        </div>
+
+        {/* Number / date row — monospace between dashed rules, so the two
+            things a parent quotes back to the office read as a ledger line. */}
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-dashed border-[hsl(222_12%_70%)] py-2.5 font-mono text-[11px]">
+          <span>
+            {t.en("receiptNo")} <b className="tracking-tight">{receipt.receiptNumber}</b>
+          </span>
+          <span className="text-muted-foreground">
+            {t.en("sessionLabelText", { session: receipt.sessionLabel })}
+          </span>
+          <span>{formatDate(receipt.paymentDate)}</span>
         </div>
       </header>
 
@@ -429,7 +441,7 @@ export function ReceiptDocumentV3({
             <BiKey t={t} k="whatThisReceiptPaidHeading" />
           </h2>
           <div className="mt-2 overflow-hidden rounded-lg border border-border">
-            <table className="w-full table-fixed text-left text-xs">
+            <table className="receipt-particulars w-full table-fixed text-left text-xs">
               <thead className="bg-surface-2 text-[10px] uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-2.5 py-2">
@@ -466,12 +478,15 @@ export function ReceiptDocumentV3({
                     </td>
                   </tr>
                 ))}
-                <tr className="border-t border-border bg-surface-2/60 font-semibold">
-                  <td className="px-2.5 py-2">
+                {/* Double rule above and below the total — the ledger
+                    convention the design uses, and the line a parent's eye
+                    lands on first. Overrides the dotted row rule above. */}
+                <tr className="receipt-total-row border-y-2 border-[hsl(222_25%_14%)] font-semibold">
+                  <td className="px-2.5 py-2 uppercase tracking-[0.08em]">
                     <BiKey t={t} k="v2TotalPaid" />
                   </td>
                   <td />
-                  <td className="px-2.5 py-2 text-right tabular-nums text-foreground">
+                  <td className="font-display-money px-2.5 py-2 text-right text-base tabular-nums text-foreground">
                     {formatInr(totalPaid)}
                   </td>
                   <td className="px-2.5 py-2 text-right tabular-nums text-muted-foreground">
@@ -629,6 +644,19 @@ export function ReceiptDocumentV3({
               </p>
             </div>
           </div>
+          {/* PAID stamp — only on a receipt that is actually still valid. A
+              reversed receipt already carries the VOID watermark, and stamping
+              it PAID as well would be the document contradicting itself in the
+              parent's hand. */}
+          {!receipt.isVoided ? (
+            <div
+              className="hidden shrink-0 -rotate-[7deg] rounded-md border-[2.5px] border-[hsl(151_45%_32%)] px-3 py-1 text-[13px] font-extrabold uppercase tracking-[0.1em] text-[hsl(151_45%_30%)] opacity-90 sm:block print:block"
+              aria-hidden="true"
+            >
+              {t.en("paidStamp")}
+            </div>
+          ) : null}
+
           <div className="shrink-0 text-center">
             <div className="h-10 w-40 border-b border-border-strong" aria-hidden="true" />
             <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
@@ -637,8 +665,23 @@ export function ReceiptDocumentV3({
           </div>
         </footer>
 
-        {/* 7. Parent stub — cut along the dashes */}
-        <section className="mt-5 rounded-lg border border-dashed border-border-strong px-4 py-3">
+        {/* 7. Parent stub — cut along the dashes.
+            The perforation strip above it is the design's tear line: a row of
+            half-circles bitten out of the edge, so it is obvious the bottom
+            band detaches even before anyone reads the label. */}
+        <div
+          aria-hidden="true"
+          className="mt-5 flex h-2.5 items-start justify-between overflow-hidden px-1"
+        >
+          {Array.from({ length: 42 }, (_, index) => (
+            <span
+              key={index}
+              className="-mt-1 size-2.5 shrink-0 rounded-full bg-[hsl(222_22%_14%)] opacity-15"
+            />
+          ))}
+        </div>
+
+        <section className="rounded-b-lg border border-dashed border-border-strong bg-[hsl(44_30%_96%)] px-4 py-3">
           <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1.5 text-xs">
             <span className="font-semibold text-foreground">
               {t.en("receiptNo")} {receipt.receiptNumber}

@@ -77,6 +77,7 @@ export function MobilePrintedReceipt({
   referenceNumber,
   receivedBy,
   remainingBalance,
+  isVoided = false,
   className,
 }: {
   receiptNumber: string;
@@ -92,6 +93,13 @@ export function MobilePrintedReceipt({
   referenceNumber?: string;
   receivedBy: string;
   remainingBalance: number;
+  /**
+   * Reversed in full. The A4 document has carried a REVERSED · VOID watermark
+   * since v2, but it is `hidden md:block` — so a phone reprint of a reversed
+   * receipt showed nothing at all and read as valid. A clerk could hand that
+   * to a parent.
+   */
+  isVoided?: boolean;
   className?: string;
 }) {
   const particulars: PrintedReceiptLine[] =
@@ -107,6 +115,16 @@ export function MobilePrintedReceipt({
 
       <div className="overflow-hidden rounded-b">
         <div className="anim-print-out relative bg-[#fffdf7] px-4 pt-4 text-[hsl(222_25%_11%)] shadow-lg">
+          {isVoided ? (
+            <div
+              className="pointer-events-none absolute inset-0 z-20 grid place-items-center"
+              aria-hidden="true"
+            >
+              <span className="-rotate-[14deg] text-3xl font-extrabold uppercase tracking-[0.2em] text-destructive/25">
+                REVERSED
+              </span>
+            </div>
+          ) : null}
           {/* ── Letterhead ─────────────────────────────────────────── */}
           <div className="border-b-2 border-[hsl(222_25%_14%)] pb-2.5 text-center">
             <p className="font-display-money text-[17px] font-bold leading-tight tracking-tight">
@@ -188,9 +206,13 @@ export function MobilePrintedReceipt({
               VERIFY
             </div>
             <div className="flex-1 text-center">
-              <span className="anim-stamp-in inline-block rounded-md border-[2.5px] border-[hsl(151_45%_32%)] px-3 py-1 text-[13px] font-extrabold tracking-[0.1em] text-[hsl(151_45%_30%)] opacity-90 [animation-delay:750ms]">
-                PAID
-              </span>
+              {/* No PAID stamp on a reversed receipt — the slip would be
+                  contradicting its own watermark in the parent's hand. */}
+              {isVoided ? null : (
+                <span className="anim-stamp-in inline-block rounded-md border-[2.5px] border-[hsl(151_45%_32%)] px-3 py-1 text-[13px] font-extrabold tracking-[0.1em] text-[hsl(151_45%_30%)] opacity-90 [animation-delay:750ms]">
+                  PAID
+                </span>
+              )}
             </div>
             <div className="text-right text-[8.5px] text-[hsl(222_9%_46%)]">
               <div className="h-[22px] w-[82px] border-b border-[hsl(222_12%_50%)]" />

@@ -1377,7 +1377,8 @@
     "allDuesClearedLine": "All dues cleared — thank you",
     "previewValidBadge": "Valid · verified",
     "previewReversedBadge": "Reversed · no longer valid",
-    "printA4Action": "Print A4"
+    "printA4Action": "Print A4",
+    "paidStamp": "PAID"
   },
   "AdminTools": {
     "eyebrow": "Admin Tools",
