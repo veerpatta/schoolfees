@@ -248,6 +248,11 @@ migration *does*. Filenames are listed without the `.sql` extension.
   cannot be narrowed to one column. The setter is a no-op when the value is
   unchanged: `private.capture_audit_event()` is column-agnostic and would
   otherwise write a full row snapshot to `audit_logs` on every language tap.
+- `20260726144025_drop_unused_locale_getter` — drop
+  `get_my_preferred_locale()`, shipped above and never called. Resolving the
+  locale through its own RPC would cost a round trip per page, so the read
+  rides along on the `public.users` select that `lib/supabase/session.ts` and
+  the login action already perform. The setter stays; it is the write path.
 
 ## When you add a new migration
 
