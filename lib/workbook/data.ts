@@ -2,7 +2,7 @@ import "server-only";
 
 import { WORKBOOK_CLASS_ORDER, normalizeWorkbookClassLabel } from "@/lib/fees/workbook";
 import type { PaymentMode } from "@/lib/db/types";
-import { fetchInChunks } from "@/lib/helpers/chunk";
+import { fetchAllPages, fetchInChunks } from "@/lib/helpers/chunk";
 import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
 import { getReceiptReversalTotals, isReceiptReversed } from "@/lib/receipts/reversals";
 import { loadSessionScopedReceiptIds } from "@/lib/session/installment-scope";
@@ -565,48 +565,73 @@ export async function getWorkbookStudentFinancials(filters?: {
     return [];
   }
 
-  let query = supabase
-    .from("v_workbook_student_financials")
-    .select("*")
-    .order("sort_order", { ascending: true })
-    .order("student_name", { ascending: true });
+  const buildQuery = (from: number, to: number) => {
+    let query = supabase
+      .from("v_workbook_student_financials")
+      .select("*")
+      .order("sort_order", { ascending: true })
+      .order("student_name", { ascending: true })
+      // Stable tiebreaker so rows cannot drift between pages when two students
+      // share a sort_order and a name.
+      .order("student_id", { ascending: true })
+      .range(from, to);
 
-  if (filters?.classId) {
-    query = query.eq("class_id", filters.classId);
-  }
+    if (filters?.classId) {
+      query = query.eq("class_id", filters.classId);
+    }
 
-  if (filters?.studentId) {
-    query = query.eq("student_id", filters.studentId);
-  }
+    if (filters?.studentId) {
+      query = query.eq("student_id", filters.studentId);
+    }
 
-  if (studentIds.length > 0) {
-    query = query.in("student_id", studentIds);
-  }
+    if (studentIds.length > 0) {
+      query = query.in("student_id", studentIds);
+    }
 
-  if (filters?.onlyOverdue) {
-    query = query.eq("status_label", "OVERDUE");
-  }
+    if (filters?.onlyOverdue) {
+      query = query.eq("status_label", "OVERDUE");
+    }
 
-  if (filters?.sessionLabel) {
-    query = query.eq("session_label", filters.sessionLabel);
-  }
+    if (filters?.sessionLabel) {
+      query = query.eq("session_label", filters.sessionLabel);
+    }
 
-  if (filters?.activeOnly) {
-    query = query.eq("record_status", "active");
-  }
+    if (filters?.activeOnly) {
+      query = query.eq("record_status", "active");
+    }
 
+    return query;
+  };
+
+  // An explicit limit is caller-controlled pagination — honour it exactly and
+  // do not page past it. Without one, read every row: this view is one row per
+  // student and the roster grows, so an unpaged select would eventually hit the
+  // same silent PostgREST truncation that broke the installment view.
   if (typeof filters?.limit === "number") {
     const offset = Math.max(0, Math.floor(filters.offset ?? 0));
-    query = query.range(offset, offset + Math.max(1, Math.floor(filters.limit)) - 1);
+    const size = Math.max(1, Math.floor(filters.limit));
+    const { data, error } = await buildQuery(offset, offset + size - 1);
+
+    if (error) {
+      throw new Error(`Unable to load workbook student financials: ${error.message}`);
+    }
+
+    return ((data ?? []) as WorkbookStudentFinancialRow[]).map(mapFinancialRow);
   }
 
-  const { data, error } = await query;
+  const { data, error } = await fetchAllPages<WorkbookStudentFinancialRow>((from, to) =>
+    buildQuery(from, to),
+  );
 
   if (error) {
-    throw new Error(`Unable to load workbook student financials: ${error.message}`);
+    throw new Error(
+      `Unable to load workbook student financials: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
   }
 
-  return ((data ?? []) as WorkbookStudentFinancialRow[]).map(mapFinancialRow);
+  return data.map(mapFinancialRow);
 }
 
 export async function getWorkbookInstallmentBalances(studentId: string) {
@@ -623,44 +648,63 @@ export async function getWorkbookInstallmentRows(filters?: {
   todayOnly?: boolean;
 }) {
   const supabase = await createClient();
-  let query = supabase
-    .from("v_workbook_installment_balances")
-    .select("*")
-    .order("due_date", { ascending: true })
-    .order("installment_no", { ascending: true })
-    .order("student_name", { ascending: true });
 
-  if (filters?.classId) {
-    query = query.eq("class_id", filters.classId);
-  }
+  // PAGED, not a single select. One session of this view is 4 rows per student
+  // plus any carry-forward row — 2,000 for the 481-student live session — and
+  // PostgREST truncates a response at its max-rows ceiling without an error.
+  // The unpaged version returned the first 1,000 and every caller believed it:
+  // the dashboard reported ₹56.8L expected instead of ₹1.14 Cr, and the
+  // installment export wrote half a file. See fetchAllPages.
+  const { data, error } = await fetchAllPages<WorkbookInstallmentBalanceRow>(
+    (from, to) => {
+      let query = supabase
+        .from("v_workbook_installment_balances")
+        .select("*")
+        .order("due_date", { ascending: true })
+        .order("installment_no", { ascending: true })
+        .order("student_name", { ascending: true })
+        // Ties on all three sort keys would otherwise let rows drift between
+        // pages; id is unique, so it pins the order across requests.
+        .order("installment_id", { ascending: true })
+        .range(from, to);
 
-  if (filters?.studentId) {
-    query = query.eq("student_id", filters.studentId);
-  }
+      if (filters?.classId) {
+        query = query.eq("class_id", filters.classId);
+      }
 
-  if (filters?.sessionLabel) {
-    query = query.eq("session_label", filters.sessionLabel);
-  }
+      if (filters?.studentId) {
+        query = query.eq("student_id", filters.studentId);
+      }
 
-  if (filters?.pendingOnly) {
-    query = query.gt("pending_amount", 0);
-  }
+      if (filters?.sessionLabel) {
+        query = query.eq("session_label", filters.sessionLabel);
+      }
 
-  if (filters?.overdueOnly) {
-    query = query.eq("balance_status", "overdue");
-  }
+      if (filters?.pendingOnly) {
+        query = query.gt("pending_amount", 0);
+      }
 
-  if (filters?.todayOnly) {
-    query = query.eq("due_date", getTodayStamp());
-  }
+      if (filters?.overdueOnly) {
+        query = query.eq("balance_status", "overdue");
+      }
 
-  const { data, error } = await query;
+      if (filters?.todayOnly) {
+        query = query.eq("due_date", getTodayStamp());
+      }
+
+      return query;
+    },
+  );
 
   if (error) {
-    throw new Error(`Unable to load workbook installment rows: ${error.message}`);
+    throw new Error(
+      `Unable to load workbook installment rows: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
   }
 
-  return ((data ?? []) as WorkbookInstallmentBalanceRow[]).map(mapInstallmentRow);
+  return data.map(mapInstallmentRow);
 }
 
 /**
