@@ -178,14 +178,17 @@ export default async function ExportsPage({ searchParams }: ExportsPageProps) {
                       <p className="font-semibold text-foreground text-sm">{t(item.labelKey)}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{t(item.detailKey)}</p>
                     </div>
-                    <div className="ml-auto flex shrink-0 items-center gap-2">
+                    {/* Phone: full-width 2-up buttons under the label
+                        (mobile v2). As right-aligned inline pills they were
+                        two ~70px targets sharing a row with the title. */}
+                    <div className="grid w-full grid-cols-2 gap-2 md:ml-auto md:flex md:w-auto md:shrink-0 md:items-center">
                       {/* Plain anchors, not next/link: these hrefs return binary
                           attachments from a route handler, and client-side
                           navigation to a non-RSC response silently no-ops. */}
                       <a
                         href={xlsxHref}
                         download
-                        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-3"
+                        className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-surface-2 px-2.5 text-xs font-bold text-foreground hover:bg-surface-3 md:h-auto md:rounded-md md:py-1.5 md:font-medium"
                       >
                         <Download className="size-3.5" aria-hidden="true" />
                         {t("formatXlsx")}
@@ -195,7 +198,7 @@ export default async function ExportsPage({ searchParams }: ExportsPageProps) {
                           href={pdfHref}
                           target="_blank"
                           rel="noopener"
-                          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-3"
+                          className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-surface-2 px-2.5 text-xs font-bold text-foreground hover:bg-surface-3 md:h-auto md:rounded-md md:py-1.5 md:font-medium"
                         >
                           <FileText className="size-3.5" aria-hidden="true" />
                           {t("formatPdf")}

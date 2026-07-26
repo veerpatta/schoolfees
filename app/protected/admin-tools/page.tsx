@@ -221,7 +221,11 @@ export default async function AdvancedPage({ searchParams }: AdvancedPageProps) 
                       <Icon className="size-5 text-accent" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                      {/* The status chip sits at the end of the title on a
+                          phone rather than beside it: at 375px a long label
+                          plus a chip on one line squeezed the label to a word
+                          per line. flex-wrap lets the chip drop instead. */}
+                      <p className="flex flex-wrap items-center gap-1.5 text-[13.5px] font-extrabold text-foreground md:text-sm md:font-semibold md:flex-nowrap">
                         {item.label}
                         {item.statusChip ? (
                           <StatusBadge

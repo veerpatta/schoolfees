@@ -330,6 +330,13 @@ function roleTone(role: StaffRole) {
   return "warning" as const;
 }
 
+/** Initials for the phone staff list. Two letters, first + last word. */
+function initialsOfName(name: string) {
+  const parts = name.trim().split(/s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 export function StaffManagementClient({
   currentStaffId,
   accounts,
@@ -362,17 +369,28 @@ export function StaffManagementClient({
               key={account.id}
               className="rounded-2xl border border-border bg-surface-2 p-4"
             >
-              <summary className="flex cursor-pointer list-none flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground">
-                    {account.fullName}
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {account.email ?? "No email on file"}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Last login: {formatTimestamp(account.lastLoginAt)}
-                  </p>
+              <summary className="flex cursor-pointer list-none flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="flex min-w-0 items-center gap-3">
+                  {/* Avatar (mobile v2). A staff list is a list of people —
+                      initials make it scannable at a glance instead of three
+                      stacked lines of text per row. */}
+                  <span
+                    aria-hidden="true"
+                    className="grid size-10 shrink-0 place-items-center rounded-full bg-nav text-[12.5px] font-extrabold text-nav-foreground md:hidden"
+                  >
+                    {initialsOfName(account.fullName)}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-extrabold text-foreground md:font-semibold">
+                      {account.fullName}
+                    </p>
+                    <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground md:mt-1 md:text-sm">
+                      {account.email ?? "No email on file"}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground md:mt-1 md:text-xs">
+                      Last login: {formatTimestamp(account.lastLoginAt)}
+                    </p>
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">

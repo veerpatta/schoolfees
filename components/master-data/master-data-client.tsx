@@ -226,22 +226,27 @@ export function MasterDataClient({
               fee setup workflow.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button asChild variant="outline" size="sm">
-              <a href="#master-data-sessions">Sessions</a>
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <a href="#master-data-classes">Classes</a>
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <a href="#master-data-routes">Routes</a>
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <a href="#master-data-fee-heads">Fee heads</a>
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <a href="#master-data-payment-modes">Payment modes</a>
-            </Button>
+          {/* Phone: a scrolling chip rail rather than a wrapped block of five
+              outline buttons. The design uses pills for exactly this, and at
+              375px these wrapped into three ragged rows. */}
+          <div className="snap-x-strip -mx-1 items-center gap-2 px-1 md:mx-0 md:flex md:flex-wrap md:px-0">
+            {[
+              ["sessions", "Sessions"],
+              ["classes", "Classes"],
+              ["routes", "Routes"],
+              ["fee-heads", "Fee heads"],
+              ["payment-modes", "Payment modes"],
+            ].map(([anchor, label]) => (
+              <Button
+                key={anchor}
+                asChild
+                variant="outline"
+                size="sm"
+                className="shrink-0 rounded-full md:rounded-md"
+              >
+                <a href={`#master-data-${anchor}`}>{label}</a>
+              </Button>
+            ))}
           </div>
         </div>
 

@@ -681,45 +681,13 @@ export type TodayReceiptSnapshot = {
   chequeTotal: number;
 };
 
-export async function getTodayReceiptSnapshot(
-  options: { sessionLabel?: string } = {},
-): Promise<TodayReceiptSnapshot> {
-  const supabase = await createClient();
-  let query = supabase
-    .from("receipts")
-    .select("payment_mode, total_amount")
-    .eq("payment_date", getTodayStamp());
-
-  // Receipts have no direct session_label; we restrict via students when a
-  // scope is supplied. Most callers don't filter — the office only needs
-  // "what came in today" totals.
-  if (options.sessionLabel) {
-    const scopedStudentIds = await loadTransactionStudentIds({
-      sessionLabel: options.sessionLabel,
-    });
-    // loadTransactionStudentIds returns null when no scoping is needed; in
-    // practice we always passed sessionLabel here so it will be an array,
-    // but guard explicitly for type-safety.
-    if (scopedStudentIds && scopedStudentIds.length === 0) {
-      return {
-        receiptCount: 0,
-        total: 0,
-        cashTotal: 0,
-        upiTotal: 0,
-        bankTotal: 0,
-        chequeTotal: 0,
-      };
-    }
-    if (scopedStudentIds) {
-      query = query.in("student_id", scopedStudentIds);
-    }
-  }
-
-  const { data, error } = await query;
-  if (error) {
-    throw new Error(`Unable to load today receipt snapshot: ${error.message}`);
-  }
-
+/**
+ * Fold receipt rows into mode totals. Shared by the scoped and unscoped paths
+ * so the two can never drift apart on what counts.
+ */
+function sumReceiptSnapshot(
+  rows: Array<{ payment_mode: string | null; total_amount: number | null }>,
+): TodayReceiptSnapshot {
   const totals: TodayReceiptSnapshot = {
     receiptCount: 0,
     total: 0,
@@ -728,10 +696,8 @@ export async function getTodayReceiptSnapshot(
     bankTotal: 0,
     chequeTotal: 0,
   };
-  for (const row of (data ?? []) as Array<{
-    payment_mode: string | null;
-    total_amount: number | null;
-  }>) {
+
+  for (const row of rows) {
     const amount = Math.round(Number(row.total_amount ?? 0));
     totals.receiptCount += 1;
     totals.total += amount;
@@ -748,9 +714,62 @@ export async function getTodayReceiptSnapshot(
       case "cheque":
         totals.chequeTotal += amount;
         break;
+      default:
+        break;
     }
   }
+
   return totals;
+}
+
+export async function getTodayReceiptSnapshot(
+  options: { sessionLabel?: string } = {},
+): Promise<TodayReceiptSnapshot> {
+  const supabase = await createClient();
+
+  // Receipts carry no session_label, so the scope travels through the
+  // student's class.
+  //
+  // This used to load every active student id and hand them to
+  // `.in("student_id", ...)`. At ~460 students that put ~17KB of UUIDs into
+  // the query string and fetch refused to send it — which took the whole
+  // Transactions route down with "fetch failed". The failure scaled in with
+  // the roster rather than showing up in testing.
+  //
+  // The inner join does the same scoping server-side and is the shape
+  // getShellPulse (lib/dashboard/shell-metrics.ts) already uses against this
+  // table. Embedding students under RECEIPTS is supported; it is the
+  // payments→students embed that has no FK to travel.
+  if (options.sessionLabel) {
+    const { data, error } = await supabase
+      .from("receipts")
+      .select(
+        "payment_mode, total_amount, student_ref:students!inner(class_ref:classes!inner(session_label))",
+      )
+      .eq("student_ref.class_ref.session_label", options.sessionLabel)
+      .eq("payment_date", getTodayStamp());
+
+    if (error) {
+      throw new Error(`Unable to load today receipt snapshot: ${error.message}`);
+    }
+
+    return sumReceiptSnapshot(
+      (data ?? []) as Array<{ payment_mode: string | null; total_amount: number | null }>,
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("receipts")
+    .select("payment_mode, total_amount")
+    .eq("payment_date", getTodayStamp());
+
+  if (error) {
+    throw new Error(`Unable to load today receipt snapshot: ${error.message}`);
+  }
+
+  return sumReceiptSnapshot(
+    (data ?? []) as Array<{ payment_mode: string | null; total_amount: number | null }>,
+  );
 }
 
 export async function getWorkbookTransactions(filters?: {

@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import QRCode from "qrcode";
 
 import { PageHeader } from "@/components/admin/page-header";
+import { MobilePrintedReceipt } from "@/components/payments/mobile-printed-receipt";
 import { ReceiptDocument } from "@/components/receipts/receipt-document";
 import { ReceiptPrintActions } from "@/components/receipts/receipt-print-actions";
 import { ReceiptShareActions } from "@/components/receipts/receipt-share-actions";
@@ -101,13 +102,35 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
         className="no-print"
       />
 
-      <ReceiptDocument
-        receipt={receipt}
-        t={createBilingualReceiptTranslator()}
-        layout={layout}
-        verifyUrl={verifyUrl}
-        verifyQrSvg={verifyQrSvg}
-      />
+      {/* Phone: the same paper slip the counter just printed (mobile v2).
+          A reprint should look like the thing being reprinted — an A4
+          document scaled onto a 375px screen read as a different document
+          from the original. The A4 render stays for tablet, desktop and
+          every print path. */}
+      <div className="md:hidden print:hidden">
+        <MobilePrintedReceipt
+          receiptNumber={receipt.receiptNumber}
+          studentFullName={receipt.studentFullName}
+          fatherName={receipt.fatherName}
+          admissionNo={receipt.admissionNo}
+          classLabel={receipt.classLabel}
+          amountReceived={receipt.totalAmount}
+          paymentDate={receipt.paymentDate}
+          paymentModeLabel={receipt.paymentMode}
+          receivedBy={receipt.receivedBy ?? receipt.createdByName ?? ""}
+          remainingBalance={receipt.outstandingAfterReceipt}
+        />
+      </div>
+
+      <div className="hidden md:block print:block">
+        <ReceiptDocument
+          receipt={receipt}
+          t={createBilingualReceiptTranslator()}
+          layout={layout}
+          verifyUrl={verifyUrl}
+          verifyQrSvg={verifyQrSvg}
+        />
+      </div>
     </div>
   );
 }

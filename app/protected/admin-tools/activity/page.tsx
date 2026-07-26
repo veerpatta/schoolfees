@@ -101,7 +101,7 @@ export default async function ActivityFeedPage() {
             {t("activityEmpty")}
           </p>
         ) : (
-          <ol className="space-y-2">
+          <ol className="hidden space-y-2 md:block">
             {events.map((event) => {
               const tone = activityKindTone(event.kind);
               const description = payloadDescription(event.payload, t);
@@ -145,6 +145,74 @@ export default async function ActivityFeedPage() {
             })}
           </ol>
         )}
+
+        {/* Phone: a vertical timeline (mobile v2). The desk row puts kind,
+            description and time on one line, which wraps into three ragged
+            rows on a phone. A dot-and-rail reads as a sequence, which is what
+            an audit trail is — and the coloured dot carries the kind, so the
+            pill does not have to compete with the description for width. */}
+        {events.length > 0 ? (
+          <ol className="relative flex flex-col gap-0 md:hidden">
+            {events.map((event, index) => {
+              const tone = activityKindTone(event.kind);
+              const description = payloadDescription(event.payload, t);
+              const studentId =
+                event.kind === "student_view" ||
+                event.kind === "student_edited" ||
+                event.kind === "defaulter_contacted"
+                  ? event.refId
+                  : null;
+              const isLast = index === events.length - 1;
+
+              return (
+                <li key={`m-${event.id}`} className="relative flex gap-3 pb-4 last:pb-0">
+                  {/* Rail: drawn per item rather than as one absolute line so
+                      it stops cleanly at the final entry. */}
+                  {!isLast ? (
+                    <span
+                      aria-hidden="true"
+                      className="absolute left-[5px] top-3.5 h-full w-px bg-border"
+                    />
+                  ) : null}
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "relative z-[1] mt-1 size-2.5 shrink-0 rounded-full ring-4 ring-card",
+                      tone === "success" && "bg-success",
+                      tone === "warning" && "bg-warning",
+                      tone === "info" && "bg-info",
+                      tone === "muted" && "bg-border-strong",
+                    )}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-extrabold leading-tight text-foreground">
+                      {localizedActivityKindLabel(event.kind, tActivity)}
+                    </p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground">
+                      {formatWhen(event.createdAt)}
+                    </p>
+                    {description ? (
+                      <p className="mt-1.5 rounded-lg bg-surface-2 px-2.5 py-1.5 text-[11.5px] leading-relaxed text-foreground/80">
+                        {description}
+                      </p>
+                    ) : null}
+                    {studentId ? (
+                      <Link
+                        href={appendSessionParam(
+                          `/protected/students/${studentId}`,
+                          viewSession.sessionLabel,
+                        )}
+                        className="focus-ring mt-1.5 inline-block text-[11.5px] font-extrabold text-accent"
+                      >
+                        {t("activityOpenStudent")}
+                      </Link>
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        ) : null}
       </SectionCard>
     </div>
   );
