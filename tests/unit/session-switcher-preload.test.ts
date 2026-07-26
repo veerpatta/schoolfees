@@ -9,6 +9,19 @@ function readRepoFile(path: string) {
   return readFileSync(join(repoRoot, path), "utf8");
 }
 
+/**
+ * Source with comments stripped.
+ *
+ * The negative assertions below are about what the code DOES. Reading raw text
+ * meant a file could not even explain why it avoids something without failing
+ * the check that it avoids it.
+ */
+function readRepoCode(path: string) {
+  return readRepoFile(path)
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+}
+
 describe("session switcher preload", () => {
   it("preloads session rows in the protected shell instead of fetching after mount", () => {
     const shell = readRepoFile("components/admin/dashboard-shell.tsx");
@@ -36,14 +49,20 @@ describe("session switcher preload", () => {
   });
 
   it("session switching keeps the user on the same page with visible transition state", () => {
-    const desktopPill = readRepoFile("components/admin/session-pill.tsx");
-    const mobilePill = readRepoFile("components/admin/mobile-session-pill.tsx");
+    const desktopPill = readRepoCode("components/admin/session-pill.tsx");
+    const mobilePill = readRepoCode("components/admin/mobile-session-pill.tsx");
     const combined = `${desktopPill}\n${mobilePill}`;
 
     expect(combined).toContain("optimisticLabel");
     expect(combined).toContain("router.prefetch(targetHref)");
     expect(combined).toContain("router.replace(targetHref, { scroll: false })");
+    // A refresh here means a SECOND navigation on top of the one the
+    // revalidating Server Action already causes, and that is what used to snap
+    // the URL back to the previous session. Matched in both spellings: the
+    // regression this replaced reached it as router["refresh"]() precisely to
+    // get past the dotted form of this assertion.
     expect(combined).not.toContain("router.refresh()");
+    expect(combined).not.toMatch(/router\s*\[\s*["'`]refresh["'`]\s*\]/);
     expect(combined).toContain("Changing to");
   });
 

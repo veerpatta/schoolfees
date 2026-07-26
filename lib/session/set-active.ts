@@ -2,6 +2,7 @@ import "server-only";
 
 import { revalidateTag } from "next/cache";
 import { parseAcademicSessionLabel } from "@/lib/config/fee-rules";
+import { clearSessionSwitcherCache } from "@/lib/session/switcher";
 import { createClient } from "@/lib/supabase/server";
 
 export async function setActiveSessionLabel(label: string) {
@@ -40,4 +41,11 @@ export async function setActiveSessionLabel(label: string) {
   if (markSessionError) {
     throw new Error(markSessionError.message);
   }
+
+  // revalidateTag above only invalidates the Next cache. The switcher also
+  // keeps a five-minute, module-scoped copy of activeSessionLabel and the
+  // is_current flags, which that tag cannot reach — without this the switcher
+  // would keep showing the previous session as "live" for up to five minutes
+  // on every instance that had already served it.
+  clearSessionSwitcherCache();
 }

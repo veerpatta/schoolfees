@@ -23,6 +23,20 @@ let cachedSessionSwitcherData:
     }
   | null = null;
 
+/**
+ * Drop the in-process switcher cache.
+ *
+ * The cache holds `activeSessionLabel` and the per-row `is_current` flags for
+ * five minutes, in module scope — so it survives every request that instance
+ * serves. Changing the active session revalidates the `app-settings` Next tag,
+ * but that does nothing to this, and for up to five minutes afterwards the
+ * switcher would keep showing the OLD session as live to everyone on that
+ * instance. `setActiveSession` calls this so the two invalidations stay in step.
+ */
+export function clearSessionSwitcherCache() {
+  cachedSessionSwitcherData = null;
+}
+
 function timeoutAfter<T>(fallback: T, timeoutMs = SESSION_SWITCHER_TIMEOUT_MS): Promise<T> {
   return new Promise((resolve) => {
     setTimeout(() => resolve(fallback), timeoutMs);

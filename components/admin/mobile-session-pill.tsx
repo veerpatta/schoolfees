@@ -35,6 +35,8 @@ export function MobileSessionPill({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const prefetchTimerRef = useRef<number | null>(null);
+  /** Last `?session=` value already pushed into the cookie. See the sync effect. */
+  const syncedSessionRef = useRef<string | null>(null);
   const [open, setOpen] = useState(false);
   const [sessions, setSessions] = useState<AvailableSessionRow[]>(initialSessions);
   const [isSwitching, setIsSwitching] = useState(false);
@@ -77,20 +79,28 @@ export function MobileSessionPill({
     setOptimisticLabel(null);
   }, [currentLabel, urlSession]);
 
+  // Ref-guarded so it cannot loop — see the long note on the same effect in
+  // session-pill.tsx. `currentLabel` comes from a cookie-only layout resolve
+  // and can lag the URL indefinitely, so "have I already synced THIS label" is
+  // the only exit condition that reliably terminates.
   useEffect(() => {
-    if (urlSession && urlSession !== currentLabel && !isTransitioning) {
-      void (async () => {
-        try {
-          const result = await setViewSessionAction(urlSession);
-          if (result.success) {
-            router["refresh"]();
-          }
-        } catch (err) {
-          console.error("Failed to sync session from URL to cookie", err);
-        }
-      })();
-    }
-  }, [urlSession, currentLabel, isTransitioning, router]);
+    if (!urlSession || urlSession === currentLabel) return;
+    if (syncedSessionRef.current === urlSession) return;
+
+    syncedSessionRef.current = urlSession;
+
+    void (async () => {
+      try {
+        // No router.refresh() — see the note on the same effect in
+        // session-pill.tsx. The action's own revalidation is enough, and the
+        // extra refresh was the second navigation that snapped the URL back.
+        await setViewSessionAction(urlSession);
+      } catch (err) {
+        syncedSessionRef.current = null;
+        console.error("Failed to sync session from URL to cookie", err);
+      }
+    })();
+  }, [urlSession, currentLabel]);
 
   useEffect(() => {
     setGlobalSessionSwitching(isTransitioning);
@@ -142,10 +152,12 @@ export function MobileSessionPill({
     releaseAllSheetScrollLocks();
     router.prefetch(targetHref);
 
+    // We write the cookie ourselves below; stop the sync effect duplicating it.
+    syncedSessionRef.current = label;
+
     startNavTransition(() => {
       router.replace(targetHref, { scroll: false });
     });
-    setIsSwitching(false);
 
     void (async () => {
       try {
@@ -159,22 +171,29 @@ export function MobileSessionPill({
           const confirmedHref = buildSessionSwitchHref(pathname, searchParams, result.sessionLabel);
 
           if (confirmedHref !== targetHref) {
+            syncedSessionRef.current = result.sessionLabel;
             startNavTransition(() => {
               router.replace(confirmedHref, { scroll: false });
             });
           }
         } else {
+          syncedSessionRef.current = null;
           setOptimisticLabel(null);
           startNavTransition(() => {
             router.replace(previousHref, { scroll: false });
           });
         }
       } catch {
+        syncedSessionRef.current = null;
         setOptimisticLabel(null);
         startNavTransition(() => {
           router.replace(previousHref, { scroll: false });
         });
       } finally {
+        // Cleared here rather than synchronously after startNavTransition:
+        // React batches a set(true)/set(false) pair in one handler, so the old
+        // ordering meant isSwitching was never observably true.
+        setIsSwitching(false);
         setGlobalSessionSwitching(false);
         releaseAllSheetScrollLocks();
       }

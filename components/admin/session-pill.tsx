@@ -143,6 +143,8 @@ export function SessionPill({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const prefetchTimerRef = useRef<number | null>(null);
+  /** Last `?session=` value already pushed into the cookie. See the sync effect. */
+  const syncedSessionRef = useRef<string | null>(null);
   const [open, setOpen] = useState(false);
   const [sessions, setSessions] = useState<AvailableSessionRow[]>(initialSessions);
   const [isSwitching, setIsSwitching] = useState(false);
@@ -195,20 +197,43 @@ export function SessionPill({
     setOptimisticLabel(null);
   }, [currentLabel, urlSession]);
 
+  // Syncs a `?session=` arrived at by any route (a shared link, a back button,
+  // a nav item carrying the param) into the cookie, so the layout chrome and
+  // the server-rendered data agree with the URL.
+  //
+  // The ref guard is what stops it looping, and the loop is why switching
+  // sessions used to snap back. `currentLabel` is resolved by
+  // app/protected/layout.tsx from the COOKIE ONLY — App Router layouts get no
+  // searchParams — so it lags the URL. The old exit condition was
+  // `urlSession === currentLabel`, which the layout may not satisfy on the next
+  // render; the effect then fired again, and since every revalidating Server
+  // Action makes Next navigate to `canonicalUrl`, each firing yanked the URL
+  // back. Keying on "have I already synced THIS label" terminates regardless of
+  // whether the layout has caught up.
   useEffect(() => {
-    if (urlSession && urlSession !== currentLabel && !isTransitioning) {
-      void (async () => {
-        try {
-          const result = await setViewSessionAction(urlSession);
-          if (result.success) {
-            router["refresh"]();
-          }
-        } catch (err) {
-          console.error("Failed to sync session from URL to cookie", err);
-        }
-      })();
-    }
-  }, [urlSession, currentLabel, isTransitioning, router]);
+    if (!urlSession || urlSession === currentLabel) return;
+    if (syncedSessionRef.current === urlSession) return;
+
+    syncedSessionRef.current = urlSession;
+
+    void (async () => {
+      try {
+        // No router.refresh() here, deliberately — and note the old code called
+        // it as router["refresh"]() specifically to slip past the assertion in
+        // tests/unit/session-switcher-preload.test.ts that bans it. The ban is
+        // right: setViewSessionAction already revalidates the session tags, and
+        // a revalidating Server Action makes Next re-render the route anyway.
+        // The extra refresh only added a second navigation to canonicalUrl,
+        // which is what yanked the URL back to the previous session.
+        await setViewSessionAction(urlSession);
+      } catch (err) {
+        // Let a genuine failure be retried on the next render rather than
+        // leaving the cookie permanently out of step with the URL.
+        syncedSessionRef.current = null;
+        console.error("Failed to sync session from URL to cookie", err);
+      }
+    })();
+  }, [urlSession, currentLabel]);
 
   useEffect(() => {
     setGlobalSessionSwitching(isTransitioning);
@@ -262,10 +287,14 @@ export function SessionPill({
     setOpen(false);
     router.prefetch(targetHref);
 
+    // We are about to write this label to the cookie ourselves, so tell the
+    // URL->cookie sync effect it has nothing to do. Without this the URL change
+    // below makes that effect fire a second, redundant setViewSessionAction.
+    syncedSessionRef.current = label;
+
     startNavTransition(() => {
       router.replace(targetHref, { scroll: false });
     });
-    setIsSwitching(false);
 
     void (async () => {
       try {
@@ -279,21 +308,32 @@ export function SessionPill({
           const confirmedHref = buildSessionSwitchHref(pathname, searchParams, result.sessionLabel);
 
           if (confirmedHref !== targetHref) {
+            syncedSessionRef.current = result.sessionLabel;
             startNavTransition(() => {
               router.replace(confirmedHref, { scroll: false });
             });
           }
         } else {
+          // The switch genuinely did not happen, so the URL must not keep
+          // claiming it did — go back and let the sync effect retry.
+          syncedSessionRef.current = null;
           setOptimisticLabel(null);
           startNavTransition(() => {
             router.replace(previousHref, { scroll: false });
           });
         }
       } catch {
+        syncedSessionRef.current = null;
         setOptimisticLabel(null);
         startNavTransition(() => {
           router.replace(previousHref, { scroll: false });
         });
+      } finally {
+        // Cleared HERE, not synchronously after startNavTransition. React
+        // batches a set(true)/set(false) pair in the same handler, so the old
+        // code meant `isSwitching` was never observably true and the switching
+        // overlay never appeared.
+        setIsSwitching(false);
       }
     })();
   }
