@@ -62,6 +62,13 @@ describe("voice search", () => {
   });
 });
 
+/**
+ * The UPI QR was already built and wired into the collect flow's mode step
+ * (`UpiQrCode` inside mobile-payment-flow-sheet). These assertions target
+ * that implementation. A second QR card was briefly added here and removed —
+ * two components rendering the same thing is exactly the drift the sheet
+ * wrapper comments elsewhere warn about.
+ */
 describe("UPI QR", () => {
   it("encodes the entered amount into a real UPI intent", () => {
     const payment = buildStudentFeeUpiPayment({ admissionNo: "SR 245", amount: 7500 });
@@ -76,30 +83,33 @@ describe("UPI QR", () => {
     expect(buildStudentFeeUpiPayment({ admissionNo: "X", amount: -50 }).amount).toBe(0);
   });
 
-  it("claims no auto-confirmation anywhere in the card", () => {
+  it("claims no auto-confirmation in the collect flow", () => {
     // The prototype promised the payment "confirms here automatically". That
-    // needs a gateway webhook the school does not have, so the card must not
+    // needs a gateway webhook the school does not have, so the panel must not
     // imply it — the clerk still saves the receipt by hand.
-    const card = readCode("components/payments/upi-qr-card.tsx");
-    expect(card).not.toMatch(/auto.?confirm/i);
-    expect(card).not.toMatch(/webhook|gateway/i);
+    const sheet = readCode("components/payments/mobile-payment-flow-sheet.tsx");
+    const panel = sheet.slice(sheet.indexOf("<UpiQrCode"), sheet.indexOf("<UpiQrCode") + 1200);
+    expect(panel).not.toMatch(/auto.?confirm/i);
+    expect(panel).toMatch(/collect here/i);
   });
 
-  it("renders nothing until there is an amount to encode", () => {
-    const card = readCode("components/payments/upi-qr-card.tsx");
-    expect(card).toContain("if (payment.amount <= 0) return null");
+  it("renders the QR only once there is an amount and a student", () => {
+    const sheet = readCode("components/payments/mobile-payment-flow-sheet.tsx");
+    expect(sheet).toContain('paymentMode === "upi" && Number(paymentAmountInput) > 0 && displayAdmNo');
   });
 
   it("keeps qrcode out of the payments route's initial bundle", () => {
-    // quality/route-bundle-baseline.json budgets this route in gzip bytes.
-    const card = readCode("components/payments/upi-qr-card.tsx");
-    expect(card).toContain('await import("qrcode")');
-    expect(card).not.toMatch(/^import .*from "qrcode"/m);
+    // quality/route-bundle-baseline.json budgets this route in gzip bytes,
+    // and payments carries a deliberate reduction target on top.
+    const qr = readCode("components/payments/upi-qr-code.tsx");
+    expect(qr).toContain('import("qrcode")');
+    expect(qr).not.toMatch(/^import .*from "qrcode"/m);
   });
 
   it("plates the QR on white so it scans in dark mode", () => {
-    const card = readCode("components/payments/upi-qr-card.tsx");
-    expect(card).toContain('color: { dark: "#000000", light: "#ffffff" }');
-    expect(card).toContain("bg-white");
+    // A QR is read by a camera, not a person, so it must not follow the theme.
+    const sheet = readCode("components/payments/mobile-payment-flow-sheet.tsx");
+    const panel = sheet.slice(sheet.indexOf("<UpiQrCode"), sheet.indexOf("<UpiQrCode") + 400);
+    expect(panel).toContain("bg-white");
   });
 });

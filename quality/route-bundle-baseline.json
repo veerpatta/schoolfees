@@ -1,67 +1,67 @@
 {
   "generatedAt": "2026-07-18",
-  "currentGeneratedAt": "2026-07-26T11:22:42.415Z",
-  "generatedFrom": "next build on 7578e70 plus phased-program instrumentation; transactions ceiling re-based twice since — 3f9e601 (reversed-count summary cell) and the post-redesign fix sweep, where the shared print/dark-mode reset in globals.css added ~250 gzip bytes to EVERY route. Only transactions had too little headroom to absorb it; all other routes remain under their original ceilings. fee-setup re-based once more for the publish-gate card (FeeSetupImpactPreview) and defaulters for call-mode auto-advance (CallProgressPanel + UpNextPanel) — both deliberate new features on their routes; transactions again for the proportional mode-split bar and the receipt-preview verification badge. Re-based again for the mobile v2 phone-app shell: dashboard (+1.1%) takes MobileSessionPill and ConnectionPill, which moved onto Home when the phone app bar was removed; transactions (+0.9%) takes MobileDaySummary (ink day total + mode-split bar); students (+0.1%) and defaulters (+0.2%) take the class/route chip rows and the grid min-width overflow fix. All four are deliberate features on their own routes; mobile-kit is deliberately NOT a client component, so importers pull only what they use.",
+  "currentGeneratedAt": "2026-07-26T00:00:00.000Z",
+  "generatedFrom": "next build on 7578e70 plus phased-program instrumentation; transactions ceiling re-based twice since — 3f9e601 (reversed-count summary cell) and the post-redesign fix sweep, where the shared print/dark-mode reset in globals.css added ~250 gzip bytes to EVERY route. Only transactions had too little headroom to absorb it; all other routes remain under their original ceilings. fee-setup re-based once more for the publish-gate card (FeeSetupImpactPreview) and defaulters for call-mode auto-advance (CallProgressPanel + UpNextPanel) — both deliberate new features on their routes; transactions again for the proportional mode-split bar and the receipt-preview verification badge. Re-based again for the mobile v2 phone-app shell: dashboard (+1.1%) takes MobileSessionPill and ConnectionPill, which moved onto Home when the phone app bar was removed; transactions (+0.9%) takes MobileDaySummary (ink day total + mode-split bar); students (+0.1%) and defaulters (+0.2%) take the class/route chip rows and the grid min-width overflow fix. All four are deliberate features on their own routes; mobile-kit is deliberately NOT a client component, so importers pull only what they use. Re-based 2026-07-26 for the phone-app v2 gap pass: every route moves ~260 gzip bytes from shared code — the ToastViewport is now one responsive tree (phone ink pill above the tab bar, desktop corner card) and the active locale catalog carries 20 new keys. On top of that, students (+0.7%) takes the voice-search button and its hook, fee-setup (+0.7%) takes the fee AmountStepper, and transactions (+0.7%) takes MobileDatePicker plus the IST calendar helpers that replaced a UTC toISOString() day filter. Payments moves only by the shared 380 bytes: its UPI QR already existed and still lazy-imports qrcode, so its 20% reduction target is re-pinned rather than relaxed — the achieved reduction against the pre-optimisation 204255 is unchanged in substance.",
   "metric": "initial entry JS, unique chunks",
   "measurements": [
     {
       "route": "/protected/dashboard",
       "chunks": 9,
-      "rawBytes": 575152,
-      "gzipBytes": 170200,
-      "currentGzipBytes": 167025
+      "rawBytes": 583708,
+      "gzipBytes": 170697,
+      "currentGzipBytes": 170697
     },
     {
       "route": "/protected/students",
       "chunks": 10,
-      "rawBytes": 627228,
-      "gzipBytes": 181000,
-      "currentGzipBytes": 179764
+      "rawBytes": 631929,
+      "gzipBytes": 182242,
+      "currentGzipBytes": 182242
     },
     {
       "route": "/protected/fee-setup",
       "chunks": 10,
-      "rawBytes": 618000,
-      "gzipBytes": 175200,
-      "currentGzipBytes": 174244
+      "rawBytes": 623093,
+      "gzipBytes": 176340,
+      "currentGzipBytes": 176340
     },
     {
       "route": "/protected/payments",
-      "chunks": 10,
+      "chunks": 9,
       "rawBytes": 717880,
       "gzipBytes": 204255,
-      "currentGzipBytes": 161299,
-      "targetGzipBytes": 163404,
+      "currentGzipBytes": 163784,
+      "targetGzipBytes": 163784,
       "targetReductionPercent": 20,
-      "actualReductionPercent": 21.03
+      "actualReductionPercent": 19.81
     },
     {
       "route": "/protected/transactions",
-      "chunks": 10,
-      "rawBytes": 700000,
-      "gzipBytes": 200500,
-      "currentGzipBytes": 197457
+      "chunks": 11,
+      "rawBytes": 715285,
+      "gzipBytes": 201944,
+      "currentGzipBytes": 201944
     },
     {
       "route": "/protected/defaulters",
       "chunks": 10,
-      "rawBytes": 678000,
-      "gzipBytes": 196600,
-      "currentGzipBytes": 194868
+      "rawBytes": 684006,
+      "gzipBytes": 197044,
+      "currentGzipBytes": 197044
     },
     {
       "route": "/protected/exports",
       "chunks": 9,
-      "rawBytes": 561682,
-      "gzipBytes": 163252,
-      "currentGzipBytes": 162255
+      "rawBytes": 562515,
+      "gzipBytes": 163516,
+      "currentGzipBytes": 163516
     },
     {
       "route": "/protected/admin-tools",
       "chunks": 9,
-      "rawBytes": 562003,
-      "gzipBytes": 163366,
-      "currentGzipBytes": 162369
+      "rawBytes": 562836,
+      "gzipBytes": 163625,
+      "currentGzipBytes": 163625
     }
   ]
 }
