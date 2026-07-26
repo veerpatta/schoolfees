@@ -651,8 +651,19 @@ export function StudentForm({
 
       {/* Clears the fixed mobile nav (z-40); at bottom-0/z-10 the Save button
           was underneath it on every phone add/edit. */}
-      <div className="sticky bottom-[var(--mobile-bottom-nav-offset,0px)] z-40 -mx-4 flex flex-wrap gap-2 border-t border-border bg-card/95 px-4 py-3 backdrop-blur md:bottom-0 md:-mx-5 md:px-5 print:hidden">
-        <Button type="submit" disabled={disableSubmit || isPending}>
+      {/* Clears the fixed mobile nav (z-40); at bottom-0/z-10 the Save button
+          was underneath it on every phone add/edit.
+
+          On a phone the design makes Save the full-width primary action at
+          58px — a form this long is scrolled one-handed and the save target
+          should not be a 90px button sharing a row with Cancel. Desktop keeps
+          the two side by side. */}
+      <div className="sticky bottom-[var(--mobile-bottom-nav-offset,0px)] z-40 -mx-4 flex flex-col-reverse gap-2 border-t border-border bg-card/95 px-4 py-3 backdrop-blur md:bottom-0 md:-mx-5 md:flex-row md:flex-wrap md:px-5 print:hidden">
+        <Button
+          type="submit"
+          disabled={disableSubmit || isPending}
+          className="h-[58px] w-full rounded-[17px] text-base font-extrabold md:h-9 md:w-auto md:rounded-md md:text-sm md:font-medium"
+        >
           {isPending
             ? mode === "add"
               ? "Saving..."
@@ -661,7 +672,7 @@ export function StudentForm({
               ? "Save student"
               : "Update student"}
         </Button>
-        <Button type="button" variant="outline" asChild>
+        <Button type="button" variant="outline" asChild className="md:w-auto">
           <Link href={withSession(returnTo)}>Cancel</Link>
         </Button>
       </div>
