@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import { Check, HandshakeIcon, Loader2, PhoneOff, PhoneCall } from "lucide-react";
+import { Check, HandshakeIcon, Loader2, NotebookPen, PhoneOff, PhoneCall } from "lucide-react";
 
 import { quickLogContact } from "@/app/protected/defaulters/actions";
 import { cn } from "@/lib/utils";
@@ -120,9 +120,13 @@ export function QuickLogButtons({
   const isoTomorrow = isoDate(new Date(Date.now() + 86_400_000));
   const isoNextWeek = isoDate(new Date(Date.now() + 7 * 86_400_000));
 
+  // Full size is a 2x2 grid, not a 3-across row with the fourth option hidden
+  // behind an underlined link. Three thumb-width targets never fit a phone
+  // row, and "add details" is an outcome like any other — it belongs in the
+  // grid where a clerk's thumb already is. `flex-1` is gone with the flex row.
   const btnBase = compact
     ? "inline-flex items-center justify-center gap-1 rounded-md px-2 py-1 text-xs font-semibold"
-    : "inline-flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-semibold transition-active";
+    : "inline-flex min-h-12 w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-semibold transition-active";
 
   return (
     <div className="space-y-2">
@@ -186,13 +190,15 @@ export function QuickLogButtons({
         </div>
       ) : (
         <div
-          className={cn(
-            "flex gap-2",
-            compact ? "flex-wrap" : "flex-row items-stretch",
-          )}
+          className={cn(compact ? "flex flex-wrap gap-2" : "grid grid-cols-2 gap-2")}
           data-row-action="true"
           onClick={(event) => event.stopPropagation()}
         >
+          {!compact ? (
+            <p className="col-span-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {t("quickOutcomePrompt")}
+            </p>
+          ) : null}
           <button
             type="button"
             disabled={pending}
@@ -246,22 +252,23 @@ export function QuickLogButtons({
             )}
             <span>{compact ? t("quickPromisedShort") : t("quickPromised")}</span>
           </button>
+
+          {!compact ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpenFullForm();
+              }}
+              className={cn(btnBase, "border border-border bg-surface-2 text-foreground")}
+              data-row-action="true"
+            >
+              <NotebookPen className="size-4" aria-hidden="true" />
+              <span className="truncate">{t("quickAddDetails")}</span>
+            </button>
+          ) : null}
         </div>
       )}
-
-      {!compact ? (
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onOpenFullForm();
-          }}
-          className="text-xs font-medium text-muted-foreground underline hover:text-foreground"
-          data-row-action="true"
-        >
-          {t("quickAddDetails")}
-        </button>
-      ) : null}
 
       {error ? (
         <p className="rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1 text-xs text-destructive">

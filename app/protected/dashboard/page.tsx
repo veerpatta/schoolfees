@@ -2362,6 +2362,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             sessionOptions={sessionSwitcher.availableSessions}
             staffInitials={mobileInitials}
             settingsHref={withSession("/protected/settings")}
+            installmentSummary={aboveFold.installmentSummary}
+            paidStudents={aboveFold.paidStudents}
+            partlyPaidStudents={aboveFold.partlyPaidStudents}
+            overdueStudents={aboveFold.overdueStudents}
+            notStartedStudents={aboveFold.notStartedStudents}
+            followUpQueue={aboveFold.followUpQueue}
           />
         </div>
 

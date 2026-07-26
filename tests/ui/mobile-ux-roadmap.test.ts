@@ -98,10 +98,19 @@ describe("mobile UX roadmap implementation", () => {
     expect(englishMessages.Defaulters.filtersMobileToggleCount).toContain("Filters");
     expect(englishMessages.Defaulters.callQueueDescription).toContain("Call queue");
     // Mobile-first defaulters surface: workspace exposes a selected card,
-    // one-tap WhatsApp, quick log, and sticky next-student controls.
+    // one-tap WhatsApp, quick log, and a way to move through the queue.
+    //
+    // That last one used to be a sticky MobileNextBar. It is gone: it was
+    // `lg:hidden` while the tab bar it cleared is `md:hidden`, so in the
+    // 768-1023px band it reserved space for a bar that no longer existed; its
+    // containing block ended before the page did, so it pinned and then
+    // scrolled away; and it rendered as a dead grey slab when both buttons
+    // were disabled. The design advances the queue two other ways, both of
+    // which already existed underneath it.
     expect(defaulters).toContain("DefaultersWorkspace");
-    expect(workspace).toContain("MobileNextBar");
-    expect(workspace).toContain("callQueueNextStudent");
+    expect(workspace).toContain("callQueueSkipForNow");
+    expect(workspace).toContain("callQueueAutoAdvance");
+    expect(workspace).not.toContain("MobileNextBar");
   });
 
   it("uses a More overflow tab for the eight-module mobile workspace", () => {

@@ -643,6 +643,14 @@ export async function getDashboardAboveFoldData(options: {
     todayPaymentModeBreakdown: result.todayPaymentModeBreakdown,
     recentPayments: result.recentPayments,
     followUpQueue: result.followUpQueue,
+    // Already in the RPC payload, already parsed, previously discarded above
+    // the fold. The phone home screen renders the installment track and the
+    // recovery funnel from these, so surfacing them costs no extra query.
+    installmentSummary: result.installmentSummary,
+    paidStudents: result.paidStudents,
+    partlyPaidStudents: result.partlyPaidStudents,
+    overdueStudents: result.overdueStudents,
+    notStartedStudents: result.notStartedStudents,
     emptyState,
     studentsWithPending: result.studentsWithPending,
     totalRefundDue: result.totalRefundDue,

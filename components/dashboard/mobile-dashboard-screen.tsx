@@ -20,7 +20,12 @@ import {
 } from "@/components/mobile-app/mobile-kit";
 import type { AvailableSessionRow } from "@/lib/session/available-sessions";
 import type { KpiDelta } from "@/lib/dashboard/kpi-delta";
-import type { DashboardClassSummaryRow, DashboardKpis } from "@/lib/dashboard/summary";
+import type {
+  DashboardClassSummaryRow,
+  DashboardFollowUpStudent,
+  DashboardInstallmentSummaryRow,
+  DashboardKpis,
+} from "@/lib/dashboard/summary";
 import { formatInr } from "@/lib/helpers/currency";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 
@@ -59,6 +64,15 @@ type MobileDashboardScreenProps = {
   sessionOptions: AvailableSessionRow[];
   staffInitials: string;
   settingsHref: string;
+  /** Per-installment collected/pending — powers the installment track card. */
+  installmentSummary: DashboardInstallmentSummaryRow[];
+  /** Recovery funnel counts. The four status labels partition the roster. */
+  paidStudents: number;
+  partlyPaidStudents: number;
+  overdueStudents: number;
+  notStartedStudents: number;
+  /** Ranked overdue-first then by amount; the top three get a call button. */
+  followUpQueue: DashboardFollowUpStudent[];
 };
 
 export async function MobileDashboardScreen({
@@ -82,6 +96,12 @@ export async function MobileDashboardScreen({
   sessionOptions,
   staffInitials,
   settingsHref,
+  installmentSummary,
+  paidStudents,
+  partlyPaidStudents,
+  overdueStudents,
+  notStartedStudents,
+  followUpQueue,
 }: MobileDashboardScreenProps) {
   const t = await getTranslations("MobileApp");
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
@@ -96,6 +116,22 @@ export async function MobileDashboardScreen({
   const notDueYet = Math.max(0, currentYearExpected - currentYearCollected - currentYearPending);
   const pctOf = (value: number) =>
     currentYearExpected > 0 ? (value / currentYearExpected) * 100 : 0;
+
+  // This year's installments only. Carry-forward rows arrive in the same list
+  // with a pseudo installment number in the 90s; they belong to the old-balance
+  // card, not to a track showing how this year is progressing.
+  const installmentTrack = installmentSummary
+    .filter((row) => !row.isCarryForward && row.installmentNo < 90 && row.expectedAmount > 0)
+    .slice(0, 6);
+
+  // All FOUR status labels, because they partition the roster and anything
+  // less lies about its size. Live 2026-27 is 17 paid / 24 part / 440 overdue
+  // / 0 not started = 481; leaving overdue out drew a near-empty bar over 41
+  // students and implied that was the school.
+  const rosterTotal =
+    paidStudents + partlyPaidStudents + overdueStudents + notStartedStudents;
+  const rosterPct = (value: number) => (rosterTotal > 0 ? (value / rosterTotal) * 100 : 0);
+  const topCalls = followUpQueue.slice(0, 3);
 
   return (
     <MobileScreen>
@@ -307,6 +343,138 @@ export async function MobileDashboardScreen({
         ) : null}
       </MobileCard>
 
+      {/* ── Which installment is dragging ─────────────────────────────── */}
+      {installmentTrack.length > 0 ? (
+        <MobileSectionCard title={t("installmentTrack")}>
+          <ul className="flex flex-col gap-3">
+            {installmentTrack.map((row) => (
+              <li key={row.installmentNo}>
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="truncate text-[12.5px] font-bold text-foreground">
+                    {row.installmentLabel}
+                  </span>
+                  <span className="tabular shrink-0 text-[11px] font-semibold text-muted-foreground">
+                    {row.collectionRate}%
+                  </span>
+                </div>
+                <MobileBar
+                  className="mt-1.5"
+                  percent={row.collectionRate}
+                  tone={row.overdueAmount > 0 ? "danger" : "accent"}
+                />
+                <p className="mt-1 text-[10.5px] font-medium text-muted-foreground">
+                  {t("installmentCollectedOf", {
+                    collected: formatInr(row.collectedAmount, { compact: true }),
+                    expected: formatInr(row.expectedAmount, { compact: true }),
+                  })}
+                  {row.dueDate ? ` · ${row.dueDate}` : ""}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </MobileSectionCard>
+      ) : null}
+
+      {/* ── Where the roster stands ───────────────────────────────────── */}
+      {rosterTotal > 0 ? (
+        <MobileSectionCard
+          title={t("recoveryFunnel")}
+          action={
+            <Link
+              href={withSession("/protected/students")}
+              className="focus-ring inline-flex items-center gap-1 text-[11px] font-extrabold text-accent"
+            >
+              {t("seeAll")}
+              <ArrowRight className="size-3" aria-hidden="true" />
+            </Link>
+          }
+        >
+          <p className="tabular -mt-1 mb-2 text-[11px] font-semibold text-muted-foreground">
+            {t("studentsCount", { count: rosterTotal })}
+          </p>
+          <MobileSplitBar
+            segments={[
+              { key: "paid", percent: rosterPct(paidStudents), tone: "success" },
+              { key: "part", percent: rosterPct(partlyPaidStudents), tone: "warning" },
+              { key: "overdue", percent: rosterPct(overdueStudents), tone: "danger" },
+              { key: "none", percent: rosterPct(notStartedStudents), tone: "neutral" },
+            ]}
+          />
+          <div className="mt-2.5 grid grid-cols-2 gap-2 text-[11px]">
+            {[
+              { label: t("funnelPaid"), value: paidStudents, dot: "bg-success" },
+              { label: t("funnelPart"), value: partlyPaidStudents, dot: "bg-warning" },
+              { label: t("funnelOverdue"), value: overdueStudents, dot: "bg-destructive" },
+              { label: t("funnelNone"), value: notStartedStudents, dot: "bg-border-strong" },
+            ].map((legend) => (
+              <div key={legend.label}>
+                <span className="flex items-center gap-1.5">
+                  <span
+                    aria-hidden="true"
+                    className={`inline-block size-2 rounded-full ${legend.dot}`}
+                  />
+                  <span className="truncate font-semibold text-muted-foreground">
+                    {legend.label}
+                  </span>
+                </span>
+                <b className="tabular block text-[13px]">{legend.value}</b>
+              </div>
+            ))}
+          </div>
+        </MobileSectionCard>
+      ) : null}
+
+      {/* ── Worth a call today ────────────────────────────────────────── */}
+      {canViewDefaulters && topCalls.length > 0 ? (
+        <MobileSectionCard
+          title={t("worthACallToday")}
+          action={
+            <Link
+              href={withSession("/protected/defaulters")}
+              className="focus-ring inline-flex items-center gap-1 text-[11px] font-extrabold text-accent"
+            >
+              {t("seeAll")}
+              <ArrowRight className="size-3" aria-hidden="true" />
+            </Link>
+          }
+        >
+          <ul className="flex flex-col gap-2.5">
+            {topCalls.map((row) => (
+              <li key={row.studentId} className="flex items-center gap-2.5">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[12.5px] font-bold text-foreground">
+                    {row.studentName}
+                  </span>
+                  <span className="block truncate text-[10.5px] font-medium text-muted-foreground">
+                    {row.classLabel}
+                    {row.nextDueLabel ? ` · ${row.nextDueLabel}` : ""}
+                  </span>
+                </span>
+                <b className="tabular shrink-0 text-[13px] text-destructive">
+                  {formatInr(row.outstandingAmount, { compact: true })}
+                </b>
+                {row.fatherPhone ? (
+                  <a
+                    href={`tel:${row.fatherPhone}`}
+                    aria-label={`${t("callAction")} ${row.studentName}`}
+                    className="focus-ring grid size-9 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground"
+                  >
+                    <Phone className="size-4" aria-hidden="true" />
+                  </a>
+                ) : (
+                  <span
+                    title={t("noPhoneOnFile")}
+                    aria-label={t("noPhoneOnFile")}
+                    className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-2 text-muted-foreground"
+                  >
+                    <Phone className="size-4 opacity-40" aria-hidden="true" />
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </MobileSectionCard>
+      ) : null}
     </MobileScreen>
   );
 }

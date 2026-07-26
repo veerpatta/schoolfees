@@ -17,7 +17,6 @@ import { BulkRowCheckbox } from "@/components/defaulters/bulk-whatsapp-provider"
 import { ContactNumbers } from "@/components/defaulters/contact-numbers";
 import { ContactPopover } from "@/components/defaulters/contact-popover";
 import { ContactStatusChip } from "@/components/defaulters/contact-status-chip";
-import { HeatChip } from "@/components/defaulters/heat-chip";
 import { NoCallToggle } from "@/components/defaulters/no-call-toggle";
 import { PromiseChip } from "@/components/defaulters/promise-chip";
 import { QuickLogButtons, type QuickLogKind } from "@/components/defaulters/quick-log-buttons";
@@ -68,6 +67,43 @@ function useIsDesktop() {
   }, []);
 
   return isDesktop;
+}
+
+function initialsOf(fullName: string) {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  return `${parts[0][0]}${parts.length > 1 ? parts[parts.length - 1][0] : ""}`;
+}
+
+/**
+ * How long the money has been late, in days.
+ *
+ * Replaces the raw heat score on the call card. Heat is a 0-100 ranking input
+ * built from amount, age and contact history — useful for ordering the queue,
+ * meaningless to read aloud. Days overdue is the fact the parent can be told,
+ * and the tone still escalates so the card reads at a glance.
+ */
+function DaysOverdueChip({ days }: { days: number }) {
+  const t = useTranslations("Defaulters");
+  if (days <= 0) return null;
+
+  const tone =
+    days >= 60
+      ? "border-destructive/60 bg-destructive/15 text-destructive"
+      : days >= 30
+        ? "border-destructive/40 bg-destructive/10 text-destructive"
+        : "border-warning-soft-foreground/30 bg-warning-soft text-warning-soft-foreground";
+
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold tabular-nums",
+        tone,
+      )}
+    >
+      {t("daysOverdueLabel", { count: days })}
+    </span>
+  );
 }
 
 function defaultActiveEntry(
@@ -320,9 +356,15 @@ export function DefaultersWorkspace({
         onToggleBulk={() => setBulkMode((current) => !current)}
       />
 
+      {/* WhatsApp green, and on screen BEFORE anything is selected — the design
+          treats "you can message this whole list" as standing information, not
+          a consequence of already having ticked a row. An info-blue hint that
+          only appeared after the first tick told the clerk something they had
+          by then worked out for themselves. */}
       {bulkMode ? (
-        <div className="rounded-lg border border-info-soft bg-info-soft px-3 py-2 text-sm font-medium text-info-soft-foreground">
-          {t("callQueueWhatsappModeHint")}
+        <div className="flex items-center gap-2 rounded-lg border border-success/30 bg-success-soft px-3 py-2 text-sm font-medium text-success-soft-foreground">
+          <MessageSquare className="size-4 shrink-0" aria-hidden="true" />
+          <span>{t("callQueueWhatsappModeHint")}</span>
         </div>
       ) : null}
 
@@ -442,15 +484,6 @@ export function DefaultersWorkspace({
             />
             </div>
           </div>
-
-          <MobileNextBar
-            selectedIndex={selectedIndex}
-            total={callQueue.length}
-            onPrevious={() => moveSelection(-1)}
-            onNext={() => moveSelection(1)}
-            hasPrevious={selectedIndex > 0}
-            hasNext={selectedIndex >= 0 && selectedIndex < callQueue.length - 1}
-          />
         </>
       )}
 
@@ -619,7 +652,9 @@ function CallProgressPanel({
         aria-valuemax={100}
       >
         <div
-          className="h-full rounded-full bg-success transition-[width] duration-500 ease-out-expo"
+          /* Saffron, not green. Green reads as "resolved" — this bar tracks
+             calls made, and a call made is not money collected. */
+          className="h-full rounded-full bg-accent transition-[width] duration-500 ease-out-expo"
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -974,19 +1009,32 @@ function SelectedStudentPanel({
   return (
     <aside className="rounded-xl border border-border bg-card p-3 shadow-sm sm:p-4 lg:sticky lg:top-4 lg:self-start">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase text-muted-foreground">
-            {t("callQueueSelectedTitle")}
-          </p>
-          <h2 className="mt-1 truncate text-xl font-semibold text-foreground">{row.fullName}</h2>
-          <p className="text-sm text-muted-foreground">
-            {t("studentMetaLine", {
-              classLabel: row.classLabel,
-              admissionNo: row.admissionNo,
-            })}
-          </p>
+        <div className="flex min-w-0 items-start gap-3">
+          {/* Initials circle, as on every other person row in the app. */}
+          <span
+            aria-hidden="true"
+            className="mt-0.5 grid size-10 shrink-0 place-items-center rounded-full bg-accent-soft text-sm font-bold uppercase text-accent"
+          >
+            {initialsOf(row.fullName)}
+          </span>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase text-muted-foreground">
+              {t("callQueueSelectedTitle")}
+            </p>
+            <h2 className="mt-1 truncate text-xl font-semibold text-foreground">{row.fullName}</h2>
+            <p className="text-sm text-muted-foreground">
+              {t("studentMetaLine", {
+                classLabel: row.classLabel,
+                admissionNo: row.admissionNo,
+              })}
+            </p>
+          </div>
         </div>
-        <HeatChip score={row.heat} />
+        {/* Days overdue, not the 0-100 heat score. The score is an internal
+            ranking input; "41 days" is the number a clerk can say out loud on
+            the call. Heat still orders the queue, it just stopped being the
+            thing on screen. */}
+        <DaysOverdueChip days={row.daysOverdue} />
       </div>
 
       <div className="mt-4 rounded-lg border border-warning-soft-foreground/20 bg-warning-soft/70 p-3">
@@ -994,7 +1042,14 @@ function SelectedStudentPanel({
           {t("drawerOutstandingLabel")}
         </p>
         <div className="mt-1">
-          <Money value={row.totalPending} size="display" tone="warning" />
+          {/* font-display-money: every other hero figure in the app is set in
+              the display face, and this one was the odd sans-serif out. */}
+          <Money
+            value={row.totalPending}
+            size="display"
+            tone="warning"
+            className="font-display-money"
+          />
         </div>
         {row.overdueAmount > 0 ? (
           <p className="mt-1 text-sm font-medium text-destructive">
@@ -1030,7 +1085,9 @@ function SelectedStudentPanel({
         />
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
+      {/* 1.45fr / 1fr, per the design: calling is the job, WhatsApp is the
+          fallback when nobody picks up. Equal halves said they were equals. */}
+      <div className="mt-4 grid grid-cols-[1.45fr_1fr] gap-2">
         <Button
           asChild
           variant="accent"
@@ -1106,37 +1163,3 @@ function SelectedStudentPanel({
   );
 }
 
-function MobileNextBar({
-  selectedIndex,
-  total,
-  onPrevious,
-  onNext,
-  hasPrevious,
-  hasNext,
-}: {
-  selectedIndex: number;
-  total: number;
-  onPrevious: () => void;
-  onNext: () => void;
-  hasPrevious: boolean;
-  hasNext: boolean;
-}) {
-  const t = useTranslations("Defaulters");
-  return (
-    // Token-based clearance instead of a hardcoded 72px, which drifted in
-    // landscape where the nav height token drops to 3rem.
-    <div className="sticky bottom-[calc(var(--mobile-bottom-nav-offset,0px)+0.5rem)] z-40 rounded-xl border border-border bg-card/95 p-2 shadow-lg backdrop-blur lg:hidden">
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-        <Button type="button" variant="outline" onClick={onPrevious} disabled={!hasPrevious}>
-          {t("collectorModePrevious")}
-        </Button>
-        <span className="px-1 text-xs font-semibold text-muted-foreground">
-          {t("callQueuePosition", { position: selectedIndex + 1, total })}
-        </span>
-        <Button type="button" variant="accent" onClick={onNext} disabled={!hasNext}>
-          {t("callQueueNextStudent")}
-        </Button>
-      </div>
-    </div>
-  );
-}

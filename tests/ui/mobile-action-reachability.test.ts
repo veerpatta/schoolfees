@@ -67,9 +67,23 @@ describe("mobile primary actions stay reachable", () => {
     "components/students/student-form.tsx",
     "components/forms/save-bar.tsx",
     "components/students/student-quick-load.tsx",
-    "components/defaulters/defaulters-workspace.tsx",
   ])("%s clears the fixed mobile bottom nav", (path) => {
     expect(read(path)).toContain(NAV_CLEARANCE);
+  });
+
+  it("keeps the Defaulters call queue free of a sticky bottom bar", () => {
+    // The inverse guard: this file used to be in the list above, carrying a
+    // sticky Prev/Next bar that could not be made to sit right. It was
+    // `lg:hidden` while the tab bar it cleared is `md:hidden`, so between 768
+    // and 1023px it floated clear of the bottom edge reserving room for a bar
+    // that was not there; its containing block closed before page.tsx rendered
+    // two further sections, so it pinned and then scrolled away — the "stuck"
+    // feel; and it shared z-40 with both the tab bar and the bulk-selection
+    // bar inside the same 76px band. The design has no such bar: it advances
+    // via "Skip for now" under the family card and self-advancing call mode.
+    const source = read("components/defaulters/defaulters-workspace.tsx");
+    expect(source).not.toMatch(/sticky bottom-\[/);
+    expect(source).not.toContain(NAV_CLEARANCE);
   });
 
   it("uses dynamic viewport units for full-height overlays", () => {
