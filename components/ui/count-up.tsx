@@ -70,9 +70,14 @@ export function CountUp({
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // Phones animate too. A `(max-width: 767px)` bail used to sit here, added
+    // in passing and never explained, and it silenced the count-up on the only
+    // surface staff actually use — the phone app. It is why "payment saved"
+    // read as a static number there while desktop got the full choreography.
+    // rAF on a single tabular span is not the thing to economise on; reduced
+    // motion, below, is the switch that genuinely needs to be honoured.
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    const mobile = window.matchMedia?.("(max-width: 767px)")?.matches;
-    if (reduced || mobile || value === fromRef.current) {
+    if (reduced || value === fromRef.current) {
       setDisplay(value);
       fromRef.current = value;
       return;

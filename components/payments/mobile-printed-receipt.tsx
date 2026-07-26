@@ -1,5 +1,6 @@
 "use client";
 
+import { CountUp } from "@/components/ui/count-up";
 import { amountInWordsHindi } from "@/lib/helpers/amount-in-words-hi";
 import { formatInr } from "@/lib/helpers/currency";
 import { schoolProfile } from "@/lib/config/school";
@@ -78,6 +79,7 @@ export function MobilePrintedReceipt({
   receivedBy,
   remainingBalance,
   isVoided = false,
+  countUpTotal = false,
   className,
 }: {
   receiptNumber: string;
@@ -100,6 +102,15 @@ export function MobilePrintedReceipt({
    * to a parent.
    */
   isVoided?: boolean;
+  /**
+   * Count the total up from zero as the slip feeds out. Opt-in, and only the
+   * just-posted success sheet opts in: on a reprint the figure is history, and
+   * a number that climbs would suggest something is being recalculated. The
+   * desktop sheet has had a count-up since the redesign; the phone — the only
+   * surface a clerk actually uses — had none, which is why "payment saved"
+   * read as static there.
+   */
+  countUpTotal?: boolean;
   className?: string;
 }) {
   const particulars: PrintedReceiptLine[] =
@@ -184,7 +195,13 @@ export function MobilePrintedReceipt({
               <span className="text-[10px] font-extrabold uppercase tracking-[0.08em]">
                 Total received
               </span>
-              <b className="font-display-money text-xl">{formatInr(amountReceived)}</b>
+              <b className="font-display-money text-xl">
+                {countUpTotal ? (
+                  <CountUp value={amountReceived} format="inr" duration={520} />
+                ) : (
+                  formatInr(amountReceived)
+                )}
+              </b>
             </div>
 
             <p className="pt-1.5 text-[9.5px] leading-relaxed text-[hsl(222_9%_40%)]">

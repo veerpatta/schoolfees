@@ -1762,6 +1762,20 @@ export function PaymentDeskClient({
       }
     }
 
+    // Drop ?studentId= — clearSelectedStudent (:1541) already does this and
+    // this path forgot it. Leaving it behind means the flow only *looks*
+    // restarted: the very next mount reads the URL, auto-opens the payment
+    // entry sheet (:1439) and the clerk lands back on the amount screen of
+    // the student they just collected from. That is the reported bug.
+    const url = new URL(window.location.href);
+    url.searchParams.delete("studentId");
+    url.searchParams.delete("repairNotice");
+    if (selectedClassId) {
+      url.searchParams.set("classId", selectedClassId);
+    }
+    url.searchParams.set("session", data.sessionLabel);
+    window.history.replaceState({}, "", `${url.pathname}?${url.searchParams.toString()}${url.hash}`);
+
     const resetValues = resetPaymentDraftForNextPayment({
       keepPaymentMode: paymentMode,
       defaultReceivedBy,

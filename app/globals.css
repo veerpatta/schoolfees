@@ -390,6 +390,13 @@
     animation: print-out 850ms cubic-bezier(0.22, 1, 0.36, 1) 100ms both;
   }
 
+  /* The slip leaves the way it arrived — back up into the printer slot — so
+     finishing a collection reads as "the paper went to the parent" rather
+     than "a panel closed". Exit is faster than entry: nobody waits to leave. */
+  .anim-print-away {
+    animation: print-away 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
   .anim-shimmer {
     position: relative;
     overflow: hidden;
@@ -622,6 +629,7 @@
   .anim-settle-in,
   .anim-stamp-in,
   .anim-print-out,
+  .anim-print-away,
   .anim-toast-in,
   .anim-pulse-dot,
   .animate-bottom-sheet-up,
@@ -725,6 +733,11 @@
 @keyframes print-out {
   from { transform: translate3d(0, -102%, 0); }
   to { transform: translate3d(0, 0, 0); }
+}
+
+@keyframes print-away {
+  from { opacity: 1; transform: translate3d(0, 0, 0); }
+  to { opacity: 0; transform: translate3d(0, -102%, 0); }
 }
 
 /* A phone toast rises further than a card settles — it comes from off the

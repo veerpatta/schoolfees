@@ -98,6 +98,44 @@ export function SuccessReceiptSheet({
   // long you have" — the reassurance the whole flow is built on.
   const [secondsLeft, setSecondsLeft] = useState(UNDO_WINDOW_SECONDS);
   const autoPrintOpenedRef = useRef(false);
+  // Plays the slip back into the printer before the flow restarts.
+  const [isLeaving, setIsLeaving] = useState(false);
+  const leaveTimerRef = useRef<number | null>(null);
+
+  /**
+   * The only exit this sheet had was the primary next-student button. No
+   * close button, no backdrop tap, no Escape — so a clerk reaching for any
+   * of the three habits every other sheet in the app supports was simply
+   * stuck, with the paid student still loaded in the entry state behind it.
+   *
+   * Every dismissal routes through `onCollectAnother` rather than a local
+   * close: that is what records the action-state key as dismissed. A bare
+   * close would leave it unset and the success effect would re-open this sheet
+   * the next time any of its dependencies changed.
+   */
+  function dismissAndRestart() {
+    // Mid-undo is not a dismissal — the clerk is deciding whether the money
+    // moved. Swallow stray backdrop taps and Escape until that resolves.
+    if (undoState === "confirming" || undoState === "working") {
+      return;
+    }
+    if (isLeaving) {
+      return;
+    }
+    setIsLeaving(true);
+    leaveTimerRef.current = window.setTimeout(
+      onCollectAnother,
+      prefersReducedMotion ? 0 : 220,
+    );
+  }
+
+  useEffect(() => {
+    return () => {
+      if (leaveTimerRef.current !== null) {
+        window.clearTimeout(leaveTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!open || !canUndo) return;
@@ -116,6 +154,20 @@ export function SuccessReceiptSheet({
     autoPrintOpenedRef.current = true;
     window.open(printReceiptHref, "_blank");
   }, [autoPrint, open, printReceiptHref]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        dismissAndRestart();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // dismissAndRestart is re-created each render; the state it reads is
+    // listed here so the handler never closes over a stale undo state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, undoState, isLeaving, prefersReducedMotion]);
 
   useEffect(() => {
     if (copyStatus !== "copied") {
@@ -139,12 +191,27 @@ export function SuccessReceiptSheet({
       : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 px-2 md:items-center md:px-4">
+    <div
+      className={cn(
+        "fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 px-2 transition-opacity duration-200 md:items-center md:px-4",
+        isLeaving && "pointer-events-none opacity-0",
+      )}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          dismissAndRestart();
+        }
+      }}
+    >
       {/* dvh, not vh — see confirm-receipt-sheet: vh can push the sticky
           action row below the visible viewport. */}
       {/* Phones get the ink backdrop from mobile app v2 so the paper stub
           below reads as paper. Tablet and desktop keep the paper-card sheet. */}
-      <div className="max-h-[92dvh] w-full anim-slide-up animate-bottom-sheet-up overflow-y-auto rounded-t-2xl border border-success/30 bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl max-md:bg-nav max-md:text-nav-foreground md:max-w-xl md:rounded-xl md:p-5">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Payment successful — receipt ${receiptNumber}`}
+        className="max-h-[92dvh] w-full anim-slide-up animate-bottom-sheet-up overflow-y-auto rounded-t-2xl border border-success/30 bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl max-md:bg-nav max-md:text-nav-foreground md:max-w-xl md:rounded-xl md:p-5"
+      >
         <div className="flex items-center gap-2.5">
           <SuccessCheckMark />
           <div className="anim-settle-in" style={{ animationDelay: "160ms" }}>
@@ -155,6 +222,17 @@ export function SuccessReceiptSheet({
               Receipt saved · printed
             </p>
           </div>
+          {/* Closing is the same act as starting the next collection, so it
+              restarts the flow rather than dropping the clerk behind a sheet
+              that still holds the paid student. */}
+          <button
+            type="button"
+            aria-label="Close receipt and start a new collection"
+            onClick={dismissAndRestart}
+            className="focus-ring ml-auto grid size-9 shrink-0 place-items-center rounded-full border border-border text-lg leading-none text-muted-foreground max-md:border-nav-border max-md:text-nav-muted"
+          >
+            ×
+          </button>
         </div>
 
         <span className="mt-3 inline-flex rounded bg-success-soft px-2 py-0.5 text-[10px] font-semibold text-success-soft-foreground max-md:hidden">
@@ -162,7 +240,8 @@ export function SuccessReceiptSheet({
         </span>
 
         <MobilePrintedReceipt
-          className="mt-4 md:hidden"
+          className={cn("mt-4 md:hidden", isLeaving && "anim-print-away")}
+          countUpTotal
           receiptNumber={receiptNumber}
           studentFullName={studentFullName}
           fatherName={fatherName}
@@ -355,7 +434,7 @@ export function SuccessReceiptSheet({
               type="button"
               className="col-span-2 w-full mt-1"
               variant="default"
-              onClick={onCollectAnother}
+              onClick={dismissAndRestart}
             >
               Next student →
             </Button>
