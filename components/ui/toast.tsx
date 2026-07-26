@@ -8,6 +8,8 @@ type ToastPayload = {
   title: string;
   description?: string;
   action?: ReactNode;
+  /** Leading glyph, shown on the phone pill only. Decorative. */
+  icon?: ReactNode;
 };
 
 type ToastItem = ToastPayload & {
@@ -49,19 +51,41 @@ export function ToastViewport() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-[80] flex w-[min(360px,calc(100vw-2rem))] flex-col gap-2 no-print">
+    /* Phone: a full-width ink pill riding just above the tab bar, per the v2
+       design. Desktop: the corner card it has always been. One tree rather
+       than two viewports so a toast can never render twice. */
+    <div
+      className={cn(
+        "no-print fixed z-[80] flex flex-col gap-2",
+        "inset-x-3.5 bottom-[calc(var(--mobile-bottom-nav-offset)+12px)]",
+        "md:inset-x-auto md:bottom-4 md:right-4 md:w-[min(360px,calc(100vw-2rem))]",
+      )}
+    >
       {items.map((item) => (
         <div
           key={item.id}
           role="status"
           className={cn(
-            "rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground shadow-lg",
-            "anim-slide-up",
+            "anim-toast-in flex items-center gap-3 rounded-[15px] bg-nav px-4 py-3 text-nav-foreground shadow-lg",
+            "md:anim-slide-up md:block md:rounded-lg md:border md:border-border md:bg-card md:px-4 md:py-3 md:text-sm md:text-foreground",
           )}
         >
-          <p className="font-semibold">{item.title}</p>
-          {item.description ? <p className="mt-1 text-xs text-muted-foreground">{item.description}</p> : null}
-          {item.action ? <div className="mt-2">{item.action}</div> : null}
+          {item.icon ? (
+            <span aria-hidden="true" className="shrink-0 text-base md:hidden">
+              {item.icon}
+            </span>
+          ) : null}
+          <span className="min-w-0 flex-1 md:block">
+            <p className="text-[12.5px] font-bold leading-snug md:text-sm md:font-semibold">
+              {item.title}
+            </p>
+            {item.description ? (
+              <p className="mt-1 text-[11px] text-nav-muted md:text-xs md:text-muted-foreground">
+                {item.description}
+              </p>
+            ) : null}
+            {item.action ? <span className="mt-2 block">{item.action}</span> : null}
+          </span>
         </div>
       ))}
     </div>

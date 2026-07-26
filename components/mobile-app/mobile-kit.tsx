@@ -34,7 +34,7 @@ export function MobileScreen({
   className?: string;
 }) {
   return (
-    <div className={cn("anim-fade-in flex flex-col gap-2.5 pb-2", className)}>
+    <div className={cn("anim-slide-up flex flex-col gap-2.5 pb-2", className)}>
       {children}
     </div>
   );
@@ -46,13 +46,27 @@ export function MobileCard({
   children,
   className,
   as: Tag = "div",
+  animate = false,
 }: {
   children: ReactNode;
   className?: string;
   as?: "div" | "section" | "li";
+  /**
+   * Opt-in mount animation. Off by default on purpose: `MobileCard` is also
+   * the list row, and a card that settles in on every filter keystroke reads
+   * as jitter, not polish. Turn it on for cards that genuinely *arrive* — the
+   * review card, the QR panel, the import step panel.
+   */
+  animate?: boolean;
 }) {
   return (
-    <Tag className={cn("rounded-xl border border-border bg-card p-4", className)}>
+    <Tag
+      className={cn(
+        "rounded-xl border border-border bg-card p-4",
+        animate && "anim-settle-in",
+        className,
+      )}
+    >
       {children}
     </Tag>
   );
@@ -69,7 +83,9 @@ export function InkCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl bg-nav p-5 text-nav-foreground",
+        // Always animates: this is the one hero card per screen, so it is the
+        // arrival the design's `card-in` is describing.
+        "anim-settle-in relative overflow-hidden rounded-2xl bg-nav p-5 text-nav-foreground",
         className,
       )}
     >
@@ -119,7 +135,7 @@ export function MobileLabel({
   return (
     <p
       className={cn(
-        "text-[10px] font-bold uppercase tracking-[0.1em]",
+        "mobile-eyebrow",
         tone === "muted" && "text-muted-foreground",
         tone === "ink" && "text-nav-muted",
         tone === "accent" && "text-accent",
@@ -236,11 +252,9 @@ export function MobileRow({
     <div className={cn("flex min-h-[3.25rem] items-center gap-3", className)}>
       {icon}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13.5px] font-bold leading-tight text-foreground">
-          {title}
-        </span>
+        <span className="mobile-row-title block truncate text-foreground">{title}</span>
         {description ? (
-          <span className="block truncate text-[11px] font-medium text-muted-foreground">
+          <span className="mobile-row-meta block truncate text-muted-foreground">
             {description}
           </span>
         ) : null}

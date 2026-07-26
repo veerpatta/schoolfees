@@ -12,7 +12,11 @@ const globals = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
  * The design collapses to ten keyframes. Several map onto one of ours rather
  * than getting a duplicate: `scr-in`, `card-in` and `sheet-up` are all
  * "translate up + fade", which is `slide-up`. Only genuinely distinct motion
- * earns its own keyframe.
+ * earns its own keyframe — `toast-in` qualifies because it rises 18px from
+ * off the bottom edge rather than slide-up's 8px settle.
+ *
+ * (`roller` is defined in the prototype and used by nothing in it, so it is
+ * deliberately absent here rather than ported as dead CSS.)
  */
 describe("mobile v2 animation spec", () => {
   const required = [
@@ -23,6 +27,7 @@ describe("mobile v2 animation spec", () => {
     "check-halo",
     "check-draw",
     "pulse-dot",
+    "toast-in",
   ];
 
   it("defines every keyframe the design calls for", () => {
@@ -56,6 +61,23 @@ describe("mobile v2 animation spec", () => {
     expect(block).toContain(".anim-pulse-dot");
     expect(block).toContain(".anim-print-out");
     expect(block).toContain(".anim-stamp-in");
+    expect(block).toContain(".anim-toast-in");
+  });
+
+  it("animates every phone screen and hero card on mount", () => {
+    // The design opens 23 of its 24 screens with `scr-in` and lands the hero
+    // card behind it. Doing that once in the kit — rather than per screen —
+    // is what keeps it from being applied to two screens and forgotten on
+    // the rest, which is the state this replaced.
+    const kit = readFileSync(
+      join(process.cwd(), "components/mobile-app/mobile-kit.tsx"),
+      "utf8",
+    );
+    const screen = kit.slice(kit.indexOf("export function MobileScreen"));
+    expect(screen.slice(0, 400)).toContain("anim-slide-up");
+
+    const ink = kit.slice(kit.indexOf("export function InkCard"));
+    expect(ink.slice(0, 700)).toContain("anim-settle-in");
   });
 
   it("keeps the connection dot honest rather than decorative", () => {

@@ -104,3 +104,78 @@ export function formatIsoDateIst(value: string | Date | null | undefined) {
   if (!date) return null;
   return ISO_DATE_FORMATTER.format(date);
 }
+
+/* ------------------------------------------------------------ calendar grid */
+
+/**
+ * Calendar helpers for the phone date picker.
+ *
+ * These deliberately work on {year, month, day} integers rather than `Date`
+ * objects. A month grid built from `Date` and rendered in IST drifts by a day
+ * whenever the runtime's zone is behind UTC — the office is in IST but Vercel
+ * is not, and the bug only shows up near midnight, which is exactly when the
+ * day's collection total is being checked.
+ */
+
+export type CalendarDay = { year: number; month: number; day: number };
+
+/** Today, as IST calendar parts. */
+export function todayPartsIst(now: Date = new Date()): CalendarDay {
+  const iso = ISO_DATE_FORMATTER.format(now);
+  return isoToParts(iso);
+}
+
+export function isoToParts(iso: string): CalendarDay {
+  const [year, month, day] = iso.split("-").map(Number);
+  return { year, month, day };
+}
+
+export function partsToIso({ year, month, day }: CalendarDay) {
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+export function addMonths({ year, month, day }: CalendarDay, delta: number): CalendarDay {
+  const zeroBased = month - 1 + delta;
+  const nextYear = year + Math.floor(zeroBased / 12);
+  const nextMonth = ((zeroBased % 12) + 12) % 12;
+  const lastDay = daysInMonth(nextYear, nextMonth + 1);
+  return { year: nextYear, month: nextMonth + 1, day: Math.min(day, lastDay) };
+}
+
+export function daysInMonth(year: number, month: number) {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+/** `May 2026` for a calendar month, without round-tripping through a zone. */
+export function formatCalendarMonth(year: number, month: number) {
+  // Mid-month so no timezone offset can push the label into a neighbour.
+  return MONTH_YEAR_FORMATTER.format(new Date(Date.UTC(year, month - 1, 15)));
+}
+
+/**
+ * The month laid out as 6 rows of 7, Sunday-first. Leading and trailing cells
+ * are `null` rather than the neighbouring month's days — the design shows an
+ * empty gutter, and a tappable "31 Mar" inside April's grid is a misfire
+ * waiting to happen.
+ */
+export function monthGrid(year: number, month: number): (CalendarDay | null)[] {
+  const firstWeekday = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+  const total = daysInMonth(year, month);
+  const cells: (CalendarDay | null)[] = Array.from({ length: firstWeekday }, () => null);
+  for (let day = 1; day <= total; day += 1) cells.push({ year, month, day });
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}
+
+const WEEKDAY_FORMATTER = new Intl.DateTimeFormat("en-IN", {
+  timeZone: "UTC",
+  weekday: "short",
+});
+
+/** `["Sun", "Mon", …]`. Derived, not hardcoded, so it follows the locale data. */
+export function weekdayHeadings() {
+  // 2026-03-01 was a Sunday; any known Sunday works as the anchor.
+  return Array.from({ length: 7 }, (_, index) =>
+    WEEKDAY_FORMATTER.format(new Date(Date.UTC(2026, 2, 1 + index))),
+  );
+}
