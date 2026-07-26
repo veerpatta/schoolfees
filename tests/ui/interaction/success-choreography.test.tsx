@@ -45,10 +45,15 @@ describe("payment-collected choreography", () => {
     expect(screen.getAllByText(/SVP20260719-0007/).length).toBeGreaterThan(0);
 
     // CountUp animates toward the real figure — the final rendered value must
-    // be exact, never a rounding artifact of the animation.
+    // be exact, never a rounding artifact of the animation. Scoped to the
+    // CountUp itself: the phone-only printed receipt renders the same total,
+    // so a bare getByText would match two nodes and say nothing about the
+    // animation settling.
     await waitFor(
       () => {
-        expect(screen.getByText(/6,300/)).toBeInTheDocument();
+        const counter = document.querySelector("[data-countup]");
+        expect(counter).toBeInTheDocument();
+        expect(counter?.textContent ?? "").toMatch(/6,300/);
       },
       { timeout: 2000 },
     );

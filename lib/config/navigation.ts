@@ -13,6 +13,7 @@ import {
   ScrollText,
   Settings2,
   ShieldCheck,
+  SlidersHorizontal,
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
@@ -385,16 +386,23 @@ export function getMobilePrimaryNavigation(staffRole: StaffRole) {
     ] satisfies MobileBottomNavigationItem[];
   }
 
-  // Ledger Calm 2.0 slot order: Home · Collect (saffron pill) · Students ·
-  // Calls · More. Collect only appears for roles that can post payments;
-  // Calls only for roles that can view defaulters. Remaining modules live
-  // behind "More".
+  // Mobile app v2 slot order: Home · Students · Collect (centre saffron pill)
+  // · Calls · More. Collect sits in the middle slot because it is the thumb's
+  // home position and the one action the app exists for. It only appears for
+  // roles that can post payments; Calls only for roles that can view
+  // defaulters. Remaining modules live behind "More".
   const items: MobileBottomNavigationItem[] = [
     {
       href: "/protected/dashboard",
       label: "Home",
       icon: BarChart3,
       i18nKey: "home",
+    },
+    {
+      href: "/protected/students",
+      label: "Students",
+      icon: UsersRound,
+      i18nKey: "students",
     },
   ];
 
@@ -406,13 +414,6 @@ export function getMobilePrimaryNavigation(staffRole: StaffRole) {
       i18nKey: "collect",
     });
   }
-
-  items.push({
-    href: "/protected/students",
-    label: "Students",
-    icon: UsersRound,
-    i18nKey: "students",
-  });
 
   if (hasRolePermission(staffRole, "defaulters:view")) {
     items.push({
@@ -435,6 +436,216 @@ export function getMobilePrimaryNavigation(staffRole: StaffRole) {
   return items;
 }
 
+/* ------------------------------------------------------------------------ *
+ * Mobile "More" hub
+ *
+ * The phone app keeps four daily jobs on the bottom bar; everything else —
+ * including modules that never made it into the desktop sidebar (receipts
+ * lookup, imports, staff, master data, finance controls, settings) — files
+ * under More, grouped the way the office thinks about them rather than the
+ * way the routes are laid out.
+ * ------------------------------------------------------------------------ */
+
+export type MobileMoreItem = {
+  href: string;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+  requiredPermission: StaffPermission;
+  /**
+   * Key under the `MobileApp` namespace in messages/. `<key>Desc` carries the
+   * description. Falls back to the English `label` / `description` above.
+   */
+  i18nKey?: string;
+};
+
+export type MobileMoreGroup = {
+  key: "daily" | "records" | "admin" | "system";
+  label: string;
+  /** Key under the `MobileApp` namespace in messages/. Falls back to `label`. */
+  i18nKey: "groupDaily" | "groupRecords" | "groupAdmin" | "groupSystem";
+  items: MobileMoreItem[];
+};
+
+const mobileMoreGroups: readonly MobileMoreGroup[] = [
+  {
+    key: "daily",
+    i18nKey: "groupDaily",
+    label: "Daily",
+    items: [
+      {
+        href: "/protected/transactions",
+        label: "All receipts",
+        description: "By day, mode and staff",
+        icon: BookOpenCheck,
+        requiredPermission: "receipts:view",
+        i18nKey: "moreAllReceipts",
+      },
+      {
+        href: "/protected/receipts",
+        label: "Find a receipt",
+        description: "Number, name or phone",
+        icon: FileSpreadsheet,
+        requiredPermission: "receipts:view",
+        i18nKey: "moreFindReceipt",
+      },
+    ],
+  },
+  {
+    key: "records",
+    i18nKey: "groupRecords",
+    label: "Records",
+    items: [
+      {
+        href: "/protected/fee-setup",
+        label: "Fee setup",
+        description: "Class fees, installments, discounts",
+        icon: ScrollText,
+        requiredPermission: "fees:view",
+        i18nKey: "moreFeeSetup",
+      },
+      {
+        href: "/protected/exports",
+        label: "Reports",
+        description: "Collection, defaulters, class-wise",
+        icon: Download,
+        requiredPermission: "reports:view",
+        i18nKey: "moreReports",
+      },
+      {
+        href: "/protected/imports",
+        label: "Import data",
+        description: "Students and old dues from Excel",
+        icon: FolderCog,
+        requiredPermission: "imports:view",
+        i18nKey: "moreImports",
+      },
+    ],
+  },
+  {
+    key: "admin",
+    i18nKey: "groupAdmin",
+    label: "Admin",
+    items: [
+      {
+        href: "/protected/admin-tools",
+        label: "Admin tools",
+        description: "Promotion, old dues, recovery plans",
+        icon: Settings2,
+        // Matches the sidebar item and the page's own
+        // requireAnyStaffPermission(["finance:view", "settings:view"]).
+        requiredPermission: "finance:view",
+        i18nKey: "moreAdminTools",
+      },
+      {
+        href: "/protected/finance-controls",
+        label: "Finance controls",
+        description: "Approvals, refunds and corrections",
+        icon: ShieldCheck,
+        requiredPermission: "finance:view",
+        i18nKey: "moreFinanceControls",
+      },
+      {
+        href: "/protected/staff",
+        label: "Staff & roles",
+        description: "Logins and permissions",
+        icon: UsersRound,
+        requiredPermission: "staff:manage",
+        i18nKey: "moreStaff",
+      },
+      {
+        href: "/protected/master-data",
+        label: "Master data",
+        description: "Classes, routes, discount names",
+        icon: BadgePercent,
+        // The page guards on settings:WRITE — a view-only link here would
+        // hand every teacher a row that bounces them straight back.
+        requiredPermission: "settings:write",
+        i18nKey: "moreMasterData",
+      },
+    ],
+  },
+  {
+    key: "system",
+    i18nKey: "groupSystem",
+    label: "System",
+    items: [
+      {
+        href: "/protected/admin-tools/activity",
+        label: "Activity log",
+        description: "Every change, with who and when",
+        icon: ActivitySquare,
+        requiredPermission: "settings:view",
+        i18nKey: "moreActivity",
+      },
+      {
+        href: "/protected/settings/glossary",
+        label: "Money words explained",
+        description: "What pending, old balance, adjustment mean",
+        icon: BookText,
+        requiredPermission: "dashboard:view",
+        i18nKey: "moreGlossary",
+      },
+      {
+        href: "/protected/settings",
+        label: "Settings",
+        description: "Language, session, printer, sync",
+        icon: SlidersHorizontal,
+        requiredPermission: "settings:view",
+        i18nKey: "moreSettings",
+      },
+    ],
+  },
+] as const;
+
+export function getMobileMoreGroups(staffRole: StaffRole): MobileMoreGroup[] {
+  return mobileMoreGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) =>
+        hasRolePermission(staffRole, item.requiredPermission),
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
+}
+
+
+/**
+ * Routes the phone app presents as full-screen takeovers.
+ *
+ * The design keeps the tab bar on six screens only (Home, Students, Collect,
+ * Calls, Transactions, More). Everything else — detail views, records and the
+ * admin long tail — replaces the screen and offers a back arrow instead. The
+ * bar would otherwise cost 68px on screens that need the height most, and it
+ * makes "where am I" ambiguous: a tab bar says "you are on a tab", which a
+ * student detail page is not.
+ *
+ * Matching is prefix-based, so nested routes (a promotion run, a receipt id)
+ * inherit their parent's treatment.
+ */
+const mobileTakeoverRoutes: readonly string[] = [
+  "/protected/students/",        // detail, new, edit, statements
+  "/protected/receipts",
+  "/protected/settings",
+  "/protected/fee-setup",
+  "/protected/exports",
+  "/protected/reports",
+  "/protected/ledger",
+  "/protected/imports",
+  "/protected/staff",
+  "/protected/master-data",
+  "/protected/finance-controls",
+  "/protected/admin-tools",
+  "/protected/password",
+  "/protected/payments/bulk",
+] as const;
+
+/** True when the phone app should hide the tab bar and show a back arrow. */
+export function isMobileTakeoverRoute(pathname: string): boolean {
+  return mobileTakeoverRoutes.some(
+    (route) => pathname === route || pathname.startsWith(route),
+  );
+}
 export function getProtectedRouteMeta(pathname: string): ProtectedRouteMeta {
   const item = routeMetaItems.find((meta) =>
     [meta.match, ...(meta.aliases ?? [])].some((href) => matchesRoute(pathname, href)),

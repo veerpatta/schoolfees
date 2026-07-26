@@ -18,9 +18,14 @@ import { ActivityStrip } from "@/components/dashboard/activity-strip";
 import { DashboardPrefetcher } from "@/components/dashboard/dashboard-prefetcher";
 import { ClassCollectionProgress } from "@/components/dashboard/class-collection-progress";
 import { CollectionHeatmap } from "@/components/dashboard/collection-heatmap";
+import {
+  MobileDashboardScreen,
+  MobilePendingByClass,
+} from "@/components/dashboard/mobile-dashboard-screen";
 import { MorningBrief } from "@/components/dashboard/morning-brief";
 import { RouteCollectionHeatmap } from "@/components/dashboard/route-collection-heatmap";
 import { OptimisticBanner } from "@/components/dashboard/optimistic-banner";
+import { MissingDuesBanner } from "@/components/shared/missing-dues-banner";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { composeMorningBrief } from "@/lib/dashboard/morning-brief";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -32,7 +37,6 @@ import { LoadingBlock } from "@/components/ui/loading-skeleton";
 import { Money } from "@/components/ui/money";
 import { MoneyGlossaryLink } from "@/components/ui/money-glossary";
 import { Notice } from "@/components/ui/notice";
-import { RateGauge } from "@/components/ui/rate-gauge";
 import { Section } from "@/components/ui/section";
 import {
   getDashboardAboveFoldData,
@@ -56,6 +60,7 @@ import { formatShortDate, formatTimeIst } from "@/lib/helpers/date";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { ServerTimer } from "@/lib/observability/timing";
 import { getViewSessionCookie } from "@/lib/session/cookie";
+import { getSessionSwitcherData } from "@/lib/session/switcher";
 import { resolveViewSession } from "@/lib/session/resolver";
 import {
   hasStaffPermission,
@@ -201,10 +206,6 @@ function getCollectionRateHealth(rate: number, t: DashboardTranslator) {
 }
 
 /**
- * MobileDashboardHero replaces the horizontal KPI rail on phones with a single
- * first-screen summary: today, collection rate, and the three office stats.
- */
-/**
  * `onInk` renders the chip for the dark hero card. The paper tones are all
  * light "soft" tokens — on ink they read as pasted-on white pills, and in dark
  * mode the neutral one (surface-2) is the same lightness as --nav, so it
@@ -235,151 +236,6 @@ function KpiDeltaLine({ delta, onInk = false }: { delta: KpiDelta | null; onInk?
   );
 }
 
-function MobileDashboardHero({
-  collected,
-  collectionRate,
-  receiptsToday,
-  followUpCount,
-  overdueAmount,
-  currentYearPending,
-  previousYearPending,
-  updatedAt,
-  currentInstallmentLabel,
-  todayDelta,
-  sessionLabel,
-  t,
-}: {
-  collected: number;
-  collectionRate: number;
-  receiptsToday: number;
-  followUpCount: number;
-  overdueAmount: number;
-  currentYearPending: number;
-  previousYearPending: number;
-  updatedAt: string;
-  currentInstallmentLabel?: string;
-  todayDelta: KpiDelta | null;
-  sessionLabel?: string;
-  t: DashboardTranslator;
-}) {
-  const todayLabel = formatShortDate(new Date());
-  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
-  const updatedLabel = formatUpdatedAt(updatedAt);
-
-  return (
-    <div
-      className="sm:hidden -mx-4 bg-card border-b border-border"
-      aria-label={t("dashboardSummaryAria", { when: updatedLabel })}
-    >
-      <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2">
-        <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-            {t("todayLabel", { date: todayLabel })}
-          </p>
-          {updatedLabel ? (
-            <p className="text-[10px] text-muted-foreground/70">
-              {t("updatedAt", { when: updatedLabel })}
-            </p>
-          ) : null}
-        </div>
-        {currentInstallmentLabel ? (
-          <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-0.5 text-[10px] font-semibold text-accent-soft-foreground">
-            {currentInstallmentLabel}
-          </span>
-        ) : null}
-      </div>
-
-      <div className="flex items-end justify-between gap-4 px-4 pb-4">
-        <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-            {t("todaysCollection")}
-          </p>
-          <div className="mt-1.5">
-            <Money
-              value={collected}
-              size="display"
-              className="font-display-money text-[2.25rem] leading-none tracking-tight text-accent"
-            />
-          </div>
-          <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-            <span>{t("receiptsPosted", { count: receiptsToday })}</span>
-            <KpiDeltaLine delta={todayDelta} />
-          </p>
-        </div>
-        <div className="flex shrink-0 flex-col items-center gap-1">
-          <RateGauge value={collectionRate} size="md" />
-          <p className="text-[10px] font-medium text-muted-foreground">
-            {t("collectionRate")}
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 border-t border-border">
-        {[
-          {
-            key: "pending",
-            label: t("thisYearPending"),
-            value: currentYearPending,
-            tone: "warning" as const,
-            subtext:
-              previousYearPending > 0
-                ? t("oldBalancePendingLine", { amount: formatInr(previousYearPending) })
-                : t("studentsCount", { count: followUpCount }),
-            href: "/protected/defaulters",
-          },
-          {
-            key: "overdue",
-            label: t("overdue"),
-            value: overdueAmount,
-            tone: "danger" as const,
-            subtext: t("withoutLateFee"),
-            href: "/protected/defaulters",
-          },
-          {
-            key: "receipts",
-            label: t("receipts"),
-            value: receiptsToday,
-            tone: "neutral" as const,
-            subtext: t("postedToday"),
-            isCount: true,
-            href: "/protected/transactions?view=collection_today",
-          },
-        ].map((stat, index) => (
-          <Link
-            key={stat.key}
-            href={withSession(stat.href)}
-            className={cn(
-              "flex flex-col items-center justify-center px-2 py-3 text-center transition-colors active:bg-surface-2",
-              index < 2 && "border-r border-border",
-            )}
-          >
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {stat.label}
-            </p>
-            <div className="mt-1">
-              {stat.isCount ? (
-                <span className="text-lg font-bold tabular text-foreground">
-                  {stat.value}
-                </span>
-              ) : (
-                <Money
-                  value={stat.value}
-                  size="lg"
-                  tone={stat.tone}
-                  compact
-                  className="text-base font-bold"
-                />
-              )}
-            </div>
-            <p className="mt-0.5 text-[9px] text-muted-foreground">
-              {stat.subtext}
-            </p>
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function HeroKpis({
   collected,
@@ -679,10 +535,13 @@ function DesktopSecondaryKpis({
         hint={t("oldBalanceRecovered")}
         href={withSession("/protected/admin-tools/prev-year-dues")}
       />
+      {/* `lateFeeSeparate` carries an {amount} placeholder; calling it bare
+          threw a next-intl FORMATTING_ERROR on every dashboard render. The
+          card already shows the figure, so pass it through. */}
       <KpiCard
         label={t("lateFeePendingLabel")}
         value={<Money value={kpis.lateFeePending ?? 0} size="lg" tone="warning" />}
-        hint={t("lateFeeSeparate")}
+        hint={t("lateFeeSeparate", { amount: formatInr(kpis.lateFeePending ?? 0) })}
         href={withSession("/protected/defaulters")}
       />
     </div>
@@ -800,147 +659,11 @@ function OldBalanceRecoveryCard({
   );
 }
 
-function MobileSecondaryKpis({ kpis, t }: { kpis: DashboardKpis; t: DashboardTranslator }) {
-  const currentYearExpected = kpis.currentYearExpected ?? kpis.totalExpectedFees;
-  const currentYearCollected = kpis.currentYearCollected ?? kpis.totalCollected;
-  const previousYearOriginal = kpis.previousYearOriginal ?? 0;
-  const previousYearCollected = kpis.previousYearCollected ?? 0;
-  const cards = [
-    {
-      key: "thisYearExpected",
-      label: t("thisYearExpected"),
-      value: <Money value={currentYearExpected} size="sm" />,
-      hint: t("thisYearFeesOnly"),
-    },
-    {
-      key: "thisYearCollected",
-      label: t("thisYearCollected"),
-      value: <Money value={currentYearCollected} size="sm" tone="success" />,
-      hint: t("thisYearReceipts"),
-    },
-    {
-      key: "activeStudents",
-      label: t("activeStudents"),
-      value: <span className="text-lg font-semibold tabular-nums text-foreground">{kpis.totalStudents}</span>,
-      hint: t("currentSession"),
-    },
-    {
-      key: "thisMonth",
-      label: t("thisMonth"),
-      value: <Money value={kpis.thisMonthCollection} size="sm" tone="success" />,
-      hint: t("monthlyReceipts"),
-    },
-    ...(previousYearOriginal > 0 || (kpis.previousYearPending ?? 0) > 0
-      ? [
-          {
-            key: "previousYearPending",
-            label: t("oldBalanceShort"),
-            value: <Money value={kpis.previousYearPending ?? 0} size="sm" tone="warning" />,
-            hint: t("oldBalanceHint", {
-              recovered: formatInr(previousYearCollected),
-              original: formatInr(previousYearOriginal),
-            }),
-          },
-        ]
-      : []),
-    ...((kpis.lateFeePending ?? 0) > 0
-      ? [
-          {
-            key: "lateFeePending",
-            label: t("lateFeePendingLabel"),
-            value: <Money value={kpis.lateFeePending ?? 0} size="sm" tone="warning" />,
-            hint: t("lateFeePendingHint"),
-          },
-        ]
-      : []),
-  ];
-
-  return (
-    <div className="grid grid-cols-2 gap-2 sm:hidden">
-      {cards.map((card) => (
-        <div key={card.key} className="rounded-lg border border-border bg-card px-3 py-2.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            {card.label}
-          </p>
-          <div className="mt-1">{card.value}</div>
-          <p className="mt-0.5 text-[10px] text-muted-foreground">{card.hint}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 /* ---------------------------------------------------------------------------
    Quick actions - single row of clear, labeled buttons (no icon-only confusion)
    --------------------------------------------------------------------------- */
 
-/**
- * MobileQuickActions gives the phone layout one dominant collection action and
- * three compact secondary destinations.
- */
-function MobileQuickActions({
-  canWriteStudents,
-  sessionLabel,
-  t,
-}: {
-  canWriteStudents: boolean;
-  sessionLabel?: string;
-  t: DashboardTranslator;
-}) {
-  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
-
-  // The primary "Open Payment Desk" action lives in the sticky FAB (bottom-right,
-  // md:hidden) so it stays reachable while scrolling — no duplicate CTA here.
-  return (
-    <div className="sm:hidden space-y-2.5">
-      <div className="grid grid-cols-3 gap-2">
-        {canWriteStudents ? (
-          <Button
-            asChild
-            variant="outline"
-            className="flex h-16 flex-col items-center justify-center gap-1.5 rounded-xl text-[11px] font-medium leading-tight"
-          >
-            <Link href={withSession("/protected/students/new")}>
-              <UsersRound className="size-[18px]" aria-hidden="true" />
-              {t("addStudent")}
-            </Link>
-          </Button>
-        ) : (
-          <Button
-            asChild
-            variant="outline"
-            className="flex h-16 flex-col items-center justify-center gap-1.5 rounded-xl text-[11px] font-medium leading-tight"
-          >
-            <Link href={withSession("/protected/students")}>
-              <UsersRound className="size-[18px]" aria-hidden="true" />
-              {t("students")}
-            </Link>
-          </Button>
-        )}
-        <Button
-          asChild
-          variant="outline"
-          className="flex h-16 flex-col items-center justify-center gap-1.5 rounded-xl text-[11px] font-medium leading-tight"
-        >
-          <Link href={withSession("/protected/defaulters")}>
-            <ClipboardList className="size-[18px]" aria-hidden="true" />
-            {t("defaulters")}
-          </Link>
-        </Button>
-        <Button
-          asChild
-          variant="outline"
-          className="flex h-16 flex-col items-center justify-center gap-1.5 rounded-xl text-[11px] font-medium leading-tight"
-        >
-          <Link href={withSession("/protected/transactions")}>
-            <ReceiptText className="size-[18px]" aria-hidden="true" />
-            {t("history")}
-          </Link>
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 function QuickActions({
   canWriteStudents,
@@ -2280,6 +2003,11 @@ async function DashboardBelowFold({
     canAutoPrepareDues && data.systemSyncHealth
       ? data.systemSyncHealth.studentsMissingInstallments.length
       : 0;
+  // Same source the desktop banner uses; shown regardless of write permission
+  // because reading "these students are missing from every total" matters to
+  // anyone looking at the numbers.
+  const missingDuesCount = data.systemSyncHealth?.studentsMissingInstallments.length ?? 0;
+
   const visibleAlerts = data.alerts.filter((alert) => {
     if (staffRole !== "admin") {
       if (alert.actionHref?.includes("/admin-tools")) return false;
@@ -2289,7 +2017,29 @@ async function DashboardBelowFold({
   });
 
   return (
-    <div className="space-y-4 md:space-y-6">
+    <>
+      {/* Phone below-fold: pending by class, then the calm note.
+          The data-integrity warnings above it are NOT desktop-only concerns —
+          a student with no fee ledger is invisible in every pending total, so
+          hiding that from a phone hides the reason the numbers are wrong. */}
+      <div className="space-y-2.5 md:hidden">
+        {staffRole === "admin" && data.systemSyncHealth ? (
+          <FeeDataAttentionBanner
+            health={data.systemSyncHealth}
+            sessionLabel={sessionLabel}
+            t={t}
+          />
+        ) : null}
+        {missingDuesCount > 0 ? (
+          <MissingDuesBanner
+            missingCount={missingDuesCount}
+            repairHref={appendSessionParam("/protected/fee-setup", sessionLabel)}
+          />
+        ) : null}
+        <MobilePendingByClass rows={data.classSummary} sessionLabel={sessionLabel} />
+      </div>
+
+      <div className="hidden space-y-4 md:block md:space-y-6">
       {autoPrepareCount > 0 ? (
         <Notice tone="info" title={t("duesUpdateStartedTitle")}>
           {t("duesUpdateStartedBody", { count: autoPrepareCount })}
@@ -2356,7 +2106,8 @@ async function DashboardBelowFold({
         sessionLabel={sessionLabel}
       />
 
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -2394,7 +2145,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   // aboveFold (needs the resolved session) and today's activity counts (need
   // only staff.id) are independent reads — run them concurrently rather than
   // chaining one after the other.
-  const [aboveFold, todayActivityCounts] = await Promise.all([
+  // sessionSwitcher preloaded so Home's pill opens with rows in hand rather
+  // than firing a request on tap. TTL-cached, so this costs nothing.
+  const [aboveFold, todayActivityCounts, sessionSwitcher] = await Promise.all([
     timer.measure("aboveFold", () =>
       getDashboardAboveFoldData({
         staffRole: staff.appRole,
@@ -2404,6 +2157,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     typeof staff?.id === "string"
       ? timer.measure("todayActivityCounts", () => getTodayActivityCounts(staff.id))
       : Promise.resolve({}),
+    getSessionSwitcherData(),
   ]);
   const canWriteStudents = hasStaffPermission(staff, "students:write");
   const canPostPayments = hasStaffPermission(staff, "payments:write");
@@ -2441,6 +2195,35 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       ? Math.min(100, Math.round((currentYearCollected / currentYearExpected) * 100))
       : aboveFold.kpis.collectionRate;
 
+  // Home header (mobile v2). The phone app has no persistent app bar, so the
+  // greeting and identity that used to sit in it are rendered by Home itself.
+  // School-time hour comes from the server so the greeting is right on first
+  // paint rather than flashing after hydration.
+  // School time, not server time — the greeting must match the clock on the
+  // office wall, and be correct on first paint (same rule as the desktop bar).
+  const schoolHour = Number(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Kolkata",
+      hour: "2-digit",
+      hour12: false,
+    }).format(new Date()),
+  );
+  const mobileEmailLocal = (staff.email ?? "").split("@")[0] ?? "";
+  const mobileNameParts = mobileEmailLocal.split(/[._-]+/).filter(Boolean);
+  const mobileFirstName = mobileNameParts[0]
+    ? mobileNameParts[0][0].toUpperCase() + mobileNameParts[0].slice(1)
+    : "there";
+  // Translated: this is the first line on the phone home screen, so an English
+  // greeting above a Hindi app is the most visible language leak there is.
+  const tMobile = await getTranslations("MobileApp");
+  const mobileGreetingKey =
+    schoolHour < 12 ? "goodMorning" : schoolHour < 17 ? "goodAfternoon" : "goodEvening";
+  const mobileGreeting = tMobile(mobileGreetingKey, { name: mobileFirstName });
+  const mobileInitials =
+    mobileNameParts.length >= 2
+      ? (mobileNameParts[0][0] + mobileNameParts[1][0]).toUpperCase()
+      : (mobileEmailLocal.slice(0, 2) || "VP").toUpperCase();
+
   timer.flush();
 
   return (
@@ -2449,6 +2232,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         sessionLabel={viewSession.sessionLabel}
         canPostPayments={canPostPayments}
       />
+      {/* Desktop page chrome. On a phone the sticky app header already
+          greets the user and the ink band below carries the day's money, so
+          a second title block would only push the numbers down. */}
+      <div className="hidden space-y-4 md:block sm:space-y-7">
       <PageHeader
         eyebrow={t("eyebrow")}
         title={t("title")}
@@ -2497,6 +2284,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         counts={todayActivityCounts}
         sessionLabel={viewSession.sessionLabel}
       />
+      </div>
 
       {resolvedSearchParams?.notice ? (
         <Notice tone="success" iconless={false}>
@@ -2547,21 +2335,37 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
       <div className="space-y-4 anim-fade-in">
         <OptimisticBanner />
-        <MobileDashboardHero
-          collected={aboveFold.kpis.todaysCollection}
-          collectionRate={thisYearCollectionRate}
-          receiptsToday={aboveFold.kpis.receiptsToday}
-          followUpCount={aboveFold.studentsWithPending}
-          overdueAmount={aboveFold.kpis.overdueAmount}
-          currentYearPending={currentYearPending}
-          previousYearPending={previousYearPending}
-          updatedAt={aboveFold.generatedAt}
-          currentInstallmentLabel={aboveFold.currentInstallment?.label}
-          todayDelta={todayDelta}
-          sessionLabel={viewSession.sessionLabel}
-          t={t}
-        />
 
+        {/* ── Phone app (v2) ────────────────────────────────────────────
+            A different information architecture, not a narrower table: one
+            ink money band, the three pots, then the next action. The
+            tablet/desktop tree below is untouched. */}
+        <div className="md:hidden">
+          <MobileDashboardScreen
+            kpis={aboveFold.kpis}
+            currentYearExpected={currentYearExpected}
+            currentYearCollected={currentYearCollected}
+            currentYearPending={currentYearPending}
+            previousYearOriginal={previousYearOriginal}
+            previousYearCollected={previousYearCollected}
+            previousYearPending={previousYearPending}
+            collectionRate={thisYearCollectionRate}
+            followUpCount={aboveFold.studentsWithPending}
+            todayDelta={todayDelta}
+            sessionLabel={viewSession.sessionLabel}
+            canPostPayments={canPostPayments}
+            canViewDefaulters={hasStaffPermission(staff, "defaulters:view")}
+            currentInstallmentLabel={aboveFold.currentInstallment?.label}
+            greeting={mobileGreeting}
+            dateLine={`${formatShortDate(new Date())} · ${viewSession.sessionLabel}`}
+            sessionIsTest={viewSession.isTest}
+            sessionOptions={sessionSwitcher.availableSessions}
+            staffInitials={mobileInitials}
+            settingsHref={withSession("/protected/settings")}
+          />
+        </div>
+
+        <div className="hidden space-y-4 md:block">
         <HeroKpis
           collected={aboveFold.kpis.todaysCollection}
           collectionRate={thisYearCollectionRate}
@@ -2600,10 +2404,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           t={t}
         />
 
-        {/* This-year collection progress. Mobile keeps the MobileSecondaryKpis
-            tiles below (which show the this-year expected + collected split as
-            cards); the funnel bar's 3-segment progress + labels need horizontal
-            room, so it's tablet+ only. */}
+        {/* This-year collection progress. Phones get the same three-way split
+            in the v2 home card above; the funnel bar's labels need horizontal
+            room, so it stays tablet+. */}
         <div className="hidden sm:block anim-fade-in">
           <CollectionFunnelBar
             expected={currentYearExpected}
@@ -2612,7 +2415,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             overdue={aboveFold.kpis.overdueAmount}
           />
         </div>
-        <MobileSecondaryKpis kpis={aboveFold.kpis} t={t} />
         <InstallmentPulse
           installment={aboveFold.currentInstallment}
           pending={aboveFold.kpis.totalPending}
@@ -2624,12 +2426,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         />
         <CriticalAlerts syncError={aboveFold.syncError} appRole={staff.appRole} sessionLabel={viewSession.sessionLabel} t={t} />
 
-        <MobileQuickActions
-          canWriteStudents={canWriteStudents}
-          sessionLabel={viewSession.sessionLabel}
-          t={t}
-        />
-
         <div className="anim-fade-in [animation-delay:60ms]">
           <QuickActions
             canWriteStudents={canWriteStudents}
@@ -2637,6 +2433,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             sessionLabel={viewSession.sessionLabel}
             t={t}
           />
+        </div>
         </div>
         <Suspense fallback={<DashboardBelowFoldSkeleton />}>
           <DashboardBelowFold
@@ -2648,10 +2445,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </Suspense>
       </div>
 
+      {/* Tablet-only floating desk shortcut. Phones (v2) get a full-width
+          "Collect a fee" card in the ink hero plus the saffron pill in the
+          bottom bar — a third affordance on the same screen is noise. */}
       {canPostPayments ? (
         <Link
           href={withSession("/protected/payments")}
-          className="fixed bottom-[calc(var(--mobile-bottom-nav-offset)+12px)] right-4 z-50 flex items-center gap-2 rounded-full bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground shadow-md md:hidden"
+          className="fixed bottom-[calc(var(--mobile-bottom-nav-offset)+12px)] right-4 z-50 hidden items-center gap-2 rounded-full bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground shadow-md md:flex lg:hidden"
         >
           <BadgeIndianRupee className="size-4" aria-hidden="true" />
           {t("openDesk")}

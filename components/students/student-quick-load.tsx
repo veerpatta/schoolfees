@@ -414,7 +414,7 @@ export function StudentQuickLoad({
               </button>
             </div>
             <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
-              {classOptions.slice(0, 10).map((classOption) => {
+              {classOptions.map((classOption) => {
                 const selected = filters.classId === classOption.id;
 
                 return (
@@ -440,28 +440,6 @@ export function StudentQuickLoad({
                 );
               })}
             </div>
-            {classOptions.length > 10 ? (
-              <div className="relative mt-2">
-                <GraduationCap className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                <select
-                  id="classId-mobile-inline"
-                  value={filters.classId}
-                  onChange={(event) => {
-                    setPage(1);
-                    setFilters((previous) => ({ ...previous, classId: event.target.value }));
-                  }}
-                  className={`${selectClassName} h-10 pl-9`}
-                >
-                  <option value="">{t("classAll")}</option>
-                  {classOptions.map((classOption) => (
-                    <option key={classOption.id} value={classOption.id}>
-                      {classOption.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-              </div>
-            ) : null}
           </div>
 
           <div className="flex gap-2">
@@ -501,51 +479,100 @@ export function StudentQuickLoad({
           size="md"
         >
           <div className="space-y-4 pt-2">
+            {/* Route browsing as chips, matching the class row above (mobile
+                v2). A native picker hides the other routes behind a tap and
+                gives no sense of how many there are; a scrolling pill row
+                shows the whole set and takes one tap to switch. Same client
+                filter state as the class chips — one source of truth. */}
             <div>
-              <Label htmlFor="transportRouteId-mobile">{t("transportRouteLabel")}</Label>
-              <div className="relative mt-2">
-                <Bus className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                <select
-                  id="transportRouteId-mobile"
-                  value={filters.transportRouteId}
-                  onChange={(event) => {
+              <span className="flex items-center gap-1.5">
+                <Bus className="size-4 text-muted-foreground" aria-hidden="true" />
+                <Label>{t("transportRouteLabel")}</Label>
+              </span>
+              <div className="-mx-1 mt-2 flex gap-2 overflow-x-auto px-1 pb-1">
+                <button
+                  type="button"
+                  aria-pressed={filters.transportRouteId === ""}
+                  onClick={() => {
                     setPage(1);
-                    setFilters((previous) => ({ ...previous, transportRouteId: event.target.value }));
+                    setFilters((previous) => ({ ...previous, transportRouteId: "" }));
                   }}
-                  className={`${selectClassName} pl-9 h-11`}
+                  className={cn(
+                    "h-9 shrink-0 rounded-full border px-3 text-sm font-medium transition-colors",
+                    filters.transportRouteId === ""
+                      ? "border-accent bg-accent text-accent-foreground"
+                      : "border-border bg-card text-foreground hover:bg-surface-2",
+                  )}
                 >
-                  <option value="">{t("transportRouteAll")}</option>
-                  {routeOptions.map((route) => (
-                    <option key={route.id} value={route.id}>
+                  {t("transportRouteAll")}
+                </button>
+                {routeOptions.map((route) => {
+                  const selected = filters.transportRouteId === route.id;
+                  return (
+                    <button
+                      key={route.id}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => {
+                        setPage(1);
+                        setFilters((previous) => ({
+                          ...previous,
+                          transportRouteId: route.id,
+                        }));
+                      }}
+                      className={cn(
+                        "h-9 shrink-0 rounded-full border px-3 text-sm font-medium transition-colors",
+                        selected
+                          ? "border-accent bg-accent text-accent-foreground"
+                          : "border-border bg-card text-foreground hover:bg-surface-2",
+                      )}
+                    >
                       {route.routeCode
                         ? t("transportRouteWithCode", { label: route.label, code: route.routeCode })
                         : route.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             <div>
-              <Label htmlFor="status-mobile">{t("statusLabel")}</Label>
-              <div className="relative mt-2">
-                <UserCheck className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                <select
-                  id="status-mobile"
-                  value={filters.status}
-                  onChange={(event) => {
-                    setPage(1);
-                    setFilters((previous) => ({ ...previous, status: event.target.value as StudentListFilters["status"] }));
-                  }}
-                  className={`${selectClassName} pl-9 h-11`}
-                >
-                  <option value="">{t("statusAll")}</option>
-                  <option value="active">{t("statusActive")}</option>
-                  <option value="inactive">{t("statusInactive")}</option>
-                  <option value="left">{t("statusLeft")}</option>
-                </select>
-                <ChevronDown className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <span className="flex items-center gap-1.5">
+                <UserCheck className="size-4 text-muted-foreground" aria-hidden="true" />
+                <Label>{t("statusLabel")}</Label>
+              </span>
+              {/* Four fixed options — chips rather than a picker, matching the
+                  class and route rows so the whole sheet reads one way. */}
+              <div className="mt-2 flex flex-wrap gap-2">
+                {(
+                  [
+                    ["", t("statusAll")],
+                    ["active", t("statusActive")],
+                    ["inactive", t("statusInactive")],
+                    ["left", t("statusLeft")],
+                  ] as Array<[StudentListFilters["status"], string]>
+                ).map(([value, label]) => {
+                  const selected = filters.status === value;
+                  return (
+                    <button
+                      key={value || "all"}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => {
+                        setPage(1);
+                        setFilters((previous) => ({ ...previous, status: value }));
+                      }}
+                      className={cn(
+                        "h-9 shrink-0 rounded-full border px-3 text-sm font-medium transition-colors",
+                        selected
+                          ? "border-accent bg-accent text-accent-foreground"
+                          : "border-border bg-card text-foreground hover:bg-surface-2",
+                      )}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

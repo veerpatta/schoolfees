@@ -3,14 +3,21 @@
 import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
+import { isMobileTakeoverRoute } from "@/lib/config/navigation";
 import { cn } from "@/lib/utils";
 
 type ScrollRestoringMainProps = {
   children: ReactNode;
   className?: string;
+  /** Pinned at the top of the phone scroll region (the takeover back bar). */
+  mobileBar?: ReactNode;
 };
 
-export function ScrollRestoringMain({ children, className }: ScrollRestoringMainProps) {
+export function ScrollRestoringMain({
+  children,
+  className,
+  mobileBar,
+}: ScrollRestoringMainProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const mainRef = useRef<HTMLElement>(null);
@@ -51,8 +58,17 @@ export function ScrollRestoringMain({ children, className }: ScrollRestoringMain
     };
   }, [storageKey]);
 
+  // Tab-bar screens need bottom clearance inside the scroll region; takeover
+  // screens hide the bar and get the full height.
+  const hasBottomNav = !isMobileTakeoverRoute(pathname);
+
   return (
-    <main ref={mainRef} className={cn(className)}>
+    <main
+      ref={mainRef}
+      className={cn("mobile-app-main", className)}
+      data-bottom-nav={hasBottomNav ? "true" : "false"}
+    >
+      {mobileBar}
       {children}
     </main>
   );

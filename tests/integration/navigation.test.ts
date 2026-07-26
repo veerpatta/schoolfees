@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveStaffRole } from "@/lib/auth/roles";
+import { hasRolePermission, resolveStaffRole, type StaffPermission } from "@/lib/auth/roles";
 import {
   advancedHubSections,
   getDefaultProtectedHref,
   getMobileBottomNavigation,
+  getMobileMoreGroups,
   getProtectedRouteMeta,
   getVisibleProtectedNavigation,
 } from "@/lib/config/navigation";
@@ -183,16 +184,17 @@ describe("office navigation", () => {
     });
   });
 
-  it("builds mobile bottom nav with Home, Collect, Students, and Calls for counter work", () => {
+  it("builds mobile bottom nav with Home, Students, Collect, and Calls for counter work", () => {
     const accountant = getMobileBottomNavigation("accountant");
     const viewOnly = getMobileBottomNavigation("view_only");
 
-    // Ledger Calm 2.0 slot order: Home · Collect (saffron pill) · Students ·
-    // Calls · More (More is appended by the component, not the config).
+    // Mobile app v2 slot order: Home · Students · Collect (centre saffron
+    // pill) · Calls · More (More is appended by the component, not the
+    // config). Collect sits in the middle slot — thumb home position.
     expect(accountant.map((item) => item.label)).toEqual([
       "Home",
-      "Collect",
       "Students",
+      "Collect",
       "Calls",
     ]);
     expect(viewOnly.map((item) => item.label)).toEqual([
@@ -201,6 +203,49 @@ describe("office navigation", () => {
       "Calls",
       "Transactions",
     ]);
+  });
+
+  it("only offers More-hub rows the target page will actually let the role open", () => {
+    // Each row's requiredPermission must match the guard at the top of the
+    // page it links to. A row the page then bounces is worse than no row:
+    // the clerk taps, loses their place, and learns to distrust the hub.
+    // These are read off the pages, not inferred.
+    const pageGuards: Record<string, StaffPermission[]> = {
+      "/protected/transactions": ["receipts:view", "defaulters:view", "reports:view", "finance:view"],
+      "/protected/receipts": ["receipts:view"],
+      "/protected/fee-setup": ["fees:view"],
+      "/protected/exports": ["reports:view"],
+      "/protected/imports": ["imports:view"],
+      "/protected/admin-tools": ["finance:view", "settings:view"],
+      "/protected/finance-controls": ["finance:view"],
+      "/protected/staff": ["staff:manage"],
+      "/protected/master-data": ["settings:write"],
+      "/protected/admin-tools/activity": ["settings:view", "finance:view"],
+      "/protected/settings/glossary": ["dashboard:view"],
+      "/protected/settings": ["settings:view"],
+    };
+
+    for (const role of ["admin", "accountant", "teacher", "fee_collector", "view_only"] as const) {
+      for (const group of getMobileMoreGroups(role)) {
+        for (const item of group.items) {
+          const accepted = pageGuards[item.href];
+          expect(accepted, `no guard recorded for ${item.href}`).toBeDefined();
+          expect(
+            accepted.some((permission) => hasRolePermission(role, permission)),
+            `${role} is offered ${item.href} but the page would redirect them`,
+          ).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("keeps Master data and Staff out of the More hub for non-admins", () => {
+    const teacher = getMobileMoreGroups("teacher").flatMap((group) => group.items.map((i) => i.href));
+
+    expect(teacher).not.toContain("/protected/master-data");
+    expect(teacher).not.toContain("/protected/staff");
+    expect(getMobileMoreGroups("admin").flatMap((group) => group.items.map((i) => i.href)))
+      .toEqual(expect.arrayContaining(["/protected/master-data", "/protected/staff"]));
   });
 
   it("gives fee collectors a defaulters-first mobile bottom nav", () => {

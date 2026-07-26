@@ -6,6 +6,7 @@ import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { OfficeNotice } from "@/components/office/office-ui";
 import { Button } from "@/components/ui/button";
+import { MobileRecordCard } from "@/components/mobile-app/mobile-kit";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { getRecoveryQueue } from "@/lib/recovery/data";
@@ -158,7 +159,56 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
             No left students with pending dues match these filters.
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Phone: the recovery queue is a call list, so it reads as cards —
+              who owes, how much, and the actions (collect / open / WhatsApp)
+              under the thumb rather than eight columns away. */}
+          <ul className="flex flex-col gap-2.5 md:hidden">
+            {data.rows.map((row) => {
+              const mobileWaMessage = encodeURIComponent(
+                `Dear Parent, our records show a pending balance of ${formatInr(row.totalRemaining)} for ${row.fullName} (Adm# ${row.admissionNo}). Kindly clear the dues at your earliest convenience. - VPPS Office`,
+              );
+              const mobileWaHref = row.phone
+                ? `https://wa.me/91${row.phone.replace(/[^0-9]/g, "").slice(-10)}?text=${mobileWaMessage}`
+                : null;
+
+              return (
+                <MobileRecordCard
+                  key={row.studentId}
+                  title={row.fullName}
+                  subtitle={[row.admissionNo, row.fatherName].filter(Boolean).join(" · ")}
+                  amount={formatInr(row.totalRemaining)}
+                  status={<StatusBadge label={row.status} tone={STATUS_TONE[row.status]} />}
+                  fields={[
+                    { label: "Class", value: row.classLabel ?? "-" },
+                    { label: "From session", value: row.sourceSessionLabel ?? "-" },
+                    { label: "Last payment", value: formatShortDate(row.lastPaymentDate, "-") },
+                    { label: "Carry-forward", value: row.hasCarryForward ? "Yes" : "" },
+                  ]}
+                  actions={
+                    <>
+                      <Button asChild size="sm" className="h-9 flex-1">
+                        <Link href={`/protected/payments?studentId=${row.studentId}&mode=recovery`}>
+                          Collect
+                        </Link>
+                      </Button>
+                      <Button asChild variant="outline" size="sm" className="h-9">
+                        <Link href={`/protected/students/${row.studentId}`}>Open</Link>
+                      </Button>
+                      {mobileWaHref ? (
+                        <Button asChild variant="outline" size="sm" className="h-9">
+                          <a href={mobileWaHref} target="_blank" rel="noopener noreferrer">
+                            WhatsApp
+                          </a>
+                        </Button>
+                      ) : null}
+                    </>
+                  }
+                />
+              );
+            })}
+          </ul>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[860px] text-left text-sm">
               <thead>
                 <tr className="border-b border-border text-xs uppercase tracking-[0.06em] text-muted-foreground">
@@ -239,6 +289,7 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
               </tbody>
             </table>
           </div>
+          </>
         )}
       </SectionCard>
     </div>

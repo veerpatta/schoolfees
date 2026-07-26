@@ -2,6 +2,10 @@ import Link from "next/link";
 
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import {
+  MobileBar,
+  MobileRecordCard,
+} from "@/components/mobile-app/mobile-kit";
 import { Button } from "@/components/ui/button";
 import { formatShortDate } from "@/lib/helpers/date";
 import type { ImportBatchDetail, ImportBatchListItem } from "@/lib/import/types";
@@ -44,7 +48,63 @@ export function ImportDashboard({ recentBatches, selectedBatch }: ImportDashboar
         No import batches yet. Upload the first spreadsheet to begin staged import.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border">
+        <>
+        {/* Phone: one card per batch. The desk table below carries eight
+            columns — on a 375px screen that reads as sideways scrubbing, and
+            the number that actually matters (how far the import got) is the
+            last one you reach. */}
+        <ul className="flex flex-col gap-2.5 md:hidden">
+          {recentBatches.map((batch) => {
+            const isSelected = selectedBatch?.id === batch.id;
+            const progress = getProgressPercent(batch);
+
+            return (
+              <MobileRecordCard
+                key={batch.id}
+                className={isSelected ? "border-accent bg-accent-soft" : undefined}
+                title={batch.filename}
+                subtitle={`${batch.sourceFormat.toUpperCase()}${
+                  batch.worksheetName ? ` · ${batch.worksheetName}` : ""
+                }`}
+                status={
+                  <StatusBadge
+                    label={getStatusLabel(batch.status)}
+                    tone={getBatchTone(batch.status)}
+                  />
+                }
+                fields={[
+                  { label: "Rows", value: batch.totalRows },
+                  { label: "Imported", value: batch.importedRows },
+                  { label: "Valid", value: batch.validRows },
+                  {
+                    label: "Invalid / dup",
+                    value: `${batch.invalidRows} / ${batch.duplicateRows}`,
+                  },
+                  { label: "Updated", value: formatShortDate(batch.updatedAt) },
+                ]}
+                footnote={
+                  <span className="flex items-center gap-2">
+                    <MobileBar percent={progress} tone="success" className="flex-1" />
+                    <span className="tabular shrink-0 font-semibold">{progress}%</span>
+                  </span>
+                }
+                actions={
+                  <Button
+                    variant={isSelected ? "secondary" : "outline"}
+                    size="sm"
+                    asChild
+                    className="w-full"
+                  >
+                    <Link href={`/protected/imports?mode=${batch.importMode}&batchId=${batch.id}`}>
+                      Open this batch
+                    </Link>
+                  </Button>
+                }
+              />
+            );
+          })}
+        </ul>
+        <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
           <table className="min-w-full divide-y divide-border">
             <thead className="bg-surface-2 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
@@ -107,6 +167,7 @@ export function ImportDashboard({ recentBatches, selectedBatch }: ImportDashboar
             </tbody>
           </table>
         </div>
+        </>
       )}
     </SectionCard>
   );

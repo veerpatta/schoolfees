@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { OfficeNotice } from "@/components/office/office-ui";
+import { MobileRecordCard } from "@/components/mobile-app/mobile-kit";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatDateTimeIst, formatShortDate } from "@/lib/helpers/date";
 import {
@@ -104,7 +105,28 @@ export default async function PrevYearDuesPage() {
               title={`Not carried forward (${breakdown.notApplied.length})`}
               description="Rows the owner did not confirm, or that could not be matched to a current student."
             >
-              <div className="overflow-x-auto">
+              <ul className="flex flex-col gap-2.5 md:hidden">
+                {breakdown.notApplied.map((row) => (
+                  <MobileRecordCard
+                    key={row.id}
+                    title={row.sourceName ?? "-"}
+                    subtitle={row.sourceAdmissionNo ?? undefined}
+                    amount={formatInr(row.prevYearDue, { fallback: "-" })}
+                    fields={[
+                      {
+                        label: "Decision",
+                        value: (
+                          <span className="capitalize">
+                            {row.ownerDecision.replace("_", " ")}
+                          </span>
+                        ),
+                      },
+                    ]}
+                    footnote={row.skipReason ?? undefined}
+                  />
+                ))}
+              </ul>
+              <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[640px] text-left text-sm">
                   <thead>
                     <tr className="border-b border-border text-xs uppercase tracking-[0.06em] text-muted-foreground">

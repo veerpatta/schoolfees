@@ -889,7 +889,7 @@ describe("payment desk cashier workflow", () => {
     );
 
     expect(component).toContain("Payment Successful");
-    expect(component).toContain("Receipt has been saved");
+    expect(component).toContain("Receipt saved · printed");
     expect(component).toContain("Print A4");
     expect(component).toContain("Open Receipt");
     expect(component).toContain("Copy WhatsApp Message");
@@ -1177,7 +1177,8 @@ describe("payment desk cashier workflow", () => {
 
     expect(topbar).not.toContain("hideMobileBottomNav");
     expect(topbar).not.toContain("fixed inset-x-0 bottom-0");
-    expect(shell).toContain("<MobileBottomNav staffRole={staffRole} />");
+    expect(shell).toContain("<MobileBottomNav");
+    expect(shell).toContain("staffRole={staffRole}");
     expect(mobileNav).toContain("fixed inset-x-0 bottom-0");
     expect(paymentDesk).not.toContain('className="sticky top-[72px] z-[5] bg-white/95 md:static md:bg-white"');
     expect(paymentDesk).toContain("Amount received");

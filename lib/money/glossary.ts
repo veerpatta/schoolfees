@@ -40,7 +40,11 @@ export type MoneyTermKey =
   | "adjustmentNegative"
   | "adjustmentNet"
   | "conventionalDiscountPolicy"
-  | "todayCollection";
+  | "todayCollection"
+  | "notDueYet"
+  | "oldBalance"
+  | "advance"
+  | "reversed";
 
 export type MoneyTerm = {
   key: MoneyTermKey;
@@ -119,6 +123,34 @@ export const MONEY_GLOSSARY: Record<MoneyTermKey, MoneyTerm> = {
     summary: "Outstanding immediately after this receipt was posted.",
     detail:
       "Snapshot value: total due at the time of posting minus all payments up to and including this one. Useful for reading out the next call-back amount to a parent.",
+  },
+  notDueYet: {
+    key: "notDueYet",
+    label: "Not due yet",
+    summary: "Fee for installments whose due date has not arrived.",
+    detail:
+      "Counted in the year total but never in Pending, and never chased. On the dashboard year bar it is the remainder once Collected and Pending are taken out, so the three segments always add up to Expected.",
+  },
+  oldBalance: {
+    key: "oldBalance",
+    label: "Old balance",
+    summary: "Unpaid fee carried forward from a previous session.",
+    detail:
+      "Shown separately from this year's pending so the current session's figures stay clean. Carried by student_carry_forward_balances and surfaced on its own dashboard card rather than blended into Pending.",
+  },
+  advance: {
+    key: "advance",
+    label: "Advance",
+    summary: "Money taken above the amount currently due.",
+    detail:
+      "Sits ready on the ledger and applies itself to the next installment. Distinct from a refund: nothing leaves the school, it is simply money received early.",
+  },
+  reversed: {
+    key: "reversed",
+    label: "Reversed",
+    summary: "A receipt cancelled by an equal and opposite entry.",
+    detail:
+      "Both rows stay in the register permanently — the original receipt is never edited or deleted. A reversal posts a compensating payment_adjustment, which is why a reversed receipt still prints and still appears in the day book.",
   },
   creditBalance: {
     key: "creditBalance",
@@ -301,7 +333,11 @@ export const MONEY_GLOSSARY_ORDER: readonly MoneyTermKey[] = [
   "daysOverdue",
   "balanceDue",
   "balanceAfterReceipt",
+  "notDueYet",
+  "oldBalance",
+  "advance",
   "creditBalance",
+  "reversed",
   "closedAsDiscount",
   "discountManual",
   "discountConventional",

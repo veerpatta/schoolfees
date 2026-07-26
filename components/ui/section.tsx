@@ -16,9 +16,16 @@ type SectionProps = {
   padding?: "default" | "tight" | "none";
 };
 
+/**
+ * Phones get the design's compact card geometry; tablet and up keep the desk
+ * padding. Every phone/desktop gate in this file is `md` so a section never
+ * disagrees with the shell chrome, which also switches at `md`. (They used to
+ * split at `sm`, which gave 640–767px devices phone chrome stacked on a desktop
+ * header.)
+ */
 const paddingClasses = {
-  default: "p-5",
-  tight: "p-4",
+  default: "p-3.5 md:p-5",
+  tight: "p-3 md:p-4",
   none: "p-0",
 } as const;
 
@@ -41,13 +48,15 @@ export function Section({
         className,
       )}
     >
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+      <header className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between md:gap-4">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold tracking-tight text-foreground sm:text-lg">
+          {/* Extrabold on phones — the design's dominant weight (800 appears
+              175× in the spec). Desktop keeps semibold. */}
+          <h2 className="text-[13.5px] font-extrabold tracking-tight text-foreground md:text-lg md:font-semibold">
             {title}
           </h2>
           {description ? (
-            <p className="mt-1 hidden max-w-3xl text-sm leading-6 text-muted-foreground sm:block">
+            <p className="mt-1 hidden max-w-3xl text-sm leading-6 text-muted-foreground md:block">
               {description}
             </p>
           ) : null}
@@ -58,7 +67,7 @@ export function Section({
           </div>
         ) : null}
       </header>
-      <div className="mt-5">{children}</div>
+      <div className="mt-3 md:mt-5">{children}</div>
     </section>
   );
 }

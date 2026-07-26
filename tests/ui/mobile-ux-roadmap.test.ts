@@ -44,7 +44,11 @@ describe("mobile UX roadmap implementation", () => {
     // Touch-sized controls in the Ledger Calm composer: the mode segmented row
     // keeps a 48px minimum target and the amount echo renders display-size.
     expect(mobileSheet).toContain("min-h-12");
-    expect(mobileSheet).toContain("font-display-money pb-2 text-center text-3xl text-accent");
+    // The amount echo and the input are now ONE element (mobile v2): the
+    // field itself is the display-serif hero, so there is no second place
+    // the figure could disagree with itself.
+    expect(mobileSheet).toContain("font-display-money w-auto min-w-0 max-w-full bg-transparent text-[46px]");
+    expect(mobileSheet).toContain('aria-label="Amount received"');
     expect(mobileSheet).toContain("pattern=\"[0-9]*\"");
   });
 
@@ -55,11 +59,23 @@ describe("mobile UX roadmap implementation", () => {
       Dashboard: Record<string, string>;
     };
 
-    expect(dashboard).toContain("MobileSecondaryKpis");
+    expect(dashboard).toContain("MobileDashboardScreen");
     expect(englishMessages.Dashboard.totalExpected).toBe("Total expected");
     expect(englishMessages.Dashboard.activeStudents).toBe("Active students");
     expect(englishMessages.Dashboard.thisMonth).toBe("This month");
-    expect(dashboard).toContain("className=\"space-y-2 md:hidden\"");
+    // The phone home screen reads its copy from the MobileApp namespace, so
+    // assert the keys here and the strings in the catalogues below.
+    const mobileHome = readRepoFile("components/dashboard/mobile-dashboard-screen.tsx");
+    expect(mobileHome).toContain('t("expectedThisYear")');
+    expect(mobileHome).toContain('t("oldBalance")');
+    expect(mobileHome).toContain('t("collectCta")');
+
+    const mobileMessages = (
+      JSON.parse(readRepoFile("messages/en.json")) as { MobileApp: Record<string, string> }
+    ).MobileApp;
+    expect(mobileMessages.expectedThisYear).toBe("Expected this year");
+    expect(mobileMessages.oldBalance).toBe("Old balance");
+    expect(mobileMessages.collectCta).toBe("Collect a fee");
     expect(dashboard).toContain("style={{ width: `${Math.min(100, row.collectionRate)}%` }}");
     expect(englishMessages.Dashboard.openDesk).toBe("Open Desk");
     expect(dashboard).toContain("bottom-[calc(var(--mobile-bottom-nav-offset)+12px)]");
@@ -95,7 +111,7 @@ describe("mobile UX roadmap implementation", () => {
     expect(navigation).toContain("getMobilePrimaryNavigation");
     // The visible "More" label and the overflow's open/close aria-labels are
     // now driven by the next-intl Navigation namespace (see messages/en.json).
-    expect(mobileNav).toContain("getVisibleProtectedNavigation(staffRole)");
+    expect(mobileNav).toContain("getMobileMoreGroups(staffRole)");
     expect(mobileNav).toContain("overflowOpen");
     expect(mobileNav).toContain('t("openMore")');
     expect(mobileNav).toContain('t("more")');

@@ -2,7 +2,12 @@
 
 import * as React from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 
+import { MobileStepRail } from "@/components/mobile-app/mobile-kit";
+import { UpiQrCode } from "@/components/payments/upi-qr-code";
+import { buildStudentFeeUpiPayment } from "@/lib/payments/upi";
+import { MoneyKeypad } from "@/components/mobile-app/money-keypad";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatInr } from "@/lib/helpers/currency";
@@ -190,6 +195,7 @@ export function MobilePaymentFlowSheet({
   onUseLastAmount,
   isLastAmountArmed,
 }: MobilePaymentFlowSheetProps) {
+  const tMobile = useTranslations("MobileApp");
   const [pendingHeadsExpanded, setPendingHeadsExpanded] = React.useState(false);
   const [overdueHeadsExpanded, setOverdueHeadsExpanded] = React.useState(false);
   const amountInputRef = React.useRef<HTMLInputElement>(null);
@@ -425,6 +431,12 @@ export function MobilePaymentFlowSheet({
           }}
         >
           <SheetHandle swipeHandlers={studentPickerSwipe} />
+          <MobileStepRail
+            step={1}
+            label={tMobile("stepOf", { step: 1, total: 4, label: tMobile("stepWho") })}
+            ariaLabel={tMobile("stepAria", { step: 1, total: 4 })}
+            className="flex-none px-4 pb-2"
+          />
           <div className="flex-none px-4 pb-2 flex items-center justify-between">
             <p className="text-sm font-semibold text-foreground">{selectedClassLabel}</p>
             <button
@@ -577,6 +589,26 @@ export function MobilePaymentFlowSheet({
               <div className="h-full bg-accent anim-route-progress" style={{ width: "60%" }} />
             </div>
           ) : null}
+          {/* Progress tracks what the CLERK has done, not what state happens
+              to hold: the desk pre-selects a payment mode, so keying off
+              `paymentMode` jumped straight to 3/4 before an amount had been
+              typed. The amount is the real step-2 gate. */}
+          {(() => {
+            const amountEntered = Number(paymentAmountInput) > 0;
+            const step = amountEntered ? 3 : 2;
+            return (
+              <MobileStepRail
+                step={step}
+                label={tMobile("stepOf", {
+                  step,
+                  total: 4,
+                  label: amountEntered ? tMobile("stepMode") : tMobile("stepAmount"),
+                })}
+                ariaLabel={tMobile("stepAria", { step, total: 4 })}
+                className="flex-none px-4 pb-1"
+              />
+            );
+          })()}
           <div className="flex-none px-4 py-2 flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-foreground">
@@ -628,7 +660,367 @@ export function MobilePaymentFlowSheet({
               without this container the CTA rendered below the sheet edge
               with no way to reach it. */}
           <div className="flex-1 min-h-0 overflow-y-auto momentum-scroll">
-          {/* Collapsed summary — always visible. Pending and Overdue are tappable to expand fee heads. */}
+
+          <div className="flex flex-col gap-0">
+            {pendingLateFeeAmount > 0 ? (
+              (() => {
+                /* Late-fee decision card — replaces the old waive checkbox.
+                   States: Include (default, amber) / Waive (admin, success).
+                   The waiver is permanent and stamped on the receipt + audit. */
+                const overdueRows = previewBreakdown.filter(
+                  (item) => item.balanceStatus === "overdue" && item.outstandingAmount > 0,
+                );
+                const triggerRow = overdueRows[overdueRows.length - 1] ?? null;
+                const causeLine = triggerRow
+                  ? `Applied because ${
+                      isCarryForwardInstallment(triggerRow)
+                        ? triggerRow.displayLabel ?? getDisplayInstallmentLabel(triggerRow)
+                        : `Inst ${triggerRow.installmentNo}`
+                    } passed ${formatShortDate(triggerRow.dueDate)} · flat ${formatInr(pendingLateFeeAmount)}`
+                  : `Flat ${formatInr(pendingLateFeeAmount)} for late payment`;
+
+                return (
+                  <div
+                    className={cn(
+                      "mx-3 my-2 flex-none rounded-xl border px-3 py-2.5 transition-colors",
+                      waiveFullLateFee
+                        ? "border-success/30 bg-success-soft"
+                        : "border-warning/30 bg-warning-soft",
+                    )}
+                    data-late-fee-decision
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p
+                        className={cn(
+                          "text-sm font-semibold",
+                          waiveFullLateFee
+                            ? "text-success-soft-foreground"
+                            : "text-warning-soft-foreground",
+                        )}
+                      >
+                        Late fee · विलंब शुल्क{" "}
+                        <span
+                          className={cn(
+                            "tabular-nums",
+                            waiveFullLateFee && "line-through decoration-[1.5px] opacity-70",
+                          )}
+                        >
+                          {formatInr(pendingLateFeeAmount)}
+                        </span>
+                      </p>
+                    </div>
+                    <p
+                      className={cn(
+                        "mt-0.5 text-[11px]",
+                        waiveFullLateFee
+                          ? "text-success-soft-foreground/80"
+                          : "text-warning-soft-foreground/80",
+                      )}
+                    >
+                      {waiveFullLateFee
+                        ? "Waived permanently — stamped on the receipt and audit trail."
+                        : causeLine}
+                    </p>
+                    {canWaiveLateFee ? (
+                      <div
+                        className="mt-2 grid grid-cols-2 gap-1 rounded-lg bg-card/70 p-1"
+                        role="group"
+                        aria-label="Late fee decision"
+                      >
+                        <button
+                          type="button"
+                          aria-pressed={!waiveFullLateFee}
+                          disabled={disablePaymentActions}
+                          onClick={() => {
+                            if (waiveFullLateFee) onToggleWaiveLateFee();
+                          }}
+                          className={cn(
+                            "rounded-md px-2 py-1.5 text-xs font-semibold transition-colors",
+                            !waiveFullLateFee
+                              ? "bg-primary text-primary-foreground shadow-xs"
+                              : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          Include {formatInr(pendingLateFeeAmount)}
+                        </button>
+                        <button
+                          type="button"
+                          aria-pressed={waiveFullLateFee}
+                          disabled={disablePaymentActions}
+                          onClick={() => {
+                            if (!waiveFullLateFee) onToggleWaiveLateFee();
+                          }}
+                          className={cn(
+                            "rounded-md px-2 py-1.5 text-xs font-semibold transition-colors",
+                            waiveFullLateFee
+                              ? "bg-success text-success-foreground shadow-xs"
+                              : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          Waive (admin)
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })()
+            ) : null}
+
+            {isFirstLoad ? (
+              /* Skeleton mirrors the real composer layout: three quick cards,
+                 the amount field, and the mode row. Shimmer only — no pulse. */
+              <div className="px-3 py-3 border-b border-border space-y-3">
+                <div className="flex gap-2">
+                  <div className="h-16 flex-1 rounded-xl bg-surface-2 anim-shimmer" />
+                  <div className="h-16 flex-1 rounded-xl bg-surface-2 anim-shimmer" />
+                  <div className="h-16 flex-1 rounded-xl bg-surface-2 anim-shimmer" />
+                </div>
+                <div className="h-16 w-full rounded-xl bg-surface-2 anim-shimmer" />
+                <div className="flex gap-1.5 py-1">
+                  <div className="h-12 flex-1 rounded-xl bg-surface-2 anim-shimmer" />
+                  <div className="h-12 flex-1 rounded-xl bg-surface-2 anim-shimmer" />
+                  <div className="h-12 flex-1 rounded-xl bg-surface-2 anim-shimmer" />
+                  <div className="h-12 flex-1 rounded-xl bg-surface-2 anim-shimmer" />
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Amount composer (mobile v2 step 2). The figure is the
+                    hero: centred, display serif, big enough to read at arm's
+                    length across a counter — and it doubles as the input, so
+                    there is no second place the amount could live. The line
+                    under it always says what the number MEANS relative to what
+                    is owed, which is the question a parent actually asks. */}
+                <div className="flex flex-col border-b border-border bg-background px-4 pb-3 pt-4">
+                  <p className="text-center text-[10.5px] font-bold uppercase tracking-[0.09em] text-muted-foreground">
+                    {tMobile("howMuch")}
+                  </p>
+                  <div className="relative mt-1 flex items-baseline justify-center">
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'font-display-money text-[34px] leading-none',
+                        Number(paymentAmountInput) > 0 ? 'text-foreground' : 'text-muted-foreground/40',
+                      )}
+                    >
+                      ₹
+                    </span>
+                    <input
+                      ref={amountInputRef}
+                      type="text"
+                      /* Native numeric entry stays the primary input (a prior
+                         decision this repo pinned in tests — see
+                         tests/ui/mobile-payment-flow-sheet.test.ts). The money
+                         keypad in the footer is an ADDITIONAL large-target
+                         affordance from mobile v2, not a replacement. */
+                      inputMode="decimal"
+                      pattern="[0-9]*"
+                      enterKeyHint="done"
+                      autoComplete="off"
+                      autoCapitalize="off"
+                      autoCorrect="off"
+                      placeholder="0"
+                      aria-label="Amount received"
+                      size={1}
+                      className={cn(
+                        'font-display-money w-auto min-w-0 max-w-full bg-transparent text-[46px] leading-none tabular-nums outline-none',
+                        Number(paymentAmountInput) > 0 ? 'text-foreground' : 'text-muted-foreground/40',
+                      )}
+                      /* The field grows with the figure so the amount stays
+                         optically centred next to the ₹ instead of sitting in
+                         a fixed-width box with a drifting caret. */
+                      style={{ width: `${Math.max(1, paymentAmountInput.length)}ch` }}
+                      value={paymentAmountInput}
+                      onChange={(e) => {
+                        onAmountChange(sanitizeDecimalInput(e.target.value));
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          e.currentTarget.blur();
+                        }
+                      }}
+                      onFocus={(event) => {
+                        // Keep the field visible once the keyboard settles.
+                        const target = event.currentTarget;
+                        window.setTimeout(() => {
+                          target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                        }, 200);
+                      }}
+                    />
+                  </div>
+                  <p className="mt-1.5 text-center text-[11.5px] font-semibold text-muted-foreground">
+                    {Number(paymentAmountInput) > 0
+                      ? remainingAfterPayment === 0
+                        ? tMobile("amountClears")
+                        : Number(paymentAmountInput) > previewTotalPending
+                          ? tMobile("amountAdvance")
+                          : tMobile("amountOutOf", { due: formatInr(previewTotalPending) })
+                      : tMobile("amountEmpty")}
+                  </p>
+
+                  {/* The pad sits WITH the figure it edits, not pinned to the
+                      CTA. The design pins it, but the design's step 2 holds
+                      only the hero, three chips and one card — this sheet also
+                      carries the dues ledger, fee-head breakdown, mode row and
+                      date, so a pinned pad took the footer to 317px, left
+                      323px of scroll, and pushed the hero off-screen BEHIND a
+                      keypad button. Measured on a 375×812 viewport. */}
+                  <MoneyKeypad
+                    className="mt-3"
+                    value={paymentAmountInput}
+                    disabled={isLockedAfterSuccess}
+                    onChange={onAmountChange}
+                  />
+                </div>
+
+                {/* Quick amounts — three cards: Clear overdue (incl.
+                    late fee, saffron), Next installment, Full year. Selected
+                    card = saffron border + accent-soft wash. */}
+                {(() => {
+                  const fullDue = quickAmounts.find((q) => q.key === "full");
+                  const nextInst = quickAmounts.find((q) => q.key === "next");
+                  const overdue = quickAmounts.find((q) => q.key === "overdue");
+                  const includedLateFee = waiveFullLateFee ? 0 : pendingLateFeeAmount;
+                  const clearOverdueAmount =
+                    (overdue?.amount ?? 0) > 0 ? (overdue?.amount ?? 0) + includedLateFee : 0;
+                  const composerCards = [
+                    clearOverdueAmount > 0
+                      ? {
+                          key: "clearOverdue",
+                          label: "Clear overdue",
+                          sub: includedLateFee > 0 ? "incl. late fee" : "past due",
+                          amount: clearOverdueAmount,
+                          emphasis: true,
+                        }
+                      : null,
+                    nextInst && nextInst.amount !== null && !nextInst.disabled
+                      ? {
+                          key: "next",
+                          label: "Next installment",
+                          sub: null,
+                          amount: nextInst.amount,
+                          emphasis: false,
+                        }
+                      : null,
+                    fullDue && fullDue.amount !== null && !fullDue.disabled
+                      ? {
+                          key: "full",
+                          label: "Full year",
+                          sub: null,
+                          amount: fullDue.amount,
+                          emphasis: false,
+                        }
+                      : null,
+                  ].filter(Boolean) as Array<{
+                    key: string;
+                    label: string;
+                    sub: string | null;
+                    amount: number;
+                    emphasis: boolean;
+                  }>;
+                  if (composerCards.length === 0) return null;
+                  return (
+                    <div className="flex gap-2 px-3 py-2 border-b border-border">
+                      {composerCards.map((card) => {
+                        const selected = paymentAmountInput === String(card.amount);
+                        return (
+                          <button
+                            key={card.key}
+                            type="button"
+                            disabled={disablePaymentActions}
+                            onClick={() => onQuickAmount(card.amount)}
+                            className={cn(
+                              "flex min-w-0 flex-1 flex-col items-center rounded-xl border py-3 transition-all active:scale-95 disabled:opacity-40",
+                              selected
+                                ? "border-accent bg-accent-soft text-accent-soft-foreground font-semibold"
+                                : card.emphasis
+                                  ? "border-accent/40 bg-card text-accent hover:bg-accent-soft"
+                                  : "border-border bg-surface-2 text-foreground hover:bg-surface-3",
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "px-1 text-[10px] font-medium uppercase tracking-wide",
+                                selected || card.emphasis
+                                  ? "text-accent-soft-foreground/80"
+                                  : "text-muted-foreground",
+                              )}
+                            >
+                              {card.label}
+                            </span>
+                            <span className="text-base font-bold tabular-nums">
+                              {formatInr(card.amount)}
+                            </span>
+                            {card.sub ? (
+                              <span className="px-1 text-[9px] font-medium text-muted-foreground">
+                                {card.sub}
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
+                {/* Allocation preview strip — where the entered money lands,
+                    from the same preview data the posting flow uses. */}
+                {paymentAmountInput &&
+                Number(paymentAmountInput) > 0 &&
+                allocationPreview.length > 0 ? (
+                  (() => {
+                    const enteredAmount = Number(paymentAmountInput) || 0;
+                    const allocatedTotal = allocationPreview.reduce(
+                      (sum, item) => sum + item.allocatedAmount,
+                      0,
+                    );
+                    const surplus = Math.max(enteredAmount - allocatedTotal, 0);
+                    const lateFeeCovered =
+                      !waiveFullLateFee &&
+                      pendingLateFeeAmount > 0 &&
+                      surplus >= pendingLateFeeAmount;
+                    return (
+                      <div
+                        className="mx-3 my-2 flex-none rounded-lg bg-info-soft px-3 py-2 text-xs text-info-soft-foreground"
+                        data-allocation-strip
+                        aria-live="polite"
+                      >
+                        <span className="font-semibold">This payment → </span>
+                        {allocationPreview.map((item, index) => {
+                          const label = item.isCarryForward
+                            ? item.displayLabel ?? item.installmentLabel
+                            : `Inst ${item.installmentNo}`;
+                          return (
+                            <span key={item.installmentId}>
+                              {index > 0 ? " + " : ""}
+                              {item.outstandingAfter === 0 ? `clears ${label} ✓` : `${label} (part)`}
+                            </span>
+                          );
+                        })}
+                        {pendingLateFeeAmount > 0 ? (
+                          <span>
+                            {waiveFullLateFee
+                              ? " · late fee waived"
+                              : lateFeeCovered
+                                ? ` + late fee ${formatInr(pendingLateFeeAmount)} ✓`
+                                : ` · late fee ${formatInr(pendingLateFeeAmount)} still due`}
+                          </span>
+                        ) : null}
+                        <span>
+                          {" · "}Remaining after: {formatInr(Math.max(remainingAfterPayment, 0))}
+                        </span>
+                      </div>
+                    );
+                  })()
+                ) : null}
+              </>
+            )}
+
+          {/* Dues context — the summary and per-installment ledger. It sits AFTER
+              the composer (mobile v2): the clerk opens this sheet to record an
+              amount, so the amount is the first thing on screen. The ledger is
+              what they check the amount AGAINST, which is a second question. */}
           <div className="border-b border-border px-3 py-3">
             {(() => {
               const dist = selectedStudent?.feeHeadDistribution;
@@ -914,318 +1306,6 @@ export function MobilePaymentFlowSheet({
             })()}
           </div>
 
-          <div className="flex flex-col gap-0">
-            {pendingLateFeeAmount > 0 ? (
-              (() => {
-                /* Late-fee decision card — replaces the old waive checkbox.
-                   States: Include (default, amber) / Waive (admin, success).
-                   The waiver is permanent and stamped on the receipt + audit. */
-                const overdueRows = previewBreakdown.filter(
-                  (item) => item.balanceStatus === "overdue" && item.outstandingAmount > 0,
-                );
-                const triggerRow = overdueRows[overdueRows.length - 1] ?? null;
-                const causeLine = triggerRow
-                  ? `Applied because ${
-                      isCarryForwardInstallment(triggerRow)
-                        ? triggerRow.displayLabel ?? getDisplayInstallmentLabel(triggerRow)
-                        : `Inst ${triggerRow.installmentNo}`
-                    } passed ${formatShortDate(triggerRow.dueDate)} · flat ${formatInr(pendingLateFeeAmount)}`
-                  : `Flat ${formatInr(pendingLateFeeAmount)} for late payment`;
-
-                return (
-                  <div
-                    className={cn(
-                      "mx-3 my-2 flex-none rounded-xl border px-3 py-2.5 transition-colors",
-                      waiveFullLateFee
-                        ? "border-success/30 bg-success-soft"
-                        : "border-warning/30 bg-warning-soft",
-                    )}
-                    data-late-fee-decision
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p
-                        className={cn(
-                          "text-sm font-semibold",
-                          waiveFullLateFee
-                            ? "text-success-soft-foreground"
-                            : "text-warning-soft-foreground",
-                        )}
-                      >
-                        Late fee · विलंब शुल्क{" "}
-                        <span
-                          className={cn(
-                            "tabular-nums",
-                            waiveFullLateFee && "line-through decoration-[1.5px] opacity-70",
-                          )}
-                        >
-                          {formatInr(pendingLateFeeAmount)}
-                        </span>
-                      </p>
-                    </div>
-                    <p
-                      className={cn(
-                        "mt-0.5 text-[11px]",
-                        waiveFullLateFee
-                          ? "text-success-soft-foreground/80"
-                          : "text-warning-soft-foreground/80",
-                      )}
-                    >
-                      {waiveFullLateFee
-                        ? "Waived permanently — stamped on the receipt and audit trail."
-                        : causeLine}
-                    </p>
-                    {canWaiveLateFee ? (
-                      <div
-                        className="mt-2 grid grid-cols-2 gap-1 rounded-lg bg-card/70 p-1"
-                        role="group"
-                        aria-label="Late fee decision"
-                      >
-                        <button
-                          type="button"
-                          aria-pressed={!waiveFullLateFee}
-                          disabled={disablePaymentActions}
-                          onClick={() => {
-                            if (waiveFullLateFee) onToggleWaiveLateFee();
-                          }}
-                          className={cn(
-                            "rounded-md px-2 py-1.5 text-xs font-semibold transition-colors",
-                            !waiveFullLateFee
-                              ? "bg-primary text-primary-foreground shadow-xs"
-                              : "text-muted-foreground hover:text-foreground",
-                          )}
-                        >
-                          Include {formatInr(pendingLateFeeAmount)}
-                        </button>
-                        <button
-                          type="button"
-                          aria-pressed={waiveFullLateFee}
-                          disabled={disablePaymentActions}
-                          onClick={() => {
-                            if (!waiveFullLateFee) onToggleWaiveLateFee();
-                          }}
-                          className={cn(
-                            "rounded-md px-2 py-1.5 text-xs font-semibold transition-colors",
-                            waiveFullLateFee
-                              ? "bg-success text-success-foreground shadow-xs"
-                              : "text-muted-foreground hover:text-foreground",
-                          )}
-                        >
-                          Waive (admin)
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })()
-            ) : null}
-
-            {isFirstLoad ? (
-              /* Skeleton mirrors the real composer layout: three quick cards,
-                 the amount field, and the mode row. Shimmer only — no pulse. */
-              <div className="px-3 py-3 border-b border-border space-y-3">
-                <div className="flex gap-2">
-                  <div className="h-16 flex-1 rounded-xl bg-surface-2 anim-shimmer" />
-                  <div className="h-16 flex-1 rounded-xl bg-surface-2 anim-shimmer" />
-                  <div className="h-16 flex-1 rounded-xl bg-surface-2 anim-shimmer" />
-                </div>
-                <div className="h-16 w-full rounded-xl bg-surface-2 anim-shimmer" />
-                <div className="flex gap-1.5 py-1">
-                  <div className="h-12 flex-1 rounded-xl bg-surface-2 anim-shimmer" />
-                  <div className="h-12 flex-1 rounded-xl bg-surface-2 anim-shimmer" />
-                  <div className="h-12 flex-1 rounded-xl bg-surface-2 anim-shimmer" />
-                  <div className="h-12 flex-1 rounded-xl bg-surface-2 anim-shimmer" />
-                </div>
-              </div>
-            ) : (
-              <>
-                {/* Amount composer — three quick cards: Clear overdue (incl.
-                    late fee, saffron), Next installment, Full year. Selected
-                    card = saffron border + accent-soft wash. */}
-                {(() => {
-                  const fullDue = quickAmounts.find((q) => q.key === "full");
-                  const nextInst = quickAmounts.find((q) => q.key === "next");
-                  const overdue = quickAmounts.find((q) => q.key === "overdue");
-                  const includedLateFee = waiveFullLateFee ? 0 : pendingLateFeeAmount;
-                  const clearOverdueAmount =
-                    (overdue?.amount ?? 0) > 0 ? (overdue?.amount ?? 0) + includedLateFee : 0;
-                  const composerCards = [
-                    clearOverdueAmount > 0
-                      ? {
-                          key: "clearOverdue",
-                          label: "Clear overdue",
-                          sub: includedLateFee > 0 ? "incl. late fee" : "past due",
-                          amount: clearOverdueAmount,
-                          emphasis: true,
-                        }
-                      : null,
-                    nextInst && nextInst.amount !== null && !nextInst.disabled
-                      ? {
-                          key: "next",
-                          label: "Next installment",
-                          sub: null,
-                          amount: nextInst.amount,
-                          emphasis: false,
-                        }
-                      : null,
-                    fullDue && fullDue.amount !== null && !fullDue.disabled
-                      ? {
-                          key: "full",
-                          label: "Full year",
-                          sub: null,
-                          amount: fullDue.amount,
-                          emphasis: false,
-                        }
-                      : null,
-                  ].filter(Boolean) as Array<{
-                    key: string;
-                    label: string;
-                    sub: string | null;
-                    amount: number;
-                    emphasis: boolean;
-                  }>;
-                  if (composerCards.length === 0) return null;
-                  return (
-                    <div className="flex gap-2 px-3 py-2 border-b border-border">
-                      {composerCards.map((card) => {
-                        const selected = paymentAmountInput === String(card.amount);
-                        return (
-                          <button
-                            key={card.key}
-                            type="button"
-                            disabled={disablePaymentActions}
-                            onClick={() => onQuickAmount(card.amount)}
-                            className={cn(
-                              "flex min-w-0 flex-1 flex-col items-center rounded-xl border py-3 transition-all active:scale-95 disabled:opacity-40",
-                              selected
-                                ? "border-accent bg-accent-soft text-accent-soft-foreground font-semibold"
-                                : card.emphasis
-                                  ? "border-accent/40 bg-card text-accent hover:bg-accent-soft"
-                                  : "border-border bg-surface-2 text-foreground hover:bg-surface-3",
-                            )}
-                          >
-                            <span
-                              className={cn(
-                                "px-1 text-[10px] font-medium uppercase tracking-wide",
-                                selected || card.emphasis
-                                  ? "text-accent-soft-foreground/80"
-                                  : "text-muted-foreground",
-                              )}
-                            >
-                              {card.label}
-                            </span>
-                            <span className="text-base font-bold tabular-nums">
-                              {formatInr(card.amount)}
-                            </span>
-                            {card.sub ? (
-                              <span className="px-1 text-[9px] font-medium text-muted-foreground">
-                                {card.sub}
-                              </span>
-                            ) : null}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-
-                <div className="flex flex-col border-b border-border bg-background">
-                  <div className="flex items-center">
-                    <span className="border-r border-border px-4 py-3 text-2xl font-medium text-muted-foreground">₹</span>
-                    <input
-                      ref={amountInputRef}
-                      type="text"
-                      inputMode="decimal"
-                      pattern="[0-9]*"
-                      enterKeyHint="done"
-                      autoComplete="off"
-                      autoCapitalize="off"
-                      autoCorrect="off"
-                      placeholder="0"
-                      className="h-16 flex-1 bg-transparent px-4 text-3xl font-bold tabular-nums text-foreground outline-none placeholder:text-muted-foreground/40"
-                      value={paymentAmountInput}
-                      onChange={(e) => {
-                        onAmountChange(sanitizeDecimalInput(e.target.value));
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          e.currentTarget.blur();
-                        }
-                      }}
-                      onFocus={(event) => {
-                        // Keep the field visible once the keyboard settles.
-                        const target = event.currentTarget;
-                        window.setTimeout(() => {
-                          target.scrollIntoView({ block: "center", behavior: "smooth" });
-                        }, 200);
-                      }}
-                    />
-                    {paymentAmountInput && remainingAfterPayment === 0 ? (
-                      <span className="mr-3 rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-medium text-success-soft-foreground">
-                        Clears ✓
-                      </span>
-                    ) : null}
-                  </div>
-                  {paymentAmountInput && Number(paymentAmountInput) > 0 ? (
-                    <p className="font-display-money pb-2 text-center text-3xl text-accent">
-                      {formatInr(Number(paymentAmountInput))}
-                    </p>
-                  ) : null}
-                </div>
-
-                {/* Allocation preview strip — where the entered money lands,
-                    from the same preview data the posting flow uses. */}
-                {paymentAmountInput &&
-                Number(paymentAmountInput) > 0 &&
-                allocationPreview.length > 0 ? (
-                  (() => {
-                    const enteredAmount = Number(paymentAmountInput) || 0;
-                    const allocatedTotal = allocationPreview.reduce(
-                      (sum, item) => sum + item.allocatedAmount,
-                      0,
-                    );
-                    const surplus = Math.max(enteredAmount - allocatedTotal, 0);
-                    const lateFeeCovered =
-                      !waiveFullLateFee &&
-                      pendingLateFeeAmount > 0 &&
-                      surplus >= pendingLateFeeAmount;
-                    return (
-                      <div
-                        className="mx-3 my-2 flex-none rounded-lg bg-info-soft px-3 py-2 text-xs text-info-soft-foreground"
-                        data-allocation-strip
-                        aria-live="polite"
-                      >
-                        <span className="font-semibold">This payment → </span>
-                        {allocationPreview.map((item, index) => {
-                          const label = item.isCarryForward
-                            ? item.displayLabel ?? item.installmentLabel
-                            : `Inst ${item.installmentNo}`;
-                          return (
-                            <span key={item.installmentId}>
-                              {index > 0 ? " + " : ""}
-                              {item.outstandingAfter === 0 ? `clears ${label} ✓` : `${label} (part)`}
-                            </span>
-                          );
-                        })}
-                        {pendingLateFeeAmount > 0 ? (
-                          <span>
-                            {waiveFullLateFee
-                              ? " · late fee waived"
-                              : lateFeeCovered
-                                ? ` + late fee ${formatInr(pendingLateFeeAmount)} ✓`
-                                : ` · late fee ${formatInr(pendingLateFeeAmount)} still due`}
-                          </span>
-                        ) : null}
-                        <span>
-                          {" · "}Remaining after: {formatInr(Math.max(remainingAfterPayment, 0))}
-                        </span>
-                      </div>
-                    );
-                  })()
-                ) : null}
-              </>
-            )}
-
             {/* Payment mode — one segmented row, selected mode fills ink. */}
             <div className="flex-none grid grid-cols-4 gap-1.5 border-t border-border px-3 py-2">
               {paymentModeOptions.map(({ value, label, Icon }) => (
@@ -1246,6 +1326,39 @@ export function MobilePaymentFlowSheet({
                 </button>
               ))}
             </div>
+
+            {/* UPI: show the parent a QR that already carries the amount and
+                the student's reference, so nobody types a UTR into a phone at
+                a counter queue. Mode-conditional, per mobile v2 step 3. */}
+            {paymentMode === "upi" && Number(paymentAmountInput) > 0 && displayAdmNo ? (
+              (() => {
+                const upi = buildStudentFeeUpiPayment({
+                  admissionNo: displayAdmNo,
+                  amount: Number(paymentAmountInput),
+                });
+                return (
+                  <div className="anim-fade-in flex-none border-t border-border px-3 py-2.5">
+                    <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+                      <UpiQrCode
+                        value={upi.uri}
+                        alt={`UPI QR for ${displayName} — ${formatInr(upi.amount)}`}
+                        className="size-[88px] shrink-0 rounded-lg border border-border bg-white p-1.5"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-extrabold text-foreground">
+                          Show the QR to the parent
+                        </p>
+                        <p className="mt-0.5 text-[11.5px] leading-relaxed text-muted-foreground">
+                          {formatInr(upi.amount)} is already filled in, referenced{" "}
+                          {upi.displayReference}. Confirm the payment on their phone, then
+                          collect here.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()
+            ) : null}
 
             <div className="flex-none border-t border-border px-3 py-2">
               <div className="flex items-center gap-2">

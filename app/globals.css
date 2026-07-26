@@ -378,6 +378,14 @@
     animation: stamp-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
+  .anim-pulse-dot {
+    animation: pulse-dot 2.4s ease-in-out infinite;
+  }
+
+  .anim-print-out {
+    animation: print-out 850ms cubic-bezier(0.22, 1, 0.36, 1) 100ms both;
+  }
+
   .anim-shimmer {
     position: relative;
     overflow: hidden;
@@ -416,6 +424,76 @@
     contain: layout style;
   }
 
+  /* Phone app screen shell. The height lives here rather than inline so it
+     applies ONLY below md — an inline style would beat the md: reset and
+     lock desktop to 100dvh too. dvh (not vh) so collapsing browser chrome
+     does not leave a gap; the keyboard offset is 0 on browsers that resize
+     the visual viewport themselves. */
+  .mobile-app-screen {
+    height: auto;
+  }
+
+  @media (max-width: 767px) {
+    .mobile-app-screen {
+      height: calc(100dvh - var(--keyboard-offset, 0px));
+    }
+  }
+  /* ---- Phone app typography ----
+     The design is weight-800 dominant: 175 of its ~228 weighted declarations
+     are extrabold, against this app's 623 semibold / 27 extrabold. That gap,
+     not colour, is why the app read as "softer" than the mock. Scoping the
+     default to the phone screen shell keeps desktop untouched.
+
+     Headings and the small caps labels go extrabold; body copy and long-form
+     notes stay at their own weight, which is why this targets headings and
+     an explicit opt-in class rather than everything. */
+  .mobile-app-screen :is(h1, h2, h3) {
+    font-weight: 800;
+    letter-spacing: -0.015em;
+  }
+
+  /* The design's micro-label: 10px, extrabold, wide tracking, uppercase.
+     Used above every figure and section on a phone screen. */
+  .mobile-eyebrow {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* Row title / value pair at the design's exact sizes. */
+  .mobile-row-title {
+    font-size: 13.5px;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+
+  .mobile-row-meta {
+    font-size: 11px;
+    font-weight: 600;
+  }
+  /* ---- Phone app scroll model ----
+     The design is 24 full-height screens: the PAGE never scrolls, the body
+     region inside it does. That is what stops a phone screen feeling like a
+     web document with a tab bar stuck to it.
+
+     Making <main> the scroll container (rather than the document) also keeps
+     the pinned takeover bar and the tab bar fixed without position:fixed, and
+     ScrollRestoringMain already persists element scrollTop, so restoration
+     keeps working unchanged. */
+  @media (max-width: 767px) {
+    .mobile-app-main {
+      height: 100dvh;
+      overflow-y: auto;
+      overscroll-behavior-y: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Screens that keep the tab bar need the last card to clear it. */
+    .mobile-app-main[data-bottom-nav="true"] {
+      padding-bottom: var(--mobile-bottom-nav-offset);
+    }
+  }
   .mobile-safe-bottom-padding {
     padding-bottom: var(--mobile-safe-area-bottom);
   }
@@ -539,6 +617,8 @@
   .anim-check-halo,
   .anim-settle-in,
   .anim-stamp-in,
+  .anim-print-out,
+  .anim-pulse-dot,
   .animate-bottom-sheet-up,
   .animate-success-check,
   .animate-loading-bar,
@@ -611,6 +691,23 @@
 @keyframes stamp-in {
   from { opacity: 0; transform: scale(1.6) rotate(-14deg); }
   to { opacity: 1; transform: scale(1) rotate(-4deg); }
+}
+
+/* The receipt feeds out of the printer slot on the phone success screen.
+   Transform only — no layout, no shadow tweening — so it stays cheap on a
+   mid-range Android. Silenced by the global reduced-motion block. */
+/* The one deliberate infinite loop in the phone app: a 6px connection
+   dot. Opacity only, 2.4s, so it costs nothing to composite and reads as
+   "live" rather than "loading". Silenced under reduced motion — a pulsing
+   dot is exactly what that preference exists to stop. */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes print-out {
+  from { transform: translate3d(0, -102%, 0); }
+  to { transform: translate3d(0, 0, 0); }
 }
 
 /* =====================================================================

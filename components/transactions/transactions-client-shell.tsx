@@ -9,6 +9,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, CreditCard, Printer, SlidersHor
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { SavedViewsTabs } from "@/components/data-table/saved-views-tabs";
+import { MobileDaySummary } from "@/components/transactions/mobile-day-summary";
 import { ReversedBadge } from "@/components/receipts/reversed-badge";
 import { SummaryRow, SummaryCell } from "@/components/data-table/summary-row";
 import { Button } from "@/components/ui/button";
@@ -827,7 +828,22 @@ export function TransactionsClientShell({
 
   return (
     <div className="space-y-6">
-      <TodayStrip snapshot={todaySnapshot} t={t} />
+      {/* Same snapshot, two shapes: an ink hero on a phone, the horizontal
+          desk strip from tablet up. */}
+      <MobileDaySummary
+        snapshot={todaySnapshot}
+        labels={{
+          prefix: t("todayStripPrefix", { date: formatTodayBadge(new Date()) }),
+          receipts: t("todayStripReceipts", { count: todaySnapshot.receiptCount }),
+          cash: t("todayStripModeCash"),
+          upi: t("todayStripModeUpi"),
+          bank: t("todayStripModeBank"),
+          cheque: t("todayStripModeCheque"),
+        }}
+      />
+      <div className="hidden md:block">
+        <TodayStrip snapshot={todaySnapshot} t={t} />
+      </div>
 
       {/* ── View + Filters ── */}
       <SectionCard

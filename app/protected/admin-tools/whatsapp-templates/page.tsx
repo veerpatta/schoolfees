@@ -1,3 +1,4 @@
+import { MobileDesktopOnlyNotice } from "@/components/mobile-app/mobile-kit";
 import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/admin/page-header";
@@ -24,6 +25,11 @@ export default async function WhatsappTemplatesPage() {
         title={t("whatsappTitle")}
         description={t("whatsappDescription")}
       />
+      <MobileDesktopOnlyNotice
+        title="WhatsApp templates"
+        reason="Editing templates with placeholder variables is fiddly on a phone keyboard. Open this on a computer."
+      />
+
 
       <OfficeNotice title={t("whatsappNoticeTitle")} tone="info">
         {t("whatsappNoticeBody")}

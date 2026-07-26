@@ -4,6 +4,10 @@ import { useActionState } from "react";
 
 import { MetricCard } from "@/components/admin/metric-card";
 import { SectionCard } from "@/components/admin/section-card";
+import {
+  MobileEmptyRows,
+  MobileRecordCard,
+} from "@/components/mobile-app/mobile-kit";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -243,7 +247,21 @@ function ReceivedBySection({ data }: { data: FinanceControlsPageData }) {
       title="Cashier / received-by totals"
       description="Who received the money, and how much was posted under each name."
     >
-      <div className="overflow-x-auto rounded-xl border border-border">
+      <ul className="flex flex-col gap-2.5 md:hidden">
+        {data.receivedByTotals.length === 0 ? (
+          <MobileEmptyRows>No cashier totals found for this date.</MobileEmptyRows>
+        ) : (
+          data.receivedByTotals.map((row) => (
+            <MobileRecordCard
+              key={row.receivedBy}
+              title={row.receivedBy}
+              subtitle={`${row.receiptCount} ${row.receiptCount === 1 ? "receipt" : "receipts"}`}
+              amount={formatInr(row.totalAmount)}
+            />
+          ))
+        )}
+      </ul>
+      <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
@@ -322,7 +340,41 @@ function DayBookSection({ data }: { data: FinanceControlsPageData }) {
         />
       }
     >
-      <div className="overflow-x-auto rounded-xl border border-border">
+      <ul className="flex flex-col gap-2.5 md:hidden">
+        {data.dayBookRows.length === 0 ? (
+          <MobileEmptyRows>No day book rows found for the selected date.</MobileEmptyRows>
+        ) : (
+          data.dayBookRows.map((row) => (
+            <MobileRecordCard
+              key={`${row.entryType}-${row.entryId}`}
+              title={row.studentName}
+              subtitle={[row.admissionNo, row.classLabel].filter(Boolean).join(" · ")}
+              amount={row.ledgerEffect === 0 ? undefined : formatInr(row.ledgerEffect)}
+              status={<DayBookRowTag row={row} />}
+              fields={[
+                { label: "Type", value: <span className="capitalize">{row.entryType}</span> },
+                { label: "Posted", value: formatDateTime(row.postedAt) },
+                { label: "Receipt", value: row.receiptNumber ?? row.referenceNumber ?? "-" },
+                {
+                  label: "Mode",
+                  value: row.paymentMode ? formatPaymentModeLabel(row.paymentMode) : "-",
+                },
+                {
+                  label: "Cash in",
+                  value: row.cashIn > 0 ? formatInr(row.cashIn) : "-",
+                },
+                {
+                  label: "Cash out",
+                  value: row.cashOut > 0 ? formatInr(row.cashOut) : "-",
+                },
+                { label: "Staff", value: row.receivedBy ?? row.createdByName ?? "-" },
+              ]}
+              footnote={row.note ?? undefined}
+            />
+          ))
+        )}
+      </ul>
+      <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
         <table className="w-full min-w-[1440px] text-left text-sm">
           <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
@@ -508,7 +560,62 @@ function RefundRequestsSection({
         </div>
       </form>
 
-      <div className="mt-6 overflow-x-auto rounded-xl border border-border">
+      <ul className="mt-6 flex flex-col gap-2.5 md:hidden">
+        {data.refundRequests.length === 0 ? (
+          <MobileEmptyRows>No refund requests found for the selected date.</MobileEmptyRows>
+        ) : (
+          data.refundRequests.map((row) => (
+            <MobileRecordCard
+              key={row.refundRequestId}
+              title={row.studentName}
+              subtitle={`${row.admissionNo} · ${row.receiptNumber}`}
+              amount={formatInr(row.requestedAmount)}
+              status={
+                <StatusBadge
+                  label={
+                    row.status === "pending_approval"
+                      ? "Pending approval"
+                      : row.status === "approved"
+                        ? "Approved"
+                        : row.status === "processed"
+                          ? "Processed"
+                          : "Rejected"
+                  }
+                  tone={
+                    row.status === "processed"
+                      ? "good"
+                      : row.status === "approved"
+                        ? "accent"
+                        : row.status === "rejected"
+                          ? "neutral"
+                          : "warning"
+                  }
+                />
+              }
+              fields={[
+                { label: "Method", value: formatPaymentModeLabel(row.refundMethod) },
+                { label: "Requested by", value: row.requestedByName ?? "-" },
+                { label: "Requested at", value: formatDateTime(row.requestedAt) },
+              ]}
+              footnote={
+                <>
+                  {row.reason}
+                  {row.approvalNote ?? row.processingNote ?? row.notes ? (
+                    <>
+                      {" · "}
+                      {row.approvalNote ?? row.processingNote ?? row.notes}
+                    </>
+                  ) : null}
+                </>
+              }
+              actions={
+                <RefundRowActions row={row} canApprove={canApprove} formAction={formAction} />
+              }
+            />
+          ))
+        )}
+      </ul>
+      <div className="mt-6 hidden overflow-x-auto rounded-xl border border-border md:block">
         <table className="w-full min-w-[1400px] text-left text-sm">
           <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
@@ -607,7 +714,71 @@ function CorrectionReviewSection({
       }
     >
       <ActionNotice state={state} />
-      <div className="overflow-x-auto rounded-xl border border-border">
+      <ul className="flex flex-col gap-2.5 md:hidden">
+        {data.correctionRows.length === 0 ? (
+          <MobileEmptyRows>No correction rows found for the selected date.</MobileEmptyRows>
+        ) : (
+          data.correctionRows.map((row) => (
+            <MobileRecordCard
+              key={row.paymentAdjustmentId}
+              title={row.studentName}
+              subtitle={`${row.admissionNo} · ${row.classLabel}`}
+              amount={formatInr(row.amountDelta)}
+              status={
+                <StatusBadge
+                  label={
+                    row.reviewStatus === "pending"
+                      ? "Pending"
+                      : row.reviewStatus === "reviewed"
+                        ? "Reviewed"
+                        : row.reviewStatus === "flagged"
+                          ? "Flagged"
+                          : "Needs follow-up"
+                  }
+                  tone={
+                    row.reviewStatus === "pending"
+                      ? "warning"
+                      : row.reviewStatus === "reviewed"
+                        ? "good"
+                        : "accent"
+                  }
+                />
+              }
+              fields={[
+                { label: "Receipt", value: row.receiptNumber },
+                { label: "Paid on", value: row.paymentDate },
+                { label: "Adjustment", value: row.adjustmentType },
+                { label: "Installment", value: row.installmentLabel },
+                {
+                  label: "Reviewer",
+                  value: row.reviewedByName ?? row.createdByName ?? "-",
+                },
+                {
+                  label: "When",
+                  value: row.reviewedAt
+                    ? formatDateTime(row.reviewedAt)
+                    : formatDateTime(row.postedAt),
+                },
+              ]}
+              footnote={
+                <>
+                  {row.reason}
+                  {row.notes ? ` · ${row.notes}` : null}
+                  {row.reviewNote ? ` · ${row.reviewNote}` : null}
+                </>
+              }
+              actions={
+                <CorrectionReviewActions
+                  row={row}
+                  canApprove={canApprove}
+                  formAction={formAction}
+                />
+              }
+            />
+          ))
+        )}
+      </ul>
+      <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
         <table className="w-full min-w-[1600px] text-left text-sm">
           <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>

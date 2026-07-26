@@ -3,17 +3,29 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
+import { MobilePrintedReceipt } from "@/components/payments/mobile-printed-receipt";
 import { Button } from "@/components/ui/button";
 import { CountUp } from "@/components/ui/count-up";
 import { SuccessCheckMark } from "@/components/payments/success-check-mark";
 import { formatInr } from "@/lib/helpers/currency";
 import { cn } from "@/lib/utils";
 
+/** Matches UNDO_WINDOW_MS in receipt-undo-action and the RPC's own check. */
+const UNDO_WINDOW_SECONDS = 10 * 60;
+
+function formatCountdown(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
 type SuccessReceiptSheetProps = {
   open: boolean;
   receiptNumber: string;
   receiptId: string;
   studentFullName: string;
+  /** Printed on the paper stub — parents identify by father's name. */
+  fatherName?: string | null;
   admissionNo: string;
   classLabel: string;
   amountReceived: number;
@@ -43,6 +55,7 @@ export function SuccessReceiptSheet({
   receiptNumber,
   receiptId,
   studentFullName,
+  fatherName,
   admissionNo,
   classLabel,
   amountReceived,
@@ -79,7 +92,21 @@ export function SuccessReceiptSheet({
     "idle" | "confirming" | "working" | "done" | "error"
   >("idle");
   const [undoMessage, setUndoMessage] = useState<string | null>(null);
+  // The undo window is enforced server-side by undo_recent_payment; this is
+  // only the countdown, anchored to when the sheet opened. Showing the time
+  // left is what turns "you can undo" into "you can undo, and here is how
+  // long you have" — the reassurance the whole flow is built on.
+  const [secondsLeft, setSecondsLeft] = useState(UNDO_WINDOW_SECONDS);
   const autoPrintOpenedRef = useRef(false);
+
+  useEffect(() => {
+    if (!open || !canUndo) return;
+    setSecondsLeft(UNDO_WINDOW_SECONDS);
+    const timer = window.setInterval(() => {
+      setSecondsLeft((current) => (current <= 1 ? 0 : current - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [open, canUndo]);
 
   useEffect(() => {
     if (!open || !autoPrint || !printReceiptHref || autoPrintOpenedRef.current) {
@@ -115,20 +142,116 @@ export function SuccessReceiptSheet({
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 px-2 md:items-center md:px-4">
       {/* dvh, not vh — see confirm-receipt-sheet: vh can push the sticky
           action row below the visible viewport. */}
-      <div className="max-h-[92dvh] w-full anim-slide-up animate-bottom-sheet-up overflow-y-auto rounded-t-2xl border border-success/30 bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl md:max-w-xl md:rounded-xl md:p-5">
+      {/* Phones get the ink backdrop from mobile app v2 so the paper stub
+          below reads as paper. Tablet and desktop keep the paper-card sheet. */}
+      <div className="max-h-[92dvh] w-full anim-slide-up animate-bottom-sheet-up overflow-y-auto rounded-t-2xl border border-success/30 bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl max-md:bg-nav max-md:text-nav-foreground md:max-w-xl md:rounded-xl md:p-5">
         <div className="flex items-center gap-2.5">
           <SuccessCheckMark />
           <div className="anim-settle-in" style={{ animationDelay: "160ms" }}>
-            <h2 className="text-lg font-semibold text-foreground">Payment Successful</h2>
-            <p className="text-sm text-muted-foreground">Receipt has been saved</p>
+            <h2 className="text-lg font-semibold text-foreground max-md:text-nav-foreground">
+              Payment Successful
+            </h2>
+            <p className="text-sm text-muted-foreground max-md:text-nav-muted">
+              Receipt saved · printed
+            </p>
           </div>
         </div>
 
-        <span className="mt-3 inline-flex rounded bg-success-soft px-2 py-0.5 text-[10px] font-semibold text-success-soft-foreground">
+        <span className="mt-3 inline-flex rounded bg-success-soft px-2 py-0.5 text-[10px] font-semibold text-success-soft-foreground max-md:hidden">
           SAVED · Receipt {receiptNumber} / सहेजा गया
         </span>
 
-        <div className="mt-4 rounded-xl border border-border bg-surface-2 px-4 py-3">
+        <MobilePrintedReceipt
+          className="mt-4 md:hidden"
+          receiptNumber={receiptNumber}
+          studentFullName={studentFullName}
+          fatherName={fatherName}
+          admissionNo={admissionNo}
+          classLabel={classLabel}
+          amountReceived={amountReceived}
+          lines={[
+            { label: "Fee received", amount: amountReceived },
+            ...(quickDiscountApplied > 0
+              ? [{ label: "Discount", amount: quickDiscountApplied }]
+              : []),
+            ...(lateFeeWaivedApplied > 0
+              ? [{ label: "Late fee waived", amount: lateFeeWaivedApplied }]
+              : []),
+          ]}
+          paymentDate={paymentDate}
+          paymentModeLabel={paymentModeLabel}
+          referenceNumber={referenceNumber}
+          receivedBy={receivedBy}
+          remainingBalance={remainingBalance}
+        />
+
+        {/* Undo, on the phone, where the design puts it: directly under the
+            paper, not buried in a "More" drawer. It posts a reversal through
+            undo_recent_payment — a compensating entry, never a delete. */}
+        {canUndo && onUndoPayment && undoState !== "done" && secondsLeft > 0 ? (
+          <div className="mt-3.5 md:hidden">
+            {undoState === "confirming" || undoState === "working" ? (
+              <div className="rounded-2xl border border-destructive/50 bg-destructive/15 p-3">
+                <p className="text-[12.5px] font-semibold text-nav-foreground">
+                  Reverse receipt {receiptNumber} in full? A compensating entry is posted —
+                  the receipt itself is never edited.
+                </p>
+                <div className="mt-2.5 flex gap-2">
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    className="h-11 flex-1"
+                    disabled={undoState === "working"}
+                    onClick={async () => {
+                      setUndoState("working");
+                      const result = await onUndoPayment();
+                      setUndoMessage(result.message);
+                      setUndoState(result.ok ? "done" : "error");
+                    }}
+                  >
+                    {undoState === "working" ? "Undoing…" : "Yes, undo"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-11 text-nav-foreground"
+                    disabled={undoState === "working"}
+                    onClick={() => setUndoState("idle")}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setUndoState("confirming")}
+                  className="focus-ring flex h-12 w-full items-center justify-center gap-2 rounded-2xl border-[1.5px] border-destructive/50 bg-destructive/15 text-[13px] font-extrabold text-destructive-soft-foreground"
+                >
+                  ↺ Undo this payment · {formatCountdown(secondsLeft)}
+                </button>
+                {/* A failed undo must stay on screen — the money did NOT move,
+                    and the clerk needs to know that before walking away. */}
+                {undoState === "error" && undoMessage ? (
+                  <p role="alert" className="mt-1.5 text-[11px] text-destructive-soft-foreground">
+                    {undoMessage}
+                  </p>
+                ) : null}
+              </>
+            )}
+          </div>
+        ) : null}
+        {undoState === "done" ? (
+          <p
+            role="status"
+            className="mt-3.5 rounded-2xl bg-warning-soft px-3 py-2.5 text-[12.5px] text-warning-soft-foreground md:hidden"
+          >
+            {undoMessage ?? `Receipt ${receiptNumber} reversed.`}
+          </p>
+        ) : null}
+
+        <div className="mt-4 hidden rounded-xl border border-border bg-surface-2 px-4 py-3 md:block">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Receipt No
           </p>
@@ -152,7 +275,7 @@ export function SuccessReceiptSheet({
           ) : null}
         </div>
 
-        <div data-mobile-success-receipt-summary className="mt-4 rounded-xl border border-border bg-card p-4 text-sm">
+        <div data-mobile-success-receipt-summary className="mt-4 hidden rounded-xl border border-border bg-card p-4 text-sm md:block">
           <p className="font-semibold text-foreground">
             {studentFullName} · {admissionNo} · {classLabel}
           </p>
@@ -200,7 +323,7 @@ export function SuccessReceiptSheet({
           </div>
         </div>
 
-        <div className="sticky bottom-0 z-10 mt-5 border-t border-border bg-card pt-3 pb-2 mobile-safe-bottom-padding sm:pb-3">
+        <div className="sticky bottom-0 z-10 mt-5 border-t border-border bg-card pt-3 pb-2 mobile-safe-bottom-padding max-md:border-nav-border max-md:bg-nav sm:pb-3">
           <div className="grid grid-cols-2 gap-2">
             {/* Row 1: Print & WhatsApp */}
             {printReceiptHref ? (

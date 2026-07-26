@@ -4,7 +4,6 @@ import { CalendarDays } from "lucide-react";
 
 import { type StaffRole } from "@/lib/auth/roles";
 import { SchoolBrand } from "@/components/branding/school-brand";
-import { MobileSessionPill } from "@/components/admin/mobile-session-pill";
 import { OfficeSyncListener } from "@/components/admin/office-sync-listener";
 import { SessionPill } from "@/components/admin/session-pill";
 import { SessionSwitchOverlayMount } from "@/components/admin/session-switch-overlay";
@@ -17,9 +16,10 @@ import { SessionSwitchingProvider } from "@/lib/session/switching-context";
 
 import { isLocaleSwitcherEnabled } from "@/lib/env";
 
-import { AppTopBar, MobileHeader } from "./app-topbar";
+import { AppTopBar } from "./app-topbar";
 import { LocaleSwitcher } from "./locale-switcher";
 import { MobileBottomNav } from "./mobile-bottom-nav";
+import { MobileTakeoverBar } from "./mobile-takeover-bar";
 import { RouteProgress } from "./route-progress";
 import { ScrollRestoringMain } from "./scroll-restoring-main";
 import { SidebarNav } from "./sidebar-nav";
@@ -128,19 +128,11 @@ export async function DashboardShell({
 
       <div className="relative min-w-0 lg:ml-[232px] lg:h-screen lg:overflow-y-auto">
         <SessionSwitchOverlayMount />
-        <MobileHeader
-          staffEmail={staffEmail}
-          staffRole={staffRole}
-          sessionPill={
-            <MobileSessionPill
-              currentLabel={viewSessionLabel}
-              isTest={viewSessionIsTest}
-              initialSessions={sessionSwitcher.availableSessions}
-            />
-          }
-          localeSwitcher={localeSwitcher}
-          homeHref={homeHref}
-        />
+        {/* No phone app bar (mobile v2). The design gives every screen its
+            own header and keeps only the tab bar as shared chrome. What this
+            bar used to carry now lives where a phone user looks for it:
+            greeting + session pill + avatar on Home, and language, appearance,
+            password and sign-out in Settings. */}
         <AppTopBar
           staffEmail={staffEmail}
           staffRole={staffRole}
@@ -155,11 +147,27 @@ export async function DashboardShell({
           localeSwitcher={localeSwitcher}
         />
         <ScrollRestoringMain
-          className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8 lg:py-7 2xl:max-w-[88rem] mobile-bottom-nav-clearance md:pb-6 lg:pb-8 print:max-w-none print:px-0 print:py-0"
+          /* The back bar lives INSIDE the scroll region so it can pin with
+             sticky instead of position:fixed, and so main can be exactly
+             100dvh — a bar above main would make the document taller than the
+             viewport and reintroduce page scrolling. */
+          mobileBar={<MobileTakeoverBar />}
+          /* Full-bleed on phones: main IS the scroll region (mobile-app-main),
+             so it owns the viewport height and its own bottom-nav clearance.
+             Document padding here would double the inset and push content
+             under the tab bar. */
+          className="mx-auto max-w-7xl md:px-6 md:py-5 lg:px-8 lg:py-7 2xl:max-w-[88rem] md:pb-6 lg:pb-8 print:max-w-none print:px-0 print:py-0"
         >
-          <div className="anim-fade-in">{children}</div>
+          {/* Phone padding lives inside the scroll region, not on main —
+              main is the 100dvh viewport and must not be inset. */}
+          <div className="anim-fade-in px-4 py-4 md:px-0 md:py-0">{children}</div>
         </ScrollRestoringMain>
-        <MobileBottomNav staffRole={staffRole} />
+        {/* Phone bar badges: only the follow-up count. A badge on Collect
+            would read as "3 payments waiting", which is not a thing. */}
+        <MobileBottomNav
+          staffRole={staffRole}
+          counts={{ "/protected/defaulters": pulse.overdueStudentCount }}
+        />
       </div>
       </div>
     </SessionSwitchingProvider>

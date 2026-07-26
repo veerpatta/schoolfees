@@ -154,17 +154,24 @@ export function AppTopBar({
 export function MobileHeader({
   staffEmail,
   staffRole,
+  schoolHour,
   sessionPill,
   localeSwitcher,
   homeHref,
-}: Omit<AppTopBarProps, "schoolHour"> & {
+}: AppTopBarProps & {
   homeHref: string;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const sessionAwareHomeHref = appendCurrentSessionParam(homeHref, searchParams);
   const passwordHref = appendCurrentSessionParam("/protected/password", searchParams);
-  const routeTitle = getProtectedRouteMeta(pathname).label;
+  // Same rule as the desktop topbar: on Home the route label says nothing the
+  // screen doesn't, so greet the person instead. School-time hour comes from
+  // the server, so it is right on first paint.
+  const isDashboard = pathname.startsWith("/protected/dashboard");
+  const routeTitle = isDashboard
+    ? `${greetingForHour(schoolHour)}, ${firstNameOf(staffEmail)}`
+    : getProtectedRouteMeta(pathname).label;
   const tRoles = useTranslations("Roles");
   const roleLabel = tRoles.has(staffRole) ? tRoles(staffRole) : roleLabels[staffRole];
 

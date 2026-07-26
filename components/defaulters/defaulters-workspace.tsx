@@ -332,7 +332,11 @@ export function DefaultersWorkspace({
         </p>
       ) : (
         <>
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,440px)]">
+          {/* [&>*]:min-w-0 — grid items default to min-width:auto, so a child
+              whose min-content is wider than the phone (the call card's metric
+              row) blew the implicit track out to 421px and gave the whole
+              Calls screen 63px of sideways scroll. */}
+          <div className="grid gap-4 [&>*]:min-w-0 lg:grid-cols-[minmax(0,1fr)_minmax(360px,440px)]">
             {/* Mobile is call mode: one family at a time. The full queue is
                 one tap away but does not compete with the card being worked. */}
             <section

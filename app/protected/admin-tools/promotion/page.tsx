@@ -1,3 +1,4 @@
+import { MobileDesktopOnlyNotice } from "@/components/mobile-app/mobile-kit";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
@@ -56,6 +57,11 @@ export default async function PromotionIndexPage({ searchParams }: Props) {
         title={t("promotionTitle")}
         description={t("promotionDescription")}
       />
+      <MobileDesktopOnlyNotice
+        title="Class promotion"
+        reason="Moving every student into the next session is a once-a-year review of hundreds of rows. Do it on a computer where you can see the whole class at once."
+      />
+
 
       {resolved?.error ? (
         <div className="rounded-xl border bg-destructive-soft px-4 py-3 text-sm text-destructive-soft-foreground">

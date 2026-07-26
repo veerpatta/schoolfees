@@ -6,6 +6,10 @@ import Link from "next/link";
 import { SectionCard } from "@/components/admin/section-card";
 import { Button } from "@/components/ui/button";
 import { OfficeRecentActions } from "@/components/office/office-ui";
+import {
+  MobileEmptyRows,
+  MobileRecordCard,
+} from "@/components/mobile-app/mobile-kit";
 import { ReversedBadge } from "@/components/receipts/reversed-badge";
 import { formatInr } from "@/lib/helpers/currency";
 import { appendSessionParam } from "@/lib/navigation/session-href";
@@ -170,7 +174,38 @@ export function DeskTotalsSection({
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-border">
+        <ul className="flex flex-col gap-2.5 md:hidden">
+          {data.recentReceipts.length === 0 ? (
+            <MobileEmptyRows>No recent receipts yet.</MobileEmptyRows>
+          ) : (
+            data.recentReceipts.map((receipt) => (
+              <MobileRecordCard
+                key={receipt.id}
+                title={receipt.studentLabel}
+                subtitle={receipt.receiptNumber}
+                amount={
+                  <span className={receipt.isReversed ? "line-through opacity-60" : undefined}>
+                    {formatInr(receipt.totalAmount)}
+                  </span>
+                }
+                status={receipt.isReversed ? <ReversedBadge /> : undefined}
+                actions={
+                  <>
+                    <Button asChild size="sm" variant="outline" className="h-9 flex-1">
+                      <Link href={withSession(`/protected/receipts/${receipt.id}`)}>Print</Link>
+                    </Button>
+                    <Button asChild size="sm" variant="outline" className="h-9 flex-1">
+                      <Link href={withSession(`/protected/students/${receipt.studentId}`)}>
+                        Student
+                      </Link>
+                    </Button>
+                  </>
+                }
+              />
+            ))
+          )}
+        </ul>
+        <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>

@@ -1,3 +1,4 @@
+import { MobileDesktopOnlyNotice } from "@/components/mobile-app/mobile-kit";
 import Link from "next/link";
 
 import { PageHeader } from "@/components/admin/page-header";
@@ -34,6 +35,11 @@ export default async function BulkPaymentsPage({ searchParams }: BulkPaymentsPag
           </Link>
         }
       />
+      <MobileDesktopOnlyNotice
+        title="Bulk payment upload"
+        reason="Posting many payments at once means checking a spreadsheet row by row against the desk rules. Use a computer for this — collecting a single payment works well here."
+      />
+
       <OfficeNotice tone="warning">
         Admin-only. Rows post real receipts — review the validation results carefully, and
         rehearse with TEST- students on a TEST session before a first live run.

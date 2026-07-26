@@ -18,7 +18,17 @@ describe("session switcher preload", () => {
 
     expect(shell).toContain("getSessionSwitcherData");
     expect(shell).toContain("initialSessions={sessionSwitcher.availableSessions}");
-    expect(shell.match(/initialSessions=\{sessionSwitcher\.availableSessions\}/g)).toHaveLength(2);
+
+    // Mobile v2 moved the phone pill out of the shell and onto Home — the
+    // shell no longer renders a phone app bar. Both pills must still open with
+    // rows already in hand; the point of this guard is that neither fetches
+    // after mount.
+    const dashboard = readRepoFile("app/protected/dashboard/page.tsx");
+    expect(dashboard).toContain("getSessionSwitcherData()");
+    expect(dashboard).toContain("sessionOptions={sessionSwitcher.availableSessions}");
+    expect(readRepoFile("components/dashboard/mobile-dashboard-screen.tsx")).toContain(
+      "initialSessions={sessionOptions}",
+    );
     expect(desktopPill).toContain("if (initialSessions.length > 0)");
     expect(mobilePill).toContain("if (initialSessions.length > 0)");
     expect(switcher).toContain("SESSION_SWITCHER_CACHE_TTL_MS");

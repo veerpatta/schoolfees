@@ -105,9 +105,17 @@ describe("read-only UX audit implementation", () => {
     expect(topbar).not.toContain("hideMobileBottomNav");
     expect(topbar).toContain("hidden border-b");
     expect(topbar).toContain("md:flex");
-    expect(shell).toContain("<MobileHeader");
+    // Mobile v2: there is no phone app bar. Every screen renders its own
+    // header, so the shell must NOT reintroduce a sticky one — and the
+    // controls it used to carry have to live somewhere reachable.
+    expect(shell).not.toContain("<MobileHeader");
+    expect(readRepoFile("components/dashboard/mobile-dashboard-screen.tsx")).toContain(
+      "MobileSessionPill",
+    );
+    expect(readRepoFile("app/protected/settings/page.tsx")).toContain("MobileAccountCard");
     expect(topbar).not.toContain("fixed inset-x-0 bottom-0");
-    expect(shell).toContain("<MobileBottomNav staffRole={staffRole} />");
+    expect(shell).toContain("<MobileBottomNav");
+    expect(shell).toContain("staffRole={staffRole}");
     expect(mobileNav).toContain("fixed inset-x-0 bottom-0");
     expect(mobileNav).toContain("getMobileBottomNavigation(staffRole)");
     expect(paymentDesk).toContain("<MobilePaymentFlowSheet");

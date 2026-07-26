@@ -111,7 +111,11 @@ export function CountUp({
   const render = formatter ?? ((v: number) => formatBuiltIn(format, v));
 
   return (
-    <span className={className} aria-label={render(value)}>
+    /* data-countup: lets a test target the animated figure specifically —
+       the same amount legitimately appears elsewhere on a screen (e.g. the
+       phone printed receipt), and a bare text match would say nothing about
+       whether the animation settled. */
+    <span data-countup className={className} aria-label={render(value)}>
       <span aria-hidden="true" className="tabular">
         {render(display)}
       </span>

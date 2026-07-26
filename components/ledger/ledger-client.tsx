@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { MetricCard } from "@/components/admin/metric-card";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { MobileRecordCard } from "@/components/mobile-app/mobile-kit";
 import { AutoSubmitForm } from "@/components/office/auto-submit-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -398,7 +399,42 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
                 No adjustment rows found for current filter.
               </p>
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-border">
+              <>
+              <ul className="flex flex-col gap-2.5 md:hidden">
+                {selectedStudent.adjustments.map((adjustment) => (
+                  <MobileRecordCard
+                    key={adjustment.id}
+                    title={adjustment.receiptNumber}
+                    subtitle={`${adjustment.installmentLabel} · payment ${formatInr(adjustment.paymentAmount)}`}
+                    amount={
+                      <span
+                        className={
+                          adjustment.amountDelta > 0
+                            ? "text-success-soft-foreground"
+                            : "text-destructive"
+                        }
+                      >
+                        {adjustment.amountDelta > 0 ? "+" : ""}
+                        {formatInr(adjustment.amountDelta)}
+                      </span>
+                    }
+                    fields={[
+                      {
+                        label: "Category",
+                        value: <span className="capitalize">{adjustment.adjustmentType}</span>,
+                      },
+                      {
+                        label: "Effect",
+                        value: adjustment.amountDelta > 0 ? "Reduces due" : "Increases due",
+                      },
+                      { label: "Added on", value: formatDateTime(adjustment.createdAt) },
+                      { label: "Added by", value: adjustment.createdByName ?? "-" },
+                    ]}
+                    footnote={adjustment.reason}
+                  />
+                ))}
+              </ul>
+              <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
                 <table className="w-full min-w-[760px] text-left text-sm">
                   <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
@@ -447,6 +483,7 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </SectionCard>
         </>

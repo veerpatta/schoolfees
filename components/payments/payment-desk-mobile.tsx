@@ -3228,6 +3228,7 @@ export function PaymentDeskClient({
                       receiptNumber={visibleActionState.receiptNumber ?? ""}
                       receiptId={visibleActionState.receiptId ?? ""}
                       studentFullName={selectedStudent.fullName}
+                      fatherName={selectedStudent.fatherName}
                       admissionNo={selectedStudent.admissionNo}
                       classLabel={selectedStudent.classLabel}
                       amountReceived={visibleActionState.amountReceived ?? paymentAmount}

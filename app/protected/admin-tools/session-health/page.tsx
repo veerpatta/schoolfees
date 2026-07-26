@@ -1,3 +1,4 @@
+import { MobileDesktopOnlyNotice } from "@/components/mobile-app/mobile-kit";
 import { Suspense } from "react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
@@ -301,6 +302,11 @@ export default async function SessionHealthPage({ searchParams }: SessionHealthP
           </Button>
         }
       />
+      <MobileDesktopOnlyNotice
+        title="Session health"
+        reason="Reconciling a session reads long diagnostic tables. Open this on a computer."
+      />
+
 
       {resolvedSearchParams?.reconciled ? (
         <OfficeNotice title={t("sessionHealthReconcileTitle")} tone="success">

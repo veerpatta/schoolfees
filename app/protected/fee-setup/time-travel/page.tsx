@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
+import { MobileRecordCard } from "@/components/mobile-app/mobile-kit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -84,6 +85,7 @@ export default async function FeeSetupTimeTravelPage({ searchParams }: Props) {
           </Button>
         }
       />
+
 
       <SectionCard
         title={t("timeTravelChooseTitle")}
@@ -211,7 +213,7 @@ export default async function FeeSetupTimeTravelPage({ searchParams }: Props) {
             {t("timeTravelClassFeesEmpty")}
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="hidden overflow-x-auto md:block">
             <table className="min-w-full divide-y divide-border text-sm">
               <thead className="bg-surface-2 text-left text-xs uppercase tracking-wider text-muted-foreground">
                 <tr>
@@ -257,6 +259,47 @@ export default async function FeeSetupTimeTravelPage({ searchParams }: Props) {
             </table>
           </div>
         )}
+
+        {/* Phone: one card per class. Browsing a past policy is a read-only
+            look-up, which suits a phone — it is the six-column table that does
+            not, so that stays behind md. */}
+        {snapshot.feeSettings.length > 0 ? (
+          <ul className="flex flex-col gap-2.5 md:hidden">
+            {snapshot.feeSettings
+              .slice()
+              .sort((a, b) =>
+                (a.classId ? classLabels.get(a.classId) ?? a.classId : "").localeCompare(
+                  b.classId ? classLabels.get(b.classId) ?? b.classId : "",
+                ),
+              )
+              .map((row) => (
+                <MobileRecordCard
+                  key={row.recordId}
+                  title={
+                    row.classId
+                      ? classLabels.get(row.classId) ?? row.classId
+                      : t("timeTravelUnknownClass")
+                  }
+                  subtitle={formatDateTime(row.capturedAt)}
+                  amount={formatNumberCell(row.data.tuition_fee_amount)}
+                  fields={[
+                    {
+                      label: t("timeTravelTableTransport"),
+                      value: formatNumberCell(row.data.transport_fee_amount),
+                    },
+                    {
+                      label: t("timeTravelTableBooks"),
+                      value: formatNumberCell(row.data.books_fee_amount),
+                    },
+                    {
+                      label: t("timeTravelTableAdmAct"),
+                      value: formatNumberCell(row.data.admission_activity_misc_fee_amount),
+                    },
+                  ]}
+                />
+              ))}
+          </ul>
+        ) : null}
       </SectionCard>
 
       <SectionCard
@@ -270,7 +313,7 @@ export default async function FeeSetupTimeTravelPage({ searchParams }: Props) {
             {t("timeTravelStudentOverridesEmpty")}
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="hidden overflow-x-auto md:block">
             <table className="min-w-full divide-y divide-border text-sm">
               <thead className="bg-surface-2 text-left text-xs uppercase tracking-wider text-muted-foreground">
                 <tr>
@@ -309,6 +352,32 @@ export default async function FeeSetupTimeTravelPage({ searchParams }: Props) {
             </table>
           </div>
         )}
+
+        {/* Same cap as the table above it (20) — this is an audit sample, not
+            a full export, and the footnote already states the real counts. */}
+        {snapshot.studentOverrides.length > 0 ? (
+          <ul className="flex flex-col gap-2.5 md:hidden">
+            {snapshot.studentOverrides.slice(0, 20).map((row) => (
+              <MobileRecordCard
+                key={row.recordId}
+                title={row.studentId ?? row.recordId}
+                subtitle={formatDateTime(row.capturedAt)}
+                amount={formatNumberCell(row.data.custom_tuition_fee_amount)}
+                fields={[
+                  {
+                    label: t("timeTravelTableDiscount"),
+                    value: formatNumberCell(row.data.discount_amount),
+                  },
+                  {
+                    label: t("timeTravelTableLateWaiver"),
+                    value: formatNumberCell(row.data.late_fee_waiver_amount),
+                  },
+                ]}
+                footnote={safeString(row.data.reason, "—")}
+              />
+            ))}
+          </ul>
+        ) : null}
       </SectionCard>
 
       <p className="text-xs text-muted-foreground">

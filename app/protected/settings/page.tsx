@@ -1,10 +1,13 @@
 import Link from "next/link";
 
 import { PageHeader } from "@/components/admin/page-header";
+import { MobileAccountCard } from "@/components/mobile-app/account-card";
+import { LanguagePicker } from "@/components/mobile-app/language-picker";
 import { RolePreview } from "@/components/admin/role-preview";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
+import { roleLabels } from "@/lib/auth/roles";
 import { schoolProfile } from "@/lib/config/school";
 import { formatDateTimeIst } from "@/lib/helpers/date";
 import { getRecentConfigChangeLog } from "@/lib/fees/change-log";
@@ -146,6 +149,33 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
           />
         }
       />
+
+      {/* Account lives here on phones: the app bar that used to carry it is
+          gone (mobile v2), so Settings is the one screen that owns identity,
+          appearance, password and sign-out. Hidden on desktop, where the
+          topbar account menu still does the job. */}
+      <div className="md:hidden">
+        <SectionCard
+          title="Account"
+          description="Your login, appearance and session."
+        >
+          <MobileAccountCard
+            staffEmail={staff.email ?? "Authorized staff"}
+            roleLabel={roleLabels[staff.appRole]}
+            passwordHref={withSession("/protected/password")}
+          />
+        </SectionCard>
+      </div>
+      {/* Language is the phone app's most-changed setting and the one the v2
+          design puts first: one language at a time, chosen here, never two
+          scripts stacked in the chrome. Card-per-option because the sample
+          sentence is the real affordance for staff who can't read the label. */}
+      <SectionCard
+        title="App language"
+        description="Applies to every screen in this app. The printed receipt stays bilingual because parents read it."
+      >
+        <LanguagePicker className="max-w-md" />
+      </SectionCard>
 
       <SectionCard
         title="School identity"
