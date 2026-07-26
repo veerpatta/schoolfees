@@ -64,6 +64,28 @@ describe("payment flow restarts after a successful post", () => {
     expect(body).toContain('searchParams.set("session"');
   });
 
+  it("drops ?studentId= as soon as the receipt exists, not only on tap-through", () => {
+    // Belt and braces for the same bug. `handleCollectAnotherPayment` only
+    // runs when the clerk dismisses the success sheet; anything that remounts
+    // the desk before that — a route re-render, a reload — reads the URL and
+    // re-opens the amount screen for the student who just paid. Stripping it
+    // inside the success effect makes the remount question moot.
+    const source = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+    const start = source.indexOf('if (state.status === "success") {');
+    expect(start).toBeGreaterThan(-1);
+    const end = source.indexOf('if (state.status === "duplicate") {', start);
+    const body = source.slice(start, end);
+
+    expect(body).toContain('searchParams.delete("studentId")');
+    expect(body).toContain("history.replaceState");
+    // React state is untouched, so `selectedStudent` survives and the success
+    // sheet — which requires it at :3224 — still renders.
+    expect(body).not.toMatch(/setSelectedStudentId\(|setSelectedStudent\(null\)/);
+  });
+
   it.each([
     ["the close button", () =>
       fireEvent.click(

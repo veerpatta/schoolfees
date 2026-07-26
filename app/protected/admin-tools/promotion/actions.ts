@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { deleteAcademicSession } from "@/lib/master-data/data";
@@ -53,6 +53,11 @@ export async function applyPromotionRunAction(formData: FormData) {
 
   try {
     await applyPromotionRun(runId);
+    // Transfer to Next Session copies the fee policy into the new year. The
+    // fee-policy resolvers are cached for 300s under this tag; without the
+    // bust, loadPolicyForSession cannot see the new row and silently falls
+    // back to the outgoing year's schedule and late fee.
+    try { revalidateTag("fee-policy", "max"); } catch {}
     revalidatePath("/protected/admin-tools/promotion");
     revalidatePath(`/protected/admin-tools/promotion/${runId}`);
     redirect(

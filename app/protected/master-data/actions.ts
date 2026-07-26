@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 import type { ClassStatus, PaymentMode } from "@/lib/db/types";
 import {
@@ -147,6 +147,13 @@ function revalidateMasterDataSurface() {
   revalidatePath("/protected/defaulters");
   revalidatePath("/protected/reports");
   revalidatePath("/protected/settings");
+  // Creating, copying or activating a session writes fee_policy_configs, and
+  // the fee-policy resolvers are cached under this tag for 300s. Without the
+  // bust, loadPolicyForSession cannot find the brand-new session's row and
+  // falls back to `snapshots.find(isActive) ?? snapshots[0]` — so for up to
+  // five minutes the Payment Desk and post_student_payment would price the new
+  // year off the OLD year's installment schedule and late fee.
+  try { revalidateTag("fee-policy", "max"); } catch {}
 }
 
 export async function createSessionAction(
