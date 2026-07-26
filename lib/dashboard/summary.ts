@@ -216,13 +216,15 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
   );
   const pendingSplit = buildCarryForwardSummary(input.installmentRows);
   const overdueAmount = calculateOverdueBaseAmount(input.overdueInstallments);
-  const todaysCollection = input.todayTransactions.reduce(
-    (sum, row) => sum + row.totalAmount,
-    0,
-  );
+  // Reversed receipts are not collection. These rows already carry isReversed
+  // (lib/workbook/data.ts sets it from v_receipt_reversal_totals) — the flag was
+  // being used to strike rows through in lists while the totals beside them
+  // still counted the money.
+  const todayReceipts = input.todayTransactions.filter((row) => !row.isReversed);
+  const todaysCollection = todayReceipts.reduce((sum, row) => sum + row.totalAmount, 0);
   const currentMonthKey = new Date().toISOString().slice(0, 7);
   const thisMonthCollection = input.transactions
-    .filter((row) => row.paymentDate.startsWith(currentMonthKey))
+    .filter((row) => !row.isReversed && row.paymentDate.startsWith(currentMonthKey))
     .reduce((sum, row) => sum + row.totalAmount, 0);
 
   const kpis: DashboardKpis = {
@@ -240,7 +242,7 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
     overdueAmount,
     todaysCollection,
     thisMonthCollection,
-    receiptsToday: input.todayTransactions.length,
+    receiptsToday: todayReceipts.length,
     collectionRate: calculatePercentage(totalCollected, totalExpectedFees),
   };
 

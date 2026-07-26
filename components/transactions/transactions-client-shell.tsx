@@ -1340,8 +1340,16 @@ export function TransactionsClientShell({
             {(() => {
               const rows = workbook.rows as unknown as Array<Record<string, unknown>>;
               if (workbook.view === "transactions" || workbook.view === "receipts" || workbook.view === "collection_today") {
-                const sum = rows.reduce((acc, row) => acc + Number(row.totalAmount ?? 0), 0);
+                // Reversed receipts stay VISIBLE as rows — the register is
+                // append-only and a voided receipt is part of the record — but
+                // they must not be added up. This footer already counted them
+                // separately while including their amount in the Σ beside it,
+                // so the total disagreed with the dashboard for the same day.
                 const reversedCount = rows.filter((row) => Boolean(row.isReversed)).length;
+                const sum = rows.reduce(
+                  (acc, row) => acc + (row.isReversed ? 0 : Number(row.totalAmount ?? 0)),
+                  0,
+                );
                 return (
                   <>
                     <SummaryCell label={t("summaryAmountSigma")} value={formatInr(sum)} />

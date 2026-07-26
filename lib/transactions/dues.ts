@@ -308,7 +308,14 @@ function buildSummary(rows: WorkbookStudentFinancial[]): OfficeWorkbookSummary {
   );
 }
 
-function buildCollectionRows(rows: WorkbookTransaction[]) {
+function buildCollectionRows(allRows: WorkbookTransaction[]) {
+  // This view answers "what did we take today, by mode" — so a reversed
+  // receipt is not part of it. It contributes no money, and counting it would
+  // also inflate the receipt and student counts beside the amount. The
+  // individual receipt still appears (struck through) in the transactions and
+  // receipts views, where the register is meant to show everything.
+  const rows = allRows.filter((row) => !row.isReversed);
+
   const collectionMap = rows.reduce(
     (acc, row) => {
       const key = `${row.paymentDate}::${row.paymentMode}`;

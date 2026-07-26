@@ -169,11 +169,17 @@ export async function getOfficeHomeData(): Promise<OfficeHomeData> {
       rowsRecalculated: Number(row.preview_summary?.rowsRecalculated ?? 0),
       affectedStudents: Number(row.preview_summary?.affectedStudents ?? 0),
     })),
-    todayCollection: {
-      receiptCount: todayTransactions.length,
-      totalAmount: todayTransactions.reduce((sum, row) => sum + row.totalAmount, 0),
-      lastReceiptId: todayTransactions[0]?.receiptId ?? null,
-      lastReceiptNumber: todayTransactions[0]?.receiptNumber ?? null,
-    },
+    // Reversed receipts are not collection, and must not be offered as "the
+    // last receipt" either — that link would open a voided slip. The rows
+    // already carry isReversed from v_receipt_reversal_totals.
+    todayCollection: (() => {
+      const kept = todayTransactions.filter((row) => !row.isReversed);
+      return {
+        receiptCount: kept.length,
+        totalAmount: kept.reduce((sum, row) => sum + row.totalAmount, 0),
+        lastReceiptId: kept[0]?.receiptId ?? null,
+        lastReceiptNumber: kept[0]?.receiptNumber ?? null,
+      };
+    })(),
   };
 }

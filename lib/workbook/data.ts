@@ -728,10 +728,20 @@ export type TodayReceiptSnapshot = {
 /**
  * Fold receipt rows into mode totals. Shared by the scoped and unscoped paths
  * so the two can never drift apart on what counts.
+ *
+ * Fully reversed receipts are dropped first. A reversal never changes
+ * `receipts.total_amount` — it writes a compensating `payment_adjustments` row —
+ * so folding the raw column counts money that was handed back, and the day
+ * strip would disagree with the dashboard on the same day's takings.
  */
-function sumReceiptSnapshot(
-  rows: Array<{ payment_mode: string | null; total_amount: number | null }>,
-): TodayReceiptSnapshot {
+async function sumReceiptSnapshot(
+  allRows: Array<{ id: string; payment_mode: string | null; total_amount: number | null }>,
+): Promise<TodayReceiptSnapshot> {
+  const reversalTotals = await getReceiptReversalTotals(allRows.map((row) => row.id));
+  const rows = allRows.filter(
+    (row) => !isReceiptReversed(reversalTotals, row.id, row.total_amount ?? 0),
+  );
+
   const totals: TodayReceiptSnapshot = {
     receiptCount: 0,
     total: 0,
@@ -788,7 +798,7 @@ export async function getTodayReceiptSnapshot(
     const { data, error } = await supabase
       .from("receipts")
       .select(
-        "payment_mode, total_amount, student_ref:students!inner(class_ref:classes!inner(session_label))",
+        "id, payment_mode, total_amount, student_ref:students!inner(class_ref:classes!inner(session_label))",
       )
       .eq("student_ref.class_ref.session_label", options.sessionLabel)
       .eq("payment_date", getTodayStamp());
@@ -798,13 +808,13 @@ export async function getTodayReceiptSnapshot(
     }
 
     return sumReceiptSnapshot(
-      (data ?? []) as Array<{ payment_mode: string | null; total_amount: number | null }>,
+      (data ?? []) as Array<{ id: string; payment_mode: string | null; total_amount: number | null }>,
     );
   }
 
   const { data, error } = await supabase
     .from("receipts")
-    .select("payment_mode, total_amount")
+    .select("id, payment_mode, total_amount")
     .eq("payment_date", getTodayStamp());
 
   if (error) {
@@ -812,7 +822,7 @@ export async function getTodayReceiptSnapshot(
   }
 
   return sumReceiptSnapshot(
-    (data ?? []) as Array<{ payment_mode: string | null; total_amount: number | null }>,
+    (data ?? []) as Array<{ id: string; payment_mode: string | null; total_amount: number | null }>,
   );
 }
 

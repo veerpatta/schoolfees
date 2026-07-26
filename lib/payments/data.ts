@@ -905,7 +905,16 @@ async function getTodayPaymentDeskCollectionUncached(sessionLabel: string) {
     throw new Error(`Unable to load today's collection: ${error.message}`);
   }
 
-  const rows = (data ?? []) as Array<{ id: string; total_amount: number | null }>;
+  const allRows = (data ?? []) as Array<{ id: string; total_amount: number | null }>;
+
+  // Exclude fully reversed receipts. This total sits directly above the desk's
+  // recent-receipt list, which already computes isReversed and strikes those
+  // rows through — so before this the same card showed a receipt crossed out
+  // and still counted its money in the figure above it.
+  const reversalTotals = await getReceiptReversalTotals(allRows.map((row) => row.id));
+  const rows = allRows.filter(
+    (row) => !isReceiptReversed(reversalTotals, row.id, row.total_amount ?? 0),
+  );
 
   return {
     receiptCount: rows.length,

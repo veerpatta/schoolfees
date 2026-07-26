@@ -1,5 +1,6 @@
 import "server-only";
 
+import { getReceiptReversalTotals, isReceiptReversed } from "@/lib/receipts/reversals";
 import { cacheSafeUnstableCache, getCacheSafeClient } from "@/lib/supabase/cache-safe";
 
 /**
@@ -65,9 +66,18 @@ async function getShellPulseUncached(sessionLabel: string): Promise<ShellPulse> 
   ]);
 
   // Degrade per query: a failure on one side must never blank the other.
-  const receiptRows = todayReceipts.error
+  const allRows = todayReceipts.error
     ? []
     : ((todayReceipts.data ?? []) as Array<{ id: string; total_amount: number | null }>);
+
+  // A reversal never touches receipts.total_amount — it writes a compensating
+  // payment_adjustments row — so summing the column counts money that was taken
+  // back. The sidebar was reporting ₹11,000 for a day whose only two receipts
+  // had both been reversed.
+  const reversalTotals = await getReceiptReversalTotals(allRows.map((row) => row.id));
+  const receiptRows = allRows.filter(
+    (row) => !isReceiptReversed(reversalTotals, row.id, row.total_amount ?? 0),
+  );
 
   return {
     todayTotalAmount: receiptRows.reduce((sum, row) => sum + (row.total_amount ?? 0), 0),
