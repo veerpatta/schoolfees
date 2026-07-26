@@ -146,6 +146,19 @@ export function daysInMonth(year: number, month: number) {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
+/**
+ * Step calendar days. Goes through UTC purely as day arithmetic — the parts
+ * in and out are IST calendar dates, and UTC has no DST to skew the count.
+ */
+export function addDays({ year, month, day }: CalendarDay, delta: number): CalendarDay {
+  const shifted = new Date(Date.UTC(year, month - 1, day + delta));
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth() + 1,
+    day: shifted.getUTCDate(),
+  };
+}
+
 /** `May 2026` for a calendar month, without round-tripping through a zone. */
 export function formatCalendarMonth(year: number, month: number) {
   // Mid-month so no timezone offset can push the label into a neighbour.

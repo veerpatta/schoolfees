@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { ChevronDown, ChevronLeft, ChevronRight, CreditCard, Printer, SlidersHorizontal, User, X } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CreditCard, Printer, SlidersHorizontal, User, X } from "lucide-react";
 
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -17,7 +17,15 @@ import type { SavedView } from "@/lib/data-table/saved-views";
 import { MoneyWithDefinition } from "@/components/ui/money-with-definition";
 import type { MoneyTermKey } from "@/lib/money/glossary";
 import { formatInr } from "@/lib/helpers/currency";
-import { formatShortDate, formatTodayBadge } from "@/lib/helpers/date";
+import { MobileDatePicker } from "@/components/mobile-app/mobile-date-picker";
+import {
+  addDays,
+  daysInMonth,
+  formatShortDate,
+  formatTodayBadge,
+  partsToIso,
+  todayPartsIst,
+} from "@/lib/helpers/date";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { cn } from "@/lib/utils";
 import {
@@ -691,6 +699,7 @@ export function TransactionsClientShell({
       initialFilters.routeId
     )
   );
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -984,16 +993,18 @@ export function TransactionsClientShell({
                 { label: t("chipThisWeek"), key: "This week", days: -7, weekToDate: true },
                 { label: t("chipThisMonth"), key: "This month", days: 0, monthToDate: true },
               ].map((chip) => {
+                // Every date below is IST calendar arithmetic. This used to
+                // be `new Date().toISOString().slice(0,10)`, which is UTC:
+                // between midnight and 05:30 IST that returns YESTERDAY, so
+                // "Today" silently filtered the wrong day during a late-night
+                // reconciliation. See lib/helpers/date.
+                const todayIso = partsToIso(todayPartsIst());
+                const yesterdayIso = partsToIso(addDays(todayPartsIst(), -1));
                 const isActive = (() => {
                   if (!filters.fromDate || !filters.toDate) return false;
-                  const today = new Date();
-                  const todayIso = today.toISOString().slice(0, 10);
                   if (chip.key === "Today") return filters.fromDate === todayIso && filters.toDate === todayIso;
                   if (chip.key === "Yesterday") {
-                    const y = new Date(today);
-                    y.setDate(y.getDate() - 1);
-                    const yIso = y.toISOString().slice(0, 10);
-                    return filters.fromDate === yIso && filters.toDate === yIso;
+                    return filters.fromDate === yesterdayIso && filters.toDate === yesterdayIso;
                   }
                   return false;
                 })();
@@ -1002,22 +1013,20 @@ export function TransactionsClientShell({
                     key={chip.key}
                     type="button"
                     onClick={() => {
-                      const today = new Date();
-                      const todayIso = today.toISOString().slice(0, 10);
+                      const today = todayPartsIst();
                       let fromIso = todayIso;
                       let toIso = todayIso;
                       if (chip.key === "Yesterday") {
-                        const y = new Date(today);
-                        y.setDate(y.getDate() - 1);
-                        fromIso = y.toISOString().slice(0, 10);
+                        fromIso = yesterdayIso;
                         toIso = fromIso;
                       } else if (chip.key === "This week") {
-                        const start = new Date(today);
-                        start.setDate(today.getDate() - today.getDay());
-                        fromIso = start.toISOString().slice(0, 10);
+                        // Sunday-first, matching the date picker's grid.
+                        const weekday = new Date(
+                          Date.UTC(today.year, today.month - 1, today.day),
+                        ).getUTCDay();
+                        fromIso = partsToIso(addDays(today, -weekday));
                       } else if (chip.key === "This month") {
-                        const start = new Date(today.getFullYear(), today.getMonth(), 1);
-                        fromIso = start.toISOString().slice(0, 10);
+                        fromIso = partsToIso({ ...today, day: 1 });
                       }
                       const newFilters = { ...filters, fromDate: fromIso, toDate: toIso, page: 1 };
                       setFilters(newFilters);
@@ -1034,6 +1043,26 @@ export function TransactionsClientShell({
                   </button>
                 );
               })}
+              {/* The design's calendar chip. On a phone the native date input
+                  opens a full-screen system dialog that cannot show which days
+                  actually have receipts, which is the whole reason a clerk
+                  opens it. Desktop keeps the From/To inputs under More
+                  filters — this chip is the phone's way in. */}
+              <button
+                type="button"
+                onClick={() => setDatePickerOpen(true)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors md:hidden",
+                  filters.fromDate && filters.toDate && filters.fromDate === filters.toDate
+                    ? "border-accent bg-accent text-accent-foreground"
+                    : "border-border bg-card text-foreground hover:bg-surface-2",
+                )}
+              >
+                <CalendarDays className="size-3.5" aria-hidden="true" />
+                {filters.fromDate && filters.toDate && filters.fromDate === filters.toDate
+                  ? formatShortDate(filters.fromDate)
+                  : t("chipPickDate")}
+              </button>
               {(filters.fromDate || filters.toDate) ? (
                 <button
                   type="button"
@@ -1048,6 +1077,35 @@ export function TransactionsClientShell({
                 </button>
               ) : null}
             </div>
+
+            <MobileDatePicker
+              open={datePickerOpen}
+              onClose={() => setDatePickerOpen(false)}
+              value={
+                filters.fromDate && filters.fromDate === filters.toDate
+                  ? filters.fromDate
+                  : null
+              }
+              onSelectDate={(iso) => {
+                const newFilters = { ...filters, fromDate: iso, toDate: iso, page: 1 };
+                setFilters(newFilters);
+                scheduleOrFetch(activeView, newFilters, false);
+              }}
+              onSelectMonth={(year, month) => {
+                const from = partsToIso({ year, month, day: 1 });
+                const to = partsToIso({ year, month, day: daysInMonth(year, month) });
+                const newFilters = { ...filters, fromDate: from, toDate: to, page: 1 };
+                setFilters(newFilters);
+                scheduleOrFetch(activeView, newFilters, false);
+              }}
+              labels={{
+                today: t("chipToday"),
+                wholeMonth: t("chipThisMonth"),
+                dotLegend: t("datePickerDotLegend"),
+                previousMonth: t("datePickerPrevMonth"),
+                nextMonth: t("datePickerNextMonth"),
+              }}
+            />
 
             {/* Secondary row: date range, route, academic year */}
             {showMoreFilters && (

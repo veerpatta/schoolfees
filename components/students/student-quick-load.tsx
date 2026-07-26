@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { SectionCard } from "@/components/admin/section-card";
 import { SavedViewsTabs } from "@/components/data-table/saved-views-tabs";
 import { SummaryRow, SummaryCell } from "@/components/data-table/summary-row";
+import { VoiceSearchButton } from "@/components/mobile-app/voice-search-button";
 import { BulkStudentEditBar } from "@/components/students/bulk-student-edit-bar";
 import { StudentListTable } from "@/components/students/student-list-table";
 import { Button } from "@/components/ui/button";
@@ -315,20 +316,33 @@ export function StudentQuickLoad({
         <div className="md:hidden space-y-3" data-mobile-student-search>
           <div>
             <Label htmlFor="query-mobile-inline">{t("searchLabel")}</Label>
-            <div className="relative mt-2">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-              <Input
-                id="query-mobile-inline"
-                ref={searchRef}
-                data-student-search="true"
-                value={filters.query}
-                onChange={(event) => {
+            <div className="mt-2 flex items-stretch gap-2">
+              <div className="relative min-w-0 flex-1">
+                <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <Input
+                  id="query-mobile-inline"
+                  ref={searchRef}
+                  data-student-search="true"
+                  value={filters.query}
+                  onChange={(event) => {
+                    setPage(1);
+                    setFilters((previous) => ({ ...previous, query: event.target.value }));
+                  }}
+                  placeholder={t("searchPlaceholder")}
+                  title={t("searchFocusHint")}
+                  className="h-[50px] pl-9"
+                />
+              </div>
+              {/* Renders nothing where speech recognition is unavailable, so
+                  the field goes full width on iOS rather than sitting beside
+                  a dead square. */}
+              <VoiceSearchButton
+                label={t("voiceSearch")}
+                listeningLabel={t("voiceSearchListening")}
+                onTranscript={(text) => {
                   setPage(1);
-                  setFilters((previous) => ({ ...previous, query: event.target.value }));
+                  setFilters((previous) => ({ ...previous, query: text }));
                 }}
-                placeholder={t("searchPlaceholder")}
-                title={t("searchFocusHint")}
-                className="h-11 pl-9"
               />
             </div>
           </div>

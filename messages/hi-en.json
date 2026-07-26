@@ -1089,7 +1089,14 @@
     "flagMissingDob": "Date of birth nahi hai",
     "flagMissingClass": "Class nahi di",
     "flagMissingStatus": "Status nahi chuna",
-    "chipOnlyWithDues": "Sirf dues wale"
+    "chipOnlyWithDues": "Sirf dues wale",
+    "voiceSearch": "Bolkar khojein",
+    "voiceSearchListening": "Sun rahe hain — naam boliye",
+    "tabDues": "Baaki",
+    "tabReceipts": "Rasidein",
+    "tabPaymentLines": "Payment lines",
+    "tabFeePlan": "Fee plan",
+    "tabAbout": "Jaankari"
   },
   "Transactions": {
     "loadingBadge": "Transactions",
@@ -1202,7 +1209,11 @@
     "todayStripModeCash": "Cash",
     "todayStripModeUpi": "UPI",
     "todayStripModeBank": "Bank",
-    "todayStripModeCheque": "Cheque"
+    "todayStripModeCheque": "Cheque",
+    "chipPickDate": "Tareekh chunein",
+    "datePickerDotLegend": "Bindu wale din mein rasidein hain.",
+    "datePickerPrevMonth": "Pichhla mahina",
+    "datePickerNextMonth": "Agla mahina"
   },
   "Receipts": {
     "indexEyebrow": "Receipts",

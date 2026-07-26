@@ -1089,7 +1089,14 @@
     "flagMissingDob": "जन्म तिथि नहीं है",
     "flagMissingClass": "क्लास नहीं दी",
     "flagMissingStatus": "स्थिति नहीं चुनी",
-    "chipOnlyWithDues": "केवल बकाया वाले"
+    "chipOnlyWithDues": "केवल बकाया वाले",
+    "voiceSearch": "बोलकर खोजें",
+    "voiceSearchListening": "सुन रहे हैं — नाम बोलिए",
+    "tabDues": "बाकी",
+    "tabReceipts": "रसीदें",
+    "tabPaymentLines": "भुगतान लाइनें",
+    "tabFeePlan": "फीस योजना",
+    "tabAbout": "जानकारी"
   },
   "Transactions": {
     "loadingBadge": "लेन-देन",
@@ -1202,7 +1209,11 @@
     "todayStripModeCash": "नकद",
     "todayStripModeUpi": "UPI",
     "todayStripModeBank": "बैंक",
-    "todayStripModeCheque": "चेक"
+    "todayStripModeCheque": "चेक",
+    "chipPickDate": "तारीख चुनें",
+    "datePickerDotLegend": "बिंदु वाले दिन में रसीदें हैं.",
+    "datePickerPrevMonth": "पिछला महीना",
+    "datePickerNextMonth": "अगला महीना"
   },
   "Receipts": {
     "indexEyebrow": "रसीदें",

@@ -1089,7 +1089,14 @@
     "flagMissingDob": "Date of birth missing",
     "flagMissingClass": "Class not assigned",
     "flagMissingStatus": "Status not set",
-    "chipOnlyWithDues": "Only with dues"
+    "chipOnlyWithDues": "Only with dues",
+    "voiceSearch": "Search by voice",
+    "voiceSearchListening": "Listening — say a name",
+    "tabDues": "Dues",
+    "tabReceipts": "Receipts",
+    "tabPaymentLines": "Payment Lines",
+    "tabFeePlan": "Fee Plan",
+    "tabAbout": "About"
   },
   "Transactions": {
     "loadingBadge": "Transactions",
@@ -1202,7 +1209,11 @@
     "todayStripModeCash": "Cash",
     "todayStripModeUpi": "UPI",
     "todayStripModeBank": "Bank",
-    "todayStripModeCheque": "Cheque"
+    "todayStripModeCheque": "Cheque",
+    "chipPickDate": "Pick a date",
+    "datePickerDotLegend": "A dot marks a day with receipts.",
+    "datePickerPrevMonth": "Previous month",
+    "datePickerNextMonth": "Next month"
   },
   "Receipts": {
     "indexEyebrow": "Receipts",

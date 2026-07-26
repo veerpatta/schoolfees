@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  addDays,
   addMonths,
   daysInMonth,
   formatCalendarMonth,
@@ -106,5 +107,38 @@ describe("calendar grid", () => {
       month: 7,
       day: 27,
     });
+  });
+
+  it("steps days across month and year ends", () => {
+    expect(addDays({ year: 2026, month: 7, day: 31 }, 1)).toEqual({
+      year: 2026,
+      month: 8,
+      day: 1,
+    });
+    expect(addDays({ year: 2026, month: 1, day: 1 }, -1)).toEqual({
+      year: 2025,
+      month: 12,
+      day: 31,
+    });
+    expect(addDays({ year: 2024, month: 2, day: 28 }, 1)).toEqual({
+      year: 2024,
+      month: 2,
+      day: 29,
+    });
+  });
+
+  it("agrees with the picker on what 'today' and 'yesterday' mean", () => {
+    // The Transactions day chips used `new Date().toISOString().slice(0,10)`,
+    // which is UTC: between 00:00 and 05:30 IST that resolves to YESTERDAY,
+    // so "Today" filtered the wrong day during a late-night reconciliation.
+    // Both surfaces now derive from the same IST parts.
+    const lateNightIst = new Date("2026-07-26T19:00:00Z"); // 00:30 IST, 27 Jul
+    const today = todayPartsIst(lateNightIst);
+
+    expect(partsToIso(today)).toBe("2026-07-27");
+    expect(partsToIso(addDays(today, -1))).toBe("2026-07-26");
+    // What the old code would have produced, kept explicit so the regression
+    // is recognisable if anyone reintroduces it.
+    expect(lateNightIst.toISOString().slice(0, 10)).toBe("2026-07-26");
   });
 });
