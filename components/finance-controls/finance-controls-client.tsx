@@ -102,24 +102,39 @@ function RefundRowActions({
   return (
     <div className="flex flex-wrap gap-2">
       {row.status === "pending_approval" ? (
-        <>
-          <form action={formAction}>
+        // Approve and Reject were two identical grey outline buttons sitting
+        // side by side. They move a parent's money in opposite directions, and
+        // on a phone they were ~70px targets distinguished only by reading the
+        // label. The design pairs them as a full-width 2-up: Approve filled
+        // green, Reject outlined red. Same forms, same server action — only
+        // the affordance changes.
+        <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:flex">
+          <form action={formAction} className="contents sm:block">
             <input type="hidden" name="workflowAction" value="approve_refund" />
             <input type="hidden" name="refundRequestId" value={row.refundRequestId} />
             <input type="hidden" name="refundStatus" value="approved" />
-            <Button type="submit" size="sm" variant="outline">
+            <Button
+              type="submit"
+              size="sm"
+              className="h-11 w-full bg-success text-success-foreground hover:bg-success/90 sm:h-8 sm:w-auto"
+            >
               Approve
             </Button>
           </form>
-          <form action={formAction}>
+          <form action={formAction} className="contents sm:block">
             <input type="hidden" name="workflowAction" value="reject_refund" />
             <input type="hidden" name="refundRequestId" value={row.refundRequestId} />
             <input type="hidden" name="refundStatus" value="rejected" />
-            <Button type="submit" size="sm" variant="outline">
+            <Button
+              type="submit"
+              size="sm"
+              variant="outline"
+              className="h-11 w-full border-destructive/40 text-destructive hover:bg-destructive-soft sm:h-8 sm:w-auto"
+            >
               Reject
             </Button>
           </form>
-        </>
+        </div>
       ) : (
         <form action={formAction}>
           <input type="hidden" name="workflowAction" value="process_refund" />

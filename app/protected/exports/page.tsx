@@ -185,10 +185,15 @@ export default async function ExportsPage({ searchParams }: ExportsPageProps) {
                       {/* Plain anchors, not next/link: these hrefs return binary
                           attachments from a route handler, and client-side
                           navigation to a non-RSC response silently no-ops. */}
+                      {/* Excel reads as the primary of the pair, per the
+                          design — it is the format the office actually works
+                          in; the PDF is for sharing. Tinting one of two
+                          identical grey buttons is what lets a thumb pick the
+                          right one without reading. */}
                       <a
                         href={xlsxHref}
                         download
-                        className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-surface-2 px-2.5 text-xs font-bold text-foreground hover:bg-surface-3 md:h-auto md:rounded-md md:py-1.5 md:font-medium"
+                        className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-success/30 bg-success-soft px-2.5 text-xs font-bold text-success-soft-foreground hover:bg-success-soft/80 md:h-auto md:rounded-md md:py-1.5 md:font-medium"
                       >
                         <Download className="size-3.5" aria-hidden="true" />
                         {t("formatXlsx")}

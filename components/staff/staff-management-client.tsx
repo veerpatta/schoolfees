@@ -330,9 +330,16 @@ function roleTone(role: StaffRole) {
   return "warning" as const;
 }
 
-/** Initials for the phone staff list. Two letters, first + last word. */
+/**
+ * Initials for the phone staff list. Two letters, first + last word.
+ *
+ * The split is on `\s+`, whitespace. It was written `/s+/` — the letter s —
+ * so every name containing a lowercase s was cut at it: "Suresh Sharma" gave
+ * SH, "Rajesh Singh" gave RH. Names without one happened to look right, which
+ * is why it survived.
+ */
 function initialsOfName(name: string) {
-  const parts = name.trim().split(/s+/).filter(Boolean);
+  const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
