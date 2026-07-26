@@ -1617,7 +1617,7 @@
     "installmentLine": "Chaalu kist: {label}. Aaj {pending} maanga ja sakta hai; {notDue} ki tareekh abhi nahi aayi.",
     "keypadDelete": "Aakhri ank hataayein",
     "keypadLabel": "Rakam ka keypad",
-    "languageNote": "Is device ke liye save hui aur agli baar bhi yahi rahegi. Chhapi rasid do bhashaon mein hi rehti hai — use parent padhte hain.",
+    "languageNote": "Aapke login ke saath save hoti hai — jis bhi device par sign in karein, yahi bhasha dikhegi. Chhapi rasid do bhashaon mein hi rehti hai — use parent padhte hain.",
     "moreActivity": "Gatividhi log",
     "moreActivityDesc": "Har badlaav, kisne aur kab",
     "moreAdminTools": "Admin tools",

@@ -1,8 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+import {
+  LOCALE_COOKIE_MAX_AGE_SECONDS,
+  LOCALE_COOKIE_NAME,
+  isSupportedLocale,
+} from "@/i18n/locales";
 import { resolveStaffRole } from "@/lib/auth/roles";
 import { getDefaultProtectedHref } from "@/lib/config/navigation";
 import { sanitizeRedirectPath } from "@/lib/env";
@@ -49,7 +55,9 @@ export async function loginAction(
 
     const { data: profileData } = await supabase
       .from("users")
-      .select("is_active, role")
+      // preferred_locale rides along on the profile read we already do, so
+      // seeding the language costs nothing extra at sign-in.
+      .select("is_active, role, preferred_locale")
       .eq("id", data.user.id)
       .maybeSingle();
 
@@ -63,6 +71,23 @@ export async function loginAction(
         message:
           "This staff account is currently inactive. Contact the school admin.",
       };
+    }
+
+    // Sign-in is where the account language meets a new device. The cookie
+    // stays the per-request read path (no query per page); this is the one
+    // moment it needs reconciling against the account, and it is exactly what
+    // makes "every device you use shows this language" true.
+    const accountLocale = (profileData as { preferred_locale?: string | null } | null)
+      ?.preferred_locale;
+    if (isSupportedLocale(accountLocale)) {
+      const cookieStore = await cookies();
+      cookieStore.set({
+        name: LOCALE_COOKIE_NAME,
+        value: accountLocale,
+        path: "/",
+        maxAge: LOCALE_COOKIE_MAX_AGE_SECONDS,
+        sameSite: "lax",
+      });
     }
 
     const appRole = resolveStaffRole(

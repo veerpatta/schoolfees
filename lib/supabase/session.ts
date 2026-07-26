@@ -27,6 +27,8 @@ export type AuthenticatedStaffSession = StaffAuthClaims & {
   isActive: boolean;
   fullName: string | null;
   lastLoginAt: string | null;
+  /** Account-level app language. NULL means "no choice made — use the cookie". */
+  preferredLocale: string | null;
 };
 
 type StaffProfileRow = {
@@ -34,6 +36,7 @@ type StaffProfileRow = {
   role: string | null;
   is_active: boolean;
   last_login_at: string | null;
+  preferred_locale: string | null;
 };
 
 const _getAuthenticatedStaffOnce = cache(async () => {
@@ -56,7 +59,10 @@ const _getAuthenticatedStaffOnce = cache(async () => {
 
   const { data: profileData } = await supabase
     .from("users")
-    .select("full_name, role, is_active, last_login_at")
+    // preferred_locale rides along on the profile read the session already
+    // does. Resolving the account language must not cost a second round trip
+    // on every protected page.
+    .select("full_name, role, is_active, last_login_at, preferred_locale")
     .eq("id", userId)
     .maybeSingle();
 
@@ -74,6 +80,7 @@ const _getAuthenticatedStaffOnce = cache(async () => {
     isActive: profile?.is_active ?? true,
     fullName: profile?.full_name ?? null,
     lastLoginAt: profile?.last_login_at ?? null,
+    preferredLocale: profile?.preferred_locale ?? null,
   } satisfies AuthenticatedStaffSession;
 });
 

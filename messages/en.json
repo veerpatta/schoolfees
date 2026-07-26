@@ -1617,7 +1617,7 @@
     "installmentLine": "Current installment: {label}. {pending} is askable today; {notDue} is not due yet.",
     "keypadDelete": "Delete last digit",
     "keypadLabel": "Amount keypad",
-    "languageNote": "Saved for this device and remembered next time you sign in here. The printed receipt stays bilingual — parents read it.",
+    "languageNote": "Saved to your login — every device you sign in on shows this language. The printed receipt stays bilingual — parents read it.",
     "moreActivity": "Activity log",
     "moreActivityDesc": "Every change, with who and when",
     "moreAdminTools": "Admin tools",

@@ -144,6 +144,24 @@ migration *does*. Filenames are listed without the `.sql` extension.
 
 - `20260522030225_fix_overdue_installment_balance_status` — overdue status calculation fix.
 
+### Staff preferences
+
+- `20260726134923_user_preferred_locale` — `users.preferred_locale` plus
+  `set_my_preferred_locale()` / `get_my_preferred_locale()`. Both are
+  SECURITY DEFINER because RLS on `public.users` gates SELECT on
+  `has_any_permission(...)` and UPDATE on `has_permission('staff:manage')`,
+  so a counter-staff account can neither read nor write its own row, and RLS
+  cannot be narrowed to one column. The setter is a no-op when the value is
+  unchanged: `private.capture_audit_event()` is column-agnostic and would
+  otherwise write a full row snapshot to `audit_logs` on every language tap.
+
+> **Index drift.** As of 2026-07-26 this index is missing entries for 58
+> migrations applied between 2026-05-23 and 2026-07-19 — golden rule 4 below
+> stopped being followed somewhere around `20260523130000`. The files and the
+> remote history are consistent (127 local = 127 remote, verified); it is only
+> this listing that is behind. Backfilling it is tracked separately rather
+> than being folded into an unrelated change.
+
 ## When you add a new migration
 
 1. Create the file via `supabase migration new <name>` so the timestamp is

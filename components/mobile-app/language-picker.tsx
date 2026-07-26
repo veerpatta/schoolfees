@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Check } from "lucide-react";
 
-import { supportedLocales, type AppLocale } from "@/i18n/locales";
+import { mobileLocaleOptions, type AppLocale } from "@/i18n/locales";
 import { useLang } from "@/lib/locale/language-provider";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +14,11 @@ import { cn } from "@/lib/utils";
  * up with a second script. The choice is a big tap target with a sample
  * sentence written IN that language, so a clerk who cannot read the label can
  * still recognise the one they want.
+ *
+ * The phone offers English and हिन्दी, per the design. Hinglish is still a
+ * supported locale (fully translated, chosen by real accounts) — it just is
+ * not offered here. If it IS the active locale we render its row anyway:
+ * hiding it would leave the group with nothing selected and no way back.
  *
  * The printed receipt deliberately stays bilingual — parents read it, and they
  * are not the ones who picked this setting.
@@ -35,10 +40,14 @@ export function LanguagePicker({ className }: { className?: string }) {
   const { locale, setLocale, isSwitching } = useLang();
   const t = useTranslations("MobileApp");
 
+  const options: AppLocale[] = mobileLocaleOptions.includes(locale)
+    ? [...mobileLocaleOptions]
+    : [...mobileLocaleOptions, locale];
+
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       <div role="radiogroup" aria-label="App language" className="flex flex-col gap-2">
-        {supportedLocales.map((option) => {
+        {options.map((option) => {
           const selected = option === locale;
           return (
             <button
@@ -51,7 +60,7 @@ export function LanguagePicker({ className }: { className?: string }) {
                 if (!selected) setLocale(option);
               }}
               className={cn(
-                "focus-ring flex items-center gap-3 rounded-xl border p-3.5 text-left transition-colors",
+                "focus-ring flex min-h-14 items-center gap-3 rounded-[14px] border-2 px-3.5 text-left transition-colors",
                 "disabled:opacity-60",
                 selected
                   ? "border-accent bg-accent-soft"
