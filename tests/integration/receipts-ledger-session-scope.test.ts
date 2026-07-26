@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const createClient = vi.fn();
@@ -55,10 +58,13 @@ describe("receipts + ledger session scope", () => {
 
     await getReceiptsPage("", { page: 1, pageSize: 30 }, "TEST-2026-27");
 
-    // Step 1 resolves session-scoped receipt ids by the installment frozen on each payment.
+    // ONE query on receipts, scoped by joining through the payment's frozen
+    // installment. This used to be two steps — resolve every scoped receipt id,
+    // then `.in("id", …)` — which put the whole id list in the request URL and
+    // grew with the roster. See the note in lib/receipts/data.ts.
     expect(eqCalls).toContainEqual({
-      table: "payments",
-      column: "installment_ref.class_ref.session_label",
+      table: "receipts",
+      column: "payments.installment_ref.class_ref.session_label",
       value: "TEST-2026-27",
     });
     // The old current-class join (receipt → student → current class) must be gone.
@@ -78,10 +84,13 @@ describe("receipts + ledger session scope", () => {
       sessionLabel: "TEST-2026-27",
     });
 
-    // Picker scope is derived from installments frozen to the session...
+    // Scoped by joining students through their frozen installment, in one
+    // query. The previous shape loaded every scoped student id and passed them
+    // to `.in("id", …)`; on the live session that was 481 uuids and a
+    // ~17,800-character URL, and the page died with "TypeError: fetch failed".
     expect(eqCalls).toContainEqual({
-      table: "installments",
-      column: "class_ref.session_label",
+      table: "students",
+      column: "installments.class_ref.session_label",
       value: "TEST-2026-27",
     });
     // ...never by filtering the students table on its current class session.
@@ -90,6 +99,21 @@ describe("receipts + ledger session scope", () => {
         (call) => call.table === "students" && call.column === "class_ref.session_label",
       ),
     ).toBe(false);
+  });
+
+  it("builds no id-list filter whose length tracks the roster", () => {
+    // The rule this file now exists to protect. Three separate outages have
+    // come from serialising a uuid list into a PostgREST filter: e97f283
+    // (receipt-id batch), d0d43b9 (today's snapshot), and the Ledger page.
+    const sources = [
+      readFileSync(join(process.cwd(), "lib/receipts/data.ts"), "utf8"),
+      readFileSync(join(process.cwd(), "lib/ledger/data.ts"), "utf8"),
+    ];
+
+    for (const source of sources) {
+      expect(source).not.toContain("loadSessionScopedStudentIds");
+      expect(source).not.toMatch(/\.in\(\s*["']id["']\s*,\s*session\w*Ids/);
+    }
   });
 
   it("leaves the ledger student picker unscoped when no session is supplied", async () => {

@@ -1,7 +1,6 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import { loadSessionScopedReceiptIds } from "@/lib/session/installment-scope";
 import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
 import { buildReceiptAdjustmentTotals } from "@/lib/receipts/amounts";
 import { getReceiptReversalTotals, isReceiptReversed } from "@/lib/receipts/reversals";
@@ -297,19 +296,27 @@ export async function getReceiptsPage(
   // follow them into their new session (and vanish from the old one). Step 1 resolves the
   // receipt ids whose payments settled an installment in this session; step 2 filters
   // receipts by those ids so `count: exact` and pagination stay correct.
-  const sessionReceiptIds = await loadSessionScopedReceiptIds(sessionLabel);
-
-  if (sessionReceiptIds.length === 0) {
-    return { receipts: [], totalCount: 0, page, pageSize };
-  }
-
+  // Scoped through the JOIN rather than a list of receipt ids.
+  //
+  // This used to resolve every scoped receipt id and pass them to
+  // `.in("id", …)`. PostgREST serialises that into the request URL, so the
+  // filter grew with every receipt posted: at 181 receipts it was already a
+  // ~6,700-character URL, and the Ledger page proved the ceiling by dying at
+  // ~17,800 ("TypeError: fetch failed"). This one was on course to break
+  // around 480 receipts — inside this academic year, during collection season.
+  //
+  // The embed is filter-only and keeps `count: "exact"` and `.range()` honest:
+  // PostgREST returns one parent row per receipt with its children nested, so
+  // the count is still receipts, not payments. Verified against live data —
+  // the join and the id list select exactly the same 181 receipts, with zero
+  // rows on either side of the difference.
   let query = supabase
     .from("receipts")
     .select(
-      "id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, student_ref:students(id, full_name, admission_no, father_name, primary_phone, class_ref:classes(class_name, section, stream_name), route_ref:transport_routes(route_name, route_code))",
+      "id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, student_ref:students(id, full_name, admission_no, father_name, primary_phone, class_ref:classes(class_name, section, stream_name), route_ref:transport_routes(route_name, route_code)), payments!inner(installment_ref:installments!inner(class_ref:classes!inner(session_label)))",
       { count: "exact" },
     )
-    .in("id", sessionReceiptIds)
+    .eq("payments.installment_ref.class_ref.session_label", sessionLabel)
     .order("payment_date", { ascending: false })
     .order("created_at", { ascending: false })
     .range(from, to);
@@ -326,7 +333,12 @@ export async function getReceiptsPage(
     throw new Error(`Unable to load receipts: ${error.message}`);
   }
 
-  const listRows = (data ?? []) as ReceiptListRow[];
+  // Cast via unknown: the select carries a filter-only `payments` embed that
+  // ReceiptListRow deliberately does not model (nothing reads it — it exists to
+  // scope the join), and the students embed omits columns the list never shows.
+  // Without the widening step TS compares the two shapes structurally and
+  // objects to fields this query has no reason to fetch.
+  const listRows = (data ?? []) as unknown as ReceiptListRow[];
   const reversalTotals = await getReceiptReversalTotals(listRows.map((row) => row.id));
   const receipts = listRows.map((row) => {
     const student = toSingleRecord(row.student_ref);

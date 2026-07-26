@@ -50,28 +50,22 @@ export async function loadSessionScopedReceiptIds(sessionLabel: string): Promise
   ];
 }
 
-/**
- * Student ids that have at least one installment frozen to `sessionLabel`.
- * Used to scope money/history pickers (e.g. the ledger student selector) so a
- * promoted student still appears under the session they had activity in.
+/*
+ * There is deliberately no `loadSessionScopedStudentIds` here any more.
+ *
+ * It returned every student id in a session and callers fed that to
+ * PostgREST's `.in("id", …)`, which serialises into the request URL. On the
+ * live session that is 481 uuids — a ~17,800-character URL — and the fetch was
+ * rejected before it left Node, which is what broke the Ledger page in
+ * production ("Unable to load students for ledger: TypeError: fetch failed").
+ * TEST-2026-27 has 79 students, so it worked everywhere it was tested.
+ *
+ * Scope students by JOINING through the installment instead, as
+ * `getLedgerPageData` now does:
+ *
+ *     .select("…, installments!inner(id, class_ref:classes!inner(session_label))")
+ *     .eq("installments.class_ref.session_label", sessionLabel)
+ *
+ * Same promotion-proof anchor, no id list, and the URL stays constant however
+ * large the roster grows.
  */
-export async function loadSessionScopedStudentIds(sessionLabel: string): Promise<string[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("installments")
-    .select("student_id, class_ref:classes!inner(session_label)")
-    .eq("class_ref.session_label", sessionLabel)
-    .limit(SESSION_SCOPE_ROW_LIMIT);
-
-  if (error) {
-    throw new Error(`Unable to scope students to session: ${error.message}`);
-  }
-
-  return [
-    ...new Set(
-      ((data ?? []) as Array<{ student_id: string | null }>)
-        .map((row) => row.student_id)
-        .filter((value): value is string => Boolean(value)),
-    ),
-  ];
-}

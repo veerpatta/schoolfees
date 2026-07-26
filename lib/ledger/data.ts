@@ -2,7 +2,6 @@ import "server-only";
 
 import type { AdjustmentType, PaymentMode } from "@/lib/db/types";
 import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
-import { loadSessionScopedStudentIds } from "@/lib/session/installment-scope";
 import { createClient } from "@/lib/supabase/server";
 import type {
   LedgerAdjustmentRow,
@@ -241,26 +240,45 @@ export async function getLedgerPageData(payload: {
   // no sessionLabel, so the picker stays unfiltered there (it only consumes the by-id
   // result).
   const normalizedSearchQuery = payload.searchQuery.trim();
-  const sessionStudentIds = payload.sessionLabel
-    ? await loadSessionScopedStudentIds(payload.sessionLabel)
-    : null;
-  // An empty scope means no student had activity in this session — skip the picker query
-  // (an empty `.in(...)` is an invalid filter) but still allow the by-id drill-down below.
-  const skipPicker = sessionStudentIds !== null && sessionStudentIds.length === 0;
 
   let studentOptions: LedgerStudentOption[] = [];
 
-  if (!skipPicker) {
-    let studentsQuery = supabase
-      .from("students")
-      .select("id, full_name, admission_no, class_ref:classes(class_name, section, stream_name)")
+  {
+    // Session scoping goes through the JOIN, not through a materialised list of
+    // student ids.
+    //
+    // This used to load every scoped student id and pass them to `.in("id", …)`.
+    // PostgREST puts that in the query string, so on the live session — 481
+    // students — the request URL ran past 17,000 characters and the fetch was
+    // rejected before it left Node: "Unable to load students for ledger:
+    // TypeError: fetch failed". TEST-2026-27 has 79 students (~2,900 chars), so
+    // the page worked there and looked fine in every test.
+    //
+    // Same failure and same fix as the receipt-id filter (e97f283) and today's
+    // receipt snapshot (d0d43b9): scope by join, never by a UUID list whose
+    // length tracks the roster.
+    //
+    // The embed is filter-only — `installments!inner` keeps a student when they
+    // have at least one installment frozen to this session, which is the
+    // promotion-proof anchor described in lib/session/installment-scope.ts. Only
+    // `id` is selected from it so the response does not carry an installment
+    // array per student.
+    const scopedSelect =
+      "id, full_name, admission_no, class_ref:classes(class_name, section, stream_name)";
+
+    let studentsQuery = payload.sessionLabel
+      ? supabase
+          .from("students")
+          .select(
+            `${scopedSelect}, installments!inner(id, class_ref:classes!inner(session_label))`,
+          )
+          .eq("installments.class_ref.session_label", payload.sessionLabel)
+      : supabase.from("students").select(scopedSelect);
+
+    studentsQuery = studentsQuery
       .in("status", ["active", "inactive"])
       .order("full_name", { ascending: true })
       .limit(150);
-
-    if (sessionStudentIds) {
-      studentsQuery = studentsQuery.in("id", sessionStudentIds);
-    }
 
     if (normalizedSearchQuery) {
       studentsQuery = studentsQuery.or(
