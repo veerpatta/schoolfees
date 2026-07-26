@@ -762,7 +762,9 @@
     "publishing": "Publish ho raha hai…",
     "stagePreviewImpact": "Impact dekhein",
     "stagePublished": "Published",
-    "stageDraftEdited": "Draft edited"
+    "stageDraftEdited": "Draft edited",
+    "tuitionDecrease": "{label} ki varshik tuition ghatayein",
+    "tuitionIncrease": "{label} ki varshik tuition badhayein"
   },
   "Activity": {
     "kindPaymentPosted": "Payment darj hua",
@@ -1678,6 +1680,7 @@
     "todaysCalls": "Aaj ke call",
     "todaysReceipts": "Aaj ki rasidein",
     "toFollowUp": "{count} baaki",
-    "yearRate": "Saal ki dar"
+    "yearRate": "Saal ki dar",
+    "buildLine": "VPPS Fee Admin · sirf internal upyog"
   }
 }

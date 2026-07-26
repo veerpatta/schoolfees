@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Ellipsis, X } from "lucide-react";
+import { ChevronRight, Ellipsis, X } from "lucide-react";
 
 import { type StaffRole } from "@/lib/auth/roles";
 import {
@@ -15,6 +15,20 @@ import {
 import { appendCurrentSessionParam } from "@/lib/navigation/session-href";
 import { cn } from "@/lib/utils";
 
+/**
+ * Two letters for the avatar. Staff sign in with an email, not a name, so the
+ * local part is all we have — "raj@vpps.co.in" becomes "RA", and a dotted or
+ * underscored address ("sunita.verma@…") becomes "SV".
+ */
+function initialsFromEmail(email: string) {
+  const local = email.split("@")[0] ?? email;
+  const parts = local.split(/[._-]+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return local.slice(0, 2).toUpperCase();
+}
+
 type MobileBottomNavProps = {
   staffRole: StaffRole;
   /**
@@ -22,14 +36,17 @@ type MobileBottomNavProps = {
    * cannot see a module simply never receives its badge.
    */
   counts?: Partial<Record<string, number>>;
+  /** Signed-in account, shown on the More hub's footer row. */
+  staffEmail?: string;
 };
 
-export function MobileBottomNav({ staffRole, counts }: MobileBottomNavProps) {
+export function MobileBottomNav({ staffRole, counts, staffEmail }: MobileBottomNavProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [overflowOpen, setOverflowOpen] = useState(false);
   const t = useTranslations("Navigation");
   const tMobile = useTranslations("MobileApp");
+  const tRoles = useTranslations("Roles");
   const translateLabel = (item: { label: string; i18nKey?: string }) =>
     item.i18nKey ? t(item.i18nKey) : item.label;
   const primaryItems = getMobileBottomNavigation(staffRole).slice(0, 4);
@@ -153,6 +170,37 @@ export function MobileBottomNav({ staffRole, counts }: MobileBottomNavProps) {
                   </div>
                 </section>
               ))}
+
+              {/* Account row and build line close the hub, as in the design.
+                  The phone app has no top bar, so this is the only place the
+                  signed-in identity appears outside Settings itself. */}
+              {staffEmail ? (
+                <Link
+                  href={appendCurrentSessionParam("/protected/settings", searchParams)}
+                  onClick={() => setOverflowOpen(false)}
+                  className="focus-ring flex min-h-14 items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 transition-colors active:bg-surface-2"
+                >
+                  <span className="inline-grid size-10 shrink-0 place-items-center rounded-full bg-nav text-[11.5px] font-extrabold text-nav-foreground">
+                    {initialsFromEmail(staffEmail)}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13.5px] font-bold text-foreground">
+                      {staffEmail}
+                    </span>
+                    <span className="block truncate text-[11px] font-semibold text-muted-foreground">
+                      {tRoles(staffRole)}
+                    </span>
+                  </span>
+                  <ChevronRight
+                    className="size-[18px] shrink-0 text-subtle-foreground"
+                    aria-hidden="true"
+                  />
+                </Link>
+              ) : null}
+
+              <p className="pb-2 text-center text-[10.5px] font-semibold text-subtle-foreground">
+                {tMobile("buildLine")}
+              </p>
             </div>
           </div>
         </div>

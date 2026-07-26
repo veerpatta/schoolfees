@@ -762,7 +762,9 @@
     "publishing": "प्रकाशित हो रहा है…",
     "stagePreviewImpact": "प्रभाव देखें",
     "stagePublished": "प्रकाशित",
-    "stageDraftEdited": "मसौदा संपादित"
+    "stageDraftEdited": "मसौदा संपादित",
+    "tuitionDecrease": "{label} की वार्षिक ट्यूशन घटाएँ",
+    "tuitionIncrease": "{label} की वार्षिक ट्यूशन बढ़ाएँ"
   },
   "Activity": {
     "kindPaymentPosted": "भुगतान दर्ज हुआ",
@@ -1678,6 +1680,7 @@
     "todaysCalls": "आज के कॉल",
     "todaysReceipts": "आज की रसीदें",
     "toFollowUp": "{count} बाकी",
-    "yearRate": "वार्षिक दर"
+    "yearRate": "वार्षिक दर",
+    "buildLine": "VPPS फीस एडमिन · केवल आंतरिक उपयोग"
   }
 }

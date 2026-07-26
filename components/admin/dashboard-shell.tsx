@@ -166,6 +166,7 @@ export async function DashboardShell({
             would read as "3 payments waiting", which is not a thing. */}
         <MobileBottomNav
           staffRole={staffRole}
+          staffEmail={staffEmail}
           counts={{ "/protected/defaulters": pulse.overdueStudentCount }}
         />
       </div>

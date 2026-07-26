@@ -762,7 +762,9 @@
     "publishing": "Publishing…",
     "stagePreviewImpact": "Preview impact",
     "stagePublished": "Published",
-    "stageDraftEdited": "Draft edited"
+    "stageDraftEdited": "Draft edited",
+    "tuitionDecrease": "Decrease annual tuition for {label}",
+    "tuitionIncrease": "Increase annual tuition for {label}"
   },
   "Activity": {
     "kindPaymentPosted": "Payment posted",
@@ -1678,6 +1680,7 @@
     "todaysCalls": "Today's calls",
     "todaysReceipts": "Today's receipts",
     "toFollowUp": "{count} to follow up",
-    "yearRate": "Year rate"
+    "yearRate": "Year rate",
+    "buildLine": "VPPS Fee Admin · internal use only"
   }
 }

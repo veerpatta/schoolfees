@@ -9,6 +9,7 @@ import { Plus, X, Calendar, BadgeIndianRupee, School, Bus, ClipboardList, Tag, C
 import type { MasterDataActionState } from "@/app/protected/master-data/actions";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { AmountStepper } from "@/components/mobile-app/amount-stepper";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1694,8 +1695,32 @@ export function FeeSetupClient({
               <div className="space-y-3 md:hidden">
                 {visibleClassRows.map((row) => (
                   <div key={`mobile-${selectedSessionLabel}-${row.label}`} className="rounded-xl border border-border bg-card p-3">
-                    <p className="font-semibold text-foreground">{row.label}</p>
-                    <Label className="mt-2 block" htmlFor={`class-fee-${row.label}`}>{t("annualTuitionMobileLabel")}</Label>
+                    {/* Design's −/amount/+ row. The stepper nudges by ₹500 and
+                        the field below still takes a typed figure: correcting
+                        20,000 to 20,500 is one tap, setting 38,000 is faster
+                        typed. Both call updateClassAnnualTuition — there is
+                        one mutation path, and publish still goes through the
+                        same impact preview it always did. */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="min-w-0">
+                        <span className="mobile-row-title block truncate text-foreground">
+                          {row.label}
+                        </span>
+                        <span className="mobile-row-meta block text-muted-foreground">
+                          {t("annualTuitionMobileLabel")}
+                        </span>
+                      </span>
+                      <AmountStepper
+                        value={row.annualTuition}
+                        onChange={(next) => updateClassAnnualTuition(row.label, next)}
+                        disabled={!canEdit}
+                        decreaseLabel={t("tuitionDecrease", { label: row.label })}
+                        increaseLabel={t("tuitionIncrease", { label: row.label })}
+                      />
+                    </div>
+                    <Label className="sr-only" htmlFor={`class-fee-${row.label}`}>
+                      {t("annualTuitionMobileLabel")}
+                    </Label>
                     <Input
                       id={`class-fee-${row.label}`}
                       type="number"
@@ -1706,7 +1731,7 @@ export function FeeSetupClient({
                         updateClassAnnualTuition(row.label, Number(event.target.value || 0))
                       }
                       disabled={!canEdit}
-                      className="mt-2"
+                      className="mt-2.5"
                     />
                   </div>
                 ))}
