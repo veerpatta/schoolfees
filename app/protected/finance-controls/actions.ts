@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 
 import type { PaymentMode, RefundRequestStatus } from "@/lib/db/types";
 import { createClient } from "@/lib/supabase/server";
 import type { FinanceControlsActionState } from "@/lib/finance-controls/types";
+import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -127,6 +129,11 @@ function revalidateFinanceSurface() {
   revalidatePath("/protected/defaulters");
   revalidatePath("/protected/reports");
   revalidatePath("/protected");
+
+  // Refund processing writes payment_adjustments, whose trigger only enqueues
+  // the matview refresh now (migration 20260726000002). Drain after the
+  // response so the finance surfaces reflect the refund straight away.
+  after(drainFinancialViewRefresh);
 }
 
 export async function submitRefundWorkflowAction(

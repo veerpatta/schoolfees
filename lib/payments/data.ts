@@ -1606,20 +1606,31 @@ export async function postStudentPayment(payload: {
   acknowledgeNearDuplicate?: boolean;
   collectionContext?: PaymentCollectionContext;
 }) {
-  const policy = payload.sessionLabel
-    ? await getFeePolicyForSession(payload.sessionLabel)
-    : await getFeePolicySummary();
-
-  // The idempotency lookup, preflight, and both duplicate checks are
-  // independent reads, so run them together instead of paying four sequential
-  // round trips on every post. Results are still evaluated in the original
-  // priority order below (existing receipt → preflight error → near-duplicate
-  // → daily duplicate), so the visible behavior is unchanged. allSettled keeps
-  // the idempotent-retry path intact: a retried already-posted payment returns
-  // the existing receipt even though preflight now rejects with "no payable
-  // dues".
-  const [existingReceiptResult, preflightResult, duplicateResult, dailyDuplicateResult] =
+  // The fee policy, the idempotency lookup, preflight, and both duplicate
+  // checks are independent reads, so run them together instead of paying five
+  // sequential round trips on every post. Results are still evaluated in the
+  // original priority order below (existing receipt → preflight error →
+  // near-duplicate → daily duplicate), so the visible behavior is unchanged.
+  // allSettled keeps the idempotent-retry path intact: a retried already-posted
+  // payment returns the existing receipt even though preflight now rejects with
+  // "no payable dues".
+  //
+  // The policy is only read at the RPC call at the bottom of this function, so
+  // awaiting it up front bought nothing but a round trip to Mumbai. It rides in
+  // the same allSettled rather than as a bare floating promise so a policy
+  // failure can never surface as an unhandled rejection when an earlier check
+  // throws first.
+  const [
+    policyResult,
+    existingReceiptResult,
+    preflightResult,
+    duplicateResult,
+    dailyDuplicateResult,
+  ] =
     await Promise.allSettled([
+      payload.sessionLabel
+        ? getFeePolicyForSession(payload.sessionLabel)
+        : getFeePolicySummary(),
       findReceiptByClientRequestId({
         studentId: payload.studentId,
         clientRequestId: payload.clientRequestId,
@@ -1661,6 +1672,14 @@ export async function postStudentPayment(payload: {
   if (existingReceiptResult.value) {
     return existingReceiptResult.value;
   }
+
+  // Checked after the idempotent-retry short-circuit above, so a repeated post
+  // still returns its receipt even if the policy read happened to fail.
+  if (policyResult.status === "rejected") {
+    throw policyResult.reason;
+  }
+
+  const policy = policyResult.value;
 
   if (preflightResult.status === "rejected") {
     throw preflightResult.reason;

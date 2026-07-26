@@ -19,6 +19,7 @@ import type { PaymentCollectionContext, PaymentEntryActionState } from "@/lib/pa
 import { createClient } from "@/lib/supabase/server";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import { revalidateAfterPaymentPosting } from "@/lib/system-sync/finance-revalidation";
+import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
 import {
   prepareDuesForStudentsAutomatically,
   revalidateSessionFinance,
@@ -329,6 +330,13 @@ export async function submitPaymentEntryAction(
     // via after() so they execute after the response is sent; both already
     // swallow their own errors, so a post-response failure is harmless.
     after(async () => {
+      // FIRST, before the bookkeeping: rebuild the financial views the posting
+      // trigger now only enqueues (migration 20260726000002). This is the other
+      // half of taking 6-15 inline matview refreshes off the cashier's
+      // transaction — the clerk already has the receipt, and the dashboards
+      // catch up a moment later instead of two minutes later.
+      await drainFinancialViewRefresh();
+
       await publishOfficeSyncEvent({
         sessionLabel: resolvedSessionLabel,
         entityType: "payment",
@@ -411,6 +419,11 @@ export async function undoRecentPaymentAction(
     revalidateAfterPaymentPosting([studentId]);
 
     after(async () => {
+      // Same as posting: the reversal only enqueues the matview refresh now,
+      // so drain it here or the clerk watches stale dues for up to 2 minutes
+      // after undoing.
+      await drainFinancialViewRefresh();
+
       await publishOfficeSyncEvent({
         sessionLabel,
         entityType: "payment",

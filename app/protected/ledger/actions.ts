@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 
 import { addPaymentAdjustment } from "@/lib/ledger/data";
 import type { LedgerAdjustmentActionState } from "@/lib/ledger/types";
+import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 function parseRequiredString(value: FormDataEntryValue | null, label: string) {
@@ -98,6 +100,11 @@ export async function submitLedgerAdjustmentAction(
     revalidatePath("/protected/finance-controls");
     revalidatePath("/protected/defaulters");
     revalidatePath("/protected");
+
+    // The adjustment trigger only enqueues the matview refresh now
+    // (migration 20260726000002). Drain it after the response so the ledger
+    // shows the corrected dues immediately rather than on the 2-minute cron.
+    after(drainFinancialViewRefresh);
 
     return {
       status: "success",

@@ -248,6 +248,20 @@ migration *does*. Filenames are listed without the `.sql` extension.
   cannot be narrowed to one column. The setter is a no-op when the value is
   unchanged: `private.capture_audit_event()` is column-agnostic and would
   otherwise write a full row snapshot to `audit_logs` on every language tap.
+### Financial view refresh (posting latency)
+
+- `20260726154843_defer_financial_view_refresh` — `trigger_refresh_financial_views()`
+  enqueues instead of refreshing inline, restoring the design from
+  `20260523213000_tier3_finance_performance` that `20260527090332` reverted.
+  The trigger is statement-level on `payments` / `receipts` /
+  `receipt_adjustments` and each firing ran three CHAINED matview refreshes, so
+  one posting transaction paid 6 (one installment) to 15 (full year) of them —
+  measured at ~532ms each on live. Drained post-response by
+  `lib/system-sync/financial-view-refresh.ts` and by the existing 2-minute cron.
+  Guarded by `tests/unit/financial-view-refresh-deferred.test.ts`.
+
+### Staff preferences (continued)
+
 - `20260726144025_drop_unused_locale_getter` — drop
   `get_my_preferred_locale()`, shipped above and never called. Resolving the
   locale through its own RPC would cost a round trip per page, so the read
