@@ -18,6 +18,7 @@ import {
   groupSessions,
   isTestSession,
   normalizeSessionLabel,
+  sessionSyncGuard,
 } from "./session-pill";
 
 type MobileSessionPillProps = {
@@ -35,8 +36,6 @@ export function MobileSessionPill({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const prefetchTimerRef = useRef<number | null>(null);
-  /** Last `?session=` value already pushed into the cookie. See the sync effect. */
-  const syncedSessionRef = useRef<string | null>(null);
   const [open, setOpen] = useState(false);
   const [sessions, setSessions] = useState<AvailableSessionRow[]>(initialSessions);
   const [isSwitching, setIsSwitching] = useState(false);
@@ -85,9 +84,9 @@ export function MobileSessionPill({
   // the only exit condition that reliably terminates.
   useEffect(() => {
     if (!urlSession || urlSession === currentLabel) return;
-    if (syncedSessionRef.current === urlSession) return;
+    if (sessionSyncGuard.label === urlSession) return;
 
-    syncedSessionRef.current = urlSession;
+    sessionSyncGuard.label = urlSession;
 
     void (async () => {
       try {
@@ -96,7 +95,7 @@ export function MobileSessionPill({
         // extra refresh was the second navigation that snapped the URL back.
         await setViewSessionAction(urlSession);
       } catch (err) {
-        syncedSessionRef.current = null;
+        sessionSyncGuard.label = null;
         console.error("Failed to sync session from URL to cookie", err);
       }
     })();
@@ -125,12 +124,6 @@ export function MobileSessionPill({
     }
   }
 
-  function buildCurrentHref() {
-    const query = searchParams.toString();
-
-    return query ? `${pathname}?${query}` : pathname;
-  }
-
   function prefetchSession(label: string) {
     clearPrefetchTimer();
     const targetHref = buildSessionSwitchHref(pathname, searchParams, label);
@@ -143,52 +136,39 @@ export function MobileSessionPill({
 
   function selectSession(label: string) {
     clearPrefetchTimer();
-    const previousHref = buildCurrentHref();
     const targetHref = buildSessionSwitchHref(pathname, searchParams, label);
 
     setOptimisticLabel(label);
     setIsSwitching(true);
     setOpen(false);
     releaseAllSheetScrollLocks();
+    // Warm the destination while the cookie write is in flight.
     router.prefetch(targetHref);
 
     // We write the cookie ourselves below; stop the sync effect duplicating it.
-    syncedSessionRef.current = label;
-
-    startNavTransition(() => {
-      router.replace(targetHref, { scroll: false });
-    });
+    sessionSyncGuard.label = label;
 
     void (async () => {
       try {
+        // Cookie FIRST, then navigate — see the same comment in session-pill.
+        // The page honours `?session=`, the layout can only read the cookie,
+        // so navigating before the write lands renders chrome and data from
+        // two different sessions.
         const result = await setViewSessionAction(label);
 
         if (result.success) {
-          if (result.availableSessions) {
-            setSessions(result.availableSessions);
-          }
-
           const confirmedHref = buildSessionSwitchHref(pathname, searchParams, result.sessionLabel);
-
-          if (confirmedHref !== targetHref) {
-            syncedSessionRef.current = result.sessionLabel;
-            startNavTransition(() => {
-              router.replace(confirmedHref, { scroll: false });
-            });
-          }
-        } else {
-          syncedSessionRef.current = null;
-          setOptimisticLabel(null);
+          sessionSyncGuard.label = result.sessionLabel;
           startNavTransition(() => {
-            router.replace(previousHref, { scroll: false });
+            router.replace(confirmedHref, { scroll: false });
           });
+        } else {
+          sessionSyncGuard.label = null;
+          setOptimisticLabel(null);
         }
       } catch {
-        syncedSessionRef.current = null;
+        sessionSyncGuard.label = null;
         setOptimisticLabel(null);
-        startNavTransition(() => {
-          router.replace(previousHref, { scroll: false });
-        });
       } finally {
         // Cleared here rather than synchronously after startNavTransition:
         // React batches a set(true)/set(false) pair in one handler, so the old

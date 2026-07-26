@@ -4,7 +4,7 @@ import { revalidateTag } from "next/cache";
 
 import { parseAcademicSessionLabel } from "@/lib/config/fee-rules";
 import type { AvailableSessionRow } from "@/lib/session/available-sessions";
-import { getViewSessionCookie, setViewSessionCookie } from "@/lib/session/cookie";
+import { setViewSessionCookie } from "@/lib/session/cookie";
 import { getSessionSwitcherData } from "@/lib/session/switcher";
 import { requireAuthenticatedStaff } from "@/lib/supabase/session";
 
@@ -17,22 +17,25 @@ export async function listAvailableSessionsAction(): Promise<AvailableSessionRow
 export async function setViewSessionAction(label: string) {
   await requireAuthenticatedStaff();
   const sessionLabel = parseAcademicSessionLabel(label).normalizedLabel;
-  const previousLabel = await getViewSessionCookie();
 
   await setViewSessionCookie(sessionLabel);
 
-  // Keep session switches scoped to the sessions involved. A full protected
-  // path bust makes every office page cold at once after router.refresh().
-  if (previousLabel && previousLabel !== sessionLabel) {
-    revalidateTag(`session:${previousLabel}`, "max");
-  }
+  // Keep session switches scoped to the session being switched TO. A full
+  // protected path bust makes every office page cold at once.
+  //
+  // The session being left used to be busted here as well. Nothing about its
+  // data changed by walking away from it, and throwing its cache away made
+  // switching back cost exactly as much as switching away — the round trip a
+  // clerk comparing two years makes constantly.
   revalidateTag(`session:${sessionLabel}`, "max");
 
-  const { availableSessions } = await getSessionSwitcherData();
-
+  // getSessionSwitcherData() is deliberately NOT awaited here. It only
+  // refreshes dropdown rows the client already holds as `initialSessions`, and
+  // on a cold instance it is two sequential 1,200ms Promise.race timeouts —
+  // up to ~2.4s of the clerk's wait, spent after the cookie is already
+  // written. The pill refreshes its own list via listAvailableSessionsAction.
   return {
     success: true,
     sessionLabel,
-    availableSessions,
   };
 }

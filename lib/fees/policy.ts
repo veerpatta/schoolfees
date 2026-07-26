@@ -713,7 +713,24 @@ export async function getFeePolicySummary(options: { useAdmin?: boolean } = {}) 
   return getFeePolicySummaryForRequest(Boolean(options.useAdmin));
 }
 
+/**
+ * Same treatment as getFeePolicySummary above, and for the same reason.
+ *
+ * This ran a full unfiltered `fee_policy_configs` select on EVERY protected
+ * render — React `cache` only dedupes within a single request, so switching
+ * sessions paid for it twice over, once for the shell and once for the page.
+ * The shell reads exactly one string out of the result (`receiptPrefix`).
+ * The session label is part of the cache key, so each session keeps its own
+ * entry and the `fee-policy` tag still busts all of them on publish.
+ */
+const getFeePolicyForSessionCached = cacheSafeUnstableCache(
+  async (sessionLabel: string) => loadPolicyForSession(sessionLabel, false),
+  ["fee-policy-for-session"],
+  { tags: ["fee-policy"], revalidate: 300 },
+);
+
 const getFeePolicyForSessionForRequest = cache(async (sessionLabel: string, useAdmin: boolean) => {
+  if (!useAdmin) return getFeePolicyForSessionCached(sessionLabel);
   return loadPolicyForSession(sessionLabel, useAdmin);
 });
 

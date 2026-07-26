@@ -46,11 +46,18 @@ type SearchParamSource = {
   toString: () => string;
 };
 
-function buildHrefFromSearchParams(pathname: string, searchParams: SearchParamSource) {
-  const query = searchParams.toString();
-
-  return query ? `${pathname}?${query}` : pathname;
-}
+/**
+ * "Which `?session=` have we already pushed into the cookie" — module scope,
+ * NOT a per-component ref, because two pills are mounted at once.
+ *
+ * On the dashboard at phone width `AppTopBar` is `hidden md:flex`: CSS-hidden
+ * but still mounted, so <SessionPill> and <MobileSessionPill> both run the
+ * URL->cookie sync effect. With a ref each, tapping the phone pill fired
+ * setViewSessionAction twice per switch — two cookie writes and two
+ * revalidateTag calls for one tap. Sharing the guard makes the second
+ * instance a no-op.
+ */
+export const sessionSyncGuard: { label: string | null } = { label: null };
 
 export function normalizeSessionLabel(label: string | null | undefined) {
   const value = (label ?? "").trim();
@@ -143,8 +150,6 @@ export function SessionPill({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const prefetchTimerRef = useRef<number | null>(null);
-  /** Last `?session=` value already pushed into the cookie. See the sync effect. */
-  const syncedSessionRef = useRef<string | null>(null);
   const [open, setOpen] = useState(false);
   const [sessions, setSessions] = useState<AvailableSessionRow[]>(initialSessions);
   const [isSwitching, setIsSwitching] = useState(false);
@@ -212,9 +217,9 @@ export function SessionPill({
   // whether the layout has caught up.
   useEffect(() => {
     if (!urlSession || urlSession === currentLabel) return;
-    if (syncedSessionRef.current === urlSession) return;
+    if (sessionSyncGuard.label === urlSession) return;
 
-    syncedSessionRef.current = urlSession;
+    sessionSyncGuard.label = urlSession;
 
     void (async () => {
       try {
@@ -229,7 +234,7 @@ export function SessionPill({
       } catch (err) {
         // Let a genuine failure be retried on the next render rather than
         // leaving the cookie permanently out of step with the URL.
-        syncedSessionRef.current = null;
+        sessionSyncGuard.label = null;
         console.error("Failed to sync session from URL to cookie", err);
       }
     })();
@@ -279,55 +284,47 @@ export function SessionPill({
 
   function selectSession(label: string) {
     clearPrefetchTimer();
-    const previousHref = buildHrefFromSearchParams(pathname, searchParams);
     const targetHref = buildSessionSwitchHref(pathname, searchParams, label);
 
     setOptimisticLabel(label);
     setIsSwitching(true);
     setOpen(false);
+    // Warm the destination while the cookie write is in flight, so serialising
+    // the two below costs the round trip and not the render.
     router.prefetch(targetHref);
 
     // We are about to write this label to the cookie ourselves, so tell the
     // URL->cookie sync effect it has nothing to do. Without this the URL change
     // below makes that effect fire a second, redundant setViewSessionAction.
-    syncedSessionRef.current = label;
-
-    startNavTransition(() => {
-      router.replace(targetHref, { scroll: false });
-    });
+    sessionSyncGuard.label = label;
 
     void (async () => {
       try {
+        // Cookie FIRST, then navigate. These used to run concurrently, and the
+        // render triggered by the navigation reads the cookie the action may
+        // not have written yet: the page honours `?session=` but the LAYOUT
+        // cannot — App Router layouts get no searchParams — so the chrome
+        // rendered the old session while the page rendered the new one. That
+        // is the "sometimes it doesn't work". The pill already shows the new
+        // label optimistically, so the wait is not visible; what pays for it
+        // is setViewSessionAction no longer awaiting getSessionSwitcherData.
         const result = await setViewSessionAction(label);
 
         if (result.success) {
-          if (result.availableSessions) {
-            setSessions(result.availableSessions);
-          }
-
           const confirmedHref = buildSessionSwitchHref(pathname, searchParams, result.sessionLabel);
-
-          if (confirmedHref !== targetHref) {
-            syncedSessionRef.current = result.sessionLabel;
-            startNavTransition(() => {
-              router.replace(confirmedHref, { scroll: false });
-            });
-          }
-        } else {
-          // The switch genuinely did not happen, so the URL must not keep
-          // claiming it did — go back and let the sync effect retry.
-          syncedSessionRef.current = null;
-          setOptimisticLabel(null);
+          sessionSyncGuard.label = result.sessionLabel;
           startNavTransition(() => {
-            router.replace(previousHref, { scroll: false });
+            router.replace(confirmedHref, { scroll: false });
           });
+        } else {
+          // Nothing was navigated, so there is no URL to walk back — just drop
+          // the optimistic label and let the pill show the truth again.
+          sessionSyncGuard.label = null;
+          setOptimisticLabel(null);
         }
       } catch {
-        syncedSessionRef.current = null;
+        sessionSyncGuard.label = null;
         setOptimisticLabel(null);
-        startNavTransition(() => {
-          router.replace(previousHref, { scroll: false });
-        });
       } finally {
         // Cleared HERE, not synchronously after startNavTransition. React
         // batches a set(true)/set(false) pair in the same handler, so the old

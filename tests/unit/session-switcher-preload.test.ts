@@ -55,7 +55,13 @@ describe("session switcher preload", () => {
 
     expect(combined).toContain("optimisticLabel");
     expect(combined).toContain("router.prefetch(targetHref)");
-    expect(combined).toContain("router.replace(targetHref, { scroll: false })");
+    // Navigation goes to the label the SERVER confirmed, after the cookie is
+    // written — never to the optimistic target in parallel with the write.
+    // The page honours `?session=` but the layout can only read the cookie
+    // (App Router layouts get no searchParams), so navigating first renders
+    // the chrome on the old session and the page on the new one.
+    expect(combined).toContain("router.replace(confirmedHref, { scroll: false })");
+    expect(combined).not.toContain("router.replace(targetHref");
     // A refresh here means a SECOND navigation on top of the one the
     // revalidating Server Action already causes, and that is what used to snap
     // the URL back to the previous session. Matched in both spellings: the

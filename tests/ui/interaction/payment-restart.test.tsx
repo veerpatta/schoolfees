@@ -106,7 +106,7 @@ describe("payment flow restarts after a successful post", () => {
   });
 
   it("counts the phone slip's total up rather than printing it static", () => {
-    render(<SuccessReceiptSheet {...BASE_PROPS} />);
+    render(<SuccessReceiptSheet {...BASE_PROPS} onCollectAnother={() => {}} />);
     // The desktop summary block is `hidden md:block`, so before this the phone
     // — the only surface staff use — got no count-up at all.
     const counters = [...document.querySelectorAll("[data-countup]")];
