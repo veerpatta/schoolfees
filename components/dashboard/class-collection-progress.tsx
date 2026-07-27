@@ -18,7 +18,11 @@ export function ClassCollectionProgress({ rows }: ClassCollectionProgressProps) 
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div
+      className="overflow-x-auto"
+      tabIndex={0}
+      aria-label="Scrollable class collection progress table"
+    >
       <table className="w-full min-w-[520px] text-left text-sm">
         <thead className="text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
