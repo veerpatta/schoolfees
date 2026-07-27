@@ -46,7 +46,9 @@ describe("payment desk survives a route re-render", () => {
     // slots, in the same order: the recovery notice, the status badge row and
     // the blocking-reason guard. The no-student branch can never be in
     // recovery mode (it requires a student), but the SLOT still has to be
-    // there — an absent slot is what shifted the desk one index.
+    // there — an absent slot is what shifted the desk one index. One shared
+    // `recoveryNotice` binding rather than two copies, so the branches cannot
+    // drift.
     const branches = source
       .split("return (")
       .slice(1)
@@ -60,11 +62,13 @@ describe("payment desk survives a route re-render", () => {
         .replace(/\/\*[\s\S]*?\*\//g, "")
         .replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
 
-      expect(beforeDesk.match(/\{recovery \?/g) ?? []).toHaveLength(1);
+      expect(beforeDesk.match(/\{recoveryNotice\}/g) ?? []).toHaveLength(1);
       expect(beforeDesk.match(/<StatusBadge/g) ?? []).toHaveLength(1);
       expect(beforeDesk.match(/\{blockingReason \?/g) ?? []).toHaveLength(1);
       // Order matters as much as presence.
-      expect(beforeDesk.indexOf("{recovery ?")).toBeLessThan(beforeDesk.indexOf("<StatusBadge"));
+      expect(beforeDesk.indexOf("{recoveryNotice}")).toBeLessThan(
+        beforeDesk.indexOf("<StatusBadge"),
+      );
       expect(beforeDesk.indexOf("<StatusBadge")).toBeLessThan(
         beforeDesk.indexOf("{blockingReason ?"),
       );

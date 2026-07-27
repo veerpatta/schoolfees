@@ -126,6 +126,16 @@ async function PaymentDeskDataLoader({
 }) {
   const t = await getTranslations("Payments");
   const canWritePayments = hasStaffPermission(staff, "payments:write");
+  // Defined once and rendered in BOTH branches below. Recovery mode requires a
+  // student, so this is always null in the no-student branch — but the slot
+  // must still be there, and sharing one definition is what stops the two
+  // trees drifting apart again. See tests/ui/payment-desk-remount.test.ts.
+  const recoveryNotice = recovery ? (
+    <OfficeNotice title="Recovery mode — left student" tone="warning">
+      You are collecting against this student&apos;s <strong>existing pending dues</strong>.
+      Posting will not re-enrol the student or create new dues.
+    </OfficeNotice>
+  ) : null;
   const readinessPromise = getPaymentDeskReadiness({
     sessionLabel,
     staffAppRole: staff.appRole,
@@ -153,14 +163,12 @@ async function PaymentDeskDataLoader({
 
     return (
       <>
-        {/* Always-null here (recovery mode requires a student), but the slot
-            has to exist: this branch and the one below are reconciled against
+        {/* The slot has to exist in BOTH branches: they are reconciled against
             each other whenever ?studentId= appears or disappears, and React
             matches fragment children BY POSITION. A missing slot shifts
             PaymentEntryClient up one index, which unmounts and remounts the
-            entire desk — losing the posted-receipt state mid-flow. Keep the
-            two child sequences identical. */}
-        {recovery ? <OfficeNotice tone="warning">Recovery mode</OfficeNotice> : null}
+            entire desk — losing the posted-receipt state mid-flow. */}
+        {recoveryNotice}
         <div className="flex justify-end">
           <StatusBadge
             label={canPostPayments ? t("postingEnabled") : t("readOnlyAccess")}
@@ -219,12 +227,7 @@ async function PaymentDeskDataLoader({
 
   return (
     <>
-      {recovery ? (
-        <OfficeNotice title="Recovery mode — left student" tone="warning">
-          You are collecting against this student&apos;s <strong>existing pending dues</strong>.
-          Posting will not re-enrol the student or create new dues.
-        </OfficeNotice>
-      ) : null}
+      {recoveryNotice}
       <div className="flex justify-end">
         <StatusBadge
           label={canPostPayments ? t("postingEnabled") : t("readOnlyAccess")}
