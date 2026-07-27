@@ -1316,6 +1316,7 @@ declare
   v_normalized_prefix text;
   v_pending_after integer;
   v_receipt_notes text;
+  v_workbook_snapshot jsonb;
 begin
   if not public.has_permission('payments:write') then
     raise exception 'You do not have permission to post payments.';
@@ -1347,21 +1348,33 @@ begin
     end if;
   end if;
 
-  create temp table if not exists tmp_workbook_snapshot (
+  -- Freeze the date-aware workbook allocation snapshot once for the entire
+  -- posting transaction. JSON keeps the snapshot immutable without relying
+  -- on a session-local temp table that database linters cannot resolve.
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'installment_id', snapshot_row.installment_id,
+        'pending_amount', snapshot_row.pending_amount,
+        'due_date', snapshot_row.due_date,
+        'installment_no', snapshot_row.installment_no
+      )
+      order by snapshot_row.due_date asc, snapshot_row.installment_no asc
+    ),
+    '[]'::jsonb
+  )
+  into v_workbook_snapshot
+  from private.workbook_installment_snapshot(p_student_id, p_payment_date, true) as snapshot_row;
+
+  select coalesce(sum(snapshot.pending_amount), 0)
+  into v_total_pending
+  from jsonb_to_recordset(v_workbook_snapshot) as snapshot(
     installment_id uuid,
     pending_amount integer,
     due_date date,
     installment_no smallint
-  ) on commit drop;
-  truncate table tmp_workbook_snapshot;
-  insert into tmp_workbook_snapshot (installment_id, pending_amount, due_date, installment_no)
-  select snapshot_row.installment_id, snapshot_row.pending_amount, snapshot_row.due_date, snapshot_row.installment_no
-  from private.workbook_installment_snapshot(p_student_id, p_payment_date, true) as snapshot_row;
-
-  select coalesce(sum(pending_amount), 0)
-  into v_total_pending
-  from tmp_workbook_snapshot
-  where pending_amount > 0;
+  )
+  where snapshot.pending_amount > 0;
 
   v_revised_pending := v_total_pending - v_remaining_discount - v_remaining_waiver;
 
@@ -1427,10 +1440,15 @@ begin
   end if;
 
   for balance_row in
-    select installment_id, pending_amount, due_date, installment_no
-    from tmp_workbook_snapshot
-    where pending_amount > 0
-    order by due_date asc, installment_no asc
+    select snapshot.installment_id, snapshot.pending_amount, snapshot.due_date, snapshot.installment_no
+    from jsonb_to_recordset(v_workbook_snapshot) as snapshot(
+      installment_id uuid,
+      pending_amount integer,
+      due_date date,
+      installment_no smallint
+    )
+    where snapshot.pending_amount > 0
+    order by snapshot.due_date asc, snapshot.installment_no asc
   loop
     exit when v_remaining_payment <= 0 and v_remaining_discount <= 0 and v_remaining_waiver <= 0;
 

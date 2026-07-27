@@ -131,6 +131,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
   }
   const page = Math.max(1, Number.parseInt(resolvedSearchParams?.page ?? "1", 10) || 1);
   const canWriteStudents = hasStaffPermission(staff, "students:write");
+  const canCollectPayments = hasStaffPermission(staff, "payments:write");
   const canRealignRecentImports = hasStaffPermission(staff, "fees:write");
   const withSession = (href: string) => appendSessionParam(href, resolvedSearchParams?.session);
   const activePolicySessionLabel = formOptions?.policySessionLabel || resolvedSessionLabel;
@@ -266,6 +267,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
         classOptions={classOptions}
         routeOptions={routeOptions}
         canWrite={canWriteStudents}
+        canCollectPayments={canCollectPayments}
         lastViewedByUser={lastViewedByUser}
       />
 

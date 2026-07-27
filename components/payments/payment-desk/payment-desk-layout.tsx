@@ -1,10 +1,20 @@
 import type { ReactNode } from "react";
 
+import type { PaymentDeskPhase } from "@/lib/payments/payment-desk-controller";
 import { cn } from "@/lib/utils";
 
-export function PaymentDeskRoot({ children }: { children: ReactNode }) {
+export function PaymentDeskRoot({
+  children,
+  phase,
+}: {
+  children: ReactNode;
+  phase: PaymentDeskPhase;
+}) {
   return (
-    <div className="payment-entry-client-layout space-y-6 mobile-bottom-nav-clearance md:pb-4">
+    <div
+      className="payment-entry-client-layout space-y-6 mobile-bottom-nav-clearance md:pb-4"
+      data-payment-workflow-phase={phase}
+    >
       {children}
     </div>
   );

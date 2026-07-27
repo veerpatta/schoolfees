@@ -240,7 +240,7 @@ export function MobileBottomNav({ staffRole, counts, staffEmail }: MobileBottomN
                       ? "h-8 w-12 rounded-full bg-accent text-accent-foreground shadow-sm"
                       : active
                         ? "bg-accent/10 text-accent"
-                        : "text-muted-foreground/70",
+                        : "text-muted-foreground",
                   )}
                 >
                   <Icon className="size-5" aria-hidden="true" />
@@ -258,7 +258,7 @@ export function MobileBottomNav({ staffRole, counts, staffEmail }: MobileBottomN
                 <span
                   className={cn(
                     "mt-0.5 max-w-full truncate text-[10px] font-medium transition-colors",
-                    isCollect || active ? "text-accent" : "text-muted-foreground/70",
+                    isCollect || active ? "text-accent" : "text-muted-foreground",
                     isCollect && "font-semibold",
                   )}
                 >

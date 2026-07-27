@@ -34,6 +34,11 @@ import {
   buildRecoveryDesk,
   type RecoveryDeskEntry,
 } from "@/lib/defaulters/recovery";
+import {
+  buildDefaulterCallProgress,
+  getRecoveryQueuePosition,
+  getSelectedRecoveryEntry,
+} from "@/lib/defaulters/workspace";
 import type { DefaulterSummaryRow } from "@/lib/defaulters/types";
 
 type Props = {
@@ -228,14 +233,15 @@ export function DefaultersWorkspace({
   }, [callQueue, selectedStudentId]);
 
   const selectedEntry = useMemo(
-    () => callQueue.find((entry) => entry.row.studentId === selectedStudentId) ?? callQueue[0] ?? null,
+    () => getSelectedRecoveryEntry(callQueue, selectedStudentId),
     [callQueue, selectedStudentId],
   );
   const selectedRow = selectedEntry?.row ?? null;
   const selectedSummary = selectedRow ? effectiveSummaries[selectedRow.studentId] ?? null : null;
-  const selectedIndex = selectedEntry
-    ? Math.max(0, callQueue.findIndex((entry) => entry.row.studentId === selectedEntry.row.studentId))
-    : -1;
+  const selectedIndex = getRecoveryQueuePosition(
+    callQueue,
+    selectedEntry?.row.studentId ?? null,
+  );
 
   const handleQuickLog = useCallback(
     (
@@ -309,34 +315,11 @@ export function DefaultersWorkspace({
    * from a contact already recorded today.
    */
   const callProgress = useMemo(() => {
-    const today = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Kolkata",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
-
-    let logged = 0;
-    let promises = 0;
-
-    for (const entry of callQueue) {
-      const summary = effectiveSummaries[entry.row.studentId];
-      if (!summary?.lastContactedAt) continue;
-      if (!summary.lastContactedAt.startsWith(today)) continue;
-      logged += 1;
-      if (summary.lastOutcome === "promised_pay") promises += 1;
-    }
-
-    const recent = loggedOrder
-      .map((studentId) => {
-        const entry = callQueue.find((item) => item.row.studentId === studentId);
-        if (!entry) return null;
-        return { entry, summary: effectiveSummaries[studentId] ?? null };
-      })
-      .filter(Boolean)
-      .slice(0, 3) as Array<{ entry: RecoveryDeskEntry; summary: DefaulterContactSummary | null }>;
-
-    return { logged, promises, total: callQueue.length, recent };
+    return buildDefaulterCallProgress({
+      queue: callQueue,
+      summaries: effectiveSummaries,
+      loggedOrder,
+    });
   }, [callQueue, effectiveSummaries, loggedOrder]);
 
   return (
@@ -647,6 +630,7 @@ function CallProgressPanel({
       <div
         className="mt-2 h-2 overflow-hidden rounded-full bg-surface-3"
         role="progressbar"
+        aria-label={t("callProgressTitle")}
         aria-valuenow={pct}
         aria-valuemin={0}
         aria-valuemax={100}
@@ -1013,7 +997,7 @@ function SelectedStudentPanel({
           {/* Initials circle, as on every other person row in the app. */}
           <span
             aria-hidden="true"
-            className="mt-0.5 grid size-10 shrink-0 place-items-center rounded-full bg-accent-soft text-sm font-bold uppercase text-accent"
+            className="mt-0.5 grid size-10 shrink-0 place-items-center rounded-full bg-accent-soft text-sm font-bold uppercase text-accent-soft-foreground"
           >
             {initialsOf(row.fullName)}
           </span>
@@ -1162,4 +1146,3 @@ function SelectedStudentPanel({
     </aside>
   );
 }
-

@@ -23,6 +23,7 @@ import {
   MobilePendingByClass,
 } from "@/components/dashboard/mobile-dashboard-screen";
 import { MorningBrief } from "@/components/dashboard/morning-brief";
+import { RoleFocusActions } from "@/components/dashboard/role-focus-actions";
 import { RouteCollectionHeatmap } from "@/components/dashboard/route-collection-heatmap";
 import { OptimisticBanner } from "@/components/dashboard/optimistic-banner";
 import { MissingDuesBanner } from "@/components/shared/missing-dues-banner";
@@ -41,6 +42,7 @@ import { Section } from "@/components/ui/section";
 import {
   getDashboardAboveFoldData,
   getDashboardPageData,
+  getPendingImportBatchCount,
   getRouteCollectionSummary,
   scheduleDashboardAutoPrepare,
   type DashboardAlert,
@@ -444,7 +446,7 @@ function HeroKpis({
 
       {/* Needs attention — overdue money + follow-up load */}
       <div className="rounded-2xl border border-destructive/30 bg-destructive-soft px-5 py-5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-destructive/70">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-destructive-soft-foreground">
           {t("needsAttention")}
         </p>
         <div className="mt-2">
@@ -453,7 +455,7 @@ function HeroKpis({
             className="text-2xl font-semibold tracking-tight text-destructive"
           />
         </div>
-        <p className="mt-1 text-xs text-destructive/70">
+        <p className="mt-1 text-xs text-destructive-soft-foreground">
           {t("overdueWithoutLateFee")} · {t("pastInstallmentDueDate")}
         </p>
         <p className="mt-2 text-xs text-destructive-soft-foreground">
@@ -1122,7 +1124,11 @@ function SVGTrendBarChart({
       description="Daily fee receipts — tap a bar to open that day's receipts"
       variant="card"
     >
-      <div className="w-full overflow-x-auto">
+      <div
+        className="w-full overflow-x-auto"
+        tabIndex={0}
+        aria-label="Scrollable daily collection trend"
+      >
         <svg
           viewBox={`0 0 ${chartWidth} ${chartHeight}`}
           className="w-full"
@@ -2147,7 +2153,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   // chaining one after the other.
   // sessionSwitcher preloaded so Home's pill opens with rows in hand rather
   // than firing a request on tap. TTL-cached, so this costs nothing.
-  const [aboveFold, todayActivityCounts, sessionSwitcher] = await Promise.all([
+  const canViewImports = hasStaffPermission(staff, "imports:view");
+  const [aboveFold, todayActivityCounts, sessionSwitcher, pendingImportCount] = await Promise.all([
     timer.measure("aboveFold", () =>
       getDashboardAboveFoldData({
         staffRole: staff.appRole,
@@ -2158,6 +2165,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       ? timer.measure("todayActivityCounts", () => getTodayActivityCounts(staff.id))
       : Promise.resolve({}),
     getSessionSwitcherData(),
+    canViewImports
+      ? timer.measure("pendingImportCount", () =>
+          getPendingImportBatchCount(viewSession.sessionLabel),
+        )
+      : Promise.resolve(0),
   ]);
   const canWriteStudents = hasStaffPermission(staff, "students:write");
   const canPostPayments = hasStaffPermission(staff, "payments:write");
@@ -2372,6 +2384,15 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </div>
 
         <div className="hidden space-y-4 md:block">
+        <RoleFocusActions
+          role={staff.appRole}
+          sessionLabel={viewSession.sessionLabel}
+          todaysCollection={aboveFold.kpis.todaysCollection}
+          receiptsToday={aboveFold.kpis.receiptsToday}
+          urgentFollowUps={aboveFold.studentsWithPending}
+          pendingImports={pendingImportCount}
+          canPostPayments={canPostPayments}
+        />
         <HeroKpis
           collected={aboveFold.kpis.todaysCollection}
           collectionRate={thisYearCollectionRate}

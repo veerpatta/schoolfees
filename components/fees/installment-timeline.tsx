@@ -117,7 +117,7 @@ export function InstallmentTimeline({
               </span>
               <span className="text-[10px] font-medium uppercase tracking-wide">{state.label}</span>
             </div>
-            <p className="mt-0.5 truncate text-[10px] opacity-80">Due {formatShortDate(item.dueDate)}</p>
+            <p className="mt-0.5 truncate text-[10px]">Due {formatShortDate(item.dueDate)}</p>
             <p className="mt-1 font-mono text-sm font-semibold tabular-nums">{formatInr(amount)}</p>
             {item.finalLateFee > 0 ? (
               <p className="text-[10px] font-medium">+ {formatInr(item.finalLateFee)} late fee</p>

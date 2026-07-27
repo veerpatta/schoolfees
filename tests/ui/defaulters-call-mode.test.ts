@@ -14,6 +14,10 @@ const source = readFileSync(
   join(process.cwd(), "components/defaulters/defaulters-workspace.tsx"),
   "utf8",
 );
+const workspaceModel = readFileSync(
+  join(process.cwd(), "lib/defaulters/workspace.ts"),
+  "utf8",
+);
 
 describe("defaulters call mode", () => {
   it("advances to the next family after an outcome is logged", () => {
@@ -37,9 +41,9 @@ describe("defaulters call mode", () => {
     expect(source).toContain("callProgressPromises");
     expect(source).toContain("callProgressRecent");
     // Progress counts only outcomes recorded TODAY, in school time.
-    expect(source).toContain('timeZone: "Asia/Kolkata"');
-    expect(source).toContain("lastContactedAt.startsWith(today)");
-    expect(source).toContain('lastOutcome === "promised_pay"');
+    expect(workspaceModel).toContain('timeZone: "Asia/Kolkata"');
+    expect(workspaceModel).toContain("lastContactedAt?.startsWith(today)");
+    expect(workspaceModel).toContain('lastOutcome === "promised_pay"');
   });
 
   it("previews what is coming and allows skipping one", () => {

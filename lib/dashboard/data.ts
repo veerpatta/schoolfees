@@ -51,6 +51,22 @@ export type DashboardRouteSummaryRow = {
   collectionRate: number;
 };
 
+export async function getPendingImportBatchCount(sessionLabel: string): Promise<number> {
+  const supabase = await getCacheSafeClient();
+  const { count, error } = await supabase
+    .from("import_batches")
+    .select("id", { count: "exact", head: true })
+    .eq("target_session_label", sessionLabel)
+    .in("status", ["uploaded", "validated", "importing", "failed"]);
+
+  if (error) {
+    console.warn("[dashboard-pending-imports] query failed:", error.message);
+    return 0;
+  }
+
+  return count ?? 0;
+}
+
 export async function getRouteCollectionSummary(
   sessionLabel: string,
 ): Promise<DashboardRouteSummaryRow[]> {

@@ -84,7 +84,7 @@ export function TrustBadge({
       <Info className="size-3" aria-hidden="true" />
       <span>{children ?? source}</span>
       {computedAt && mounted ? (
-        <span className="tabular text-[10px] opacity-80">· {formatRelative(computedAt)}</span>
+        <span className="tabular text-[10px]">· {formatRelative(computedAt)}</span>
       ) : null}
       {auditHref ? (
         <a

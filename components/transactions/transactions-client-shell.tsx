@@ -127,7 +127,7 @@ function formatPaymentModeLabel(value: string, t: TxnTranslator) {
 function modeBadgeClassName(mode: string) {
   if (mode === "cash") return "bg-success-soft text-success-soft-foreground";
   if (mode === "upi") return "bg-info-soft text-info-soft-foreground";
-  if (mode === "bank_transfer") return "bg-accent/10 text-accent";
+  if (mode === "bank_transfer") return "bg-accent-soft text-accent-soft-foreground";
   if (mode === "cheque") return "bg-warning-soft text-warning-soft-foreground";
   if (mode === "discount") return "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200";
   return "bg-surface-2 text-muted-foreground";
@@ -150,7 +150,7 @@ function getPaymentModeChipClassName(mode: string, active: boolean) {
   }
 
   if (mode === "bank_transfer") {
-    return cn(base, "border-accent/20 bg-accent/10 text-accent");
+    return cn(base, "border-accent/20 bg-accent-soft text-accent-soft-foreground");
   }
 
   if (mode === "cheque") {
@@ -161,7 +161,7 @@ function getPaymentModeChipClassName(mode: string, active: boolean) {
     return cn(base, "border-purple-300 bg-purple-100 text-purple-800 dark:border-purple-800 dark:bg-purple-950 dark:text-purple-200");
   }
 
-  return cn(base, "border-accent/20 bg-accent/10 text-accent");
+  return cn(base, "border-accent/20 bg-accent-soft text-accent-soft-foreground");
 }
 
 function buildApiUrl(view: OfficeWorkbookView, f: FilterState) {
@@ -329,18 +329,9 @@ function TransactionsTable({
           rows.map((row) => (
             <div
               key={row.receiptId}
-              role="button"
-              tabIndex={0}
               onClick={(event) => {
                 const target = event.target as HTMLElement | null;
                 if (target && target.closest('[data-row-action="true"]')) return;
-                onPreviewReceipt(row.receiptId);
-              }}
-              onKeyDown={(event) => {
-                if (event.key !== "Enter" && event.key !== " ") return;
-                const target = event.target as HTMLElement | null;
-                if (target && target.closest('[data-row-action="true"]')) return;
-                event.preventDefault();
                 onPreviewReceipt(row.receiptId);
               }}
               className="cursor-pointer rounded-xl border border-border bg-card p-3 text-sm transition-colors hover:bg-surface-2/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -365,7 +356,18 @@ function TransactionsTable({
                 </p>
               </div>
               <p className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                {row.receiptNumber} · {formatPaymentModeLabel(row.paymentMode, t)}
+                <button
+                  type="button"
+                  data-row-action="true"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onPreviewReceipt(row.receiptId);
+                  }}
+                  className="rounded-sm font-mono font-medium text-foreground hover:underline focus-ring"
+                >
+                  {row.receiptNumber}
+                </button>
+                <span>· {formatPaymentModeLabel(row.paymentMode, t)}</span>
                 {row.isReversed ? <ReversedBadge /> : null}
               </p>
               <div className="mt-2 flex flex-wrap gap-2" data-row-action="true" onClick={(event) => event.stopPropagation()}>

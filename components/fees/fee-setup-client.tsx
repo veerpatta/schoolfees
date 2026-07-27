@@ -806,7 +806,7 @@ export function FeeSetupClient({
                     ? stage.key === "stagePublished"
                       ? "bg-success-soft text-success-soft-foreground"
                       : "bg-accent-soft text-accent-soft-foreground"
-                    : "text-muted-foreground/60",
+                    : "text-muted-foreground",
                 )}
               >
                 {t(stage.key)}

@@ -9,6 +9,7 @@ import { SavedViewsTabs } from "@/components/data-table/saved-views-tabs";
 import { SummaryRow, SummaryCell } from "@/components/data-table/summary-row";
 import { VoiceSearchButton } from "@/components/mobile-app/voice-search-button";
 import { BulkStudentEditBar } from "@/components/students/bulk-student-edit-bar";
+import { RecentStudentAccess } from "@/components/students/recent-student-access";
 import { StudentListTable } from "@/components/students/student-list-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { isPendingAdmissionNo } from "@/lib/students/constants";
+import { filterStudentWorkspaceRows } from "@/lib/students/list-view-model";
 import { cn } from "@/lib/utils";
 import { getOfficeMetricSessionKind, recordOfficeMetric } from "@/lib/quality/office-telemetry";
 import type { SavedView } from "@/lib/data-table/saved-views";
@@ -51,6 +53,7 @@ type StudentQuickLoadProps = {
   classOptions: StudentClassOption[];
   routeOptions: StudentRouteOption[];
   canWrite: boolean;
+  canCollectPayments: boolean;
   lastViewedByUser?: Record<string, string>;
 };
 
@@ -62,6 +65,7 @@ export function StudentQuickLoad({
   classOptions,
   routeOptions,
   canWrite,
+  canCollectPayments,
   lastViewedByUser,
 }: StudentQuickLoadProps) {
   const t = useTranslations("Students");
@@ -175,21 +179,10 @@ export function StudentQuickLoad({
   // typing in the search box never blocks on a network round-trip. The server
   // fetch (60 ms debounce above) replaces the underlying list shortly after.
   const displayedStudents = useMemo(() => {
-    const q = filters.query.trim().toLowerCase();
-    const matchesQuery = (student: (typeof students)[number]) => {
-      if (!q) return true;
-      const haystack = `${student.fullName} ${student.admissionNo} ${student.classLabel} ${student.fatherPhone ?? ""} ${student.motherPhone ?? ""}`.toLowerCase();
-      return haystack.includes(q);
-    };
-
-    return students.filter((student) => {
-      if (!matchesQuery(student)) return false;
-      // "Only with dues" — while a row's figures are still loading we keep it
-      // rather than hide it, so the list never appears to lose students.
-      if (onlyWithDues && !student.financialLoading && student.outstandingAmount <= 0) {
-        return false;
-      }
-      return true;
+    return filterStudentWorkspaceRows({
+      students,
+      query: filters.query,
+      onlyWithDues,
     });
   }, [students, filters.query, onlyWithDues]);
 
@@ -724,6 +717,14 @@ export function StudentQuickLoad({
         </div>
       </SectionCard>
 
+      <RecentStudentAccess
+        students={students}
+        lastViewedByUser={lastViewedByUser ?? {}}
+        sessionLabel={initialFilters.sessionLabel}
+        returnTo={returnTo}
+        canCollectPayments={canCollectPayments}
+      />
+
       <SectionCard
         title={t("studentListTitle")}
         description={t("studentListDescription", {
@@ -786,6 +787,7 @@ export function StudentQuickLoad({
               students={displayedStudents}
               hasFilters={hasVisibleFilters}
               canWrite={canWrite}
+              canCollectPayments={canCollectPayments}
               returnTo={returnTo}
               session={initialFilters.sessionLabel}
               lastViewedByUser={lastViewedByUser}
