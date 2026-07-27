@@ -39,7 +39,7 @@ export function LoginForm({
             <div className="space-y-5">
               <div className="grid gap-2.5">
                 <Label htmlFor="email" className="text-sm font-semibold">
-                  Email / Username
+                  Email
                 </Label>
                 <div className="relative">
                   <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle-foreground" />

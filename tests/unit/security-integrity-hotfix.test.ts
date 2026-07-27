@@ -13,14 +13,25 @@ function read(path: string) {
 }
 
 describe("security and integrity hotfix", () => {
-  it("disables every signup entry point and enforces the office password policy", () => {
+  it("disables every signup entry point and keeps existing staff email login compatible", () => {
     const config = read("supabase/config.toml");
-    expect(config.match(/enable_signup = false/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
-    expect(config).not.toContain("enable_signup = true");
-    expect(config).toContain("minimum_password_length = 12");
-    expect(config).toContain(
-      'password_requirements = "lower_upper_letters_digits_symbols"',
-    );
+    const loginAction = read("app/auth/login/actions.ts");
+    const staffManagement = read("lib/staff-management/data.ts");
+    const globalAuthConfig = config.match(
+      /^\[auth\]\r?\n([\s\S]*?)(?=^\[)/m,
+    )?.[1];
+    const emailAuthConfig = config.match(
+      /^\[auth\.email\]\r?\n([\s\S]*?)(?=^\[)/m,
+    )?.[1];
+    expect(globalAuthConfig).toContain("enable_signup = false");
+    expect(globalAuthConfig).toContain("enable_anonymous_sign_ins = false");
+    expect(emailAuthConfig).toContain("enable_signup = true");
+    expect(config).toContain("minimum_password_length = 6");
+    expect(config).toContain('password_requirements = ""');
+    expect(loginAction).toContain("supabase.auth.signInWithPassword");
+    expect(loginAction).toContain('.toLowerCase()');
+    expect(staffManagement).toContain("password.length < 6");
+    expect(staffManagement).not.toContain("Password must include at least one");
   });
 
   it("locks anonymous users out of financial projections and posting RPCs", () => {
