@@ -78,10 +78,13 @@ export default withSentryConfig(
     // Only print upload logs in CI.
     silent: !process.env.CI,
 
-    // Strip Sentry SDK logger statements from the client bundle (smaller bundle).
-    disableLogger: true,
-
-    // Auto-instrument Vercel Cron Monitors (you have crons in vercel.json).
-    automaticVercelMonitors: true,
+    webpack: {
+      // Strip Sentry SDK logger statements from the client bundle.
+      treeshake: {
+        removeDebugLogging: true,
+      },
+      // Auto-instrument Vercel Cron Monitors (you have crons in vercel.json).
+      automaticVercelMonitors: true,
+    },
   },
 );

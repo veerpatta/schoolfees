@@ -192,6 +192,8 @@ export function ReceiptDocumentV3({
     installmentLabel: item.installmentLabel,
     dueDate: item.dueDate,
     paid: item.amount,
+    originalPaid: item.originalAmount,
+    adjustmentAmount: item.adjustmentAmount,
     pendingBefore: item.pendingBeforePosting,
     pendingAfter: item.pendingAfterPosting,
   }));
@@ -471,7 +473,12 @@ export function ReceiptDocumentV3({
                       {row.pendingBefore !== null ? formatInr(row.pendingBefore) : "—"}
                     </td>
                     <td className="px-2.5 py-2 text-right font-semibold tabular-nums text-foreground">
-                      {formatInr(row.paid)}
+                      <span>{formatInr(row.paid)}</span>
+                      {row.adjustmentAmount !== 0 ? (
+                        <span className="block text-[9px] font-normal text-muted-foreground">
+                          Corrected from {formatInr(row.originalPaid)}
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-2.5 py-2 text-right tabular-nums text-muted-foreground">
                       {row.pendingAfter !== null ? formatInr(row.pendingAfter) : "—"}

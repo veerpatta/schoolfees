@@ -99,7 +99,11 @@ export function LanguageProvider({
 
   return (
     <LanguageContext.Provider value={value}>
-      <NextIntlClientProvider locale={locale} messages={activeMessages}>
+      <NextIntlClientProvider
+        locale={locale}
+        messages={activeMessages}
+        timeZone="Asia/Kolkata"
+      >
         {children}
       </NextIntlClientProvider>
     </LanguageContext.Provider>

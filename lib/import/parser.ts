@@ -7,6 +7,10 @@ import type {
 } from "@/lib/import/types";
 
 const MAX_IMPORT_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_IMPORT_WORKSHEETS = 8;
+const MAX_IMPORT_ROWS = 10_000;
+const MAX_IMPORT_COLUMNS = 100;
+const MAX_IMPORT_CELLS = 500_000;
 
 type ParsedImportRow = {
   rowIndex: number;
@@ -104,6 +108,12 @@ export async function parseStudentImportFile(file: File): Promise<ParsedStudentI
     dense: true,
   });
 
+  if (workbook.SheetNames.length > MAX_IMPORT_WORKSHEETS) {
+    throw new Error(
+      `The workbook has too many worksheets. Keep it to ${MAX_IMPORT_WORKSHEETS} worksheets or fewer.`,
+    );
+  }
+
   const worksheetName = workbook.SheetNames[0] ?? null;
 
   if (!worksheetName) {
@@ -111,6 +121,28 @@ export async function parseStudentImportFile(file: File): Promise<ParsedStudentI
   }
 
   const sheet = workbook.Sheets[worksheetName];
+  const sheetRange = sheet["!ref"] ? XLSX.utils.decode_range(sheet["!ref"]) : null;
+  const estimatedRows = sheetRange ? sheetRange.e.r - sheetRange.s.r + 1 : 0;
+  const estimatedColumns = sheetRange ? sheetRange.e.c - sheetRange.s.c + 1 : 0;
+
+  if (estimatedRows > MAX_IMPORT_ROWS) {
+    throw new Error(
+      `The worksheet has too many rows. Keep it to ${MAX_IMPORT_ROWS.toLocaleString("en-IN")} rows or fewer.`,
+    );
+  }
+
+  if (estimatedColumns > MAX_IMPORT_COLUMNS) {
+    throw new Error(
+      `The worksheet has too many columns. Keep it to ${MAX_IMPORT_COLUMNS} columns or fewer.`,
+    );
+  }
+
+  if (estimatedRows * estimatedColumns > MAX_IMPORT_CELLS) {
+    throw new Error(
+      `The worksheet is too large. Keep it below ${MAX_IMPORT_CELLS.toLocaleString("en-IN")} cells.`,
+    );
+  }
+
   const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
     header: 1,
     raw: true,

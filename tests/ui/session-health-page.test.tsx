@@ -114,7 +114,7 @@ describe("Session Health page", () => {
 
   it("renders one card per academic session with different health states", async () => {
     const { SessionHealthGrid } = await import(
-      "@/app/protected/admin-tools/session-health/page"
+      "@/app/protected/admin-tools/session-health/session-health-grid"
     );
     const { createTranslator } = await vi.importActual<typeof import("next-intl")>(
       "next-intl",
@@ -159,7 +159,7 @@ describe("Session Health page", () => {
     });
 
     const { SessionHealthGrid } = await import(
-      "@/app/protected/admin-tools/session-health/page"
+      "@/app/protected/admin-tools/session-health/session-health-grid"
     );
     const { createTranslator } = await vi.importActual<typeof import("next-intl")>(
       "next-intl",

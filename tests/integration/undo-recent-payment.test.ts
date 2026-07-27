@@ -90,7 +90,8 @@ describe("receipt VOID derivation", () => {
   const source = readFileSync(join(process.cwd(), "lib", "receipts", "data.ts"), "utf8");
 
   it("derives isVoided from reversal adjustments instead of mutating the receipt", () => {
-    expect(source).toContain('.eq("adjustment_type", "reversal")');
+    expect(source).toContain('row.adjustment_type === "reversal"');
+    expect(source).toContain('row.amount_delta < 0');
     expect(source).toMatch(/isVoided = receipt\.total_amount > 0 && reversedAmount >= receipt\.total_amount/);
   });
 });
