@@ -64,12 +64,21 @@ describe("payment flow restarts after a successful post", () => {
     expect(body).toContain('searchParams.set("session"');
   });
 
-  it("drops ?studentId= as soon as the receipt exists, not only on tap-through", () => {
-    // Belt and braces for the same bug. `handleCollectAnotherPayment` only
-    // runs when the clerk dismisses the success sheet; anything that remounts
-    // the desk before that — a route re-render, a reload — reads the URL and
-    // re-opens the amount screen for the student who just paid. Stripping it
-    // inside the success effect makes the remount question moot.
+  it("does NOT touch the URL while the receipt is being shown", () => {
+    // This assertion is the inverse of what it used to be, and the reversal is
+    // the fix for the reported bug.
+    //
+    // Stripping ?studentId= inside the success effect looked like belt and
+    // braces against a remount. It CAUSED one. A Server Action that
+    // revalidates re-renders its own route; that refresh reads the URL the
+    // effect just rewrote, the page falls to its no-student branch, and — see
+    // tests/ui/payment-desk-remount.test.ts — the desk is torn down and
+    // rebuilt. The receipt screen went with it, so a successful save flashed
+    // and dropped the clerk back on the student picker.
+    //
+    // Told apart from every other theory by the duplicate path: it renders the
+    // same way through the same guard and the same portal, and it works —
+    // because it is the one branch that does not rewrite the URL.
     const source = readFileSync(
       join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
       "utf8",
@@ -77,12 +86,15 @@ describe("payment flow restarts after a successful post", () => {
     const start = source.indexOf('if (state.status === "success") {');
     expect(start).toBeGreaterThan(-1);
     const end = source.indexOf('if (state.status === "duplicate") {', start);
-    const body = source.slice(start, end);
+    const body = source
+      .slice(start, end)
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
 
-    expect(body).toContain('searchParams.delete("studentId")');
-    expect(body).toContain("history.replaceState");
-    // React state is untouched, so `selectedStudent` survives and the success
-    // sheet — which requires it at :3224 — still renders.
+    expect(body).not.toContain("history.replaceState");
+    expect(body).not.toContain('searchParams.delete("studentId")');
+    // React state is untouched either, so `selectedStudent` survives and the
+    // success sheet — which requires it — renders.
     expect(body).not.toMatch(/setSelectedStudentId\(|setSelectedStudent\(null\)/);
   });
 

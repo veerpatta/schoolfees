@@ -1239,26 +1239,14 @@ export function PaymentDeskClient({
       // Close the mobile payment-entry sheet so the success sheet can never be
       // layered under it — the cashier must always see the saved-receipt view.
       setMobileSheetView(null);
-      // Drop ?studentId= the moment the receipt exists, not only when the
-      // clerk taps through to the next student. `selectStudent` put it there
-      // (:1627) and the auto-open effect (:1439) reads it on mount, so ANY
-      // remount between the post and the tap — a Fast Refresh in dev, a route
-      // re-render, a reload — lands the clerk back on the amount screen of the
-      // student who just paid. replaceState does not touch React state, so
-      // `selectedStudent` survives and the success sheet still renders.
-      try {
-        const postedUrl = new URL(window.location.href);
-        postedUrl.searchParams.delete("studentId");
-        postedUrl.searchParams.delete("repairNotice");
-        postedUrl.searchParams.set("session", data.sessionLabel);
-        window.history.replaceState(
-          {},
-          "",
-          `${postedUrl.pathname}?${postedUrl.searchParams.toString()}${postedUrl.hash}`,
-        );
-      } catch {
-        // A failed URL rewrite must never swallow the success sheet.
-      }
+      // The URL is deliberately NOT touched here. Dropping ?studentId= at this
+      // instant is what destroyed the receipt screen: the Server Action's
+      // revalidation re-renders this route, the refresh reads the URL we just
+      // rewrote, the page falls to its no-student branch and React remounts
+      // the whole desk — taking the success state, and the receipt, with it.
+      // The clerk saw a flash and landed back on the picker.
+      // `handleCollectAnotherPayment` strips it when they move on, which is
+      // when a fresh render is wanted. See tests/ui/payment-desk-remount.test.ts.
       // Audit 1.4 — reset the duplicate acks so the next payment goes through
       // the prompts again rather than silently bypassing.
       setAcknowledgeDailyDuplicate(false);

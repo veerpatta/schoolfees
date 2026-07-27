@@ -34,6 +34,18 @@ type PaymentsPageProps = {
   }>;
 };
 
+/**
+ * Stable identity for the payment desk across the two render branches below.
+ *
+ * The desk holds the whole collect flow in client state — the selected
+ * student, the amount, and the posted-receipt screen. It must survive the
+ * route re-rendering, which a Server Action's revalidation does on every
+ * successful payment. Without this, `?studentId=` disappearing flipped
+ * branches, React matched fragment children by position, and the desk was
+ * torn down and rebuilt at the exact moment it was showing a receipt.
+ */
+const PAYMENT_DESK_KEY = "payment-desk";
+
 function normalizeStudentId(rawValue: string | undefined) {
   const value = (rawValue ?? "").trim();
   const uuidPattern =
@@ -141,6 +153,14 @@ async function PaymentDeskDataLoader({
 
     return (
       <>
+        {/* Always-null here (recovery mode requires a student), but the slot
+            has to exist: this branch and the one below are reconciled against
+            each other whenever ?studentId= appears or disappears, and React
+            matches fragment children BY POSITION. A missing slot shifts
+            PaymentEntryClient up one index, which unmounts and remounts the
+            entire desk — losing the posted-receipt state mid-flow. Keep the
+            two child sequences identical. */}
+        {recovery ? <OfficeNotice tone="warning">Recovery mode</OfficeNotice> : null}
         <div className="flex justify-end">
           <StatusBadge
             label={canPostPayments ? t("postingEnabled") : t("readOnlyAccess")}
@@ -158,6 +178,7 @@ async function PaymentDeskDataLoader({
         ) : null}
 
         <PaymentEntryClient
+          key={PAYMENT_DESK_KEY}
           data={translatedData}
           canPost={canPostPayments}
           canViewDiagnostics={staff.appRole === "admin"}
@@ -220,7 +241,12 @@ async function PaymentDeskDataLoader({
         />
       ) : null}
 
+      {/* Same stable key as the no-student branch above: a keyed child is
+          matched by key rather than position, so even if the two trees drift
+          apart again React reconciles this as an update instead of tearing
+          down a desk that is holding a just-posted receipt. */}
       <PaymentEntryClient
+        key={PAYMENT_DESK_KEY}
         data={translatedData}
         canPost={canPostPayments}
         canViewDiagnostics={staff.appRole === "admin"}
