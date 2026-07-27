@@ -7,7 +7,6 @@ import { useTranslations } from "next-intl";
 import { MobileStepRail } from "@/components/mobile-app/mobile-kit";
 import { UpiQrCode } from "@/components/payments/upi-qr-code";
 import { buildStudentFeeUpiPayment } from "@/lib/payments/upi";
-import { MoneyKeypad } from "@/components/mobile-app/money-keypad";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatInr } from "@/lib/helpers/currency";
@@ -808,11 +807,13 @@ export function MobilePaymentFlowSheet({
                     <input
                       ref={amountInputRef}
                       type="text"
-                      /* Native numeric entry stays the primary input (a prior
-                         decision this repo pinned in tests — see
-                         tests/ui/mobile-payment-flow-sheet.test.ts). The money
-                         keypad in the footer is an ADDITIONAL large-target
-                         affordance from mobile v2, not a replacement. */
+                      /* The phone keyboard is the ONLY way to type an amount.
+                         An on-screen money keypad used to sit under this field
+                         as a second input path; it duplicated a control every
+                         phone already has, cost a third of the step's vertical
+                         space, and gave the field two write paths to keep in
+                         agreement. Removed — `inputMode="decimal"` gets the
+                         same digit-first layout from the OS. */
                       inputMode="decimal"
                       pattern="[0-9]*"
                       enterKeyHint="done"
@@ -859,19 +860,6 @@ export function MobilePaymentFlowSheet({
                       : tMobile("amountEmpty")}
                   </p>
 
-                  {/* The pad sits WITH the figure it edits, not pinned to the
-                      CTA. The design pins it, but the design's step 2 holds
-                      only the hero, three chips and one card — this sheet also
-                      carries the dues ledger, fee-head breakdown, mode row and
-                      date, so a pinned pad took the footer to 317px, left
-                      323px of scroll, and pushed the hero off-screen BEHIND a
-                      keypad button. Measured on a 375×812 viewport. */}
-                  <MoneyKeypad
-                    className="mt-3"
-                    value={paymentAmountInput}
-                    disabled={isLockedAfterSuccess}
-                    onChange={onAmountChange}
-                  />
                 </div>
 
                 {/* Quick amounts — three cards: Clear overdue (incl.

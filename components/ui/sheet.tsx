@@ -61,35 +61,69 @@ const SWIPE_DISMISS_THRESHOLD = 80;
 let sheetScrollLockCount = 0;
 let previousBodyOverflow = "";
 let previousHtmlOverflow = "";
+let previousMainOverflow = "";
+let previousMainScrollTop = 0;
 
-function acquireSheetScrollLock() {
+/**
+ * The element that actually scrolls on a phone.
+ *
+ * Below 767px `.mobile-app-main` is `height:100dvh; overflow-y:auto` (see the
+ * phone app scroll model in globals.css) and the document does NOT scroll — so
+ * locking `body` and `html` alone, which is all this used to do, was a no-op on
+ * every phone. Returns null on desktop, where the document is the scroller.
+ */
+function getPhoneScroller(): HTMLElement | null {
+  return document.querySelector<HTMLElement>(".mobile-app-main");
+}
+
+export function acquireSheetScrollLock() {
   if (sheetScrollLockCount === 0) {
     previousBodyOverflow = document.body.style.overflow;
     previousHtmlOverflow = document.documentElement.style.overflow;
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
+
+    const main = getPhoneScroller();
+    if (main) {
+      // scrollTop is captured BEFORE the overflow write, because setting
+      // overflow:hidden on a scrolled element can reset it to 0 — and
+      // ScrollRestoringMain persists that value on unmount, so losing it here
+      // would silently break scroll restoration on every screen with a sheet.
+      previousMainScrollTop = main.scrollTop;
+      previousMainOverflow = main.style.overflow;
+      main.style.overflow = "hidden";
+    }
   }
 
   sheetScrollLockCount += 1;
 }
 
-function releaseSheetScrollLock() {
+function restoreScrollLock() {
+  document.body.style.overflow = previousBodyOverflow;
+  document.documentElement.style.overflow = previousHtmlOverflow;
+  previousBodyOverflow = "";
+  previousHtmlOverflow = "";
+
+  const main = getPhoneScroller();
+  if (main) {
+    main.style.overflow = previousMainOverflow;
+    main.scrollTop = previousMainScrollTop;
+  }
+  previousMainOverflow = "";
+  previousMainScrollTop = 0;
+}
+
+export function releaseSheetScrollLock() {
   sheetScrollLockCount = Math.max(0, sheetScrollLockCount - 1);
 
   if (sheetScrollLockCount === 0) {
-    document.body.style.overflow = previousBodyOverflow;
-    document.documentElement.style.overflow = previousHtmlOverflow;
-    previousBodyOverflow = "";
-    previousHtmlOverflow = "";
+    restoreScrollLock();
   }
 }
 
 export function releaseAllSheetScrollLocks() {
   sheetScrollLockCount = 0;
-  document.body.style.overflow = previousBodyOverflow;
-  document.documentElement.style.overflow = previousHtmlOverflow;
-  previousBodyOverflow = "";
-  previousHtmlOverflow = "";
+  restoreScrollLock();
 }
 
 /** Marker written into history.state so we only react to our own entries —

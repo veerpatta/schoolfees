@@ -845,9 +845,18 @@ describe("payment desk cashier workflow", () => {
     const portalCount = (component.match(/createPortal\(/g) ?? []).length;
     expect(portalCount).toBeGreaterThanOrEqual(3);
 
-    // Body scroll is locked while any dialog is open
-    expect(component).toContain("document.body.style.overflow");
+    // The page behind is frozen while any dialog is open — through the shared
+    // counted lock, NOT by writing body overflow here.
+    //
+    // This used to assert `document.body.style.overflow` was present, which
+    // pinned the defect rather than the behaviour: below 767px the scroller is
+    // `.mobile-app-main`, so a body-only write froze nothing on the very
+    // devices these overlays exist for, and writing outside the count could
+    // restore a stale value over an still-open <Sheet>. What the lock actually
+    // does is covered by tests/ui/interaction/overlay-scroll-lock.test.tsx.
+    expect(component).toContain("useOverlayScrollLock(");
     expect(component).toContain("isConfirmOpen || isSuccessOpen || isDuplicateOpen");
+    expect(component).not.toContain("document.body.style.overflow");
 
     // SSR safety - portals are guarded by mounted state
     expect(component).toContain("setMounted(true)");

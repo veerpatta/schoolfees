@@ -73,6 +73,7 @@ import type {
   PaymentStudentIndexItem,
 } from "@/lib/payments/types";
 import { triggerHaptic } from "@/hooks/use-haptics";
+import { useOverlayScrollLock } from "@/hooks/use-overlay-scroll-lock";
 import { formatInr } from "@/lib/helpers/currency";
 import { cn } from "@/lib/utils";
 import { clearDraft, loadDraft, saveDraft } from "@/lib/payments/draft-store";
@@ -688,17 +689,8 @@ export function PaymentDeskClient({
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    const anyOpen = isConfirmOpen || isSuccessOpen || isDuplicateOpen;
-    if (!anyOpen) return;
-
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = previous;
-    };
-  }, [isConfirmOpen, isSuccessOpen, isDuplicateOpen]);
+  // Locks `.mobile-app-main` on phones, not just body — see the hook.
+  useOverlayScrollLock(isConfirmOpen || isSuccessOpen || isDuplicateOpen);
 
   useEffect(() => {
     let shouldFetch = studentIndex.length === 0;
@@ -1465,11 +1457,11 @@ export function PaymentDeskClient({
     setMobileSheetView("payment-entry");
   }, [isMobileView, selectedStudentId, mobileSheetView]);
 
-  useEffect(() => {
-    if (isConfirmOpen && isMobileView) {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  }, [isConfirmOpen, isMobileView]);
+  // (Removed) An effect here scrolled the WINDOW to the top when the confirm
+  // sheet opened — gated on isMobileView, i.e. it only ever ran below 767px,
+  // which is exactly where the window does not scroll. Dead in both branches.
+  // The sheets are `fixed inset-0`, so nothing behind them needs scrolling
+  // into view; useOverlayScrollLock above freezes the real scroller instead.
 
 
 

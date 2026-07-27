@@ -12,6 +12,28 @@ describe("mobile payment bottom sheet flow", () => {
     expect(existsSync(join(process.cwd(), "components/payments/mobile-numpad.tsx"))).toBe(false);
   });
 
+  it("leaves the phone keyboard as the only way to type an amount", () => {
+    // A second on-screen money keypad sat under the amount field: it
+    // duplicated a control every phone already has, took roughly a third of
+    // the step's vertical space, and gave one live payment field two write
+    // paths that had to be kept in agreement. `inputMode="decimal"` above
+    // gets the same digit-first layout from the OS.
+    expect(existsSync(join(process.cwd(), "components/mobile-app/money-keypad.tsx"))).toBe(false);
+
+    const source = readRepoFile("components/payments/mobile-payment-flow-sheet.tsx");
+    expect(source).not.toContain("MoneyKeypad");
+    expect(source).not.toContain("applyKeypadPress");
+
+    // The empty-state hint used to read "Use the keypad below" and would have
+    // pointed at nothing.
+    for (const locale of ["en", "hi", "hi-en"]) {
+      const messages = JSON.parse(readRepoFile(`messages/${locale}.json`));
+      expect(messages.MobileApp.keypadLabel, locale).toBeUndefined();
+      expect(messages.MobileApp.keypadDelete, locale).toBeUndefined();
+      expect(messages.MobileApp.amountEmpty, locale).not.toMatch(/keypad/i);
+    }
+  });
+
   it("keeps payment entry on a compact sheet with native numeric amount entry", () => {
     const source = readRepoFile("components/payments/mobile-payment-flow-sheet.tsx");
 
