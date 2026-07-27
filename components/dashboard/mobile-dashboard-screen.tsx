@@ -183,8 +183,8 @@ export async function MobileDashboardScreen({
                 <span
                   className={
                     todayDelta.tone === "danger"
-                      ? "rounded-full bg-destructive/25 px-2 py-0.5 text-[10px] font-extrabold text-destructive-soft-foreground"
-                      : "rounded-full bg-success/25 px-2 py-0.5 text-[10px] font-extrabold text-success-soft-foreground"
+                      ? "rounded-full bg-destructive/25 px-2 py-0.5 text-[10px] font-extrabold text-nav-foreground"
+                      : "rounded-full bg-success/25 px-2 py-0.5 text-[10px] font-extrabold text-nav-foreground"
                   }
                 >
                   {/* The precomputed label ends in an English comparator
@@ -239,7 +239,7 @@ export async function MobileDashboardScreen({
           <IndianRupee className="size-6" aria-hidden="true" />
           <span className="text-left">
             <span className="block text-[17px] font-extrabold leading-tight">{t("collectCta")}</span>
-            <span className="block text-[11.5px] font-semibold opacity-85">
+            <span className="block text-[11.5px] font-semibold text-accent-foreground">
               {t("collectSub")}
             </span>
           </span>

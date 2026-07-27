@@ -120,10 +120,11 @@ export function CountUp({
        the same amount legitimately appears elsewhere on a screen (e.g. the
        phone printed receipt), and a bare text match would say nothing about
        whether the animation settled. */
-    <span data-countup className={className} aria-label={render(value)}>
+    <span data-countup className={className}>
       <span aria-hidden="true" className="tabular">
         {render(display)}
       </span>
+      <span className="sr-only">{render(value)}</span>
     </span>
   );
 }

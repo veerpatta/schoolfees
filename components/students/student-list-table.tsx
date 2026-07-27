@@ -239,23 +239,10 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
     if (target && target.closest('[data-row-action="true"]')) return;
     router.push(studentHref);
   };
-  const handleRowKey = (event: React.KeyboardEvent<HTMLElement>) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    const target = event.target as HTMLElement | null;
-    if (target && target.closest('[data-row-action="true"]')) return;
-    event.preventDefault();
-    router.push(studentHref);
-  };
-
   return (
     <li
-      role="link"
-      tabIndex={0}
-      aria-label={t("openStudentAria", { name: student.fullName })}
       onClick={handleRowOpen}
-      onKeyDown={handleRowKey}
       onMouseEnter={prefetchRow}
-      onFocus={prefetchRow}
       onTouchStart={prefetchRow}
       className="group relative flex cursor-pointer flex-col gap-2 pl-6 pr-3 py-3.5 transition-all hover:bg-surface-2/50 active:bg-surface-2 border-b border-border/40 focus-visible:outline-none focus-visible:bg-surface-2"
       style={{ contentVisibility: "auto", containIntrinsicSize: "0 96px" } as React.CSSProperties}
@@ -278,9 +265,13 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <span className="min-w-0 truncate text-sm font-semibold text-foreground">
+            <Link
+              href={studentHref}
+              onFocus={prefetchRow}
+              className="relative z-10 min-w-0 truncate rounded-sm text-sm font-semibold text-foreground hover:underline focus-ring"
+            >
               {student.fullName}
-            </span>
+            </Link>
             {student.status !== "active" && (
               <StudentStatusBadge status={student.status} />
             )}
@@ -301,7 +292,7 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
             {t("classLineWithSr", { class: student.classLabel, sr: student.admissionNo || t("tableSrPending") })}
           </p>
           {lastViewedAt ? (
-            <p className="text-[10px] text-muted-foreground/70 mt-0.5 truncate">
+            <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
               {t("lastViewedByYou", { when: timeAgoShort(lastViewedAt) ?? t("lastViewedFallback") })}
             </p>
           ) : null}
@@ -518,7 +509,7 @@ export const StudentListTable = React.memo(function StudentListTable({
                     </div>
                   ) : null}
                   {lastViewedByUser?.[student.id] ? (
-                    <p className="mt-1 text-[10px] text-muted-foreground/70">
+                    <p className="mt-1 text-[10px] text-muted-foreground">
                       {t("lastViewedByYou", { when: timeAgoShort(lastViewedByUser[student.id]) ?? t("lastViewedFallback") })}
                     </p>
                   ) : null}
@@ -544,7 +535,7 @@ export const StudentListTable = React.memo(function StudentListTable({
                 <td className="px-4 py-3.5 text-right pr-6">
                   {student.outstandingAmount > 0 && student.duesStatus === "generated" ? (
                     <Link
-                      href={withSession(`/protected/students/${student.id}/ledger?returnTo=${encodeURIComponent(returnTo)}`)}
+                      href={withSession(`/protected/ledger?studentId=${student.id}&returnTo=${encodeURIComponent(returnTo)}`)}
                       onClick={(e) => e.stopPropagation()}
                       className="block hover:opacity-80 transition-opacity"
                     >

@@ -2010,6 +2010,7 @@ export function PaymentDeskClient({
           <DesktopPaymentDeskStudentPanel>
             <select
               id="desktop-payment-class-id"
+              aria-label="Filter students by class"
               value={selectedClassId}
               className={selectClassName}
               onChange={(event) => handleClassChange(event.target.value, "desktop")}

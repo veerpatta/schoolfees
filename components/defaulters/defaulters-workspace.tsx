@@ -630,6 +630,7 @@ function CallProgressPanel({
       <div
         className="mt-2 h-2 overflow-hidden rounded-full bg-surface-3"
         role="progressbar"
+        aria-label={t("callProgressTitle")}
         aria-valuenow={pct}
         aria-valuemin={0}
         aria-valuemax={100}
@@ -996,7 +997,7 @@ function SelectedStudentPanel({
           {/* Initials circle, as on every other person row in the app. */}
           <span
             aria-hidden="true"
-            className="mt-0.5 grid size-10 shrink-0 place-items-center rounded-full bg-accent-soft text-sm font-bold uppercase text-accent"
+            className="mt-0.5 grid size-10 shrink-0 place-items-center rounded-full bg-accent-soft text-sm font-bold uppercase text-accent-soft-foreground"
           >
             {initialsOf(row.fullName)}
           </span>

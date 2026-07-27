@@ -120,11 +120,12 @@ export function StudentAvatar({
         SIZE_CLASS[size],
         className,
       )}
+      role="img"
       aria-label={`${fullName} photo`}
     >
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt={`${fullName} photo`} className="size-full object-cover" loading="lazy" />
+        <img src={src} alt="" className="size-full object-cover" loading="lazy" />
       ) : photoPath ? (
         <span aria-hidden="true">{getInitials(fullName)}</span>
       ) : (

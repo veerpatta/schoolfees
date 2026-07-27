@@ -446,7 +446,7 @@ function HeroKpis({
 
       {/* Needs attention — overdue money + follow-up load */}
       <div className="rounded-2xl border border-destructive/30 bg-destructive-soft px-5 py-5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-destructive/70">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-destructive-soft-foreground">
           {t("needsAttention")}
         </p>
         <div className="mt-2">
@@ -455,7 +455,7 @@ function HeroKpis({
             className="text-2xl font-semibold tracking-tight text-destructive"
           />
         </div>
-        <p className="mt-1 text-xs text-destructive/70">
+        <p className="mt-1 text-xs text-destructive-soft-foreground">
           {t("overdueWithoutLateFee")} · {t("pastInstallmentDueDate")}
         </p>
         <p className="mt-2 text-xs text-destructive-soft-foreground">
@@ -1124,7 +1124,11 @@ function SVGTrendBarChart({
       description="Daily fee receipts — tap a bar to open that day's receipts"
       variant="card"
     >
-      <div className="w-full overflow-x-auto">
+      <div
+        className="w-full overflow-x-auto"
+        tabIndex={0}
+        aria-label="Scrollable daily collection trend"
+      >
         <svg
           viewBox={`0 0 ${chartWidth} ${chartHeight}`}
           className="w-full"

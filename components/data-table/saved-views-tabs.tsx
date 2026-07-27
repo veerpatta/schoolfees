@@ -77,12 +77,11 @@ export function SavedViewsTabs<T>({
   };
 
   return (
-    <div
+    <nav
       className={cn(
         "no-scrollbar flex items-center gap-1 overflow-x-auto border-b border-border pb-1",
         className,
       )}
-      role="tablist"
       aria-label="Saved views"
     >
       {all.map((view) => {
@@ -91,8 +90,7 @@ export function SavedViewsTabs<T>({
           <div key={view.id} className="group/view flex shrink-0 items-center">
             <button
               type="button"
-              role="tab"
-              aria-selected={isActive}
+              aria-current={isActive ? "page" : undefined}
               onClick={() => onApply(view)}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
@@ -164,6 +162,6 @@ export function SavedViewsTabs<T>({
       )}
 
       {trailing ? <div className="ml-auto flex shrink-0 items-center">{trailing}</div> : null}
-    </div>
+    </nav>
   );
 }
