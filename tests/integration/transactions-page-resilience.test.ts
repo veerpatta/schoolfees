@@ -14,6 +14,7 @@ function renderWithLocale(node: React.ReactElement): string {
   const provider = React.createElement(NextIntlClientProvider, {
     locale: "en",
     messages,
+    timeZone: "Asia/Kolkata",
     children: node,
   });
   return renderToStaticMarkup(provider);

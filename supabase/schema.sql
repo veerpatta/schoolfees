@@ -1295,7 +1295,7 @@ returns table (
   allocated_total integer
 )
 language plpgsql
-security definer
+security invoker
 set search_path = public
 as $$
 declare
@@ -1314,8 +1314,10 @@ declare
   v_total_pending integer;
   v_revised_pending integer;
   v_normalized_prefix text;
+  v_pending_after integer;
+  v_receipt_notes text;
 begin
-  if not (select public.has_permission('payments:write')) then
+  if not public.has_permission('payments:write') then
     raise exception 'You do not have permission to post payments.';
   end if;
 
@@ -1326,6 +1328,7 @@ begin
   v_remaining_discount := greatest(coalesce(p_quick_discount_amount, 0), 0);
   v_remaining_waiver := greatest(coalesce(p_quick_late_fee_waiver_amount, 0), 0);
   v_remaining_payment := p_total_amount;
+  v_receipt_notes := nullif(trim(coalesce(p_remarks, '')), '');
 
   perform pg_advisory_xact_lock(hashtextextended(p_student_id::text, 0));
 
@@ -1344,10 +1347,21 @@ begin
     end if;
   end if;
 
-  select coalesce(sum(snapshot_row.pending_amount), 0)
+  create temp table if not exists tmp_workbook_snapshot (
+    installment_id uuid,
+    pending_amount integer,
+    due_date date,
+    installment_no smallint
+  ) on commit drop;
+  truncate table tmp_workbook_snapshot;
+  insert into tmp_workbook_snapshot (installment_id, pending_amount, due_date, installment_no)
+  select snapshot_row.installment_id, snapshot_row.pending_amount, snapshot_row.due_date, snapshot_row.installment_no
+  from private.workbook_installment_snapshot(p_student_id, p_payment_date, true) as snapshot_row;
+
+  select coalesce(sum(pending_amount), 0)
   into v_total_pending
-  from private.workbook_installment_snapshot(p_student_id, p_payment_date, true) as snapshot_row
-  where snapshot_row.pending_amount > 0;
+  from tmp_workbook_snapshot
+  where pending_amount > 0;
 
   v_revised_pending := v_total_pending - v_remaining_discount - v_remaining_waiver;
 
@@ -1382,13 +1396,28 @@ begin
       values (
         v_candidate_receipt_number, p_student_id, p_payment_date, p_payment_mode, p_total_amount,
         nullif(trim(coalesce(p_reference_number, '')), ''),
-        nullif(trim(coalesce(p_remarks, '')), ''),
+        v_receipt_notes,
         nullif(trim(coalesce(p_received_by, '')), ''),
         p_client_request_id
       )
       returning id into v_candidate_receipt_id;
       exit;
     exception when unique_violation then
+      if p_client_request_id is not null then
+        select r.id, r.receipt_number, r.total_amount
+        into v_candidate_receipt_id, v_existing_receipt_number, v_existing_total_amount
+        from public.receipts as r
+        where r.student_id = p_student_id
+          and r.client_request_id = p_client_request_id
+        order by r.created_at desc
+        limit 1;
+
+        if v_candidate_receipt_id is not null then
+          return query
+          select v_candidate_receipt_id, v_existing_receipt_number, v_existing_total_amount;
+          return;
+        end if;
+      end if;
       continue;
     end;
   end loop;
@@ -1399,7 +1428,7 @@ begin
 
   for balance_row in
     select installment_id, pending_amount, due_date, installment_no
-    from private.workbook_installment_snapshot(p_student_id, p_payment_date, true)
+    from tmp_workbook_snapshot
     where pending_amount > 0
     order by due_date asc, installment_no asc
   loop
@@ -1415,7 +1444,7 @@ begin
       )
       values (
         v_candidate_receipt_id, p_student_id, balance_row.installment_id, 'discount',
-        v_discount_allocation, 'Payment Desk quick discount', nullif(trim(coalesce(p_remarks, '')), '')
+        v_discount_allocation, 'Payment Desk quick discount', null
       );
       v_remaining_discount := v_remaining_discount - v_discount_allocation;
     end if;
@@ -1426,16 +1455,24 @@ begin
       )
       values (
         v_candidate_receipt_id, p_student_id, balance_row.installment_id, 'writeoff',
-        v_waiver_allocation, 'Payment Desk late fee waiver', nullif(trim(coalesce(p_remarks, '')), '')
+        v_waiver_allocation, 'Payment Desk late fee waiver', null
       );
       v_remaining_waiver := v_remaining_waiver - v_waiver_allocation;
     end if;
 
     if v_payment_allocation > 0 then
-      insert into public.payments (receipt_id, student_id, installment_id, amount, notes)
+      v_pending_after := balance_row.pending_amount
+        - v_discount_allocation - v_waiver_allocation - v_payment_allocation;
+      insert into public.payments (
+        receipt_id, student_id, installment_id, amount, notes,
+        discount_applied_at_posting, waiver_applied_at_posting,
+        pending_before_posting, pending_after_posting
+      )
       values (
         v_candidate_receipt_id, p_student_id, balance_row.installment_id, v_payment_allocation,
-        nullif(trim(coalesce(p_remarks, '')), '')
+        null,
+        v_discount_allocation, v_waiver_allocation,
+        balance_row.pending_amount, v_pending_after
       );
       v_remaining_payment := v_remaining_payment - v_payment_allocation;
     end if;
@@ -1451,7 +1488,10 @@ $$;
 
 grant execute on function public.post_student_payment_with_adjustments(
   uuid, date, public.payment_mode, integer, text, text, text, text, uuid, integer, integer
-) to authenticated;
+) to authenticated, service_role;
+revoke execute on function public.post_student_payment_with_adjustments(
+  uuid, date, public.payment_mode, integer, text, text, text, text, uuid, integer, integer
+) from public, anon;
 
 drop policy if exists "authenticated can update students" on public.students;
 create policy "authenticated can update students"
@@ -6197,3 +6237,73 @@ begin
   end if;
 end;
 $$;
+
+-- Security/integrity mirror. Canonical rollout:
+-- 20260727113603_secure_financial_surfaces_and_repair_receipt_allocations.sql.
+revoke all on table public.mv_student_sibling_groups from public, anon;
+revoke all on table public.v_student_financial_state from public, anon;
+revoke all on table public.v_workbook_installment_balances from public, anon;
+revoke all on table public.v_workbook_student_financials from public, anon;
+
+grant select on table public.mv_student_sibling_groups to authenticated, service_role;
+grant select on table public.v_student_financial_state to authenticated, service_role;
+grant select on table public.v_workbook_installment_balances to authenticated, service_role;
+grant select on table public.v_workbook_student_financials to authenticated, service_role;
+
+revoke execute on function public.post_student_payment_with_adjustments(
+  uuid, date, public.payment_mode, integer, text, text, text, text, uuid, integer, integer
+) from public, anon;
+grant execute on function public.post_student_payment_with_adjustments(
+  uuid, date, public.payment_mode, integer, text, text, text, text, uuid, integer, integer
+) to authenticated, service_role;
+
+revoke execute on function public.waive_late_fee(
+  uuid, integer, text, text, uuid
+) from public, anon;
+grant execute on function public.waive_late_fee(
+  uuid, integer, text, text, uuid
+) to authenticated, service_role;
+
+drop function if exists public.post_family_payment(
+  uuid, text, date, public.payment_mode, text, text, text, integer, jsonb, text, text
+);
+drop function if exists private.derive_family_child_client_request_id(text, uuid);
+
+create or replace view public.v_receipt_effective_allocation_totals
+with (security_invoker = true)
+as
+with payment_effective as (
+  select
+    payment_row.id as payment_id,
+    payment_row.receipt_id,
+    payment_row.amount::bigint as original_amount,
+    coalesce(sum(adjustment_row.amount_delta), 0)::bigint as adjustment_amount
+  from public.payments as payment_row
+  left join public.payment_adjustments as adjustment_row
+    on adjustment_row.payment_id = payment_row.id
+    and adjustment_row.adjustment_type = 'correction'
+  group by payment_row.id, payment_row.receipt_id, payment_row.amount
+)
+select
+  receipt_row.id as receipt_id,
+  receipt_row.student_id,
+  receipt_row.total_amount::bigint as receipt_total,
+  coalesce(sum(payment_effective.original_amount), 0)::bigint as original_allocation_total,
+  coalesce(sum(payment_effective.adjustment_amount), 0)::bigint as adjustment_total,
+  coalesce(
+    sum(payment_effective.original_amount + payment_effective.adjustment_amount),
+    0
+  )::bigint as effective_allocation_total,
+  (
+    coalesce(
+      sum(payment_effective.original_amount + payment_effective.adjustment_amount),
+      0
+    ) - receipt_row.total_amount
+  )::bigint as variance
+from public.receipts as receipt_row
+left join payment_effective
+  on payment_effective.receipt_id = receipt_row.id
+group by receipt_row.id, receipt_row.student_id, receipt_row.total_amount;
+
+revoke all on table public.v_receipt_effective_allocation_totals from public, anon;
+grant select on table public.v_receipt_effective_allocation_totals to authenticated, service_role;

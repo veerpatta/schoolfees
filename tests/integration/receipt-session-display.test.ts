@@ -144,8 +144,26 @@ function installmentBalancesQuery() {
   };
 }
 
+function paymentAdjustmentsQuery() {
+  return {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockResolvedValue({
+      data: [
+        {
+          payment_id: "payment-1",
+          amount_delta: -250,
+          adjustment_type: "correction",
+          reason: "Historical receipt allocation correction",
+        },
+      ],
+      error: null,
+    }),
+  };
+}
+
 describe("receipt session display", () => {
-  it("shows the paid installment session instead of the student's current session", async () => {
+  it("shows the paid installment session and effective append-only allocation", async () => {
     let receiptsCalls = 0;
     createClient.mockResolvedValue({
       from: vi.fn((table: string) => {
@@ -164,7 +182,7 @@ describe("receipt session display", () => {
         }
         // Reversal lookup for the VOID banner — same generic empty-result shape.
         if (table === "payment_adjustments") {
-          return installmentBalancesQuery();
+          return paymentAdjustmentsQuery();
         }
         throw new Error(`Unexpected table ${table}`);
       }),
@@ -174,5 +192,12 @@ describe("receipt session display", () => {
     const receipt = await getReceiptDetail("receipt-1");
 
     expect(receipt?.sessionLabel).toBe("2025-26");
+    expect(receipt?.breakdown[0]).toMatchObject({
+      amount: 750,
+      originalAmount: 1000,
+      adjustmentAmount: -250,
+      effectiveAmount: 750,
+    });
+    expect(receipt?.isVoided).toBe(false);
   });
 });

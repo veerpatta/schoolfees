@@ -452,15 +452,12 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
         "installment_no, installment_label, session_label, due_date, base_charge, total_charge, paid_amount, applied_amount, discount_closeout_amount, pending_amount, final_late_fee, balance_status",
       )
       .eq("student_id", receipt.student_id),
-    // Reversals (undo / refund) for this student — narrowed to this receipt's
-    // payments below. Drives the VOID banner. Receipts are append-only, so
-    // "voided" can only ever be derived from adjustments, never stored on the
-    // receipt row.
+    // All append-only payment adjustments for this student. Corrections are
+    // folded into receipt allocations; reversals also drive the VOID banner.
     supabase
       .from("payment_adjustments")
       .select("payment_id, amount_delta, adjustment_type, reason")
       .eq("student_id", receipt.student_id)
-      .eq("adjustment_type", "reversal")
       .order("created_at", { ascending: true }),
   ]);
 
@@ -493,7 +490,23 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
   }
 
   if (paymentAdjustmentsError && !paymentAdjustmentsError.message.includes("does not exist")) {
-    throw new Error(`Unable to load receipt reversal context: ${paymentAdjustmentsError.message}`);
+    throw new Error(`Unable to load receipt adjustment context: ${paymentAdjustmentsError.message}`);
+  }
+
+  const paymentAdjustments = (
+    (paymentAdjustmentsRaw ?? []) as Array<{
+      payment_id: string;
+      amount_delta: number;
+      adjustment_type: string;
+      reason: string | null;
+    }>
+  );
+  const paymentAdjustmentTotals = new Map<string, number>();
+  for (const adjustment of paymentAdjustments) {
+    paymentAdjustmentTotals.set(
+      adjustment.payment_id,
+      (paymentAdjustmentTotals.get(adjustment.payment_id) ?? 0) + adjustment.amount_delta,
+    );
   }
 
   const breakdown: ReceiptBreakdownItem[] = ((paymentsRaw ?? []) as ReceiptPaymentRow[])
@@ -504,6 +517,9 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
         return null;
       }
 
+      const adjustmentAmount = paymentAdjustmentTotals.get(row.id) ?? 0;
+      const effectiveAmount = row.amount + adjustmentAmount;
+
       return {
         paymentId: row.id,
         installmentNo: installment.installment_no,
@@ -513,7 +529,10 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
         }),
         sessionLabel: toSingleRecord(installment.class_ref)?.session_label ?? null,
         dueDate: installment.due_date,
-        amount: row.amount,
+        amount: effectiveAmount,
+        originalAmount: row.amount,
+        adjustmentAmount,
+        effectiveAmount,
         notes: row.notes,
         discountAppliedAtPosting: row.discount_applied_at_posting ?? null,
         waiverAppliedAtPosting: row.waiver_applied_at_posting ?? null,
@@ -599,14 +618,12 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
   const receiptPaymentIds = new Set(
     ((paymentsRaw ?? []) as ReceiptPaymentRow[]).map((row) => row.id),
   );
-  const receiptReversals = (
-    (paymentAdjustmentsRaw ?? []) as Array<{
-      payment_id: string;
-      amount_delta: number;
-      adjustment_type: string;
-      reason: string | null;
-    }>
-  ).filter((row) => receiptPaymentIds.has(row.payment_id) && row.amount_delta < 0);
+  const receiptReversals = paymentAdjustments.filter(
+    (row) =>
+      receiptPaymentIds.has(row.payment_id) &&
+      row.adjustment_type === "reversal" &&
+      row.amount_delta < 0,
+  );
   const reversedAmount = receiptReversals.reduce((sum, row) => sum + -row.amount_delta, 0);
   const isVoided = receipt.total_amount > 0 && reversedAmount >= receipt.total_amount;
   const voidReason = receiptReversals[0]?.reason ?? null;

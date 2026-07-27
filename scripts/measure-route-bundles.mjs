@@ -26,7 +26,21 @@ async function measure(route) {
   const routePath = `/protected/${route}/page`;
   const manifest = context.globalThis.__RSC_MANIFEST?.[routePath];
   const entryKey = `[project]/app/protected/${route}/page`;
-  const chunks = [...new Set(manifest?.entryJSFiles?.[entryKey] ?? [])];
+  const legacyEntryChunks = manifest?.entryJSFiles?.[entryKey] ?? [];
+  const next16ClientChunks = Object.values(manifest?.clientModules ?? {}).flatMap(
+    (module) => module?.chunks ?? [],
+  );
+  const chunks = [
+    ...new Set(
+      (legacyEntryChunks.length > 0 ? legacyEntryChunks : next16ClientChunks).filter(
+        (chunk) => typeof chunk === "string" && chunk.endsWith(".js"),
+      ),
+    ),
+  ];
+
+  if (chunks.length === 0) {
+    throw new Error(`No client JavaScript chunks found for ${routePath}.`);
+  }
   let rawBytes = 0;
   let gzipBytes = 0;
 

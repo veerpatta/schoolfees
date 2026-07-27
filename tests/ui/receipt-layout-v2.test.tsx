@@ -49,6 +49,9 @@ function receipt(overrides: Partial<ReceiptDetail> = {}): ReceiptDetail {
         sessionLabel: "TEST-2026-27",
         dueDate: "2026-04-20",
         amount: 5000,
+        originalAmount: 5000,
+        adjustmentAmount: 0,
+        effectiveAmount: 5000,
         notes: null,
         discountAppliedAtPosting: null,
         waiverAppliedAtPosting: null,
@@ -117,6 +120,30 @@ describe("ReceiptDocumentV2 — simplified layout", () => {
   it("marks the document with data-receipt-layout='v2'", () => {
     const html = renderToStaticMarkup(<ReceiptDocumentV2 t={t} receipt={receipt()} />);
     expect(html).toContain('data-receipt-layout="v2"');
+  });
+
+  it("prints the signed append-only allocation correction", () => {
+    const base = receipt();
+    const html = renderToStaticMarkup(
+      <ReceiptDocumentV2
+        t={t}
+        receipt={receipt({
+          breakdown: [
+            {
+              ...base.breakdown[0],
+              amount: 4750,
+              originalAmount: 5000,
+              adjustmentAmount: -250,
+              effectiveAmount: 4750,
+            },
+          ],
+        })}
+      />,
+    );
+
+    expect(html).toContain("Corrected from");
+    expect(html).toContain("adjustment");
+    expect(html).toContain("−₹250");
   });
 
   it("prints on A4 (the receipt is now a full page, not an 80mm thermal slip)", () => {

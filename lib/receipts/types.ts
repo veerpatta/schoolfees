@@ -23,7 +23,14 @@ export type ReceiptBreakdownItem = {
   installmentLabel: string;
   sessionLabel: string | null;
   dueDate: string;
+  /** Effective amount after append-only corrections. */
   amount: number;
+  /** Amount originally written to the immutable payment row. */
+  originalAmount: number;
+  /** Signed sum of append-only payment adjustments. */
+  adjustmentAmount: number;
+  /** Original amount plus adjustments; identical to `amount`. */
+  effectiveAmount: number;
   notes: string | null;
   // Allocation snapshot — populated for payments posted after the
   // 20260527000000_persist_payment_allocation_snapshot.sql migration. Older

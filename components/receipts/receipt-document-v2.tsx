@@ -190,6 +190,8 @@ export function ReceiptDocumentV2({
     installmentLabel: item.installmentLabel,
     dueDate: item.dueDate,
     paid: item.amount,
+    originalPaid: item.originalAmount,
+    adjustmentAmount: item.adjustmentAmount,
     discountAtPosting: item.discountAppliedAtPosting,
     waiverAtPosting: item.waiverAppliedAtPosting,
     pendingBefore: item.pendingBeforePosting,
@@ -676,7 +678,14 @@ export function ReceiptDocumentV2({
                         : "—"}
                     </td>
                     <td className="px-2 py-2 text-right font-semibold tabular-nums">
-                      {formatInr(row.paid)}
+                      <span>{formatInr(row.paid)}</span>
+                      {row.adjustmentAmount !== 0 ? (
+                        <span className="block text-[9px] font-normal text-muted-foreground">
+                          Corrected from {formatInr(row.originalPaid)} · adjustment{" "}
+                          {row.adjustmentAmount > 0 ? "+" : "−"}
+                          {formatInr(Math.abs(row.adjustmentAmount))}
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-2 py-2 text-right tabular-nums">
                       {row.pendingAfter !== null ? (
@@ -716,7 +725,14 @@ export function ReceiptDocumentV2({
                       {formatDate(row.dueDate)}
                     </td>
                     <td className="px-2 py-2 text-right font-semibold tabular-nums">
-                      {formatInr(row.paid)}
+                      <span>{formatInr(row.paid)}</span>
+                      {row.adjustmentAmount !== 0 ? (
+                        <span className="block text-[9px] font-normal text-muted-foreground">
+                          Corrected from {formatInr(row.originalPaid)} · adjustment{" "}
+                          {row.adjustmentAmount > 0 ? "+" : "−"}
+                          {formatInr(Math.abs(row.adjustmentAmount))}
+                        </span>
+                      ) : null}
                     </td>
                   </tr>
                 ))}

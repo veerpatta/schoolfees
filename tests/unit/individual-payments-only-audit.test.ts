@@ -50,16 +50,22 @@ describe("individual student payment boundary", () => {
   });
 
   it("ships a migration that removes the family payment posting RPC", () => {
-    const migrations = collectFiles("supabase/migrations").filter((file) => file.endsWith(".sql"));
-    const disablingMigration = migrations.find((file) => {
-      const sql = readRepoFile(file);
-      return (
-        sql.includes("drop function if exists public.post_family_payment") &&
-        sql.includes("Payments must be posted student-by-student")
-      );
-    });
+    const effectiveMigrationSql = collectFiles("supabase/migrations")
+      .filter((file) => file.endsWith(".sql"))
+      .sort()
+      .map(readRepoFile)
+      .join("\n");
+    const lastCreate = effectiveMigrationSql.lastIndexOf(
+      "create or replace function public.post_family_payment",
+    );
+    const lastDrop = effectiveMigrationSql.lastIndexOf(
+      "drop function if exists public.post_family_payment",
+    );
 
-    expect(disablingMigration).toBeDefined();
+    expect(lastDrop).toBeGreaterThan(lastCreate);
+    expect(readRepoFile("supabase/schema.sql")).not.toContain(
+      "create or replace function public.post_family_payment",
+    );
   });
 
   it("keeps the student payment RPC signature free of family payment parameters", () => {
