@@ -143,6 +143,7 @@ function CreateStaffForm({
             type="password"
             // "new-password" stops the browser injecting the admin's saved password.
             autoComplete="new-password"
+            minLength={6}
             className="mt-2"
             placeholder="Leave blank to generate"
           />
@@ -300,12 +301,13 @@ function ResetPasswordForm({
           id={`resetPassword-${account.id}`}
           name="password"
           type="password"
+          minLength={6}
+          autoComplete="new-password"
           className="mt-2"
           required
         />
         <p className="mt-1 text-xs text-muted-foreground">
-          Password must be at least 8 characters and include uppercase,
-          lowercase, number, and special character.
+          Password must be at least 6 characters.
         </p>
       </div>
 

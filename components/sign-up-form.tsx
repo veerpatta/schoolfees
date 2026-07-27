@@ -102,6 +102,8 @@ export function SignUpForm({
                 <Input
                   id="password"
                   type="password"
+                  minLength={6}
+                  autoComplete="new-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -114,6 +116,8 @@ export function SignUpForm({
                 <Input
                   id="repeat-password"
                   type="password"
+                  minLength={6}
+                  autoComplete="new-password"
                   required
                   value={repeatPassword}
                   onChange={(e) => setRepeatPassword(e.target.value)}

@@ -39,7 +39,7 @@ export async function loginAction(
   let targetHref: string | null = null;
 
   try {
-    const email = getRequiredString(formData.get("email"), "Email");
+    const email = getRequiredString(formData.get("email"), "Email").toLowerCase();
     const password = getRequiredString(formData.get("password"), "Password");
     const next = sanitizeRedirectPath(formData.get("next")?.toString());
     const supabase = await createClient();

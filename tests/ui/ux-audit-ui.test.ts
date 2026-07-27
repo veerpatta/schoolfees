@@ -40,7 +40,7 @@ describe("read-only UX audit implementation", () => {
     expect(layout).toContain("Shri Veer Patta Senior Secondary School");
     expect(layout).toContain("Fee Management System");
     expect(layout).toContain("For school office use only");
-    expect(login).toContain("Email / Username");
+    expect(login).toContain("Email");
     expect(login).toContain("Forgot password?");
     expect(combined).toContain("Sign-in is temporarily unavailable");
     expect(combined).not.toContain("Back to overview");

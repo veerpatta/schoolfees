@@ -52,12 +52,13 @@ export function PasswordChangeForm({
             id="newPassword"
             name="newPassword"
             type="password"
+            minLength={6}
+            autoComplete="new-password"
             className="mt-2"
             required
           />
           <p className="mt-1 text-xs text-muted-foreground">
-            Use at least 8 characters with uppercase, lowercase, number, and
-            special character.
+            Use at least 6 characters.
           </p>
         </div>
         <div>
@@ -66,6 +67,8 @@ export function PasswordChangeForm({
             id="confirmPassword"
             name="confirmPassword"
             type="password"
+            minLength={6}
+            autoComplete="new-password"
             className="mt-2"
             required
           />
