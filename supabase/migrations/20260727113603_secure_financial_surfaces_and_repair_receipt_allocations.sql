@@ -49,6 +49,7 @@ with payment_effective as (
   from public.payments as payment_row
   left join public.payment_adjustments as adjustment_row
     on adjustment_row.payment_id = payment_row.id
+    and adjustment_row.adjustment_type = 'correction'
   group by payment_row.id, payment_row.receipt_id, payment_row.amount
 )
 select

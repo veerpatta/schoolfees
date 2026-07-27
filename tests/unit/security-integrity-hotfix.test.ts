@@ -56,6 +56,7 @@ describe("security and integrity hotfix", () => {
     expect(sql).not.toMatch(/\bdelete\s+from\s+public\.(receipts|payments)\b/i);
     expect(sql).toContain("v_receipt_effective_allocation_totals");
     expect(sql).toContain("with (security_invoker = true)");
+    expect(sql).toContain("adjustment_row.adjustment_type = 'correction'");
   });
 
   it("does not retain active live-session mutation scripts", () => {
